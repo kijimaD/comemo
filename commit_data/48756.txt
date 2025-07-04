@@ -1,0 +1,33 @@
+commit f2d9ab263b8c62a81d314feb1e7a7fb424bb9c43
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 8 15:26:38 2022 -0400
+
+    cmd/go: set GOROOT explicitly for 'go generate' subprocesses
+    
+    Code generators may reasonably expect to find the GOROOT for which the
+    code is being generated.
+    
+    If the generator invokes 'go run' (which ought to be reasonable to do)
+    and the user has set 'GOFLAGS=trimpath' (which also ought to be
+    reasonable), then either 'go generate' or 'go run' needs to set GOROOT
+    explicitly.
+    
+    I would argue that it is more appropriate for 'go generate' to set
+    GOROOT than for 'go run' to do so, since a user may reasonably invoke
+    'go run' to reproduce a user-reported bug in a standalone Go program,
+    but should not invoke 'go generate' except to regenerate code for a Go
+    package.
+    
+    Updates #51461.
+    
+    Change-Id: Iceba233b4eebd57c40cf5dcd4af9031d210dc9d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399157
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go                                | 3 +++
+ src/cmd/go/internal/generate/generate.go             | 4 ++++
+ src/cmd/go/testdata/script/build_trimpath_goroot.txt | 7 +++++++
+ 3 files changed, 14 insertions(+)

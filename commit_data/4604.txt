@@ -1,0 +1,16 @@
+commit d9283b27a2546bfb62c64c2ae15a1d480ff28eac
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 14 11:57:38 2010 +1100
+
+    clean up handling of numeric time zones
+    allow formatting of ruby-style times.
+    
+    Fixes #518.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/186119
+
+ src/pkg/time/format.go    | 113 ++++++++++++++++++++++++++++------------------
+ src/pkg/time/time_test.go |  31 +++++++------
+ 2 files changed, 88 insertions(+), 56 deletions(-)

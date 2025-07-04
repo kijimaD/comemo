@@ -1,0 +1,16 @@
+commit 4112f0f7e68f1fa75965aa010f52aa64739912a8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 11 11:57:11 2016 -0800
+
+    cmd/compile: improve go.importpath.* docs
+    
+    While we're here, remove a bit of dead code.
+    
+    Change-Id: I1344bb41e5d368825ca5748189382f9e7023c59a
+    Reviewed-on: https://go-review.googlesource.com/20596
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

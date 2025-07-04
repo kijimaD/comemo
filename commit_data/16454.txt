@@ -1,0 +1,14 @@
+commit 7f0ee023baf8dca4b328c0a1c1fecfa45b555923
+Author: Keith Randall <khr@golang.org>
+Date:   Fri May 31 21:44:32 2013 -0700
+
+    runtime: revert of CL 8852047: do hashmap grow work during reads.
+    seems to break freebsd-386.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/9915047
+
+ src/pkg/runtime/hashmap.c      | 273 +++++++++++++++++++----------------------
+ src/pkg/runtime/hashmap_fast.c |  34 +++--
+ 2 files changed, 143 insertions(+), 164 deletions(-)

@@ -1,0 +1,15 @@
+commit 76d5e2ce7d04a30f0dc01df178d0b62d49b5990f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 20 23:53:38 2013 -0400
+
+    crypto/tls: use method values
+    
+    Currently fails with a compiler error, though.
+    
+    R=golang-dev, agl, rsc
+    CC=golang-dev
+    https://golang.org/cl/7933043
+
+ src/pkg/crypto/tls/common.go           | 19 ++++++++++++++++++-
+ src/pkg/crypto/tls/handshake_server.go | 17 +----------------
+ 2 files changed, 19 insertions(+), 17 deletions(-)

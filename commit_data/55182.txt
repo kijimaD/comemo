@@ -1,0 +1,19 @@
+commit 5d1287fa62de7b9c401749cd79147a5e38b11209
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Dec 1 12:37:40 2023 -0800
+
+    doc: remove encoding/binary.NativeEndian release note placeholder
+    
+    This was released in 1.21, release noted in CL 524675.
+    (I think it was missed originally and then and backported,
+    but then somehow incorrectly made it into the 1.22 dragnet.)
+    
+    Change-Id: I45f3182f14f77f8b92a3b7d5ef0011b71fd3c176
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546675
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Bypass: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.22.html | 8 --------
+ 1 file changed, 8 deletions(-)

@@ -1,0 +1,13 @@
+commit 2dcb613878d51724e31c45cbbe8cd3e28e4f8f80
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Oct 16 09:13:50 2014 +1100
+
+    unicode/utf8: fix docs for DecodeRune(empty) and friends.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/157080043
+
+ src/unicode/utf8/utf8.go | 26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)

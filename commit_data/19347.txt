@@ -1,0 +1,16 @@
+commit d145f0f0f8b735b7cde299e169937b2827832202
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 14 12:12:01 2014 +0900
+
+    net: fix documentation for SetLinger
+    
+    Fixes #7974.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/95320043
+
+ src/pkg/net/tcpsock_plan9.go | 15 ++++++++-------
+ src/pkg/net/tcpsock_posix.go | 15 ++++++++-------
+ 2 files changed, 16 insertions(+), 14 deletions(-)

@@ -1,0 +1,12 @@
+commit 8295dbda03ef2bfaccb6e2c139f1981d0c69964d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 28 14:59:13 2017 -0400
+
+    cmd/go: make pattern matching tests less repetitive
+    
+    Change-Id: I25db1d637dd461cec67ba70659d523b46895c113
+    Reviewed-on: https://go-review.googlesource.com/38744
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/go/internal/load/match_test.go | 135 ++++++++++++++++++++++-----------
+ 1 file changed, 89 insertions(+), 46 deletions(-)

@@ -1,0 +1,14 @@
+commit 277024bd6f3ecc9f34729cbeb95e226f70004733
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Fri Feb 19 19:35:46 2016 +0530
+
+    cmd/go: don't set GO15VENDOREXPERIMENT in TestSymlinksVendor
+    
+    Change-Id: I14947b64bdafd975bf3915eceb07f98897304a85
+    Reviewed-on: https://go-review.googlesource.com/19708
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 1 -
+ 1 file changed, 1 deletion(-)

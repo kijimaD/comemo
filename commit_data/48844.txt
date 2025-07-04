@@ -1,0 +1,17 @@
+commit a4bbcd4b1fc9dd40e0f86416d37bdd9e6d430f3f
+Author: zhangyunhao <zhangyunhao@bytedance.com>
+Date:   Tue Apr 19 14:20:29 2022 +0800
+
+    net: use fastrand64 in randInt
+    
+    Change-Id: If3d8391d81e8de869dbb3c857f0570817e8aa440
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400914
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/dnsclient.go | 7 ++-----
+ src/runtime/stubs.go | 4 ++--
+ 2 files changed, 4 insertions(+), 7 deletions(-)

@@ -1,0 +1,13 @@
+commit b12b6723007bea5a5837a21d7c4fd1a0cc9f0c67
+Author: smasher164 <aindurti@gmail.com>
+Date:   Sun Sep 8 03:34:30 2019 -0400
+
+    A+C: change email address for Akhil Indurti
+    
+    Change-Id: I27ca0d71cdc7b13388556aa7c1987320b6b41849
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194178
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

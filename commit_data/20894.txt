@@ -1,0 +1,16 @@
+commit 6150414cb8819ab9f054298ec7f8006a43ab8eea
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 16 14:25:33 2014 -0500
+
+    runtime: update URL for heap dump format
+    
+    I just created that redirect, so we can change
+    it once the wiki moves.
+    
+    LGTM=bradfitz, khr
+    R=khr, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/177780043
+
+ src/runtime/heapdump.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

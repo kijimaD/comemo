@@ -1,0 +1,65 @@
+commit 04bf36e97305197d09554739391f607afde1fd74
+Author: Lorenz Bauer <oss@lmb.io>
+Date:   Thu May 16 21:24:53 2024 +0100
+
+    encoding/binary: add Append, Encode and Decode
+    
+    Add a function which appends the binary representation of a value to the end of a slice.
+    This allows users to encode values with zero allocations. Also add Encode and Decode
+    functions which mimic unicode/utf8.
+    
+    goos: darwin
+    goarch: arm64
+    pkg: encoding/binary
+    cpu: Apple M1 Pro
+                                │   base.txt    │             append.txt              │
+                                │    sec/op     │    sec/op     vs base               │
+    ReadSlice1000Int32s-10         2.690µ ±  0%    2.532µ ± 3%   -5.86% (p=0.002 n=6)
+    ReadStruct-10                  205.8n ±  0%    201.4n ± 1%   -2.14% (p=0.002 n=6)
+    WriteStruct-10                 159.1n ±  0%    153.5n ± 0%   -3.55% (p=0.002 n=6)
+    WriteSlice1000Structs-10       129.8µ ±  0%    124.2µ ± 0%   -4.34% (p=0.002 n=6)
+    ReadSlice1000Structs-10        161.7µ ±  0%    160.3µ ± 0%   -0.89% (p=0.002 n=6)
+    ReadInts-10                    156.8n ±  0%    161.6n ± 0%   +3.09% (p=0.002 n=6)
+    WriteInts-10                   134.5n ±  0%    139.5n ± 2%   +3.72% (p=0.002 n=6)
+    WriteSlice1000Int32s-10        2.691µ ± 16%    2.551µ ± 4%   -5.20% (p=0.002 n=6)
+    PutUint16-10                  0.6448n ±  4%   0.6212n ± 1%        ~ (p=0.093 n=6)
+    AppendUint16-10                1.414n ±  0%    1.424n ± 1%        ~ (p=0.115 n=6)
+    PutUint32-10                  0.6210n ±  0%   0.6211n ± 0%        ~ (p=0.833 n=6)
+    AppendUint32-10                1.414n ±  0%    1.426n ± 1%   +0.85% (p=0.017 n=6)
+    PutUint64-10                  0.6210n ±  0%   0.6394n ± 1%   +2.95% (p=0.002 n=6)
+    AppendUint64-10                1.414n ±  0%    1.427n ± 2%        ~ (p=0.052 n=6)
+    LittleEndianPutUint16-10      0.6239n ±  0%   0.6271n ± 1%        ~ (p=0.063 n=6)
+    LittleEndianAppendUint16-10    1.421n ±  0%    1.432n ± 1%   +0.81% (p=0.002 n=6)
+    LittleEndianPutUint32-10      0.6240n ±  0%   0.6240n ± 0%        ~ (p=0.766 n=6)
+    LittleEndianAppendUint32-10    1.422n ±  1%    1.425n ± 0%        ~ (p=0.673 n=6)
+    LittleEndianPutUint64-10      0.6242n ±  0%   0.6238n ± 0%   -0.08% (p=0.030 n=6)
+    LittleEndianAppendUint64-10    1.420n ±  0%    1.449n ± 1%   +2.04% (p=0.002 n=6)
+    ReadFloats-10                  39.36n ±  0%    42.54n ± 1%   +8.08% (p=0.002 n=6)
+    WriteFloats-10                 33.65n ±  0%    35.27n ± 1%   +4.80% (p=0.002 n=6)
+    ReadSlice1000Float32s-10       2.656µ ±  0%    2.526µ ± 1%   -4.91% (p=0.002 n=6)
+    WriteSlice1000Float32s-10      2.765µ ±  0%    2.857µ ± 3%   +3.31% (p=0.002 n=6)
+    ReadSlice1000Uint8s-10         129.1n ±  1%    130.4n ± 1%        ~ (p=0.126 n=6)
+    WriteSlice1000Uint8s-10       144.90n ±  3%    18.67n ± 2%  -87.12% (p=0.002 n=6)
+    PutUvarint32-10                12.11n ±  0%    12.12n ± 0%        ~ (p=0.675 n=6)
+    PutUvarint64-10                30.82n ±  0%    30.79n ± 1%        ~ (p=0.658 n=6)
+    AppendStruct-10                                107.8n ± 0%
+    AppendSlice1000Structs-10                      119.0µ ± 0%
+    AppendInts-10                                  55.29n ± 0%
+    AppendSlice1000Int32s-10                       2.211µ ± 1%
+    geomean                        33.07n          48.18n        -7.03%
+    
+    Fixes #60023
+    
+    Change-Id: Ife3f217b11d5f3eaa5a53fe8a7e877552f751f94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579157
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/60023.txt                                 |   3 +
+ .../6-stdlib/99-minor/encoding/binary/60023.md     |   3 +
+ src/encoding/binary/binary.go                      | 504 +++++++++++++--------
+ src/encoding/binary/binary_test.go                 | 423 ++++++++++++-----
+ 4 files changed, 616 insertions(+), 317 deletions(-)

@@ -1,0 +1,18 @@
+commit 2813e22ef841018d6e51bf3c70f5d65ea40065ca
+Author: zhouzhongyuan <zhouzhongyuan96@gmail.com>
+Date:   Tue Sep 15 19:53:42 2020 +0800
+
+    crypto/des: fix typo in permuteInitialBlock function comments
+    
+    Fixes #41398
+    
+    Change-Id: Ib47b8ec43bb11d8cd13c24f833532434127c7532
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254980
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/crypto/des/block.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

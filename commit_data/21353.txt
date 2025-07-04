@@ -1,0 +1,20 @@
+commit 9a36beb2afa7291d705213cdee4e8aa6c5b6aeb7
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Jan 26 16:43:20 2015 +0300
+
+    cmd/gc: fix range typecheck order
+    
+    Typecheck for range variables before typechecking for range body.
+    Body can refer to new vars declared in for range,
+    so it is preferable to typecheck them before the body.
+    Makes typecheck order consistent between ORANGE and OFOR.
+    
+    This come up during another change that computes some predicates
+    on variables during typechecking.
+    
+    Change-Id: Ic975db61b1fd5b7f9ee78896d4cc7d93c593c532
+    Reviewed-on: https://go-review.googlesource.com/3284
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/range.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

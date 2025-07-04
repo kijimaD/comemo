@@ -1,0 +1,33 @@
+commit ccf04c60298783a1cb75965d97c0e2b6876e0afb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 9 21:08:24 2018 -0400
+
+    cmd/go: display cached compiler output more often
+    
+    CL 77110 arranged for caching and redisplaying compiler output
+    when reusing a compile artifact from the build cache.
+    
+    It neglected to redisplay compiler and linker output when avoiding
+    the compile and link steps by reusing the target output binary
+    as a cached result. It also neglected to redisplay compiler and linker
+    output when avoiding the compile and link (and test) steps by reusing
+    cached test output.
+    
+    This CL brings back the compiler and linker output in those two cases,
+    provided it can be found in the build cache. If it can't be found in the
+    build cache, then the go command still reuses the binaries and avoids
+    the compile/link/test steps. (It's not worth doing all that work again
+    just to repeat diagnostic output.)
+    
+    Fixes #23877.
+    
+    Change-Id: I25bc054d93a88c039bcb8c5683fe4ac5cb1ee544
+    Reviewed-on: https://go-review.googlesource.com/128903
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/buildid.go               | 65 +++++++++++++++++++----
+ src/cmd/go/internal/work/exec.go                  |  6 +--
+ src/cmd/go/testdata/script/build_cache_output.txt | 48 ++++++++++++++++-
+ 3 files changed, 104 insertions(+), 15 deletions(-)

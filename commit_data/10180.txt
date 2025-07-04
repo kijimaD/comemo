@@ -1,0 +1,12 @@
+commit 782fd1fc9883c962b1414621e4e177c30499a1bf
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Nov 1 21:47:07 2011 -0400
+
+    misc/vim: add error type.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5331046
+
+ misc/vim/syntax/go.vim | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

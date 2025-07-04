@@ -1,0 +1,25 @@
+commit b8a12928a65a15ecce5c9332da9feef0cb221389
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Sep 16 00:58:56 2015 -0700
+
+    archive/tar: convert Reader.Next to be loop based
+    
+    Motivation for change:
+    * Recursive logic is hard to follow, since it tends to apply
+    things in reverse. On the other hand, the tar formats tend to
+    describe meta headers as affecting the next entry.
+    * Recursion also applies changes in the wrong order. Two test
+    files are attached that use multiple headers. The previous Go
+    behavior differs from what GNU and BSD tar do.
+    
+    Change-Id: Ic1557256fc1363c5cb26570e5d0b9f65a9e57341
+    Reviewed-on: https://go-review.googlesource.com/14624
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/tar/reader.go                   | 130 +++++++++++++---------------
+ src/archive/tar/reader_test.go              |  24 +++++
+ src/archive/tar/testdata/gnu-multi-hdrs.tar | Bin 0 -> 4608 bytes
+ src/archive/tar/testdata/pax-multi-hdrs.tar | Bin 0 -> 4608 bytes
+ 4 files changed, 84 insertions(+), 70 deletions(-)

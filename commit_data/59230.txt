@@ -1,0 +1,28 @@
+commit 6839e71d82e0f2c93e043820db6c0238a65ae0fa
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Apr 4 12:16:09 2025 +0200
+
+    internal/syscall/windows: use unsafe.Pointer instead of uintptr
+    
+    Some functions accept a uintptr when they should accept an
+    unsafe.Pointer, else the compiler won't know that the pointer should
+    be kept alive across the call, potentially causing undefined behavior.
+    
+    Fixes #73156 (potentially)
+    
+    Change-Id: I29c847eb8ffbb785fabf217e9f3718d10cfb5047
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662855
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/internal/syscall/windows/at_windows.go        | 24 +++++++++++------------
+ src/internal/syscall/windows/exec_windows_test.go |  2 +-
+ src/internal/syscall/windows/security_windows.go  |  2 +-
+ src/internal/syscall/windows/syscall_windows.go   | 16 ++++++++++-----
+ src/internal/syscall/windows/zsyscall_windows.go  | 18 ++++++++---------
+ src/net/interface_windows.go                      |  2 +-
+ src/os/root_windows.go                            |  2 +-
+ src/runtime/runtime-seh_windows_test.go           |  8 ++++----
+ 8 files changed, 40 insertions(+), 34 deletions(-)

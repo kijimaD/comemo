@@ -1,0 +1,34 @@
+commit ba8c92c1660bf86dfeedfc41ac39683c7e0d7607
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 22 10:35:41 2014 -0800
+
+    syscall: use unsafe.Pointer in BSD kevent
+    
+    Doesn't really matter for the most part, since the runtime-integrated
+    network poller uses its own kevent implementation, but for people using
+    the syscall directly, we should use an unsafe.Pointer for the precise GC
+    to retain the pointer arguments.
+    
+    Also push down unsafe.Pointer a bit further in exec_linux.go, not
+    that there are any GC preemption points in the middle and sys
+    is still live anyway.
+    
+    R=golang-codereviews, dvyukov
+    CC=golang-codereviews, iant
+    https://golang.org/cl/55520043
+
+ src/pkg/syscall/exec_linux.go               |  6 +--
+ src/pkg/syscall/syscall_bsd.go              |  8 +--
+ src/pkg/syscall/zsyscall_darwin_386.go      |  2 +-
+ src/pkg/syscall/zsyscall_darwin_amd64.go    |  2 +-
+ src/pkg/syscall/zsyscall_dragonfly_386.go   |  2 +-
+ src/pkg/syscall/zsyscall_dragonfly_amd64.go |  2 +-
+ src/pkg/syscall/zsyscall_freebsd_386.go     |  2 +-
+ src/pkg/syscall/zsyscall_freebsd_amd64.go   |  2 +-
+ src/pkg/syscall/zsyscall_freebsd_arm.go     | 81 ++++++++++++++---------------
+ src/pkg/syscall/zsyscall_netbsd_386.go      |  2 +-
+ src/pkg/syscall/zsyscall_netbsd_amd64.go    |  2 +-
+ src/pkg/syscall/zsyscall_netbsd_arm.go      | 21 +++-----
+ src/pkg/syscall/zsyscall_openbsd_386.go     |  2 +-
+ src/pkg/syscall/zsyscall_openbsd_amd64.go   |  2 +-
+ 14 files changed, 63 insertions(+), 73 deletions(-)

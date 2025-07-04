@@ -1,0 +1,18 @@
+commit c60d048594f882cabd684ba82260d0f88a764201
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 8 21:13:42 2010 -0700
+
+    runtime: fix build (panic) for FreeBSD
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/867046
+
+ src/pkg/runtime/freebsd/386/defs.h     | 50 +++++++++++++++++++++++++++++++---
+ src/pkg/runtime/freebsd/386/signal.c   |  2 ++
+ src/pkg/runtime/freebsd/amd64/defs.h   | 44 ++++++++++++++++++++++++++++++
+ src/pkg/runtime/freebsd/amd64/signal.c |  4 ++-
+ src/pkg/runtime/freebsd/os.h           |  4 +++
+ src/pkg/runtime/freebsd/thread.c       |  4 +--
+ src/pkg/runtime/runtime.c              |  2 --
+ 7 files changed, 101 insertions(+), 9 deletions(-)

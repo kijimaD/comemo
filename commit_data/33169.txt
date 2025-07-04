@@ -1,0 +1,23 @@
+commit d790ea3ef1152cd8aded824ffca50a8c56577469
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 17 21:48:47 2017 -0400
+
+    cmd/go: skip updateBuildID on binaries we will run
+    
+    On modern Unix systems it is basically impossible for a multithreaded
+    program to open a binary for write, close it, and then fork+exec that
+    same binary. So don't write the binary if we're going to fork+exec it.
+    
+    This fixes the ETXTBSY flakes.
+    
+    Fixes #22220.
+    See also #22315.
+    
+    Change-Id: I6be4802fa174726ef2a93d5b2f09f708da897cdb
+    Reviewed-on: https://go-review.googlesource.com/71570
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/build.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

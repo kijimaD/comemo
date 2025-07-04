@@ -1,0 +1,19 @@
+commit 2ff3e9c8d84b22bf88190e77014bbadb974b833c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 2 09:46:13 2017 -0400
+
+    cmd/go: do not print "go install" in errors from other commands
+    
+    Fixes #20251.
+    
+    Change-Id: I312a9534248668c8b3b4cf979591ed1a49e509e1
+    Reviewed-on: https://go-review.googlesource.com/75474
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/internal/cfg/cfg.go    |  2 ++
+ src/cmd/go/internal/work/build.go | 10 +++++-----
+ src/cmd/go/internal/work/exec.go  |  2 +-
+ src/cmd/go/main.go                |  1 +
+ 4 files changed, 9 insertions(+), 6 deletions(-)

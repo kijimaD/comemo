@@ -1,0 +1,14 @@
+commit ce00562607e0967ea8329aa4728a5bf4e1a8e666
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 12 12:52:23 2013 +1000
+
+    crypto/rand: simplify example to exploit properties of ReadFull
+    No need for the complex condition.
+    Fixes #6089
+    
+    R=golang-dev, mischief, adg
+    CC=golang-dev
+    https://golang.org/cl/12731043
+
+ src/pkg/crypto/rand/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

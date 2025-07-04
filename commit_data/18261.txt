@@ -1,0 +1,19 @@
+commit 2af7a26f1eaf2a8640270ac39cfd04d9aaa70ee2
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 15 13:56:59 2014 -0800
+
+    reflect: add precise GC info for Call argument frame.
+    
+    Give proper types to the argument/return areas
+    allocated for reflect calls.  Avoid use of iword to
+    manipulate receivers, which may or may not be pointers.
+    
+    Update #6490
+    
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/52110044
+
+ src/pkg/reflect/type.go  |  91 +++++++++++++++++++++++++
+ src/pkg/reflect/value.go | 169 ++++++++++++++++++++---------------------------
+ 2 files changed, 161 insertions(+), 99 deletions(-)

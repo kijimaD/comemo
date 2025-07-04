@@ -1,0 +1,23 @@
+commit f1855993f3aa0042014952b3a3ce80296df838b1
+Author: Tolyan Korniltsev <korniltsev.anatoly@gmail.com>
+Date:   Sat Feb 4 14:53:34 2023 +0800
+
+    runtime: skip trailing wrappers in runtime_expandFinalInlineFrame
+    
+    The existing runtime_expandFinalInlineFrame implementation doesn't skip trailing wrappers, but
+    gentraceback does skip wrapper functions.
+    This change makes runtime_expandFinalInlineFrame handling wrapper functions consistent to gentraceback.
+    
+    Fixes #58288
+    
+    Change-Id: I1b0e2c10b0a89bcb1e787b98d27730cb40a34406
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465097
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/pprof/pprof_test.go | 30 ++++++++++++++++++++++++++++++
+ src/runtime/symtab.go           |  6 +++++-
+ 2 files changed, 35 insertions(+), 1 deletion(-)

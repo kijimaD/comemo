@@ -1,0 +1,14 @@
+commit b60ec4cc4b230f4d0787acf82057947b8bf80cea
+Author: Ainar Garipov <gugl.zadolbal@gmail.com>
+Date:   Sat Sep 5 14:24:28 2020 +0300
+
+    mime: add examples for FormatMediaType and ParseMediaType
+    
+    Change-Id: Ic129c58784ad1f0b8b90fc9d33e52bee61bdf0eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253237
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/mime/example_test.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

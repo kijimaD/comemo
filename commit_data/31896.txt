@@ -1,0 +1,17 @@
+commit 47e659b01fa0e90906f2294e396ff2be03032966
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 22 15:35:35 2017 -0700
+
+    cmd/compile: fix array slice expression bounds check
+    
+    Fixes #20749.
+    
+    Change-Id: Ic6a7edc858575c4cb8b2e2ca97ee0c4b69f22c27
+    Reviewed-on: https://go-review.googlesource.com/46466
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue20749.go             | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

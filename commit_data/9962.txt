@@ -1,0 +1,15 @@
+commit d65aaf24a6f7c4752aa5609f3f40433218483e72
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 13 16:17:15 2011 -0400
+
+    crypto/tls: more Unix root certificate locations
+    
+    Hard work done by
+    http://mercurial.selenic.com/wiki/CACertificates
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5276043
+
+ src/pkg/crypto/tls/root_unix.go | 2 ++
+ 1 file changed, 2 insertions(+)

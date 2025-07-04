@@ -1,0 +1,14 @@
+commit ecc06f0db79193a4fe16138148c7eb26d9af96f1
+Author: David Chase <drchase@google.com>
+Date:   Tue Apr 8 11:38:01 2025 +1000
+
+    cmd/compile: fix the test for ABI specification so it works right w/ generics
+    
+    Change-Id: I09ef615bfe69a30fa8f7eef5f0a8ff94a244c920
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663776
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

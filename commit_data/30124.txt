@@ -1,0 +1,15 @@
+commit e62aab1274c25364fe8c4609c17cb0d8e57b78d0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 6 23:33:21 2017 -0800
+
+    spec: clarify alignment of arrays
+    
+    Fixes #18950.
+    
+    Change-Id: I9f94748f36a896bcadc96f0642eb1f3bff387950
+    Reviewed-on: https://go-review.googlesource.com/36481
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

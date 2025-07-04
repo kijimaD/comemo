@@ -1,0 +1,54 @@
+commit 10643b744d91544fd61d5131b52c89e1c3caabeb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 3 09:59:16 2023 -0500
+
+    cmd/dist: do not include runtime/internal/sys in cmd staleness checks
+    
+    Since CL 454836, cmd/dist has built the packages in 'cmd' with
+    different settings than those in 'std': namely, for' cmd' we disable
+    the use of cgo, and (since CL 463740) if GO_BUILDER_NAME is non-empty
+    or the VERSION file indicates a release version we also set
+    GOFLAGS=-trimpath.
+    
+    However, since at least CL 73212 the staleness checks performed by
+    cmd/dist for the “toolchain” targets (a subset of 'cmd') have included
+    the package "runtime/internal/sys" (which is in 'std', not 'cmd').
+    At that time, cmd/go did not have a separate build cache, so it would
+    not have been possible to check staleness for a 'cmd' build differently
+    from 'std'. However, now that is possible, and most of the time
+    "runtime/internal/sys" lives *only* in the build cache (and so is
+    essentially never stale after building anything that imports it).
+    
+    But there is one more wrinkle: if GODEBUG=installgoroot=all is set,
+    the packages in 'std' are still installed to GOROOT/pkg, and can once
+    again become stale. Since the install with the 'std' configuration does
+    not match the configuration used to build 'cmd', the staleness check
+    fails for "runtime/internal/sys" under the 'cmd' configuration.
+    
+    Since we intentionally build the toolchain with a different
+    "runtime/internal/sys" stored only in the build cache, there is no
+    longer a point in checking that package for staleness: if it is stale,
+    then the toolchain itself will be reported as stale anyway.
+    So we can simply remove the package from that staleness check,
+    and unbreak bootstrapping with GODEBUG=installgoroot=all.
+    
+    I tested this manually using the sequence:
+    
+            export GODEBUG=installgoroot=all
+            export GO_BUILDER_NAME=linux-amd64-bcmills
+            ./make.bash
+    
+    It fails the staleness check before this change, and successfully
+    builds after.
+    
+    For #24904.
+    
+    Change-Id: I376e93e35129694a093c6675e20905a097a8b64b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465155
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/dist/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit cbd2c7a283b785f109dd350ef4d20dd9871d3359
+Author: Robert Dinu <r@oktett.se>
+Date:   Wed Feb 20 14:30:15 2013 -0800
+
+    fmt: fix width for nil values
+    
+    Apply width when using Printf with nil values.
+    Fixes #4772.
+    
+    R=r, adg
+    CC=golang-dev
+    https://golang.org/cl/7314114
+
+ src/pkg/fmt/fmt_test.go | 4 ++++
+ src/pkg/fmt/print.go    | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

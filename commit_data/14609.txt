@@ -1,0 +1,15 @@
+commit 3c6c88319eeb4b6fe0b599d894bbb0d8f50a116f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 11 12:19:39 2012 -0500
+
+    regexp: re-enable TestBadCompile
+    
+    The code that was commented out was for the old regexp package.
+    In the new one the errors and the space of valid regexps are different.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6873063
+
+ src/pkg/regexp/all_test.go | 47 +++++++++++++++++++++++-----------------------
+ 1 file changed, 23 insertions(+), 24 deletions(-)

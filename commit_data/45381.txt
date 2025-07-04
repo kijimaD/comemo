@@ -1,0 +1,20 @@
+commit 214c8dd80c4059543b91d45c55ab12e8d58dec48
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Apr 27 16:30:26 2021 -0400
+
+    go/types: factor out index/slice expr handling
+    
+    This is a port of CL 308370 to go/types. There are some differences in
+    the index checking code, but the methodology for moving the code was the
+    same: replace `goto Error` with `x.mode = invalid; return`.
+    
+    Change-Id: I880f577a7720e6ad8a5b096207001fcf7620396d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312095
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/expr.go  | 380 +---------------------------------------------
+ src/go/types/index.go | 410 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 412 insertions(+), 378 deletions(-)

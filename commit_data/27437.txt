@@ -1,0 +1,44 @@
+commit 4d2ac544a437aaf7bbd78d1a46baa5108945f06e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 30 19:57:28 2016 -0700
+
+    net/http: fix spurious logging in Transport when server closes idle conn
+    
+    In https://golang.org/3210, Transport errors occurring before
+    receiving response headers were wrapped in another error type to
+    indicate to the retry logic elsewhere that the request might be
+    re-tryable. But a check for err == io.EOF was missed, which then became
+    false once io.EOF was wrapped in the beforeRespHeaderError type.
+    
+    The beforeRespHeaderError was too fragile. Remove it. I tried to fix
+    it in an earlier version of this CL and just broke different things
+    instead.
+    
+    Also remove the "markBroken" method. It's redundant and confusing.
+    
+    Also, rename the checkTransportResend method to shouldRetryRequest and
+    make it return a bool instead of an error. This also helps readability.
+    
+    Now the code recognizes the two main reasons we'd want to retry a
+    request: because we never wrote the request in the first place (so:
+    count the number of bytes we've written), or because the server hung
+    up on us before we received response headers for an idempotent request.
+    
+    As an added bonus, this could make POST requests safely re-tryable
+    since we know we haven't written anything yet. But it's too late in Go
+    1.7 to enable that, so we'll do that later (filed #15723).
+    
+    This also adds a new internal (package http) test, since testing this
+    blackbox at higher levels in transport_test wasn't possible.
+    
+    Fixes #15446
+    
+    Change-Id: I2c1dc03b1f1ebdf3f04eba81792bd5c4fb6b6b66
+    Reviewed-on: https://go-review.googlesource.com/23160
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go               | 213 ++++++++++++++++++++------------
+ src/net/http/transport_internal_test.go |  69 +++++++++++
+ 2 files changed, 205 insertions(+), 77 deletions(-)

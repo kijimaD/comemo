@@ -1,0 +1,20 @@
+commit 87bd0b2f142283ce3ee49d06074728b0ca900819
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Apr 7 20:32:46 2017 +0900
+
+    os: handle relative symlinks correctly in Stat on windows
+    
+    Walk relative symlinks in windows os.Stat from
+    symlink path instead of from current directory.
+    
+    Fixes #19870
+    
+    Change-Id: I0a27473d11485f073084b1f19b30c5b3a2fbc0f7
+    Reviewed-on: https://go-review.googlesource.com/39932
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/os_test.go      | 37 +++++++++++++++++++++++++++++++++++++
+ src/os/stat_windows.go |  7 ++++++-
+ 2 files changed, 43 insertions(+), 1 deletion(-)

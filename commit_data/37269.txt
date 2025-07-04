@@ -1,0 +1,57 @@
+commit e6305380a067c51223a59baf8a77575595a5f1e6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 2 23:28:26 2018 -0700
+
+    cmd/compile: reintroduce work-around for cyclic alias declarations
+    
+    This change re-introduces (temporarily) a work-around for recursive
+    alias type declarations, originally in https://golang.org/cl/35831/
+    (intended as fix for #18640). The work-around was removed later
+    for a more comprehensive cycle detection check. That check
+    contained a subtle error which made the code appear to work,
+    while in fact creating incorrect types internally. See #25838
+    for details.
+    
+    By re-introducing the original work-around, we eliminate problems
+    with many simple recursive type declarations involving aliases;
+    specifically cases such as #27232 and #27267. However, the more
+    general problem remains.
+    
+    This CL also fixes the subtle error (incorrect variable use when
+    analyzing a type cycle) mentioned above and now issues a fatal
+    error with a reference to the relevant issue (rather than crashing
+    later during the compilation). While not great, this is better
+    than the current status. The long-term solution will need to
+    address these cycles (see #25838).
+    
+    As a consequence, several old test cases are not accepted anymore
+    by the compiler since they happened to work accidentally only.
+    This CL disables parts or all code of those test cases. The issues
+    are: #18640, #23823, and #24939.
+    
+    One of the new test cases (fixedbugs/issue27232.go) exposed a
+    go/types issue. The test case is excluded from the go/types test
+    suite and an issue was filed (#28576).
+    
+    Updates #18640.
+    Updates #23823.
+    Updates #24939.
+    Updates #25838.
+    Updates #28576.
+    
+    Fixes #27232.
+    Fixes #27267.
+    
+    Change-Id: I6c2d10da98bfc6f4f445c755fcaab17fc7b214c5
+    Reviewed-on: https://go-review.googlesource.com/c/147286
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/main.go      |  8 ++++++--
+ src/cmd/compile/internal/gc/typecheck.go | 12 ++++++++++--
+ src/go/types/stdlib_test.go              |  1 +
+ test/fixedbugs/issue18640.go             |  5 ++---
+ test/fixedbugs/issue23823.go             |  8 ++++++--
+ test/fixedbugs/issue24939.go             |  4 +++-
+ test/fixedbugs/issue27232.go             | 19 +++++++++++++++++++
+ test/fixedbugs/issue27267.go             | 21 +++++++++++++++++++++
+ 8 files changed, 68 insertions(+), 10 deletions(-)

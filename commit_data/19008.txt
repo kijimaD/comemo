@@ -1,0 +1,61 @@
+commit 4676fae525a5c399274ac0fcb9503aee11d37c56
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 2 16:49:27 2014 -0400
+
+    cmd/gc, cmd/ld, runtime: compact liveness bitmaps
+    
+    Reduce footprint of liveness bitmaps by about 5x.
+    
+    1. Mark all liveness bitmap symbols as 4-byte aligned
+    (they were aligned to a larger size by default).
+    
+    2. The bitmap data is a bitmap count n followed by n bitmaps.
+    Each bitmap begins with its own count m giving the number
+    of bits. All the m's are the same for the n bitmaps.
+    Emit this bitmap length once instead of n times.
+    
+    3. Many bitmaps within a function have the same bit values,
+    but each call site was given a distinct bitmap. Merge duplicate
+    bitmaps so that no bitmap is written more than once.
+    
+    4. Many functions end up with the same aggregate bitmap data.
+    We used to name the bitmap data funcname.gcargs and funcname.gclocals.
+    Instead, name it gclocals.<md5 of data> and mark it dupok so
+    that the linker coalesces duplicate sets. This cut the bitmap
+    data remaining after step 3 by 40%; I was not expecting it to
+    be quite so dramatic.
+    
+    Applied to "go build -ldflags -w code.google.com/p/go.tools/cmd/godoc":
+    
+                    bitmaps           pclntab           binary on disk
+    before this CL  1326600           1985854           12738268
+    4-byte align    1154288 (0.87x)   1985854 (1.00x)   12566236 (0.99x)
+    one bitmap len   782528 (0.54x)   1985854 (1.00x)   12193500 (0.96x)
+    dedup bitmap     414748 (0.31x)   1948478 (0.98x)   11787996 (0.93x)
+    dedup bitmap set 245580 (0.19x)   1948478 (0.98x)   11620060 (0.91x)
+    
+    While here, remove various dead blocks of code from plive.c.
+    
+    Fixes #6929.
+    Fixes #7568.
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/83630044
+
+ src/cmd/gc/go.h            |   2 +-
+ src/cmd/gc/md5.c           |   4 +-
+ src/cmd/gc/md5.h           |   2 +-
+ src/cmd/gc/pgen.c          |  32 ++++--
+ src/cmd/gc/plive.c         | 255 +++++++++++++++++++++++----------------------
+ src/cmd/gc/subr.c          |   2 +-
+ src/cmd/ld/lib.h           |   1 +
+ src/cmd/ld/pobj.c          |   1 +
+ src/cmd/ld/symtab.c        |   2 +
+ src/liblink/objfile.c      |  14 ++-
+ src/pkg/runtime/heapdump.c |  22 ++--
+ src/pkg/runtime/malloc.h   |   9 +-
+ src/pkg/runtime/mgc0.c     |  26 ++---
+ src/pkg/runtime/stack.c    |  10 +-
+ 14 files changed, 201 insertions(+), 181 deletions(-)

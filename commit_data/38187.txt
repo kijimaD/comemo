@@ -1,0 +1,21 @@
+commit 44dc661453a59587a81265c17f7c469b60e9059a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 1 12:55:43 2019 -0800
+
+    cmd/link: reliably remove temporary directory in testDwarf
+    
+    We were using t.Parallel in a subtest, which meant that the main test
+    would not wait for the subtest, so the main test would delete the
+    temporary directory before the subtest used it. The subtest worked
+    because "go build -o /tmp/x/y/p.exe p" creates /tmp/x/y as needed.
+    
+    Updates #30500
+    
+    Change-Id: I5904ecac748d15ded4cb609f049fa548b8916a0e
+    Reviewed-on: https://go-review.googlesource.com/c/164857
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/dwarf_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

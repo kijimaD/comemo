@@ -1,0 +1,23 @@
+commit 4c383951b9601b488486add020ad5b7f10fb3d39
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Sep 20 18:33:03 2022 +0000
+
+    runtime: make (*mheap).sysAlloc more general
+    
+    This change makes (*mheap).sysAlloc take an explicit list of hints and a
+    boolean as to whether or not any newly-created heapArenas should be
+    registered in the full arena list.
+    
+    This is a refactoring in preparation for arenas.
+    
+    For #51317.
+    
+    Change-Id: I0584a033fce3fcb60c5d0bc033d5fb8bd23b2378
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432078
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/malloc.go | 69 ++++++++++++++++++++++++++++++---------------------
+ src/runtime/mheap.go  |  2 +-
+ 2 files changed, 42 insertions(+), 29 deletions(-)

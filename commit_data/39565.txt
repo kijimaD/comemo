@@ -1,0 +1,23 @@
+commit bdea352b96c6934ee49920b18c3b8aedffd27d08
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Wed Jul 31 18:14:56 2019 -0700
+
+    doc/go1.13: document net/http.Transport.Request.Body unfurling
+    
+    Documents the work from:
+    * CL 163599
+    * CL 163737
+    
+    which now uses the Request.Body's io.ReaderFrom implementation,
+    if available, and permits system level optimizations such as
+    "sendfile" to be used to transmit/upload the Body, which greatly
+    speeds up file uploads.
+    
+    Updates #33396
+    
+    Change-Id: I7b8315c4b3e57ad47bb9be2b0c838857875d4bd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188457
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.13.html | 5 +++++
+ 1 file changed, 5 insertions(+)

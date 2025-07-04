@@ -1,0 +1,13 @@
+commit 0a097b5cf3648d08af0fcbb38a1fedfa05a12a2b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 12 16:17:36 2008 -0700
+
+    change rand names to match type names
+    
+    R=r
+    DELTA=66  (19 added, 9 deleted, 38 changed)
+    OCL=15232
+    CL=15265
+
+ src/lib/rand.go | 78 ++++++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 44 insertions(+), 34 deletions(-)

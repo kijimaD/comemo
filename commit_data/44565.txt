@@ -1,0 +1,19 @@
+commit b60a3a8cfbc6096babe72ebcee0733bba496cf9a
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 5 09:49:28 2021 -0800
+
+    cmd/compile: add debugging mode for import/export
+    
+    Just add a simple magic number with each op, to detect when
+    the reader gets desynchronized from the writer.
+    
+    Change-Id: Iac7dab7f465b0021b1d7ae31c8f8a353ac3663a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299769
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/iexport.go | 8 ++++++++
+ src/cmd/compile/internal/typecheck/iimport.go | 3 +++
+ 2 files changed, 11 insertions(+)

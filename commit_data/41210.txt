@@ -1,0 +1,14 @@
+commit 96002cd25c343edfb6c06d2bf1f31ae1e345b81f
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Wed Jan 29 17:39:26 2020 -0700
+
+    doc/go1.14: fix id attribute of Testing heading
+    
+    Some tweaks based on comments from CL 216917.
+    
+    Change-Id: I538ea0dfa947b53d5c4a7135c1aec912b0357083
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217121
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.14.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

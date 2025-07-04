@@ -1,0 +1,16 @@
+commit c0165a38fd3cf00b3ab8ec8c283e44c0c2383d74
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Feb 14 12:51:50 2017 +1100
+
+    internal/poll: only build str.go on plan9
+    
+    Alternatively the contents of str.go could be moved into fd_io_plan9.go
+    
+    Change-Id: I9d7ec85bbb376f4244eeca732f25c0b77cadc6a6
+    Reviewed-on: https://go-review.googlesource.com/36971
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/poll/str.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,20 @@
+commit ae9712c76688a07e1149958994a9ab3e5a99c37f
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Dec 1 11:07:11 2016 -0800
+
+    database/sql: ensure Commit and Rollback return ErrTxDone
+    
+    Ensure documented behavior of returning ErrTxDone if the Tx has
+    already been committed or rolled back.
+    
+    Fixes #18147
+    
+    Change-Id: I07dc75bef4dbd4dd88dd252c96dc8ab99f28c00e
+    Reviewed-on: https://go-review.googlesource.com/33793
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go      |  6 +++---
+ src/database/sql/sql_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 3 deletions(-)

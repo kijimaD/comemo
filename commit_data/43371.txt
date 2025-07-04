@@ -1,0 +1,41 @@
+commit a4ede9f9a6254360d39d0f45aec133c355ac6b2a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 9 11:49:59 2020 -0400
+
+    os: add File.ReadDir method and DirEntry type
+    
+    ReadDir provides a portable, efficient way to read a directory
+    and discover the type of directory entries.
+    This enables a more efficient file system walk, yet to be added.
+    
+    See #41467 for the proposal review for the API.
+    
+    Fixes #41467.
+    
+    Change-Id: I461a526793ae46df48821aa448b04f1705546739
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261540
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/os/dir.go              |  62 ++++++++++++++++++++++-
+ src/os/dir_darwin.go       |  62 +++++++++++++++++++----
+ src/os/dir_plan9.go        |  42 ++++++++-------
+ src/os/dir_unix.go         | 122 ++++++++++++++++++++++++++++++++++++++++----
+ src/os/dir_windows.go      |  51 +++++++++----------
+ src/os/dirent_aix.go       |  30 +++++++++++
+ src/os/dirent_dragonfly.go |  55 ++++++++++++++++++++
+ src/os/dirent_freebsd.go   |  47 +++++++++++++++++
+ src/os/dirent_js.go        |  30 +++++++++++
+ src/os/dirent_linux.go     |  51 +++++++++++++++++++
+ src/os/dirent_netbsd.go    |  47 +++++++++++++++++
+ src/os/dirent_openbsd.go   |  47 +++++++++++++++++
+ src/os/dirent_solaris.go   |  30 +++++++++++
+ src/os/endian_big.go       |   9 ++++
+ src/os/endian_little.go    |   9 ++++
+ src/os/export_test.go      |   1 +
+ src/os/file_unix.go        |  66 ++++++++++++++----------
+ src/os/os_test.go          | 124 +++++++++++++++++++++++++++++++++++++++------
+ src/os/stat_plan9.go       |   2 +-
+ src/os/types.go            |   7 ++-
+ 20 files changed, 784 insertions(+), 110 deletions(-)

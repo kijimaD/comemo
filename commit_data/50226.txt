@@ -1,0 +1,25 @@
+commit 64b260dbdefcd2205e74d236a7f33d0e6b8f48cb
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Aug 8 00:14:43 2022 +0700
+
+    test: use cgo.Incomplete instead of go:notinheap for "run" tests
+    
+    Same as CL 421880, but for test directory.
+    
+    Updates #46731
+    
+    Change-Id: If8d18df013a6833adcbd40acc1a721bbc23ca6b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421881
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ test/fixedbugs/bug514.go                    |  8 ++++++--
+ test/fixedbugs/issue40954.go                | 13 +++++++++----
+ test/fixedbugs/issue42032.go                |  6 +++++-
+ test/fixedbugs/issue42076.go                |  9 +++++++--
+ test/fixedbugs/issue46903.go                | 12 ++++++++----
+ test/{typeparam => fixedbugs}/issue51733.go |  6 ++++--
+ 6 files changed, 39 insertions(+), 15 deletions(-)

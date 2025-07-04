@@ -1,0 +1,28 @@
+commit 3876bd67ef4a1972f54d926f7d8a5c7324861f51
+Author: diaxu01 <dianhong.xu@arm.com>
+Date:   Tue Sep 3 02:46:38 2019 +0000
+
+    cmd/internal/obj/arm64: add support of NOOP instruction
+    
+    This patch uses symbol NOOP to support arm64 instruction NOP. In
+    arm64, NOP stands for that No Operation does nothing, other than
+    advance the value of the program counter by 4. This instruction
+    can be used for instruction alignment purposes. This patch uses
+    NOOP to support arm64 instruction NOP, because we have a generic
+    "NOP" instruction, which is a zero-width pseudo-instruction.
+    
+    In arm64, instruction NOP is an alias of HINT #0. This patch adds
+    test cases for instruction HINT #0.
+    
+    Change-Id: I54e6854c46516eb652b412ef9e0f73ab7f171f8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200578
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s    | 2 ++
+ src/cmd/asm/internal/asm/testdata/arm64enc.s | 3 ++-
+ src/cmd/internal/obj/arm64/a.out.go          | 1 +
+ src/cmd/internal/obj/arm64/anames.go         | 1 +
+ src/cmd/internal/obj/arm64/asm7.go           | 5 +++--
+ 5 files changed, 9 insertions(+), 3 deletions(-)

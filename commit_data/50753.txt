@@ -1,0 +1,18 @@
+commit 1e65fa58c11b78bd0b026583e9ba7f724a84d628
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 21:34:02 2022 +0800
+
+    encoding/json: return comparison directly
+    
+    Change-Id: I4698d0fa78108d83ee91732e8d3878dbff7f9c90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436711
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+
+ src/encoding/json/fold.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

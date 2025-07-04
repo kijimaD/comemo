@@ -1,0 +1,30 @@
+commit f021221a584ede27c18f0e7deb90c438649d5128
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jul 25 18:42:21 2024 +0000
+
+    cmd/link: add script testing facility for linker use
+    
+    Add support for running script tests as part of the linker's suite of
+    tests, hooking in the script test engine packages recently moved from
+    cmd/go to cmd/internal. Linker script tests will use the test binary
+    itself as the linker for Go builds, and can also run the C compiler if
+    needed. New script test cases (*.txt files) should be added to the
+    directory cmd/link/testdata/script.
+    
+    For demo purposes, this patch also adds a new "randlayout_option.txt"
+    script test that replicates the existing linker's TestRandLayout
+    testpoint in script form.
+    
+    Updates #68606.
+    
+    Change-Id: Icf26bf657850e39548d6ea819f2542fc68a3899b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601360
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/link/dwarf_test.go                         | 54 +++++++++++++++-------
+ src/cmd/link/script_test.go                        | 37 +++++++++++++++
+ src/cmd/link/testdata/script/randlayout_option.txt | 38 +++++++++++++++
+ .../link/testdata/script/script_test_basics.txt    | 24 ++++++++++
+ 4 files changed, 136 insertions(+), 17 deletions(-)

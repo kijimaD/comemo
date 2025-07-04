@@ -1,0 +1,14 @@
+commit e8b43190bbec4b3b445739c216a0f4e023a9442f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 3 08:10:25 2009 -0800
+
+    clarify conversions vs type guards.
+    allow conversions between equal types.
+    
+    R=r
+    DELTA=15  (4 added, 4 deleted, 7 changed)
+    OCL=25618
+    CL=25630
+
+ doc/go_spec.html | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

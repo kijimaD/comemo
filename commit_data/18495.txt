@@ -1,0 +1,23 @@
+commit eea28f6701ac888d5613470a88d09b634efc1d75
+Author: Michael T. Jones <mtj@google.com>
+Date:   Thu Feb 13 08:42:19 2014 -0800
+
+    math/big: add support for general encoding interfaces
+    TextMarshaller and TextUnmarshaller to ease transport of
+    unlimited precision rational numbers.
+    
+    Fixes #7287.
+    
+    Consists of encode and decode functions and two test
+    functions, one using JSON and one using XML. Each
+    verifies round trips for integers (rationals with
+    denominator == 1) and for fractional vaues.
+    
+    LGTM=gri
+    R=gri, cookieo9, bradfitz, mtj
+    CC=golang-codereviews
+    https://golang.org/cl/61180043
+
+ src/pkg/math/big/rat.go      | 13 +++++++++
+ src/pkg/math/big/rat_test.go | 65 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 78 insertions(+)

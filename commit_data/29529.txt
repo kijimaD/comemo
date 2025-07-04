@@ -1,0 +1,24 @@
+commit 794fb71d9c1018c4beae1657baca5229e6a02ad0
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 8 15:43:20 2016 -0800
+
+    text/template: efficient reporting of line numbers
+    
+    Instead of scanning the text to count newlines, which is n², keep track as we go
+    and store the line number in the token.
+    
+    benchmark                 old ns/op      new ns/op     delta
+    BenchmarkParseLarge-4     1589721293     38783310      -97.56%
+    
+    Fixes #17851
+    
+    Change-Id: Ieaf89a35e371b405ad92e38baa1e3fa98d18cfb4
+    Reviewed-on: https://go-review.googlesource.com/32923
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/text/template/exec_test.go        |   2 +-
+ src/text/template/parse/lex.go        |  36 +++--
+ src/text/template/parse/lex_test.go   | 259 +++++++++++++++++-----------------
+ src/text/template/parse/parse.go      |  22 +--
+ src/text/template/parse/parse_test.go |  34 +++++
+ 5 files changed, 204 insertions(+), 149 deletions(-)

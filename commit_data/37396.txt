@@ -1,0 +1,35 @@
+commit f36e92dbfc343210f10b0ae9e39293fdb44b8396
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Oct 28 17:28:04 2018 +0100
+
+    fmt: avoid allocation when formatting byte slice arguments with verb s
+    
+    fmtBytes is in the top 10 callers of runtime.slicebytetostring according
+    to Google wide profiling data.
+    
+    Avoid the string conversion of the input byte slice in fmtBytes by calling
+    a newly added specialized fmtS function for byte slices.
+    
+    Expand tests for verb s with widths to test strings and byte slice arguments.
+    
+    SprintfTruncateString     157ns ± 4%     156ns ± 3%     ~     (p=0.122 n=20+20)
+    SprintfTruncateBytes      188ns ± 2%     155ns ± 3%  -18.00%  (p=0.000 n=20+19)
+    
+    name                   old alloc/op   new alloc/op   delta
+    SprintfTruncateString     16.0B ± 0%     16.0B ± 0%     ~     (all equal)
+    SprintfTruncateBytes      64.0B ± 0%     16.0B ± 0%  -75.00%  (p=0.000 n=20+20)
+    
+    name                   old allocs/op  new allocs/op  delta
+    SprintfTruncateString      1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    SprintfTruncateBytes       2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=20+20)
+    
+    Change-Id: I461bf514d4232b39bd9c812f7faa4e5ef693a03b
+    Reviewed-on: https://go-review.googlesource.com/c/145284
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 30 +++++++++++++++++++++++++-----
+ src/fmt/format.go   | 33 +++++++++++++++++++++++++++++----
+ src/fmt/print.go    |  2 +-
+ 3 files changed, 55 insertions(+), 10 deletions(-)

@@ -1,0 +1,14 @@
+commit f3e354ec26622805f156e4f0d1a2b23fadead89c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 14 12:53:44 2008 -0800
+
+    clean up make script
+    reorder pieces so io is earlier
+    
+    R=rsc
+    DELTA=66  (27 added, 24 deleted, 15 changed)
+    OCL=19248
+    CL=19255
+
+ src/lib/make.bash | 91 ++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 47 insertions(+), 44 deletions(-)

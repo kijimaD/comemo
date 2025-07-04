@@ -1,0 +1,13 @@
+commit 7fed6527e1fc000b52dc921e1ee9f417a7ca9ece
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 28 14:36:20 2009 -0700
+
+    might as well make 6g run faster.... go from gcc -O1 to -O2
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=35023
+    CL=35049
+
+ src/Make.conf | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

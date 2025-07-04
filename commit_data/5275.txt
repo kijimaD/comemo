@@ -1,0 +1,12 @@
+commit c9293f0cc7e049b3edb8a199983ac4d95ce249b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 11 15:24:44 2010 -0700
+
+    gc: compile s == "" as len(s) == 0
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/840043
+
+ src/cmd/gc/walk.c | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

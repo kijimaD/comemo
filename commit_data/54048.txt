@@ -1,0 +1,29 @@
+commit 5fa4aac0cec637fd9415fb260e3fbc2975377e00
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Jun 29 00:41:32 2023 +0700
+
+    go/types, types2: add Sizes computation to match gc behavior
+    
+    Fixes #60431
+    Fixes #60734
+    Fixes #61035
+    
+    Change-Id: I82513da3e1714e8271fae220fe242bf2bfb4eb9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506856
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/gcsizes.go     | 169 ++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/sizes.go       |  17 +--
+ src/cmd/compile/internal/types2/sizes_test.go  |  59 +++++++++
+ src/go/types/gcsizes.go                        | 171 +++++++++++++++++++++++++
+ src/go/types/generate_test.go                  |   1 +
+ src/go/types/sizes.go                          |  17 +--
+ src/go/types/sizes_test.go                     |  59 +++++++++
+ src/internal/types/testdata/check/builtins0.go |  12 +-
+ 8 files changed, 477 insertions(+), 28 deletions(-)

@@ -1,0 +1,42 @@
+commit 8c253bcae511d12bbbbded99759c8197f52642ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 24 16:15:21 2009 -0700
+
+    first attempt at real FFI support.
+    
+    in a .6 file, an export line
+    
+            //ffi T localfib remotefib remote.so
+    
+    means the dynamic linker should initialize
+    localfib, always a pointer, to the address of
+    remotefib, either text (T) or data (D) after
+    loading remote.so.
+    
+    the C compiler will generate an export section
+    when given the pragmas
+    
+            #pragma package fib
+            #pragma ffi T localfib remotefib remote.so
+    
+    needing #pragma package is a bit of a kludge
+    and hopefully could go away later.
+    
+    this is just the 6 tool chain support.
+    other architectures will happen once 6 settles down.
+    
+    code using this to do FFI is in a later CL.
+    
+    R=r
+    DELTA=161  (141 added, 14 deleted, 6 changed)
+    OCL=33783
+    CL=33795
+
+ src/cmd/6c/swt.c   |  13 +++++++
+ src/cmd/ar/ar.c    |   9 ++++-
+ src/cmd/cc/cc.h    |  15 ++++++++
+ src/cmd/cc/dpchk.c | 100 +++++++++++++++++++++++++++++++++++++++++++++--------
+ src/cmd/cc/lexbody |  14 ++++++++
+ src/cmd/cc/macbody |  14 ++++++--
+ src/cmd/ld/go.c    |   6 ++--
+ 7 files changed, 149 insertions(+), 22 deletions(-)

@@ -1,0 +1,17 @@
+commit 04eb35998a3a999c830969f802744ab9274714a8
+Author: hitzhangjie <hit.zhangjie@gmail.com>
+Date:   Thu Aug 25 09:34:49 2022 +0000
+
+    cmd/trace: display goroutines (PC=0) with clearer description
+    
+    This PR fixes: #54425 #49994
+    
+    Change-Id: Id60a3ba6930f8e29b12b6d8f80945decd2ce31bc
+    GitHub-Last-Rev: 60a040aa2f111f64f571597799ce7ca317e1d281
+    GitHub-Pull-Request: golang/go#54575
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425042
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/trace/goroutines.go | 5 +++++
+ 1 file changed, 5 insertions(+)

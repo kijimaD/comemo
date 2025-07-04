@@ -1,0 +1,13 @@
+commit a9600502bbaace43792e3f00a8f23286ba8a1667
+Author: Robert Sesek <rsesek@google.com>
+Date:   Thu Feb 27 19:11:03 2014 -0800
+
+    debug/macho: Define CPU constants for other common architectures for OS X/iOS.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/69100045
+
+ src/pkg/debug/macho/macho.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

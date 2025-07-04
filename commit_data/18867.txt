@@ -1,0 +1,15 @@
+commit d8e6881166e280cc44056f1a6c9747a103dca340
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Mar 14 21:22:03 2014 +0400
+
+    runtime: report "out of memory" in efence mode
+    Currently processes crash with obscure message.
+    Say that it's "out of memory".
+    
+    LGTM=rsc
+    R=golang-codereviews
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/75820045
+
+ src/pkg/runtime/stack.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

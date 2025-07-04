@@ -1,0 +1,23 @@
+commit 6b2ad9ef50a279569e1146dcc8593badae2dbcd4
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon May 1 15:23:42 2023 -0400
+
+    cmd/compile: remove debugging option InlineSCCOnePass from inliner
+    
+    Delete the "InlineSCCOnePass" debugging flag and the inliner fallback
+    code that kicks in if it is used. The change it was intended to guard
+    has been working on tip for some time, no need for the fallback any
+    more.
+    
+    Updates #58905.
+    
+    Change-Id: I2e1dbc7640902d9402213db5ad338be03deb96c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492015
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/base/debug.go |  1 -
+ src/cmd/compile/internal/inline/inl.go | 26 ++++++++------------------
+ 2 files changed, 8 insertions(+), 19 deletions(-)

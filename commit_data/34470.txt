@@ -1,0 +1,17 @@
+commit adcf2d59ec25e6a1f5fda7eb5c125302363657ea
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Mon Mar 5 22:00:34 2018 +0200
+
+    os/exec: document Process.Kill behaviour
+    
+    It is not clear from documentation what the Process.Kill does. And it
+    leads to reccuring confusion about Cmd.Start/Wait methods.
+    
+    Fixes #24220
+    
+    Change-Id: I66609d21d2954e195d13648014681530eed8ea6c
+    Reviewed-on: https://go-review.googlesource.com/98715
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/exec.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

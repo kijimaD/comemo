@@ -1,0 +1,14 @@
+commit 9f85668a6528aa77a377aa39ba0d83e76301efcc
+Author: OlgaVlPetrova <OVPpetrova@gmail.com>
+Date:   Sat Oct 13 14:38:21 2018 +0300
+
+    cmd/compile/internal/ssa: simplify `s = s <op> x` to `s <op>= x`
+    
+    Change-Id: I366b89e35d194ca2a7eb97a8253497bd3fc2af94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/142019
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/redblack32_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

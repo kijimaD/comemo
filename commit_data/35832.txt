@@ -1,0 +1,20 @@
+commit c07f2b0099583c9e8715944c75dfd5c2d95d12f2
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Wed Jun 27 20:19:30 2018 +0200
+
+    syscall/js: rename Callback.Close to Release and expose Callback.Value
+    
+    This makes Callback more in line with TypedArray. The name "Release" is
+    better than "Close" because the function does not implement io.Closer.
+    
+    Change-Id: I23829a14b1c969ceb04608afd9505fd5b4b0df2e
+    Reviewed-on: https://go-review.googlesource.com/121216
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/roundtrip_js.go | 12 ++++++------
+ src/syscall/js/callback.go   | 18 ++++++++++--------
+ src/syscall/js/js.go         |  2 +-
+ src/syscall/js/js_test.go    |  8 ++++----
+ 4 files changed, 21 insertions(+), 19 deletions(-)

@@ -1,0 +1,32 @@
+commit 98ed91636926b4029bbbbb8c2ab4b66ee15a5734
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jan 5 16:19:19 2022 +0700
+
+    cmd/compile: fix instantiation of types referenced during inlining
+    
+    CL 352870 added extra phase for instantiation after inlining, to take
+    care of the new fully-instantiated types. However, when fetching inlined
+    body of these types's methods, we need to allow OADDR operations on
+    untyped expressions, the same as what main inlining phase does.
+    
+    The problem does not show up, until CL 371554, which made the compiler
+    do not re-typecheck while importing, thus leaving a OXDOT node to be
+    marked as address taken when it's not safe to do that.
+    
+    Fixes #50437
+    
+    Change-Id: I20076b872182c520075a4f8b84230f5bcb05b341
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375574
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/main.go        |  5 ++++
+ src/cmd/compile/internal/typecheck/subr.go |  2 +-
+ test/typeparam/issue50437.dir/a.go         | 43 ++++++++++++++++++++++++++++++
+ test/typeparam/issue50437.dir/b.go         | 11 ++++++++
+ test/typeparam/issue50437.go               |  7 +++++
+ 5 files changed, 67 insertions(+), 1 deletion(-)

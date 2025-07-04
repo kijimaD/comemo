@@ -1,0 +1,16 @@
+commit 0320616db9e21fd8811a2189a56f234b9737f95f
+Author: zhangyunhao <zhangyunhao116@gmail.com>
+Date:   Thu Aug 15 10:04:00 2024 +0000
+
+    runtime: use .Pointers() instead of .PtrBytes != 0
+    
+    Change-Id: I512808d3cf91466eb6f2c21b49b39ff2e08a9b8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605498
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/heapdump.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

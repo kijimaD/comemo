@@ -1,0 +1,14 @@
+commit 380e5a370939df346132017756c5a7c1c42bda2f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 16 15:02:47 2011 -0700
+
+    http: document http client/transport thread safety
+    
+    Fixes #1961
+    
+    R=golang-dev, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4633045
+
+ src/pkg/http/client.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

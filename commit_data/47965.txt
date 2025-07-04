@@ -1,0 +1,21 @@
+commit ca33b34e17b5f4673a40c894a4f807c01d1ecebe
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jan 18 16:27:40 2022 -0500
+
+    runtime: deflake TestPreemptionAfterSyscall
+    
+    This test occasionally takes very slightly longer than the 3 second
+    timeout on slow builders (especially windows-386-2008), so increase
+    the timeout to 5 seconds. It fails with much longer timeouts on Plan
+    9, so skip it as flaky there.
+    
+    Updates #41015.
+    
+    Change-Id: I426a7adfae92c18a0f8a223dd92762b0b91565e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379214
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/proc_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

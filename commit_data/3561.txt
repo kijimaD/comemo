@@ -1,0 +1,15 @@
+commit b80d36d8466162a783b334e41027bfbb24aa58a3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 15 16:34:05 2009 -0700
+
+    - implemented utility functions for directory reading/traversal
+    - added tests
+    
+    R=rsc
+    DELTA=62  (61 added, 1 deleted, 0 changed)
+    OCL=35788
+    CL=35802
+
+ src/pkg/io/utils.go      | 30 +++++++++++++++++++++++++++++-
+ src/pkg/io/utils_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+), 1 deletion(-)

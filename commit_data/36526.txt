@@ -1,0 +1,17 @@
+commit 289dce24c173fa2e87db83caa675c964c403553f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 29 14:49:42 2018 -0400
+
+    test: fix nosplit test on 386
+    
+    The 120->124 change in https://go-review.googlesource.com/c/go/+/61511/21/test/nosplit.go#143
+    looks accidental. Change back to 120.
+    
+    Change-Id: I1690a8ae2d32756ba05544d2ed1baabfa64e1704
+    Reviewed-on: https://go-review.googlesource.com/131958
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/nosplit.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

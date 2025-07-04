@@ -1,0 +1,13 @@
+commit 6cf98a4553b216a5817e37112b2c81816b6a38a8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 17 12:00:02 2011 +1100
+
+    net: fix windows build
+    
+    R=golang-dev, r2
+    CC=golang-dev
+    https://golang.org/cl/4184051
+
+ src/pkg/net/multicast_test.go      |  4 ++++
+ src/pkg/syscall/syscall_windows.go | 15 +++++++++++++--
+ 2 files changed, 17 insertions(+), 2 deletions(-)

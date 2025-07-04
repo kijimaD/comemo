@@ -1,0 +1,19 @@
+commit 0783dd90270b1da4b1a553f7a8a625c16838ee54
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 6 11:48:05 2011 -0700
+
+    go/parser: accept corner cases of signature syntax
+    
+    - func f(int,) is a legal signature
+    - func f(...int,) is a legal signature
+    
+    Defer checking for correct use of "..." with last
+    paremeter type to type checker instead of parser.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4973059
+
+ src/pkg/go/parser/parser.go      | 19 ++++++++-----------
+ src/pkg/go/parser/parser_test.go |  5 ++++-
+ 2 files changed, 12 insertions(+), 12 deletions(-)

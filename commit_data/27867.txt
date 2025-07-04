@@ -1,0 +1,23 @@
+commit 074d6a649c57a3731e273c8f9dcb36f1663e504a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 16 17:32:54 2016 -0700
+
+    cmd/compile: remove conditional code dealing with two export formats
+    
+    This removes some scaffolding introduced pre-1.7, introduced to
+    fix an export format bug, and to minimize conflicts with older
+    formats. The currently deployed and recognized format is "v1",
+    so don't worry about other versions. This is a step towards a
+    better scheme for internal export format versioning.
+    
+    For #16244.
+    
+    Change-Id: Ic7cf99dd2a24ad5484cc54aed44fa09332c2cf72
+    Reviewed-on: https://go-review.googlesource.com/27205
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go | 17 +++--------------
+ src/cmd/compile/internal/gc/bimport.go | 16 +++++-----------
+ src/go/internal/gcimporter/bimport.go  | 11 +++--------
+ 3 files changed, 11 insertions(+), 33 deletions(-)

@@ -1,0 +1,17 @@
+commit f195ae94caf21af5ed4409a3471de2821a6e0c81
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 15 14:32:10 2013 +0400
+
+    runtime: remove old preemption checks
+    runtime.gcwaiting checks are not needed anymore
+    
+    R=golang-dev, khr
+    CC=golang-dev
+    https://golang.org/cl/12934043
+
+ src/pkg/runtime/chan.c     | 11 -----------
+ src/pkg/runtime/hashmap.c  |  8 --------
+ src/pkg/runtime/malloc.goc |  2 --
+ src/pkg/runtime/proc.c     | 28 ++++++++++++++--------------
+ src/pkg/runtime/runtime.h  |  1 -
+ 5 files changed, 14 insertions(+), 36 deletions(-)

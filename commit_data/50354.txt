@@ -1,0 +1,16 @@
+commit 50bb42a46f177d117acd2050e5b498ea15f06332
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Sep 3 07:14:29 2022 +0800
+
+    net/http: using strings.Builder
+    
+    Change-Id: I5d4c89a8d87a8697d038bf91b17d7ffc847a49c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428137
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/triv.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

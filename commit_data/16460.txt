@@ -1,0 +1,12 @@
+commit f8067ad67ac24c88c949771644b5d2db69441459
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Jun 2 11:36:09 2013 +0200
+
+    hgignore: cleanup obsolete entries.
+    
+    R=golang-dev, dave, r
+    CC=golang-dev
+    https://golang.org/cl/9935043
+
+ .hgignore | 5 -----
+ 1 file changed, 5 deletions(-)

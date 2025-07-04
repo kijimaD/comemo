@@ -1,0 +1,17 @@
+commit 7cb7d62950630a5a878ee6665258275fc935ef2f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 10 09:57:14 2018 +0200
+
+    debug/elf: add missing EM_AARCH64 to machineStrings
+    
+    EM_AARCH64 is defined as a constant, but the corresponding entry in
+    machineStrings is missing. Add it.
+    
+    Change-Id: I6506404386efe608877095e635a290bbc0686215
+    Reviewed-on: https://go-review.googlesource.com/106035
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/elf/elf.go | 1 +
+ 1 file changed, 1 insertion(+)

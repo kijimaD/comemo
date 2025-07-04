@@ -1,0 +1,68 @@
+commit 804d786a30c664df63ef1e0c95d44772063afae1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 13 21:06:49 2023 -0400
+
+    go/types, cmd/compile/internal/types2: use per-file Go version
+    
+    For #57001, compilers and others tools will need to understand that
+    a different Go version can be used in different files in a program,
+    according to the //go:build lines in those files.
+    
+    Update go/types and cmd/compile/internal/types2 to track and
+    use per-file Go versions. The two must be updated together because
+    of the files in go/types that are generated from files in types2.
+    
+    The effect of the //go:build go1.N line depends on the Go version
+    declared in the 'go 1.M' line in go.mod. If N > M, the file gets go1.N
+    semantics when built with a Go 1.N or later toolchain
+    (when built with an earlier toolchain the //go:build line will keep
+    the file from being built at all).
+    If N < M, then in general we want the file to get go1.N semantics
+    as well, meaning later features are disabled. However, older Go 1.M
+    did not apply this kind of downgrade, so for compatibility, N < M
+    only has an effect when M >= 21, meaning when using semantics
+    from Go 1.21 or later.
+    
+    For #59033.
+    
+    Change-Id: I93cf07e6c687d37bd37a9461dc60cc032bafd01d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476278
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/types2/api.go         |  6 +-
+ src/cmd/compile/internal/types2/builtins.go    | 12 ++--
+ src/cmd/compile/internal/types2/call.go        |  6 +-
+ src/cmd/compile/internal/types2/check.go       | 27 ++++++++
+ src/cmd/compile/internal/types2/conversions.go |  4 +-
+ src/cmd/compile/internal/types2/decl.go        |  4 +-
+ src/cmd/compile/internal/types2/expr.go        |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go |  6 +-
+ src/cmd/compile/internal/types2/lookup.go      |  5 +-
+ src/cmd/compile/internal/types2/operand.go     |  4 +-
+ src/cmd/compile/internal/types2/resolver.go    |  4 +-
+ src/cmd/compile/internal/types2/typeset.go     |  8 +--
+ src/cmd/compile/internal/types2/typexpr.go     |  4 +-
+ src/cmd/compile/internal/types2/version.go     | 85 +++++++++++++++++++++-----
+ src/go/build/deps_test.go                      | 13 ++--
+ src/go/types/api.go                            |  6 +-
+ src/go/types/builtins.go                       | 12 ++--
+ src/go/types/call.go                           |  6 +-
+ src/go/types/check.go                          | 33 ++++++++++
+ src/go/types/conversions.go                    |  4 +-
+ src/go/types/decl.go                           |  4 +-
+ src/go/types/expr.go                           |  2 +-
+ src/go/types/generate_test.go                  |  2 +-
+ src/go/types/instantiate.go                    |  6 +-
+ src/go/types/lookup.go                         |  5 +-
+ src/go/types/operand.go                        |  4 +-
+ src/go/types/resolver.go                       |  4 +-
+ src/go/types/typeset.go                        |  8 +--
+ src/go/types/typexpr.go                        |  4 +-
+ src/go/types/version.go                        | 71 ++++++++++++++++-----
+ src/internal/types/testdata/check/go1_19_20.go | 17 ++++++
+ src/internal/types/testdata/check/go1_20_19.go | 17 ++++++
+ src/internal/types/testdata/check/go1_21_19.go | 17 ++++++
+ 33 files changed, 315 insertions(+), 97 deletions(-)

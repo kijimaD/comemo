@@ -1,0 +1,15 @@
+commit ce137592c0ee5fc262675092c6eea7b71f25850b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 23 13:15:10 2015 -0800
+
+    math/big: fix formatting for 'b' format
+    
+    Fixes #9939.
+    
+    Change-Id: I9d60722b648fbc00650115da539a7466c6c86552
+    Reviewed-on: https://go-review.googlesource.com/5640
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/floatconv.go      |  27 ++++++--
+ src/math/big/floatconv_test.go | 154 ++++++++++++++++++++++++-----------------
+ 2 files changed, 110 insertions(+), 71 deletions(-)

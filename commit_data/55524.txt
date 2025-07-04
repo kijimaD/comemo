@@ -1,0 +1,22 @@
+commit 6076edc55c548878c261316f3e3294f1f73125a3
+Author: Jun10ng <zeonll@outlook.com>
+Date:   Mon Feb 5 17:12:17 2024 +0000
+
+    cmd/compile: delete unused code and fix typo in comment
+    
+    Change-Id: Ia1f1c7d5563a74950c47cf3ebdcb600b34c83e85
+    GitHub-Last-Rev: bd58214e5e66e32c0055936820b8f0adf7f388c6
+    GitHub-Pull-Request: golang/go#65527
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561355
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/inline/inl.go                  | 17 ++++++++---------
+ src/cmd/compile/internal/inline/inlheur/analyze.go      |  2 +-
+ src/cmd/compile/internal/inline/inlheur/scoring.go      |  6 +++---
+ .../compile/internal/inline/interleaved/interleaved.go  |  2 +-
+ src/internal/profile/graph.go                           |  2 +-
+ 5 files changed, 14 insertions(+), 15 deletions(-)

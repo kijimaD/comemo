@@ -1,0 +1,20 @@
+commit 6f2d91a094c78165646ddaa0c139191f6943c7d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 16 22:30:10 2014 -0400
+
+    cmd/go: reapply doc change from CL 60590044.
+    
+    https://golang.org/cl/60590044 edited
+    doc.go without editing the file it is generated from.
+    The edit was lost at the next mkdoc.sh.
+    Make the change in help.go and rerun mkdoc.sh.
+    
+    Pointed out in the review of CL 68580043.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/88760043
+
+ src/cmd/go/doc.go  | 4 ++--
+ src/cmd/go/help.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

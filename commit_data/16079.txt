@@ -1,0 +1,19 @@
+commit c4e82bb923d0dac8c97077fd4711b7c00396f957
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 3 13:56:24 2013 -0700
+
+    doc: link the race detector document into the release notes
+    Also:
+    - put GORACE into the go env command
+    - do minor housekeeping on the race detector article
+    
+    Fixes #4995.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/8319044
+
+ doc/articles/race_detector.html | 52 ++++++++++++++++++++++++++---------------
+ doc/go1.1.html                  | 11 +++++++++
+ src/cmd/go/env.go               |  1 +
+ 3 files changed, 45 insertions(+), 19 deletions(-)

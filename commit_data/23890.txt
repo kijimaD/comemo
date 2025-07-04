@@ -1,0 +1,19 @@
+commit 3952057cf6597981efcc066349fcfae746333f83
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 15:11:42 2015 -0400
+
+    cmd/compile: align arm64 stack frames correctly
+    
+    If the compiler doesn't do it, cmd/internal/obj/arm64 will,
+    and that will break the zeroing of ambiguously live values
+    done in zerorange, which in turn produces uninitialized
+    pointer cells that the GC trips over.
+    
+    For #9880.
+    
+    Change-Id: Ice97c30bc8b36d06b7b88d778d87fab8e1827fdc
+    Reviewed-on: https://go-review.googlesource.com/12847
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/arm64/ggen.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

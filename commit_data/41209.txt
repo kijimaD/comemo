@@ -1,0 +1,15 @@
+commit 6c0545ab833b2b834f351e59242a3ea64051fa3a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 30 19:22:15 2020 -0800
+
+    doc/go1.14: mention new method strconv.NumError.Unwrap
+    
+    Updates #30322
+    Updates #36878
+    
+    Change-Id: I8b33eb6a8fb7c0ecf365940a1c3ae88dc807ebcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217132
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.14.html | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

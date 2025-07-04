@@ -1,0 +1,20 @@
+commit a272d1f6874172be618c70995947e44a9003aae6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 7 17:11:50 2023 -0700
+
+    doc/go1.21: mention NewFile on non-blocking descriptor
+    
+    The returned descriptor now remains in non-blocking mode.
+    
+    For #58408
+    For #60211
+    
+    Change-Id: I88d33c180db642d055b4fed3b03a9afa02e746bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501699
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ doc/go1.21.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 92390e47d81713d13b0d9890bf8b153f142a5b8a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 22 16:50:00 2015 -0400
+
+    os/exec: close read pipe if copy to io.Writer fails
+    
+    Fixes #10400.
+    
+    Change-Id: Ic486cb8af4c40660fd1a2e3d10986975acba3f19
+    Reviewed-on: https://go-review.googlesource.com/12537
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/exec/exec.go      |  1 +
+ src/os/exec/exec_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

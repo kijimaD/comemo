@@ -1,0 +1,19 @@
+commit 0306478fe57767530164b43c12969ca91496db47
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 19 16:33:14 2014 -0700
+
+    runtime: Fix interaction between Goexit and defers
+    
+    When running defers, we must check whether the defer
+    has already been marked as started so we don't run it twice.
+    
+    Fixes #8774.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/142280044
+
+ src/runtime/crash_test.go | 88 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/panic.go      | 18 +++++++++-
+ 2 files changed, 105 insertions(+), 1 deletion(-)

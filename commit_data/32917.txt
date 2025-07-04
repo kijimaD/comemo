@@ -1,0 +1,19 @@
+commit 6b4008db8be6d4d8ca0693c51b1e8f15f8d1f6ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jul 16 08:17:37 2017 -0600
+
+    cmd/go: drop PackageInternal.Fake
+    
+    The point of this code is to print a warning about repeated go test
+    invocations rebuilding the same packages over and over.
+    The new cache will eliminate this failure mode and with it
+    the need for the warning and this field.
+    
+    Change-Id: Ied79b3ca67d51a61f44629de6ae4974e6c8dd5a9
+    Reviewed-on: https://go-review.googlesource.com/56282
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/load/pkg.go  |  1 -
+ src/cmd/go/internal/test/test.go | 49 ----------------------------------------
+ 2 files changed, 50 deletions(-)

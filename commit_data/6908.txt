@@ -1,0 +1,14 @@
+commit 92b4506f73ba6bf0fdaf7dfcfcab9ff5563695b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 9 14:49:13 2010 -0500
+
+    os: fix test of RemoveAll
+    
+    Fixes #22. (again)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3547041
+
+ src/pkg/os/path_test.go | 28 +++++++++++-----------------
+ 1 file changed, 11 insertions(+), 17 deletions(-)

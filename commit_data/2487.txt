@@ -1,0 +1,15 @@
+commit 08aab44e48d12c1b1e8c2a126a2eb1613debe2d1
+Author: Scott Schwartz <scotts@golang.org>
+Date:   Fri Jun 19 16:29:30 2009 -0700
+
+    Add ReadByte to bytebuffer
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=24  (24 added, 0 deleted, 0 changed)
+    OCL=30459
+    CL=30540
+
+ src/pkg/io/bytebuffer.go      | 11 +++++++++++
+ src/pkg/io/bytebuffer_test.go | 13 +++++++++++++
+ 2 files changed, 24 insertions(+)

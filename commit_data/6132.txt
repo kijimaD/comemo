@@ -1,0 +1,18 @@
+commit b433552ebc20ed8669dac61c7a46f438c1bf3627
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Aug 30 22:20:38 2010 +0200
+
+    8l: emit DWARF in ELF.
+    
+    R=rsc, r, ken2
+    CC=golang-dev
+    https://golang.org/cl/2004046
+
+ src/cmd/6l/asm.c    |   3 +-
+ src/cmd/6l/l.h      |   2 +-
+ src/cmd/8l/Makefile |   5 +-
+ src/cmd/8l/asm.c    |  20 +-
+ src/cmd/8l/l.h      |   1 +
+ src/cmd/8l/obj.c    |   2 +
+ src/cmd/ld/dwarf.c  | 930 +++++++++++++++++++++++++++-------------------------
+ 7 files changed, 514 insertions(+), 449 deletions(-)

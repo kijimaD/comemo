@@ -1,0 +1,50 @@
+commit fcfbbf2ff68a8997438d82cc2800c4744e908854
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Feb 25 17:04:30 2023 +0000
+
+    encoding/gob: use reflect.Value.SetZero
+    
+    Particularly helps when decoding map maps.
+    
+            goos: linux
+            goarch: amd64
+            pkg: encoding/gob
+            cpu: AMD Ryzen 7 PRO 5850U with Radeon Graphics
+                                                            │     old     │                new                 │
+                                                            │   sec/op    │   sec/op     vs base               │
+            DecodeStringSlice-16      30.78µ ± 2%   30.68µ ± 1%        ~ (p=0.699 n=6)
+            DecodeStringsSlice-16     61.36µ ± 6%   60.85µ ± 4%        ~ (p=0.589 n=6)
+            DecodeBytesSlice-16       16.57µ ± 2%   16.51µ ± 4%        ~ (p=0.937 n=6)
+            DecodeInterfaceSlice-16   124.3µ ± 0%   125.4µ ± 1%        ~ (p=0.065 n=6)
+            DecodeMap-16              251.0µ ± 3%   216.2µ ± 2%  -13.86% (p=0.002 n=6)
+            geomean                   62.80µ        60.87µ        -3.07%
+    
+                                                            │     old      │                new                 │
+                                                            │     B/op     │     B/op      vs base              │
+            DecodeStringSlice-16      37.98Ki ± 0%   37.98Ki ± 0%       ~ (p=1.000 n=6)
+            DecodeStringsSlice-16     63.79Ki ± 0%   63.79Ki ± 0%       ~ (p=0.675 n=6)
+            DecodeBytesSlice-16       22.40Ki ± 0%   22.40Ki ± 0%       ~ (p=0.364 n=6)
+            DecodeInterfaceSlice-16   80.27Ki ± 0%   80.27Ki ± 0%       ~ (p=0.924 n=6)
+            DecodeMap-16              52.67Ki ± 0%   52.67Ki ± 0%       ~ (p=0.145 n=6)
+            geomean                   47.01Ki        47.01Ki       +0.00%
+    
+                                                            │     old     │                 new                 │
+                                                            │  allocs/op  │  allocs/op   vs base                │
+            DecodeStringSlice-16      1.169k ± 0%   1.169k ± 0%       ~ (p=1.000 n=6) ¹
+            DecodeStringsSlice-16     2.178k ± 0%   2.178k ± 0%       ~ (p=1.000 n=6) ¹
+            DecodeBytesSlice-16        169.0 ± 0%    169.0 ± 0%       ~ (p=1.000 n=6) ¹
+            DecodeInterfaceSlice-16   3.178k ± 0%   3.178k ± 0%       ~ (p=1.000 n=6) ¹
+            DecodeMap-16               181.0 ± 0%    181.0 ± 0%       ~ (p=1.000 n=6) ¹
+            geomean                    756.3         756.3       +0.00%
+            ¹ all samples are equal
+    
+    Change-Id: I5ae9268b1a86296494d8569f5158ef0e78128eb1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471257
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/encoding/gob/decode.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

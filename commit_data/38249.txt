@@ -1,0 +1,31 @@
+commit 5c22842cf2761811058f6b2477cf074e544c629c
+Author: Austin Clements <austin@google.com>
+Date:   Mon Sep 25 15:29:08 2017 -0400
+
+    runtime: introduce effective GOGC, eliminate heap_marked hacks
+    
+    Currently, the pacer assumes the goal growth ratio is always exactly
+    GOGC/100. But sometimes this isn't the case, like when the heap is
+    very small (limited by heapminimum). So to placate the pacer, we lie
+    about the value of heap_marked in such situations.
+    
+    Right now, these two lies make a truth, but GOGC is about to get more
+    complicated with the introduction of heap limits.
+    
+    Rather than introduce more lies into the system to handle this,
+    introduce the concept of an "effective GOGC", which is the GOGC we're
+    actually using for pacing (we'll need this concept anyway with heap
+    limits). This commit changes the pacer to use the effective GOGC
+    rather than the user-set GOGC. This way, we no longer need to lie
+    about heap_marked because its true value is incorporated into the
+    effective GOGC.
+    
+    Change-Id: I5b005258f937ab184ffcb5e76053abd798d542bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/66092
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 37 +++++++++++++++++++------------------
+ 1 file changed, 19 insertions(+), 18 deletions(-)

@@ -1,0 +1,18 @@
+commit 376fc748f6dfbe7ad12fc97d0bf8b2385c9314d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 12 12:39:31 2012 -0400
+
+    cmd/go: stop using $GOROOT and $GOBIN in script output
+    
+    They were necessary to produce a canonical script
+    when we checked in build scripts, but now they're just
+    getting in the way.
+    
+    Fixes #3279.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5796068
+
+ src/cmd/go/build.go | 2 --
+ 1 file changed, 2 deletions(-)

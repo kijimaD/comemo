@@ -1,0 +1,12 @@
+commit 813590b145448decb4de52e12ce522fe9c16f9a7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 12 07:58:50 2013 -0700
+
+    cmd/ld: if we fail from an unexpected PE flags value, print it
+    
+    R=golang-dev, minux.ma, r
+    CC=golang-dev
+    https://golang.org/cl/8709043
+
+ src/cmd/ld/ldpe.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

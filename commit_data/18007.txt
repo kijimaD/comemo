@@ -1,0 +1,13 @@
+commit e962f8f1c6f69845130374cb040dd0284f78a943
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Dec 16 20:05:48 2013 -0500
+
+    misc/vim: use shiftwidth() instead of &sw if available.
+    Fixes #6841.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/43010044
+
+ misc/vim/indent/go.vim | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

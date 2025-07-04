@@ -1,0 +1,36 @@
+commit 6e318bda6c4236caf5a7f02d5ce545f5365094e0
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Oct 26 11:36:46 2011 +1100
+
+    html: improve parsing of tables
+    
+    When foster parenting, merge adjacent text nodes.
+    Properly close table row at </tr> tag.
+    
+    Pass tests1.dat, test 32:
+    <!-----><font><div>hello<table>excite!<b>me!<th><i>please!</tr><!--X-->
+    
+    | <!-- - -->
+    | <html>
+    |   <head>
+    |   <body>
+    |     <font>
+    |       <div>
+    |         "helloexcite!"
+    |         <b>
+    |           "me!"
+    |         <table>
+    |           <tbody>
+    |             <tr>
+    |               <th>
+    |                 <i>
+    |                   "please!"
+    |             <!-- X -->
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5323048
+
+ src/pkg/html/parse.go      | 33 ++++++++++++++++++++++++++-------
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 27 insertions(+), 8 deletions(-)

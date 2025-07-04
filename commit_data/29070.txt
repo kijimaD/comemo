@@ -1,0 +1,22 @@
+commit 4d6207790b2f08daa00d2a7a67854a159ab2f601
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 4 15:51:31 2016 -0400
+
+    runtime: consolidate h_allspans and mheap_.allspans
+    
+    These are two ways to refer to the allspans array that hark back to
+    when the runtime was split between C and Go. Clean this up by making
+    mheap_.allspans a slice and eliminating h_allspans.
+    
+    Change-Id: Ic9360d040cf3eb590b5dfbab0b82e8ace8525610
+    Reviewed-on: https://go-review.googlesource.com/30530
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/export_test.go |  2 +-
+ src/runtime/heapdump.go    |  8 +++----
+ src/runtime/mgc.go         |  5 ++---
+ src/runtime/mheap.go       | 56 ++++++++++++++++++++++++++++------------------
+ src/runtime/mstats.go      |  2 +-
+ 5 files changed, 42 insertions(+), 31 deletions(-)

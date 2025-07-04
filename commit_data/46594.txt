@@ -1,0 +1,32 @@
+commit 7e4fb8b3ef9774e58f90359f51e89ac5103d388d
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Sep 24 10:46:09 2021 -0700
+
+    cmd/go: make 'go mod why -m' work in inconsistent, pruned module
+    
+    'go mod why -m' works by listing modules matching command line
+    arguments, then loading "all" packages and finding which of the listed
+    modules provide packages imported by the main module.
+    
+    If go.mod is inconsistent (that is, a requirement has a lower version
+    than MVS would select when the module graph is loaded) and pruned
+    (that is, the module graph is only loaded when necessary), then
+    modload.ListModules may return modules with different versions than
+    would be selected in modload.LoadPackages.
+    
+    'go mod why -m' was too strict about this, mapping module paths and
+    versions to packages. With this fix, it maps module paths without
+    versions to packages.
+    
+    Fixes #48613
+    
+    Change-Id: I836c46289bb647d6c46ec65e7589531da532d5e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352115
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/why.go             | 8 +++-----
+ src/cmd/go/testdata/script/mod_skip_write.txt | 6 +-----
+ 2 files changed, 4 insertions(+), 10 deletions(-)

@@ -1,0 +1,19 @@
+commit 913ecf492d99801eefdebd7eb6773a5ea98107f8
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Thu Mar 10 15:35:17 2022 +0100
+
+    cmd/compile: fix clobberFlags for BSWAP
+    
+    BSWAP does not affect EFLAGS on neither 386 nor x64. Set the clobberFlags value accordingly.
+    
+    Change-Id: Ib9e88400607fea44bb51fe95dc4d77e7cb54bfec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391494
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/386Ops.go   | 2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 4 ++--
+ src/cmd/compile/internal/ssa/opGen.go        | 3 ---
+ 3 files changed, 3 insertions(+), 6 deletions(-)

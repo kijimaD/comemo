@@ -1,0 +1,19 @@
+commit 40cdf69fc9279ab28f84a6e0f965de8382c578fe
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Tue Oct 17 22:38:17 2023 +0800
+
+    internal/poll: add SPLICE_F_NONBLOCK flag for splice to avoid inconsistency with O_NONBLOCK
+    
+    For #59041
+    
+    Details: https://github.com/golang/go/issues/59041#issuecomment-1766610087
+    
+    Change-Id: Id3fc1df6d86b7c4cc383d09f9465fa8f4cc2a559
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536015
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/splice_linux.go | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)

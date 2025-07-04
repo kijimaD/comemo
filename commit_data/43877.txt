@@ -1,0 +1,28 @@
+commit 4481ad6eb6c2b4ee52d949289da82cc00cc829fa
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Nov 25 14:07:30 2020 -0500
+
+    doc/go1.16: consolidate stdlib changes in "Minor changes" section
+    
+    Many of the standard library changes that were added before CL 272871
+    ended up in the "Core library" section. That section is meant for
+    major changes like new packages, and most of these aren't.
+    
+    Consolidate all changes in the "Minor changes to the library" section
+    for now, so that it's easier to get a complete picture of changes for
+    each package, along with the remaining TODOs. Add a TODO to read them
+    over at the end and factor out items that are worth highlighting.
+    
+    Apply minor other fixups to improve consistency.
+    
+    For #40700.
+    
+    Change-Id: I7dc2e7ebf2ea3385fce0c207bae4ce467998a717
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273267
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ doc/go1.16.html | 303 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 153 insertions(+), 150 deletions(-)

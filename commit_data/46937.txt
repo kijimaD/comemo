@@ -1,0 +1,17 @@
+commit 1e49210ccd8fa40273d0d32e5ae898a4bee69a6e
+Author: 180909 <wjh180909@gmail.com>
+Date:   Thu Sep 9 00:32:03 2021 +0800
+
+    encoding/base64: add examples for Encode/Decode
+    
+    Fixes #37595
+    
+    Change-Id: I83e5f6105748a0a9238322a4f7ec4b0bbf61a263
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348394
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/encoding/base64/example_test.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

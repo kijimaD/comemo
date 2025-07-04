@@ -1,0 +1,18 @@
+commit 16c9d3616af86c7d150894f6ddd9fa527d9eda9a
+Author: Rob Pike <r@golang.org>
+Date:   Sat Aug 3 16:01:04 2013 +1000
+
+    various: deleted unused items
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/12396043
+
+ src/pkg/encoding/json/decode_test.go |  3 ---
+ src/pkg/html/escape.go               | 10 ----------
+ src/pkg/mime/grammar.go              | 13 -------------
+ src/pkg/text/template/parse/parse.go | 22 ----------------------
+ src/pkg/time/time.go                 |  1 -
+ src/pkg/time/zoneinfo.go             | 13 -------------
+ src/pkg/time/zoneinfo_read.go        |  4 ----
+ 7 files changed, 66 deletions(-)

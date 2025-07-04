@@ -1,0 +1,44 @@
+commit 9e90a15ba4f6ad7d3a61ecf81bf00abb386fbe0d
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Sep 15 15:06:06 2023 -0400
+
+    cmd/compile/internal/inline/inlheur: enhance call result scoring
+    
+    This patch makes a small enhancement to call result scoring, to make
+    it more independent of param value heuristics. For this pair of
+    functions:
+    
+      func caller() {
+         v := callee(10)         <<-- this callsite
+         if v > 101 {
+            ...
+         }
+      }
+      func callee(x int) {
+         if x < 0 {
+           G = 1
+         }
+         return 9
+      }
+    
+    The score for the specified call site above would be adjusted only
+    once, for the "pass constant to parameter that feeds 'if' statement"
+    heuristic, which didn't reflect the fact that doing the inline enables
+    not one but two specific deadcode opportunities (first for the code
+    inside the inlined routine body, then for the "if" downstream of the
+    inlined call).
+    
+    This patch changes the call result scoring machinery to use a separate
+    set of mask bits, so that we can more accurately handle the case
+    above.
+    
+    Change-Id: I700166d0c990c037215b9f904e9984886986c600
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529117
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ .../inline/inlheur/score_callresult_uses.go        | 22 +++-----
+ .../inline/inlheur/scoreadjusttyp_string.go        | 38 ++++++++------
+ src/cmd/compile/internal/inline/inlheur/scoring.go | 60 +++++++++++++++++-----
+ .../inline/inlheur/testdata/props/returns2.go      | 29 ++++++-----
+ 4 files changed, 89 insertions(+), 60 deletions(-)

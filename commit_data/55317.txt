@@ -1,0 +1,18 @@
+commit 5b84d50038ae852e638631b0a7e71c719e41d240
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Dec 18 16:00:06 2023 -0500
+
+    test: skip rangegen.go on 32-bit platforms
+    
+    Add a skip for this test that effectively disables it for 32-bit platforms,
+    so as to not run into timeouts or OOMs on smaller machines.
+    
+    Fixes #64789.
+    
+    Change-Id: I2d428e1dccae62b8bb1a69c5f95699692a282bbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550975
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ test/rangegen.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

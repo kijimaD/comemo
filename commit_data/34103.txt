@@ -1,0 +1,23 @@
+commit 1de1f316df84569c449d6d709b0d711921ea6116
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 15 14:54:24 2017 -0800
+
+    runtime: buffered write barrier for arm
+    
+    Updates #22460.
+    
+    Change-Id: I5581df7ad553237db7df3701b117ad99e0593b78
+    Reviewed-on: https://go-review.googlesource.com/92698
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/arm/ssa.go        |  5 +++
+ src/cmd/compile/internal/gc/main.go        |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules |  3 ++
+ src/cmd/compile/internal/ssa/gen/ARMOps.go |  5 +++
+ src/cmd/compile/internal/ssa/opGen.go      | 15 ++++++++
+ src/cmd/compile/internal/ssa/rewriteARM.go | 20 +++++++++++
+ src/cmd/vet/all/whitelist/arm.txt          |  2 ++
+ src/runtime/asm_arm.s                      | 58 ++++++++++++++++++++++++++++++
+ 8 files changed, 109 insertions(+), 1 deletion(-)

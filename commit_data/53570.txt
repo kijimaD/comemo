@@ -1,0 +1,27 @@
+commit 30b17f4f97d37f654c5090001c5b44c331b00d0c
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Jun 15 02:08:47 2023 -0400
+
+    net/http: only disable Fetch API in tests
+    
+    The Fetch API was meant to only be disabled in tests.
+    Since wasm_exec.js defines a global 'process' object,
+    it ended up being disabled anywhere that script is used.
+    
+    Make the heuristic stricter so that it's less likely to
+    trigger anywhere but when testing js/wasm using Node.js.
+    
+    For #57613.
+    Fixes #60808.
+    
+    Change-Id: Ief8def802b466ef4faad16daccefcfd72e4398b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503675
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/roundtrip_js.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

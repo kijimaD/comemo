@@ -1,0 +1,21 @@
+commit 99d63007a00c07bdb9571d2a206c55b72fe1295e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 16 12:14:14 2022 -0700
+
+    test: fix issue20014 for noopt builder
+    
+    This test is currently overly sensitive to compiler optimizations,
+    because inlining can affect the order in which cmd/link emits field
+    references. The order doesn't actually matter though, so this CL just
+    tweaks the test to sort the tracked fields before printing them.
+    
+    Updates #51734.
+    
+    Change-Id: I3b65ca265856b2e1102f40406d5ce34610c70d40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406674
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ test/fixedbugs/issue20014.dir/main.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

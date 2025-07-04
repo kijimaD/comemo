@@ -1,0 +1,22 @@
+commit 894869e1508d3b6a8e6bbbdbb7603cdd77d23162
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 14 14:01:11 2017 -0500
+
+    encoding/xml: move unexported const out of exported const block
+    
+    CL 58210 introduced this constant for reasons I don't understand.
+    It should not be in the exported const block, which will pollute
+    godoc output with a "... unexported" notice.
+    
+    Also since we already have a constant named xmlnsPrefix for "xmlns",
+    it is very confusing to also have xmlNamespacePrefix for "xml".
+    If we must have the constant at all, rename it to xmlPrefix.
+    
+    Change-Id: I15f937454d730005816fcd32b1acca703acf1e51
+    Reviewed-on: https://go-review.googlesource.com/78121
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/xml/marshal.go | 5 ++---
+ src/encoding/xml/xml.go     | 3 ++-
+ 2 files changed, 4 insertions(+), 4 deletions(-)

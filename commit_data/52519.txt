@@ -1,0 +1,21 @@
+commit 2f2b874b0aab741a8628fd971f4b3aa41e2fdffb
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 4 14:57:14 2023 +0200
+
+    os/exec: skip remount in TestFindExecutableVsNoexec on EROFS
+    
+    To allow using testenv.SyscallIsNotSupported, rewrite the test to use
+    the exported API only. Given that path is an absolute path,
+    exec.LookPath is equivalent to exec.findExecutable on linux.
+    
+    Fixes #59087
+    
+    Change-Id: Ia01b84d4e9d5a65a88dd995f9e3c8a81c4ccd19f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481620
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/exec/lp_linux_test.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

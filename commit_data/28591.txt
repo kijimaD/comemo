@@ -1,0 +1,27 @@
+commit dd748cf3141d45eeeedcb9b88aa11e47b16a0008
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 29 15:43:10 2016 -0700
+
+    cmd/compile: make Afunclit the default/only behavior for Naddr
+    
+    Naddr used to translate PFUNC Nodes into references to the function
+    literal wrapper, and then Afunclit could be used to rewrite it to
+    reference the function text itself. But now everywhere we use Naddr on
+    PFUNC Nodes, we immediately call Afunclit anyway. So just merge
+    Afunclit's behavior into Naddr.
+    
+    Passes toolstash/buildall.
+    
+    Change-Id: If2ca6d7f314c1a0711df9b8209aace16ba4b8bc0
+    Reviewed-on: https://go-review.googlesource.com/30073
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/arm/ggen.go    |  4 +---
+ src/cmd/compile/internal/arm64/ggen.go  |  4 +---
+ src/cmd/compile/internal/gc/gsubr.go    | 14 +-------------
+ src/cmd/compile/internal/gc/pgen.go     |  1 -
+ src/cmd/compile/internal/mips64/ggen.go |  4 +---
+ src/cmd/compile/internal/ppc64/ggen.go  |  4 +---
+ 6 files changed, 5 insertions(+), 26 deletions(-)

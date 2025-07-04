@@ -1,0 +1,14 @@
+commit 5412c0c17e5d51ff94b37e5c397601f07912bb96
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 8 21:19:42 2018 +0000
+
+    net/http/fcgi: update URL to spec documentation
+    
+    Fixes #23748
+    
+    Change-Id: Iacdbd57c53492175cf1d3045640db61151e10731
+    Reviewed-on: https://go-review.googlesource.com/92955
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/fcgi/fcgi.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

@@ -1,0 +1,23 @@
+commit 5e9b76fe2a1c6709e710c985ae82dff90c847c54
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jun 1 17:35:28 2023 -0400
+
+    cmd/link: mangle certain instantiated function name in plugin mode
+    
+    In plugin mode, we mangle the type symbol name so it doesn't
+    contain characters that may confuse the external linker. With
+    generics, instantiated function name includes type names, so it
+    may also contain such characters and so also needs to be mangled.
+    
+    Fixes #58800.
+    
+    Change-Id: Ibb08c95b89b8a815ccef98193d3a025e9d4756cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500095
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/cgo/internal/testplugin/plugin_test.go     |  7 +++++++
+ .../internal/testplugin/testdata/generic/plugin.go | 22 ++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go                    | 24 ++++++++++++++++------
+ 3 files changed, 47 insertions(+), 6 deletions(-)

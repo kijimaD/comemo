@@ -1,0 +1,12 @@
+commit 62fe6914cb7580fbe57086882f1f99a943695396
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Feb 13 01:21:39 2012 -0200
+
+    os: clarify docs for link functions
+    
+    R=golang-dev, bsiegert, r
+    CC=golang-dev
+    https://golang.org/cl/5643068
+
+ src/pkg/os/file_posix.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

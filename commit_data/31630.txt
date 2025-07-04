@@ -1,0 +1,24 @@
+commit 1611839b29a5447f3132e93f14c75b1639a34490
+Author: Tristan Colgate <tcolgate@gmail.com>
+Date:   Sat May 20 14:50:06 2017 +0100
+
+    net/http/httputil: ReverseProxy should pass on unannounced Trailers
+    
+    Trailers that are not announced in the Trailer must be passed on to
+    the downstream client.
+    
+    Rather than iterate over each and find missing trailer values,
+    this re-adds all trailers to the headers if there is a disparity
+    between the number of announced trailers and the final number.
+    
+    This fixes #20437
+    
+    Change-Id: I867e85f45feff68616a9a9bd6f65f12d73825eb7
+    Reviewed-on: https://go-review.googlesource.com/43712
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 16 ++++++++++++++--
+ src/net/http/httputil/reverseproxy_test.go |  4 ++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)

@@ -1,0 +1,25 @@
+commit 76ff0caa594bfb76cd3dd39b169da54545cffd64
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Wed Jan 24 10:19:30 2024 +0000
+
+    runtime/internal/atomic: add loong64 operators for And/Or
+    
+    These primitives will be used by the new And/Or sync/atomic apis.
+    
+    For #61395
+    
+    Change-Id: I64b2e599e4f91412e0342aa01f5fd53271e9a333
+    GitHub-Last-Rev: 9755db5406b84dd84fa5432382bfabc801a34ed3
+    GitHub-Pull-Request: golang/go#63314
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531895
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ .../internal/atomic/atomic_andor_generic.go        |  2 +-
+ src/runtime/internal/atomic/atomic_loong64.go      | 18 +++++++
+ src/runtime/internal/atomic/atomic_loong64.s       | 60 ++++++++++++++++++++++
+ 3 files changed, 79 insertions(+), 1 deletion(-)

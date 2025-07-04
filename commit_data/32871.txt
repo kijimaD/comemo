@@ -1,0 +1,23 @@
+commit 84d2c7ea835c238f466de64066b65614d1bc7dbe
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 13 11:32:17 2017 -0400
+
+    runtime: dynamically allocate allp
+    
+    This makes it possible to eliminate the hard cap on GOMAXPROCS.
+    
+    Updates #15131.
+    
+    Change-Id: I4c422b340791621584c118a6be1b38e8a44f8b70
+    Reviewed-on: https://go-review.googlesource.com/45573
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go      |  4 ++--
+ src/runtime/mgcmark.go  |  2 +-
+ src/runtime/mstats.go   |  6 +++++-
+ src/runtime/proc.go     | 35 +++++++++++++++++++++++++++++++++--
+ src/runtime/runtime2.go |  3 ++-
+ src/runtime/trace.go    |  6 ++++--
+ 6 files changed, 47 insertions(+), 9 deletions(-)

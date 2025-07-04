@@ -1,0 +1,12 @@
+commit 47b835e4a8e1b4792eb3698d78751fe213336690
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 14 13:18:57 2010 -0700
+
+    channel tests: added a couple of tests with closed channels
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1774047
+
+ test/chan/select3.go | 34 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 33 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 46d7d5fcf57f31afa62b23ac379a140e69f4753e
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed May 30 13:04:48 2012 -0400
+
+    runtime: hide symbol table from garbage collector
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6243059
+
+ src/pkg/runtime/symtab.c | 59 +++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 48 insertions(+), 11 deletions(-)

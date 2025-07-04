@@ -1,0 +1,19 @@
+commit 2b0a30c4b5db7a88b3cdd403bffe701fee6e094b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 30 09:29:11 2010 -0700
+
+    big: implemented core shift routines in arith.go and
+         provide assembly versions (for x86-64 for now)
+    
+    (Not yet used - waiting for previous CL to clear)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1040041
+
+ src/pkg/big/arith.go      | 22 +++++++++++++++++++++
+ src/pkg/big/arith_386.s   | 14 +++++++++++++
+ src/pkg/big/arith_amd64.s | 50 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/big/arith_arm.s   |  6 ++++++
+ src/pkg/big/arith_test.go | 42 +++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 134 insertions(+)

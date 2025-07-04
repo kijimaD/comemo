@@ -1,0 +1,12 @@
+commit cdfbe00d915d823019fe165c7935a83c2a8dcb5f
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Jun 4 17:12:29 2013 -0700
+
+    runtime: fix description of SysAlloc
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/10010046
+
+ src/pkg/runtime/malloc.h | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

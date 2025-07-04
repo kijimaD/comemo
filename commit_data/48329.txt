@@ -1,0 +1,29 @@
+commit dbbe4cca5d7069482983316694334bdf2fe6a7ec
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 13 17:34:16 2021 -0500
+
+    cmd/dist: log OS version when testing
+    
+    As a follow-up to https://golang.org/cl/371474, add the OS version to
+    the metadata printed for each test.
+    
+    This is a redo of CL 371475. This version updates go.mod and conforms to
+    the changes made in the parent commit.
+    
+    Fixes #50146.
+    
+    Change-Id: Iba5541cc8dd2c85c1fa3a215e30c8c3f9b6aaaab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378590
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go.mod                        |  2 +-
+ src/cmd/internal/metadata/main.go     |  8 ++++++++
+ src/cmd/internal/osinfo/doc.go        |  6 ++++++
+ src/cmd/internal/osinfo/os_js.go      | 21 ++++++++++++++++++++
+ src/cmd/internal/osinfo/os_plan9.go   | 21 ++++++++++++++++++++
+ src/cmd/internal/osinfo/os_unix.go    | 36 +++++++++++++++++++++++++++++++++++
+ src/cmd/internal/osinfo/os_windows.go | 19 ++++++++++++++++++
+ 7 files changed, 112 insertions(+), 1 deletion(-)

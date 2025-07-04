@@ -1,0 +1,97 @@
+commit 5c359d80837cd7f546f2d709dc270099b5dd5fe0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 5 07:05:35 2017 -0700
+
+    cmd/compile: add Prog cache to Progs
+    
+    The existing bulk/cached Prog allocator, Ctxt.NewProg, is not concurrency-safe.
+    This CL moves Prog allocation to its clients, the compiler and the assembler.
+    
+    The assembler is so fast and generates so few Progs that it does not need
+    optimization of Prog allocation. I could not generate measureable changes.
+    And even if I could, the assembly is a miniscule portion of build times.
+    
+    The compiler already has a natural place to manage Prog allocation;
+    this CL migrates the Prog cache there.
+    It will be made concurrency-safe in a later CL by
+    partitioning the Prog cache into chunks and assigning each chunk
+    to a different goroutine to manage.
+    
+    This CL does cause a performance degradation when the compiler
+    is invoked with the -S flag (to dump assembly).
+    However, such usage is rare and almost always done manually.
+    The one instance I know of in a test is TestAssembly
+    in cmd/compile/internal/gc, and I did not detect
+    a measurable performance impact there.
+    
+    Passes toolstash-check -all.
+    Minor compiler performance impact.
+    
+    Updates #15756
+    
+    Performance impact from just this CL:
+    
+    name        old time/op     new time/op     delta
+    Template        213ms ± 4%      213ms ± 4%    ~     (p=0.571 n=49+49)
+    Unicode        89.1ms ± 3%     89.4ms ± 3%    ~     (p=0.388 n=47+48)
+    GoTypes         581ms ± 2%      584ms ± 3%  +0.56%  (p=0.019 n=47+48)
+    SSA             6.48s ± 2%      6.53s ± 2%  +0.84%  (p=0.000 n=47+49)
+    Flate           128ms ± 4%      128ms ± 4%    ~     (p=0.832 n=49+49)
+    GoParser        152ms ± 3%      152ms ± 3%    ~     (p=0.815 n=48+47)
+    Reflect         371ms ± 4%      371ms ± 3%    ~     (p=0.617 n=50+47)
+    Tar             112ms ± 4%      112ms ± 3%    ~     (p=0.724 n=49+49)
+    XML             208ms ± 3%      208ms ± 4%    ~     (p=0.678 n=49+50)
+    [Geo mean]      284ms           285ms       +0.18%
+    
+    name        old user-ns/op  new user-ns/op  delta
+    Template         251M ± 7%       252M ±11%    ~     (p=0.704 n=49+50)
+    Unicode          107M ± 7%       108M ± 5%  +1.25%  (p=0.036 n=50+49)
+    GoTypes          738M ± 3%       740M ± 3%    ~     (p=0.305 n=49+48)
+    SSA             8.83G ± 2%      8.86G ± 4%    ~     (p=0.098 n=47+50)
+    Flate            146M ± 6%       147M ± 3%    ~     (p=0.584 n=48+41)
+    GoParser         178M ± 6%       179M ± 5%  +0.93%  (p=0.036 n=49+48)
+    Reflect          441M ± 4%       446M ± 7%    ~     (p=0.218 n=44+49)
+    Tar              126M ± 5%       126M ± 5%    ~     (p=0.766 n=48+49)
+    XML              245M ± 5%       244M ± 4%    ~     (p=0.359 n=50+50)
+    [Geo mean]       341M            342M       +0.51%
+    
+    Performance impact from this CL combined with its parent:
+    
+    name        old time/op     new time/op     delta
+    Template        213ms ± 3%      214ms ± 4%    ~     (p=0.685 n=47+50)
+    Unicode        89.8ms ± 6%     90.5ms ± 6%    ~     (p=0.055 n=50+50)
+    GoTypes         584ms ± 3%      585ms ± 2%    ~     (p=0.710 n=49+47)
+    SSA             6.50s ± 2%      6.53s ± 2%  +0.39%  (p=0.011 n=46+50)
+    Flate           128ms ± 3%      128ms ± 4%    ~     (p=0.855 n=47+49)
+    GoParser        152ms ± 3%      152ms ± 3%    ~     (p=0.666 n=49+49)
+    Reflect         371ms ± 3%      372ms ± 3%    ~     (p=0.298 n=48+48)
+    Tar             112ms ± 5%      113ms ± 3%    ~     (p=0.107 n=49+49)
+    XML             208ms ± 3%      208ms ± 2%    ~     (p=0.881 n=50+49)
+    [Geo mean]      285ms           285ms       +0.26%
+    
+    name        old user-ns/op  new user-ns/op  delta
+    Template         254M ± 9%       252M ± 8%    ~     (p=0.290 n=49+50)
+    Unicode          106M ± 6%       108M ± 7%  +1.44%  (p=0.034 n=50+50)
+    GoTypes          741M ± 4%       743M ± 4%    ~     (p=0.992 n=50+49)
+    SSA             8.86G ± 2%      8.83G ± 3%    ~     (p=0.158 n=47+49)
+    Flate            147M ± 4%       148M ± 5%    ~     (p=0.832 n=50+49)
+    GoParser         179M ± 5%       178M ± 5%    ~     (p=0.370 n=48+50)
+    Reflect          441M ± 6%       445M ± 7%    ~     (p=0.246 n=45+47)
+    Tar              126M ± 6%       126M ± 6%    ~     (p=0.815 n=49+50)
+    XML              244M ± 3%       245M ± 4%    ~     (p=0.190 n=50+50)
+    [Geo mean]       342M            342M       +0.17%
+    
+    Change-Id: I020f1c079d495fbe2e15ccb51e1ea2cc1b5a1855
+    Reviewed-on: https://go-review.googlesource.com/39634
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/asm/internal/asm/endtoend_test.go |  4 +--
+ src/cmd/asm/main.go                       |  2 +-
+ src/cmd/compile/internal/gc/gsubr.go      | 54 +++++++++++++++++++++++++------
+ src/cmd/compile/internal/gc/pgen.go       |  7 ++--
+ src/cmd/internal/obj/link.go              |  4 ---
+ src/cmd/internal/obj/plist.go             | 18 +++--------
+ src/cmd/internal/obj/util.go              | 17 +++-------
+ 7 files changed, 59 insertions(+), 47 deletions(-)

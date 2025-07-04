@@ -1,0 +1,18 @@
+commit 3bb8864e9f5d4505c792528c9460fced4c0e7346
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Jan 13 15:03:43 2023 +0100
+
+    net/netip: fix type name in TestNoAllocs sub-test names and comments
+    
+    netaddr.IP became netip.Addr
+    
+    Change-Id: Ifa762d0f804c603e6289d63672e4808e75dc36a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461748
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/net/netip/netip_test.go | 58 ++++++++++++++++++++++-----------------------
+ 1 file changed, 29 insertions(+), 29 deletions(-)

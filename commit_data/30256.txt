@@ -1,0 +1,18 @@
+commit 785cb7e098b689e9d8c2d4be856f3ffa1825042e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Feb 12 22:56:50 2017 -0800
+
+    all: fix some printf format strings
+    
+    Appease vet.
+    
+    Change-Id: Ie88de08b91041990c0eaf2e15628cdb98d40c660
+    Reviewed-on: https://go-review.googlesource.com/36938
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/src/xpos_test.go | 4 ++--
+ src/cmd/nm/nm_test.go             | 6 +++---
+ src/math/big/prime_test.go        | 2 +-
+ 3 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,16 @@
+commit d2512aff877a91e8cf8fa97602297f17e5b5d3f2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 21 13:50:28 2016 -0800
+
+    misc/cgo/test: limit issue18146 attempts based on RLIMIT_NPROC
+    
+    Fixes #18381.
+    
+    Change-Id: I0a476cd7f6182c8d4646628477c56c133d5671ee
+    Reviewed-on: https://go-review.googlesource.com/34667
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/issue18146.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

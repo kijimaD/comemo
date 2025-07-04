@@ -1,0 +1,14 @@
+commit 86deacc0bc271a7188db6f4413be6491f013f233
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Thu Dec 22 17:31:54 2011 +0100
+
+    gc: better linenumbers for inlined functions
+    
+    Fixes #2580 up to a point.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5498068
+
+ src/cmd/gc/inl.c | 34 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 33 insertions(+), 1 deletion(-)

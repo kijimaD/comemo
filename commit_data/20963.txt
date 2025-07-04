@@ -1,0 +1,12 @@
+commit 1757b5cc7449a9883687e78f9be010fc1d876e32
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Dec 10 23:29:47 2014 -0800
+
+    runtime: fix nacl build
+    
+    Change-Id: Ifa8b2d1d1cebe72f795db34974584a888d55cbd8
+    Reviewed-on: https://go-review.googlesource.com/1362
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/os1_nacl.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

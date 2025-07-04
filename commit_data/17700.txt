@@ -1,0 +1,12 @@
+commit bc0e51555c35552415eb5d4560b43b4bff0e944b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Sep 25 18:15:29 2013 +1000
+
+    doc: mention the install locations for godoc, cover, and vet
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13893043
+
+ doc/install-source.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

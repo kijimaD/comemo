@@ -1,0 +1,20 @@
+commit 5631c4b3bfd71aae7cbdd7f35f63de7f89639d1e
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Wed Apr 14 18:35:49 2021 -0600
+
+    net/http: allow multiple dials in TestTransportMaxConnsPerHost
+    
+    If there is more than the expected single dial, the channel will block.
+    Allow at least one connection per client, and do the expected cleanup.
+    
+    Updates #45570
+    
+    Change-Id: Iaecd45298a7d7c591b7d7b1be13cea6e4a1e2e85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310213
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/net/http/transport_test.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

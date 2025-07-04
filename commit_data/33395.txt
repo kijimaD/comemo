@@ -1,0 +1,23 @@
+commit af37332d160e096fe5bedc551f318c7b76d4e57a
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Nov 2 15:03:28 2017 -0700
+
+    io: fix Pipe regression with differing error types
+    
+    Usage of atomic.Value has a subtle requirement that the
+    value be of the same concrete type. In prior usage, the intention
+    was to consistently store a value of the error type.
+    Since error is an interface, the underlying concrete can differ.
+    
+    Fix this by creating a type-safe abstraction over atomic.Value
+    that wraps errors in a struct{error} type to ensure consistent types.
+    
+    Change-Id: Ica74f2daba15e4cff48d2b4f830d2cb51c608fb6
+    Reviewed-on: https://go-review.googlesource.com/75594
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/io/pipe.go      | 24 ++++++++++++++++++------
+ src/io/pipe_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 6 deletions(-)

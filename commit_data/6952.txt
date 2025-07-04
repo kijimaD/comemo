@@ -1,0 +1,12 @@
+commit d7340d9c2029cab7c61860542989aea52945526e
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Dec 14 12:26:30 2010 -0500
+
+    http: include DEL in the test for unprintable chars
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/3631041
+
+ src/pkg/http/fs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

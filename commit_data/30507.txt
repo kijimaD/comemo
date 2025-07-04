@@ -1,0 +1,25 @@
+commit d8a0f748013dae2a731a9a37f94ab0e37d096ee2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 3 02:43:44 2017 -0800
+
+    cmd/compile/internal/gc: remove OHMUL Op
+    
+    Previously the compiler rewrote constant division into OHMUL
+    operations, but that rewriting was moved to SSA in CL 37015. Now OHMUL
+    is unused, so we can get rid of it.
+    
+    Change-Id: Ib6fc7c2b6435510bafb5735b3b4f42cfd8ed8cdb
+    Reviewed-on: https://go-review.googlesource.com/37750
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/opnames.go   | 1 -
+ src/cmd/compile/internal/gc/racewalk.go  | 1 -
+ src/cmd/compile/internal/gc/ssa.go       | 9 +--------
+ src/cmd/compile/internal/gc/syntax.go    | 1 -
+ src/cmd/compile/internal/gc/typecheck.go | 1 -
+ src/cmd/compile/internal/gc/universe.go  | 1 -
+ src/cmd/compile/internal/gc/walk.go      | 1 -
+ 7 files changed, 1 insertion(+), 14 deletions(-)

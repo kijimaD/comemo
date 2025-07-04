@@ -1,0 +1,22 @@
+commit d567ea652a6da310c5ede4ab68012cddc3baa45a
+Author: Martin Garton <garton@gmail.com>
+Date:   Mon Jun 17 12:44:36 2024 +0000
+
+    encoding/binary: add missing test helper calls
+    
+    Various functions in binary_test.go were missing some t.Helper() calls,
+    so this adds them in.
+    
+    Change-Id: I0e5894e3c3cf72627203694a32adca51fe1563f5
+    GitHub-Last-Rev: b28c9255b3b5db3cf18b5406a4e13613d10b8da5
+    GitHub-Pull-Request: golang/go#63897
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539135
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/encoding/binary/binary_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

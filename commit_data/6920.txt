@@ -1,0 +1,32 @@
+commit 055650daa413b7a03fed224d08acc94186cb4d01
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 10 14:40:22 2010 -0800
+
+    godoc: first cut at textual search
+    
+    To enable use -fulltext flag; e.g.: godoc -v -fulltext -http=:7777
+    
+    Enabling the fulltext index will use significantly more memory as
+    the text of all source code, the respective suffixarray, and the
+    file set data structure is kept in memory. At the moment there is
+    about 6Mb of source code (~1400 files) indexed under GOROOT.
+    Source code + suffix array together consume 5*(size of source) or
+    about 30Mb. The file set data structure consumes about 4b/src line.
+    By default only up to 5000 results are shown for now.
+    
+    The presentation of the results needs tuning. In particular,
+    if a string is found, clicking on the respective file does not
+    highlight them, yet.
+    
+    At the moment, only Go source files are indexed. Eventually,
+    the full text index should encompass other files as well.
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/3182043
+
+ lib/godoc/search.html  |  24 ++++++
+ src/cmd/godoc/doc.go   |   2 +
+ src/cmd/godoc/godoc.go |  50 +++++++++---
+ src/cmd/godoc/index.go | 210 +++++++++++++++++++++++++++++++++++++++++++------
+ 4 files changed, 253 insertions(+), 33 deletions(-)

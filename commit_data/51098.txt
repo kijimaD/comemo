@@ -1,0 +1,22 @@
+commit c065bc70ef45003216271ba42bdd4a4c321ac38a
+Author: Bryan Mills <bcmills@google.com>
+Date:   Thu Nov 3 19:13:31 2022 +0000
+
+    Revert "cmd/go: update TestScripts/svn to not depend on TZ database"
+    
+    This reverts CL 447335.
+    
+    Reason for revert: broke test on solaris-amd64-oraclerel, which does have a TZ database but has a non-UTC system time zone.
+    
+    Change-Id: Id61f182d331fc5ca8475845fe0ebf3f1d105d8a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447756
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+
+ src/cmd/go/testdata/vcstest/svn/hello.txt         |  5 ++---
+ src/cmd/go/testdata/vcstest/svn/test1-svn-git.txt | 14 ++++++--------
+ src/cmd/go/testdata/vcstest/svn/test2-svn-git.txt | 10 ++++------
+ 3 files changed, 12 insertions(+), 17 deletions(-)

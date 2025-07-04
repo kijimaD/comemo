@@ -1,0 +1,17 @@
+commit 7c7d22ac5f29c610d6e0f781370c3e44c8443f69
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 29 11:42:18 2013 +1000
+
+    runtime: re-enable TestParForParallel
+    
+    See how it flies. We'll disable it again if the underlying issue is not resolved.
+    See issue 4155 for details.
+    
+    Fixes #4155.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13368045
+
+ src/pkg/runtime/parfor_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

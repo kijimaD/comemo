@@ -1,0 +1,21 @@
+commit cf59c1f9ccac9a9078d783061c7715f4d6b7e5e2
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Tue Oct 20 09:02:28 2015 -0700
+
+    html/template: include itself while cloning
+    
+    template.Clone() initialized template set incorrectly:
+    it didn't include itself.
+    
+    * include itself in template set while cloning
+    * add a test
+    
+    Fixes #12996
+    
+    Change-Id: I932530e4f7f1bbebf833e12b000a5ce052bc9223
+    Reviewed-on: https://go-review.googlesource.com/16104
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/html/template/template.go      |  1 +
+ src/html/template/template_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

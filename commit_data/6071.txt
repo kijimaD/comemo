@@ -1,0 +1,16 @@
+commit e1e829b7866b0390e7c8e0dc425490b88264b67d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 24 13:04:02 2010 -0400
+
+    runtime: fix freebsd/386 mmap
+    
+    The runtime only passes 32 bits of file offset,
+    but the kernel wants 64 bits, so have to add
+    zeros explicitly in a copy of the arguments.
+    
+    R=adg, Martin Neubauer
+    CC=golang-dev
+    https://golang.org/cl/1933044
+
+ src/pkg/runtime/freebsd/386/sys.s | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

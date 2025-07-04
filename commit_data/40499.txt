@@ -1,0 +1,16 @@
+commit 01e7a152e353644caf26c741bc64f4ef6580752e
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Tue Oct 29 13:50:31 2019 +0800
+
+    cmd/compile: resolve TODO of Mpflt.SetString
+    
+    Number literal strings returned by the lexer (internal/syntax package) and other
+    arguments to SetString never contain leading whitespace. There's no need (anymore)
+    to trim the argument.
+    
+    Change-Id: Ib060d109f46f79a364a5c8aa33c4f625fe849264
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203997
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/mpfloat.go | 5 -----
+ 1 file changed, 5 deletions(-)

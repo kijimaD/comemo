@@ -1,0 +1,15 @@
+commit d778a371be488312fe43b2d710dfc8c7afb3d29c
+Author: Shivansh Rai <shivansh@freebsd.org>
+Date:   Fri May 18 06:50:43 2018 +0530
+
+    cmd/gofmt: update error handling when writing to backup file
+    
+    As per commit aa0ae75, handling of io.ErrShortWrite is done in
+    *File.Write() itself.
+    
+    Change-Id: I92924b51e8df2ae88e6e50318348f44973addba8
+    Reviewed-on: https://go-review.googlesource.com/113696
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/gofmt/gofmt.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

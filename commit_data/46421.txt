@@ -1,0 +1,22 @@
+commit f93a63addbbca69d7817c8993a88511ec31424cd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Sep 13 12:49:08 2021 -0700
+
+    reflect: add a floating point section to DeepEqual tests
+    
+    The floating point tests were all added into the Inequalities section,
+    instead of separated into Equalities vs Inequalities.
+    
+    Rather than separate them, add a new floating point section.
+    
+    Change-Id: I3713a5aff5850dcc0caf68a754633d695a03ded9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349612
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/reflect/all_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 5152be3959d4aa273932c12da971d14e7f84405d
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Sep 26 05:38:14 2023 +0000
+
+    all: use the indefinite article an in comments
+    
+    This is a follow up of CL 530120.
+    
+    Change-Id: Ifa0bd1c3bb9bb1202568eaae27500bcea376f56b
+    GitHub-Last-Rev: b4154fa1fc205a6a1af050ab49a4738f73b3c32a
+    GitHub-Pull-Request: golang/go#63228
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531136
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/script/engine.go                        | 2 +-
+ src/cmd/go/testdata/script/test_fuzz_limit_dup_entry.txt    | 2 +-
+ src/cmd/go/testdata/script/test_fuzz_minimize_dirty_cov.txt | 2 +-
+ src/crypto/ecdh/ecdh.go                                     | 4 ++--
+ src/crypto/internal/edwards25519/field/fe_generic.go        | 2 +-
+ src/encoding/xml/marshal.go                                 | 2 +-
+ 6 files changed, 7 insertions(+), 7 deletions(-)

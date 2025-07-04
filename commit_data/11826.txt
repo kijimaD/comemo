@@ -1,0 +1,19 @@
+commit d318ab22647205c4d6d3aa32bb027a434f7b16d3
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 12 23:19:24 2012 -0500
+
+    cmd/go: respect test -timeout flag
+    
+    I thought that -timeout was per-test, but it is for the
+    whole program execution, so cmd/go can adjust its timer
+    (also for whole program execution) accordingly.
+    
+    Fixes #2993.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5650070
+
+ src/cmd/go/test.go     | 15 ++++++++++++---
+ src/cmd/go/testflag.go |  2 ++
+ 2 files changed, 14 insertions(+), 3 deletions(-)

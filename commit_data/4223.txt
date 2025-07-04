@@ -1,0 +1,19 @@
+commit a0c55432f3f6e6848fb36c04c7afaa7e34144dfa
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 24 21:07:05 2009 -0800
+
+    fix weird all.bash failures by running deps.bash before make clean runs in pkg directory.
+    before this change, if pkg/Make.deps is missing or broken, clean.bash fails and the build dies
+    but not until much later.
+    
+    add freebsd to error message about valid values of $GOOS
+    
+    TODO: would be nice if this process exited when an error occurred. subshells make it hard
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/160065
+
+ src/make.bash    | 9 ++++++---
+ src/pkg/Makefile | 2 +-
+ 2 files changed, 7 insertions(+), 4 deletions(-)

@@ -1,0 +1,23 @@
+commit 5337e53dfa3f5fde73b8f505ec3a91c628e8f648
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 12 12:38:29 2021 -0800
+
+    cmd/compile: ensure we replace package placeholder in type names
+    
+    We want package names exposed by reflect to be things like
+    main.F[main.foo], not main.F["".foo].
+    
+    Fixes #49547
+    
+    Change-Id: I182411a75d56ce1f64fde847e5b9ee74ce44e00b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363656
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/types/fmt.go |  8 +++++++-
+ test/typeparam/issue49547.go          | 22 ++++++++++++++++++++++
+ test/typeparam/nested.out             |  6 +++---
+ 3 files changed, 32 insertions(+), 4 deletions(-)

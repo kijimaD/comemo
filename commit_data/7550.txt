@@ -1,0 +1,24 @@
+commit e0a2c5d4b540934e06867710fe7137661a2a39ec
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 23 12:20:50 2011 -0800
+
+    http: introduce start of Client and ClientTransport
+    
+    Much yet to come, but this is a safe first step, introducing
+    an in-the-future configurable Client object (where policy for
+    cookies, auth, redirects will live) as well as introducing a
+    ClientTransport interface for sending requests.
+    
+    The CL intentionally ignores everything around the creation
+    and configuration of Clients and merely ports/wraps the old
+    interfaces to/around Client/ClientTransport.
+    
+    R=rsc, dsymonds, nigeltao, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4182086
+
+ src/pkg/http/Makefile     |   1 +
+ src/pkg/http/client.go    | 206 ++++++++++++++++++++--------------------------
+ src/pkg/http/fs_test.go   |   2 +-
+ src/pkg/http/transport.go | 150 +++++++++++++++++++++++++++++++++
+ 4 files changed, 240 insertions(+), 119 deletions(-)

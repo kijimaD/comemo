@@ -1,0 +1,13 @@
+commit 81aacb80d55eddcb95cbe2c87392cc922e026e45
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 6 15:27:30 2016 -0700
+
+    cmd/compile, go/importer: minor cleanups
+    
+    Change-Id: I4ffb79d8cb08b0b44f59757fb7f0ec3ed1e4479f
+    Reviewed-on: https://go-review.googlesource.com/21624
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 8 +++-----
+ src/go/internal/gcimporter/bimport.go  | 5 ++---
+ 2 files changed, 5 insertions(+), 8 deletions(-)

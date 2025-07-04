@@ -1,0 +1,24 @@
+commit c3d3be10665f1037360600a79c0354f6580e6290
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Feb 9 11:37:13 2023 -0500
+
+    cmd/link: try libssp_nonshared.a when looking for "__stack_chk_fail_local"
+    
+    Update the code that tries to satisfy unresolved references to
+    "__stack_chk_fail_local" to look for "libssp_nonshared.a" in addition
+    to "libc_nonshared.a" (the former archive is the correct place on
+    Alpine).
+    
+    Updates #52919.
+    Updates #54313.
+    Updates #57261.
+    Fixes #58385.
+    
+    Change-Id: Id6cd3ebb4d5388df50a838e6efa5e5b683545b01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466936
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 42 +++++++++++++++++++++++------------------
+ 1 file changed, 24 insertions(+), 18 deletions(-)

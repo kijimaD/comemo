@@ -1,0 +1,21 @@
+commit 8cd6aacf81ad0a759ac895bce0b569b47aa4201c
+Author: cia-rana <kiwamura0314@gmail.com>
+Date:   Sat Apr 9 15:37:11 2022 +0900
+
+    runtime: fix URL in a comment
+    
+    For various reasons Intel has suspended viewing web pages in the .ru
+    domain, so change the domain of the documents cited in the code
+    to the .com domain. In addition, the chapter numbers in the document
+    were updated and fix it.
+    
+    Change-Id: I718be1548ec46f05ebc4f73873d4635c1d5fc76d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399060
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/runtime/memmove_amd64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

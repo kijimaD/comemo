@@ -1,0 +1,22 @@
+commit 1858ea5d857f3a874bef131b7e1bc162d05b3366
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jun 8 19:47:31 2022 +0200
+
+    syscall: remove unused setgroups on linux/loong64
+    
+    Setgroups in syscall_linux.go already wraps the setgroups(2) syscall
+    with correct POSIX semantics (ref. CL 210639).
+    
+    Change-Id: I961cd7c7fce1d70d23bf13cc82cad17854bbf40e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411214
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/syscall_linux_loong64.go  |  1 -
+ src/syscall/zsyscall_linux_loong64.go | 10 ----------
+ 2 files changed, 11 deletions(-)

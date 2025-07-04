@@ -1,0 +1,12 @@
+commit 23227f3d63227a9b63ece4bbc825be21288624af
+Author: Gustav Paul <gustav.paul@gmail.com>
+Date:   Mon Nov 28 10:45:52 2011 -0500
+
+    exp/ssh: fix misleading spelling mistake in comment
+    
+    R=dave, agl, rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5431089
+
+ src/pkg/exp/ssh/client.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

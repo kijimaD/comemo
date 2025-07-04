@@ -1,0 +1,25 @@
+commit 077902d1a6f03b54e7f0786e33b8f4ca91708f97
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 1 11:22:03 2016 -0700
+
+    cmd/compile: cleanup algtype code
+    
+    Add AlgKind enum type to represent AFOO values.
+    
+    Add IsComparable, IsRegularMemory, IncomparableField helper methods to
+    codify common higher-level idioms.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I54c544953997a8ccc72396b3058897edcbbea392
+    Reviewed-on: https://go-review.googlesource.com/21420
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go       | 117 ++++++++++++++++++-------------
+ src/cmd/compile/internal/gc/reflect.go   |   4 +-
+ src/cmd/compile/internal/gc/subr.go      |  21 ++----
+ src/cmd/compile/internal/gc/swt.go       |  13 ++--
+ src/cmd/compile/internal/gc/typecheck.go |  17 ++---
+ src/cmd/compile/internal/gc/walk.go      |  35 +++++----
+ 6 files changed, 110 insertions(+), 97 deletions(-)

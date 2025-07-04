@@ -1,0 +1,18 @@
+commit dc37bd2ac92c2fe0aaef9f15ac3e4f747f2bf341
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 11 15:35:49 2019 -0700
+
+    cmd/go: add test for gccgo name mangling crash
+    
+    Updates #33871
+    
+    Change-Id: I73b1513a89ad89126159ce03ee72b922cd01916c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200837
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/gccgo_mangle.txt | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

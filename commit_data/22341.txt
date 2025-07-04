@@ -1,0 +1,14 @@
+commit b643684febabf499205f92da06adb02a722ed225
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Apr 8 10:30:34 2015 +1200
+
+    cmd/go: re-run mkdoc.sh
+    
+    Adds $DOLLAR to doc.go
+    
+    Change-Id: Ia0ccdd9b5292010297ae95debab4acf50d3c4d9c
+    Reviewed-on: https://go-review.googlesource.com/8600
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

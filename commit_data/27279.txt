@@ -1,0 +1,35 @@
+commit 1f4f2d0d39ceac483f3d42eb25ec992cdaf257f3
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed May 4 14:26:46 2016 -0400
+
+    cmd/compile: fix uint64 to float casts on ppc64
+    
+    Adds the FCFIDU instruction and uses it instead of the FCFID
+    instruction for unsigned integer to float casts. This change means
+    that unsigned integers do not have to be cast to signed integers
+    before being cast to a floating point value. Therefore it is no
+    longer necessary to insert instructions to detect and fix
+    values that overflow int64.
+    
+    The previous code generating the uint64 to int64 cast handled
+    overflow by truncating the uint64 value. This truncation can
+    change the result of the rounding performed by the integer to
+    float cast.
+    
+    The FCFIDU instruction was added in Power ISA 2.06B.
+    
+    Fixes #15539.
+    
+    Change-Id: Ia37a9631293eff91032d4cd9a9bec759d2142437
+    Reviewed-on: https://go-review.googlesource.com/22772
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ppc64/gsubr.go | 54 ++++++++++++++++-----------------
+ src/cmd/compile/internal/ppc64/peep.go  |  2 ++
+ src/cmd/compile/internal/ppc64/prog.go  |  2 ++
+ src/cmd/internal/obj/ppc64/a.out.go     |  2 ++
+ src/cmd/internal/obj/ppc64/anames.go    |  2 ++
+ src/cmd/internal/obj/ppc64/asm9.go      |  6 ++++
+ 6 files changed, 40 insertions(+), 28 deletions(-)

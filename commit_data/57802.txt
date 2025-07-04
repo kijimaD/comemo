@@ -1,0 +1,22 @@
+commit cd54b9bae94b36f67869ef174cbb432bc4012183
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Aug 21 16:17:16 2024 -0400
+
+    internal/runtime/maps: shift optimizations
+    
+    Masking the shift lets the compiler elide a few instructions for
+    handling a shift of > 63 bits.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: I669fe01caa1de1b8521f1f56b6906f3e9066a39b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611190
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/reflectdata/map_swiss.go |  2 ++
+ src/internal/runtime/maps/map.go                  | 20 ++++++++++++++------
+ 2 files changed, 16 insertions(+), 6 deletions(-)

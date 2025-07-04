@@ -1,0 +1,38 @@
+commit 1357f548b06c7e6b0934c565418ab7af3e6ea783
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 15 19:16:18 2014 -0400
+
+    cmd/gc: fix two select temporary bugs
+    
+    The introduction of temporaries in order.c was not
+    quite right for two corner cases:
+    
+    1) The rewrite that pushed new variables on the lhs of
+    a receive into the body of the case was dropping the
+    declaration of the variables. If the variables escape,
+    the declaration is what allocates them.
+    Caught by escape analysis sanity check.
+    In fact the declarations should move into the body
+    always, so that we only allocate if the corresponding
+    case is selected. Do that. (This is an optimization that
+    was already present in Go 1.2. The new order code just
+    made it stop working.)
+    
+    Fixes #7997.
+    
+    2) The optimization to turn a single-recv select into
+    an ordinary receive assumed it could take the address
+    of the destination; not so if the destination is _.
+    
+    Fixes #7998.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/100480043
+
+ src/cmd/gc/order.c          | 36 ++++++++++++++++++++++++++++++
+ src/cmd/gc/walk.c           |  5 ++++-
+ test/fixedbugs/issue7997.go | 53 +++++++++++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue7998.go | 23 ++++++++++++++++++++
+ 4 files changed, 116 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 5451708d5be8a826cd1753fe2be611bc4d278059
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Nov 9 02:09:09 2012 +0900
+
+    net: fix non-unixen build
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6813101
+
+ src/pkg/net/ipsock.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 84b408cd36e909cd039130c0798095cce4edab94
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 13 09:23:25 2018 -0500
+
+    cmd/go: set user and email in test-local git repos
+    
+    Some of the builders cannot infer user and email from the builder hostname.
+    
+    Change-Id: I27e5d011fa1471f27763b6b7fa1bf59e418b925c
+    Reviewed-on: https://team-review.git.corp.google.com/c/376739
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/154107
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/get_brace.txt    | 4 ++++
+ src/cmd/go/testdata/script/get_dotfiles.txt | 4 ++++
+ src/cmd/go/testdata/script/get_unicode.txt  | 9 +++++++++
+ 3 files changed, 17 insertions(+)

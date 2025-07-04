@@ -1,0 +1,45 @@
+commit 6e8caefc19cae465444775f6cd107b138a26cce7
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Oct 2 09:38:24 2023 -0400
+
+    cmd/dist: emphasize when all tests are excluded
+    
+    As observed in https://go.dev/issue/61666#issuecomment-1739476954,
+    if a -run flag value matches no tests, dist test output doesn't do much
+    to help users notice that was what happened. It is valid and sometimes
+    intended¹ to match no tests, so I want to reserve failed status with
+    exit code 1 to the actionable outcome where at least 1 test failed.
+    But it seems reasonable to extend the existing "some were excluded"
+    mechanism of reporting partial testing to be more helpful.
+    
+    In non-JSON mode, which is more likely to be used manually by humans,
+    print a special² last line that will hopefully be easier to notice when
+    matching no tests wasn't intended. Change nothing for -json mode since
+    that's likely used by machines and they can make sense of 0 JSON events.
+    
+    The go test command already has this behavior, so this brings dist test
+    closer³ to it. (Slightly unfortunate duplicate maintenance for us, and
+    the need for the rare dist test users to learn its CLI quirks; oh well.)
+    
+    ¹ It might seem counter-intuitive at first: what's the point of calling
+      dist test and asking it to run no tests? One possible answer is that
+      it permits writing code capable of running N intended tests, where N
+      is 0 or higher. That is, it allows for 0 to not be a special case that
+      the caller would have no choice but handle differently.
+    ² I initially considered making it say something like "N of M tests were
+      excluded", but decided to leave it alone since the current coordinator
+      code still has that text hardcoded and I don't want to break it. Hence
+      the new status that I expect only humans will see. And it seems better
+      this way anyway.
+    ³ In particular, the "matched no tests" and "no tests to run" phrases
+      were selected precisely because they're already used in cmd/go output.
+    
+    Change-Id: I6768d9932587195ae6dbc6e2c4742479e265733b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532115
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/dist/test.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

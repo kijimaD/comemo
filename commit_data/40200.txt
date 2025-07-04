@@ -1,0 +1,44 @@
+commit 32b6eb80fc727b852965b17a63c83b4c5dab2973
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Oct 8 13:16:33 2019 -0400
+
+    cmd/go: eliminate redundancy in import error messages
+    
+    This change introduces a new interface, load.ImportPathError. An error
+    may satisfy this by providing an ImportPath method and including the
+    import path in its error text. modload.ImportMissingError satisfies
+    this interface. load.ImportErrorf also provides a convenient way to
+    create an error satisfying this interface with an arbitrary message.
+    
+    When load.PackageError formats its error text, it may omit the last
+    path on the import stack if the wrapped error satisfies
+    ImportPathError and has a matching path.
+    
+    To make this work, PackageError.Err is now an error instead of a
+    string. PackageError.MarshalJSON will write Err as a string for
+    'go list -json' output.
+    
+    When go/build.Import invokes 'go list' in module mode, it now runs
+    with '-e' and includes '.Error' in the output format instead of
+    expecting the error to be in the raw stderr text. If a package error
+    is printed and a directory was not found, the error will be returned
+    without extra decoration.
+    
+    Fixes #34752
+    
+    Change-Id: I2d81dab7dec19e0ae9f51f6412bc9f30433a8596
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199840
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/fmtcmd/fmt.go               |   2 +-
+ src/cmd/go/internal/get/get.go                  |   4 +-
+ src/cmd/go/internal/load/pkg.go                 | 130 ++++++++++++++++++------
+ src/cmd/go/internal/load/test.go                |   6 +-
+ src/cmd/go/internal/modload/import.go           |  31 +++---
+ src/cmd/go/internal/work/exec.go                |   2 +-
+ src/cmd/go/testdata/script/cmd_import_error.txt |   2 +-
+ src/go/build/build.go                           |  18 +++-
+ src/go/build/build_test.go                      |  27 +++++
+ 9 files changed, 167 insertions(+), 55 deletions(-)

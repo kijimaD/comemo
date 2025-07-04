@@ -1,0 +1,17 @@
+commit 357ea85892eea7ef8cf0f66c8a35b3912a90e219
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 15 08:15:06 2022 -0800
+
+    spec: fix typo
+    
+    Fixes #57323.
+    
+    Change-Id: I77d3d747aa4746bb9a8cca0c0500ff8fa6ae33a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457915
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

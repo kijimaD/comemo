@@ -1,0 +1,21 @@
+commit ed2996bac77725e891699b22bff3789086ea81e6
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Tue May 12 18:49:34 2020 -0700
+
+    crypto/x509: document support for leading periods in DNS constraints
+    
+    This change adds a comment to the Verify documentation that indicates
+    that you can use URI and email style name constraints with a leading
+    period for DNS names (and explains what they do). This behavior is
+    not standards compliant, but matches the community application of
+    RFC 5280, so it makes sense to document it.
+    
+    Fixes #37535
+    
+    Change-Id: Ibd6f039e4fa46d40ad7ae1ab48eab86f13cf8eff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233525
+    Reviewed-by: Ryan Sleevi <sleevi@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/verify.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

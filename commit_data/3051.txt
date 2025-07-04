@@ -1,0 +1,19 @@
+commit f861c7f61b9503bb01d2781487c267f8c320d42d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 21 17:41:18 2009 -0700
+
+    If the compiler dumps core, bash will print a useless error
+    message with the full path of the errchk script.  Catch that
+    by wrapping the if statement which invokes the compiler in a
+    subshell.  Use the $TMPOUT file as a flag to let the main
+    shell know whether the subshell ran.  Since the compiler
+    stdout and stderr are redirected, if the if statement produces
+    any output, then the compiler crashed, and we report that.
+    
+    R=r,rsc
+    DELTA=14  (11 added, 1 deleted, 2 changed)
+    OCL=33690
+    CL=33692
+
+ test/errchk | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

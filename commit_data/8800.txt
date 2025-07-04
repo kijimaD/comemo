@@ -1,0 +1,14 @@
+commit c2784340a79767a6926d935826775c245173798e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 20 12:19:26 2011 -0700
+
+    http: add Server.ListenAndServeTLS
+    
+    Fixes #1964
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4630045
+
+ src/pkg/http/server.go | 24 ++++++++++++++++++++++--
+ 1 file changed, 22 insertions(+), 2 deletions(-)

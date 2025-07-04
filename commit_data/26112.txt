@@ -1,0 +1,18 @@
+commit a81283d5d9a6a68db47c2298bbf3a70a753deb5c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 5 16:25:58 2016 -0800
+
+    cmd/compile: inline list storage stealing
+    
+    It is only necessary in a few places, and this inlining will
+    simplify the transition away from NodeLists.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I4ee9b4bf56ffa04df23e20a0a83b302d36b33510
+    Reviewed-on: https://go-review.googlesource.com/20290
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 19 ++++++++++++++++---
+ src/cmd/compile/internal/gc/syntax.go | 27 ---------------------------
+ 2 files changed, 16 insertions(+), 30 deletions(-)

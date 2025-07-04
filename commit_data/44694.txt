@@ -1,0 +1,20 @@
+commit 72d98df88e3cbbbe482f7d421c6fd5cbd84423b4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 15 16:48:51 2021 -0400
+
+    cmd/go: bail out from script tests earlier when a timeout occurs
+    
+    (I needed this to debug an accidental infinite-recursion I introduced
+    while revising CL 293689.)
+    
+    Fixes #38768
+    
+    Change-Id: I306122f15b5bbd2fc5e836b32fd4dd5992ea891e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302052
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/script_test.go | 132 +++++++++++++++++++++++++---------------------
+ 1 file changed, 71 insertions(+), 61 deletions(-)

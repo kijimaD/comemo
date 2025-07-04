@@ -1,0 +1,14 @@
+commit ee4550440afd4f896dbcfe40c04e7fe11abd5a7b
+Author: Lucas Clemente <lclemente@google.com>
+Date:   Thu Jun 29 10:55:48 2017 +0200
+
+    doc: note quoted cookie value change in Go 1.9 relnotes
+    
+    Fixes #20834.
+    
+    Change-Id: Ic60000db6b8ae489a5cedbdc938d9ca1dc34c6d4
+    Reviewed-on: https://go-review.googlesource.com/47151
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.9.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

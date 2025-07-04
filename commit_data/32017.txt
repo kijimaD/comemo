@@ -1,0 +1,14 @@
+commit d5da104294cd449a6588dac26c52f221a60357ff
+Author: Han-Wen Nienhuys <hanwen@google.com>
+Date:   Fri Jul 14 15:38:49 2017 -0600
+
+    doc/contribute: avoid using the word "change list".
+    
+    Neither the Gerrit UI nor its docs use the term CL or changelist.
+    
+    Change-Id: Ic19fddc660ec4f008f10fd207e4ac6349431ff5d
+    Reviewed-on: https://go-review.googlesource.com/48595
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/contribute.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

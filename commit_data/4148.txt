@@ -1,0 +1,14 @@
+commit bf1f63a2738ef80d7aa2270183ebc36b4d0c0710
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 18 19:26:12 2009 -0800
+
+    big: fix large division.
+    
+    I missed a case.
+    
+    R=rsc, agl
+    CC=golang-dev
+    https://golang.org/cl/156092
+
+ src/pkg/big/nat.go | 32 +++++++++++++++++++-------------
+ 1 file changed, 19 insertions(+), 13 deletions(-)

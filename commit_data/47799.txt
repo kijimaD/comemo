@@ -1,0 +1,16 @@
+commit 38c067d178111d48a5ce96feccae1a7abe28ff59
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Tue Dec 14 23:05:03 2021 +0100
+
+    doc: fix typo in 1.18 release notes for package testing
+    
+    In release notes for Go 1.18, fix typo in changes for package testing to
+    correctly document the change in CL 343883.
+    
+    Change-Id: I40d92858ed3f74554a094466c06771f83dd81942
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371616
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

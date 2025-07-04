@@ -1,0 +1,21 @@
+commit 5a18e0b58ca2d08f3988018a8759207cb64e651a
+Author: Gaurav Singh <gaurav1086@gmail.com>
+Date:   Thu Jul 23 23:27:05 2020 +0000
+
+    sync: fix goroutine leak for when TestMutexFairness times out
+    
+    If the timeout triggers before writing to the done channel, the
+    goroutine will be blocked waiting for a corresponding read that’s
+    no longer existent, thus a goroutine leak. This change fixes that by
+    using a buffered channel instead.
+    
+    Change-Id: I9cf4067a58bc5a729ab31e4426edd78bd359e8e0
+    GitHub-Last-Rev: a7d811a7be6d875175a894e53d474aa0034e7d2c
+    GitHub-Pull-Request: golang/go#40236
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242902
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sync/mutex_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

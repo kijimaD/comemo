@@ -1,0 +1,16 @@
+commit b0d8cb6b3f6ff2d0df66f96e93e33747acc36882
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Feb 24 16:06:08 2015 -0800
+
+    doc/go1.5: mention the change in certificate wildcard handling.
+    
+    https://go-review.googlesource.com/#/c/5691/ shouldn't affect anyone
+    because it reflects the RFC and behaviour of modern browsers, but it's
+    probably worth mentioning.
+    
+    Change-Id: I8a8eedaac5226b1d8018dc56de6b2d41bd82a642
+    Reviewed-on: https://go-review.googlesource.com/5862
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,14 @@
+commit 3a3c9d6d66fb50a9cd6f475a0ee7301ca50259e4
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Feb 27 08:06:58 2015 +1100
+
+    runtime/debug: fix nacl build
+    
+    Disable the test properly on nacl systems, tested on nacl/amd64p32.
+    
+    Change-Id: Iffe210be4f9c426bfc47f2dd3a8f0c6b5a398cc3
+    Reviewed-on: https://go-review.googlesource.com/6093
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/debug/garbage_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

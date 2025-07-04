@@ -1,0 +1,25 @@
+commit 02a8e836616cb8eb6d776514c6239095b1328fd2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 21 16:44:59 2021 -0700
+
+    runtime: don't run TestCrashDumpsAllThreads in parallel
+    
+    It sometimes seems to time out on slow systems, perhaps due to
+    being run at the same time as a lot of other work.
+    
+    Also move the code to testdata/testprog, so that we don't have to
+    build it separately.
+    
+    I hope that this
+    Fixes #35356
+    
+    Change-Id: I875b858fa23836513ae14d3116461e22fffd5352
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312510
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/crash_unix_test.go             | 69 ++++--------------------------
+ src/runtime/testdata/testprog/crashdump.go | 47 ++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 61 deletions(-)

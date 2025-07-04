@@ -1,0 +1,22 @@
+commit 1efec481d0997e260f4524d45d11cc35bed63f73
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 18 20:07:16 2016 +0000
+
+    net/http: further restrict when Transport's automatic HTTP/2 happens
+    
+    Make the temporary, conservative restrictions from rev 79d9f48c in Go
+    1.6 permanent, and also don't do automatic TLS if the user configured
+    a Dial or DialTLS hook. (Go 1.7 has Transport.Dialer instead, for
+    tweaking dialing parameters)
+    
+    Fixes #14275
+    
+    Change-Id: I5550d5c1e3a293e103eb4251a3685dc204a23941
+    Reviewed-on: https://go-review.googlesource.com/23222
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go      | 13 ++++++-------
+ src/net/http/transport_test.go | 15 +++++++++++++++
+ 2 files changed, 21 insertions(+), 7 deletions(-)

@@ -1,0 +1,28 @@
+commit c49627e81b05f23f97544fc6bfae3347296b4a06
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Nov 10 15:36:25 2021 -0500
+
+    cmd/compile: use canonical stringslice/ representations in abiutils
+    
+    A chunk of code in abiutils was synthesizing the internals of a Go
+    string type as "struct { unsafe.Pointer, uintptr }" instead of the
+    more canonical representation "struct { *uint8, int }" used elsewhere
+    in the compiler. The abiutils type was being pulled into the code
+    during late call expansion, which resulted in two different entries in
+    the SSA named value table for the same variable piece, each with
+    different types; this then confused DWARF location list generation.
+    This patch changes the abiutils synthesized type to be consistent with
+    other parts of the back end, and makes a similar change for
+    synthesized slice types (use "struct { *uint8, int, int }").
+    
+    Fixes #47354.
+    
+    Change-Id: If789031cdc7abaf215bc75ee6eb863defbe530be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362715
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/abi/abiutils.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

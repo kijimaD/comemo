@@ -1,0 +1,23 @@
+commit 53c8f6161ce2273f87f4ddfcbf4ded545a415fa0
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Apr 8 17:52:16 2018 +0100
+
+    doc: add a note about loading profile files
+    
+    If one is somewhat new to the command line or shell, it might be
+    surprising that changes applied to a file like $HOME/.profile will
+    seemingly not take effect, even if new shells are started.
+    
+    Add a note about how shells usually only load these when the user logs
+    into a machine, to minimize the amount of people stuck and confused by
+    this.
+    
+    Fixes #24756.
+    
+    Change-Id: Ic68d8c97933f3f080b151a107633ecad76a163a4
+    Reviewed-on: https://go-review.googlesource.com/105557
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/install.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

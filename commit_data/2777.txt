@@ -1,0 +1,17 @@
+commit dbba489951350f856f2494fc4a6827b510e47a7a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 21 19:45:06 2009 -0700
+
+    do not echo command in errchk,
+    so that golden.out does not include
+    the name of the compiler (which is
+    arch-specific and shows up in diffs).
+    
+    R=r,iant
+    DELTA=3  (0 added, 0 deleted, 3 changed)
+    OCL=31980
+    CL=31983
+
+ test/errchk     | 2 +-
+ test/golden.out | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

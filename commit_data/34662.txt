@@ -1,0 +1,22 @@
+commit 2e84dc2596f5ca655fd5716e1c277a801c868566
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Mar 9 11:44:59 2018 +0100
+
+    runtime: parse auxv on freebsd
+    
+    Decode AT_PAGESZ to determine physPageSize on freebsd/{386,amd64,arm}
+    and AT_HWCAP for hwcap and hardDiv on freebsd/arm. Also use hwcap to
+    perform the FP checks in checkgoarm akin to the linux/arm
+    implementation.
+    
+    Change-Id: I532810a1581efe66277e4305cb234acdc79ee91e
+    Reviewed-on: https://go-review.googlesource.com/99780
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_freebsd.go        | 39 ++++++++++++++++++++++++++++++++++++++-
+ src/runtime/os_freebsd_arm.go    | 28 ++++++++++++++++++++++++++--
+ src/runtime/os_freebsd_noauxv.go | 11 +++++++++++
+ src/runtime/vdso_none.go         |  1 +
+ 4 files changed, 76 insertions(+), 3 deletions(-)

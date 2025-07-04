@@ -1,0 +1,19 @@
+commit e608ffda0828e8001c0d95dc5ead28472c05d74e
+Author: David Chase <drchase@google.com>
+Date:   Tue Mar 19 17:11:15 2019 +0000
+
+    cmd/compile: fix ssa/debug_test.go reference file
+    
+    Behavior improved, file expects old worse behavior.
+    Update file to expect newer, better output.
+    
+    Fixes #30912.
+    
+    Change-Id: I410bdaacdb77a4620656753c8c0dc2d4d5378985
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168377
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/cmd/compile/internal/ssa/testdata/i22558.gdb-dbg.nexts | 7 +++++++
+ 1 file changed, 7 insertions(+)

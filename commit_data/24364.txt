@@ -1,0 +1,24 @@
+commit ffe743945fedb43fd29cf578f06be5d5d0577f57
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Sep 24 15:41:05 2015 +0200
+
+    cmd/compile/internal/gc: move functions from util.go to lex.go
+    
+    Moves the functions:
+            isSpace(int) bool
+            isAlpha(int) bool
+            isDigit(int) bool
+            isAlnum(int) bool
+            plan9quote(string) string
+    
+    Passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: I6f946981abb6f29b047ad90d5c117847e826789f
+    Reviewed-on: https://go-review.googlesource.com/14952
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go  | 27 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/util.go | 29 -----------------------------
+ 2 files changed, 27 insertions(+), 29 deletions(-)

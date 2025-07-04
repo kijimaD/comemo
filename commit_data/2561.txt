@@ -1,0 +1,20 @@
+commit 55e790a16084dd99f577a2023100f9204bc83b8f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 1 07:32:04 2009 -0700
+
+    clean up some BUG/TODO in go code
+    
+    R=r
+    DELTA=23  (1 added, 12 deleted, 10 changed)
+    OCL=30957
+    CL=30980
+
+ src/pkg/bufio/bufio.go   |  5 +----
+ src/pkg/flag/flag.go     |  2 +-
+ src/pkg/io/io.go         |  4 +---
+ src/pkg/net/dnsclient.go |  1 -
+ src/pkg/net/dnsconfig.go |  5 +----
+ src/pkg/net/ip.go        |  1 -
+ src/pkg/net/net.go       | 11 ++++++-----
+ src/pkg/os/path_test.go  |  4 +---
+ 8 files changed, 11 insertions(+), 22 deletions(-)

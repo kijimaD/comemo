@@ -1,0 +1,18 @@
+commit e73981512fdc5e1128a9b17c4b9788c600db23ea
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Mar 5 14:21:42 2015 +1300
+
+    cmd/internal/obj/x86: implement -shared computation of TLS base
+    
+    Somehow, terribly embarrassingly, I lost part of the "re-enable
+    -shared on amd64" patch when rebasing before it got submitted.
+    This restores it and also fixes the addend to be the necessary -4.
+    
+    Change-Id: If71a09121d911a863bc07f1828ef76e3a54c1074
+    Reviewed-on: https://go-review.googlesource.com/6802
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

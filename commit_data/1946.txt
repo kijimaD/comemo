@@ -1,0 +1,21 @@
+commit 6b07021a2b474bac0c93ddac64b395bc03c20bc9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 2 16:48:06 2009 -0700
+
+    implement some more 8g
+    
+            package main
+            func main() {
+                    println("hello,", 123);
+            }
+    
+    R=ken
+    OCL=27043
+    CL=27043
+
+ src/cmd/8g/gen.c             | 149 ++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/8g/gg.h              |   5 ++
+ src/cmd/8l/8.out.h           |   1 +
+ src/cmd/gc/go.h              |   1 +
+ src/runtime/darwin/386/sys.s |   4 ++
+ 5 files changed, 158 insertions(+), 2 deletions(-)

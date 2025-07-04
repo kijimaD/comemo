@@ -1,0 +1,32 @@
+commit e4de522c95d49d943b99740aa4a1361357dcf869
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 8 04:18:18 2018 -0800
+
+    cmd/compile: fix Node.Etype overloading
+    
+    Add helper methods that validate n.Op and convert to/from the
+    appropriate type.
+    
+    Notably, there was a lot of code in walk.go that thought setting
+    Etype=1 on an OADDR node affected escape analysis.
+    
+    Passes toolstash-check.
+    
+    TBR=marvin
+    
+    Change-Id: Ieae7c67225c1459c9719f9e6a748a25b975cf758
+    Reviewed-on: https://go-review.googlesource.com/99535
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go       |  5 ---
+ src/cmd/compile/internal/gc/bexport.go   |  4 +--
+ src/cmd/compile/internal/gc/bimport.go   |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       | 13 ++++---
+ src/cmd/compile/internal/gc/inl.go       |  1 -
+ src/cmd/compile/internal/gc/noder.go     |  4 +--
+ src/cmd/compile/internal/gc/order.go     | 11 +++---
+ src/cmd/compile/internal/gc/syntax.go    | 58 ++++++++++++++++++++++++++++++--
+ src/cmd/compile/internal/gc/typecheck.go | 36 +++++++++-----------
+ src/cmd/compile/internal/gc/universe.go  |  5 ++-
+ src/cmd/compile/internal/gc/walk.go      | 31 +++++------------
+ 11 files changed, 98 insertions(+), 72 deletions(-)

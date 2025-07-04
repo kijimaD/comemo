@@ -1,0 +1,24 @@
+commit a30421a39480efd766eb07518fb2edc4c9e0a8b8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 6 11:06:14 2019 -0500
+
+    cmd/vet/all: build the vet tool within the golang.org/x/tools repository
+    
+    When running cmd/vet/all on multiple builders, the coordinator places
+    a copy of golang.org/x/tools at a consistent revision in the builders'
+    GOPATHs. Keep using the consistent revision in module mode by
+    executing the build from a working directory within that repository.
+    
+    When not running on a builder, use 'go vet' directly instead of
+    building an arbitrarily stale vet tool from the user's GOPATH.
+    
+    Updates #30228
+    
+    Change-Id: I19bc809247378da98f3e6ac8572f61bda4518143
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165740
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/all/main.go | 90 +++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 65 insertions(+), 25 deletions(-)

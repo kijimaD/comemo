@@ -1,0 +1,15 @@
+commit 0e919ff2c978294c9b0472055b96bb1a09606934
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Tue Jan 24 13:53:00 2012 +0100
+
+    gc: static implements check on typeswitches only applies to concrete case types.
+    
+    Fixes #2700.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5574046
+
+ src/cmd/gc/swt.c    |  2 +-
+ test/typeswitch3.go | 27 +++++++++++++++++++++------
+ 2 files changed, 22 insertions(+), 7 deletions(-)

@@ -1,0 +1,19 @@
+commit 99d00eae3c52408922f58a7eca5c0ad6860f0dfc
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 6 16:03:59 2009 -0800
+
+    delete vestigial references to package syscall
+    
+    R=rsc
+    DELTA=8  (0 added, 5 deleted, 3 changed)
+    OCL=25857
+    CL=25861
+
+ src/lib/Makefile         | 2 +-
+ src/lib/bufio_test.go    | 1 -
+ src/lib/exec.go          | 1 -
+ src/lib/fmt/fmt_test.go  | 1 -
+ src/lib/io/io.go         | 1 -
+ src/lib/utf8_test.go     | 1 -
+ test/fixedbugs/bug129.go | 4 ++--
+ 7 files changed, 3 insertions(+), 8 deletions(-)

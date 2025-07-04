@@ -1,0 +1,14 @@
+commit 613388315e29d4e906805e602602500ca1e7e334
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Mon May 11 11:18:57 2020 +0800
+
+    runtime: reduce critical path in injectglist
+    
+    Change-Id: Ia3fb30ac9add39c803f11f69d967c6604fdeacf8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233217
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/proc.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

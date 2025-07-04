@@ -1,0 +1,12 @@
+commit bd6404a4cc90aec9c9599ae97cd244dc09088588
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 15 17:40:17 2012 -0400
+
+    runtime: fix arm build
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5832047
+
+ src/pkg/runtime/asm_arm.s | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

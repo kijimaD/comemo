@@ -1,0 +1,20 @@
+commit 6f87db509a929026ff48a47180f4ec832afc4a86
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Oct 23 18:45:06 2023 -0400
+
+    go/types: fix (*T)(nil)-to-interface conversion bug
+    
+    A nil *gcSizes pointer should be converted to a nil Sizes interface.
+    
+    Updates #63701
+    
+    Change-Id: I62e00fecf303ce0ae529f1a75c14c7ef2576a58f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537255
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/gcsizes.go | 3 ++-
+ src/cmd/compile/internal/types2/sizes.go   | 6 ++++--
+ src/go/types/gcsizes.go                    | 3 ++-
+ src/go/types/sizes.go                      | 6 ++++--
+ 4 files changed, 12 insertions(+), 6 deletions(-)

@@ -1,0 +1,37 @@
+commit 2d99109cfcaef22b6872dc2e07e4582586c032a2
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 13 16:20:54 2023 -0500
+
+    runtime: replace all callback uses of gentraceback with unwinder
+    
+    This is a really nice simplification for all of these call sites.
+    
+    It also achieves a nice performance improvement for stack copying:
+    
+    goos: linux
+    goarch: amd64
+    pkg: runtime
+    cpu: Intel(R) Xeon(R) CPU E5-2690 v3 @ 2.60GHz
+                           │   before    │                after                │
+                           │   sec/op    │   sec/op     vs base                │
+    StackCopyPtr-48          89.25m ± 1%   79.78m ± 1%  -10.62% (p=0.000 n=20)
+    StackCopy-48             83.48m ± 2%   71.88m ± 1%  -13.90% (p=0.000 n=20)
+    StackCopyNoCache-48      2.504m ± 2%   2.195m ± 1%  -12.32% (p=0.000 n=20)
+    StackCopyWithStkobj-48   21.66m ± 1%   21.02m ± 2%   -2.95% (p=0.000 n=20)
+    geomean                  25.21m        22.68m       -10.04%
+    
+    Updates #54466.
+    
+    Change-Id: I31715b7b6efd65726940041d3052bb1c0a1186f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468297
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/heapdump.go  |  10 ++--
+ src/runtime/mbitmap.go   |  26 ++++-----
+ src/runtime/mgcmark.go   |   7 ++-
+ src/runtime/panic.go     | 133 ++++++++++++++++++++++++-----------------------
+ src/runtime/stack.go     |  14 ++---
+ src/runtime/traceback.go |  20 +++----
+ 6 files changed, 100 insertions(+), 110 deletions(-)

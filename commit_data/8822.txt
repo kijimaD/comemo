@@ -1,0 +1,21 @@
+commit c8443d72429a9b3439f309512ae90a37c1235829
+Author: Ken Rockot <ken@oz.gs>
+Date:   Wed Jun 22 18:07:20 2011 -0400
+
+    syscall: add tty support to StartProcess
+    
+    These changes add a Ctty int field to the Unix syscall.ProcAttr which,
+    if set >= 0 in conjuction with Setsid=true, will be used by
+    forkAndExecInChild as the file descriptor for the new child's
+    controlling terminal.
+    
+    Necessary changes have been made to mkerrors.sh to generate defs for
+    TIOC*, though changes to its output files are not included here.
+    The changes made should support Linux, FreeBSD and Darwin, at least.
+    
+    R=iant, bradfitz, r, rsc, borman
+    CC=golang-dev
+    https://golang.org/cl/4532075
+
+ src/pkg/syscall/mkerrors.sh | 3 +++
+ 1 file changed, 3 insertions(+)

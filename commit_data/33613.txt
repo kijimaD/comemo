@@ -1,0 +1,32 @@
+commit d2414cefbae4758ca48dd664b3a55e08eaaff755
+Author: David Chase <drchase@google.com>
+Date:   Wed Nov 15 18:25:01 2017 -0800
+
+    cmd/compile: leave Pos unset for racewalk enter/exit
+    
+    The locations chosen for racewalking inserted code can
+    be wrong and thus cause unwanted next/step behavior in
+    debuggers.  Forcing the positions to be unset results in
+    better behavior.
+    
+    Test added, and test harness corrected to deal with
+    changes to gdb's output caused by -racewalk.
+    
+    Incidental changes in Delve (not part of the usual testing,
+    but provided because we care about Delve) also reflected
+    in this CL.
+    
+    Fixes #22600.
+    
+    Change-Id: Idd0218afed52ab8c68efd9eabbdff3c92ea2b996
+    Reviewed-on: https://go-review.googlesource.com/78336
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/racewalk.go            |  4 +
+ src/cmd/compile/internal/ssa/debug_test.go         | 13 ++-
+ .../internal/ssa/testdata/hist.opt-dlv.nexts       | 95 ++++++++++++++++++++++
+ .../ssa/testdata/i22600.dbg-race-gdb.nexts         |  6 ++
+ src/cmd/compile/internal/ssa/testdata/i22600.go    | 15 ++++
+ 5 files changed, 130 insertions(+), 3 deletions(-)

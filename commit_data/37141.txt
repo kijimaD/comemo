@@ -1,0 +1,31 @@
+commit 3bab4373c7bcff8415da8f4560a3297d1c158e16
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Oct 28 11:22:08 2018 -0700
+
+    cmd/compile: make fmt available in rewrite rules
+    
+    During development and debugging, I often want to
+    write noteRule(fmt.Sprintf(...)), and end up
+    manually adding the import to the generated code.
+    Let's just make it always available instead.
+    
+    Change-Id: I1e2d47c98ba056e1b5da42e35fb6ad26f1d9cc3d
+    Reviewed-on: https://go-review.googlesource.com/c/145207
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go    | 2 ++
+ src/cmd/compile/internal/ssa/rewrite386.go     | 2 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 2 ++
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 2 ++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 2 ++
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    | 2 ++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 2 ++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 2 ++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 2 ++
+ src/cmd/compile/internal/ssa/rewriteWasm.go    | 2 ++
+ src/cmd/compile/internal/ssa/rewritedec.go     | 2 ++
+ src/cmd/compile/internal/ssa/rewritedec64.go   | 2 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 2 ++
+ 13 files changed, 26 insertions(+)

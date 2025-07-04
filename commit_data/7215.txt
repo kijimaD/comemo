@@ -1,0 +1,23 @@
+commit 9e441e52156d3b5c795083544745c53124c6df4e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 21 13:57:52 2011 -0800
+
+    net: Fix race condition in test.
+    
+    The test code used to do this:
+    
+    for _, tc := range tests {
+            ch <- &tc
+    }
+    
+    Note that &tc is always the same value here.  As the value is
+    received from the channel, the sender can loop around and
+    change the contents of tc.  This means that the receiver's
+    value is unstable and can change while it is in use.
+    
+    R=adg, r2, rsc
+    CC=chris, golang-dev
+    https://golang.org/cl/3978043
+
+ src/pkg/net/dnsname_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

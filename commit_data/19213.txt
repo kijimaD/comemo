@@ -1,0 +1,17 @@
+commit d31d19765bf047ed3399a62a9d94db06f893cf1e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Apr 21 00:08:59 2014 -0400
+
+    runtime, cmd/ld, cmd/5l, run.bash: enable external linking on FreeBSD/ARM.
+    Update #7331
+    
+    LGTM=dave, iant
+    R=golang-codereviews, dave, gobot, iant
+    CC=golang-codereviews
+    https://golang.org/cl/89520043
+
+ src/cmd/5l/obj.c                  | 1 +
+ src/cmd/ld/elf.c                  | 4 ++--
+ src/pkg/runtime/rt0_freebsd_arm.s | 5 +++++
+ src/run.bash                      | 7 ++++++-
+ 4 files changed, 14 insertions(+), 3 deletions(-)

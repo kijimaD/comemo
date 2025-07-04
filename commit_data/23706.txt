@@ -1,0 +1,15 @@
+commit 38d9b2a3a942892193195a6912ab23cdaff23e20
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 7 23:42:03 2015 -0400
+
+    runtime: diagnose invalid pointers during GC
+    
+    For #9880. Let's see what breaks.
+    
+    Change-Id: Ic8b99a604e60177a448af5f7173595feed607875
+    Reviewed-on: https://go-review.googlesource.com/10818
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/mbitmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

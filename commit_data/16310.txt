@@ -1,0 +1,17 @@
+commit 764bb36ea2be3fd9c04a0a485524a75241c21b8a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 15 16:48:41 2013 +0400
+
+    runtime: unset m->locks after actual lock unlock
+    This is needed for preemptive scheduler,
+    it will preempt only when m->locks==0,
+    and we do not want to be preempted while
+    we have not completely unlocked the lock.
+    
+    R=golang-dev, khr, iant
+    CC=golang-dev
+    https://golang.org/cl/9196047
+
+ src/pkg/runtime/lock_futex.c | 6 +++---
+ src/pkg/runtime/lock_sema.c  | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

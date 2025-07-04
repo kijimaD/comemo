@@ -1,0 +1,24 @@
+commit aad18b849bd925c2d7cfdda45384d71fe0153d98
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 20 16:49:30 2015 -0800
+
+    cmd/compile: address several more 1.6 TODOs in parser
+    
+    - fix/check location of popdcl calls where questioned
+    - remove unnecessary handling of ... (LDDD) in ntype (couldn't be reached)
+    - inlined and fnret_type and simplified fnres as a consequence
+    - leave handling of ... (LDDD) in arg_list alone (remove TODO)
+    - verify that parser requires a ';' after last statement in a case/default
+      (added test case)
+    
+    Fixes #13243.
+    
+    Change-Id: Iad94b498591a5e85f4cb15bbc01e8e101415560d
+    Reviewed-on: https://go-review.googlesource.com/17155
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 68 +++--------------------------------
+ test/switch2.go                       | 19 ++++++++--
+ 2 files changed, 22 insertions(+), 65 deletions(-)

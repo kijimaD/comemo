@@ -1,0 +1,17 @@
+commit dd1fe82cecd530de2ddee961d5d3cb1d6f95f851
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 3 10:43:24 2013 -0700
+
+    go/parser: accept optional indices for all parts of an index expression
+    
+    Instead, leave the error testing to the type checker, eventually.
+    
+    Fixes #5827.
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/10917043
+
+ src/pkg/go/parser/parser.go     | 4 ----
+ src/pkg/go/parser/short_test.go | 6 ------
+ 2 files changed, 10 deletions(-)

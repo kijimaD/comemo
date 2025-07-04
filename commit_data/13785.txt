@@ -1,0 +1,21 @@
+commit 6c4645cffe6659580ddda68ee1fa032ff0c44886
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Sep 11 07:37:43 2012 +0900
+
+    net: rename files to clarify platform dependency
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6489056
+
+ src/pkg/net/{dnsconfig.go => dnsconfig_unix.go}            | 0
+ src/pkg/net/{fd.go => fd_unix.go}                          | 0
+ src/pkg/net/{file.go => file_unix.go}                      | 0
+ src/pkg/net/{doc.go => lookup.go}                          | 0
+ src/pkg/net/{multicast_test.go => multicast_posix_test.go} | 0
+ src/pkg/net/{newpollserver.go => newpollserver_unix.go}    | 0
+ src/pkg/net/{sock.go => sock_posix.go}                     | 0
+ src/pkg/net/{sockopt.go => sockopt_posix.go}               | 0
+ src/pkg/net/{sockoptip.go => sockoptip_posix.go}           | 0
+ src/pkg/net/{unicast_test.go => unicast_posix_test.go}     | 0
+ 10 files changed, 0 insertions(+), 0 deletions(-)

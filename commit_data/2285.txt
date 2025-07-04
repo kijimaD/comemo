@@ -1,0 +1,13 @@
+commit 838cf124f02e09e3580a1671bcafa4e49fbaa012
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 22 10:25:06 2009 -0700
+
+    key:value notation for composites
+    
+    R=rsc
+    DELTA=106  (69 added, 9 deleted, 28 changed)
+    OCL=29203
+    CL=29254
+
+ doc/go_spec.html | 114 ++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 87 insertions(+), 27 deletions(-)

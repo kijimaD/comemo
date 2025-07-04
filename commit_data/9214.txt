@@ -1,0 +1,12 @@
+commit 2fc962697a3a363e9b79a672d7b999332a6d0b9e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 26 14:45:36 2011 -0700
+
+    goinstall: generate makefiles using exp/template
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4809052
+
+ src/cmd/goinstall/make.go | 53 +++++++++++++++++++++--------------------------
+ 1 file changed, 24 insertions(+), 29 deletions(-)

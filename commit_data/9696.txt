@@ -1,0 +1,14 @@
+commit 7233dcde99be500316017d8bc34ec2f3bb325d61
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 15 10:28:55 2011 -0700
+
+    http: fix WriteProxy documentation
+    
+    Fixes #2258
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5016048
+
+ src/pkg/http/request.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

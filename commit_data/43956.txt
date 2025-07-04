@@ -1,0 +1,18 @@
+commit e10c94af26b95f4af71c4a040b3d3f01499d01de
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Dec 3 11:27:05 2020 +0100
+
+    doc/go1.16: document riscv64 port changes
+    
+    For #36641
+    For #40700
+    
+    Change-Id: Ib268559a2ce7839372dbf273d95876d8d4521a45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274478
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ doc/go1.16.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,0 +1,20 @@
+commit ff3ae455d9f0965fcd0857c855b3ac4ea866920e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 16 17:30:35 2019 -0700
+
+    test: add regress test cases for self-assignment
+    
+    Cherry pointed out this case in review for CL 136496. That CL was
+    slightly too aggressive, and I likely would have made the same mistake
+    if I tried it myself.
+    
+    Updates #27772.
+    
+    Change-Id: I1fafabb9f8d9aba0494aa71333a4e17cf1bac5c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172421
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/escape_selfassign.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

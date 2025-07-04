@@ -1,0 +1,22 @@
+commit c1df5187d007f205c31d96c8cb9c173a634a102a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 15 13:09:00 2019 -0700
+
+    runtime: simplify some pointer conversions
+    
+    Use efaceOf to safely convert from *interface{} to *_eface, and to
+    make it clearer what the pointer arithmetic is computing.
+    
+    Incidentally, remove a spurious unsafe.Pointer->*uint8->unsafe.Pointer
+    round trip conversion in newproc.
+    
+    No behavior change.
+    
+    Change-Id: I2ad9d791d35d8bd008ef43b03dad1589713c5fd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190457
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/proc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

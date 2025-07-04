@@ -1,0 +1,24 @@
+commit 01efc9a3c54f1b8fc772084e3311b6e1ccdfabec
+Author: Norman B. Lancaster <qbradq@gmail.com>
+Date:   Thu Oct 1 19:14:04 2020 +0000
+
+    strings: complete documentation of strings.Reader
+    
+    There is no documentation on a number of methods of the strings.Reader
+    struct, so this change adds documentation referring to the relevant
+    io.* interfaces implemented. This is consistent with pre-existing
+    documentation in this struct.
+    
+    Fixes #40381
+    
+    Change-Id: I3dec65ecafca5b79d85d30a676d297e5ee9ab47e
+    GitHub-Last-Rev: f42429946a2b90b9fbfbd1ea5943f0c50e0439b5
+    GitHub-Pull-Request: golang/go#40654
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247523
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/strings/reader.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

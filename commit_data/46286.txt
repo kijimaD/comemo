@@ -1,0 +1,23 @@
+commit 014a9720f9526563ea5d9bff3d4d2d47b4e7752d
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Aug 26 15:59:36 2021 -0400
+
+    cmd/link: avoid crash on undefined func sym with external linking
+    
+    Fix a buglet in relocation processing that crops up with external
+    linking when you have an undefined function symbol that also has a
+    prototype (as if it were being defined in assembly src).
+    
+    Fixes #47993.
+    
+    Change-Id: Ib655492a63b205ffdc124cfd0cb7f7b731571821
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345473
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/go/testdata/script/link_external_undef.txt | 48 ++++++++++++++++++++++
+ src/cmd/link/internal/ld/data.go                   |  5 +++
+ 2 files changed, 53 insertions(+)

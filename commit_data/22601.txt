@@ -1,0 +1,24 @@
+commit 6e221a90382c85d2160f27721ecc121e860d254f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 17 15:20:27 2015 -0400
+
+    cmd/dist: run commands in $GOROOT/src not $GOROOT when possible
+    
+    The go command prints paths in errors relative to its current directory.
+    Since all.bash and run.bash are run in $GOROOT/src, prefer to run
+    the go command, so that the relative paths are correct.
+    
+    Before this CL, running all.bash in $GOROOT/src:
+    
+            ##### Testing race detector
+            # net/http
+            src/net/http/transport.go:1257: cannot take the address of <node EFACE>
+    
+    This is wrong (or at least less useful) because there is no $GOROOT/src/src/net/http directory.
+    
+    Change-Id: I0c0d52c22830d79b3715f51a6329a3d33de52a72
+    Reviewed-on: https://go-review.googlesource.com/9157
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/dist/test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

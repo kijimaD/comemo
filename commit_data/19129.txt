@@ -1,0 +1,32 @@
+commit 172acae68ae4c89190df48a7cec084d6cc27c49d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 14 12:08:32 2014 -0700
+
+    net/http: make race detector happy for recently-added test
+    
+    Update #7264
+    
+    Races:
+    http://build.golang.org/log/a2e401fdcd4903a61a3375bff5da702a20ddafad
+    http://build.golang.org/log/ec4c69e92076a747ac6d5df7eb7b382b31ab3d43
+    
+    I think this is the first time I've actually seen a manifestation
+    of Issue 7264, and one that I can reproduce.
+    
+    I don't know why it triggers on this test and not any others
+    just like it, or why I can't reproduce Issue 7264
+    independently, even when Dmitry gives me minimal repros.
+    
+    Work around it for now with some synchronization to make the
+    race detector happy.
+    
+    The proper fix will probably be in net/http/httptest itself, not
+    in all hundred some tests.
+    
+    LGTM=rsc
+    R=rsc
+    CC=dvyukov, golang-codereviews
+    https://golang.org/cl/87640043
+
+ src/pkg/net/http/transport_test.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

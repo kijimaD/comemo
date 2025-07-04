@@ -1,0 +1,18 @@
+commit b2f09cd717169cbad41bfc614f0b70b13edbc74a
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Aug 31 17:09:47 2021 -0400
+
+    go/types: do not declare new methods on instantiated types
+    
+    This is a port of CL 345472 to go/types.
+    
+    Change-Id: I0e2a88909ecebe9dea3325244153f5c74e4c3ce7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346553
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/signature.go                      |  8 +++++++-
+ src/go/types/testdata/fixedbugs/issue47968.go2 | 21 +++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

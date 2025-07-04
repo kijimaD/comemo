@@ -1,0 +1,13 @@
+commit 8c610aa633167aef27964e314dda35a87d3da58b
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Sep 13 11:15:30 2018 -0400
+
+    regexp: fix incorrect name in Match doc comment
+    
+    Change-Id: I628aad9a3abe9cc0c3233f476960e53bd291eca9
+    Reviewed-on: https://go-review.googlesource.com/135235
+    Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/regexp/regexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

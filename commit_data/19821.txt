@@ -1,0 +1,15 @@
+commit faa223459a931a3fcd94264ba586120f6bd1ad97
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Jul 26 17:45:45 2014 -0400
+
+    cmd/ld: remove duplicated nuxiinit() call.
+    
+    It is already called by linknew().
+    
+    LGTM=dave
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/120760043
+
+ src/cmd/ld/pobj.c | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 8206bafb2283ec761729f0ca9c65a1ccf1f2fba7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 24 12:34:18 2010 -0400
+
+    asn1: make interface consistent with json
+    
+    Replace Marshal with MarshalToMemory
+    (no one was using old Marshal anyway).
+    
+    Swap arguments to Unmarshal.
+    
+    Fixes #1133.
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/2249045
+
+ src/pkg/asn1/asn1.go         |  2 +-
+ src/pkg/asn1/asn1_test.go    |  8 ++++----
+ src/pkg/asn1/marshal.go      | 18 ++++--------------
+ src/pkg/asn1/marshal_test.go |  7 +++----
+ src/pkg/crypto/x509/x509.go  | 38 +++++++++++++++++++-------------------
+ 5 files changed, 31 insertions(+), 42 deletions(-)

@@ -1,0 +1,21 @@
+commit 5de20f0f34a7bf08bec8af82befc24e3c0ea5d7e
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Thu May 18 11:12:23 2023 +0300
+
+    net/http: fix spelling issues in comments and tests
+    
+    Change-Id: I1b90619fd073a0c41188278a50ed149b763f0fa8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496135
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/dnsclient_unix_test.go |  2 +-
+ src/net/http/client_test.go    |  2 +-
+ src/net/http/cookiejar/jar.go  |  2 +-
+ src/net/http/transport_test.go | 10 +++++-----
+ src/net/mptcpsock_linux.go     |  2 +-
+ src/net/timeout_test.go        |  2 +-
+ 6 files changed, 10 insertions(+), 10 deletions(-)

@@ -1,0 +1,16 @@
+commit 960d7082ee9b8fda91444167b3c253d5cf5e115d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Mar 11 14:24:51 2013 +0800
+
+    cmd/ld, runtime/cgo: allow a symbol to be both cgo_export and cgo_import.
+    Fixes #4878.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7420052
+
+ src/cmd/ld/go.c                         | 11 ++++++++---
+ src/pkg/runtime/cgo/gcc_openbsd_386.c   |  6 +++---
+ src/pkg/runtime/cgo/gcc_openbsd_amd64.c |  6 +++---
+ src/run.bash                            |  1 -
+ 4 files changed, 14 insertions(+), 10 deletions(-)

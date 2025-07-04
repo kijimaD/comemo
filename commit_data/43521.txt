@@ -1,0 +1,23 @@
+commit 74e566ed1dc52f7ef58093aff936a0931537a1ad
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Aug 5 23:10:46 2020 +0000
+
+    runtime: add readMetrics latency benchmark
+    
+    This change adds a new benchmark to the runtime tests for measuring the
+    latency of the new metrics implementation, based on the
+    ReadMemStats latency benchmark. readMetrics will have more metrics added
+    to it in the future, and this benchmark will serve as a way to measure
+    the cost of adding additional metrics.
+    
+    Change-Id: Ib05e3ed4afa49a70863fc0c418eab35b72263e24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247042
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/gc_test.go      | 17 ++++++++++++-----
+ src/runtime/metrics_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 5 deletions(-)

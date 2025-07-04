@@ -1,0 +1,24 @@
+commit a3a9b1049e59672e4bd56b597b273ef1b07313a0
+Author: Jabar Asadi <jasadi@d2iq.com>
+Date:   Sun May 28 06:45:23 2023 +0000
+
+    os: ReadFile: don't check for re-allocation in the first iteration
+    
+    At the beginning of the for-loop iteration cap(data) > len(data) always.
+    Therefore, in the first iteration, this check becomes unnecessary.
+    we can move this check to after the read operation.
+    
+    Change-Id: I205e4a842ced74f31124b45a39b70523b56ad840
+    GitHub-Last-Rev: 2fdf25dff2e9984d3a8f8e5e612ea802c88e88a1
+    GitHub-Pull-Request: golang/go#60473
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498915
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/file.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

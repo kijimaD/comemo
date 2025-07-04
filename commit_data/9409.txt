@@ -1,0 +1,13 @@
+commit 10622421b5d95cd3fc16879916bc9c067f574f48
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 18 13:48:44 2011 +1000
+
+    gofix: walk names in ValueSpecs
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4887048
+
+ src/cmd/gofix/fix.go | 15 ++++++++++++---
+ src/cmd/gofix/url.go | 10 ----------
+ 2 files changed, 12 insertions(+), 13 deletions(-)

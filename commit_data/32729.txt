@@ -1,0 +1,22 @@
+commit 95b146e8ebf1687503fcf105f16e1f1eb0ea135e
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu Sep 14 11:04:37 2017 +0100
+
+    cmd/compile: improve floating point constant propagation
+    
+    Add generic rules to propagate floating point constants through
+    comparisons and integer conversions. These new rules seldom trigger
+    in the standard library so there is no performance change, however
+    I think it is worth adding them anyway for completeness.
+    
+    Change-Id: I9db5222746508a2996f1cafb72f4e0cf2541de07
+    Reviewed-on: https://go-review.googlesource.com/63795
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go        |  23 ++
+ src/cmd/compile/internal/gc/float_test.go      | 104 ++++-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  39 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 508 +++++++++++++++++++++++++
+ 4 files changed, 667 insertions(+), 7 deletions(-)

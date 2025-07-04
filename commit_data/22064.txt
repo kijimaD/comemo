@@ -1,0 +1,14 @@
+commit 830abc957a106e44ed33c4eeb8cc9f0dd807fcc9
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 12 11:20:02 2015 -0400
+
+    runtime: fix out of date comment
+    
+    scanobject no longer returns the new wbuf.
+    
+    Change-Id: I0da335ae5cd7ef7ea0e0fa965cf0e9f3a650d0e6
+    Reviewed-on: https://go-review.googlesource.com/7505
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcmark.go | 1 -
+ 1 file changed, 1 deletion(-)

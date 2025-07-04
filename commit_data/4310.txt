@@ -1,0 +1,13 @@
+commit cf37254b1cf0789e8bca6071e910d788f7dcf64f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 17:24:14 2009 -0800
+
+    runtime: fix Caller crash on 386.
+    
+    Fixes #176.
+    
+    R=r
+    https://golang.org/cl/166044
+
+ src/pkg/runtime/386/traceback.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

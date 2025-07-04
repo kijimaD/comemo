@@ -1,0 +1,21 @@
+commit c9551f9c198aac4ffbc7470755a0f66f071c30b8
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Fri Apr 24 07:17:33 2020 +0200
+
+    cmd/compile: enforce strongly typed rules for ARM (1)
+    
+    Remove type casting in:
+    L731 - L764, L772, L780 - L781, L1014 - L1054, L1057 - L1068, L1195, L1199
+    
+    Toolstack-check successful.
+    
+    Change-Id: I80f90716477f269a227be28b14bf913b78ef375d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228824
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM.rules | 184 ++++----
+ src/cmd/compile/internal/ssa/rewriteARM.go | 722 ++++++++++++++---------------
+ 2 files changed, 453 insertions(+), 453 deletions(-)

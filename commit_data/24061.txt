@@ -1,0 +1,18 @@
+commit c714bbbfd37f6eb542c99899693bf5088ee07cb9
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Aug 19 20:28:18 2015 +0200
+
+    unicode: include rune 0 in RangeTables.
+    
+    All of Go passes. No changes for the text repo.
+    
+    Fixes #10153
+    
+    Change-Id: I313369bf471c8974390a6d42075e5c54f6a81750
+    Reviewed-on: https://go-review.googlesource.com/13667
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/unicode/maketables.go | 3 ---
+ src/unicode/tables.go     | 4 ++--
+ 2 files changed, 2 insertions(+), 5 deletions(-)

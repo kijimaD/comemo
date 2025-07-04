@@ -1,0 +1,14 @@
+commit caa7dacfd27beb493c262b18a9aae514863ddec7
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 7 15:24:02 2017 -0500
+
+    runtime: honor GOTRACEBACK=crash even if _g_.m.traceback != 0
+    
+    Change-Id: I6de1ef8f67bde044b8706c01e98400e266e1f8f0
+    Reviewed-on: https://go-review.googlesource.com/37857
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/runtime1.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

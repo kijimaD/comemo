@@ -1,0 +1,35 @@
+commit e040fd46540930c9816de5acb59329d00ce3ffba
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 9 17:58:52 2015 -0700
+
+    cmd/internal/gc: registerize more in 7g and 9g
+    
+    7g and 9g disagree with componentgen
+    about what type len and cap have.
+    
+    This results in an etype mismatch,
+    which inhibits registerization.
+    
+    Fixing this results in 7406 more registerizations
+    while building the stdlib.
+    There are still 1512 missed opportunities.
+    
+    This should improve the performance benefit
+    to 7g of enabling componentgen (CL 8636).
+    
+    This CL reduces the size of godoc by 203k (-1.177%).
+    
+    This was discovered by using the diagnostics
+    added in CL 8732 and running:
+    
+    GOARCH=arm64 GOOS=linux go build -gcflags="-d registerization" std
+    
+    See CL 91850043 for similar earlier fixes for 6g and 8g.
+    
+    Change-Id: I57f478228a000ad7529d4136bad94a51343c4daa
+    Reviewed-on: https://go-review.googlesource.com/8733
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/gc/gsubr.go | 6 ------
+ 1 file changed, 6 deletions(-)

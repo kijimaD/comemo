@@ -1,0 +1,23 @@
+commit c07511585e37695d750a1e2efd44033b1160863a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 13 09:06:25 2019 -0500
+
+    cmd/dist: remove chatty log.Print
+    
+    In CL 206757 I added a log.Printf to identify when GOROOT is not read-only.
+    However, it interacts badly with test sharding in the builders:
+    the log is repeated for every shard.
+    
+    Since the log statement isn't particularly high-value, just remove it.
+    
+    Updates #30316
+    
+    Change-Id: I385a7f35da59e38ad8b9beef92dc11af931d9571
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206898
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

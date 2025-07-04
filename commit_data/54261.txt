@@ -1,0 +1,23 @@
+commit 52a5881beeb946363515777a48c8a229ad66dd7a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 29 01:15:55 2023 -0700
+
+    cmd/compile: remove vestigial importpath symbol logic
+    
+    The object file format now has an explicit section for tracking which
+    packages were imported, so we don't need to write out importpath
+    symbols for all directly imported packages anymore.
+    
+    However, keep the logic for writing out individual importpath symbols,
+    because it's still relevant to runtime type descriptor generation.
+    
+    Change-Id: I184ff320e894ba43ca0f8a3d2678e4b2bbbe6da5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523875
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/obj.go              |  1 -
+ src/cmd/compile/internal/reflectdata/reflect.go | 81 +++++++++----------------
+ src/cmd/compile/internal/types/pkg.go           | 20 ------
+ 3 files changed, 29 insertions(+), 73 deletions(-)

@@ -1,0 +1,39 @@
+commit b2f40019da3e7c0cf1e79b6f5e039c8bb5a877f3
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sun Sep 8 12:03:42 2019 -0700
+
+    internal/poll: make SendFile work with large files on Windows
+    
+    CL 192518 was a minimal simplification to get sendfile
+    on Windows to work with chunked files, but as I had mentioned,
+    I would add even more improvements.
+    
+    This CL improves it by:
+    * If the reader is not an *io.LimitedReader, since the underlying
+    reader is anyways an *os.File, we fallback and stat that
+    file to determine the file size and then also invoke the chunked
+    sendFile on the underlying reader. This issue existed even
+    before the prior CL.
+    * Extracting the chunked TransmitFile logic and moving it directly
+    into internal/poll.SendFile.
+    
+    Thus if the callers of net.sendFile don't use *io.LimitedReader,
+    but have a huge file (>2GiB), we can still invoke the chunked
+    internal/poll.SendFile on it directly.
+    
+    The test case is not included in this patch as it requires
+    creating a 3GiB file, but that if anyone wants to view it, they
+    can find it at
+        https://go-review.googlesource.com/c/go/+/194218/13/src/net/sendfile_windows_test.go
+    
+    Updates #33193.
+    
+    Change-Id: I97a67c712d558c84ced716d8df98b040cd7ed7f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194218
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/internal/poll/sendfile_windows.go | 61 ++++++++++++++++++++++++++++-------
+ src/net/sendfile_windows.go           | 42 +++---------------------
+ 2 files changed, 54 insertions(+), 49 deletions(-)

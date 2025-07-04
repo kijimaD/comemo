@@ -1,0 +1,19 @@
+commit 495174302f12eafa9f8793751a5208395b969fd6
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 25 13:31:03 2018 -0500
+
+    cmd/internal/obj/arm64: omit stack check for no-frame leafs
+    
+    For leaf functions with zero-sized frames, there's no point in doing a
+    stack check, so omit it.
+    
+    This aligns arm64 with other architectures.
+    
+    Change-Id: I1fb483d62f1736af10c5110815d3f5a875a46d7f
+    Reviewed-on: https://go-review.googlesource.com/92037
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm64/obj7.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

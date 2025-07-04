@@ -1,0 +1,12 @@
+commit 4e7f765b12e6501450f44fb3b6529f52bb3a3256
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jul 31 20:58:35 2012 +0900
+
+    net: disable IPv6 multicast tests unless external IPv6 connection is present
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6398052
+
+ src/pkg/net/multicast_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

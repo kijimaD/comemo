@@ -1,0 +1,20 @@
+commit d3d21d0a4280444dd1d093eb73596a7326c0a651
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Apr 14 02:36:36 2020 +1000
+
+    cmd/compile: update TestIntendedInlining for riscv64
+    
+    Mark nextFreeFast as not inline, as it is too expensive to inline on riscv64.
+    Also remove riscv64 from non-atomic inline architectures, as we now have
+    atomic intrisics.
+    
+    Updates #22239
+    
+    Change-Id: I6e0e72c1192070e39f065bee486f48df4cc74b35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227808
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/inl_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

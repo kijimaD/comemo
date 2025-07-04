@@ -1,0 +1,12 @@
+commit 51bb8795cdbbb17ec898158ffedbc0464846623e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 26 21:11:31 2009 -0700
+
+    8g: missing change from last CL
+    
+    R=ken
+    OCL=29426
+    CL=29426
+
+ src/cmd/8g/gobj.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

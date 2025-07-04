@@ -1,0 +1,18 @@
+commit b53856c16dc1facdc5c0257bd8b0ef4cff13d350
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 15 18:21:38 2011 -0500
+
+    os/exec: fix -test.run argument for new 'go test'
+    
+    In 'go test' I deleted the leading package. prefix
+    from all the test names, since it contained no actual
+    information.  Adjust the -test.run argument accordingly.
+    This will still work with the current gotest too, since
+    the argument is an unanchored pattern.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5491058
+
+ src/pkg/os/exec/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

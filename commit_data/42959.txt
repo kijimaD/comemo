@@ -1,0 +1,24 @@
+commit 07c1788357cfe6a4ee5f6f6a54d4fe9f579fa844
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Sep 2 14:53:02 2020 -0400
+
+    cmd/go: move repository resolution from internal/get to internal/vcs
+    
+    This is a refactoring intended to break the dependency from
+    internal/modfetch to internal/get. No change in functionality is intended.
+    
+    Change-Id: If51aba7139cc0b62ecc9ba454c055c99e8f36f0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254364
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/get/get.go                     |  35 +--
+ src/cmd/go/internal/modfetch/repo.go               |  12 +-
+ src/cmd/go/internal/str/str_test.go                |  27 ++
+ src/cmd/go/internal/{get => vcs}/discovery.go      |   2 +-
+ .../{get/pkg_test.go => vcs/discovery_test.go}     |  23 +-
+ src/cmd/go/internal/{get => vcs}/vcs.go            | 277 +++++++++++----------
+ src/cmd/go/internal/{get => vcs}/vcs_test.go       |  46 ++--
+ 7 files changed, 217 insertions(+), 205 deletions(-)

@@ -1,0 +1,27 @@
+commit c96e3bcc97a965b3e2947cc1d8d831b8d39c1d73
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 2 22:04:45 2018 -0400
+
+    cmd/compile: fix type of OffPtr in some optimization rules
+    
+    In some optimization rules the type of generated OffPtr was
+    incorrectly set to the type of the pointee, instead of the
+    pointer. When the OffPtr value is spilled, this may generate
+    a spill of the wrong type, e.g. a floating point spill of an
+    integer (pointer) value. On Wasm, this leads to invalid
+    bytecode.
+    
+    Fixes #27961.
+    
+    Change-Id: I5d464847eb900ed90794105c0013a1a7330756cc
+    Reviewed-on: https://go-review.googlesource.com/c/139257
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules | 72 ++++++++++++------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  2 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 78 ++++++++++++++++----------
+ test/fixedbugs/issue27961.go                   | 35 ++++++++++++
+ 4 files changed, 120 insertions(+), 67 deletions(-)

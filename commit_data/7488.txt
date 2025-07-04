@@ -1,0 +1,13 @@
+commit 946cdf82bcf36318fb1b00b21977a536508c24be
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 17 12:09:12 2011 +1100
+
+    syscall: fix windows SetFileAttributes
+    
+    R=golang-dev, rsc, hector
+    CC=golang-dev, mattn
+    https://golang.org/cl/4180052
+
+ src/pkg/syscall/syscall_windows.go      | 39 +++++++++++++++------------------
+ src/pkg/syscall/zsyscall_windows_386.go |  4 ++--
+ 2 files changed, 20 insertions(+), 23 deletions(-)

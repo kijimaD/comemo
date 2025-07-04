@@ -1,0 +1,13 @@
+commit ea86752206fd8801bce46cc21a0faf97d8d7cd01
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 27 11:17:12 2014 -0800
+
+    cmd/6a: include MOVQL opcode.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/54660046
+
+ src/cmd/6a/lex.c | 1 +
+ 1 file changed, 1 insertion(+)

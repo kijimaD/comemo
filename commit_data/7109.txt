@@ -1,0 +1,13 @@
+commit cdb0bbf4d55f772283de42364d9d154ce42e8dd0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 13 14:34:31 2011 -0500
+
+    http: handle HEAD requests correctly
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/3939042
+
+ src/pkg/http/fs.go     |  4 +++-
+ src/pkg/http/server.go | 14 ++++++++------
+ 2 files changed, 11 insertions(+), 7 deletions(-)

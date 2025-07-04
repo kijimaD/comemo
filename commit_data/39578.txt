@@ -1,0 +1,13 @@
+commit 8e82624e691387eed2261e6c34decb27348f4685
+Author: Bharath Thiruveedula <tbharath91@gmail.com>
+Date:   Tue Aug 6 09:26:48 2019 +0530
+
+    net: fix the docs in IPNet.String
+    
+    Fixes #33433
+    Change-Id: Idb3961685a3cfd13ba26155a1d64fc24cc418fdb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189117
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/ip.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

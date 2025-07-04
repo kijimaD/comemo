@@ -1,0 +1,15 @@
+commit 1f5900451137415011e07efd0943c40701a26dcf
+Author: Vincent Vanackere <vincent.vanackere@gmail.com>
+Date:   Fri Apr 22 00:12:06 2011 +1000
+
+    syscall : add a field to ProcAttr so that StartProcess can hide the executed application on windows
+    
+    The SW_HIDE parameter looks like the only way for a windows GUI application to execute a CLI subcommand without having a shell windows appearing.
+    
+    R=brainman, golang-dev, bradfitzgo, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4439055
+
+ src/pkg/syscall/exec_windows.go       | 11 ++++++++---
+ src/pkg/syscall/ztypes_windows_386.go | 20 ++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 3 deletions(-)

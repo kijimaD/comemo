@@ -1,0 +1,19 @@
+commit 889d9b6ffdae0c5f457d9c3ed1fc1798fc255b3a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 11 18:19:07 2008 -0800
+
+    bug129
+    
+    package foo
+    import "syscall"
+    func f() {
+            syscall := 1
+    }
+    
+    R=ken
+    OCL=21036
+    CL=21036
+
+ test/bugs/bug129.go | 11 +++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 15 insertions(+)

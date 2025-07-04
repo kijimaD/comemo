@@ -1,0 +1,25 @@
+commit 8e1e64c16a4d53c06ed4f2287fc11eeb5029ca1a
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jul 19 09:07:38 2022 -0700
+
+    cmd/compile: fix mknode script
+    
+    It's not currently working. Somehow a field of type []constant.Value
+    causes it to barf. (That field was added with jump table statements.)
+    
+    Also added some instructions about how to run it correctly (which took
+    me a suprisingly long time to figure out).
+    
+    Larger improvements coming, but this gets us to a working state
+    and is safe for 1.19.
+    
+    Change-Id: I3027356fde1294942e87d075ca28bb40d2c0d6c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418234
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ir/mini.go   | 1 +
+ src/cmd/compile/internal/ir/mknode.go | 9 +++++++++
+ 2 files changed, 10 insertions(+)

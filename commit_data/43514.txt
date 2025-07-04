@@ -1,0 +1,20 @@
+commit ae585ee52c2437bfd0e955ad6fc8911bf292f51d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Aug 3 19:31:23 2020 +0000
+
+    runtime: remove memstats.heap_alloc
+    
+    memstats.heap_alloc is 100% a duplicate and unnecessary copy of
+    memstats.alloc which exists because MemStats used to be populated from
+    memstats via a memmove.
+    
+    Change-Id: I995489f61be39786e573b8494a8ab6d4ea8bed9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246975
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/heapdump.go |  2 +-
+ src/runtime/mstats.go   | 13 +++++--------
+ 2 files changed, 6 insertions(+), 9 deletions(-)

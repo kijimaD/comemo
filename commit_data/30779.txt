@@ -1,0 +1,20 @@
+commit 88d4ab82d5f89f1421a39d9342bbd1c1e2ff08b0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 21 22:07:23 2017 -0700
+
+    cmd/internal/obj: eliminate unnecessary ctxt.Cursym assignment
+    
+    None of the following code uses it.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: Ieeaaca8ba31e5c345c0c8a758d520b24be88e173
+    Reviewed-on: https://go-review.googlesource.com/38444
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/internal/obj/pass.go | 2 --
+ 1 file changed, 2 deletions(-)

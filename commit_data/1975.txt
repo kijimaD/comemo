@@ -1,0 +1,13 @@
+commit b8035ab5a5fb2be2561a8a8f80341f881bc3837e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 7 23:30:59 2009 -0700
+
+    bug142
+    
+    R=ken
+    OCL=27202
+    CL=27202
+
+ test/bugs/bug142.go | 31 +++++++++++++++++++++++++++++++
+ test/golden.out     |  5 +++++
+ 2 files changed, 36 insertions(+)

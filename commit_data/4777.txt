@@ -1,0 +1,18 @@
+commit 2bcca5d951110824ef8adc22c910c041c59b733b
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 4 15:39:27 2010 +1100
+
+    Add RFC822 formats as named constants.
+    Make sure to print a time zone when formatting even if none is defined.
+    Add a comment introducing lookupTimezone (not lookupTimeZone).
+    
+    Fixes isse 577.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/196090
+
+ src/pkg/time/format.go    | 27 ++++++++++++++++++++++-----
+ src/pkg/time/time_test.go | 15 +++++++++++++++
+ src/pkg/time/zoneinfo.go  |  1 +
+ 3 files changed, 38 insertions(+), 5 deletions(-)

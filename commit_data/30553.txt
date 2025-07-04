@@ -1,0 +1,20 @@
+commit 5ce06cf71d62e6fc1740d97b4ff4dda7e039c606
+Author: Josselin Costanzi <josselin@costanzi.fr>
+Date:   Sun Mar 5 18:04:30 2017 +0100
+
+    encoding/base64: fix decode reports incorrect index
+    
+    Fix Decode to return the correct illegal data index from a corrupted
+    input that contains whitespaces.
+    
+    Fixes #19406
+    
+    Change-Id: Ib2b2b6ed7e41f024d0da2bd035caec4317c2869c
+    Reviewed-on: https://go-review.googlesource.com/37837
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/base64/base64.go      | 6 ++++--
+ src/encoding/base64/base64_test.go | 2 ++
+ 2 files changed, 6 insertions(+), 2 deletions(-)

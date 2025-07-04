@@ -1,0 +1,17 @@
+commit 22636be8b03c2581ed0f6c93d90689b0202b87b0
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Feb 11 12:09:11 2012 +1100
+
+    flate: delete WrongValueError type.
+    
+    Fixes #2838.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5651060
+
+ doc/go1.html                                 | 13 +++++++++----
+ doc/go1.tmpl                                 | 13 +++++++++----
+ src/pkg/compress/flate/deflate.go            |  3 ++-
+ src/pkg/compress/flate/huffman_bit_writer.go | 13 -------------
+ 4 files changed, 20 insertions(+), 22 deletions(-)

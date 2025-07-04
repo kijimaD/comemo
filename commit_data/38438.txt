@@ -1,0 +1,21 @@
+commit 37e4a61d26d3b10aa11c5155b72c6bc882bd3122
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 15 09:10:09 2019 -0400
+
+    cmd/go/internal/cache: remove log.txt from the cache directory
+    
+    Also remove an existing log.txt in the cache directory during
+    'go clean -cache' if it exists.
+    
+    Fixes #25323
+    
+    Change-Id: I1c6e20554db0edc6d850a7b4379d71ef5844eaea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167741
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/cache/cache.go      | 10 -------
+ src/cmd/go/internal/cache/cache_test.go | 49 ---------------------------------
+ src/cmd/go/internal/clean/clean.go      |  8 +++++-
+ 3 files changed, 7 insertions(+), 60 deletions(-)

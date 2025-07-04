@@ -1,0 +1,14 @@
+commit 1593ab6bb4d5bf59bed1d66f292992572555b999
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 16 15:36:46 2009 -0800
+
+    - cleanup todo list
+    - fixed language for arrays slightly
+    
+    R=r
+    DELTA=81  (39 added, 25 deleted, 17 changed)
+    OCL=23000
+    CL=23000
+
+ doc/go_spec.txt | 98 ++++++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 56 insertions(+), 42 deletions(-)

@@ -1,0 +1,12 @@
+commit 46031400d0c0745ef8e764a4872f5aaaa143d199
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 5 15:51:58 2012 -0800
+
+    reflect: fix comment spacing
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5757043
+
+ src/pkg/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

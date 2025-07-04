@@ -1,0 +1,14 @@
+commit 6c864210fc726e2eb27a4ce3ec1ff47f8671378e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Nov 19 10:54:44 2011 +1100
+
+    html/template: fix documentation formatting
+    
+    See http://weekly.golang.org/pkg/html/template/
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5413055
+
+ src/pkg/html/template/doc.go | 68 ++++++++++++++++++++++----------------------
+ 1 file changed, 34 insertions(+), 34 deletions(-)

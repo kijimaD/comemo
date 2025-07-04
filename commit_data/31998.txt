@@ -1,0 +1,42 @@
+commit 123fd4640ae27e7f179f84cd7efece07ab954b45
+Author: Michael Pratt <mpratt@google.com>
+Date:   Sat Jul 8 16:47:16 2017 -0700
+
+    cmd/link: skip R_ADDR relocs in .rela.plt for internal PIE
+    
+    ld.addpltsym adds an R_X86_64_JMP_SLOT dynamic relocation to .rela.plt
+    and uses Addaddrplus to reference the GOT in Elf64_Rela.r_offset.
+    
+    Addaddrplus results in an R_ADDR relocation, which here we transform
+    into an R_X86_64_64 dynamic relocation. This is wrong for several
+    reasons:
+    
+    1. .rela.plt is not a writable, relro section. It is mapped read-only,
+       causing the dynamic linker to segfault when it tried to handle the
+       relocation. This was the immediate cause of internal PIE cgo
+       crashes.
+    
+    2. Relocations targetting other reloc sections are, as far as I can
+       tell, undefined behavior in the ELF spec and are unlikely to be a
+       good idea.
+    
+    3. Even if the relocation did work, it isn't what we want. The
+       relocation, if successfully handled, would have put an absolute
+       address as the JMP_SLOT offset, but it should be the offset from the
+       beginning of the binary, just like any other relocation. What we want
+       is a statically resolved R_ADDR relocation, just as is used below for
+       the R_X86_64_64 relocation.
+    
+    Skipping the .rela.plt allows reloc() to handle these R_ADDR
+    relocations.
+    
+    With this CL, internal PIE cgo binaries work.
+    
+    Updates #18968
+    
+    Change-Id: Ie74e6fe249e88150baa0e340b1cb128cf7f28673
+    Reviewed-on: https://go-review.googlesource.com/47837
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

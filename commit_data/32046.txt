@@ -1,0 +1,14 @@
+commit 504deee6088c2448fc3e91c94a1ba69ec92fb7ef
+Author: gmarik <gmarik@gmail.com>
+Date:   Sat Jul 15 12:11:42 2017 -0600
+
+    log: adds a Logger Output method Example
+    
+    Change-Id: Ia3e351169a4ebe6db5e5f37b668f23dc8c992c78
+    Reviewed-on: https://go-review.googlesource.com/48877
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/log/example_test.go | 26 +++++++++++++++++++++++---
+ 1 file changed, 23 insertions(+), 3 deletions(-)

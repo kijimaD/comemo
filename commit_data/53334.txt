@@ -1,0 +1,23 @@
+commit 4c028edffafbaa6a2ad46fcd5423febb207f8a98
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 25 00:32:39 2023 -0400
+
+    cmd/go: avoid duplicate errors in module load
+    
+    Just a missing base.ExitIfErrors.
+    
+    Fixes #46160.
+    
+    Change-Id: I41949b0b7b036da94ba269220951677585d3f8e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498122
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modload/load.go                         | 1 +
+ src/cmd/go/testdata/script/mod_go_version.txt               | 5 ++---
+ src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt     | 3 +--
+ src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt | 3 +--
+ src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt   | 3 +--
+ 5 files changed, 6 insertions(+), 9 deletions(-)

@@ -1,0 +1,39 @@
+commit b25ec50b693eae68de1f020a9566fa14dea47888
+Author: Howard Zhang <howard.zhang@arm.com>
+Date:   Tue Aug 6 02:42:37 2019 -0700
+
+    syscall: implement rawVforkSyscall for linux/arm64
+    
+    This allows the use of CLONE_VFORK and CLONE_VM for fork/exec, preventing
+    "fork/exec ...: cannot allocate memory" failures from occuring when attempting
+    to execute commands from a Go process that has a large memory footprint.
+    Additionally, this should reduce the latency of fork/exec on linux/arm64.
+    
+    With CLONE_VM the child process shares the same memory with the parent
+    process. On its own this would lead to conflicting use of the same
+    memory, so CLONE_VFORK is used to suspend the parent process until the
+    child releases the memory when switching to the new program binary
+    via the exec syscall. When the parent process continues to run, one
+    has to consider the changes to memory that the child process did,
+    namely the return address of the syscall function needs to be restored
+    from a register.
+    
+    exec.Command() callers can start in a faster manner, as child process who
+    do exec commands job can be cloned faster via vfork than via fork on arm64.
+    
+    The same problem was addressed on linux/amd64 via issue #5838.
+    
+    Updates #31936
+    Contributed by Howard Zhang <howard.zhang@arm.com> and Bin Lu <bin.lu@arm.com>
+    
+    Change-Id: Ia99d81d877f564ec60d19f17e596276836576eaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189418
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/syscall/asm_linux_arm64.s      | 23 +++++++++++++++++++++++
+ src/syscall/exec_linux.go          |  2 +-
+ src/syscall/syscall_linux_arm64.go |  4 +---
+ 3 files changed, 25 insertions(+), 4 deletions(-)

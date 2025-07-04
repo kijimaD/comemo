@@ -1,0 +1,18 @@
+commit 43a274fd67747a70bb7c2f97db219f5d9ee8c07c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Mar 30 11:15:01 2016 -0400
+
+    cmd/compile: include pkgPath on all struct types
+    
+    Fixes #15026.
+    
+    Change-Id: I61ed71152b99973270d79264d1e8f466f7343c02
+    Reviewed-on: https://go-review.googlesource.com/21286
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go |  2 +-
+ src/reflect/all_test.go                | 27 +++++++++++++++++++++++++++
+ src/reflect/export_test.go             |  5 +++++
+ 3 files changed, 33 insertions(+), 1 deletion(-)

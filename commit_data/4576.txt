@@ -1,0 +1,12 @@
+commit 14992a4e4b90a9ecd8b14552ff6e34cb1779ebee
+Author: Bill Neubauer <wcn@golang.org>
+Date:   Mon Jan 11 13:06:58 2010 -0800
+
+    doc/contribute.html: change copyright year
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/184055
+
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

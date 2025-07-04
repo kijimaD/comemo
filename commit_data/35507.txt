@@ -1,0 +1,30 @@
+commit cb80c28961a884844020ecc027b44c6b00745702
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Sat May 26 12:57:50 2018 +0300
+
+    test: eliminate use of Perl in test/fixedbugs/bug248.go
+    
+    This change enables bug248 to be tested with Go code.
+    For that, it adds a flag -1 to error check and run directory
+    with one package failing compilation prior the last package
+    which should be run.
+    
+    Specifically, the "p" package in bug1.go file was renamed into "q"
+    to compile them in separate steps,
+    bug2.go and bug3.go files were reordered,
+    bug2.go was changed into non-main package.
+    
+    Updates #25586.
+    
+    Change-Id: Ie47aacd56ebb2ce4eac66c792d1a53e1e30e637c
+    Reviewed-on: https://go-review.googlesource.com/114818
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/bug248.dir/bug1.go |   2 +-
+ test/fixedbugs/bug248.dir/bug2.go | 106 +++++++++++++-------------------------
+ test/fixedbugs/bug248.dir/bug3.go | 102 +++++++++++++++++++++++-------------
+ test/fixedbugs/bug248.go          |  54 +++----------------
+ test/run.go                       |  14 ++++-
+ 5 files changed, 123 insertions(+), 155 deletions(-)

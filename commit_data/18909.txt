@@ -1,0 +1,13 @@
+commit 260aa0ac8513e04cbf65cc2adb4b79e054d7484a
+Author: Chris Manghane <cmang@golang.org>
+Date:   Thu Mar 20 11:46:45 2014 -0700
+
+    test: add extra test case for issue 7590
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/78040043
+
+ test/fixedbugs/issue7590.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

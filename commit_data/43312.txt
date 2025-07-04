@@ -1,0 +1,29 @@
+commit 64fb6ae95f1c322486cbfb758552bb8439a8e6e8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 14 16:03:48 2020 -0700
+
+    runtime: stop preemption during syscall.Exec on Darwin
+    
+    On current macOS versions a program that receives a signal during an
+    execve can fail with a SIGILL signal. This appears to be a macOS
+    kernel bug. It has been reported to Apple.
+    
+    This CL partially works around the problem by using execLock to not
+    send preemption signals during execve. Of course some other stray
+    signal could occur, but at least we can avoid exacerbating the problem.
+    We can't simply disable signals, as that would mean that the exec'ed
+    process would start with all signals blocked, which it likely does not
+    expect.
+    
+    Fixes #41702
+    
+    Change-Id: I91b0add967b315671ddcf73269c4d30136e579b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262438
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/signal_unix.go    | 11 +++++++++++
+ src/syscall/exec_unix_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+)

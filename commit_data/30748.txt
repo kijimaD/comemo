@@ -1,0 +1,16 @@
+commit cce4c319d6aa2fbcf16fbab6a3dc74baf482ce51
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 10 15:52:26 2017 -0800
+
+    cmd/internal/obj: remove unneeded AVARFOO ops
+    
+    Change-Id: I10e36046ebce8a8741ef019cfe266b9ac9fa322d
+    Reviewed-on: https://go-review.googlesource.com/38088
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/internal/obj/link.go     | 3 ---
+ src/cmd/internal/obj/util.go     | 3 ---
+ src/cmd/internal/obj/x86/asm6.go | 2 --
+ 3 files changed, 8 deletions(-)

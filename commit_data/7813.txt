@@ -1,0 +1,13 @@
+commit 000d60ac6fc21ff19aa78c7c809b211c653ccc5f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 18 12:48:12 2011 -0700
+
+    net: Use preallocated buffer for kqueue/kevent.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4293056
+
+ src/pkg/net/fd_darwin.go  | 18 ++++++++++++------
+ src/pkg/net/fd_freebsd.go | 18 ++++++++++++------
+ 2 files changed, 24 insertions(+), 12 deletions(-)

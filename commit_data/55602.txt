@@ -1,0 +1,64 @@
+commit 63dd79c07b0026b58f421a5273c41e705ccb73d1
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Feb 15 23:59:52 2024 -0500
+
+    cmd/pprof: update vendored github.com/google/pprof
+    
+    Pull in the latest published version of github.com/google/pprof
+    as part of the continuous process of keeping Go's dependencies
+    up to date. Done with:
+    
+    go get github.com/google/pprof
+    go mod tidy
+    go mod vendor
+    
+    For #36905.
+    Fixes #65741.
+    
+    Change-Id: Ice7b085c03ff69be97929cbe47bfd91954907529
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564636
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/go.mod                                     |    2 +-
+ src/cmd/go.sum                                     |   20 +-
+ .../github.com/google/pprof/driver/driver.go       |    7 +-
+ .../pprof/internal/binutils/addr2liner_llvm.go     |   22 +-
+ .../google/pprof/internal/driver/commands.go       |    2 +
+ .../google/pprof/internal/driver/config.go         |    2 +
+ .../google/pprof/internal/driver/driver.go         |    2 +-
+ .../google/pprof/internal/driver/fetch.go          |   24 +-
+ .../google/pprof/internal/driver/flamegraph.go     |  106 --
+ .../google/pprof/internal/driver/html/common.js    |   14 +-
+ .../pprof/internal/driver/html/flamegraph.html     |  103 --
+ .../google/pprof/internal/driver/html/header.html  |    1 -
+ .../google/pprof/internal/driver/html/stacks.js    |   18 +-
+ .../google/pprof/internal/driver/stacks.go         |    2 +-
+ .../github.com/google/pprof/internal/driver/svg.go |    2 +-
+ .../google/pprof/internal/driver/webhtml.go        |   10 +-
+ .../google/pprof/internal/driver/webui.go          |   16 +-
+ .../google/pprof/internal/graph/graph.go           |   15 +-
+ .../google/pprof/internal/plugin/plugin.go         |    9 +-
+ .../google/pprof/internal/report/report.go         |    3 +-
+ .../google/pprof/internal/report/stacks.go         |    5 -
+ .../google/pprof/internal/symbolizer/symbolizer.go |    1 +
+ .../github.com/google/pprof/profile/encode.go      |    3 +
+ .../google/pprof/profile/legacy_java_profile.go    |    4 +-
+ .../github.com/google/pprof/profile/merge.go       |    4 +-
+ .../github.com/google/pprof/profile/profile.go     |   14 +-
+ .../d3flamegraph/D3_FLAME_GRAPH_LICENSE            |  201 ----
+ .../pprof/third_party/d3flamegraph/D3_LICENSE      |   13 -
+ .../pprof/third_party/d3flamegraph/README.md       |   33 -
+ .../third_party/d3flamegraph/d3_flame_graph.go     |   65 --
+ .../google/pprof/third_party/d3flamegraph/index.js |   13 -
+ .../third_party/d3flamegraph/package-lock.json     | 1106 --------------------
+ .../pprof/third_party/d3flamegraph/package.json    |   17 -
+ .../pprof/third_party/d3flamegraph/update.sh       |   62 --
+ .../third_party/d3flamegraph/webpack.config.js     |   13 -
+ .../google/pprof/third_party/svgpan/svgpan.go      |  294 +-----
+ .../google/pprof/third_party/svgpan/svgpan.js      |  261 +++++
+ src/cmd/vendor/modules.txt                         |    3 +-
+ 38 files changed, 395 insertions(+), 2097 deletions(-)

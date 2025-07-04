@@ -1,0 +1,17 @@
+commit e589e08014d8f508e93a6c0061e9fa50248cbe78
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 21 10:46:29 2015 -0700
+
+    misc/cgo/testcshared: add c-shared test with no exports
+    
+    The purpose of this test is to make sure that -buildmode=c-shared
+    works even when the shared library can be built without invoking cgo.
+    
+    Change-Id: Id6f95af755992b209aff770440ca9819b74113ab
+    Reviewed-on: https://go-review.googlesource.com/9166
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/testcshared/main2.c              | 56 +++++++++++++++++++++++++++++++
+ misc/cgo/testcshared/src/libgo2/libgo2.go | 52 ++++++++++++++++++++++++++++
+ misc/cgo/testcshared/test.bash            | 12 ++++++-
+ 3 files changed, 119 insertions(+), 1 deletion(-)

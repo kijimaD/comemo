@@ -1,0 +1,12 @@
+commit 5827dd052c45c557b3f136e7ee466a0d9fe0f126
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 7 16:57:26 2012 -0800
+
+    go/scanner: better panic diagnostic
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5787045
+
+ src/pkg/go/scanner/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

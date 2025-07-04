@@ -1,0 +1,15 @@
+commit ee5f59ab4feafd987972a096d5a5c315e753f358
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 7 01:54:07 2012 -0400
+
+    cmd/gc: preserve side effects during inlining of function with _ argument
+    
+    Fixes #3593.
+    
+    R=ken2
+    CC=golang-dev, lvd
+    https://golang.org/cl/6305061
+
+ src/cmd/gc/inl.c         | 43 +++++++++++++++++++++----------------------
+ test/fixedbugs/bug441.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 22 deletions(-)

@@ -1,0 +1,16 @@
+commit 023556c07166be15a914d1f828d8c7b20a59a804
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 28 18:25:31 2016 -0400
+
+    time: clarify Equal docs
+    
+    The docs used to imply that using == would compare Locations, but of
+    course it just compares Location pointers, which will have unpredictable
+    results depending on how the pointers are loaded.
+    
+    Change-Id: I783c1309e476a9616a1c1c290eac713aba3b0b57
+    Reviewed-on: https://go-review.googlesource.com/32332
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/time.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,36 @@
+commit 9690d245d56d547c40dac269140dcddc6eb80904
+Author: griesemer <gri@golang.org>
+Date:   Wed Aug 30 15:10:12 2017 +0200
+
+    spec: clarify context type for certain non-constant shifts
+    
+    The spec is not conclusive about whether a non-constant shift of
+    certain untyped constant left operands is valid when the shift
+    expression appears as an index in an index or slice expression,
+    or as a size in a `make` function call.
+    
+    Despite identical spec rules in all these cases, cmd/compile accepts
+    
+            make([]byte, 1.0 << s)
+    
+    but pronounces an error for
+    
+            a[1.0 << s]
+    
+    (go/types accepts both).
+    
+    This change clarifies the spec by explicitly stating that an
+    untyped constant left operand in a non-constant shift (1.0 in
+    the above examples) will be given type `int` in these contexts.
+    
+    A separate issue #21693 addresses the cmd/compile bug.
+    
+    Fixes #14844.
+    
+    Change-Id: I4b52125e487a607fae377fcbed55463cdce9836c
+    Reviewed-on: https://go-review.googlesource.com/60230
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 45 ++++++++++++++++++++++++---------------------
+ 1 file changed, 24 insertions(+), 21 deletions(-)

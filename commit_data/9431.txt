@@ -1,0 +1,12 @@
+commit 97eb06233fef967a39688fff3ea907c88c329160
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 22 13:29:17 2011 +1000
+
+    test/chan/sieve2.go: remove container/vector.
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/4918043
+
+ test/chan/sieve2.go | 38 ++++++++++++++++++++++++++------------
+ 1 file changed, 26 insertions(+), 12 deletions(-)

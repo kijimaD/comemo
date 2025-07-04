@@ -1,0 +1,20 @@
+commit ba978f5fff69dcdc6ba651be2d2b53a96e939924
+Author: bill_ofarrell <billo@ca.ibm.com>
+Date:   Tue Apr 30 17:15:39 2019 -0400
+
+    internal/cpu: add detection for the new ECDSA and EDDSA capabilities on s390x
+    
+    This CL will check for the Message-Security-Assist Extension 9 facility
+    which enables the KDSA instruction.
+    
+    Change-Id: I659aac09726e0999ec652ef1f5983072c8131a48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174529
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/all/whitelist/s390x.txt |  1 +
+ src/internal/cpu/cpu.go             |  3 +++
+ src/internal/cpu/cpu_s390x.go       | 23 +++++++++++++++++++++++
+ src/internal/cpu/cpu_s390x.s        |  8 ++++++++
+ 4 files changed, 35 insertions(+)

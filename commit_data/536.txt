@@ -1,0 +1,16 @@
+commit 3aecf2ed07f1d5c692fb8915a7a68c89d6c93415
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 13 12:15:24 2008 -0700
+
+    add test for constants
+    add bug in constant evaluation (erroneously allowing assignment of float to int)
+    update golden
+    
+    R=gri
+    OCL=14153
+    CL=14153
+
+ test/bugs/bug090.go |  39 +++++++++++++++++
+ test/const.go       | 118 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/golden.out     |   3 ++
+ 3 files changed, 160 insertions(+)

@@ -1,0 +1,20 @@
+commit 1f833e4a1bfd77c2dfa91305f90ade9f9ceb66de
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Aug 15 13:05:01 2022 -0400
+
+    go/constant: share the empty string
+    
+    This saves 11,000 allocations when loading the standard library
+    in golang.org/x/tools/go/ssa form.
+    
+    Change-Id: I8aa32b0641c1a3dde29e6ee76c760006035dd56d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423934
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+
+ src/go/constant/value.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

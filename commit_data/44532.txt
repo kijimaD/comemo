@@ -1,0 +1,21 @@
+commit 70b277cf2e953bb9994b00898280f4659a47471e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Mar 4 14:27:36 2021 +0700
+
+    cmd/compile: only check return for valid functions
+    
+    CheckReturn uses fn.Type() unconditionally, so for invalid function,
+    fn.Type() will be nil, causes the compiler crashes.
+    
+    Updates #43311
+    
+    Change-Id: I4420dd296c72ea83986b38fbf2c7f51fa59757c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298709
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/typecheck.go |  2 +-
+ test/fixedbugs/issue17588.go                    | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

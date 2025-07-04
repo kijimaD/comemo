@@ -1,0 +1,13 @@
+commit 50921bfa2e154f2e9346ebefba073c15c8afc453
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 22 11:18:24 2018 -0700
+
+    cmd/compile: change unsafeUintptrTag from var to const
+    
+    Change-Id: Ie30878199e24cce5b75428e6b602c017ebd16642
+    Reviewed-on: https://go-review.googlesource.com/102175
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/gc/esc.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

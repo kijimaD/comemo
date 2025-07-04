@@ -1,0 +1,21 @@
+commit fe489c86a7a65b6bcd25118e1a8919b9950af83f
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Aug 15 21:43:12 2021 -0400
+
+    go/types: limit termlist lengths
+    
+    This is a port of CL 340254 to go/types, with minor adjustments for
+    errors and positions.
+    
+    Change-Id: I49ea1d1de8d6e27484f167b813267615d142d31c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342438
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/testdata/check/unions.go2 | 66 ++++++++++++++++++++++++++++++++++
+ src/go/types/typeset.go                | 27 ++++++++++++--
+ src/go/types/typeset_test.go           | 15 ++++++++
+ src/go/types/union.go                  | 12 ++++++-
+ 4 files changed, 116 insertions(+), 4 deletions(-)

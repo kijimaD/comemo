@@ -1,0 +1,16 @@
+commit de5b386157c7f86df3f0a93cd01172ff84781459
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 30 14:50:21 2015 -0500
+
+    misc/cgo/testsanitizers: do not run with clang < 3.8 and Linux ≥ 4.1
+    
+    These are simply incompatible. Clang fixed the bug but not in older versions.
+    
+    Fixes #12898.
+    
+    Change-Id: I74a3fd9134dadab6d0f074f8fd09e00d64558d7a
+    Reviewed-on: https://go-review.googlesource.com/17254
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testsanitizers/test.bash | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

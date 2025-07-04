@@ -1,0 +1,36 @@
+commit 34c480afa89a4efa917f30592d8c095dbaf7612e
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Nov 1 15:28:55 2016 -0400
+
+    runtime: resolve type offsets using source module
+    
+    The runtime.typeEquals function is used during typelinksinit to
+    determine the canonical set of *_type values to use throughout the
+    runtime. As such, it is run against non-canonical *_type values, that
+    is, types from modules that are duplicates of a type from another
+    module that was loaded earlier in the program life.
+    
+    These non-canonical *_type values sometimes contain pointers. These
+    pointers are pointing to position-independent data, and so they are set
+    by ld.so using dynamic relocations when the module is loaded. As such,
+    the pointer can point to the equivalent memory from a previous module.
+    
+    This means if typesEqual follows a pointer inside a *_type, it can end
+    up at a piece of memory from another module. If it reads a typeOff or
+    nameOff from that memory and attempts to resolve it against the
+    non-canonical *_type from the later module, it will end up with a
+    reference to junk memory.
+    
+    Instead, resolve against the pointer the offset was read from, so the
+    data is valid.
+    
+    Fixes #17709.
+    Should no longer matter after #17724 is resolved in a later Go.
+    
+    Change-Id: Ie88b151a3407d82ac030a97b5b6a19fc781901cb
+    Reviewed-on: https://go-review.googlesource.com/32513
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/type.go | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

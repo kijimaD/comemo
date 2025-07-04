@@ -1,0 +1,12 @@
+commit 7cd4de6a0791237760001fccdc3ca85290dc27d4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 10 16:31:09 2010 -0800
+
+    install.html: add section on C tools
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/238042
+
+ doc/install.html | 32 +++++++++++++++++---------------
+ 1 file changed, 17 insertions(+), 15 deletions(-)

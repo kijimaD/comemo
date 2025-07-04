@@ -1,0 +1,20 @@
+commit b40c6580639beb1fd24bbf8cc50f4488c245c41b
+Author: Andrew G. Morgan <agm@google.com>
+Date:   Mon May 4 17:50:17 2020 -0700
+
+    net/http/httputil: don't use testing.T after test completes
+    
+    This fixes a race condition where
+    TestReverseProxyWebSocketCancelation appears to
+    panic after otherwise passing.
+    
+    Fixes #38863
+    
+    Change-Id: Ib89f4c40da879b92ac1fc5ed8b6e48da929e4a18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232257
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httputil/reverseproxy_test.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

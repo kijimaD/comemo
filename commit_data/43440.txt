@@ -1,0 +1,23 @@
+commit c92bfac01e9e8319822f472fd11a51bf28762125
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Oct 22 19:32:47 2020 +0100
+
+    cmd/go: support non-amd64 on script/toolexec.txt
+    
+    In https://golang.org/cl/263357, I wasn't thinking that the assembly
+    file without a GOARCH suffix would be built for all architectures. Only
+    build assembly for amd64, and update the stderr matching line.
+    
+    I manually verified that this works on 386; since the only Go file in
+    that package is a stub, and no assembly files match GOARCH=386, no
+    assembly is built at all.
+    
+    Change-Id: Ief3c6c9bdc223f342821b0ec27f00098fc25246a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264457
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/toolexec.txt | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

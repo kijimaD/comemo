@@ -1,0 +1,15 @@
+commit 70fd814f53ba57e6523363d865a6ba49063bfa15
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Sep 7 12:06:43 2016 -0400
+
+    cmd/compile/internal/ssa/gen: fix error message for wrong arg length
+    
+    When arg length is wrong, op is not set, so it always prints
+    "should have 0 args".
+    
+    Change-Id: If7bcb41d993919d0038d2a09e16188c79dfbd858
+    Reviewed-on: https://go-review.googlesource.com/28831
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

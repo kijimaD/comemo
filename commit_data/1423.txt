@@ -1,0 +1,32 @@
+commit af065a0c7783d33e01e75f43e07db681dadbf21e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 6 16:26:45 2009 -0800
+
+    - make code in gosrc compile again, check in all pending changes
+      (this code doesn't match the existing language at this point,
+      but it's a large code base which compiles - will eventually go
+      away)
+    - enable compilation of it again in run.bash
+    
+    R=r
+    DELTA=1147  (534 added, 311 deleted, 302 changed)
+    OCL=22176
+    CL=22176
+
+ src/run.bash                  |  10 +-
+ usr/gri/gosrc/ast.go          | 139 +++++++--
+ usr/gri/gosrc/compilation.go  |  68 ++++-
+ usr/gri/gosrc/export.go       |  21 +-
+ usr/gri/gosrc/expr.go         | 164 +++++++++++
+ usr/gri/gosrc/globals.go      |  69 +++--
+ usr/gri/gosrc/go.go           |  18 +-
+ usr/gri/gosrc/import.go       |  22 +-
+ usr/gri/gosrc/object.go       |   3 +-
+ usr/gri/gosrc/parser.go       | 649 ++++++++++++++++++------------------------
+ usr/gri/gosrc/printer.go      |  54 ++--
+ usr/gri/gosrc/scanner.go      |  28 +-
+ usr/gri/gosrc/test_scanner.go |   6 +-
+ usr/gri/gosrc/type.go         |  42 ++-
+ usr/gri/gosrc/universe.go     |  21 +-
+ usr/gri/gosrc/verifier.go     |  16 +-
+ 16 files changed, 790 insertions(+), 540 deletions(-)

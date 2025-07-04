@@ -1,0 +1,25 @@
+commit 94f48ddb96c4dfc919ae024f64df19d764f5fb5b
+Author: Ian Gudger <igudger@google.com>
+Date:   Wed Sep 5 23:53:36 2018 -0700
+
+    net: fail fast for DNS rcode success with no answers of requested type
+    
+    DNS responses which do not contain answers of the requested type return
+    errNoSuchHost, the same error as rcode name error. Prior to
+    golang.org/cl/37879, both cases resulted in no additional name servers
+    being consulted for the question. That CL changed the behavior for both
+    cases. Issue #25336 was filed about the rcode name error case and
+    golang.org/cl/113815 fixed it. This CL fixes the no answers of requested
+    type case as well.
+    
+    Fixes #27525
+    
+    Change-Id: I52fadedcd195f16adf62646b76bea2ab3b15d117
+    Reviewed-on: https://go-review.googlesource.com/133675
+    Run-TryBot: Ian Gudger <igudger@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dnsclient_unix.go      | 115 ++++++++++++++++++++-------------
+ src/net/dnsclient_unix_test.go | 143 +++++++++++++++++++++++++----------------
+ 2 files changed, 158 insertions(+), 100 deletions(-)

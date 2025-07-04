@@ -1,0 +1,14 @@
+commit 9230ee20f3893814cbfb5e0bdc1a117b092eae35
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Feb 23 19:36:34 2017 +0100
+
+    website: mention go1.8 in project page
+    
+    Fixes #19253
+    
+    Change-Id: Ia473f51bfe4cf42cf64938993a81d9b1dbc2594d
+    Reviewed-on: https://go-review.googlesource.com/37433
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/contrib.html | 1 +
+ 1 file changed, 1 insertion(+)

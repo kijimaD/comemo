@@ -1,0 +1,17 @@
+commit 1661bf02c8fa7802505de040386365d76dacd0af
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 5 13:01:30 2023 -0800
+
+    doc: add release note for new go/version package
+    
+    For #62039.
+    
+    Change-Id: Id19a4c06489ad24dc44c7caf2405d155d96c6fcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547695
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ doc/go1.22.html | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

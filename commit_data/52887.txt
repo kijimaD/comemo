@@ -1,0 +1,20 @@
+commit ae59562c71efa4bb5a537d7ee0f64417a8a7272d
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Sun Apr 23 11:06:34 2023 -0400
+
+    log/slog: rearrange package doc
+    
+    Move the "Attrs and Values" section lower. It describes an optimization;
+    the API it covers is not essential.
+    
+    Also, move the brief section on Logger.With up to the first section.
+    It was in the "Groups" section but didn't belong there.
+    
+    Change-Id: I0e36ef654e95f918d5b480566ec58d9990d26b40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487856
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+
+ src/log/slog/doc.go | 66 ++++++++++++++++++++++++++---------------------------
+ 1 file changed, 33 insertions(+), 33 deletions(-)

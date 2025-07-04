@@ -1,0 +1,18 @@
+commit 881d693c8603510bee3b88205a90ca97942ee0b9
+Author: Erik Westrup <erik.westrup@gmail.com>
+Date:   Wed Mar 26 15:23:31 2014 -0700
+
+    cmd/go: Use exported CgoLDFlags when compiler=gccgo
+    
+    If you compile a program that has cgo LDFLAGS directives, those are exported to an environment variable to be used by subsequent compiler tool invocations. The linking phase when using the gccgo toolchain did not consider the envvar CGO_LDFLAGS's linking directives resulting in undefined references when using cgo+gccgo.
+    
+    Fixes #7573
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/80780043
+
+ src/cmd/go/build.go  |  1 +
+ src/cmd/go/test.bash | 25 +++++++++++++++++++++++++
+ 2 files changed, 26 insertions(+)

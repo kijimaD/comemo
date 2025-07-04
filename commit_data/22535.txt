@@ -1,0 +1,21 @@
+commit a6bade60b0475f3cb01103284b9c378f92490bf7
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Wed Apr 8 13:14:15 2015 +0200
+
+    cmd/7g: remove loads that only load an immediate to be later used by ADD/SUB
+    
+    Optimize the sequence:
+            MOV $imm, Rt
+            ADD Rt, Rs, Rd
+    
+    into:
+            ADD $imm, Rs, Rd
+    
+    Saves 66k in godoc.
+    
+    Change-Id: I27b4aaa0ec80a59472fe2e5816efdf3db9c901ee
+    Reviewed-on: https://go-review.googlesource.com/8632
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/7g/peep.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

@@ -1,0 +1,17 @@
+commit b3a1205a1133328068f002dd44141cb9efb2127b
+Author: Ayan George <ayan@ayan.net>
+Date:   Thu Aug 1 12:35:59 2019 -0400
+
+    runtime: simplify GOOS detection in mstart()
+    
+    The existing condition is long and repetitive.  Using select/case with
+    multiple values in the expression list is more concise and clearer.
+    
+    Change-Id: I43f8abcf958e433468728f1d89ff1436332b29da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188519
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

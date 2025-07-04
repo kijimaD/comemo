@@ -1,0 +1,28 @@
+commit 64379b854f9e575bc88312225aab25cc7c244a4d
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Tue Dec 17 06:52:32 2013 -0800
+
+    all: add missing copyright
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/43290043
+
+ src/pkg/bytes/compare_test.go              | 4 ++++
+ src/pkg/compress/flate/fixedhuff.go        | 4 ++++
+ src/pkg/crypto/md5/gen.go                  | 5 ++++-
+ src/pkg/crypto/md5/md5block.go             | 4 ++++
+ src/pkg/image/color/palette/gen.go         | 4 ++++
+ src/pkg/image/color/palette/palette.go     | 4 ++++
+ src/pkg/image/gif/reader_test.go           | 4 ++++
+ src/pkg/os/signal/example_test.go          | 4 ++++
+ src/pkg/path/filepath/path_windows_test.go | 4 ++++
+ src/pkg/regexp/example_test.go             | 4 ++++
+ src/pkg/regexp/syntax/make_perl_groups.pl  | 4 ++++
+ src/pkg/regexp/syntax/perl_groups.go       | 4 ++++
+ src/pkg/strconv/isprint.go                 | 4 ++++
+ src/pkg/strconv/makeisprint.go             | 3 +++
+ src/pkg/unicode/maketables.go              | 6 +++++-
+ src/pkg/unicode/tables.go                  | 4 ++++
+ src/pkg/unicode/utf8/example_test.go       | 4 ++++
+ 17 files changed, 68 insertions(+), 2 deletions(-)

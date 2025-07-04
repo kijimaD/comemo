@@ -1,0 +1,22 @@
+commit de04bf24e5a9d4a52f0024dd684de21ec4a36340
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 8 14:02:54 2013 -0700
+
+    net/http: fix early side effects in the ResponseWriter's ReadFrom
+    
+    The ResponseWriter's ReadFrom method was causing side effects on
+    the output before any data was read.
+    
+    Now, bail out early and do a normal copy (which does a read
+    before writing) when our input and output are known to not to
+    be the pair of types we need for sendfile.
+    
+    Fixes #5660
+    
+    R=golang-dev, rsc, nightlyone
+    CC=golang-dev
+    https://golang.org/cl/12632043
+
+ src/pkg/net/http/serve_test.go | 45 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/server.go     | 46 ++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 83 insertions(+), 8 deletions(-)

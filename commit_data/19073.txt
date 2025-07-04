@@ -1,0 +1,13 @@
+commit 56294f4adfb880e41c6a4111241d795191d5dc0b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 9 15:20:00 2014 +1000
+
+    doc/go1.3.html: go command, major library changes
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/85840043
+
+ doc/go1.3.html | 49 +++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 39 insertions(+), 10 deletions(-)

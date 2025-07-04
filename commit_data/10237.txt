@@ -1,0 +1,22 @@
+commit 46308d7d1191b75dc86f848dbc362616f5b0b0cb
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Nov 4 09:29:06 2011 +1100
+
+    html: move <link> element from after <head> into <head>
+    
+    Pass tests1.dat, test 85:
+    <head><meta></head><link>
+    
+    | <html>
+    |   <head>
+    |     <meta>
+    |     <link>
+    |   <body>
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5297079
+
+ src/pkg/html/parse.go      | 5 ++++-
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit e487ea84218d5095b6ff05ef1de6d44fc9b64183
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jan 18 02:24:12 2013 +0800
+
+    cmd/vet: don't complain about Error()
+    Fixes #4598.
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/7102050
+
+ src/cmd/vet/print.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

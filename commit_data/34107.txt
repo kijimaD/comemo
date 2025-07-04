@@ -1,0 +1,23 @@
+commit ae7d5f84f8b8fee22f65737f2c192b90667e2683
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 15 14:54:24 2017 -0800
+
+    runtime: buffered write barrier for ppc64
+    
+    Updates #22460.
+    
+    Change-Id: I6040c4024111c80361c81eb7eec5071ec9efb4f9
+    Reviewed-on: https://go-review.googlesource.com/92702
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/main.go          |  2 +-
+ src/cmd/compile/internal/ppc64/ssa.go        |  6 +++
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  3 ++
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  5 ++
+ src/cmd/compile/internal/ssa/opGen.go        | 15 ++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 20 ++++++++
+ src/cmd/vet/all/whitelist/ppc64x.txt         |  2 +
+ src/runtime/asm_ppc64x.s                     | 71 ++++++++++++++++++++++++++++
+ 8 files changed, 123 insertions(+), 1 deletion(-)

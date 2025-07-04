@@ -1,0 +1,14 @@
+commit fc5889d4ffbd3b1252db4eee5cae16edb4692c54
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 19 11:50:41 2011 -0400
+
+    json: skip nil in UnmarshalJSON and (for symmetry) MarshalJSON
+    
+    R=dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/5050049
+
+ src/pkg/json/decode.go      | 21 +++++++++++----------
+ src/pkg/json/encode.go      |  9 ++++++---
+ src/pkg/json/stream_test.go | 25 +++++++++++++++++++++++++
+ 3 files changed, 42 insertions(+), 13 deletions(-)

@@ -1,0 +1,18 @@
+commit fc40beb987fa503f3452e2e311f765241f5a3cf0
+Author: Austin Clements <austin@google.com>
+Date:   Sat May 30 20:40:58 2020 +0000
+
+    Revert "cmd/go: group 'go get' update messages together near the end of output"
+    
+    This reverts https://golang.org/cl/232578.
+    
+    Reason for revert: This commit broke TestScript/mod_load_badchain,
+    which is causing all longtest builders to fail.
+    
+    Change-Id: I4a17392ce74ac3a7ad340980556025f669d94b65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235857
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go/internal/modget/get.go                 | 31 +++--------------------
+ src/cmd/go/testdata/script/mod_get_update_log.txt | 15 -----------
+ 2 files changed, 3 insertions(+), 43 deletions(-)

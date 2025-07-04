@@ -1,0 +1,24 @@
+commit 567ef8bd8e76bdbc00df6b1903976b89b34a84d8
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 29 15:13:17 2020 +0200
+
+    runtime: correct arguments to pipe2 syscall in pipe on netbsd/arm64
+    
+    Follow the implementation of pipe2 to pass arguments and handle return
+    values.
+    
+    With this fix the runtime tests pass on netbsd/arm64 (tested using
+    gomote on the netbsd-arm64-bsiegert builder).
+    
+    Update #30824
+    
+    Change-Id: I346db68fc9dde8dc7f11351af05c1ad3105f4a32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258000
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/sys_netbsd_arm64.s | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

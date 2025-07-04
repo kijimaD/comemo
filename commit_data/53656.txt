@@ -1,0 +1,24 @@
+commit 449ef3795d8054faf4a601d8d1aab1f624b822f5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 3 05:05:55 2023 -0700
+
+    net: only build cgo_stub.go on unix or wasip1
+    
+    We were building it for Windows, although Windows code never calls
+    any of these functions. When using -tags netgo that cause a multiple
+    definition of cgoAvailable.
+    
+    Fixes #61153
+    
+    Change-Id: Ib9e1de7720a8c0dacd6f12002917bf305dfa5405
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507655
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/cgo_stub.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,28 @@
+commit 5b3ff61be63c87ff3e85609c774143b63e762f4b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 27 16:28:51 2013 -0700
+
+    runtime: allocate maps' first bucket table lazily
+    
+    Motivated by garbage profiling in HTTP benchmarks. This
+    changes means new empty maps are just one small allocation
+    (the HMap) instead the HMap + the relatively larger h->buckets
+    allocation. This helps maps which remain empty throughout
+    their life.
+    
+    benchmark               old ns/op    new ns/op    delta
+    BenchmarkNewEmptyMap          196          107  -45.41%
+    
+    benchmark              old allocs   new allocs    delta
+    BenchmarkNewEmptyMap            2            1  -50.00%
+    
+    benchmark               old bytes    new bytes    delta
+    BenchmarkNewEmptyMap          195           50  -74.36%
+    
+    R=khr, golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7722046
+
+ src/pkg/runtime/hashmap.c   | 31 ++++++++++++++++++++++++++-----
+ src/pkg/runtime/map_test.go |  7 +++++++
+ 2 files changed, 33 insertions(+), 5 deletions(-)

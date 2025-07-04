@@ -1,0 +1,16 @@
+commit 964c15f36006e6f13695afd4e25e38a18d5c4c2b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 11 17:33:01 2018 -0700
+
+    test: add test of valid code that gccgo failed to compile
+    
+    Updates #26340
+    
+    Change-Id: I3bc7cd544ea77df660bbda7de99a009b63d5be1b
+    Reviewed-on: https://go-review.googlesource.com/123477
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue26340.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

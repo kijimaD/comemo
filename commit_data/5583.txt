@@ -1,0 +1,12 @@
+commit 0c77ba96dadc343c8f4a1b6fedd9ee46108815a2
+Author: Michael Hoisie <hoisie@gmail.com>
+Date:   Tue Jun 1 14:27:45 2010 -0700
+
+    goinstall: Use 'git pull' instead of 'git checkout' when updating a git repo.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1395041
+
+ src/cmd/goinstall/download.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 980a57a84b932b43fc2d3ab699f7c235472009ab
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 22 17:04:59 2019 -0700
+
+    cmd/compile: clean up string/bytes/runes conversion code
+    
+    Combine the OBYTES2STR and ORUNES2STR cases, as they are identical.
+    
+    Clean up the construction, commenting, and spacing of the other cases,
+    and make them all match.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I1be8a528927caeb15e49cb12ca0f11c0827dadd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173322
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 46 +++++++++++--------------------------
+ 1 file changed, 13 insertions(+), 33 deletions(-)

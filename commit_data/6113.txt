@@ -1,0 +1,13 @@
+commit bead166a7c50f2b7f439e65e73adfdbf9d13c910
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Thu Aug 26 19:03:58 2010 -0400
+
+    math: amd64 version of Sincos
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1939042
+
+ src/pkg/math/Makefile       |   1 +
+ src/pkg/math/sincos_amd64.s | 143 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 144 insertions(+)

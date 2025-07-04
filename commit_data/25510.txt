@@ -1,0 +1,17 @@
+commit 29eea94abe3841d9569f6b8d110d92a54641c31b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 8 11:23:25 2016 -0500
+
+    os: read only 10,000 bytes at a time from Windows console
+    
+    Reading 32,767 is too many on some versions of Windows.
+    The exact upper bound is unclear.
+    
+    For #13697, but may not fix the problem on all systems.
+    
+    Change-Id: I197021ed60cbcd33c91ca6ceed456ec3d5a6c9d6
+    Reviewed-on: https://go-review.googlesource.com/18433
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/file_windows.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

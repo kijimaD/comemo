@@ -1,0 +1,23 @@
+commit 09e5bab8c1310aa1a9860c40c9e4babacffb13d8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu May 30 19:28:39 2024 +0000
+
+    cmd/cgo/internal/testsanitizers: make the libfuzzer tests all short
+    
+    CL 589295 only made one of the two tests short, because the other one
+    seemed to be passing consistently in short mode. On the builders, it
+    seems to still fail maybe 30% of the time by taking too long. Disable
+    these tests in short mode.
+    
+    For #67698.
+    
+    Change-Id: I9fd047f834f7493b608dd1fee5b9b6dfabbea03d
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-clang15,gotip-linux-386-clang15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589495
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

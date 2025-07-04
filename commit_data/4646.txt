@@ -1,0 +1,16 @@
+commit b2beb8abf03f640d8ff69e9ad5108ce2f1054077
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 19 21:09:58 2010 -0800
+
+    Add explicit locking.
+    
+    Since gcco runs goroutines in independent threads, it needs
+    locking for the global variables.  This shows up when I use
+    ordinary increments rather than locked increments for var++.
+    
+    R=ken2, ken3
+    CC=golang-dev
+    https://golang.org/cl/190074
+
+ test/ken/chan.go | 36 +++++++++++++++++++++++++++++-------
+ 1 file changed, 29 insertions(+), 7 deletions(-)

@@ -1,0 +1,18 @@
+commit a4aa2e0c280237f5e4d22f84386bcfee2f9cec3f
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Apr 30 17:36:23 2018 +0900
+
+    cmd/cgo: visit cgo type inside ellipsis node
+    
+    Fixes #25143
+    
+    Change-Id: Ide654fe70651fda827cdeeaaa73d2a1f8aefd7e7
+    Reviewed-on: https://go-review.googlesource.com/110159
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue25143.go | 22 ++++++++++++++++++++++
+ src/cmd/cgo/ast.go          |  1 +
+ 3 files changed, 24 insertions(+)

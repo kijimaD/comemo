@@ -1,0 +1,14 @@
+commit 7e72505173fee47cc2168a07dd6c04f8344e49b9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 12 11:28:07 2015 -0500
+
+    cmd/dist: remove race binaries when rebuilding everything
+    
+    Fixes #13214.
+    
+    Change-Id: Id8fbb252b8beadb0b41f839dcd85d6165dea86a3
+    Reviewed-on: https://go-review.googlesource.com/16845
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/build.go | 2 ++
+ 1 file changed, 2 insertions(+)

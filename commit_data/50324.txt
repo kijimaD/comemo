@@ -1,0 +1,24 @@
+commit a60a3dc5bc0336bd6b499bc7e1feb459b1e4a4bc
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Sep 5 08:30:02 2022 +0000
+
+    Revert "runtime: convert local var stop,ready at TestDebugCallUnsafePoint to atomic type"
+    
+    This reverts https://go.dev/cl/427135.
+    
+    Reason for revert: broke the test it modified on linux-amd64-noopt.
+    
+        --- FAIL: TestDebugCallUnsafePoint (0.00s)
+            debug_test.go:265: want "call not at safe point", got %!s(<nil>)
+    
+    Change-Id: I044c9720aed2d5e48b56bd7ab2781462270dcae9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428395
+    Reviewed-by: xie cui <523516579@qq.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/debug_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

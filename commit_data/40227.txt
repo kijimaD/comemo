@@ -1,0 +1,22 @@
+commit fd33b2c97491f566e85e2806cb5d08e711b35400
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 11 10:34:26 2019 -0700
+
+    runtime: when disabling SIGPROF handler, ignore SIGPROF
+    
+    If the runtime disables the SIGPROF handler, because this is Go code
+    that is linked into a non-Go program, then don't go back to the
+    default handling of SIGPROF; just start ignoring SIGPROF.
+    Otherwise the program can get killed by a stray SIGPROF that is
+    delivered, presumably to a different thread, after profiling is disabled.
+    
+    Fixes #19320
+    
+    Change-Id: Ifebae477d726699c8c82c867604b73110c1cf262
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200740
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/runtime/signal_unix.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

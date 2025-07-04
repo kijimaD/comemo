@@ -1,0 +1,17 @@
+commit a3ff67c3a7f7d2e5f175a81093a9ed72d4fb1dd2
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Oct 14 17:34:00 2011 -0400
+
+    godefs: add enum/const testdata
+    
+    Also, add golden output data for linux/arm.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5256041
+
+ src/cmd/godefs/testdata.c                   | 13 +++++++++-
+ src/cmd/godefs/testdata_darwin_386.golden   |  7 ++++++
+ src/cmd/godefs/testdata_darwin_amd64.golden |  7 ++++++
+ src/cmd/godefs/testdata_linux_arm.golden    | 38 +++++++++++++++++++++++++++++
+ 4 files changed, 64 insertions(+), 1 deletion(-)

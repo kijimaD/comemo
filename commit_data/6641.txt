@@ -1,0 +1,56 @@
+commit d86ab015f7ec9a909ba278b154086585e2f15285
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 26 21:52:54 2010 -0700
+
+    use copy
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/2763041
+
+ src/pkg/archive/tar/writer.go         |  4 +---
+ src/pkg/bufio/bufio.go                |  4 +---
+ src/pkg/bufio/bufio_test.go           |  5 +----
+ src/pkg/bytes/buffer.go               | 15 ++-------------
+ src/pkg/bytes/buffer_test.go          |  4 ++--
+ src/pkg/bytes/bytes.go                |  4 +---
+ src/pkg/bytes/bytes_test.go           | 26 +++++++-------------------
+ src/pkg/crypto/block/cbc.go           |  2 +-
+ src/pkg/crypto/block/cfb.go           |  2 +-
+ src/pkg/crypto/block/cipher.go        |  6 ++----
+ src/pkg/crypto/block/ctr.go           |  2 +-
+ src/pkg/crypto/block/eax.go           |  8 ++++----
+ src/pkg/crypto/block/ecb.go           | 10 ++--------
+ src/pkg/crypto/block/ofb.go           |  2 +-
+ src/pkg/crypto/md4/md4.go             |  5 +----
+ src/pkg/crypto/md5/md5.go             |  5 +----
+ src/pkg/crypto/ripemd160/ripemd160.go |  5 +----
+ src/pkg/crypto/sha1/sha1.go           |  5 +----
+ src/pkg/crypto/sha256/sha256.go       |  5 +----
+ src/pkg/crypto/sha512/sha512.go       |  5 +----
+ src/pkg/crypto/x509/x509.go           |  4 +---
+ src/pkg/debug/dwarf/type.go           | 12 +++---------
+ src/pkg/debug/macho/file.go           |  4 +---
+ src/pkg/exp/4s/4s.go                  |  4 +---
+ src/pkg/exp/eval/expr.go              |  8 ++------
+ src/pkg/exp/eval/func.go              |  8 ++------
+ src/pkg/exp/eval/type.go              |  4 +---
+ src/pkg/exp/nacl/srpc/msg.go          |  8 ++------
+ src/pkg/exp/nacl/srpc/server.go       |  4 +---
+ src/pkg/exp/ogle/process.go           |  4 +---
+ src/pkg/go/doc/doc.go                 |  8 +++-----
+ src/pkg/net/dnsmsg.go                 |  5 +----
+ src/pkg/os/dir_darwin.go              |  4 +---
+ src/pkg/os/dir_freebsd.go             |  4 +---
+ src/pkg/os/dir_linux.go               |  4 +---
+ src/pkg/os/dir_nacl.go                |  4 +---
+ src/pkg/os/env_windows.go             |  4 +---
+ src/pkg/os/file_windows.go            |  4 +---
+ src/pkg/scanner/scanner_test.go       |  5 +----
+ src/pkg/strings/strings.go            | 17 +++--------------
+ src/pkg/syscall/syscall.go            |  4 +---
+ src/pkg/template/template.go          |  4 +---
+ src/pkg/testing/regexp.go             |  8 ++------
+ src/pkg/unicode/maketables.go         |  4 +---
+ src/pkg/xml/xml.go                    |  4 +---
+ 45 files changed, 68 insertions(+), 199 deletions(-)

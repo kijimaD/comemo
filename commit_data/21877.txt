@@ -1,0 +1,14 @@
+commit 4f6630de3ab6eea9c863dada024cc98ce20bfe4a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Mar 3 17:59:21 2015 -0500
+
+    net/http: disable segfaulting test on darwin/arm
+    
+    Issue #10043
+    
+    Change-Id: I6ce7f303cd96ac575f7a673dd4a459339382d22e
+    Reviewed-on: https://go-review.googlesource.com/6692
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

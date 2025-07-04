@@ -1,0 +1,15 @@
+commit 31322996fdcaab36880935b0ae48366f3969ebd9
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Sep 2 21:52:19 2015 +1200
+
+    runtime: add stub sigreturn on arm
+    
+    When building a shared library, all functions that are declared must actually
+    be defined.
+    
+    Change-Id: I1488690cecfb66e62d9fdb3b8d257a4dc31d202a
+    Reviewed-on: https://go-review.googlesource.com/14187
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/runtime/asm_arm.s | 3 +++
+ 1 file changed, 3 insertions(+)

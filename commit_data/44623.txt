@@ -1,0 +1,15 @@
+commit 71330963c080960f2f398fcd711a1fa14f68d503
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Mar 11 22:34:45 2021 +0800
+
+    internal/poll: fix some grammar errors
+    
+    Change-Id: I25a6424bce9d372fa46e8bdd856095845d3397bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300889
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/internal/poll/splice_linux.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

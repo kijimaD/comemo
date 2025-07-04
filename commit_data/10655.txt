@@ -1,0 +1,16 @@
+commit bab4dec14214b27837b2c9c8c3d0f4a08df809b5
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 7 14:33:37 2011 -0800
+
+    doc: skeleton for release note document
+    No content yet other than titles and an introductory paragraph.
+    Once this is in, content can arise as separate manageable CLs.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5435090
+
+ doc/Makefile |  9 +++----
+ doc/go1.html | 81 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go1.tmpl | 81 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 165 insertions(+), 6 deletions(-)

@@ -1,0 +1,16 @@
+commit 84f67eb8e6d05936694eee9099b6d6a688d898c3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 15 14:15:39 2010 -0700
+
+    Build libcgo.so with $(CC), not the gcc on PATH.
+    
+    Change make.bash to make sure that $(CC) is defined to match
+    the compiler used to build the tools.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1853041
+
+ src/libcgo/Makefile | 6 +++---
+ src/make.bash       | 1 +
+ 2 files changed, 4 insertions(+), 3 deletions(-)

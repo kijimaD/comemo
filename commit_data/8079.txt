@@ -1,0 +1,20 @@
+commit bb855f985a550b340a443ed5661e340e92f66521
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 13 16:57:44 2011 -0700
+
+    govet: make name-matching for printf etc. case-insensitive.
+    Update goyacc, cgo to be more canonical in their naming and silence the new warnings.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/4417042
+
+ src/cmd/cgo/ast.go       |   2 +-
+ src/cmd/cgo/gcc.go       |  58 ++++++++++++-------------
+ src/cmd/cgo/main.go      |   6 +--
+ src/cmd/cgo/out.go       |   6 +--
+ src/cmd/cgo/util.go      |  16 +++----
+ src/cmd/govet/govet.go   |  44 +++++++++++--------
+ src/cmd/goyacc/goyacc.go | 110 +++++++++++++++++++++++------------------------
+ src/cmd/goyacc/units.y   |  30 ++++++-------
+ 8 files changed, 141 insertions(+), 131 deletions(-)

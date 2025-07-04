@@ -1,0 +1,13 @@
+commit 56916feea3ddbc3c2dedbe3b6a57b6c4a31c567b
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Mon Aug 25 16:42:15 2014 -0700
+
+    regexp: fix imports in the middle of the license header
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/129620043
+
+ src/pkg/regexp/onepass.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

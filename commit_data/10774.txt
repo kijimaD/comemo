@@ -1,0 +1,14 @@
+commit 1e63a4e4242389fdd1c5f90efa8c221c3bd2701b
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Tue Dec 13 21:28:43 2011 -0800
+
+    runtime: bump gc 'extra bytes' check
+    
+    (needed for non-zero GOMAXPROCS)
+    
+    R=iant, rsc
+    CC=go.peter.90, golang-dev
+    https://golang.org/cl/5486059
+
+ src/pkg/runtime/gc_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

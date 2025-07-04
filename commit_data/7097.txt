@@ -1,0 +1,14 @@
+commit 7b4a4d3788df6cb55bd35ecf5180ba40a422e313
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 11 21:24:44 2011 -0800
+
+    godoc: remove TODO (bug257.go can now be indexed)
+    
+    Pending CL 3752044.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/3949042
+
+ src/cmd/godoc/index.go | 6 ------
+ 1 file changed, 6 deletions(-)

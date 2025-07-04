@@ -1,0 +1,14 @@
+commit b05b254e9da137a599b309f4c5158a05e9e11d32
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 12 15:34:43 2020 -0700
+
+    doc/go1.15: sort debug/pe entry alphabetically
+    
+    For #37419
+    
+    Change-Id: If98ecffbfd976cb66a87b1cce4e82b3ddee1639e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237738
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

@@ -1,0 +1,27 @@
+commit a96487613e2703d1eb7e12c51647e36973df9fd0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 1 13:47:48 2023 -0800
+
+    maps: new package
+    
+    This copies x/exp/maps into the standard library (except for the Clear
+    function which is now available as the clear builtin.)
+    
+    Fixes #57436
+    
+    Change-Id: I30dd470c2f7ae34c7c82b4c1025a7582d61fabaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464343
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/57436.txt        |   7 ++
+ src/go/build/deps_test.go |   2 +-
+ src/go/doc/comment/std.go |   1 +
+ src/maps/maps.go          |  87 ++++++++++++++++++++++
+ src/maps/maps_test.go     | 181 ++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 277 insertions(+), 1 deletion(-)

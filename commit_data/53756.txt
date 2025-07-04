@@ -1,0 +1,15 @@
+commit 3bb51a680505776e8545c10dbf6f5f180609cb2c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 20 16:36:08 2023 -0700
+
+    spec: fix a couple of minor mistakes in type inference section
+    
+    Change-Id: I9cdb301163b67add39928c8fc7df2b7f3893f45e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511836
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

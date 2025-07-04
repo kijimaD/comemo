@@ -1,0 +1,29 @@
+commit a40c7b1c77bb8eaaf42e15703a57b9379efc710c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Dec 16 15:30:47 2021 -0500
+
+    runtime/pprof: run TestCPUProfileMultithreadMagnitude subtests separately
+    
+    Currently TestCPUProfileMultithreadMagnitude runs two CPU consumption
+    functions in a single profile and then analyzes the results as separate
+    subtests.
+    
+    This works fine, but when debugging failures it makes manual analysis of
+    the profile dump a bit annoying.
+    
+    Refactor the test to collect separate profiles for each subtest for
+    easier future analysis.
+    
+    For #50097.
+    For #50232.
+    
+    Change-Id: Ia1c8bb86aaaf652e64c5e660dcc2da47d2194c2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372800
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/pprof/pprof_test.go | 117 ++++++++++++++++++++--------------------
+ 1 file changed, 60 insertions(+), 57 deletions(-)

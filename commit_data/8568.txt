@@ -1,0 +1,13 @@
+commit 73d57642a4dbb34bae8619f5aacf3756c814d5d6
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 1 13:06:04 2011 +1000
+
+    filepath: remove string constants. They are unnecessary.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4527090
+
+ src/cmd/goinstall/path.go     |  2 +-
+ src/pkg/path/filepath/path.go | 18 ++++++++----------
+ 2 files changed, 9 insertions(+), 11 deletions(-)

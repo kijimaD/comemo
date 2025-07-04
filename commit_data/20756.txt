@@ -1,0 +1,16 @@
+commit 82a0188c88bd7bb0fbf31f10157b77beb2195594
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 20 11:10:03 2014 -0700
+
+    reflect: fix TestAllocations now that interfaces hold only pointers
+    
+    This test was failing but did not break the build because it
+    was not run when -test.short was used.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/157150043
+
+ src/reflect/all_test.go | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

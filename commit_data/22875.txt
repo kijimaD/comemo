@@ -1,0 +1,16 @@
+commit c661cb01f7cbe5683395569dea0556ba1679723a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 1 07:02:36 2015 -0700
+
+    net/http: don't send implicit Content-Length if Transfer-Encoding is set
+    
+    Fixes #9987
+    
+    Change-Id: Ibebd105a2bcdc1741f3b41aa78cb986f3f518b53
+    Reviewed-on: https://go-review.googlesource.com/9638
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 11 +++++++----
+ 2 files changed, 44 insertions(+), 4 deletions(-)

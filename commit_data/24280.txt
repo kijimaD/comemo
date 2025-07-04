@@ -1,0 +1,14 @@
+commit dace9397b10e85db15c4760eb283ca43855d87d2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 15 11:16:58 2015 -0700
+
+    src/cmd/compile/internal/gc: fix type assertion in overflow check
+    
+    Fixes #11600.
+    
+    Change-Id: I8871d4e525168fed35115855483a237bbd6e5445
+    Reviewed-on: https://go-review.googlesource.com/14596
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/const.go | 15 ++-------------
+ 1 file changed, 2 insertions(+), 13 deletions(-)

@@ -1,0 +1,28 @@
+commit b10b2f8d407198d59525197e0b94a16fcc4a7cf0
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 24 14:40:42 2016 -0500
+
+    cmd/internal: add shift opcodes with shift operands on ppc64x
+    
+    Some original shift opcodes for ppc64x expected an operand to be
+    a mask instead of a shift count, preventing some valid shift counts
+    from being written.
+    
+    This adds new opcodes for shifts where needed, using mnemonics that
+    match the ppc64 asm and allowing the assembler to accept the full set
+    of valid shift counts.
+    
+    Fixes #15016
+    
+    Change-Id: Id573489f852038d06def279c13fd0523736878a7
+    Reviewed-on: https://go-review.googlesource.com/31853
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  9 ++++
+ src/cmd/internal/obj/ppc64/a.out.go       |  6 +++
+ src/cmd/internal/obj/ppc64/anames.go      |  6 +++
+ src/cmd/internal/obj/ppc64/asm9.go        | 77 +++++++++++++++++++++++++------
+ 4 files changed, 83 insertions(+), 15 deletions(-)

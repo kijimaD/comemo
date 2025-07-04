@@ -1,0 +1,28 @@
+commit 13c70b12d7562a841cd03cfce7ecc8f14a8190e8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 1 18:00:42 2022 -0800
+
+    cmd/compile/internal/types: remove Markdcl/Pushdcl/Popdcl
+    
+    Sym.Def used to be used for symbol resolution during the
+    old (pre-types2) typechecker. But since moving to types2-based IR
+    construction, we haven't really had a need for Sym.Def to ever refer
+    to anything but the package-scope definition, because types2 handles
+    symbol resolution for us.
+    
+    This CL finally removes the Markdcl/Pushdcl/Popdcl functions that have
+    been a recurring source of issues in the past.
+    
+    Change-Id: I2b012a0f17203efdd724ebd1e9314bd128cc2d61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458625
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/base/debug.go      |  1 -
+ src/cmd/compile/internal/reflectdata/alg.go |  8 ---
+ src/cmd/compile/internal/ssagen/abi.go      |  3 -
+ src/cmd/compile/internal/typecheck/dcl.go   |  6 +-
+ src/cmd/compile/internal/types/scope.go     | 92 +----------------------------
+ src/cmd/compile/internal/types/sym.go       |  2 -
+ 6 files changed, 3 insertions(+), 109 deletions(-)

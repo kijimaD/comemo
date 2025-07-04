@@ -1,0 +1,12 @@
+commit fe746055a2a29806b97b0702197b52420a7e09b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 26 17:18:43 2010 -0800
+
+    testing/benchmark: paranoia - make sure n always grows
+    
+    R=wcn
+    CC=golang-dev
+    https://golang.org/cl/223075
+
+ src/pkg/testing/benchmark.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

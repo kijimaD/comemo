@@ -1,0 +1,20 @@
+commit b67b72da4337a16088c1780245a9fa1c45b4bca4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 18 10:38:08 2011 +1000
+
+    doc/codelab: use new template package
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4897048
+
+ doc/codelab/wiki/edit.html          |  6 ++--
+ doc/codelab/wiki/final-noclosure.go |  4 +--
+ doc/codelab/wiki/final-noerror.go   |  6 ++--
+ doc/codelab/wiki/final.go           |  5 +--
+ doc/codelab/wiki/htmlify.go         |  4 +--
+ doc/codelab/wiki/index.html         | 68 +++++++++++++++++++------------------
+ doc/codelab/wiki/srcextract.go      |  2 +-
+ doc/codelab/wiki/view.html          |  6 ++--
+ doc/codelab/wiki/wiki.html          | 49 +++++++++++++-------------
+ 9 files changed, 77 insertions(+), 73 deletions(-)

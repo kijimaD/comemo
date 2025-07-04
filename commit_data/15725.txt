@@ -1,0 +1,17 @@
+commit d825320550b87158286ec772baddab81d07079e0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 12 13:06:55 2013 -0700
+
+    go/doc: set receiver type position for embedded methods
+    
+    This was a bug that didn't manifest itself before CL 7674044;
+    but with that CL and without this fix, the go/doc tests fail.
+    (The bug fixed by 7674044 and the bug fixed here cancelled
+    each other out w/ respect to the go/doc tests).
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7628045
+
+ src/pkg/go/doc/reader.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

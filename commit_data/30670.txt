@@ -1,0 +1,34 @@
+commit d0a045daaf022515ddf518cdded04f672210f8c4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 10 12:46:14 2017 -0500
+
+    archive/zip: parallelize benchmarks
+    
+    Add subbenchmarks for BenchmarkZip64Test with different sizes to tease
+    apart construction costs vs. steady-state throughput.
+    
+    Results remain comparable with the non-parallel version with -cpu=1:
+    
+    benchmark                           old ns/op     new ns/op     delta
+    BenchmarkCompressedZipGarbage       26832835      27506953      +2.51%
+    BenchmarkCompressedZipGarbage-6     27172377      4321534       -84.10%
+    BenchmarkZip64Test                  196758732     197765510     +0.51%
+    BenchmarkZip64Test-6                193850605     192625458     -0.63%
+    
+    benchmark                           old allocs     new allocs     delta
+    BenchmarkCompressedZipGarbage       44             44             +0.00%
+    BenchmarkCompressedZipGarbage-6     44             44             +0.00%
+    
+    benchmark                           old bytes     new bytes     delta
+    BenchmarkCompressedZipGarbage       5592          5664          +1.29%
+    BenchmarkCompressedZipGarbage-6     5592          21946         +292.45%
+    
+    updates #18177
+    
+    Change-Id: Icfa359d9b1a8df5e085dacc07d2b9221b284764c
+    Reviewed-on: https://go-review.googlesource.com/36719
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/zip/writer_test.go | 27 +++++++++++++++++----------
+ src/archive/zip/zip_test.go    | 12 ++++++++++++
+ 2 files changed, 29 insertions(+), 10 deletions(-)

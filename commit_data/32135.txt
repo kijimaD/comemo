@@ -1,0 +1,24 @@
+commit bef0055a0ae8c79c9a008b17356521afda1bce85
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Jun 13 16:22:06 2017 +0100
+
+    cmd/vet: check that C receivers are cgo imports
+    
+    Otherwise, vet might have false positives when "C" is a variable and
+    we're just using a method on it. Or when an import was renamed to "C".
+    
+    Add test files for both of these cases.
+    
+    Fixes #20655.
+    
+    Change-Id: I55fb93119444a67fcf7891ad92653678cbd4670e
+    Reviewed-on: https://go-review.googlesource.com/45551
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/cgo.go               |  7 ++++++-
+ src/cmd/vet/testdata/cgo/cgo2.go |  3 +++
+ src/cmd/vet/testdata/cgo/cgo4.go | 15 +++++++++++++++
+ 3 files changed, 24 insertions(+), 1 deletion(-)

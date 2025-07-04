@@ -1,0 +1,17 @@
+commit 75df21ceff286419ae5eb1863e2e7936a5780247
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 14 16:32:43 2008 -0700
+
+    implement matching
+    clean up interface equality hack
+    
+    still needs more tests; checking in for gccgo testing
+    
+    R=rsc
+    DELTA=304  (261 added, 14 deleted, 29 changed)
+    OCL=17128
+    CL=17135
+
+ usr/r/regexp/main.go   | 129 ++++++++++++++++++++++++++++++--
+ usr/r/regexp/regexp.go | 196 ++++++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 286 insertions(+), 39 deletions(-)

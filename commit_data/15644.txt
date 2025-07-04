@@ -1,0 +1,23 @@
+commit 1a4599b41ac2220c58959f434518eddb1a84060c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 8 11:26:00 2013 -0500
+
+    runtime: clear locked bit when goroutine exits
+    
+    Otherwise the next goroutine run on the m
+    can get inadvertently locked if it executes a cgo call
+    that turns on the internal lock.
+    
+    While we're here, fix the cgo panic unwind to
+    decrement m->ncgo like the non-panic unwind does.
+    
+    Fixes #4971.
+    
+    R=golang-dev, iant, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/7627043
+
+ src/pkg/runtime/cgocall.c               | 20 +++++++++++++-------
+ src/pkg/runtime/proc.c                  |  5 +++++
+ src/pkg/runtime/syscall_windows_test.go |  3 ---
+ 3 files changed, 18 insertions(+), 10 deletions(-)

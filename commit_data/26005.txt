@@ -1,0 +1,24 @@
+commit 37c28759ca46cf381a466e32168a793165d9c9e9
+Author: Tamir Duberstein <tamird@gmail.com>
+Date:   Fri Feb 26 14:17:29 2016 -0500
+
+    crypto/tls: check errors from (*Conn).writeRecord
+    
+    This promotes a connection hang during TLS handshake to a proper error.
+    This doesn't fully address #14539 because the error reported in that
+    case is a write-on-socket-not-connected error, which implies that an
+    earlier error during connection setup is not being checked, but it is
+    an improvement over the current behaviour.
+    
+    Updates #14539.
+    
+    Change-Id: I0571a752d32d5303db48149ab448226868b19495
+    Reviewed-on: https://go-review.googlesource.com/19990
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/conn.go                  | 40 +++++++++++++--------------
+ src/crypto/tls/handshake_client.go      | 28 ++++++++++++++-----
+ src/crypto/tls/handshake_client_test.go | 49 +++++++++++++++++++++++++++++++++
+ src/crypto/tls/handshake_server.go      | 40 ++++++++++++++++++++-------
+ src/crypto/tls/handshake_server_test.go |  5 +++-
+ 5 files changed, 123 insertions(+), 39 deletions(-)

@@ -1,0 +1,12 @@
+commit 2ea8ecda8f6bf0c38bd0ad2d5e3cbfe9b2437e58
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 30 10:34:01 2009 -0700
+
+    repair corrupted sieve.gif
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1016007
+
+ doc/sieve.gif | Bin 11567 -> 11019 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

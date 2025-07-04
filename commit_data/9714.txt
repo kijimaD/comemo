@@ -1,0 +1,13 @@
+commit a083fd524ad83dc46552cf1f8673a7683c3edde1
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Sep 16 11:28:53 2011 +0200
+
+    exp/norm: reverting to using strings.Repeat, as it doesn't look like exp/regexp
+    is going to support returning multiple matches for a single repeated group.
+    
+    R=r, rsc, mpvl
+    CC=golang-dev
+    https://golang.org/cl/5014045
+
+ src/pkg/exp/norm/normregtest.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

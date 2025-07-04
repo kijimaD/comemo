@@ -1,0 +1,18 @@
+commit 3aef716168475c9cdc508c5afd71782a8c2b5506
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Mar 5 15:20:46 2025 -0500
+
+    doc: update godebug doc to clarify godebug directive in workspace
+    
+    Make it clear that we only use godebug directives in the go.work, and
+    that we don't use those in go.mod, when we're in a workspace.
+    
+    Fixes #72109
+    
+    Change-Id: I648bfa4dd9b3ca0ac299c0a890843d41fe1ac7f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655158
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/godebug.md | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

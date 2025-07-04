@@ -1,0 +1,13 @@
+commit 6e70c2c74fee0f7d0758d98ed919cb025c375dcc
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 12 19:04:56 2008 -0800
+
+    fix bug in FullyReader
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=19131
+    CL=19131
+
+ src/lib/io.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

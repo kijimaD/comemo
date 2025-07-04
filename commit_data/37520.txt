@@ -1,0 +1,222 @@
+commit 2012227b01020eb505cf1dbe719b1fa74ed8c5f4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 5 15:01:53 2018 -0500
+
+    vendor/golang_org/x: move to internal/x
+    
+    Packages in vendor/ directories have a "vendor/" path prefix in GOPATH
+    mode, but intentionally do not in module mode. Since the import path
+    is embedded in the compiled output, changing that path invalidates
+    cache entries and causes cmd/go to try to rebuild (and reinstall) the
+    vendored libraries, which will fail if the directory containing those
+    libraries is read-only.
+    
+    If I understood correctly, this is the approach Russ suggested as an
+    alternative to https://golang.org/cl/136138.
+    
+    Fixes #27285
+    Fixes #26988
+    
+    Change-Id: I8a2507fa892b84cde0a803aaa79e460723da572b
+    Reviewed-on: https://go-review.googlesource.com/c/147443
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/api/goapi.go                               |  7 +----
+ src/cmd/go/go_test.go                              | 16 ------------
+ src/cmd/go/internal/load/pkg.go                    | 14 ----------
+ src/cmd/go/internal/modload/import.go              |  3 ---
+ src/cmd/go/testdata/script/list_importmap.txt      | 25 ++++++++++++++++++
+ src/cmd/go/testdata/script/list_std.txt            |  2 +-
+ src/cmd/go/testdata/script/mod_internal.txt        | 13 ----------
+ src/cmd/go/testdata/script/mod_std_vendor.txt      |  2 +-
+ src/crypto/tls/cipher_suites.go                    |  2 +-
+ src/crypto/tls/handshake_messages.go               |  2 +-
+ src/crypto/tls/key_schedule.go                     |  6 ++---
+ src/crypto/tls/ticket.go                           |  2 +-
+ src/crypto/x509/x509.go                            |  4 +--
+ src/go/build/build_test.go                         | 30 +++++++++++++++-------
+ src/go/build/deps_test.go                          | 30 +++++++++++-----------
+ src/go/build/testdata/withvendor/src/a/b/b.go      |  3 +++
+ .../testdata/withvendor/src/a/vendor/c/d/d.go      |  1 +
+ src/go/internal/srcimporter/srcimporter_test.go    |  2 +-
+ .../x/crypto/chacha20poly1305/chacha20poly1305.go  |  2 +-
+ .../chacha20poly1305/chacha20poly1305_amd64.go     |  0
+ .../chacha20poly1305/chacha20poly1305_amd64.s      |  0
+ .../chacha20poly1305/chacha20poly1305_generic.go   |  4 +--
+ .../chacha20poly1305/chacha20poly1305_noasm.go     |  0
+ .../chacha20poly1305/chacha20poly1305_test.go      |  0
+ .../chacha20poly1305_vectors_test.go               |  0
+ .../x/crypto/cryptobyte/asn1.go                    |  2 +-
+ .../x/crypto/cryptobyte/asn1/asn1.go               |  2 +-
+ .../x/crypto/cryptobyte/asn1_test.go               |  2 +-
+ .../x/crypto/cryptobyte/builder.go                 |  0
+ .../x/crypto/cryptobyte/cryptobyte_test.go         |  0
+ .../x/crypto/cryptobyte/example_test.go            |  4 +--
+ .../x/crypto/cryptobyte/string.go                  |  2 +-
+ .../x/crypto/curve25519/const_amd64.h              |  0
+ .../x/crypto/curve25519/const_amd64.s              |  0
+ .../x/crypto/curve25519/cswap_amd64.s              |  0
+ .../x/crypto/curve25519/curve25519.go              |  0
+ .../x/crypto/curve25519/curve25519_test.go         |  0
+ .../x/crypto/curve25519/doc.go                     |  2 +-
+ .../x/crypto/curve25519/freeze_amd64.s             |  0
+ .../x/crypto/curve25519/ladderstep_amd64.s         |  0
+ .../x/crypto/curve25519/mont25519_amd64.go         |  0
+ .../x/crypto/curve25519/mul_amd64.s                |  0
+ .../x/crypto/curve25519/square_amd64.s             |  0
+ .../x/crypto/hkdf/example_test.go                  |  2 +-
+ .../golang_org => internal}/x/crypto/hkdf/hkdf.go  |  2 +-
+ .../x/crypto/hkdf/hkdf_test.go                     |  0
+ .../x/crypto/internal/chacha20/asm_s390x.s         |  0
+ .../x/crypto/internal/chacha20/chacha_generic.go   |  0
+ .../x/crypto/internal/chacha20/chacha_noasm.go     |  0
+ .../x/crypto/internal/chacha20/chacha_s390x.go     |  0
+ .../x/crypto/internal/chacha20/chacha_test.go      |  0
+ .../x/crypto/internal/chacha20/vectors_test.go     |  0
+ .../x/crypto/internal/chacha20/xor.go              |  0
+ .../x/crypto/poly1305/poly1305.go                  |  2 +-
+ .../x/crypto/poly1305/poly1305_test.go             |  0
+ .../x/crypto/poly1305/sum_amd64.go                 |  0
+ .../x/crypto/poly1305/sum_amd64.s                  |  0
+ .../x/crypto/poly1305/sum_arm.go                   |  0
+ .../x/crypto/poly1305/sum_arm.s                    |  0
+ .../x/crypto/poly1305/sum_noasm.go                 |  0
+ .../x/crypto/poly1305/sum_ref.go                   |  0
+ .../x/crypto/poly1305/sum_s390x.go                 |  0
+ .../x/crypto/poly1305/sum_s390x.s                  |  0
+ .../x/crypto/poly1305/sum_vmsl_s390x.s             |  0
+ .../x/crypto/poly1305/vectors_test.go              |  0
+ src/internal/x/fiximports.bash                     |  6 +++++
+ .../x/net/dns/dnsmessage/example_test.go           |  2 +-
+ .../x/net/dns/dnsmessage/message.go                |  0
+ .../x/net/dns/dnsmessage/message_test.go           |  0
+ .../x/net/http/httpguts/guts.go                    |  0
+ .../x/net/http/httpguts/httplex.go                 |  2 +-
+ .../x/net/http/httpguts/httplex_test.go            |  0
+ .../x/net/http/httpproxy/export_test.go            |  0
+ .../x/net/http/httpproxy/proxy.go                  |  2 +-
+ .../x/net/http/httpproxy/proxy_test.go             |  2 +-
+ .../x/net/http2/hpack/encode.go                    |  0
+ .../x/net/http2/hpack/encode_test.go               |  0
+ .../x/net/http2/hpack/hpack.go                     |  0
+ .../x/net/http2/hpack/hpack_test.go                |  0
+ .../x/net/http2/hpack/huffman.go                   |  0
+ .../x/net/http2/hpack/tables.go                    |  0
+ .../x/net/http2/hpack/tables_test.go               |  0
+ .../golang_org => internal}/x/net/idna/idna.go     |  8 +++---
+ .../golang_org => internal}/x/net/idna/punycode.go |  0
+ .../x/net/idna/punycode_test.go                    |  0
+ .../golang_org => internal}/x/net/idna/tables.go   |  2 +-
+ .../golang_org => internal}/x/net/idna/trie.go     |  0
+ .../golang_org => internal}/x/net/idna/trieval.go  |  2 +-
+ .../x/net/internal/nettest/helper_bsd.go           |  0
+ .../x/net/internal/nettest/helper_nobsd.go         |  0
+ .../x/net/internal/nettest/helper_posix.go         |  0
+ .../x/net/internal/nettest/helper_stub.go          |  0
+ .../x/net/internal/nettest/helper_unix.go          |  0
+ .../x/net/internal/nettest/helper_windows.go       |  0
+ .../x/net/internal/nettest/interface.go            |  0
+ .../x/net/internal/nettest/rlimit.go               |  0
+ .../x/net/internal/nettest/stack.go                |  2 +-
+ .../golang_org => internal}/x/net/lif/address.go   |  0
+ .../x/net/lif/address_test.go                      |  0
+ .../golang_org => internal}/x/net/lif/binary.go    |  0
+ .../x/net/lif/defs_solaris.go                      |  0
+ .../golang_org => internal}/x/net/lif/lif.go       |  0
+ .../golang_org => internal}/x/net/lif/link.go      |  0
+ .../golang_org => internal}/x/net/lif/link_test.go |  0
+ .../golang_org => internal}/x/net/lif/sys.go       |  0
+ .../x/net/lif/sys_solaris_amd64.s                  |  0
+ .../golang_org => internal}/x/net/lif/syscall.go   |  0
+ .../x/net/lif/zsys_solaris_amd64.go                |  0
+ .../x/net/nettest/conntest.go                      |  0
+ .../x/net/nettest/conntest_go16.go                 |  0
+ .../x/net/nettest/conntest_go17.go                 |  0
+ .../x/net/nettest/conntest_test.go                 |  2 +-
+ .../golang_org => internal}/x/net/route/address.go |  0
+ .../x/net/route/address_darwin_test.go             |  0
+ .../x/net/route/address_test.go                    |  0
+ .../golang_org => internal}/x/net/route/binary.go  |  0
+ .../x/net/route/defs_darwin.go                     |  0
+ .../x/net/route/defs_dragonfly.go                  |  0
+ .../x/net/route/defs_freebsd.go                    |  0
+ .../x/net/route/defs_netbsd.go                     |  0
+ .../x/net/route/defs_openbsd.go                    |  0
+ .../golang_org => internal}/x/net/route/empty.s    |  0
+ .../x/net/route/interface.go                       |  0
+ .../x/net/route/interface_announce.go              |  0
+ .../x/net/route/interface_classic.go               |  0
+ .../x/net/route/interface_freebsd.go               |  0
+ .../x/net/route/interface_multicast.go             |  0
+ .../x/net/route/interface_openbsd.go               |  0
+ .../golang_org => internal}/x/net/route/message.go |  0
+ .../x/net/route/message_darwin_test.go             |  0
+ .../x/net/route/message_freebsd_test.go            |  0
+ .../x/net/route/message_test.go                    |  0
+ .../golang_org => internal}/x/net/route/route.go   |  0
+ .../x/net/route/route_classic.go                   |  0
+ .../x/net/route/route_openbsd.go                   |  0
+ .../x/net/route/route_test.go                      |  0
+ .../golang_org => internal}/x/net/route/sys.go     |  0
+ .../x/net/route/sys_darwin.go                      |  0
+ .../x/net/route/sys_dragonfly.go                   |  0
+ .../x/net/route/sys_freebsd.go                     |  0
+ .../x/net/route/sys_netbsd.go                      |  0
+ .../x/net/route/sys_openbsd.go                     |  0
+ .../golang_org => internal}/x/net/route/syscall.go |  0
+ .../x/net/route/syscall_go1_11_darwin.go           |  0
+ .../x/net/route/syscall_go1_12_darwin.go           |  0
+ .../x/net/route/zsys_darwin.go                     |  0
+ .../x/net/route/zsys_dragonfly.go                  |  0
+ .../x/net/route/zsys_freebsd_386.go                |  0
+ .../x/net/route/zsys_freebsd_amd64.go              |  0
+ .../x/net/route/zsys_freebsd_arm.go                |  0
+ .../x/net/route/zsys_netbsd.go                     |  0
+ .../x/net/route/zsys_openbsd.go                    |  0
+ .../x/text/secure/bidirule/bidirule.go             |  4 +--
+ .../golang_org => internal}/x/text/secure/doc.go   |  2 +-
+ .../x/text/transform/examples_test.go              |  4 +--
+ .../x/text/transform/transform.go                  |  2 +-
+ .../x/text/unicode/bidi/bidi.go                    |  2 +-
+ .../x/text/unicode/bidi/bracket.go                 |  0
+ .../x/text/unicode/bidi/core.go                    |  0
+ .../x/text/unicode/bidi/example_test.go            |  2 +-
+ .../x/text/unicode/bidi/prop.go                    |  0
+ .../x/text/unicode/bidi/tables.go                  |  2 +-
+ .../x/text/unicode/bidi/trieval.go                 |  2 +-
+ .../golang_org => internal}/x/text/unicode/doc.go  |  2 +-
+ .../x/text/unicode/norm/composition.go             |  0
+ .../x/text/unicode/norm/example_iter_test.go       |  2 +-
+ .../x/text/unicode/norm/example_test.go            |  2 +-
+ .../x/text/unicode/norm/forminfo.go                |  0
+ .../x/text/unicode/norm/input.go                   |  0
+ .../x/text/unicode/norm/iter.go                    |  0
+ .../x/text/unicode/norm/normalize.go               |  4 +--
+ .../x/text/unicode/norm/readwriter.go              |  0
+ .../x/text/unicode/norm/tables.go                  |  2 +-
+ .../x/text/unicode/norm/transform.go               |  2 +-
+ .../x/text/unicode/norm/trie.go                    |  0
+ .../x/text/unicode/norm/triegen.go                 |  0
+ src/net/dnsclient.go                               |  2 +-
+ src/net/dnsclient_unix.go                          |  2 +-
+ src/net/dnsclient_unix_test.go                     |  2 +-
+ src/net/http/h2_bundle.go                          |  6 ++---
+ src/net/http/http.go                               |  2 +-
+ src/net/http/httptest/recorder.go                  |  2 +-
+ src/net/http/httputil/reverseproxy.go              |  2 +-
+ src/net/http/request.go                            |  2 +-
+ src/net/http/response.go                           |  2 +-
+ src/net/http/server.go                             |  2 +-
+ src/net/http/transfer.go                           |  2 +-
+ src/net/http/transport.go                          |  4 +--
+ src/net/http/transport_test.go                     |  2 +-
+ src/net/interface_bsd.go                           |  2 +-
+ src/net/interface_bsdvar.go                        |  2 +-
+ src/net/interface_darwin.go                        |  2 +-
+ src/net/interface_freebsd.go                       |  2 +-
+ src/net/interface_solaris.go                       |  2 +-
+ src/net/lookup_unix.go                             |  2 +-
+ src/net/pipe_test.go                               |  2 +-
+ 196 files changed, 148 insertions(+), 152 deletions(-)

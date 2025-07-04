@@ -1,0 +1,20 @@
+commit 99be9cc02cdb42d692a5889500e1b68d6155ae62
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Thu Oct 12 16:51:01 2017 -0300
+
+    flag: add (*FlagSet).Name, (*FlagSet).ErrorHandling, export (*FlagSet).Output
+    
+    Allows code that operates on a FlagSet to know the name and error
+    handling behavior of the FlagSet without having to call FlagSet.Init.
+    
+    Fixes #17628
+    Fixes #21888
+    
+    Change-Id: Ib0fe4c8885f9ccdacf5a7fb761d5ecb23f3bb055
+    Reviewed-on: https://go-review.googlesource.com/70391
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/flag/flag.go      | 26 +++++++++++++++++++-------
+ src/flag/flag_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 7 deletions(-)

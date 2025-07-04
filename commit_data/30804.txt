@@ -1,0 +1,16 @@
+commit 2ae79d0711c7ff039e440d1bf1d6a4e45193f533
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Mar 23 15:05:31 2017 +1100
+
+    cmd/compile/internal/gc: remove unused exporter.nesting field
+    
+    exporter.nesting was added in c7b9bd74 to mitigate #16369 which was
+    closed in ee272bbf. Remove the exporter.nesting field as it is now unused.
+    
+    Change-Id: I07873d1a07d6a08b11994b817a1483ffc2f5e45f
+    Reviewed-on: https://go-review.googlesource.com/38490
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 3 ---
+ 1 file changed, 3 deletions(-)

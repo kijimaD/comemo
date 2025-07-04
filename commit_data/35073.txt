@@ -1,0 +1,15 @@
+commit 21fa1481c3a91c2b2e398d06fed6173cb2509140
+Author: quasilyte <quasilyte@gmail.com>
+Date:   Sat Apr 14 11:07:52 2018 +0300
+
+    cmd/internal/obj/x86: add named consts for Prog.Back flags
+    
+    Passes toolstash-check.
+    
+    Change-Id: I7232ba43895a54b03cc328bb2e99c05c44eb6e8e
+    Reviewed-on: https://go-review.googlesource.com/107057
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+
+ src/cmd/internal/obj/x86/asm6.go | 31 ++++++++++++++++++++++---------
+ 1 file changed, 22 insertions(+), 9 deletions(-)

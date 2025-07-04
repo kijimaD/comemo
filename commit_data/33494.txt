@@ -1,0 +1,17 @@
+commit bdf30565e2810794a6f5d7cf998e64cc4084c98b
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Nov 9 16:07:29 2017 -0800
+
+    archive/zip: use Time.UTC instead of Time.In(time.UTC)
+    
+    The former is more succinct and readable.
+    
+    Change-Id: Ic249d1261a705ad715aeb611c70c7fa91db98254
+    Reviewed-on: https://go-review.googlesource.com/76830
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/zip/reader.go | 2 +-
+ src/archive/zip/struct.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

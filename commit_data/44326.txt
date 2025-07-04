@@ -1,0 +1,20 @@
+commit 03d36d8198428a6970ba01f5de41c264acbff8fc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Feb 20 11:25:15 2021 -0800
+
+    syscall: add explicit ios build tag
+    
+    This permits analysis of the syscall package by tools built with
+    older versions of Go that do not recognize ios as a GOOS.
+    
+    Fixes #44459
+    
+    Change-Id: I79cec2ffe0dbcbc2dc45a385e556dc9e62033125
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294634
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/syscall/ptrace_ios.go | 3 +++
+ 1 file changed, 3 insertions(+)

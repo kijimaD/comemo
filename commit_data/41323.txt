@@ -1,0 +1,20 @@
+commit 24fa159a2e5cba1c0038af7ae55802eb58fcb591
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jan 6 13:43:51 2020 -0800
+
+    cmd/compile: add a flag to print the source line for generated rules
+    
+    When working on rulegen, I often find myself
+    searching the rules files to find the source of
+    generated code. Add a flag to make that easier.
+    
+    The flag needs to be off by default,
+    so that adding a single rule doesn't cause a massive diff.
+    
+    Change-Id: I5a6f09129dc6fceef7c9cd1ad7eee24f3880ba91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213700
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

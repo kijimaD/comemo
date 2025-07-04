@@ -1,0 +1,12 @@
+commit 1e67453d93c317d5a30780cc54a53c9d19373fdf
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jan 17 09:06:39 2014 -0800
+
+    doc: replace "private" with "unexported" in Effective Go.
+    
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/53720043
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

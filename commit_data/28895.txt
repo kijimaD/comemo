@@ -1,0 +1,19 @@
+commit c999108723fb35cec3667f1fcd60933d2608becc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 23:51:16 2016 -0400
+
+    time: revise Timer comments for Stop, Reset
+    
+    The comments added for Go 1.7 are very close.
+    Make explicit that they only apply if the timer is
+    not known to have expired already.
+    
+    Fixes #14038.
+    
+    Change-Id: I6a38be7b2015e1571fc477e18444a8cee38aab29
+    Reviewed-on: https://go-review.googlesource.com/31350
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/sleep.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

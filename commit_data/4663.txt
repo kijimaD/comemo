@@ -1,0 +1,13 @@
+commit d1b14a6fb08c908c9a7713a523612964c58f6316
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 24 22:42:18 2010 -0800
+
+    gc: bug247, reported by rob
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/194051
+
+ src/cmd/gc/const.c       | 78 +++++++++++++++++++++++++-----------------------
+ test/fixedbugs/bug247.go | 20 +++++++++++++
+ 2 files changed, 60 insertions(+), 38 deletions(-)

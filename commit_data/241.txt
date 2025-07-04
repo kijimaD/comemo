@@ -1,0 +1,10 @@
+commit bcfd31f0e92b82a1b3e48b6e8146da4623b38315
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 26 15:35:43 2008 -0700
+
+    repair struct definition
+    
+    SVN=124985
+
+ src/runtime/amd64_linux.h | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

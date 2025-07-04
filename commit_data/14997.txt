@@ -1,0 +1,17 @@
+commit 09ea3b518ee6fd45a7b09b7f34a4ef84c5159240
+Author: Sébastien Paolacci <sebastien.paolacci@gmail.com>
+Date:   Mon Jan 28 12:53:35 2013 -0500
+
+    runtime: earlier detection of unused spans.
+    
+    Mark candidate spans one GC pass earlier.
+    
+    Move scavenger's code out from mgc0 and constrain it into mheap (where it belongs).
+    
+    R=rsc, dvyukov, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7002049
+
+ src/pkg/runtime/mgc0.c  |  4 ----
+ src/pkg/runtime/mheap.c | 14 +++++++++-----
+ 2 files changed, 9 insertions(+), 9 deletions(-)

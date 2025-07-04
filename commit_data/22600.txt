@@ -1,0 +1,20 @@
+commit 357a013060686aa90432dba93faa01196452eabe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 20 10:32:39 2015 -0700
+
+    runtime: save registers in linux/{386,amd64} lib entry point
+    
+    The callee-saved registers must be saved because for the c-shared case
+    this code is invoked from C code in the system library, and that code
+    expects the registers to be saved.  The tests were passing because in
+    the normal case the code calls a cgo function that naturally saves
+    callee-saved registers anyhow.  However, it fails when the code takes
+    the non-cgo path.
+    
+    Change-Id: I9c1f5e884f5a72db9614478049b1863641c8b2b9
+    Reviewed-on: https://go-review.googlesource.com/9114
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/rt0_linux_386.s   | 23 +++++++++++++++++++----
+ src/runtime/rt0_linux_amd64.s | 22 +++++++++++++++++++---
+ 2 files changed, 38 insertions(+), 7 deletions(-)

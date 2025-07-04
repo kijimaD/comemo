@@ -1,0 +1,16 @@
+commit 107b0f12bc80967e7133bb971e818faed08f5274
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Feb 3 13:36:38 2012 +1100
+
+    encoding/base32: ignore new line characters during decode.
+    
+    This is the analogue to the encoding/base64 change,
+    https://golang.org/cl/5610045.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5617056
+
+ src/pkg/encoding/base32/base32.go      | 45 ++++++++++++++++++++--------------
+ src/pkg/encoding/base32/base32_test.go | 28 ++++++++++++++++++++-
+ 2 files changed, 53 insertions(+), 20 deletions(-)

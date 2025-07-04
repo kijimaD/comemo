@@ -1,0 +1,15 @@
+commit 0f5697a81deab54f1673a48bd0ce613ebf1ddae6
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu May 26 12:10:28 2016 +0200
+
+    strconv: use Run for some benchmarks
+    
+    This serves as an example of table-driven benchmarks which are analoguous to the common pattern for table-driven tests.
+    
+    Change-Id: I47f94c121a7117dd1e4ba03b3f2f8bcb5da38063
+    Reviewed-on: https://go-review.googlesource.com/23470
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/strconv/ftoa_test.go | 85 ++++++++++++++++++++++--------------------------
+ 1 file changed, 38 insertions(+), 47 deletions(-)

@@ -1,0 +1,21 @@
+commit 23606c6fc4ed21d563f8e9a49b2ed6e18489e222
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 10 21:43:51 2015 -0500
+
+    fmt: add tests showing current Scanf space handling
+    
+    There are no semantic changes here, just tests to establish
+    the status quo. A followup CL will make some semantic changes,
+    the (limited) scope of which should be clear from the number of
+    tests that change.
+    
+    For #13565.
+    
+    Change-Id: I960749cf59d4dfe39c324875bcc575096654f883
+    Reviewed-on: https://go-review.googlesource.com/30610
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/scan_test.go | 143 +++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 139 insertions(+), 4 deletions(-)

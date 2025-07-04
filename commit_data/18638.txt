@@ -1,0 +1,15 @@
+commit 7206f50f719cdac2a93e2beb723908bff69d7f22
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 25 23:03:01 2014 +0900
+
+    runtime: use monotonic clock for timers on linux/arm
+    
+    Update #6007
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/67730048
+
+ src/pkg/runtime/sys_linux_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

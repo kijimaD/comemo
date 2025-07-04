@@ -1,0 +1,27 @@
+commit 9e7600d3fccf1920028bc808c755198db73482c0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 22 16:04:17 2021 -0800
+
+    go/types: print "nil" rather than "untyped nil"
+    
+    This is a port of CL 366276 from types2 to go/types
+    with minor adjustments due to the slightly different
+    handling of nil in go/types.
+    
+    It uses some more detailed error strings in stmt0.src;
+    the same changes are made to the corresponding types2
+    file.
+    
+    For #48852.
+    
+    Change-Id: I2cdf258799bcbe2d12bbadaf67b8b4504b356bd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366277
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ .../compile/internal/types2/testdata/check/stmt0.src   |  6 +++---
+ src/go/types/operand.go                                |  5 +++++
+ src/go/types/testdata/check/stmt0.src                  |  6 +++---
+ src/go/types/testdata/fixedbugs/issue49296.go2         |  2 +-
+ src/go/types/testdata/spec/assignability.go2           | 18 +++++++++---------
+ 5 files changed, 21 insertions(+), 16 deletions(-)

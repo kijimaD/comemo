@@ -1,0 +1,27 @@
+commit e37a1b1ca6afcbe3b02d2dfd599ad1d3d926ec34
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Aug 6 12:44:30 2019 -0400
+
+    cmd/go: improve error message for missing import starting with cmd/
+    
+    In modload.Import, confirm that the import path does not start with
+    "cmd/" before calling QueryPackage, which returns a less helpful
+    error.
+    
+    In load.loadPackageData, don't wrap errors with "unknown import path".
+    The wrapped error should always include the import path, and it's also
+    repeated in the PackageError wrapper.
+    
+    Fixes #31031
+    
+    Change-Id: I071efa22e3842c62831d096f888a8006811fe724
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189157
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go.sum                                  |  2 ++
+ src/cmd/go/internal/load/pkg.go                 |  2 +-
+ src/cmd/go/internal/modload/import.go           |  7 +++++++
+ src/cmd/go/testdata/script/cmd_import_error.txt | 16 ++++++++++++++++
+ 4 files changed, 26 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 1ee729c5912f69e91d43032bd99fd166c492c72e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 7 11:26:40 2023 -0700
+
+    internal/poll: update SOCK_CLOEXEC comment
+    
+    For #45964
+    For #59359
+    
+    Change-Id: I9f8f4c17ccd9711f81d152953a5e6aea50c6a28f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501636
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/sock_cloexec.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

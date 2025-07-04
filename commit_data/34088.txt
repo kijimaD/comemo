@@ -1,0 +1,27 @@
+commit 06a795e4788f0895c10695e4d89c01ff135f0463
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Feb 4 09:25:55 2018 +0000
+
+    go/types: use consistent receiver names
+    
+    Inconsistent names are quite obvious on the godoc HTML rendering:
+    
+            type Array
+                func NewArray(elem Type, len int64) *Array
+                func (a *Array) Elem() Type
+                func (a *Array) Len() int64
+                func (t *Array) String() string
+                func (t *Array) Underlying() Type
+    
+    Fix all the String and Underlying methods to be consistent with their
+    types. This makes these two lists of methods less consistent, but that's
+    not visible to the user.
+    
+    This also makes the inconsistent receiver names rule in golint happy.
+    
+    Change-Id: I7c84d6bae1235887233a70d5f7f61a224106e952
+    Reviewed-on: https://go-review.googlesource.com/91736
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/type.go | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

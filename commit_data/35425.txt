@@ -1,0 +1,19 @@
+commit 5095e5d8e2cec3d6209e733652ead8ddc20fc7c2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri May 4 12:08:47 2018 +0200
+
+    cmd/go: test that Go binaries can be run on QEMU in user-mode
+    
+    We have a workaround in place in the runtime (see CL 16853 and
+    CL 111176) to keep arm and arm64 Go binaries working under QEMU
+    in user-emulation mode (Issue #13024).
+    
+    This change adds a regression test about arm/arm64 QEMU emulation
+    to cmd/go.
+    
+    Change-Id: Ic67f476e7c30a7d7852d9b01834f1dcabfac2ff7
+    Reviewed-on: https://go-review.googlesource.com/111477
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 43 insertions(+)

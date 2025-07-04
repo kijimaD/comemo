@@ -1,0 +1,24 @@
+commit fe2c588b1c70ed8c6de45a601855a107968a327d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Nov 5 15:42:14 2018 -0800
+
+    cmd/compile: simplify walk OCONVIFACE
+    
+    n.Type and n.Left.Type are used heavily. Give them useful names.
+    
+    We generate the type word frequently. Make it a closure.
+    (We don't want to generate it up front, since there are some code
+    paths that don't need it, and generating it has side-effects.)
+    
+    Simplify and document the final call construction.
+    
+    Follow-up to address feedback on CL 147360.
+    
+    Change-Id: I251134a55cf80d8b1676280a345d150f2288c09a
+    Reviewed-on: https://go-review.googlesource.com/c/147538
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/cmd/compile/internal/gc/walk.go | 88 ++++++++++++++++---------------------
+ 1 file changed, 38 insertions(+), 50 deletions(-)

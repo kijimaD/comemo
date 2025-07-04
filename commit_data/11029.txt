@@ -1,0 +1,13 @@
+commit 8f1cb093ff3af8efc426112231e99e887ebe8944
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 5 16:43:02 2012 +1100
+
+    doc/progs: test defer programs
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5517044
+
+ doc/progs/defer.go | 11 +++++++++++
+ doc/progs/run      |  2 ++
+ 2 files changed, 13 insertions(+)

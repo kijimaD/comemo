@@ -1,0 +1,15 @@
+commit b6f59358b5ae896b523ceb319dbd23d4a0744b5c
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Sep 29 20:33:51 2008 -0700
+
+    minor bugs
+    
+    R=r
+    OCL=16163
+    CL=16163
+
+ src/cmd/gc/export.c |  4 ++++
+ src/cmd/gc/go.h     |  3 +--
+ src/cmd/gc/go.y     | 14 ++++++--------
+ src/cmd/gc/walk.c   | 24 +++++++++++-------------
+ 4 files changed, 22 insertions(+), 23 deletions(-)

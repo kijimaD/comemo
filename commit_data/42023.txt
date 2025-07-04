@@ -1,0 +1,20 @@
+commit f38fad4aaad7a8de7d466ab89c9c9b115d4c46c7
+Author: David Carter <fresco.raja@gmail.com>
+Date:   Mon Apr 20 22:17:17 2020 +0000
+
+    cmd/cover: add <title> tag to <head> for coverage report HTML template
+    
+    Adds a missing <title> tag to the HTML template to make it
+    more compliant as <title> tags are generally required for valid
+    HTML documents.
+    
+    Change-Id: I1ab2a6ee221c8a79d3cc13d9ac6110f6f4963914
+    GitHub-Last-Rev: 6d519dc9dda01d142e7f367e43e13c37896cc0cf
+    GitHub-Pull-Request: golang/go#38313
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227547
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cover/html.go | 1 +
+ 1 file changed, 1 insertion(+)

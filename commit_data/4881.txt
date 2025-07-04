@@ -1,0 +1,13 @@
+commit cf015fd0b8a88f234c1c8ae64991da9a6199a2f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 17 22:41:04 2010 -0800
+
+    5g/8g: fix build
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/215042
+
+ src/cmd/5g/galign.c | 1 +
+ src/cmd/8g/galign.c | 1 +
+ 2 files changed, 2 insertions(+)

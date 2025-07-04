@@ -1,0 +1,13 @@
+commit cc9fed7c1a9214b511544b53942fd4de07c76bb3
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 5 15:58:54 2011 +1000
+
+    exp/template: add an html escaping function.
+    
+    R=golang-dev, dsymonds, adg
+    CC=golang-dev
+    https://golang.org/cl/4626092
+
+ src/pkg/exp/template/exec_test.go |  4 +++
+ src/pkg/exp/template/funcs.go     | 65 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+)

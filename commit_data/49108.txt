@@ -1,0 +1,22 @@
+commit 6399b24539c78686e5eaf8402ac623f341c0350f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon May 9 22:05:21 2022 +0700
+
+    cmd/compile/internal/typecheck: remove some un-used functions
+    
+    CL 394576 removed FuncBody, which is the only caller of CheckUnused and
+    CheckReturn. CL 394556 removed all usages of curpkg.
+    
+    controlLabel was added (un-intentionally?) in Cl 277920 but never used.
+    
+    Change-Id: I7f47f93b4b9ae9c1a681ff4717920f8d2e7c19c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405094
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/typecheck.go | 69 -------------------------
+ 1 file changed, 69 deletions(-)

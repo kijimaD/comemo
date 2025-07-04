@@ -1,0 +1,35 @@
+commit dcac984b97470c4f047f0d3d87b0af40f5246ed2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 8 01:50:36 2018 -0800
+
+    cmd/compile: cleanup nodpc and nodfp
+    
+    Instead of creating a new &nodfp expression for every recover() call,
+    or a new nodpc variable for every function instrumented by the race
+    detector, this CL introduces two new uintptr-typed pseudo-variables
+    callerSP and callerPC. These pseudo-variables act just like calls to
+    the runtime's getcallersp() and getcallerpc() functions.
+    
+    For consistency, change runtime.gorecover's builtin stub's parameter
+    type from "*int32" to "uintptr".
+    
+    Passes toolstash-check, but toolstash-check -race fails because of
+    register allocator changes.
+    
+    Change-Id: I985d644653de2dac8b7b03a28829ad04dfd4f358
+    Reviewed-on: https://go-review.googlesource.com/99416
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go         | 467 ++++++++++++-------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   2 +-
+ src/cmd/compile/internal/gc/esc.go             |   4 -
+ src/cmd/compile/internal/gc/go.go              |   2 -
+ src/cmd/compile/internal/gc/pgen.go            |   7 +-
+ src/cmd/compile/internal/gc/racewalk.go        |  18 +-
+ src/cmd/compile/internal/gc/ssa.go             |  10 +-
+ src/cmd/compile/internal/gc/universe.go        |  19 +-
+ src/cmd/compile/internal/gc/walk.go            |   2 +-
+ 9 files changed, 261 insertions(+), 270 deletions(-)

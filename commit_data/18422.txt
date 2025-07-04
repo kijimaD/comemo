@@ -1,0 +1,15 @@
+commit 5d871c7ef0771e77884c7ff0345fe3458b00bbb0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 7 10:23:26 2014 +0900
+
+    syscall: regenerate EABI call convention compliant syscalls for freebsd/arm
+    
+    This CL is in preparation to make cgo work on freebsd/arm.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/59490051
+
+ src/pkg/syscall/zsyscall_freebsd_arm.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

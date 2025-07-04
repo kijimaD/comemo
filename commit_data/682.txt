@@ -1,0 +1,15 @@
+commit 26adb31c30252d7a1821f920b845ae35dd9efa3f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 19 10:56:35 2008 -0700
+
+    - fix for out-of-bounds error found by rsc
+    - removed tests that may have wrong Go code from Makefile
+    
+    R=r
+    OCL=15532
+    CL=15532
+
+ usr/gri/gosrc/platform.go  | 2 +-
+ usr/gri/pretty/Makefile    | 2 --
+ usr/gri/pretty/platform.go | 2 +-
+ 3 files changed, 2 insertions(+), 4 deletions(-)

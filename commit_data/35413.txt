@@ -1,0 +1,19 @@
+commit 8a16c71067ca2cfd09281a82ee150a408095f0bc
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri May 18 10:45:10 2018 +0100
+
+    cmd/vet: -composites only checks imported types
+    
+    The check has worked this way for a long time, but it has never been
+    well documented.
+    
+    For #25453.
+    
+    Change-Id: If603e53348ba51f73b2f449b943c6f97f64aa3eb
+    Reviewed-on: https://go-review.googlesource.com/113755
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/composite.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

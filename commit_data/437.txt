@@ -1,0 +1,13 @@
+commit ea0569026cddcecd8cf6df55dcd24c93fc9769ea
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 28 10:22:49 2008 -0700
+
+    update tests
+    
+    R=gri
+    OCL=13516
+    CL=13516
+
+ test/bugs/bug033.go                | 11 -----------
+ test/{bugs => fixedbugs}/bug010.go |  2 +-
+ 2 files changed, 1 insertion(+), 12 deletions(-)

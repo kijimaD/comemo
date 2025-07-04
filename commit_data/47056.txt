@@ -1,0 +1,20 @@
+commit 259735f97a2dfd33849eacef15047f5a0964498e
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Aug 24 14:09:26 2021 -0500
+
+    cmd/compile: enable branchelim pass on ppc64
+    
+    and fix/cleanup lowering of the SSA operator created by the pass.
+    
+    Change-Id: I7e6153194fd16013e3b24da8aa40683adafa3d15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344573
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/branchelim.go   |  2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  7 ++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 51 ++++++++++++++++++----------
+ 3 files changed, 40 insertions(+), 20 deletions(-)

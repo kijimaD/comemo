@@ -1,0 +1,13 @@
+commit 4d608eb224fe1ba8e8532fcc44f91702a5b17f9f
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Mar 10 10:09:39 2021 +0800
+
+    testing: fix typo in a comment
+    
+    Change-Id: I781808327be84113cd55c52bc214b821cd166114
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300269
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,29 @@
+commit 81c6bac06f5f8a45f0837cb42b2793df64de08a7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 26 10:22:26 2019 -0400
+
+    cmd/go/internal/robustio: extend filesystem workarounds to darwin platforms
+    
+    The macOS filesystem seems to have gotten significantly flakier as of
+    macOS 10.14, so this causes frequently flakes in the 10.14 builders.
+    
+    We have no reason to believe that it will be fixed any time soon, so
+    rather than trying to detect the specific macOS version, we'll apply
+    the same workarounds that we use on Windows: classifying (and
+    retrying) the errors known to indicate flakiness and relaxing the
+    success criteria for renameio.TestConcurrentReadsAndWrites.
+    
+    Fixes #33041
+    
+    Change-Id: I74d8c15677951d7a0df0d4ebf6ea03e43eebddf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197517
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/renameio/renameio_test.go    | 12 +++-
+ src/cmd/go/internal/robustio/robustio_darwin.go  | 21 ++++++
+ src/cmd/go/internal/robustio/robustio_flaky.go   | 92 ++++++++++++++++++++++++
+ src/cmd/go/internal/robustio/robustio_other.go   |  2 +-
+ src/cmd/go/internal/robustio/robustio_windows.go | 80 +--------------------
+ 5 files changed, 125 insertions(+), 82 deletions(-)

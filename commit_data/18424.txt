@@ -1,0 +1,18 @@
+commit aac872e11806b7a66ab51f5efab7496a36e4f3da
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 7 12:30:30 2014 +1100
+
+    os/exec: use filepath.Base in Command
+    
+    filepath.Base covers all scenarios
+    (for example paths like d:hello.txt)
+    on windows
+    
+    LGTM=iant, bradfitz
+    R=golang-codereviews, iant, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/59740050
+
+ src/pkg/go/build/deps_test.go |  2 +-
+ src/pkg/os/exec/exec.go       | 12 ++----------
+ 2 files changed, 3 insertions(+), 11 deletions(-)

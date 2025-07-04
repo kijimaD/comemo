@@ -1,0 +1,15 @@
+commit 4675e3332b0af407aee8bc078c1a50cccb318ce6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Mar 27 12:10:50 2011 -0700
+
+    test: match gccgo error messages for bug325.go.
+    
+    bug325.go:13:10: error: invalid indirect of ‘unsafe.Pointer’
+    bug325.go:14:31: error: reference to field ‘foo’ in object which has no fields or methods
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4313050
+
+ test/fixedbugs/bug325.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

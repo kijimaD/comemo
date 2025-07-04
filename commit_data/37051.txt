@@ -1,0 +1,19 @@
+commit dca769dca9bac81a242cb52654b3fe6b7819f759
+Author: Keith Randall <khr@google.com>
+Date:   Tue Oct 16 14:31:49 2018 -0700
+
+    cmd/compile: in append(f()), type convert appended items
+    
+    The second and subsequent return values from f() need to be
+    converted to the element type of the first return value from f()
+    (which must be a slice).
+    
+    Fixes #22327
+    
+    Change-Id: I5c0a424812c82c1b95b6d124c5626cfc4408bdb6
+    Reviewed-on: https://go-review.googlesource.com/c/142718
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go | 11 ++++++++---
+ test/fixedbugs/issue22327.go        | 18 ++++++++++++++++++
+ 2 files changed, 26 insertions(+), 3 deletions(-)

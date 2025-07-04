@@ -1,0 +1,23 @@
+commit 45bb8874314635fc40945da3f765a7844482bfef
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 19 14:31:41 2016 +1000
+
+    net: stop using GetHostByName and GetServByName
+    
+    Go 1.6 requires Windows XP or later. I have:
+    
+    C:\>systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
+    OS Name:                   Microsoft Windows XP Professional
+    OS Version:                5.1.2600 Service Pack 3 Build 2600
+    
+    Running "go test" PASSes on my system after this CL is applied.
+    
+    Change-Id: Id59d169138c4a4183322c89ee7e766fb74d381fa
+    Reviewed-on: https://go-review.googlesource.com/22209
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/fd_windows.go     |   5 ---
+ src/net/lookup_windows.go | 109 +---------------------------------------------
+ 2 files changed, 2 insertions(+), 112 deletions(-)

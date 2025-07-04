@@ -1,0 +1,150 @@
+commit d65a5cce89596e0256280ab8318548d3fa5bb09b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 15 15:40:16 2009 -0800
+
+    1) Change default gofmt default settings for
+       parsing and printing to new syntax.
+    
+       Use -oldparser to parse the old syntax,
+       use -oldprinter to print the old syntax.
+    
+    2) Change default gofmt formatting settings
+       to use tabs for indentation only and to use
+       spaces for alignment. This will make the code
+       alignment insensitive to an editor's tabwidth.
+    
+       Use -spaces=false to use tabs for alignment.
+    
+    3) Manually changed src/exp/parser/parser_test.go
+       so that it doesn't try to parse the parser's
+       source files using the old syntax (they have
+       new syntax now).
+    
+    4) gofmt -w src misc test/bench
+    
+    4th set of files.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/180049
+
+ src/pkg/once/once.go                      |   28 +-
+ src/pkg/once/once_test.go                 |   14 +-
+ src/pkg/os/dir_darwin.go                  |   56 +-
+ src/pkg/os/dir_freebsd.go                 |   56 +-
+ src/pkg/os/dir_linux.go                   |   50 +-
+ src/pkg/os/dir_nacl.go                    |   50 +-
+ src/pkg/os/env.go                         |   40 +-
+ src/pkg/os/error.go                       |   98 +--
+ src/pkg/os/exec.go                        |   72 +-
+ src/pkg/os/file.go                        |  224 +++----
+ src/pkg/os/getwd.go                       |   44 +-
+ src/pkg/os/os_test.go                     |  366 +++++-----
+ src/pkg/os/path.go                        |   42 +-
+ src/pkg/os/path_test.go                   |   56 +-
+ src/pkg/os/proc.go                        |   18 +-
+ src/pkg/os/stat_darwin.go                 |   34 +-
+ src/pkg/os/stat_freebsd.go                |   34 +-
+ src/pkg/os/stat_linux.go                  |   34 +-
+ src/pkg/os/stat_nacl.go                   |   34 +-
+ src/pkg/os/sys_darwin.go                  |    6 +-
+ src/pkg/os/sys_freebsd.go                 |    6 +-
+ src/pkg/os/sys_linux.go                   |   10 +-
+ src/pkg/os/sys_nacl.go                    |    2 +-
+ src/pkg/os/time.go                        |    4 +-
+ src/pkg/os/types.go                       |   48 +-
+ src/pkg/patch/apply.go                    |   32 +-
+ src/pkg/patch/git.go                      |   78 +--
+ src/pkg/patch/patch.go                    |  192 +++---
+ src/pkg/patch/patch_test.go               |   26 +-
+ src/pkg/patch/textdiff.go                 |  100 +--
+ src/pkg/path/path.go                      |   70 +-
+ src/pkg/path/path_test.go                 |   74 +-
+ src/pkg/rand/exp.go                       |   12 +-
+ src/pkg/rand/normal.go                    |   20 +-
+ src/pkg/rand/rand.go                      |   96 +--
+ src/pkg/rand/rand_test.go                 |  202 +++---
+ src/pkg/rand/rng.go                       |   68 +-
+ src/pkg/reflect/all_test.go               |  634 +++++++++---------
+ src/pkg/reflect/deepequal.go              |   58 +-
+ src/pkg/reflect/tostring_test.go          |   64 +-
+ src/pkg/reflect/type.go                   |  322 ++++-----
+ src/pkg/reflect/value.go                  |  616 ++++++++---------
+ src/pkg/regexp/all_test.go                |  206 +++---
+ src/pkg/regexp/regexp.go                  |  892 ++++++++++++-------------
+ src/pkg/rpc/client.go                     |  164 ++---
+ src/pkg/rpc/debug.go                      |   54 +-
+ src/pkg/rpc/server.go                     |  274 ++++----
+ src/pkg/rpc/server_test.go                |  136 ++--
+ src/pkg/runtime/type.go                   |  168 ++---
+ src/pkg/sort/sort.go                      |  126 ++--
+ src/pkg/sort/sort_test.go                 |  188 +++---
+ src/pkg/strconv/atof.go                   |  204 +++---
+ src/pkg/strconv/atof_test.go              |   38 +-
+ src/pkg/strconv/atoi.go                   |  106 +--
+ src/pkg/strconv/atoi_test.go              |   76 +--
+ src/pkg/strconv/decimal.go                |  266 ++++----
+ src/pkg/strconv/decimal_test.go           |   40 +-
+ src/pkg/strconv/fp_test.go                |  116 ++--
+ src/pkg/strconv/ftoa.go                   |  208 +++---
+ src/pkg/strconv/ftoa_test.go              |   26 +-
+ src/pkg/strconv/internal_test.go          |    8 +-
+ src/pkg/strconv/itoa.go                   |   28 +-
+ src/pkg/strconv/itoa_test.go              |   40 +-
+ src/pkg/strconv/quote.go                  |  134 ++--
+ src/pkg/strconv/quote_test.go             |   26 +-
+ src/pkg/strings/reader.go                 |   20 +-
+ src/pkg/strings/strings.go                |  164 ++---
+ src/pkg/strings/strings_test.go           |  160 ++---
+ src/pkg/sync/mutex.go                     |   14 +-
+ src/pkg/sync/mutex_test.go                |   76 +--
+ src/pkg/sync/rwmutex.go                   |   18 +-
+ src/pkg/sync/rwmutex_test.go              |   88 +--
+ src/pkg/syscall/errstr.go                 |   18 +-
+ src/pkg/syscall/exec.go                   |  118 ++--
+ src/pkg/syscall/syscall.go                |    6 +-
+ src/pkg/syscall/syscall_darwin.go         |  236 +++----
+ src/pkg/syscall/syscall_darwin_386.go     |   34 +-
+ src/pkg/syscall/syscall_darwin_amd64.go   |   34 +-
+ src/pkg/syscall/syscall_freebsd.go        |  236 +++----
+ src/pkg/syscall/syscall_freebsd_386.go    |   26 +-
+ src/pkg/syscall/syscall_freebsd_amd64.go  |   26 +-
+ src/pkg/syscall/syscall_linux.go          |  278 ++++----
+ src/pkg/syscall/syscall_linux_386.go      |  118 ++--
+ src/pkg/syscall/syscall_linux_amd64.go    |   24 +-
+ src/pkg/syscall/syscall_linux_arm.go      |   22 +-
+ src/pkg/syscall/syscall_nacl.go           |  180 ++---
+ src/pkg/syscall/syscall_nacl_386.go       |   14 +-
+ src/pkg/syscall/zerrors_darwin_386.go     | 1038 ++++++++++++++--------------
+ src/pkg/syscall/zerrors_darwin_amd64.go   | 1038 ++++++++++++++--------------
+ src/pkg/syscall/zerrors_freebsd_386.go    | 1040 ++++++++++++++---------------
+ src/pkg/syscall/zerrors_freebsd_amd64.go  | 1040 ++++++++++++++---------------
+ src/pkg/syscall/zerrors_linux_386.go      | 1020 ++++++++++++++--------------
+ src/pkg/syscall/zerrors_linux_amd64.go    | 1020 ++++++++++++++--------------
+ src/pkg/syscall/zerrors_linux_arm.go      |  342 +++++-----
+ src/pkg/syscall/zerrors_nacl_386.go       |  240 +++----
+ src/pkg/syscall/zsyscall_darwin_386.go    |  684 +++++++++----------
+ src/pkg/syscall/zsyscall_darwin_amd64.go  |  684 +++++++++----------
+ src/pkg/syscall/zsyscall_freebsd_386.go   |  668 +++++++++---------
+ src/pkg/syscall/zsyscall_freebsd_amd64.go |  668 +++++++++---------
+ src/pkg/syscall/zsyscall_linux_386.go     |  720 ++++++++++----------
+ src/pkg/syscall/zsyscall_linux_amd64.go   |  816 +++++++++++-----------
+ src/pkg/syscall/zsyscall_linux_arm.go     |  798 +++++++++++-----------
+ src/pkg/syscall/zsyscall_nacl_386.go      |  224 +++----
+ src/pkg/syscall/zsysnum_darwin_386.go     |  646 +++++++++---------
+ src/pkg/syscall/zsysnum_darwin_amd64.go   |  646 +++++++++---------
+ src/pkg/syscall/zsysnum_freebsd_386.go    |  624 ++++++++---------
+ src/pkg/syscall/zsysnum_freebsd_amd64.go  |  624 ++++++++---------
+ src/pkg/syscall/zsysnum_linux_386.go      |  620 ++++++++---------
+ src/pkg/syscall/zsysnum_linux_amd64.go    |  574 ++++++++--------
+ src/pkg/syscall/zsysnum_linux_arm.go      |  656 +++++++++---------
+ src/pkg/syscall/zsysnum_nacl_386.go       |  108 +--
+ src/pkg/syscall/ztypes_darwin_386.go      |  274 ++++----
+ src/pkg/syscall/ztypes_darwin_amd64.go    |  284 ++++----
+ src/pkg/syscall/ztypes_freebsd_386.go     |  288 ++++----
+ src/pkg/syscall/ztypes_freebsd_amd64.go   |  294 ++++----
+ src/pkg/syscall/ztypes_linux_386.go       |  374 +++++------
+ src/pkg/syscall/ztypes_linux_amd64.go     |  394 +++++------
+ src/pkg/syscall/ztypes_linux_arm.go       |  554 +++++++--------
+ src/pkg/syscall/ztypes_nacl_386.go        |  136 ++--
+ 119 files changed, 14330 insertions(+), 14330 deletions(-)

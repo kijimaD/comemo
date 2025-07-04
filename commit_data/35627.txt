@@ -1,0 +1,20 @@
+commit 8cf579abf7151f9301daf9d2ee293de0320c16aa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 7 12:50:21 2018 -0400
+
+    cmd/go: restore "go list" exit code for missing binary packages
+    
+    Prior to CL 108156, "go list" exited with code 0 if there were missing binary packages.
+    Restore that behavior to fix the failing TestBinaryOnlyPackages.
+    
+    Fixes golang/go#25784.
+    
+    Change-Id: Iaeca6bcc840f5ac8f2a016cef131f5c59a8261a8
+    Reviewed-on: https://go-review.googlesource.com/117036
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go            | 1 -
+ src/cmd/go/internal/work/exec.go | 3 +++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

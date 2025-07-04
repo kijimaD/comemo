@@ -1,0 +1,17 @@
+commit 88e0ec2979bb39bd8811ec50a69fcb5007a24623
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 31 16:04:00 2016 -0700
+
+    runtime/cgo: avoid races on cgo_context_function
+    
+    Change-Id: Ie9e6fda675e560234e90b9022526fd689d770818
+    Reviewed-on: https://go-review.googlesource.com/23610
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/cgo/gcc_context.c         | 16 +++++---------
+ src/runtime/cgo/gcc_libinit.c         | 39 +++++++++++++++++++++++++++++++++--
+ src/runtime/cgo/gcc_libinit_openbsd.c | 23 +++++++++++++++++++--
+ src/runtime/cgo/gcc_libinit_windows.c | 27 ++++++++++++++++++++++--
+ src/runtime/cgo/libcgo.h              |  2 +-
+ 5 files changed, 89 insertions(+), 18 deletions(-)

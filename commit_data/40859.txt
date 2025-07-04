@@ -1,0 +1,32 @@
+commit b89b4623eb70cbdc6b0aea43a5a826b7a26f20a7
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 25 16:17:41 2019 -0400
+
+    runtime: support preemption on windows/{386,amd64}
+    
+    This implements preemptM on Windows using SuspendThead and
+    ResumeThread.
+    
+    Unlike on POSIX platforms, preemptM on Windows happens synchronously.
+    This means we need a make a few other tweaks to suspendG:
+    
+    1. We need to CAS the G back to _Grunning before doing the preemptM,
+       or there's a good chance we'll just catch the G spinning on its
+       status in the runtime, which won't be preemptible.
+    
+    2. We need to rate-limit preemptM attempts. Otherwise, if the first
+       attempt catches the G at a non-preemptible point, the busy loop in
+       suspendG may hammer it so hard that it never makes it past that
+       non-preemptible point.
+    
+    Updates #10958, #24543.
+    
+    Change-Id: Ie53b098811096f7e45d864afd292dc9e999ce226
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204340
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/os_windows.go | 118 +++++++++++++++++++++++++++++++++++++++++-----
+ src/runtime/preempt.go    |  31 +++++++++---
+ 2 files changed, 132 insertions(+), 17 deletions(-)

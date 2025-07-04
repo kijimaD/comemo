@@ -1,0 +1,31 @@
+commit 901005e8fce3f4ec94a0c06430d543b10391695a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 14 18:57:13 2016 +0000
+
+    net/http: deflake TestClientTimeout_Headers_h2 on Windows
+    
+    The client code was using time.Now() (wall time) to determine whether
+    the cause of a non-nil error meant that a timeout had occured. But on
+    Windows, the clock used for timers (time.After, time.Sleep, etc) is
+    much more accurate than the time.Now clock, which doesn't update
+    often.
+    
+    But it turns out that as of the recent https://golang.org/cl/32478 we
+    already have the answer available easily. It just wasn't in scope.
+    
+    Instead of passing this information along by decorating the errors
+    (risky this late in Go 1.8, especially with #15935 unresolved), just
+    passing along the "didTimeout" func internally for now. We can remove
+    that later in Go 1.9 if we overhaul Transport errors.
+    
+    Fixes #18287 (I hope)
+    
+    Change-Id: Icbbfceaf02de6c7ed04fe37afa4ca16374b58f3c
+    Reviewed-on: https://go-review.googlesource.com/34381
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client.go | 28 +++++++++++++++-------------
+ 1 file changed, 15 insertions(+), 13 deletions(-)

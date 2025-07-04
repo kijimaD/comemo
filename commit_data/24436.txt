@@ -1,0 +1,17 @@
+commit f78a4c84ac8ed44aaf331989aa32e40081fd8f13
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Sep 30 21:27:30 2015 -0400
+
+    cmd/go: remove the bootstrap with make.bash error message
+    
+    The runtime/zgoos_$GOOS.go and runtime/zgoarch_$GOARCH.go files
+    are in the repository now, so the message is actually incorrect
+    (running make.bash won't generate those). The reason is probably
+    wrong $GOROOT.
+    
+    Change-Id: I8dc125594c52d666eca91fd5af48b60d12d599b8
+    Reviewed-on: https://go-review.googlesource.com/15221
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go | 19 -------------------
+ 1 file changed, 19 deletions(-)

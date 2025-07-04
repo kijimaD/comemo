@@ -1,0 +1,18 @@
+commit 57666c3fe842c8a210b55e22514834ec724f945d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 00:34:57 2016 -0400
+
+    test: avoid matching file names in errcheck
+    
+    Fixes #17030.
+    
+    Change-Id: Ic7f237ac7553ae0176929056e64b01667ed59066
+    Reviewed-on: https://go-review.googlesource.com/31351
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/bug332.go | 4 ++--
+ test/method2.go          | 4 ++--
+ test/run.go              | 8 +++++++-
+ 3 files changed, 11 insertions(+), 5 deletions(-)

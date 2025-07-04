@@ -1,0 +1,13 @@
+commit d9079cc88346ea08ca65166447184513f0566d98
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Jul 22 10:09:32 2014 +1000
+
+    syscall: fix typo in namei doc comment.
+    
+    LGTM=dave
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/112420044
+
+ src/pkg/syscall/fs_nacl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

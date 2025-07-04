@@ -1,0 +1,25 @@
+commit 29fcd57a9f4b345bf155f04c0f5b4ccf7a61401e
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Fri Mar 2 02:24:41 2018 +0100
+
+    cmd/compile: fold offsets into memory ops
+    
+    Fold offsets for:
+    
+      {ADD,SUB,MUL}[SD]mem
+      ADD[LQ]constmem
+      {ADD,SUB,AND,OR,XOR}[LQ]mem
+    
+    Cumulatively, the rules trigger ~900 times in all.bash.
+    
+    Fixes #23325
+    
+    Change-Id: If6c701f68fa0b57907a353a07a516b914127d0d8
+    Reviewed-on: https://go-review.googlesource.com/98035
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  25 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 946 +++++++++++++++++++++++++++
+ 2 files changed, 971 insertions(+)

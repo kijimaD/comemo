@@ -1,0 +1,16 @@
+commit 689fa9cc2842141ad663845af2b6188cc1c12b5d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 20 22:58:36 2017 -0800
+
+    syscall: fix linux/mipsx ret value FP offsets for Syscall9
+    
+    Found by vet.
+    
+    Change-Id: Idf910405566816ddce6781c8e99f90b59f33d63c
+    Reviewed-on: https://go-review.googlesource.com/37308
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/syscall/asm_linux_mipsx.s | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

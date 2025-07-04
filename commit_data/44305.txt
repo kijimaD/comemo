@@ -1,0 +1,19 @@
+commit ee7038f6a5f12d68a49b8b8193702341e5b8b151
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 18 11:47:47 2021 -0500
+
+    net: disable Windows netsh tests when netsh won't run
+    
+    On my Surface Pro X running the insider preview,
+    running "netsh help" from Powershell started from the task bar works.
+    But running "powershell" at a cmd.exe prompt and then running
+    "netsh help" produces missing DLL errors.
+    These aren't our fault, so just skip the netsh-based tests if this happens.
+    
+    Change-Id: I13a17e01143d823d3b5242d827db056bd253e3e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293849
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/net/net_windows_test.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

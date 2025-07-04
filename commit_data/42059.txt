@@ -1,0 +1,19 @@
+commit 0329c915a03199d202581d0b33b092371fde08dc
+Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
+Date:   Tue Apr 21 15:14:11 2020 -0400
+
+    math/big: clean up whitespace in arith_s390x.s file
+    
+    This CL looks big but it only does formatting changes to arith_s390x.s.
+    The file was formatted using asmfmt(https://github.com/klauspost/asmfmt)
+    , so there should not be any functional impact. I verified that the
+    generated assembly of big.test file is identical.
+    
+    Change-Id: I8b4035ef082a4d0357881869327e25253f2d8be1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229302
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/big/arith_s390x.s | 1869 +++++++++++++++++++++++---------------------
+ 1 file changed, 958 insertions(+), 911 deletions(-)

@@ -1,0 +1,16 @@
+commit 94acfde22e73902692b8eef413c7c35a5ba98708
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Oct 7 00:29:55 2012 +0200
+
+    cmd/gc: make rnd() more 64-bit-friendly.
+    
+    Fixes #4200.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6619057
+
+ src/cmd/gc/align.c       |  4 ++--
+ src/cmd/gc/go.h          |  2 +-
+ test/fixedbugs/bug458.go | 22 ++++++++++++++++++++++
+ 3 files changed, 25 insertions(+), 3 deletions(-)

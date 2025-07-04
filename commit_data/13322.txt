@@ -1,0 +1,20 @@
+commit 7ad37673e1a08118a748c9df45c83d2b9ce73d4f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 8 13:54:48 2012 -0400
+
+    syscall: revert API changes in Windows Win32finddata fix.
+    
+    Preserve old API by using correct struct in system call
+    and then copying the results, as we did for SetsockoptLinger.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6307065
+
+ api/next.txt                              | 26 --------------------------
+ src/pkg/os/file_windows.go                |  6 +++---
+ src/pkg/syscall/syscall_windows.go        | 27 ++++++++++++++++++++++-----
+ src/pkg/syscall/zsyscall_windows_386.go   |  4 ++--
+ src/pkg/syscall/zsyscall_windows_amd64.go |  4 ++--
+ src/pkg/syscall/ztypes_windows.go         | 24 ++++++++++++++++++++----
+ 6 files changed, 49 insertions(+), 42 deletions(-)

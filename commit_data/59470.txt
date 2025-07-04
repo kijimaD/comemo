@@ -1,0 +1,21 @@
+commit e666f1dabf5174710919ab7cff3e8afefd9ac049
+Author: ArsenySamoylov <samoylov.arseny@gmail.com>
+Date:   Fri Apr 25 14:28:52 2025 +0300
+
+    runtime: add goschedIfBusy to bgsweep to prevent livelock after inlining
+    
+    gcMarkTermination() ensures that all caches are flushed before continuing the GC cycle, thus preempting all goroutines.
+    However, inlining calls to lock() in bgsweep makes it non-preemptible for most of the time, leading to livelock.
+    This change adds explicit preemption to avoid this.
+    
+    Fixes #73499.
+    
+    Change-Id: I4abf0d658f3d7a03ad588469cd013a0639de0c8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668795
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgcsweep.go | 4 ++++
+ 1 file changed, 4 insertions(+)

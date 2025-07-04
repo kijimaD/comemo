@@ -1,0 +1,35 @@
+commit 269c969c81774d1579e80a8c35edbd0ebea065a7
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 2 14:52:08 2016 -0500
+
+    runtime: remove stack barriers during concurrent mark
+    
+    Currently we remove stack barriers during STW mark termination, which
+    has a non-trivial per-goroutine cost and means that we have to touch
+    even clean stacks during mark termination. However, there's no problem
+    with leaving them in during the sweep phase. They just have to be out
+    by the time we install new stack barriers immediately prior to
+    scanning the stack such as during the mark phase of the next GC cycle
+    or during mark termination in a STW GC.
+    
+    Hence, move the gcRemoveStackBarriers from STW mark termination to
+    just before we install new stack barriers during concurrent mark. This
+    removes the cost from STW. Furthermore, this combined with concurrent
+    stack shrinking means that the mark termination scan of a clean stack
+    is a complete no-op, which will make it possible to skip clean stacks
+    entirely during mark termination.
+    
+    This has the downside that it will mess up anything outside of Go that
+    tries to walk Go stacks all the time instead of just some of the time.
+    This includes tools like GDB, perf, and VTune. We'll improve the
+    situation shortly.
+    
+    Change-Id: Ia40baad8f8c16aeefac05425e00b0cf478137097
+    Reviewed-on: https://go-review.googlesource.com/20667
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgcmark.go | 28 ++++++++++++----------------
+ src/runtime/mstkbar.go |  7 +++----
+ 2 files changed, 15 insertions(+), 20 deletions(-)

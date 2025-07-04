@@ -1,0 +1,13 @@
+commit b0afb931a81a1799d0f52ccfc61f19a6dcb8df35
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Mon Nov 1 15:21:35 2010 -0700
+
+    Use strings.Contains in src/cmd/...
+    
+    R=r
+    CC=golang-dev, r2, rsc
+    https://golang.org/cl/2819041
+
+ src/cmd/cgo/gcc.go            | 8 ++++----
+ src/cmd/goinstall/download.go | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

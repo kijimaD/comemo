@@ -1,0 +1,23 @@
+commit cae5c7fe88cfdedb517d853730a99e4e319c219f
+Author: Mark Fischer <meirfischer@gmail.com>
+Date:   Sun Apr 22 01:16:46 2018 -0400
+
+    net/http: add Transport.MaxConnsPerHost knob
+    
+    Add field to http.Transport which limits connections per host,
+    including dial-in-progress, in-use and idle (keep-alive) connections.
+    
+    For HTTP/2, this field only controls the number of dials in progress.
+    
+    Fixes #13957
+    
+    Change-Id: I7a5e045b4d4793c6b5b1a7191e1342cd7df78e6c
+    Reviewed-on: https://go-review.googlesource.com/71272
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/export_test.go    |  14 ++++-
+ src/net/http/transport.go      | 135 ++++++++++++++++++++++++++++++++++++++++-
+ src/net/http/transport_test.go |  86 +++++++++++++++++++++++---
+ 3 files changed, 220 insertions(+), 15 deletions(-)

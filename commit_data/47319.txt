@@ -1,0 +1,41 @@
+commit 2f71c86370a2c3bf2827e8d9f9080d9bf92a5317
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 21 21:19:23 2021 +0000
+
+    runtime: retype gcControllerState.gcPercent as atomic.Int32
+    
+    [git-generate]
+    cd src/runtime
+    mv export_test.go export.go
+    GOROOT=$(dirname $(dirname $PWD)) rf '
+      add gcControllerState.gcPercent \
+    // Initialized from GOGC. GOGC=off means no GC. \
+    gcPercent_ atomic.Int32
+      ex {
+        import "runtime/internal/atomic"
+    
+        var t gcControllerState
+        var v, w int32
+        var d int32
+    
+        t.gcPercent -> t.gcPercent_.Load()
+        t.gcPercent = v -> t.gcPercent_.Store(v)
+        atomic.Loadint32(&t.gcPercent) -> t.gcPercent_.Load()
+        atomic.Storeint32(&t.gcPercent, v) -> t.gcPercent_.Store(v)
+        atomic.Xaddint32(&t.gcPercent, d) -> t.gcPercent_.Add(d)
+        atomic.Casint32(&t.gcPercent, v, w) -> t.gcPercent_.CompareAndSwap(v, w)
+        atomic.Xchgint32(&t.gcPercent, v) -> t.gcPercent_.Swap(v)
+      }
+      rm gcControllerState.gcPercent
+      mv gcControllerState.gcPercent_ gcControllerState.gcPercent
+    '
+    mv export.go export_test.go
+    
+    Change-Id: I1aae34a3f782d096c6b6233bbf7986e67ce9c5f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357794
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgc.go      |  2 +-
+ src/runtime/mgcpacer.go | 31 ++++++++++++++-----------------
+ 2 files changed, 15 insertions(+), 18 deletions(-)

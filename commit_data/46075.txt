@@ -1,0 +1,22 @@
+commit 8f0578ef39a97c3a20032db799b97763e44274b0
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Aug 13 13:52:55 2021 -0400
+
+    cmd/compile/internal/types2: consolidate verification logic
+    
+    Change an internal call of instantiateLazy to call Instantiate, so that
+    we can consolidate the logic for invoking verification.
+    
+    This made verification of signatures lazy, which is not necessary but
+    should be harmless.
+    
+    Change-Id: I2e59b04ac859e08c2e2910ded3c183093d1e34a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342149
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/instantiate.go | 49 +++++++++++++-------------
+ src/cmd/compile/internal/types2/typexpr.go     |  2 +-
+ 2 files changed, 26 insertions(+), 25 deletions(-)

@@ -1,0 +1,20 @@
+commit 688d75b14fd7646d66c18825f22f0a67e9fafd9e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jun 7 10:18:06 2023 +0700
+
+    cmd/go: skip TestScript/gccgo_link_ldflags on aix/ppc64
+    
+    The gccgo on the builder is not updated to support runtime/cgo
+    
+    Updates #60306
+    
+    Change-Id: If0fb1ccdf589cc9741f6a065bacfa4f06e64ec15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501435
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/go/testdata/script/gccgo_link_ldflags.txt | 3 +++
+ 1 file changed, 3 insertions(+)

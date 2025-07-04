@@ -1,0 +1,12 @@
+commit 11a016151ba739357cf127144940a35e4e85a010
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Dec 13 22:19:41 2010 -0800
+
+    go spec: fix two grammar typos
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3580042
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

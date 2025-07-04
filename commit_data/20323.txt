@@ -1,0 +1,19 @@
+commit e8fc362049aea9000b5e5fe58d0c46dd14e05ba1
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 6 15:27:39 2014 -0400
+
+    runtime/cgo: use just #include "textflag.h"
+    
+    This will withstand the src/pkg/ to src/ move.
+    
+    LGTM=r
+    R=iant, r
+    CC=golang-codereviews
+    https://golang.org/cl/134530044
+
+ src/pkg/runtime/cgo/asm_386.s           | 2 +-
+ src/pkg/runtime/cgo/asm_amd64.s         | 2 +-
+ src/pkg/runtime/cgo/asm_arm.s           | 2 +-
+ src/pkg/runtime/cgo/asm_nacl_amd64p32.s | 2 +-
+ src/pkg/runtime/cgo/callbacks.c         | 2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)

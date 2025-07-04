@@ -1,0 +1,28 @@
+commit a120cc8b365be33d3f82bbf8b79584e0e3439b9b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 28 18:38:17 2019 +0000
+
+    runtime: compute whether a span needs zeroing in the new page allocator
+    
+    This change adds the allocNeedZero method to mheap which uses the new
+    heapArena field zeroedBase to determine whether a new allocation needs
+    zeroing. The purpose of this work is to avoid zeroing memory that is
+    fresh from the OS in the context of the new allocator, where we no
+    longer have the concept of a free span to track this information.
+    
+    The new field in heapArena, zeroedBase, is small, which runs counter to
+    the advice in the doc comment for heapArena. Since heapArenas are
+    already not a multiple of the system page size, this advice seems stale,
+    and we're OK with using an extra physical page for a heapArena. So, this
+    change also deletes the comment with that advice.
+    
+    Updates #35112.
+    
+    Change-Id: I688cd9fd3c57a98a6d43c45cf699543ce16697e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203858
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mheap.go | 75 +++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 68 insertions(+), 7 deletions(-)

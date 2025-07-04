@@ -1,0 +1,22 @@
+commit aea4222f673ee9189ba81548978b091004afe994
+Author: Aaron Zinman <aaron@azinman.com>
+Date:   Wed Feb 3 17:36:15 2016 -0800
+
+    darwin/amd64: fix text-relocation issues for c-archive libraries 
+    
+    The existing implementation deals with absolute relocations in __TEXT
+    for darwin/amd64 in build-mode c-shared, but it ignores c-archive.
+    This results in issues when trying to use a c-archive in an iOS
+    app on the 64-bit simulator. This patch adds c-archive to the
+    handling of this issue.
+    
+    Fixes #14217
+    
+    Change-Id: I2e4d5193caa531171ad22fd0cd420a8bfb4646a6
+    Reviewed-on: https://go-review.googlesource.com/19206
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/macho.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

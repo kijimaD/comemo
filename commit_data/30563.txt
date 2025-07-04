@@ -1,0 +1,15 @@
+commit cd6f18779fd0c8be723d6eb1f1891796bfe98aa3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Mar 6 10:54:27 2017 +0100
+
+    net/http: remove unused ResponseWriter params
+    
+    Found by github.com/mvdan/unparam.
+    
+    Change-Id: I66f5a191cf9c9a11a7c3c4d7ee0a02e2c185f019
+    Reviewed-on: https://go-review.googlesource.com/37841
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/fs.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

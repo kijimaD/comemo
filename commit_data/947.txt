@@ -1,0 +1,14 @@
+commit 8327b54169ef32801027bac65661b97b4dc95ad6
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 23 17:39:15 2008 -0700
+
+    make reflect compile again
+    
+    R=rsc
+    DELTA=9  (4 added, 4 deleted, 1 changed)
+    OCL=17753
+    CL=17755
+
+ src/lib/reflect/type.go  | 2 +-
+ src/lib/reflect/value.go | 8 ++++----
+ 2 files changed, 5 insertions(+), 5 deletions(-)

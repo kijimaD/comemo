@@ -1,0 +1,23 @@
+commit bba278a43b306e4f713f66a8588c16e6484039d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 8 18:16:09 2009 -0700
+
+    reflection for functions
+    
+    add channel send type check (thanks austin).
+    fix type mismatch message.
+    
+    R=r
+    DELTA=241  (225 added, 5 deleted, 11 changed)
+    OCL=31370
+    CL=31375
+
+ src/pkg/reflect/all_test.go | 19 +++++++++
+ src/pkg/reflect/type.go     |  5 +++
+ src/pkg/reflect/value.go    | 97 ++++++++++++++++++++++++++++++++++++++++-----
+ src/pkg/runtime/386/asm.s   | 42 ++++++++++++++++++++
+ src/pkg/runtime/amd64/asm.s | 37 +++++++++++++++++
+ src/pkg/runtime/arm/asm.s   | 35 ++++++++++++++++
+ src/pkg/runtime/proc.c      |  9 +++--
+ src/pkg/runtime/runtime.h   |  6 +++
+ 8 files changed, 235 insertions(+), 15 deletions(-)

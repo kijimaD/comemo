@@ -1,0 +1,12 @@
+commit e69f12ae1d2e2206c6104acee31c6639bb93705f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 23 14:23:14 2009 -0800
+
+    two more if(h<0) that gcc 4.3 -O2 miscompiles
+    
+    R=r
+    https://golang.org/cl/160044
+
+ src/cmd/cc/lexbody | 3 +--
+ src/libmach/obj.c  | 4 +---
+ 2 files changed, 2 insertions(+), 5 deletions(-)

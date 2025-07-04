@@ -1,0 +1,18 @@
+commit 07751f4b582d17289dc19511e2f45d48021f827d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 27 15:40:28 2017 -0800
+
+    runtime: use private futexes on Linux
+    
+    By default futexes are permitted in shared memory regions, which
+    requires the kernel to translate the memory address. Since our futexes
+    are never in shared memory, set FUTEX_PRIVATE_FLAG, which makes futex
+    operations slightly more efficient.
+    
+    Change-Id: I2a82365ed27d5cd8d53c5382ebaca1a720a80952
+    Reviewed-on: https://go-review.googlesource.com/80144
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/os_linux.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

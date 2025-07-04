@@ -1,0 +1,20 @@
+commit 6e59c73a9fe4eab3e09c6287f69c48837580dbb4
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sun Mar 25 17:19:47 2018 -0700
+
+    database/sql: check to see if ctx is cancelable before await
+    
+    Prevent queries from starting a goroutine if the context is
+    not able to be canceled.
+    
+    Fixes #23879
+    
+    Change-Id: I392047bd53d7f796219dd12ee11b07303658fdaf
+    Reviewed-on: https://go-review.googlesource.com/102478
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go | 3 +++
+ 1 file changed, 3 insertions(+)

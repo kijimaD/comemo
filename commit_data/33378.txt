@@ -1,0 +1,14 @@
+commit 1cb86e2858d9cc76ebcb3f5abb7fcab3cbdb6ded
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 9 15:25:51 2017 -0400
+
+    cmd/internal/objfile: allow disassemble amd64p32 binaries
+    
+    Change-Id: Ifa7701e97c0ec7d113e952b2b366edf422d6df2f
+    Reviewed-on: https://go-review.googlesource.com/69351
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/objfile/disasm.go | 30 ++++++++++++++++--------------
+ 1 file changed, 16 insertions(+), 14 deletions(-)

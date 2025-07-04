@@ -1,0 +1,24 @@
+commit 4b3906fec35b81e9bce7af5e1ce64c2a431c8301
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 5 14:58:54 2014 -0400
+
+    runtime: handle nil ptr load/store in arm software floating point
+    
+    We cannot let a real panic start there, because there is C code
+    on the stack, and worse, there is an assembly frame with a
+    saved copy of the registers and we have no idea which ones
+    are pointers.
+    
+    Instead, detect the nil ptr load/store and return out of the C
+    and assembly into a stub that will start the call to sigpanic.
+    
+    Fixes GOARM=5 build.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=dave, golang-codereviews, minux, r
+    https://golang.org/cl/138130043
+
+ src/pkg/runtime/softfloat_arm.c | 69 ++++++++++++++++++++++++++++++++---------
+ src/pkg/runtime/vlop_arm.s      | 12 +++++++
+ 2 files changed, 66 insertions(+), 15 deletions(-)

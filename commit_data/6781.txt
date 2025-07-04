@@ -1,0 +1,14 @@
+commit 8cb8ba14a5c2d196105ba2c47c788610ad8d1971
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Nov 20 15:58:28 2010 -0800
+
+    more on dynamic hash in compound literals.
+    thanks to vskrap, andrey mirtchovski,
+    and Eoghan Sherry.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3245041
+
+ src/cmd/gc/typecheck.c | 34 ++++++++++++++++++++++++----------
+ 1 file changed, 24 insertions(+), 10 deletions(-)

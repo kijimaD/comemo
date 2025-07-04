@@ -1,0 +1,20 @@
+commit 55d10acb72c2dc5524aae69ade560f3cf308a864
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jan 10 19:18:39 2022 +0000
+
+    Revert "cmd/compile: unique LinkString for renamed, embedded fields"
+    
+    This reverts CL 372914.
+    
+    Reason for revert: missing synchronization
+    
+    Change-Id: I7ebb6de082cebb73741d803ff00e3465bbafab81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377379
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/types/fmt.go | 37 ++---------------------------------
+ test/fixedbugs/issue50190.go          | 21 --------------------
+ 2 files changed, 2 insertions(+), 56 deletions(-)

@@ -1,0 +1,20 @@
+commit 33c34770398af5b4de54f5a0922763bd10dc2915
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 18 05:08:35 2017 +0900
+
+    net, internal/poll, net/internal/socktest: use accept4 and SOCK_{CLOEXEC,NONBLOCK} on dragonfly
+    
+    Fixes #14222
+    
+    Change-Id: I026fc9499fdefc33b8bb58b5963e2290adacbf63
+    Reviewed-on: https://go-review.googlesource.com/40895
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/poll/hook_cloexec.go        | 2 +-
+ src/internal/poll/sock_cloexec.go        | 2 +-
+ src/internal/poll/sys_cloexec.go         | 2 +-
+ src/net/internal/socktest/sys_cloexec.go | 2 +-
+ src/net/main_cloexec_test.go             | 2 +-
+ src/net/sock_cloexec.go                  | 2 +-
+ src/net/sys_cloexec.go                   | 2 +-
+ 7 files changed, 7 insertions(+), 7 deletions(-)

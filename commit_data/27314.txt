@@ -1,0 +1,29 @@
+commit c81a3532fea42df33dea54497dfaa96873c2d976
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Fri Apr 15 00:33:28 2016 +0300
+
+    cmd/vet: check sync.* types' copying
+    
+    Embed noLock struct into the following types, so `go vet -copylocks` catches
+    their copying additionally to types containing sync.Mutex:
+      - sync.Cond
+      - sync.WaitGroup
+      - sync.Pool
+      - atomic.Value
+    
+    Fixes #14582
+    
+    Change-Id: Icb543ef5ad10524ad239a15eec8a9b334b0e0660
+    Reviewed-on: https://go-review.googlesource.com/22015
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/testdata/copylock.go | 74 +++++++++++++++++++++++++++++++++++++++-
+ src/sync/atomic/value.go         | 14 ++++++++
+ src/sync/cond.go                 | 12 +++++++
+ src/sync/mutex.go                |  2 ++
+ src/sync/pool.go                 |  3 ++
+ src/sync/rwmutex.go              |  2 ++
+ src/sync/waitgroup.go            |  4 +++
+ 7 files changed, 110 insertions(+), 1 deletion(-)

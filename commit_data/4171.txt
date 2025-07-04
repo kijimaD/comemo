@@ -1,0 +1,11 @@
+commit c614ffe946ee78da53cad33eb05db2574e190152
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 20 00:30:38 2009 -0800
+
+    codereview: make hg sync work with Mercurial 1.4
+    
+    R=r
+    https://golang.org/cl/157102
+
+ lib/codereview/codereview.py | 31 +++++++++++++++++++++----------
+ 1 file changed, 21 insertions(+), 10 deletions(-)

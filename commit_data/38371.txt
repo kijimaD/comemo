@@ -1,0 +1,14 @@
+commit 718fdd7b48d2a20c5a84a7b516ed29c98d61e359
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 12 15:42:45 2019 -0400
+
+    cmd/go/internal/cfg: remove unused Gopath variable
+    
+    Change-Id: Ib268157674824fd7552d3c36a61eccf8c720eaeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167083
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/cfg/cfg.go | 1 -
+ 1 file changed, 1 deletion(-)

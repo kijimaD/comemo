@@ -1,0 +1,18 @@
+commit f71444955a4c0962abb334a8f39438466c57a4db
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 14 14:39:19 2020 -0700
+
+    test: add test case that caused gccgo undefined symbol reference
+    
+    For #40252
+    
+    Change-Id: Ie23d2789ca9b4b9081adb39ab64c80c412ad58ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248637
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue40252.dir/a.go    | 14 ++++++++++++++
+ test/fixedbugs/issue40252.dir/main.go | 16 ++++++++++++++++
+ test/fixedbugs/issue40252.go          |  8 ++++++++
+ 3 files changed, 38 insertions(+)

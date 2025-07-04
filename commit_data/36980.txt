@@ -1,0 +1,23 @@
+commit 63e964e1741277c4da004e366111243f9ec942a2
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Oct 6 14:31:08 2018 -0700
+
+    cmd/compile: provide types for all order-allocated temporaries
+    
+    Ensure that we correctly type the stack temps for regular closures,
+    method function closures, and slice literals.
+    
+    Then we don't need to override the dummy types later.
+    Furthermore, this allows order to reuse temporaries of these types.
+    
+    OARRAYLIT doesn't need a temporary as far as I can tell, so I
+    removed that case from order.
+    
+    Change-Id: Ic58520fa50c90639393ff78f33d3c831d5c4acb9
+    Reviewed-on: https://go-review.googlesource.com/c/140306
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/closure.go | 72 ++++++++++++++++++++--------------
+ src/cmd/compile/internal/gc/order.go   | 19 ++++-----
+ test/live.go                           | 17 ++++++--
+ 3 files changed, 66 insertions(+), 42 deletions(-)

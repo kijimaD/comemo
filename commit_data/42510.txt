@@ -1,0 +1,18 @@
+commit a5a9a06d7183a6faf70b3d1231273af247503c19
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 11 12:01:52 2020 -0700
+
+    cmd/cgo: in -godefs mode, don't change constant to type
+    
+    Fixes #39534
+    
+    Change-Id: Icbc1745935dd7098c09e2d35c61cd5bfbaa31c63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237558
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ misc/cgo/testgodefs/testdata/issue39534.go | 12 ++++++++++++
+ misc/cgo/testgodefs/testgodefs_test.go     |  1 +
+ src/cmd/cgo/gcc.go                         |  2 +-
+ 3 files changed, 14 insertions(+), 1 deletion(-)

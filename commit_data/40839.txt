@@ -1,0 +1,21 @@
+commit 8cf5293caa7071601fa90358abdd20a0b787e178
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 4 03:25:53 2019 +1100
+
+    cmd/internal/obj/riscv: split immediates larger than 12-bits
+    
+    Handle immediates larger than 12-bits by rewriting as an LUI instruction with
+    the high bits, followed by the original instruction with the low bits.
+    
+    Based on the riscv-go port.
+    
+    Updates #27532
+    
+    Change-Id: I8ed6d6e6db06fb8a27f3ab75f467ec2b7ff1f075
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204626
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/riscv/obj.go | 110 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 110 insertions(+)

@@ -1,0 +1,14 @@
+commit 56ade2d8d5ca27a91ab829499cc0b0576f3297aa
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 8 16:14:24 2012 -0500
+
+    cmd/go: let go tool invocation use stdin
+    
+    Fixes #2921.
+    
+    R=golang-dev, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/5647057
+
+ src/cmd/go/tool.go | 1 +
+ 1 file changed, 1 insertion(+)

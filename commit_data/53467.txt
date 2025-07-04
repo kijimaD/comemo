@@ -1,0 +1,17 @@
+commit 512361fb1fa805f10f183e0b96248e523e68c192
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 3 17:30:47 2023 -0400
+
+    cmd/go: document GOTOOLCHAIN
+    
+    For #57001.
+    
+    Change-Id: I74c4abd675bd5636a029332b45ef0e6fdc36106f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500795
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/alldocs.go               | 4 +++-
+ src/cmd/go/internal/help/helpdoc.go | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

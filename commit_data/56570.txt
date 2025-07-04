@@ -1,0 +1,20 @@
+commit d68d485405d8e604921e6d63ed32ae344fd3049e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 20 15:53:48 2024 -0700
+
+    go/types, types2: use GOEXPERIMENT to enable alias type parameters
+    
+    For #46477.
+    
+    Change-Id: Ia3558f9d2bf43fdd9e3618bd9f800d268e13b367
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586956
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/decl.go              | 5 +++++
+ src/go/types/decl.go                                 | 5 +++++
+ src/internal/types/testdata/spec/typeAliases1.23b.go | 2 +-
+ 3 files changed, 11 insertions(+), 1 deletion(-)

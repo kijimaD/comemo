@@ -1,0 +1,16 @@
+commit 07b73ce146f7958c6e9e9b8778690971ac160cd8
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 24 22:29:33 2015 -0500
+
+    runtime: simplify gcResetGState
+    
+    Since allglock is held in this function, there's no point to
+    tip-toeing around allgs.  Just use a for-range loop.
+    
+    Change-Id: I1ee61c7e8cac8b8ebc8107c0c22f739db5db9840
+    Reviewed-on: https://go-review.googlesource.com/5882
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

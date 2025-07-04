@@ -1,0 +1,16 @@
+commit ba66797392da2b6538ce014a4f7e13c490e74d59
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 18 19:59:41 2019 -0800
+
+    reflect: record PkgPath of StructOf arguments
+    
+    Fixes #36190
+    Fixes #36191
+    
+    Change-Id: I1213ef37b6595af63dbe202a8ade65741caf1356
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212001
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/all_test.go | 21 +++++++++++++++++++++
+ src/reflect/type.go     | 21 ++++++++++++++++++---
+ 2 files changed, 39 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit 2ef1c6e2fc0169f7d88251aaf275228f06b86f33
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 29 13:49:01 2010 -0700
+
+    A+C: Yuusei Kuwana (individual CLA)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1871054
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

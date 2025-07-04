@@ -1,0 +1,20 @@
+commit c2efb2fde59d489f34bd7dafcae467b9f5f5eedd
+Author: Bill O'Farrell <billo@ca.ibm.com>
+Date:   Tue Oct 31 19:18:48 2017 -0400
+
+    cmd/link: enable c-shared and c-archive mode on s390x
+    
+    Adding s390x to the list of architectures that support c-shared and c-archive.
+    Required adding load-time initialization (via _rt0_s390x_linux_lib) and adding s390x
+    to the c-shared and c-archive tests.
+    
+    Change-Id: I75883b2891c310fe8ce7f08c27b06895c074e123
+    Reviewed-on: https://go-review.googlesource.com/74910
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/cmd/dist/test.go               |  4 +-
+ src/cmd/go/internal/work/init.go   |  2 +-
+ src/cmd/link/internal/ld/config.go |  2 +-
+ src/runtime/asm_s390x.s            | 77 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/rt0_linux_s390x.s      | 21 ++++++-----
+ 5 files changed, 93 insertions(+), 13 deletions(-)

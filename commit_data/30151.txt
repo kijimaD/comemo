@@ -1,0 +1,35 @@
+commit c026845bd2984002168e7496cb9d0150f79164d0
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Tue Feb 7 10:19:02 2017 -0800
+
+    database/sql: record the context error in Rows if canceled
+    
+    Previously it was intended that Rows.Scan would return
+    an error and Rows.Err would return nil. This was problematic
+    because drivers could not differentiate between a normal
+    Rows.Close or a context cancel close.
+    
+    The alternative is to require drivers to return a Scan to return
+    an error if the driver is closed while there are still rows to be read.
+    This is currently not how several drivers currently work and may be
+    difficult to detect when there are additional rows.
+    
+    At the same time guard the the Rows.lasterr and prevent a close
+    while a Rows operation is active.
+    
+    For the drivers that do not have Context methods, do not check for
+    context cancelation after the operation, but before for any operation
+    that may modify the database state.
+    
+    Fixes #18961
+    
+    Change-Id: I49a25318ecd9f97a35d5b50540ecd850c01cfa5e
+    Reviewed-on: https://go-review.googlesource.com/36485
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/ctxutil.go  |  54 +++++++++--------------
+ src/database/sql/sql.go      | 102 +++++++++++++++++++++++++++++++------------
+ src/database/sql/sql_test.go |  10 +++--
+ 3 files changed, 100 insertions(+), 66 deletions(-)

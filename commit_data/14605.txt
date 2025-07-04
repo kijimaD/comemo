@@ -1,0 +1,12 @@
+commit fc3936380b4790cb19a17d40d5372bb65c1f70f0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 11 12:03:18 2012 -0500
+
+    syscall: let mkall.sh work on multiarch systems (like Precise)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6912063
+
+ src/pkg/syscall/mkall.sh | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

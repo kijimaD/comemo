@@ -1,0 +1,15 @@
+commit 2f9c9e552d7cdcbf6aecbd4aee900cce39bcd2d9
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Feb 20 11:05:36 2015 -0500
+
+    cmd/go: link cgo into tests on darwin/arm
+    
+    We currently have only one supported darwin/arm device, a locked iOS
+    machine. It requires cgo binaries.
+    
+    Change-Id: If36a152e6a743e4a58ea3470e62cccb742630a5d
+    Reviewed-on: https://go-review.googlesource.com/5443
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

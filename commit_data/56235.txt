@@ -1,0 +1,36 @@
+commit e01b1eb289e22590028fad5a46abc9f152b851d4
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 8 17:16:37 2024 +0000
+
+    cmd/compile/internal: stack slot merging region formation enhancements
+    
+    This patch revises the algorithm/strategy used for overlapping the
+    stack slots of disjointly accessed local variables. The main change
+    here is to allow merging the stack slot of B into the slot for A if
+    B's size is less then A (prior to this they had to be identical), and
+    to also allow merging a non-pointer variables into pointer-variable
+    slots.
+    
+    The new algorithm sorts the candidate list first by pointerness
+    (pointer variables first), then by alignment, then by size, and
+    finally by name. We no longer check that two variables have the same
+    GC shape before merging: since it should never be the case that we
+    have two vars X and Y both live across a given callsite where X and Y
+    share a stack slot, their gc shape doesn't matter.
+    
+    Doing things this new way increases the total number of bytes saved
+    (across all functions) from 91256 to 124336 for the sweet benchmarks.
+    
+    Updates #62737.
+    Updates #65532.
+    Updates #65495.
+    
+    Change-Id: I1daaac1b1240aa47a6975e98ccd24e03304ab602
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577615
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/liveness/mergelocals.go  | 204 ++++++++++++----------
+ src/cmd/compile/internal/ssagen/pgen.go           |  85 +++++----
+ src/cmd/compile/internal/test/mergelocals_test.go |  25 ++-
+ 3 files changed, 173 insertions(+), 141 deletions(-)

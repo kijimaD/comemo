@@ -1,0 +1,13 @@
+commit d14c81337741b6f34992f8d179a874156b4d618f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 14 13:13:01 2009 +1100
+
+    When the buffer is empty, reset b.off to the beginning of the buffer
+    to avoid growing unnecessarily.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/176071
+
+ src/pkg/bytes/buffer.go | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)

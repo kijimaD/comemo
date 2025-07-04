@@ -1,0 +1,19 @@
+commit 330ab5fddbc11fc3dc14958309269e513666a4c9
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 11 17:37:22 2009 -0700
+
+    fix bugs in gob.
+    1) didn't handle attempts to encode non-structs properly.
+    2) if there were multiple indirections involving allocation, didn't allocate the
+    intermediate cells.
+    tests added.
+    
+    R=rsc
+    DELTA=82  (65 added, 5 deleted, 12 changed)
+    OCL=35582
+    CL=35582
+
+ src/pkg/gob/decode.go       | 26 ++++++++++-----------
+ src/pkg/gob/encoder.go      | 12 ++++++----
+ src/pkg/gob/encoder_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 77 insertions(+), 17 deletions(-)

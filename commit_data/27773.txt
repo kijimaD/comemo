@@ -1,0 +1,17 @@
+commit 820e30f5b0289d5df22ab604f2d831470f748dca
+Author: Sam Whited <sam@samwhited.com>
+Date:   Tue Jul 5 20:06:00 2016 -0500
+
+    encoding/xml: update docs to follow convention
+    
+    Fixes #8833
+    
+    Change-Id: I4523a1de112ed02371504e27882659bce8028a45
+    Reviewed-on: https://go-review.googlesource.com/24745
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/xml/marshal.go |  2 +-
+ src/encoding/xml/read.go    | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

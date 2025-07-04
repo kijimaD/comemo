@@ -1,0 +1,12 @@
+commit acb02ebc30bef25318505108d801d073508c0c6e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 28 12:32:43 2011 -0400
+
+    gc: another width test
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4808057
+
+ test/fixedbugs/bug361.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

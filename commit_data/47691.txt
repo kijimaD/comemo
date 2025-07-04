@@ -1,0 +1,13 @@
+commit b3e1fbff4d45034a9345cf5ee95099c2742c78c6
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 3 13:40:10 2021 -0500
+
+    cmd/compile/abi-internal: mention SSE restriction on Plan 9
+    
+    Change-Id: I2be08b88b5147cf37ac55b7472d63503739c9f05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369156
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/abi-internal.md | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

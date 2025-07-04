@@ -1,0 +1,18 @@
+commit 4c20c0a826dafe8bcbb167e82bc07370da065cb1
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Apr 13 22:26:09 2023 +0700
+
+    cmd/compile/internal/ir: remove HasBreak field of some nodes
+    
+    CL 484435 removed all usages of them.
+    
+    Change-Id: I00f21640c7573921472ff3f88cfa92837dc3f9ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484436
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ir/stmt.go | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)

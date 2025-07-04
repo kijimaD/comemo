@@ -1,0 +1,19 @@
+commit 1bfb51f8f79acc13ff1c79576bf0a340d4d6706e
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Nov 3 03:46:23 2022 +0000
+
+    all: fix a few function names on comments
+    
+    Change-Id: Ida7e756f01a2c115ac58bf10aa13b2f8fd57b6a1
+    GitHub-Last-Rev: 4694d397bd3ad488fd05ed2cc6ad97909f09e707
+    GitHub-Pull-Request: golang/go#56537
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447436
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/go/printer/printer.go | 2 +-
+ src/image/format.go       | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

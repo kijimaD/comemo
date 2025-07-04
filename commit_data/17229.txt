@@ -1,0 +1,16 @@
+commit 308a3e6c522928a5787a54b122bfba18856a3347
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 14 12:57:05 2013 -0400
+
+    cmd/dist: fix darwin build
+    
+    The TLS block on Darwin is not the same as on ELF.
+    
+    TBR=elias.naur
+    CC=golang-dev
+    https://golang.org/cl/12741044
+
+ src/cmd/dist/buildruntime.c | 13 ++++++-------
+ src/cmd/ld/data.c           |  2 +-
+ src/cmd/ld/lib.c            |  7 ++++---
+ 3 files changed, 11 insertions(+), 11 deletions(-)

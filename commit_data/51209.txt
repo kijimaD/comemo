@@ -1,0 +1,26 @@
+commit 531ba0c8aae9efe25e33bf0bfa40f4941d8c5ab8
+Author: Marcus Weiner <marcus.weiner@gmail.com>
+Date:   Wed Nov 9 10:37:28 2022 +0000
+
+    net/http: build error chains in transport that can be unwrapped
+    
+    In some places of the HTTP transport errors were constructed that
+    wrapped other errors without providing the ability to call
+    `errors.Unwrap` on them to get the underlying error.
+    These places have been fixed to use `%w` when using `fmt.Errorf`
+    or to implement `Unwrap() error`.
+    
+    Fixes #56435
+    
+    Change-Id: Ieed3359281574485c8d0b18298e25e5f1e14555c
+    GitHub-Last-Rev: 504efbc507a50bd2cf63001511733e232927089f
+    GitHub-Pull-Request: golang/go#56451
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445775
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/net/http/transport.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

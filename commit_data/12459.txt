@@ -1,0 +1,13 @@
+commit 6a426169f531971dd69b2ad17c848dbb8fae125a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 7 14:25:24 2012 +0800
+
+    cmd/go: always provide .exe suffix on windows
+            Fixes #3190.
+    
+    R=rsc, tjyang2001, rsc
+    CC=golang-dev
+    https://golang.org/cl/5759056
+
+ src/cmd/go/build.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

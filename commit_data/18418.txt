@@ -1,0 +1,20 @@
+commit d3b9567a15cd0f20a927c87b8172902717020304
+Author: Jakub Ryszard Czarnowicz <j.czarnowicz@gmail.com>
+Date:   Fri Feb 7 10:49:10 2014 +1100
+
+    net/mail: correctly handle whitespaces when formatting an email address
+    
+    Whitespace characters are allowed in quoted-string according to RFC 5322 without
+    being "Q"-encoding. Address.String() already always formats the name portion in
+    quoted string, so whitespace characters should be allowed in there.
+    
+    Fixes #6641.
+    
+    LGTM=dave, dsymonds
+    R=golang-codereviews, gobot, dsymonds, dave
+    CC=golang-codereviews
+    https://golang.org/cl/55770043
+
+ src/pkg/net/mail/message.go      | 12 ++++++++++--
+ src/pkg/net/mail/message_test.go |  8 ++++++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)

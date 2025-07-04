@@ -1,0 +1,19 @@
+commit dbff0adaa784ef0f8221e2f999691221c21d29f9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 11 10:27:25 2011 -0800
+
+    gotype: commandline tool to typecheck go programs
+    
+    First version. Handles scope analysis only at the
+    moment.
+    
+    R=rsc, r, eds
+    CC=golang-dev
+    https://golang.org/cl/4259065
+
+ src/cmd/Makefile         |   1 +
+ src/cmd/gotype/Makefile  |  11 +++
+ src/cmd/gotype/doc.go    |  57 ++++++++++++++
+ src/cmd/gotype/gotype.go | 191 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/Makefile         |   2 +
+ 5 files changed, 262 insertions(+)

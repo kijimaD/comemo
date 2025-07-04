@@ -1,0 +1,31 @@
+commit a042221cdb9eb8b11240311057ff274e26b53165
+Author: David Chase <drchase@google.com>
+Date:   Sun Oct 29 11:53:18 2017 -0400
+
+    cmd/compile: adjust Pos setting for "empty" blocks
+    
+    Plain blocks that contain only uninteresting instructions
+    (that do not have reliable Pos information themselves)
+    need to have their Pos left unset so that they can
+    inherit it from their successors.  The "uninteresting"
+    test was not properly applied and not properly defined.
+    OpFwdRef does not appear in the ssa.html debugging output,
+    but at the time of the test these instructions did appear,
+    and it needs to be part of the test.
+    
+    Fixes #22365.
+    
+    Change-Id: I99e5b271acd8f6bcfe0f72395f905c7744ea9a02
+    Reviewed-on: https://go-review.googlesource.com/74252
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go                 | 37 ++++++++++++++--------
+ src/cmd/compile/internal/ssa/block.go              | 23 ++++++++++++++
+ .../internal/ssa/testdata/hist.dbg-dlv.nexts       |  3 +-
+ .../internal/ssa/testdata/hist.dbg-gdb.nexts       |  3 +-
+ .../internal/ssa/testdata/hist.opt-gdb.nexts       |  1 -
+ src/cmd/compile/internal/ssa/value.go              | 11 +++++++
+ test/fixedbugs/issue18902.go                       |  2 +-
+ 7 files changed, 61 insertions(+), 19 deletions(-)

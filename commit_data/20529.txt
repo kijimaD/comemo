@@ -1,0 +1,27 @@
+commit 6077f0fc32a401f9a7b9540b6d1b00e855018c9a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 24 19:18:01 2014 -0400
+
+    cmd/go: fix bytes and net the right way
+    
+    Not sure why they used empty.s and all these other
+    packages were special cased in cmd/go instead.
+    Add them to the list.
+    
+    This avoids problems with net .s files being compiled
+    with gcc in cgo mode and gcc not supporting // comments
+    on ARM.
+    
+    Not a problem with bytes, but be consistent.
+    
+    The last change fixed the ARM build but broke the Windows build.
+    Maybe *this* will make everyone happy. Sigh.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/144530046
+
+ src/bytes/bytes.s   |  5 -----
+ src/cmd/go/build.go |  2 +-
+ src/net/empty.s     | 10 ----------
+ 3 files changed, 1 insertion(+), 16 deletions(-)

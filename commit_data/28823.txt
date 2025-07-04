@@ -1,0 +1,25 @@
+commit 86b2f29676c52774d91dda96e0ba5d4d7bcd3b47
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Oct 6 11:06:21 2016 -0700
+
+    database/sql: add support for multiple result sets
+    
+    Many database systems allow returning multiple result sets
+    in a single query. This can be useful when dealing with many
+    intermediate results on the server and there is a need
+    to return more then one arity of data to the client.
+    
+    Fixes #12382
+    
+    Change-Id: I480a9ac6dadfc8743e0ba8b6d868ccf8442a9ca1
+    Reviewed-on: https://go-review.googlesource.com/30592
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/driver/driver.go |  16 +++
+ src/database/sql/example_test.go  |  62 +++++++++++
+ src/database/sql/fakedb_test.go   | 223 +++++++++++++++++++++++---------------
+ src/database/sql/sql.go           |  44 +++++++-
+ src/database/sql/sql_test.go      |  76 +++++++++++++
+ 5 files changed, 334 insertions(+), 87 deletions(-)

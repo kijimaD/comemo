@@ -1,0 +1,17 @@
+commit deb988a2866ce541058d8af3844912d1a638980b
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Dec 3 12:23:44 2021 -0500
+
+    doc/go1.18: mention fuzzing in the release notes
+    
+    Also make a few small formatting fixes.
+    
+    Change-Id: Iad99d030312393af3b6533f2cd00f09aea0f2a7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369074
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go1.18.html | 27 ++++++++++++++++++++++++---
+ 1 file changed, 24 insertions(+), 3 deletions(-)

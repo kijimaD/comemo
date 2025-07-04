@@ -1,0 +1,24 @@
+commit cf598504669524a9f7002f6b6c1cb4e567ea4e9e
+Author: David Carlier <devnexen@gmail.com>
+Date:   Tue Mar 9 19:13:37 2021 +0000
+
+    crypto/rand: supports for getrandom syscall in DragonFlyBSD
+    
+    Since the 5.7 release, DragonFlyBSD supports as well
+    the getrandom function, the actual stable is 5.8.
+    
+    Change-Id: I2b8fc468771b10ac12b38ea7e8e5314342de6375
+    GitHub-Last-Rev: c5c496f41898d58f2c6f3ccc81f754792f49edbe
+    GitHub-Pull-Request: golang/go#42617
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269999
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/crypto/rand/rand_batched.go                  |  4 +-
+ src/crypto/rand/rand_batched_test.go             |  4 +-
+ src/crypto/rand/rand_dragonfly.go                |  9 +++++
+ src/internal/syscall/unix/getrandom_dragonfly.go | 51 ++++++++++++++++++++++++
+ 4 files changed, 64 insertions(+), 4 deletions(-)

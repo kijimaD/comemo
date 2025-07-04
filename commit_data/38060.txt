@@ -1,0 +1,19 @@
+commit 1e58bb14910f117554e5e749648e8b0d0771726b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Nov 10 07:00:32 2018 -0800
+
+    cmd/compile: inline checknil
+    
+    Now that checknil has only a single caller, inline it.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I5b13596bef84dd9a3e7f4bff8560903f1e54acfb
+    Reviewed-on: https://go-review.googlesource.com/c/148829
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go |  8 +++++++-
+ src/cmd/compile/internal/gc/subr.go    | 12 ------------
+ 2 files changed, 7 insertions(+), 13 deletions(-)

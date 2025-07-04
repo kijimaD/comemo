@@ -1,0 +1,14 @@
+commit 695a0fb4ef35beaacc0dbfdd41d6008fc0c07ff4
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Jan 14 14:41:04 2015 -0500
+
+    syscall: use name+(NN)FP on linux/amd64
+    
+    Generated from a modified go vet.
+    
+    Change-Id: Ibe82941283da9bd4dbc7fa624a33ffb12424daa2
+    Reviewed-on: https://go-review.googlesource.com/2817
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/asm_linux_amd64.s | 105 +++++++++++++++++++++---------------------
+ 1 file changed, 53 insertions(+), 52 deletions(-)

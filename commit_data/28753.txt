@@ -1,0 +1,14 @@
+commit e1fc292500aa70c265937aebad00ac010031cbaf
+Author: James Clarke <jrtc27@jrtc27.com>
+Date:   Tue Oct 11 19:08:45 2016 +0100
+
+    debug/elf: add sparc64 relocations
+    
+    Change-Id: I1a2504ad9ca8607588d2d366598115fe360435b5
+    Reviewed-on: https://go-review.googlesource.com/30870
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/elf/file.go                              |  47 +++++++++++++++++++++
+ src/debug/elf/file_test.go                         |  19 +++++++++
+ .../testdata/go-relocation-test-gcc620-sparc64.obj | Bin 0 -> 5952 bytes
+ 3 files changed, 66 insertions(+)

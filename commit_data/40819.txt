@@ -1,0 +1,20 @@
+commit 2bde3c13f6e31662c682f1b5830c5e3fd9f5494c
+Author: Tom Thorogood <me+google@tomthorogood.co.uk>
+Date:   Sun Nov 17 12:33:22 2019 +0000
+
+    runtime: remove stray errno check from TestSignalM
+    
+    CL 206078 introduced a stray errno check that was always false. This CL removes it.
+    
+    Updates #35276
+    
+    Change-Id: I6996bb595d347fe81752786a3d83d3432735c9cb
+    GitHub-Last-Rev: e026e71b16c8532ad707a0b43b4f02c7a366257e
+    GitHub-Pull-Request: golang/go#35650
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207577
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_unix_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

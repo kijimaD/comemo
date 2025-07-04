@@ -1,0 +1,23 @@
+commit c3cef0bfe5f503ee016fc61e58f5ee1b78dbd962
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 5 07:24:18 2019 -0800
+
+    runtime: keep adjusted timers in timerMoving status until moved
+    
+    Before this CL adjustTimers left timers being moved in an inconsistent
+    state: status timerWaiting but not on a P. Simplify the code by
+    leaving the timers in timerMoving status until they are actually moved.
+    Other functions (deltimer, modtimer) will wait until the move is complete
+    before changing anything on the timer. This does leave timers in timerMoving
+    state for longer, but still not all that long.
+    
+    Fixes #35367
+    
+    Change-Id: I31851002fb4053bd6914139125b4c82a68bf6fb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205418
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/net/timeout_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/time.go     | 49 +++++--------------------------------------------
+ 2 files changed, 45 insertions(+), 44 deletions(-)

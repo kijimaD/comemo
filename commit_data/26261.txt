@@ -1,0 +1,25 @@
+commit 98b88de56f50ac67eeafcb326ed6a0b198182f59
+Author: Todd Neal <todd@tneal.org>
+Date:   Sun Mar 13 23:04:31 2016 -0500
+
+    cmd/compile: change the type of ssa Warnl line number
+    
+    Line numbers are always int32, so the Warnl function should take the
+    line number as an int32 as well.  This matches gc.Warnl and removes
+    a cast every place it's used.
+    
+    Change-Id: I5d6201e640d52ec390eb7174f8fd8c438d4efe58
+    Reviewed-on: https://go-review.googlesource.com/20662
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go           |  8 ++++----
+ src/cmd/compile/internal/ssa/config.go       |  6 +++---
+ src/cmd/compile/internal/ssa/export_test.go  |  4 ++--
+ src/cmd/compile/internal/ssa/func.go         |  2 +-
+ src/cmd/compile/internal/ssa/likelyadjust.go |  6 +++---
+ src/cmd/compile/internal/ssa/nilcheck.go     |  4 ++--
+ src/cmd/compile/internal/ssa/phiopt.go       |  4 ++--
+ src/cmd/compile/internal/ssa/prove.go        | 10 +++++-----
+ 8 files changed, 22 insertions(+), 22 deletions(-)

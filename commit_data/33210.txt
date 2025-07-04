@@ -1,0 +1,18 @@
+commit 8c58900aeb9241e856515c23519455bf39c808df
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 23 19:13:32 2017 -0400
+
+    cmd/compile: fix problem with non-decomposed vars
+    
+    Fix a bug introduced in patch 2 of
+    https://go-review.googlesource.com/72630 (sense of a map
+    lookup test was accidentally flipped).
+    
+    Change-Id: Icc6096ee50be4605fa7542b9fd855c13b8aff090
+    Reviewed-on: https://go-review.googlesource.com/72850
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/gc/pgen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

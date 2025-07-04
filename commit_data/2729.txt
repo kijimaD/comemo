@@ -1,0 +1,13 @@
+commit b75df2f6951d0726229141913aaeea833b0b275d
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 16 15:01:21 2009 -0700
+
+    fix some bad testing prints
+    
+    R=rsc
+    DELTA=5  (0 added, 0 deleted, 5 changed)
+    OCL=31740
+    CL=31742
+
+ src/pkg/reflect/all_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

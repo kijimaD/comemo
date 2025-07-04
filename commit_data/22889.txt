@@ -1,0 +1,14 @@
+commit 649c7b6daca6e29a719c9d29c65148a4628e729f
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon Mar 30 23:07:18 2015 +0200
+
+    net: add cgo support for Solaris
+    
+    Change-Id: Ib66bebd418d97f38956970f93e69aa41e7c55523
+    Reviewed-on: https://go-review.googlesource.com/8262
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/net/cgo_solaris.go | 15 +++++++++++++++
+ src/net/cgo_unix.go    |  2 +-
+ 2 files changed, 16 insertions(+), 1 deletion(-)

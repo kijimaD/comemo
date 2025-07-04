@@ -1,0 +1,16 @@
+commit 38512d090c2e637945f0da875b8aa4e79ef01db4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 3 13:40:11 2009 -0800
+
+    - don't loose extra line breaks in struct/interface declarations
+    - start new sections if a field/method declaration spans multiple lines;
+      this avoids tabs from the previous line affecting the next field/method
+    
+    R=rsc
+    http://go/go-review/1017015
+
+ src/pkg/go/ast/ast.go                           |  8 ++++
+ src/pkg/go/printer/nodes.go                     | 28 ++++++++------
+ src/pkg/go/printer/testdata/declarations.go     | 47 ++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/declarations.golden | 49 +++++++++++++++++++++++++
+ 4 files changed, 121 insertions(+), 11 deletions(-)

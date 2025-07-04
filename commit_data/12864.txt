@@ -1,0 +1,12 @@
+commit edf8b03fef1ab4bf8de7d1f01f3110996a6c9f9c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 10 22:12:09 2012 +0800
+
+    cmd/api: allow addition of API
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/5991081
+
+ src/cmd/api/goapi.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

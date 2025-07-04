@@ -1,0 +1,16 @@
+commit 10be797578925708afb140ceb771c8e2d6346332
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Dec 23 11:09:15 2014 +0100
+
+    runtime: fix exit on Plan 9
+    
+    Add a nil byte at the end of the itoa buffer,
+    before calling gostringnocopy. This prevents
+    gostringnocopy to read past the buffer size.
+    
+    Change-Id: I87494a8dd6ea45263882536bf6c0f294eda6866d
+    Reviewed-on: https://go-review.googlesource.com/2033
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+
+ src/runtime/os1_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

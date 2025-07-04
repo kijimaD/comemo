@@ -1,0 +1,10 @@
+commit 90da10d7ac0774f4544ac3476d9d234a21afbbb5
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jul 16 11:46:33 2008 -0700
+
+    chan bool offset bug
+    
+    SVN=127537
+
+ src/runtime/chan.c | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

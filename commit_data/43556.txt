@@ -1,0 +1,17 @@
+commit 79a3482d9e735fc6d0373da170fd1b4ff9222bc2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Oct 24 17:27:52 2020 +0200
+
+    cmd/compile: remove support for untyped ssa rules
+    
+    This change removes support in rulegen for untyped -> ssa rules.
+    
+    Change-Id: I202018e191fc74f027243351bc8cf96145f2482c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264679
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 87 ++++++++---------------------
+ 1 file changed, 22 insertions(+), 65 deletions(-)

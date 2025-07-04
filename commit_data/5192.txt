@@ -1,0 +1,12 @@
+commit 884f3256f0054e287d38976a5f3ee6a32b738744
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 30 18:33:06 2010 -0700
+
+    Unicode: fix stupid typo in comment.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/864041
+
+ src/pkg/unicode/letter.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

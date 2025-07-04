@@ -1,0 +1,22 @@
+commit 21e6612d6fc29742024132f7f081e558c6807737
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 1 16:12:40 2017 -0400
+
+    go/build: fix ImportDir to report PkgTarget for directories in GOROOT/GOPATH
+    
+    This makes ImportDir("$GOROOT/src/math", 0)
+    and Import("math", "", 0) equivalent. It was an
+    oversight that they were not before.
+    
+    An upcoming change to the go command relies on
+    the two returning the same results.
+    
+    Change-Id: I187da4830fae85f8dde673c22836ff2da6801047
+    Reviewed-on: https://go-review.googlesource.com/75290
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/go/build/build.go      |  2 ++
+ src/go/build/build_test.go | 13 +++++++++++++
+ 2 files changed, 15 insertions(+)

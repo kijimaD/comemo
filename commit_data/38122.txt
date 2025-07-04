@@ -1,0 +1,19 @@
+commit 694cd005c3943027a4533a0a534837108ccd66f6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Dec 2 10:15:35 2018 -0800
+
+    runtime: speed up ifaceeq for direct ifaces
+    
+    name                    old time/op  new time/op  delta
+    EfaceCmpDiff-8           421ns ± 3%   299ns ± 3%  -28.93%  (p=0.000 n=92+94)
+    EfaceCmpDiffIndirect-8   497ns ± 4%   496ns ± 3%     ~     (p=0.840 n=98+92)
+    
+    Change-Id: Id1a8c779413ba35ab0f58d055870b6a0714b51b7
+    Reviewed-on: https://go-review.googlesource.com/c/152163
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/alg.go          |  8 ++++++--
+ src/runtime/runtime_test.go | 12 ++++++++++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)

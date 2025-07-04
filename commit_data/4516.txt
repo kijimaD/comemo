@@ -1,0 +1,14 @@
+commit 5a443381598d9222dd171eb5e1d5593ce0ccd1e6
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 31 12:47:20 2009 +1100
+
+    trivial bug: []byte is special but [3]byte is not.
+    modify a test to verify the fix.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/183090
+
+ src/pkg/gob/encoder.go      | 9 +++++----
+ src/pkg/gob/encoder_test.go | 3 ++-
+ 2 files changed, 7 insertions(+), 5 deletions(-)

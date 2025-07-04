@@ -1,0 +1,152 @@
+commit 339e9c64006d3e1c6b29e9df9332c55124e1e7d3
+Author: Xiangdong Ji <xiangdong.ji@arm.com>
+Date:   Fri Dec 13 10:30:29 2019 +0000
+
+    crypto/sha512: optimize sha512 by removing function literal
+    
+    The function 'block' called indirectly via function literal 'blockGeneric' prevents
+    'gc' performing an accurate escape analysis to its arguments, that will result in
+    unnecessary heap object allocation and GC cost.
+    
+    Consistent performance improvement to sha512 and its dependency packages are
+    observed on various arm64 servers if eliminating the function literal, especially for
+    small-sized benchmarks.
+    
+    A72:
+    ========================================================================================================
+    name                                               old time/op    new time/op     delta
+    pkg:crypto/sha512 goos:linux goarch:arm64
+    Hash8Bytes-64                                        1.61µs ± 0%     1.37µs ± 0%   -14.99%  (p=0.000 n=8+9)
+    Hash1K-64                                            11.2µs ± 0%     10.9µs ± 0%    -2.41%  (p=0.000 n=8+10)
+    Hash8K-64                                            77.8µs ± 0%     77.5µs ± 0%    -0.44%  (p=0.002 n=10+10)
+    pkg:crypto/ecdsa goos:linux goarch:arm64
+    pkg:crypto/hmac goos:linux goarch:arm64
+    pkg:crypto/tls goos:linux goarch:arm64
+    HandshakeServer/RSA-64                                920µs ± 0%      919µs ± 0%    -0.10%  (p=0.035 n=10+9)
+    HandshakeServer/ECDHE-P256-RSA/TLSv13-64             1.32ms ± 1%     1.31ms ± 0%    -0.24%  (p=0.002 n=9+8)
+    HandshakeServer/ECDHE-P256-RSA/TLSv12-64             1.25ms ± 0%     1.25ms ± 0%    -0.07%  (p=0.040 n=9+9)
+    HandshakeServer/ECDHE-P256-ECDSA-P256/TLSv12-64       486µs ± 0%      485µs ± 0%    -0.19%  (p=0.000 n=9+10)
+    HandshakeServer/ECDHE-X25519-ECDSA-P256/TLSv13-64    1.01ms ± 0%     1.01ms ± 0%    -0.36%  (p=0.000 n=9+10)
+    HandshakeServer/ECDHE-X25519-ECDSA-P256/TLSv12-64     948µs ± 0%      947µs ± 0%    -0.11%  (p=0.001 n=10+10)
+    HandshakeServer/ECDHE-P521-ECDSA-P521/TLSv12-64      42.1ms ± 3%     42.5ms ± 2%    +0.77%  (p=0.010 n=8+8)
+    Throughput/MaxPacket/8MB/TLSv13-64                   46.9ms ± 9%     42.8ms ± 2%    -8.71%  (p=0.000 n=10+9)
+    Throughput/MaxPacket/64MB/TLSv13-64                   385ms ±17%      332ms ±18%   -13.64%  (p=0.002 n=10+10)
+    Throughput/DynamicPacket/2MB/TLSv12-64              39.1ms ±110%     17.2ms ±24%   -55.97%  (p=0.002 n=10+9)
+    Throughput/DynamicPacket/4MB/TLSv12-64               32.2ms ±22%     27.2ms ±40%   -15.69%  (p=0.029 n=10+10)
+    Throughput/DynamicPacket/4MB/TLSv13-64               27.4ms ±18%     24.9ms ±31%    -9.12%  (p=0.031 n=9+9)
+    Throughput/DynamicPacket/8MB/TLSv12-64               61.8ms ±32%     43.9ms ±18%   -28.93%  (p=0.000 n=10+9)
+    Throughput/DynamicPacket/8MB/TLSv13-64               49.4ms ±14%     45.7ms ±19%    -7.44%  (p=0.035 n=10+10)
+    Throughput/DynamicPacket/32MB/TLSv13-64               181ms ±13%      163ms ± 7%   -10.17%  (p=0.001 n=9+10)
+    Latency/MaxPacket/5000kbps/TLSv13-64                 37.2ms ±52%     30.8ms ± 0%   -17.21%  (p=0.017 n=10+9)
+    Latency/DynamicPacket/2000kbps/TLSv13-64             16.7ms ± 1%     16.6ms ± 0%    -0.39%  (p=0.002 n=8+10)
+    pkg:crypto/ed25519 goos:linux goarch:arm64
+    KeyGeneration-64                                      139µs ± 0%      139µs ± 0%    -0.45%  (p=0.000 n=9+10)
+    NewKeyFromSeed-64                                     139µs ± 0%      139µs ± 0%    -0.34%  (p=0.000 n=10+10)
+    Signing-64                                            144µs ± 0%      143µs ± 0%    -0.73%  (p=0.000 n=10+10)
+    Verification-64                                       410µs ± 0%      410µs ± 0%    -0.09%  (p=0.000 n=9+9)
+    
+    [Geo mean]                                           9.81ms          9.59ms         -2.30%
+    
+    name                                               old speed      new speed       delta
+    pkg:crypto/sha512 goos:linux goarch:arm64
+    Hash8Bytes-64                                      4.96MB/s ± 0%   5.84MB/s ± 0%   +17.60%  (p=0.000 n=7+9)
+    Hash1K-64                                          91.5MB/s ± 0%   93.7MB/s ± 0%    +2.47%  (p=0.000 n=8+10)
+    Hash8K-64                                           105MB/s ± 0%    106MB/s ± 0%    +0.45%  (p=0.001 n=10+10)
+    pkg:crypto/hmac goos:linux goarch:arm64
+    pkg:crypto/tls goos:linux goarch:arm64
+    Throughput/MaxPacket/8MB/TLSv13-64                  179MB/s ± 9%    196MB/s ± 2%    +9.31%  (p=0.000 n=10+9)
+    Throughput/MaxPacket/64MB/TLSv13-64                 176MB/s ±20%    203MB/s ±16%   +15.35%  (p=0.002 n=10+10)
+    Throughput/DynamicPacket/2MB/TLSv12-64             70.2MB/s ±82%  118.9MB/s ±45%   +69.30%  (p=0.005 n=10+10)
+    Throughput/DynamicPacket/4MB/TLSv12-64              132MB/s ±19%    159MB/s ±31%   +20.31%  (p=0.029 n=10+10)
+    Throughput/DynamicPacket/4MB/TLSv13-64              155MB/s ±16%    171MB/s ±24%   +10.26%  (p=0.031 n=9+9)
+    Throughput/DynamicPacket/8MB/TLSv12-64              141MB/s ±37%    192MB/s ±15%   +36.28%  (p=0.000 n=10+9)
+    Throughput/DynamicPacket/8MB/TLSv13-64              170MB/s ±12%    185MB/s ±17%    +8.46%  (p=0.035 n=10+10)
+    Throughput/DynamicPacket/32MB/TLSv13-64             186MB/s ±12%    206MB/s ± 6%   +10.96%  (p=0.001 n=9+10)
+    
+    [Geo mean]                                          133MB/s         141MB/s         +6.04%
+    
+    name                                               old alloc/op   new alloc/op    delta
+    pkg:crypto/ecdsa goos:linux goarch:arm64
+    SignP256-64                                          3.03kB ± 0%     2.67kB ± 1%   -11.71%  (p=0.000 n=10+9)
+    pkg:crypto/ed25519 goos:linux goarch:arm64
+    NewKeyFromSeed-64                                      352B ± 0%         0B       -100.00%  (p=0.000 n=10+10)
+    Signing-64                                           1.50kB ± 0%     0.45kB ± 0%   -70.21%  (p=0.000 n=10+10)
+    
+    [Geo mean]                                           3.39kB          4.08kB        +20.24%
+    
+    name                                               old allocs/op  new allocs/op   delta
+    pkg:crypto/ecdsa goos:linux goarch:arm64
+    SignP256-64                                            34.0 ± 0%       32.0 ± 0%    -5.88%  (p=0.000 n=10+10)
+    SignP384-64                                           14.5k ± 0%      14.5k ± 0%    -0.12%  (p=0.045 n=10+10)
+    pkg:crypto/ed25519 goos:linux goarch:arm64
+    NewKeyFromSeed-64                                      2.00 ± 0%       0.00       -100.00%  (p=0.000 n=10+10)
+    Signing-64                                             11.0 ± 0%        5.0 ± 0%   -54.55%  (p=0.000 n=10+10)
+    
+    [Geo mean]                                             35.7            53.6        +50.15%
+    
+    A57:
+    =========================================================================================================
+    name                                              old time/op    new time/op    delta
+    pkg:crypto/sha512 goos:linux goarch:arm64
+    Hash8Bytes-8                                        1.93µs ± 0%    1.69µs ± 0%   -12.37%  (p=0.000 n=10+10)
+    Hash1K-8                                            13.8µs ± 0%    13.5µs ± 0%    -2.01%  (p=0.000 n=10+10)
+    Hash8K-8                                            96.1µs ± 0%    95.7µs ± 0%    -0.35%  (p=0.000 n=10+8)
+    pkg:crypto/ecdsa goos:linux goarch:arm64
+    SignP256-8                                          14.9µs ± 4%    14.4µs ± 1%    -2.84%  (p=0.000 n=10+9)
+    pkg:crypto/hmac goos:linux goarch:arm64
+    HMACSHA256_1K-8                                     1.87µs ± 0%    1.86µs ± 0%    -0.55%  (p=0.000 n=9+10)
+    HMACSHA256_32-8                                      760ns ± 0%     756ns ± 0%    -0.54%  (p=0.001 n=10+10)
+    pkg:crypto/tls goos:linux goarch:arm64
+    HandshakeServer/RSA-8                               1.11ms ± 0%    1.12ms ± 0%    +0.35%  (p=0.001 n=9+10)
+    HandshakeServer/ECDHE-P256-RSA/TLSv13-8             1.63ms ± 0%    1.63ms ± 0%    -0.23%  (p=0.004 n=10+9)
+    HandshakeServer/ECDHE-P256-ECDSA-P256/TLSv13-8       694µs ± 0%     687µs ± 0%    -0.96%  (p=0.000 n=10+8)
+    HandshakeServer/ECDHE-P256-ECDSA-P256/TLSv12-8       607µs ± 0%     601µs ± 0%    -0.99%  (p=0.000 n=9+9)
+    HandshakeServer/ECDHE-X25519-ECDSA-P256/TLSv13-8    1.25ms ± 0%    1.25ms ± 0%    -0.24%  (p=0.015 n=10+10)
+    HandshakeServer/ECDHE-X25519-ECDSA-P256/TLSv12-8    1.16ms ± 0%    1.16ms ± 0%    -0.30%  (p=0.000 n=8+10)
+    Latency/MaxPacket/200kbps/TLSv12-8                   697ms ± 0%     697ms ± 0%    +0.01%  (p=0.029 n=10+10)
+    Latency/DynamicPacket/200kbps/TLSv13-8               140ms ± 0%     140ms ± 0%    +0.04%  (p=0.006 n=9+10)
+    pkg:crypto/ed25519 goos:linux goarch:arm64
+    NewKeyFromSeed-8                                     168µs ± 0%     168µs ± 0%    +0.04%  (p=0.001 n=9+10)
+    Signing-8                                            174µs ± 0%     173µs ± 0%    -0.26%  (p=0.000 n=10+10)
+    Verification-8                                       495µs ± 0%     494µs ± 0%    -0.10%  (p=0.000 n=9+9)
+    
+    [Geo mean]                                          9.85ms         9.82ms         -0.36%
+    
+    name                                              old speed      new speed      delta
+    pkg:crypto/sha512 goos:linux goarch:arm64
+    Hash8Bytes-8                                      4.15MB/s ± 0%  4.74MB/s ± 0%   +14.11%  (p=0.000 n=10+10)
+    Hash1K-8                                          74.3MB/s ± 0%  75.8MB/s ± 0%    +2.05%  (p=0.000 n=10+10)
+    Hash8K-8                                          85.3MB/s ± 0%  85.6MB/s ± 0%    +0.35%  (p=0.000 n=10+8)
+    pkg:crypto/hmac goos:linux goarch:arm64
+    HMACSHA256_1K-8                                    549MB/s ± 0%   552MB/s ± 0%    +0.56%  (p=0.000 n=9+10)
+    HMACSHA256_32-8                                   42.1MB/s ± 0%  42.3MB/s ± 1%    +0.53%  (p=0.001 n=10+10)
+    pkg:crypto/tls goos:linux goarch:arm64
+    
+    [Geo mean]                                         138MB/s        139MB/s         +0.54%
+    
+    name                                              old alloc/op   new alloc/op   delta
+    pkg:crypto/ecdsa goos:linux goarch:arm64
+    SignP256-8                                          2.99kB ± 0%    2.64kB ± 0%   -11.77%  (p=0.000 n=10+10)
+    pkg:crypto/ed25519 goos:linux goarch:arm64
+    NewKeyFromSeed-8                                      352B ± 0%        0B       -100.00%  (p=0.000 n=10+10)
+    Signing-8                                           1.50kB ± 0%    0.45kB ± 0%   -70.21%  (p=0.000 n=10+10)
+    
+    [Geo mean]                                          3.34kB         4.01kB        +20.04%
+    
+    name                                              old allocs/op  new allocs/op  delta
+    pkg:crypto/ecdsa goos:linux goarch:arm64
+    SignP256-8                                            34.0 ± 0%      32.0 ± 0%    -5.88%  (p=0.000 n=10+10)
+    pkg:crypto/ed25519 goos:linux goarch:arm64
+    NewKeyFromSeed-8                                      2.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
+    Signing-8                                             11.0 ± 0%       5.0 ± 0%   -54.55%  (p=0.000 n=10+10)
+    
+    [Geo mean]                                            35.7           53.6        +50.17%
+    
+    Change-Id: Ibbda2d9bdff4eea4f611d4590abceb8764c44f2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211617
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/sha512/sha512block_generic.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

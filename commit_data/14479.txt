@@ -1,0 +1,13 @@
+commit 263777752701a7cc180cbf19c319f897d821d78f
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Nov 27 01:42:01 2012 +0800
+
+    runtime: duplicate code for runtime.nanotime to avoid stack overflow in vDSO clock_gettime
+    Fixes #4402.
+    
+    R=remyoudompheng, shivakumar.gn, random0x00, rsc
+    CC=golang-dev
+    https://golang.org/cl/6842063
+
+ src/pkg/runtime/sys_linux_amd64.s | 47 +++++++++++++++++++++++++++++----------
+ 1 file changed, 35 insertions(+), 12 deletions(-)

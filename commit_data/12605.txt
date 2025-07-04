@@ -1,0 +1,17 @@
+commit c405b58f3fa7988d42b5e5e46910344f342c5b45
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 12 21:49:43 2012 -0700
+
+    misc/dist: better archive/tar Headers
+    
+    This should live in archive/tar later (CL 5796073) but we
+    can always do that after Go 1 and stick it here for now.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5754096
+
+ misc/dist/bindist.go     | 86 +++++++++++++++++++++++++++++++++++++++---------
+ misc/dist/stat_darwin.go | 32 ++++++++++++++++++
+ misc/dist/stat_linux.go  | 32 ++++++++++++++++++
+ 3 files changed, 134 insertions(+), 16 deletions(-)

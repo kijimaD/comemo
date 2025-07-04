@@ -1,0 +1,25 @@
+commit 858fa061aed447527fa5f451e7d611d8735f8cb6
+Author: Koen <me@koenspanjer.com>
+Date:   Wed Oct 14 01:05:43 2020 +0200
+
+    crypto/x509: return additional chains from Verify on Windows
+    
+    Previously windows only returned the certificate-chain with the highest quality.
+    This change makes it so chains with a potentially lower quality
+    originating from other root certificates are also returned by verify.
+    
+    Tests in verify_test flagged with systemLax are now allowed to pass if the system returns additional chains
+    
+    Fixes #40604
+    
+    Change-Id: I66edc233219f581039d47a15f2200ff627154691
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257257
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/crypto/x509/root_windows.go | 112 ++++++++++++++++++++++------------------
+ src/crypto/x509/verify_test.go  |  63 ++++++++++++++--------
+ 2 files changed, 104 insertions(+), 71 deletions(-)

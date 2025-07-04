@@ -1,0 +1,14 @@
+commit 3a3d47db370805205181da8f96ebf79c3507e953
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 8 12:33:08 2014 -0700
+
+    runtime: merge panic1.go back into panic.go
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/139370043
+
+ src/runtime/panic.go  | 202 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/panic1.go | 209 --------------------------------------------------
+ 2 files changed, 202 insertions(+), 209 deletions(-)

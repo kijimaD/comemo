@@ -1,0 +1,16 @@
+commit 1aa191b468f0dde2546c8430dbfffb8b94e7568b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 30 03:24:40 2016 +0000
+
+    doc: remove some TODOs from go1.8.html
+    
+    TBR=See https://golang.org/cl/33244
+    
+    Updates #17929
+    
+    Change-Id: I5d92bd62b6560d245f77fa042c7e35d9eddc4994
+    Reviewed-on: https://go-review.googlesource.com/33683
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 66 ++++++++++++++++++++++++++++------------------------------
+ 1 file changed, 32 insertions(+), 34 deletions(-)

@@ -1,0 +1,28 @@
+commit 6e49ccc7dbeda9b17bb816c6ca4a3018ff93d681
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Tue Sep 19 14:10:27 2023 -0400
+
+    runtime,runtime/pprof: avoid tiny allocations in finalizer-related tests
+    
+    A few tests rely on finalizers running, but are doing tiny allocations.
+    These tests will break if, for example, the testing package does is own
+    tiny allocations before calling the test function (see CL 478955). The
+    tiny allocator will group these allocations together and the ones done
+    for the tests themselves will live longer than desired. Use types which
+    have/are pointers for these tests so they won't be allocated by the tiny
+    allocator.
+    
+    While here, pick up a small refactor suggested by Michael Knyszek to use
+    the BlockUntilEmptyFinalizerQueue helper to wait for the finalizers to
+    run in TestFinalizerRegisterABI.
+    
+    Change-Id: I39f477d61f81dc76c87fae215339f8a38979cf94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529555
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/abi_test.go         | 33 +++++++++++++++++++--------------
+ src/runtime/pprof/pprof_test.go |  6 +++++-
+ 2 files changed, 24 insertions(+), 15 deletions(-)

@@ -1,0 +1,21 @@
+commit fdc9cf3c3aaf779387f0341125680f018e5f0275
+Author: Cosmos Nicolaou <cosmos.nicolaou@gmail.com>
+Date:   Wed Aug 9 08:15:51 2023 -0700
+
+    runtime/pprof: fix build breakage on ios
+    
+    CL 503919 breaks tests for ios, this change fixes that.
+    
+    Fixes #61891
+    
+    Change-Id: I58508a780abb7a2150faec83c0f002cb22abafb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517795
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/runtime/pprof/proto_test.go         | 2 +-
+ src/runtime/pprof/vminfo_darwin_test.go | 7 +++++--
+ 2 files changed, 6 insertions(+), 3 deletions(-)

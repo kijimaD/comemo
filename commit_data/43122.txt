@@ -1,0 +1,22 @@
+commit f33263d11aa0f5e2668bfc6a0805e4edee17b03c
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Mon Sep 28 08:59:13 2020 -0700
+
+    crypto/x509: hardcode RSA PSS parameters rather than generating them
+    
+    Rather than generating the three possible RSA PSS parameters each time
+    they are needed just hardcode them and pick the required one based on
+    the hash function.
+    
+    Fixes #41407
+    
+    Change-Id: Id43bdaf40b3ca82c4c04c6588e3b643f63107657
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258037
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/x509.go      | 60 +++++++++++---------------------------------
+ src/crypto/x509/x509_test.go | 52 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 46 deletions(-)

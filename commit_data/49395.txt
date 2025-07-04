@@ -1,0 +1,25 @@
+commit 2fa45a4fcd57070967f081f3a5c33014c3f29fea
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jun 3 07:50:58 2022 -0400
+
+    cmd/link/internal/loadpe: handle _main reference properly
+    
+    When building CGO internal linking on windows 386, make sure to avoid
+    rewriting references to "_main" to "main" when reading symbols during
+    host object loading; the main routine defined by the Go runtime is
+    still named "_main" (not "main"). If we don't do this, we wind up with
+    an SXREF symbol named "main", which can then cause the loader to pull
+    an actual "main" symbol out of a host archive, which is undesirable.
+    
+    Updates #35006.
+    
+    Change-Id: I3768e3617b560552f4522e9e72af879c6adf7705
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410124
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/loadpe/ldpe.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 13f9c8b08efdff3512c2d558cacf9a1beb3f75c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 8 13:33:49 2015 -0400
+
+    cmd/gc: rewrite argtype to substitute in a single pass
+    
+    Substituting in multiple passes meant walking the type
+    multiple times, and worse, if a complex type was substituted
+    in an early pass, later passes would follow it, possibly recursively,
+    until hitting the depth 10 limit.
+    
+    Change-Id: Ie61d6ec08438e297baabe932afe33d08f358e55f
+    Reviewed-on: https://go-review.googlesource.com/7625
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/gc/range.go |   6 +--
+ src/cmd/internal/gc/subr.go  | 107 +++++++++++++++++--------------------------
+ src/cmd/internal/gc/swt.go   |   2 +-
+ src/cmd/internal/gc/walk.go  |  74 ++++++++++++------------------
+ 4 files changed, 75 insertions(+), 114 deletions(-)

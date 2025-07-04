@@ -1,0 +1,14 @@
+commit ab96371817545b1e6dc7d3679294256d2963ca4b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Dec 15 12:54:29 2014 +1100
+
+    misc/makerelease: fix build
+    
+    Fixes #9308
+    
+    Change-Id: I0121adbbecc893eb93afc3321ecff97ea146d150
+    Reviewed-on: https://go-review.googlesource.com/1560
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ misc/makerelease/makerelease.go | 3 ---
+ 1 file changed, 3 deletions(-)

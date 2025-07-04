@@ -1,0 +1,12 @@
+commit ad058cacfb63b697664c0781607c49d10650f9ef
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 30 15:23:36 2012 -0700
+
+    text/template/parse/lex.go: fix typo
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6448081
+
+ src/pkg/text/template/parse/lex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

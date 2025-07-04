@@ -1,0 +1,24 @@
+commit a30f4346674ec43bf576e6f56a9cd1c7ca482e1f
+Author: hidu <duv123@gmail.com>
+Date:   Thu Mar 3 13:33:38 2022 +0800
+
+    cmd/go: pass --no-decorate when listing git tags for a commit
+    
+    This avoids a parse error when the user's global .gitconfig sets
+    log.decorate to true.
+    
+    Fixes #51312.
+    
+    Change-Id: Ic47b0f604c0c3a404ec50d6e09f4e138045ac2f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387835
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/git.go       |  2 +-
+ .../script/mod_download_git_decorate_full.txt      | 28 ++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)

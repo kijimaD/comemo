@@ -1,0 +1,17 @@
+commit f238049a0073538caecfad1c60238a271426f43c
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 3 14:27:08 2013 -0800
+
+    cmd/gc: fix special-casing of the printed names of map internal structures.
+    Shaves 1% off of binary size.
+    
+    update #6853
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/35940047
+
+ src/cmd/gc/fmt.c     | 18 +++++++++++-------
+ src/cmd/gc/go.h      |  1 +
+ src/cmd/gc/reflect.c |  5 +++--
+ 3 files changed, 15 insertions(+), 9 deletions(-)

@@ -1,0 +1,12 @@
+commit 68e30a9765ca2fc596af32e75935b33c27c3d59b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Dec 1 15:26:28 2011 +1100
+
+    time: fix windows build
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5440071
+
+ src/pkg/time/zoneinfo_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

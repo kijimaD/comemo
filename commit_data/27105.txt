@@ -1,0 +1,16 @@
+commit 3de87bc4d92d58446d5072d416a29366b83135c1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 24 13:31:55 2016 -0700
+
+    test: add test that required algs get generated
+    
+    This is a follow-up to CLs 19769 and 19770.
+    
+    Change-Id: Ia9b71055613b80df4ce62b34fcc4f479f04f72fd
+    Reviewed-on: https://go-review.googlesource.com/22399
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ test/alg.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)

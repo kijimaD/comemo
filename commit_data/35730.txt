@@ -1,0 +1,24 @@
+commit ed99fcf1cf0347c86618bff3b46502602fd6b3c0
+Author: Fangming.Fang <fangming.fang@arm.com>
+Date:   Thu May 24 08:36:00 2018 +0000
+
+    cmd/dist: run msan test only in testsanitizer on arm64
+    
+    With latest gcc (7.3.0), misc/cgo/testsanitizer test will fail with reporting sigmentation
+    fault when running tsan test. On arm64, tsan is not supported currently and only msan test
+    can be run. So skip tsan test on arm64.
+    
+    What needs to be pointed out is that msan test can be really run when setting clang
+    as c/c++ complier.
+    
+    Fixes #25601
+    
+    Change-Id: I6ab1a8d9edd243e2ee00ee40bc0abd6a0e6a125c
+    Reviewed-on: https://go-review.googlesource.com/114857
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testsanitizers/tsan_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

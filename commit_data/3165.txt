@@ -1,0 +1,14 @@
+commit 932def9396399f98c1e46423fe8517cd1bcf2448
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 31 21:18:40 2009 -0700
+
+    test that ASCII optimizations agree with the unicode tables
+    
+    R=rsc
+    DELTA=40  (40 added, 0 deleted, 0 changed)
+    OCL=34168
+    CL=34176
+
+ src/pkg/unicode/digit_test.go  |  9 +++++++++
+ src/pkg/unicode/letter_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+)

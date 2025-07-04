@@ -1,0 +1,17 @@
+commit 477b7e5f4d143c2e8d68e9ef9d4db8ebe84a8489
+Author: Xia Bin <snyh@snyh.org>
+Date:   Thu Jul 12 18:00:39 2018 +0800
+
+    cmd/internal/obj: remove pointless validation
+    
+    s.Func.Text only can be nil at the moment, otherwise there has
+    some bugs in compiler's Go rumtime.
+    
+    Change-Id: Ib2ff9bb977352838e67f2b98a69468f6f350c1f3
+    Reviewed-on: https://go-review.googlesource.com/123535
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/plist.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,0 +1,19 @@
+commit eb3aba24b5bc96d4059db492e362d2cd5c77682e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 13 15:46:39 2011 -0400
+
+    gc: stricter multiple assignment + test
+    
+    Fixes #693.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5265045
+
+ src/cmd/gc/dcl.c       |   1 +
+ src/cmd/gc/go.h        |   1 +
+ src/cmd/gc/subr.c      |   3 +
+ src/cmd/gc/typecheck.c |   3 +
+ src/cmd/gc/walk.c      | 266 ++++++++++++++++++++++++++++++++++++++++++-------
+ test/reorder.go        | 121 ++++++++++++++++++++++
+ 6 files changed, 360 insertions(+), 35 deletions(-)

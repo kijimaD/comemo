@@ -1,0 +1,14 @@
+commit 2603d9a89ae1eb06386b9dd68fdb9f185aca4804
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Jun 8 13:07:39 2020 -0400
+
+    doc/go1.15: add release notes for crypto and math/big
+    
+    Updates #37419
+    
+    Change-Id: I12f073697dc319e439f4ffe4e0aac7f6afb19a74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236918
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ doc/go1.15.html | 59 +++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 57 insertions(+), 2 deletions(-)

@@ -1,0 +1,11 @@
+commit a49305df1d1a83bc32f2e3deab056a08d3616187
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 24 15:18:21 2009 -0800
+
+    text and formatting are now folded into go_spec; delete
+    
+    OCL=25292
+    CL=25383
+
+ doc/go_ref.html | 265 --------------------------------------------------------
+ 1 file changed, 265 deletions(-)

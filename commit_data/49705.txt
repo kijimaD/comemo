@@ -1,0 +1,18 @@
+commit 4400238ec8ef3f0d2609bbd18ea57d6c5d097f1d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 13:49:17 2022 -0400
+
+    runtime: trivial replacements of _g_ in remaining files
+    
+    Change-Id: I24d299b345bda1c9d6fa7876d4f03c05b8c1156d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418587
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/panic.go    | 16 ++++++++--------
+ src/runtime/race.go     | 32 ++++++++++++++++----------------
+ src/runtime/rdebug.go   |  6 +++---
+ src/runtime/runtime1.go | 22 +++++++++++-----------
+ src/runtime/trace.go    | 32 ++++++++++++++++----------------
+ 5 files changed, 54 insertions(+), 54 deletions(-)

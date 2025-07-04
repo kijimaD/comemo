@@ -1,0 +1,22 @@
+commit 9a61c0412c119f5df05a7c3877985cd1dbc83931
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 26 13:20:30 2012 -0800
+
+    go/printer: some internal cleanups
+    
+    Cleanups introduced originally by now abandoned
+    https://golang.org/cl/6846078/ .
+    
+    Includes additional test cases for 'if' and 'for'
+    statements.
+    
+    No formatting changes.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6855096
+
+ src/pkg/go/printer/nodes.go                   | 59 ++++++++++---------
+ src/pkg/go/printer/testdata/statements.golden | 82 ++++++++++++++++++++++++++-
+ src/pkg/go/printer/testdata/statements.input  | 62 +++++++++++++++++++-
+ 3 files changed, 173 insertions(+), 30 deletions(-)

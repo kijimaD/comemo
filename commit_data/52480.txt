@@ -1,0 +1,19 @@
+commit e29dd78ffedb504ccad69a0791dd22b88cc6336e
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Wed Aug 24 09:22:36 2022 +0800
+
+    cmd/internal/obj: remove redundant cnames on loong64
+    
+    Change-Id: I5aa6328a12e74b2801ab60b5a5bb8571d382d5ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425301
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/internal/obj/loong64/cnames.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

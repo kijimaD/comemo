@@ -1,0 +1,15 @@
+commit c4b2288755d07b9505ef498819bb540b7b0fa215
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 14 13:14:18 2022 -0700
+
+    cmd/compile: add jump table codegen test
+    
+    Change-Id: Ic67f676f5ebe146166a0d3c1d78a802881320e49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400375
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ test/codegen/switch.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

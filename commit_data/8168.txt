@@ -1,0 +1,12 @@
+commit 98cf39e270c3d64a3f45f1e152e59696fd4a9c08
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 20 18:19:22 2011 -0400
+
+    run.bash: remove redundant rebuilds
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4449041
+
+ src/run.bash | 11 +----------
+ 1 file changed, 1 insertion(+), 10 deletions(-)

@@ -1,0 +1,15 @@
+commit 456b7f5a974f229e0ef7ad5a1925fa72fc4182e2
+Author: Gyu-Ho Lee <gyuhox@gmail.com>
+Date:   Sat Jun 4 23:20:45 2016 -0700
+
+    runtime/pprof: preallocate slice in pprof.go
+    
+    To prevent slice growth when appending.
+    
+    Change-Id: I2cdb9b09bc33f63188b19573c8b9a77601e63801
+    Reviewed-on: https://go-review.googlesource.com/23783
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/pprof/pprof.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

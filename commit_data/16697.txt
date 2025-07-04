@@ -1,0 +1,12 @@
+commit 1f954e5c45497a1c3f03ce4a87208ed9da1d29d6
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jul 3 08:16:08 2013 +1000
+
+    go/ast: improve doc for FuncDecl's Type field.
+    
+    R=gri, r
+    CC=golang-dev
+    https://golang.org/cl/10679047
+
+ src/pkg/go/ast/ast.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

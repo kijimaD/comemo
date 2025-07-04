@@ -1,0 +1,18 @@
+commit 75c6dc9f6cd8f04624051b5cb76e16e8a00d8a5f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 19 17:46:56 2010 -0800
+
+    http: handle old HTTP/1.0 unchunked "read to EOF" bodies.
+    Was trying to interpret raw body as chunked body.
+    
+    Add test for ReadResponse.
+    
+    Fixes #544.
+    
+    R=r, petar-m
+    CC=golang-dev, shadowice
+    https://golang.org/cl/190068
+
+ src/pkg/http/response.go      |  31 +++++---
+ src/pkg/http/response_test.go | 165 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 186 insertions(+), 10 deletions(-)

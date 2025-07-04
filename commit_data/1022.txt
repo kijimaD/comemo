@@ -1,0 +1,15 @@
+commit db27d309d1ff3b16c71995ea2ad55a5b17039042
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 31 16:58:56 2008 -0700
+
+    - gcd, exponentiation, population count
+    - more rational numbers stuff
+    - more tests
+    
+    R=r
+    OCL=18295
+    CL=18295
+
+ usr/gri/bignum/bignum.go      | 93 +++++++++++++++++++++++++++++++++++++++----
+ usr/gri/bignum/bignum_test.go | 36 +++++++++++++++++
+ 2 files changed, 121 insertions(+), 8 deletions(-)

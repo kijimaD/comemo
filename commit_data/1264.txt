@@ -1,0 +1,16 @@
+commit acfd1fd4438060eebf929778cfef982f0b03e0f2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 2 17:01:31 2008 -0800
+
+    - oversight: extra allow source-level line breaks inside statement lists
+    - fixed printing of empty structs/interfaces
+    - enable two more tests
+    
+    R=r
+    OCL=20296
+    CL=20296
+
+ usr/gri/pretty/printer.go   | 3 ++-
+ usr/gri/pretty/selftest2.go | 3 +++
+ usr/gri/pretty/test.sh      | 2 +-
+ 3 files changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 5cc6bfe2342185a70444b977c2f1599cf9116914
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Mar 3 14:55:04 2015 -0500
+
+    go/build: skip GOROOT tests on darwin/arm
+    
+    Change-Id: If2d303caae933eec61634152e5d83faaba591315
+    Reviewed-on: https://go-review.googlesource.com/6660
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/go/build/build_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

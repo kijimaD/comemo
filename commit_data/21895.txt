@@ -1,0 +1,17 @@
+commit 2a1728d0094f0ffc66231ec415522bf54ca37293
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 3 14:17:39 2015 -0800
+
+    math/big: use stringer for enum String() methods
+    
+    Change-Id: Ide0615542d67b7d81bf6c56aab550e142a8789f7
+    Reviewed-on: https://go-review.googlesource.com/6682
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/accuracy_string.go     |  16 ++++
+ src/math/big/float.go               | 181 ++++++++++++++++--------------------
+ src/math/big/float_test.go          |  46 ++++++---
+ src/math/big/floatconv.go           |   8 +-
+ src/math/big/floatexample_test.go   |   8 +-
+ src/math/big/roundingmode_string.go |  16 ++++
+ 6 files changed, 151 insertions(+), 124 deletions(-)

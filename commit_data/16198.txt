@@ -1,0 +1,15 @@
+commit 5fbb54eaca57e2626e24f1982d28a7de9f91ac49
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 18 17:36:25 2013 -0700
+
+    io: explain what (0,nil) means from Read
+    Also add a new variable ErrNoProgress that io.Readers can use to
+    report ineffectual Read calls.
+    Fixes #5310.
+    
+    R=golang-dev, dsymonds, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8845043
+
+ src/pkg/io/io.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,0 +1,12 @@
+commit 4779974314455f2b98db5a4526cffe786b566236
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 10 13:53:42 2015 -0700
+
+    doc: in go1.6.txt, small changes to fmt and time
+    
+    Change-Id: Ie86b703407f0f655a4552dd6e03df5f263be43db
+    Reviewed-on: https://go-review.googlesource.com/14492
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.6.txt | 2 ++
+ 1 file changed, 2 insertions(+)

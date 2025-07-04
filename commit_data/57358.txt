@@ -1,0 +1,112 @@
+commit 004686b6e5ec2536689a5303686ee28c8fc619ed
+Author: Garrett Bodley <garrett.bodley@gmail.com>
+Date:   Sat Jul 20 20:23:05 2024 -0400
+
+    crypto/internal/nistec: Avo port of p256_asm_amd64.s
+    
+    This implementation utilizes the same registers found in the reference
+    implementation, aiming to produce a minimal semantic diff between the
+    Avo-generated output and the original hand-written assembly.
+    
+    To verify the Avo implementation, the reference and Avo-generated
+    assembly files are fed to `go tool asm`, capturing the debug output into
+    corresponding temp files. The debug output contains supplementary
+    metadata (line numbers, instruction offsets, and source file references)
+    that must be removed in order to obtain a semantic diff of the two
+    files. This is accomplished via a small utility script written in awk.
+    
+    The reference assembly file does not specify a frame size for a number
+    of the defined assembly functions. Avo automatically infers the frame
+    size when generating the TEXT directive, leading to a diff on those
+    lines.
+    
+    Commands used to verify Avo output:
+    
+    GOROOT=$(go env GOROOT)
+    ASM_PATH="src/crypto/internal/nistec/p256_asm_amd64.s"
+    REFERENCE="54fe0fd43fcf8609666c16ae6d15ed92873b1564"
+    
+    go tool asm -o /dev/null -I "$GOROOT"/src/runtime -debug \
+      <(git cat-file -p "$REFERENCE:$ASM_PATH") \
+      > /tmp/reference.s
+    
+    go tool asm -o /dev/null -I "$GOROOT"/src/runtime -debug \
+      "$ASM_PATH" \
+      > /tmp/avo.s
+    
+    normalize(){
+      awk '{
+        $1=$2=$3="";
+        print substr($0,4)
+      }'
+    }
+    
+    diff <(normalize < /tmp/reference.s) <(normalize < /tmp/avo.s)
+    
+    1c1
+    < TEXT <unlinkable>.p256OrdLittleToBig(SB), NOSPLIT, $0
+    ---
+    > TEXT <unlinkable>.p256OrdLittleToBig(SB), NOSPLIT, $0-16
+    3c3
+    < TEXT <unlinkable>.p256OrdBigToLittle(SB), NOSPLIT, $0
+    ---
+    > TEXT <unlinkable>.p256OrdBigToLittle(SB), NOSPLIT, $0-16
+    5c5
+    < TEXT <unlinkable>.p256LittleToBig(SB), NOSPLIT, $0
+    ---
+    > TEXT <unlinkable>.p256LittleToBig(SB), NOSPLIT, $0-16
+    7c7
+    < TEXT <unlinkable>.p256BigToLittle(SB), NOSPLIT, $0
+    ---
+    > TEXT <unlinkable>.p256BigToLittle(SB), NOSPLIT, $0-16
+    23c23
+    < TEXT <unlinkable>.p256MovCond(SB), NOSPLIT, $0
+    ---
+    > TEXT <unlinkable>.p256MovCond(SB), NOSPLIT, $0-32
+    74c74
+    < TEXT <unlinkable>.p256NegCond(SB), NOSPLIT, $0
+    ---
+    > TEXT <unlinkable>.p256NegCond(SB), NOSPLIT, $0-16
+    99c99
+    < TEXT <unlinkable>.p256Sqr(SB), NOSPLIT, $0
+    ---
+    > TEXT <unlinkable>.p256Sqr(SB), NOSPLIT, $0-24
+    234c234
+    < TEXT <unlinkable>.p256Mul(SB), NOSPLIT, $0
+    ---
+    > TEXT <unlinkable>.p256Mul(SB), NOSPLIT, $0-24
+    401c401
+    < TEXT <unlinkable>.p256FromMont(SB), NOSPLIT, $0
+    ---
+    > TEXT <unlinkable>.p256FromMont(SB), NOSPLIT, $0-16
+    465c465
+    < TEXT <unlinkable>.p256Select(SB), NOSPLIT, $0
+    ---
+    > TEXT <unlinkable>.p256Select(SB), NOSPLIT, $0-24
+    513c513
+    < TEXT <unlinkable>.p256SelectAffine(SB), NOSPLIT, $0
+    ---
+    > TEXT <unlinkable>.p256SelectAffine(SB), NOSPLIT, $0-24
+    566c566
+    < TEXT <unlinkable>.p256OrdMul(SB), NOSPLIT, $0
+    ---
+    > TEXT <unlinkable>.p256OrdMul(SB), NOSPLIT, $0-24
+    806c806
+    < TEXT <unlinkable>.p256OrdSqr(SB), NOSPLIT, $0
+    ---
+    > TEXT <unlinkable>.p256OrdSqr(SB), NOSPLIT, $0-24
+    
+    Change-Id: I610b097c573b9d9018f0e26bc2afde5edb3f954b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/599875
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/cmd/compile/internal/types2/stdlib_test.go    |    1 +
+ src/crypto/internal/nistec/_asm/go.mod            |   11 +
+ src/crypto/internal/nistec/_asm/go.sum            |    8 +
+ src/crypto/internal/nistec/_asm/p256_asm_amd64.go | 2788 +++++++++++++
+ src/crypto/internal/nistec/p256_asm_amd64.s       | 4457 +++++++++++----------
+ src/go/types/stdlib_test.go                       |    1 +
+ 6 files changed, 5089 insertions(+), 2177 deletions(-)

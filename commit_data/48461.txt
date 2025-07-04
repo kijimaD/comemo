@@ -1,0 +1,25 @@
+commit 0aaa55526e3a58fd3ed1929421d57d3f0ef11515
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Mar 21 13:44:17 2022 -0400
+
+    cmd/vendor: update golang.org/x/tools to c717623e3197
+    
+    To pick up CL 394234.
+    
+    Done by
+            go get -d golang.org/x/tools@c717623e3197
+            go mod tidy
+            go mod vendor
+    
+    Change-Id: Ic67a7deb9a22b2679eec895210168f698d8d05eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394275
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go.mod                                                        | 2 +-
+ src/cmd/go.sum                                                        | 4 ++--
+ .../vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go   | 4 ++--
+ src/cmd/vendor/modules.txt                                            | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

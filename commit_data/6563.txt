@@ -1,0 +1,12 @@
+commit a9725396c00b876a9e59d3b35e71c7bde7b19e70
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Oct 20 09:46:24 2010 +1100
+
+    os: change TestForkExec so it can run on windows
+    
+    R=brainman, vcc, Joe Poirier, rsc
+    CC=golang-dev
+    https://golang.org/cl/2530041
+
+ src/pkg/os/os_test.go | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)

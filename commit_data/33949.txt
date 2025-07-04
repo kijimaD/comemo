@@ -1,0 +1,17 @@
+commit a6b938549e5e0ff33c77a5bbba797a1a6f7f9401
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 4 15:09:21 2018 -0500
+
+    cmd/go: fix build failure in -x test
+    
+    CL 84735 strengthened the -x test to make sure commands succeed,
+    using set -e, but the gcc flag tests can fail. Change them to say || true.
+    
+    Fixes #23337.
+    
+    Change-Id: I01e4017cb36ceb147b56935c2636de52ce7bdfdb
+    Reviewed-on: https://go-review.googlesource.com/86239
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

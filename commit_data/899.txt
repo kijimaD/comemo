@@ -1,0 +1,21 @@
+commit 5fe4cd83a8a7b91c5872d36db88858510b530b90
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 17 17:51:29 2008 -0700
+
+    do not set t->recur on basic types.
+    the comment talked about printing, but now
+    t->recur is only used for typehash.
+    in typehash it is important to compute different
+    hashes for the different basic types.
+    
+    add test that makes sure an interface { X() int8 }
+    cannot be used as interface { X() int64 }
+    
+    R=ken
+    OCL=17396
+    CL=17396
+
+ src/cmd/gc/lex.c   |  1 -
+ test/golden.out    |  8 ++++++++
+ test/interface3.go | 23 +++++++++++++++++++++++
+ 3 files changed, 31 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 6aa85d1cbea011fed57292cc4ff99e5a62de47af
+Author: Eoghan Sherry <ejsherry@gmail.com>
+Date:   Tue Dec 7 12:56:26 2010 -0500
+
+    gc: fix method offsets of anonymous interfaces
+    
+    Fixes #1290.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3259043
+
+ src/cmd/gc/dcl.c         |  2 ++
+ src/cmd/gc/go.y          |  1 -
+ src/cmd/gc/typecheck.c   |  1 -
+ test/fixedbugs/bug314.go | 31 +++++++++++++++++++++++++++++++
+ 4 files changed, 33 insertions(+), 2 deletions(-)

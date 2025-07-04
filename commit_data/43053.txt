@@ -1,0 +1,23 @@
+commit 02ff8b8ce49c7c8f1180ee6e915b867368ad77d3
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Sep 18 17:53:12 2020 -0400
+
+    runtime: expand gopark documentation
+    
+    unlockf is called after the G is put into _Gwaiting, meaning another G
+    may have readied this one before unlockf is called.
+    
+    This is implied by the current doc, but add additional notes to call out
+    this behavior, as it can be quite surprising.
+    
+    Updates #40641
+    
+    Change-Id: I60b1ccc6a4dd9ced8ad2aa1f729cb2e973100b59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256058
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)

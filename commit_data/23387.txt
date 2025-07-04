@@ -1,0 +1,12 @@
+commit 10076b55eccebadbaceacf946ae705fa40de52b3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jun 17 12:46:06 2015 +1000
+
+    doc/articles/wiki: remove generated final-test.go after test
+    
+    Change-Id: If6dc3acdc023ac78f63e257974cd2d2e9f1cca10
+    Reviewed-on: https://go-review.googlesource.com/11161
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/articles/wiki/test.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

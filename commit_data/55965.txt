@@ -1,0 +1,28 @@
+commit 0a6f05e30f58023bf45f747a79c20751db2bcfe7
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sun Feb 25 21:21:31 2024 +0000
+
+    syscall: use internal/asan and internal/msan
+    
+    Now with internal/asan and internal/msan available we can cleanup
+    syscall's duplicated definitions.
+    
+    For #64611
+    
+    Change-Id: If714d04ed2d32a4ed27305b3e3dc64ba8cdd1b61
+    GitHub-Last-Rev: e52fff1513bf74305d7abd142f71a60215bb93fc
+    GitHub-Pull-Request: golang/go#65935
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566755
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/syscall/asan.go            | 22 ----------------------
+ src/syscall/asan0.go           | 19 -------------------
+ src/syscall/msan.go            | 22 ----------------------
+ src/syscall/msan0.go           | 19 -------------------
+ src/syscall/syscall_unix.go    | 34 ++++++++++++++++++----------------
+ src/syscall/syscall_windows.go | 18 ++++++++++--------
+ 6 files changed, 28 insertions(+), 106 deletions(-)

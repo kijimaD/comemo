@@ -1,0 +1,19 @@
+commit bcd1ac7120e04cc60491005771aee5f27abac220
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 26 09:16:47 2022 +0700
+
+    runtime: drop padding alignment field for timeHistogram
+    
+    After CL 419449, timeHistogram always have 8-byte alignment.
+    
+    Change-Id: I93145502bcafa1712b811b1a6d62da5d54d0db42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425777
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/mstats.go   | 2 --
+ src/runtime/runtime2.go | 2 --
+ 2 files changed, 4 deletions(-)

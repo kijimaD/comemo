@@ -1,0 +1,21 @@
+commit 13fb147e60ba17457366630c60b5dbbe2d6a4304
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 10 23:48:56 2019 -0500
+
+    cmd/internal/obj/arm64: save LR after decrementing SP on darwin
+    
+    iOS does not support SA_ONSTACK. The signal handler runs on the
+    G stack. Any writes below the SP may be clobbered by the signal
+    handler (even without call injection). So we save LR after
+    decrementing SP on iOS.
+    
+    Updates #35439.
+    
+    Change-Id: Ia6d7a0669e0bcf417b44c031d2e26675c1184165
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206418
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/obj/arm64/obj7.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

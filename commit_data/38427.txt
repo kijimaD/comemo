@@ -1,0 +1,17 @@
+commit d06704a3c2c3bb668926c8d20b9d4855b7131148
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 12 19:10:43 2019 -0700
+
+    cmd/cover: don't assume duplicate positions are in order
+    
+    Fixes #30746
+    
+    Change-Id: I63f2d82f14eeaab6b14e956e21ddeec56fee025b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167257
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/cover/cover.go      | 52 +++++++++++++++++--------
+ src/cmd/cover/cover_test.go | 94 ++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 120 insertions(+), 26 deletions(-)

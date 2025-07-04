@@ -1,0 +1,20 @@
+commit d11173d452adaacb5042232abc03251fe02793c6
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Jul 31 15:51:27 2009 -0700
+
+    Implement var declarations.  Variables, constants, and types now carry
+    the position where they were defined so I can produce good
+    error messages on redefinitions.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=204  (126 added, 13 deleted, 65 changed)
+    OCL=32599
+    CL=32605
+
+ usr/austin/eval/decls.go |  19 ++++--
+ usr/austin/eval/scope.go |  24 +++----
+ usr/austin/eval/stmt.go  | 166 ++++++++++++++++++++++++++++++++++++++---------
+ usr/austin/eval/type.go  |  42 ++++++------
+ usr/austin/eval/value.go |   4 +-
+ 5 files changed, 184 insertions(+), 71 deletions(-)

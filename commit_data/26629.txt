@@ -1,0 +1,29 @@
+commit e775b8df7a073824e445b64742f3bc4dc4fa6f3d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 31 09:29:39 2016 -0700
+
+    cmd/compile: add sliceBound
+    
+    Add a constant for the magic -1 for slice bounds.
+    Use it.
+    Enforce more aggressively that bounds must be
+    slice, ddd, or non-negative.
+    Remove ad hoc check in plive.go.
+    Check bounds before constructing an array type
+    when typechecking.
+    
+    All changes are manual.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I9fd9cc789d7d4b4eea3b30b24037a254d3788add
+    Reviewed-on: https://go-review.googlesource.com/21348
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/align.go     |  2 +-
+ src/cmd/compile/internal/gc/bimport.go   |  4 ++--
+ src/cmd/compile/internal/gc/plive.go     |  5 -----
+ src/cmd/compile/internal/gc/type.go      | 21 +++++++++++++++++----
+ src/cmd/compile/internal/gc/typecheck.go | 10 ++++++----
+ 5 files changed, 26 insertions(+), 16 deletions(-)

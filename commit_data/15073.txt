@@ -1,0 +1,15 @@
+commit 25d1fc9389b7313b0e5743c7742c30c36dc2396a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 31 22:57:30 2013 -0800
+
+    cmd/dist: fix build
+    
+    The Unix and Plan 9 readfile call breset(b) but Windows was not,
+    leaving dregs in the buffer.
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7229069
+
+ src/cmd/dist/windows.c | 1 +
+ 1 file changed, 1 insertion(+)

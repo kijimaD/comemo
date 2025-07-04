@@ -1,0 +1,12 @@
+commit 756c63cd023478c639bed98f3afb64c4e9e7aadf
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 25 12:49:36 2008 -0700
+
+    bug: compiler crash on select receive without variable.
+    
+    R=gri
+    OCL=13470
+    CL=13470
+
+ test/bugs/bug078.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

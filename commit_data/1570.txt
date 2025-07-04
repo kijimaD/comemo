@@ -1,0 +1,13 @@
+commit 47ab1c1e994847279b875da6255b773e2aefc7b5
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jan 27 13:23:28 2009 -0800
+
+    spelling
+    
+    R=r
+    OCL=23602
+    CL=23602
+
+ src/runtime/chan.c    | 9 ++++-----
+ src/runtime/runtime.h | 2 +-
+ 2 files changed, 5 insertions(+), 6 deletions(-)

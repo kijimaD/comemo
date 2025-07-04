@@ -1,0 +1,31 @@
+commit 00709919d09904b17cfe3bfeb35521cbd3fb04f8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 21 20:03:18 2024 -0500
+
+    cmd/compile, cmd/link: FIPS fixes for large programs
+    
+    1. In cmd/internal/obj, only apply the exclusion list to data symbols.
+       Text symbols are always fine since they can use PC-relative relocations.
+    
+    2. In cmd/link, only skip trampolines for text symbols in the same package
+       with the same type. Before, all text symbols had type STEXT, but now that
+       there are different sections of STEXT, we can only rely on symbols in the
+       same package in the same section being close enough not to need
+       trampolines.
+    
+    Fixes #70379.
+    
+    Change-Id: Ifad2bdd6001ad3b5b23e641127554e9ec374715e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631036
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/obj/fips140.go      | 43 +++++++++++++++++++-----------------
+ src/cmd/link/internal/arm/asm.go     |  2 +-
+ src/cmd/link/internal/arm64/asm.go   |  2 +-
+ src/cmd/link/internal/ld/data.go     |  8 +++----
+ src/cmd/link/internal/loong64/asm.go |  2 +-
+ src/cmd/link/internal/ppc64/asm.go   |  4 +---
+ src/cmd/link/internal/riscv64/asm.go |  2 +-
+ 7 files changed, 32 insertions(+), 31 deletions(-)

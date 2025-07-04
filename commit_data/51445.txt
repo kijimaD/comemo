@@ -1,0 +1,19 @@
+commit 920f87adda5412a41036a862cf2139bed24aa533
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 23 16:13:34 2022 -0500
+
+    crypto/rsa: remove deprecation markers for multiprime RSA support
+    
+    These should be marked deprecated, but that needs a
+    (likely quick) proposal review.
+    
+    The proposal is #56921.
+    
+    Change-Id: I013a913a7f5196a341e2dd5f49c2687c26ee8331
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453257
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/crypto/rsa/rsa.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

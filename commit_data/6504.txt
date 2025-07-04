@@ -1,0 +1,17 @@
+commit 8a1b2e59ef553228a60d6799a2e001761e1e8ca8
+Author: Jim McGrath <jimmc2@gmail.com>
+Date:   Tue Oct 12 16:52:17 2010 -0400
+
+    6l: work with OS X nm/otool
+    
+    6l was skipping emitting the (2 byte) symbol table if there were no imported or exported
+    symbols. You can't just drop the symbol table entirely - the linker dies if you have
+    a linkedit section but no table. You can omit the linkedit section or both the linkedit
+    and the dlyd parts in the right circumstances, but that seems much more risky to me.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2421042
+
+ src/cmd/ld/macho.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

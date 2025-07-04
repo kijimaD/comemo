@@ -1,0 +1,24 @@
+commit 9b8750f53ed89fb326e4d811524e647683136bac
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 9 11:22:32 2022 -0800
+
+    os: skip size test in TestLstat if the file is a symlink
+    
+    Tested by temporarily changing sysdir to use a directory where
+    the expected files were all symlinks. We should consider using
+    a different approach that doesn't rely on sysdir, but for now
+    do a minimal fix.
+    
+    Fixes #57210
+    
+    Change-Id: Ifb1becef03e014ceb48290ce13527b3e103c0e07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456557
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/os_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

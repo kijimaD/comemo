@@ -1,0 +1,61 @@
+commit fc8967e3844431665169bfae001f0de454be5bb2
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Tue Mar 27 23:38:32 2018 -0400
+
+    math/big: improve performance on ppc64x by unrolling loops
+    
+    This change improves performance of addVV, subVV and mulAddVWW
+    by unrolling the loops, with improvements up to 1.45x.
+    
+    benchmark                    old ns/op     new ns/op     delta
+    BenchmarkAddVV/1-16          5.79          5.85          +1.04%
+    BenchmarkAddVV/2-16          6.41          6.62          +3.28%
+    BenchmarkAddVV/3-16          6.89          7.35          +6.68%
+    BenchmarkAddVV/4-16          7.47          8.26          +10.58%
+    BenchmarkAddVV/5-16          8.04          8.18          +1.74%
+    BenchmarkAddVV/10-16         10.9          11.2          +2.75%
+    BenchmarkAddVV/100-16        81.7          57.0          -30.23%
+    BenchmarkAddVV/1000-16       714           500           -29.97%
+    BenchmarkAddVV/10000-16      7088          4946          -30.22%
+    BenchmarkAddVV/100000-16     71514         49364         -30.97%
+    BenchmarkSubVV/1-16          5.94          5.89          -0.84%
+    BenchmarkSubVV/2-16          12.9          6.82          -47.13%
+    BenchmarkSubVV/3-16          7.03          7.34          +4.41%
+    BenchmarkSubVV/4-16          7.58          8.23          +8.58%
+    BenchmarkSubVV/5-16          8.15          8.19          +0.49%
+    BenchmarkSubVV/10-16         11.2          11.4          +1.79%
+    BenchmarkSubVV/100-16        82.4          57.0          -30.83%
+    BenchmarkSubVV/1000-16       715           499           -30.21%
+    BenchmarkSubVV/10000-16      7089          4947          -30.22%
+    BenchmarkSubVV/100000-16     71568         49378         -31.01%
+    
+    benchmark                    old MB/s     new MB/s      speedup
+    BenchmarkAddVV/1-16          11048.49     10939.92      0.99x
+    BenchmarkAddVV/2-16          19973.41     19323.60      0.97x
+    BenchmarkAddVV/3-16          27847.09     26123.06      0.94x
+    BenchmarkAddVV/4-16          34276.46     30976.54      0.90x
+    BenchmarkAddVV/5-16          39781.92     39140.68      0.98x
+    BenchmarkAddVV/10-16         58559.29     56894.68      0.97x
+    BenchmarkAddVV/100-16        78354.88     112243.69     1.43x
+    BenchmarkAddVV/1000-16       89592.74     127889.04     1.43x
+    BenchmarkAddVV/10000-16      90292.39     129387.06     1.43x
+    BenchmarkAddVV/100000-16     89492.92     129647.78     1.45x
+    BenchmarkSubVV/1-16          10781.03     10861.22      1.01x
+    BenchmarkSubVV/2-16          9949.27      18760.21      1.89x
+    BenchmarkSubVV/3-16          27319.40     26166.01      0.96x
+    BenchmarkSubVV/4-16          33764.35     31123.02      0.92x
+    BenchmarkSubVV/5-16          39272.40     39050.31      0.99x
+    BenchmarkSubVV/10-16         57262.87     56206.33      0.98x
+    BenchmarkSubVV/100-16        77641.78     112280.86     1.45x
+    BenchmarkSubVV/1000-16       89486.27     128064.08     1.43x
+    BenchmarkSubVV/10000-16      90274.37     129356.59     1.43x
+    BenchmarkSubVV/100000-16     89424.42     129610.50     1.45x
+    
+    Change-Id: I2795a82134d1e3b75e2634c76b8ca165a723ec7b
+    Reviewed-on: https://go-review.googlesource.com/103495
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/math/big/arith_ppc64x.s | 293 +++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 237 insertions(+), 56 deletions(-)

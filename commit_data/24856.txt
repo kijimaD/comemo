@@ -1,0 +1,20 @@
+commit 7c38ae084eb6d17b3b9270678cc32cc12b26b95b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Nov 12 11:30:33 2015 -0500
+
+    runtime: delete runtime/internal/atomic/textflag.h
+    
+    As per mdempsky's comment on golang.org/cl/14204, textflag.h is
+    copied to the includes dir by cmd/dist, and the copy in
+    runtime/internal/atomic is not actually being used.
+    
+    Updates #11647
+    
+    Change-Id: Ie95c08903a9df54cea4c70ee9d5291176f7b5609
+    Reviewed-on: https://go-review.googlesource.com/16871
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/internal/atomic/textflag.h | 30 ------------------------------
+ 1 file changed, 30 deletions(-)

@@ -1,0 +1,19 @@
+commit 66f03f79dadc6005d30a6edf4419b8f6c0fa6398
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sat Apr 9 14:40:40 2022 +0800
+
+    cmd/compile: add SHLX&SHRX without load
+    
+    Change-Id: I79eb5e7d6bcb23f26d3a100e915efff6dae70391
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399061
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go        |    4 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   88 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |    4 +
+ src/cmd/compile/internal/ssa/opGen.go        |   60 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 2422 +++++++++++++++++++++++++-
+ test/codegen/bmi.go                          |   20 +-
+ 6 files changed, 2484 insertions(+), 114 deletions(-)

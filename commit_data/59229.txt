@@ -1,0 +1,47 @@
+commit 7a427143b6ff296125359084a8959bf0c9d23e78
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Feb 28 17:01:36 2025 -0800
+
+    cmd/compile: stack allocate variable-sized makeslice
+    
+    Instead of always allocating variable-sized "make" calls on the heap,
+    allocate a small, constant-sized array on the stack and use that array
+    as the backing store if it is big enough.
+    
+    Requires the result of the "make" doesn't escape.
+    
+      if cap <= K {
+          var arr [K]E
+          slice = arr[:len:cap]
+      } else {
+          slice = makeslice(E, len, cap)
+      }
+    
+    Pretty conservatively for now, K = 32/sizeof(E). The slice header is
+    already 24 bytes, so wasting 32 bytes of stack if the requested size
+    is too big isn't that bad. Larger would waste more stack space but
+    maybe avoid more allocations.
+    
+    This CL also requires the element type be pointer-free.  Maybe we
+    could relax that at some point, but it is hard. If the element type
+    has pointers we can get heap->stack pointers (in the case where the
+    requested size is too big and the slice is heap allocated).
+    
+    Note that this only handles the case of makeslice called directly from
+    compiler-generated code. It does not handle slices built in the
+    runtime on behalf of the program (e.g. in growslice). Some of those
+    are currently handled by passing in a tmpBuf (e.g. concatstrings),
+    but we could probably do more.
+    
+    Change-Id: I8378efad527cd00d25948a80b82a68d88fbd93a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653856
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/escape/utils.go    |  28 ++++++-
+ src/cmd/compile/internal/test/stack_test.go |  50 ++++++++++++
+ src/cmd/compile/internal/walk/builtin.go    | 117 ++++++++++++++++++++--------
+ src/runtime/pprof/protomem_test.go          |   4 +-
+ test/escape_make_non_const.go               |   2 +-
+ 5 files changed, 164 insertions(+), 37 deletions(-)

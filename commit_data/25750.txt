@@ -1,0 +1,29 @@
+commit 0c02bc009a65763a5015e7efb95baec84bb79e8d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Feb 12 10:33:51 2016 -0500
+
+    runtime: show panics in traceback
+    
+    We used to include panic calls in tracebacks; however, when
+    runtime.panic was renamed to runtime.gopanic in the conversion of the
+    runtime to Go, we missed the special case in showframe that includes
+    panic calls even though they're in package runtime.
+    
+    Fix the function name check in showframe (and, while we're here, fix
+    the other check for "runtime.panic" in runtime/pprof). Since the
+    "runtime.gopanic" name doesn't match what users call panic and hence
+    isn't very user-friendly, make traceback rewrite it to just "panic".
+    
+    Updates #5832, #13857. Fixes #14315.
+    
+    Change-Id: I8059621b41ec043e63d5cfb4cbee479f47f64973
+    Reviewed-on: https://go-review.googlesource.com/19492
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/crash_test.go                 | 19 +++++++++++++++++++
+ src/runtime/pprof/pprof.go                |  2 +-
+ src/runtime/testdata/testprog/deadlock.go | 20 +++++++++++++++++++-
+ src/runtime/traceback.go                  | 10 +++++++---
+ 4 files changed, 46 insertions(+), 5 deletions(-)

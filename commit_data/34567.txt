@@ -1,0 +1,28 @@
+commit c15b7b2a54a8899fac8277cef532676c9f8fb592
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 10 16:50:16 2018 +0000
+
+    cmd: re-generate all stringer files
+    
+    The tool has gotten better over time, so re-generating the files brings
+    some advantages like fewer objects, dropping the use of fmt, and
+    dropping unnecessary bounds checks.
+    
+    While at it, add the missing go:generate line for obj.AddrType.
+    
+    Change-Id: I120c9795ee8faddf5961ff0384b9dcaf58d831ff
+    Reviewed-on: https://go-review.googlesource.com/100015
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/fmt_test.go                    |  1 -
+ src/cmd/compile/internal/gc/class_string.go    |  4 ++--
+ src/cmd/compile/internal/gc/op_string.go       |  4 ++--
+ src/cmd/compile/internal/types/etype_string.go |  4 ++--
+ src/cmd/internal/obj/addrtype_string.go        | 25 +++++++------------------
+ src/cmd/internal/obj/link.go                   |  2 ++
+ src/cmd/internal/objabi/reloctype_string.go    |  4 ++--
+ src/cmd/internal/objabi/symkind_string.go      |  4 ++--
+ src/cmd/link/internal/sym/symkind_string.go    |  6 +++---
+ 9 files changed, 22 insertions(+), 32 deletions(-)

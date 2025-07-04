@@ -1,0 +1,16 @@
+commit 3dd029aa7e5b3e770e21bd8b03981c3ef0b59c23
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 24 14:13:47 2015 +0900
+
+    net: enable TestTCPReadWriteAllocs in short mode
+    
+    The change 2096 removed unwanted allocations and a few noises in test
+    using AllocsPerRun. Now it's safe to enable this canary test on netpoll
+    hotpaths.
+    
+    Change-Id: Icdbee813d81c1410a48ea9960d46447042976905
+    Reviewed-on: https://go-review.googlesource.com/5713
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/net/tcp_test.go | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

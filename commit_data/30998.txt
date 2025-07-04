@@ -1,0 +1,17 @@
+commit acc1f47299620bb558a21e4144b7535fd904f377
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Feb 13 14:52:19 2017 +1100
+
+    path/filepath: add test to walk symlink
+    
+    For #17540.
+    
+    Change-Id: Ie01f39797526934fa553f4279cbde6c7cbf14154
+    Reviewed-on: https://go-review.googlesource.com/36854
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/path/filepath/path_test.go         | 55 ++++++++++++++++++++++++++++++++++
+ src/path/filepath/path_windows_test.go | 55 +++++++++++++---------------------
+ 2 files changed, 75 insertions(+), 35 deletions(-)

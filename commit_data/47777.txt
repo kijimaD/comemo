@@ -1,0 +1,36 @@
+commit 4b3d8d1a390a51ea6a1b3f66ef9d56ef7203bbe7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 9 11:55:20 2021 -0500
+
+    net: create unix sockets in unique directories
+    
+    This change applies the same transformation as in CL 366774,
+    but to the net package.
+    
+    testUnixAddr was using os.CreateTemp to obtain a unique socket path,
+    but then calling os.Remove on that path immediately. Since the
+    existence of the file is what guarantees its uniqueness, that could
+    occasionally result in testUnixAddr returning the same path for two
+    calls, causing the tests using those paths to fail — especially if
+    they are the same test or are run in parallel.
+    
+    Instead, we now create a unique, short temp directory for each call,
+    and use a path within that directory for the socket address.
+    
+    For #34611
+    
+    Change-Id: I8e13b606abce2479a0305f7aeecf5d54c449a032
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370694
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/mockserver_test.go       | 26 +++++++++++++++----------
+ src/net/packetconn_test.go       | 27 +++++++++++++++++---------
+ src/net/protoconn_test.go        |  4 ++--
+ src/net/server_test.go           | 42 ++++++++++++++++++++--------------------
+ src/net/splice_test.go           |  2 +-
+ src/net/unixsock_test.go         | 16 +++++++--------
+ src/net/unixsock_windows_test.go |  4 ++--
+ 7 files changed, 68 insertions(+), 53 deletions(-)

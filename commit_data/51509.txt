@@ -1,0 +1,30 @@
+commit 185e1a7b27767f1c429fdde19a71ad57909a7924
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Dec 5 13:02:22 2022 -0500
+
+    runtime: prioritize VDSO and libcall unwinding in profiler
+    
+    In the profiler, when unwinding the stack, we have special
+    handling for VDSO calls. Currently, the special handling is only
+    used when the normal unwinding fails. If the signal lands in the
+    function that makes the VDSO call (e.g. nanotime1) and after the
+    stack switch, the normal unwinding doesn't fail but gets a stack
+    trace with exactly one frame (the nanotime1 frame). The stack
+    trace stops because of the stack switch. This 1-frame stack trace
+    is not as helpful. Instead, if vdsoSP is set, we know we are in
+    VDSO call or right before or after it, so use vdsoPC and vdsoSP
+    for unwinding. Do the same for libcall.
+    
+    Also remove _TraceTrap for VDSO unwinding, as vdsoPC and vdsoSP
+    correspond to a call, not an interrupted instruction.
+    
+    Fixes #56574.
+    
+    Change-Id: I799aa7644d0c1e2715ab038a9eef49481dd3a7f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455166
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/proc.go | 46 +++++++++++++++++++++-------------------------
+ 1 file changed, 21 insertions(+), 25 deletions(-)

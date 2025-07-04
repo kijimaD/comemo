@@ -1,0 +1,22 @@
+commit a125bdb49b9aa96f3185ae4dfcc0f6d13b998724
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 1 12:03:41 2019 -0500
+
+    encoding/base64: do not slice past output unnecessarily
+    
+    Base64-encoding 32 bytes results in a 44-byte string.
+    While in general a 44-byte string might decode to 33 bytes,
+    if you take a 44-byte string that actually only encodes 32 bytes,
+    and you try to decode it into 32 bytes, that should succeed.
+    Instead it fails trying to do a useless dst[33:] slice operation.
+    Delete that slice operation.
+    
+    Noticed while preparing CL 156322.
+    
+    Change-Id: I8024bf28a65e2638675b980732b2ff91c66c62cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164628
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/base64/base64.go      |  7 +++----
+ src/encoding/base64/base64_test.go | 15 +++++++++++++++
+ 2 files changed, 18 insertions(+), 4 deletions(-)

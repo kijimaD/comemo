@@ -1,0 +1,14 @@
+commit 95907c4752b2e8f0e5f75d43031fc914162bb411
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 16 15:46:25 2011 -0500
+
+    runtime: fix build
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/5493061
+
+ src/Make.pkg                                           |  2 +-
+ src/pkg/runtime/Makefile                               | 12 ++++++++----
+ src/pkg/runtime/{traceback_amd64.c => traceback_x86.c} |  2 ++
+ 3 files changed, 11 insertions(+), 5 deletions(-)

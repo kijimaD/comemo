@@ -1,0 +1,17 @@
+commit 081bc69cde2d1919e1844f46998c6d545ca9921c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 6 18:16:51 2009 -0700
+
+    - initial version of pidigits.go benchmark
+    - extra bignum.go functionality for pidigits.go
+    - tuned bignum multiplication
+    
+    R=r
+    DELTA=193  (186 added, 0 deleted, 7 changed)
+    OCL=32852
+    CL=32856
+
+ src/pkg/bignum/bignum.go  |  84 +++++++++++++++++++++++++++---
+ src/pkg/bignum/integer.go |  15 ++++++
+ test/bench/pidigits.go    | 128 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 221 insertions(+), 6 deletions(-)

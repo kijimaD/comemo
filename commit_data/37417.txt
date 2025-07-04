@@ -1,0 +1,16 @@
+commit b1e8846dfb619dedbb90ef0b8edbbde2f5e766ea
+Author: mbj36 <mohitbajo36@gmail.com>
+Date:   Fri Nov 16 16:38:39 2018 +0000
+
+    net/http: fix typo in the SameSite docs
+    
+    Fixes #28244
+    
+    Change-Id: I3ca36fd513f5543af0c8af254d267254c7d5e803
+    GitHub-Last-Rev: 83b16fac4e221a249ed036c034367d6f680ae578
+    GitHub-Pull-Request: golang/go#28302
+    Reviewed-on: https://go-review.googlesource.com/c/143480
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/cookie.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

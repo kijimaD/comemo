@@ -1,0 +1,12 @@
+commit 4c60f974b1917084773397142cda961a96328589
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Sep 11 14:06:34 2012 +1000
+
+    misc/cgo/life: disable it temporarily on windows, because go builder fails
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6506096
+
+ src/run.bat | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

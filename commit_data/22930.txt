@@ -1,0 +1,17 @@
+commit 7bdeab1b2f54b22e7840b601b2d90188f6ee8ae0
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 7 11:49:49 2015 -0700
+
+    text/template: delete obsolete nil check
+    
+    This was added during testing but is unnecessary.
+    Thanks to gravis on GitHub for catching it.
+    
+    See #10574.
+    
+    Change-Id: I4a8f76d237e67f5a0ea189a0f3cadddbf426778a
+    Reviewed-on: https://go-review.googlesource.com/9841
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/text/template/parse/lex.go | 3 ---
+ 1 file changed, 3 deletions(-)

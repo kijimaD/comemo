@@ -1,0 +1,21 @@
+commit 36a3d4f3fea7bbb22be061fbe830420990cd3ecf
+Author: Ian Davis <nospam@iandavis.com>
+Date:   Tue Sep 25 15:33:49 2018 +0100
+
+    image: avoid sharing test images between tests and benchmarks
+    
+    CL 136796 introduced benchmarks and refactored tests to use a
+    common list of test images. The tests now fail when run with
+    count > 2 since they rely on a fresh image each run.
+    
+    Fix this by changing the list of test images to a list of test
+    image generator functions.
+    
+    Change-Id: I5884c6bccba5e29bf84ee546fa501bc258379f42
+    Reviewed-on: https://go-review.googlesource.com/137295
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/image/image_test.go | 38 ++++++++++++++++++++++----------------
+ 1 file changed, 22 insertions(+), 16 deletions(-)

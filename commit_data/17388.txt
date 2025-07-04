@@ -1,0 +1,17 @@
+commit f1d61b959fc0f759a619025eebd3c76d8a897553
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Mon Aug 26 07:41:37 2013 -0500
+
+    net/http: do not send leading dot in cookie domain attribute
+    
+    RFC 6265 allows a leading dot in a cookie domain attribute
+    but is clear (see section 4.1.1) that a Set-Cookie header
+    should be sent without these dots.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13111043
+
+ src/pkg/net/http/cookie.go      | 9 +++++++--
+ src/pkg/net/http/cookie_test.go | 2 +-
+ 2 files changed, 8 insertions(+), 3 deletions(-)

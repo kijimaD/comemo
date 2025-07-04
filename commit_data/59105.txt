@@ -1,0 +1,27 @@
+commit 56e5476e10db25ce71f562bd6ee0910a83532b04
+Author: Florian Zenker <floriank@google.com>
+Date:   Wed Mar 19 10:55:55 2025 +0000
+
+    runtime: in asan mode unregister root regions on free
+    
+    CL 651755 introduced registration of root regions when allocating
+    memory. We also need to unregister that memory to avoid the leak
+    sanitizer accessing unmapped memory.
+    
+    Issue #67833
+    
+    Change-Id: I5d403d66e65a8a003492f4d79dad22d416fd8574
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659135
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/asan.go        | 4 ++++
+ src/runtime/asan/asan.go   | 4 ++++
+ src/runtime/asan0.go       | 1 +
+ src/runtime/asan_amd64.s   | 8 ++++++++
+ src/runtime/asan_arm64.s   | 8 ++++++++
+ src/runtime/asan_loong64.s | 8 ++++++++
+ src/runtime/asan_ppc64le.s | 8 ++++++++
+ src/runtime/asan_riscv64.s | 8 ++++++++
+ src/runtime/mem.go         | 7 +++++++
+ 9 files changed, 56 insertions(+)

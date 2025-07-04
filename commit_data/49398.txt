@@ -1,0 +1,18 @@
+commit ce757e94e028a3c4b490a460b7b8b8266ae38fe4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 1 22:09:18 2022 -0400
+
+    go/doc/comment: add doc comment
+    
+    A CL in the website repo will add go.dev/doc/comment.
+    
+    One of the final steps for #51082.
+    
+    Change-Id: I419b4f6dbb424a8a93a8d09db30f7321af9ae976
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410358
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/go/doc/comment/doc.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

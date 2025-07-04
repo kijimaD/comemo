@@ -1,0 +1,13 @@
+commit 1a8ebcc4b8502460d61fafb09d89a8275f98e547
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 18 19:15:25 2009 -0800
+
+    Allow optional second expression in slice expressions.
+    Built-in function copy.
+    Addresses issue 203.
+    
+    R=rsc, r, iant
+    https://golang.org/cl/156089
+
+ doc/go_spec.html | 63 +++++++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 51 insertions(+), 12 deletions(-)

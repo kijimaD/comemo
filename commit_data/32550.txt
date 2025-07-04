@@ -1,0 +1,18 @@
+commit 738acbc2f0c93a84ce3c4c5436456e63f18553bd
+Author: Guilherme Rezende <guilhermebr@gmail.com>
+Date:   Mon Jul 24 17:04:02 2017 -0300
+
+    net/mail: parse cases when phrase has special chars without quotes
+    
+    Updates #21018
+    
+    Change-Id: I00b6667fb5fee78559a391815f58760a2baea90e
+    Reviewed-on: https://go-review.googlesource.com/50911
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/mail/message.go      | 21 ++++++++++++++-------
+ src/net/mail/message_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+), 7 deletions(-)

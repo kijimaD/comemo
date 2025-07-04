@@ -1,0 +1,41 @@
+commit 2fc67e71af142bfa1e7662a4fde361f43509d2d7
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Nov 1 04:18:58 2015 -0500
+
+    os: add Executable() (string, error)
+    
+    // Executable returns the path name for the executable that started
+    // the current process. There is no guarantee that the path is still
+    // pointing to the correct executable. If a symlink was used to start
+    // the process, depending on the operating system, the result might
+    // be the symlink or the path it pointed to. If a stable result is
+    // needed, path/filepath.EvalSymlinks might help.
+    //
+    // Executable returns an absolute path unless an error occurred.
+    //
+    // The main use case is finding resources located relative to an
+    // executable.
+    //
+    // Executable is not supported on nacl or OpenBSD (unless procfs is
+    // mounted.)
+    func Executable() (string, error) {
+            return executable()
+    }
+    
+    Fixes #12773.
+    
+    Change-Id: I469738d905b12f0b633ea4d88954f8859227a88c
+    Reviewed-on: https://go-review.googlesource.com/16551
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/executable.go         | 23 ++++++++++++
+ src/os/executable_darwin.go  | 24 ++++++++++++
+ src/os/executable_freebsd.go | 33 +++++++++++++++++
+ src/os/executable_plan9.go   | 19 ++++++++++
+ src/os/executable_procfs.go  | 36 ++++++++++++++++++
+ src/os/executable_solaris.go | 27 ++++++++++++++
+ src/os/executable_test.go    | 87 ++++++++++++++++++++++++++++++++++++++++++++
+ src/os/executable_windows.go | 32 ++++++++++++++++
+ 8 files changed, 281 insertions(+)

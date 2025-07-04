@@ -1,0 +1,24 @@
+commit df4f40b9e07ed9b4d50dc10a445d4b50c37e4daa
+Author: zzkcode <zzk819166453@gmail.com>
+Date:   Fri May 10 14:51:01 2024 +0000
+
+    runtime: crash asap and extend total sleep time for slow machine in test
+    
+    Running with few threads usually does not need 500ms to crash, so let it
+    crash as soon as possible. While the test may caused more time on slow
+    machine, try to expand the sleep time in test.
+    
+    Updates #64752
+    
+    Change-Id: I635fab846bd5e1735808d4d47bb9032d5a04cc2b
+    GitHub-Last-Rev: 84f3844ac0054a6a4b0e8ae13479a670e24ba8ce
+    GitHub-Pull-Request: golang/go#65018
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554615
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/signal_unix.go | 33 ++++++++++++++++++++++++++-------
+ 1 file changed, 26 insertions(+), 7 deletions(-)

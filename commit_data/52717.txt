@@ -1,0 +1,43 @@
+commit 9cad0cc6e6b2a84134c46ce7069e62de28459f26
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Apr 17 17:37:37 2023 -0400
+
+    make.{bash,bat}: check unmodified $PATH for $GOROOT/bin presence
+    
+    Previously, all.bash and all.bat restored the original $PATH before
+    calling 'dist banner', so that it would do its job of checking whether
+    the user still needs to add $GOROOT/bin to their $PATH. That worked for
+    those scripts, but had no effect on make.bash nor make.bat.
+    
+    Instead of trying to extend that logic to more scripts, change the
+    approach to provide dist an unmodified copy of $PATH via an internal
+    to dist environment variable $DIST_UNMODIFIED_PATH. The make.bash and
+    make.bat scripts happen to use dist env -p to modify $PATH, making it
+    viable to add the internal variable there instead of in each script.
+    
+    It currently works by adding semicolon terminators to dist env output
+    so that make.bash's 'eval $(dist env -p)' works as before but is able to
+    export DIST_UNMODIFIED_PATH for following dist invocations to observe.
+    Nothing needs to be done for Windows since its 'set ENV=val' format
+    already has that effect.
+    
+    Plan 9 doesn't use the -p flag of dist env, and checks that GOROOT/bin
+    is bound before /bin rather than looking at the $PATH env var like other
+    OSes, so it may not have this bug. I don't have easy access to Plan 9
+    and haven't tried to confirm.
+    
+    Fixes #42563.
+    
+    Change-Id: I74691931167e974a930f7589d22a48bb6b931163
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485896
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ misc/reboot/reboot_test.go | 22 ++++++++++++++++++++--
+ src/all.bash               |  2 --
+ src/all.bat                |  5 -----
+ src/cmd/dist/build.go      | 23 +++++++++++++++++++++--
+ 4 files changed, 41 insertions(+), 11 deletions(-)

@@ -1,0 +1,19 @@
+commit 3a872a2262de47cb921e3ae3da6e4487ba652129
+Author: nilsocket <nilsocket@gmail.com>
+Date:   Sun Apr 16 14:51:22 2023 +0530
+
+    slog: fix grammatical mistakes in docs
+    
+    Change-Id: I183dda71fcec04fc1e622c66f719bd745d8b4eea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484975
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/log/slog/doc.go     | 4 ++--
+ src/log/slog/handler.go | 3 +--
+ 2 files changed, 3 insertions(+), 4 deletions(-)

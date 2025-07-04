@@ -1,0 +1,15 @@
+commit 0e01db4b8d6ac64e6661508bc6876fa41c799208
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 12 17:46:41 2016 -0700
+
+    cmd/compile: fix crash on bare package name in constant declarations
+    
+    Fixes #11361.
+    
+    Change-Id: I70b8808f97f0e07de680e7e6ede1322ea0fdbbc0
+    Reviewed-on: https://go-review.googlesource.com/21936
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go |  7 +++++++
+ test/fixedbugs/issue11361.go        | 11 +++++++++++
+ 2 files changed, 18 insertions(+)

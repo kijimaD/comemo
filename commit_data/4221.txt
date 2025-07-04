@@ -1,0 +1,15 @@
+commit a38ec58df023f36b40c6e0213a410f6f5aa20a94
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 24 17:20:13 2009 -0800
+
+    Replace sort.Sort call with heapify algorithm in Init.
+    Fixed package comment.
+    Renamed some variables for symmetry, added more internal comments and more tests.
+    Fixes #304.
+    
+    R=rsc
+    https://golang.org/cl/157166
+
+ src/pkg/container/heap/heap.go      | 30 ++++++++-----
+ src/pkg/container/heap/heap_test.go | 90 ++++++++++++++++++++++++++++++++++---
+ 2 files changed, 103 insertions(+), 17 deletions(-)

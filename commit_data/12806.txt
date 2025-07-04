@@ -1,0 +1,14 @@
+commit a84056dabe8ce3178879db7416365a2d841bff0a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Apr 2 18:46:24 2012 +0800
+
+    gobuilder: work with codereview plugin enabled in .hgrc
+            Fixes #3312.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5907065
+
+ misc/dashboard/builder/Makefile |  4 ++--
+ misc/dashboard/builder/main.go  | 30 +++++++++++++++++-------------
+ 2 files changed, 19 insertions(+), 15 deletions(-)

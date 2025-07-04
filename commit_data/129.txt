@@ -1,0 +1,13 @@
+commit e285ed6090989e13d2696c4d57ba89bdc2721ec6
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jun 8 17:19:11 2008 -0700
+
+    Fix a few tests
+    
+    SVN=121614
+
+ test/char_lit.go                   | 57 +++++++++++++++++++++-----------------
+ test/{bugs => fixedbugs}/bug024.go |  0
+ test/golden.out                    | 16 +++--------
+ test/int_lit.go                    | 25 +++++++++--------
+ 4 files changed, 50 insertions(+), 48 deletions(-)

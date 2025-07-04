@@ -1,0 +1,17 @@
+commit ebcc7ec148f4c224a2b026b6484ad0fa135dcf78
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Jun 4 15:03:38 2015 -0400
+
+    cmd/dist: use -tags=lldb for iOS tests
+    
+    As of golang.org/cl/9154, running go test will override a previous
+    go install -a -tags=lldb std with the tag-less version of stdlib. So
+    we pass -tags=lldb into the relevant go test commands.
+    
+    Change-Id: I1c718289d7212373a9383eff53a643f06598f5ed
+    Reviewed-on: https://go-review.googlesource.com/10701
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/dist/test.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

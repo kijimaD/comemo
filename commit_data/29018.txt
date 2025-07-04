@@ -1,0 +1,17 @@
+commit 07a22dbd34d439182bea6a966b80baa2df7c72f4
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Oct 24 11:00:19 2016 -0400
+
+    cmd/vet: cgo: emit no error for calls to C.CBytes
+    
+    Fixes issue golang/go#17563
+    
+    Change-Id: Ibb41ea9419907193526cc601f6afd07d8689b1fe
+    Reviewed-on: https://go-review.googlesource.com/31810
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/cgo.go          | 5 +++++
+ src/cmd/vet/testdata/cgo.go | 2 ++
+ 2 files changed, 7 insertions(+)

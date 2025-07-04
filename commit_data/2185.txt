@@ -1,0 +1,13 @@
+commit 9a861b6aaada5f2cca0fd510302bc5aeb6bcd2fa
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 8 16:40:55 2009 -0700
+
+    check for redeclaration of package name
+    
+    R=r
+    DELTA=10  (10 added, 0 deleted, 0 changed)
+    OCL=28585
+    CL=28591
+
+ test/import1.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

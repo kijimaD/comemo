@@ -1,0 +1,12 @@
+commit 102c1a7c961c503379cdfe09476fa26662792c77
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Dec 23 09:46:30 2011 +1100
+
+    go/build: (*Tree).BinDir should not return path with / in it on windows
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5502064
+
+ src/pkg/go/build/path.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

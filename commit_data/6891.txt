@@ -1,0 +1,15 @@
+commit 3a5efdf230d6fc331389658241647ffe70a1c7c7
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Dec 8 15:01:53 2010 -0500
+
+            crypto/elliptic: remove mistakenly commited code
+    
+            One of my own experiments ended up getting mistakenly commited when
+            switching to Jacobian transformations.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3473044
+
+ src/pkg/crypto/elliptic/elliptic_test.go | 18 ------------------
+ 1 file changed, 18 deletions(-)

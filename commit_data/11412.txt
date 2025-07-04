@@ -1,0 +1,13 @@
+commit fa32b1641312f46b57ed8dbfdc83e0f726334a6a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jan 26 11:37:07 2012 +0400
+
+    net/rpc: fix race in TestClientWriteError test
+    Fixes #2752.
+    
+    R=golang-dev, mpimenov, r
+    CC=golang-dev
+    https://golang.org/cl/5571062
+
+ src/pkg/net/rpc/server_test.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

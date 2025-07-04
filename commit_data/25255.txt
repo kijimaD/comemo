@@ -1,0 +1,23 @@
+commit 991716508326b45615d55ffe6830f156d1d2e888
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 14 12:12:57 2015 -0500
+
+    cmd/internal/obj: remove 3 incorrect copyright notices
+    
+    These three files contain only code written for Go
+    (and trivial amounts at that), not any code ported
+    from Inferno or Plan 9.
+    
+    Remove the incorrect Inferno/Plan 9 notices.
+    
+    Fixes #13576.
+    
+    Change-Id: Ib9901fb360232282aae5ee0f4aa527bd6f4eaaed
+    Reviewed-on: https://go-review.googlesource.com/17779
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/ar.go       | 30 ------------------------------
+ src/cmd/internal/obj/funcdata.go | 34 ++--------------------------------
+ src/cmd/internal/obj/stack.go    | 30 ------------------------------
+ 3 files changed, 2 insertions(+), 92 deletions(-)

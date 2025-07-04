@@ -1,0 +1,23 @@
+commit b64202bc29b9c1cf0118878d1c0acc9cdb2308f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 11:27:12 2020 -0400
+
+    io/fs: add Glob and GlobFS
+    
+    Add Glob helper function, GlobFS interface, and test.
+    Add Glob method to fstest.MapFS.
+    Add testing of Glob method to fstest.TestFS.
+    
+    For #41190.
+    
+    Change-Id: If89dd7f63e310ba5ca2651340267a9ff39fcc0c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243915
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/go/build/deps_test.go    |   2 +-
+ src/io/fs/glob.go            | 116 +++++++++++++++++++++++++++++++++++++++++++
+ src/io/fs/glob_test.go       |  82 ++++++++++++++++++++++++++++++
+ src/testing/fstest/mapfs.go  |   4 ++
+ src/testing/fstest/testfs.go |  96 +++++++++++++++++++++++++++++++++++
+ 5 files changed, 299 insertions(+), 1 deletion(-)

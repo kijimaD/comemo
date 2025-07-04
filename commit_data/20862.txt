@@ -1,0 +1,21 @@
+commit 6bc812e9ecbe66a1fbb096e0f87d7f1b8f9fff04
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 6 15:18:47 2014 -0500
+
+    doc: change "/s/..." links to be on golang.org
+    
+    People viewing this locally will not have a /s/ on their local godoc.
+    tip.golang.org doesn't have one either.
+    
+    Also change all golang.org links to https, to avoid mixed content
+    warnings when viewing https://golang.org/.
+    
+    Fixes #9028.
+    
+    LGTM=bradfitz, r
+    R=r, bradfitz
+    CC=adg, golang-codereviews
+    https://golang.org/cl/168250043
+
+ doc/go1.4.html | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

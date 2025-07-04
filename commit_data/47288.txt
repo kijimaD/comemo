@@ -1,0 +1,21 @@
+commit df1837799d418eed6b4921cd1252dd8eae76cd98
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 3 18:49:51 2021 +0000
+
+    runtime: make consistentHeapStats acquire/release nosplit
+    
+    consistentHeapStats is updated during a stack allocation, so a stack
+    growth during an acquire or release could cause another acquire to
+    happen before the operation completes fully. This may lead to an invalid
+    sequence number.
+    
+    Fixes #49395.
+    
+    Change-Id: I41ce3393dff80201793e053d4d6394d7b211a5b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361158
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mstats.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

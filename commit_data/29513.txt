@@ -1,0 +1,15 @@
+commit c921d8f39d6da1afd1550787464d27f015412194
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 11 23:40:25 2016 +0000
+
+    context: document appropriate WithValue key type more
+    
+    Fixes #17826
+    Updates #17302
+    
+    Change-Id: I7c1ebd965e679e7169a97e62d27ae3ede2473aa1
+    Reviewed-on: https://go-review.googlesource.com/33152
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/context/context.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

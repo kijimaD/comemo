@@ -1,0 +1,17 @@
+commit 4c8589c328ea68ddb551abb4696c20016ed57d99
+Author: David Chase <drchase@google.com>
+Date:   Tue Mar 8 13:26:44 2016 -0500
+
+    cmd/compile: attach correct line number for fallthru-return
+    
+    Fixes #14646.
+    
+    Change-Id: I0bb82ed6d3533633cd8369ba37aa467948bbe155
+    Reviewed-on: https://go-review.googlesource.com/20381
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go |  1 +
+ test/fixedbugs/issue14646.go       | 23 +++++++++++++++++++++++
+ 2 files changed, 24 insertions(+)

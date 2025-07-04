@@ -1,0 +1,12 @@
+commit cd5191fd30373035176c0585453fa40d1443c2d2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Apr 27 10:24:17 2010 +1000
+
+    doc/root.html: remove key from jsapi src
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/1010041
+
+ doc/root.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

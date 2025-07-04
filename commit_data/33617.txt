@@ -1,0 +1,20 @@
+commit 3a395e22832774ff56d6b82cb8d91bc31167bd8e
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Oct 13 15:36:01 2017 -0700
+
+    crypto/x509: always emit a critical SAN extension if the Subject is empty.
+    
+    The RFC is a little ambiguous here: “the subject field contains an empty
+    sequence” could mean that it's a non-empty sequence where one of the
+    sets contains an empty sequence. But, in context, I think it means “the
+    subject field is an empty sequence”.
+    
+    Fixes #22249
+    
+    Change-Id: Idfe1592411573f6e871b5fb997e7d545597a0937
+    Reviewed-on: https://go-review.googlesource.com/70852
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/x509.go      | 12 ++++++++++--
+ src/crypto/x509/x509_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 2 deletions(-)

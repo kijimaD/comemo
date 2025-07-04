@@ -1,0 +1,16 @@
+commit eaf5235f984080d592dbc88d6e4ad4e246e2f3b2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 29 10:05:46 2016 -0800
+
+    misc/cgo/testsanitizers: don't run tsan tests on old clang
+    
+    Fixes #14570.
+    
+    Change-Id: Ief84a14585bfc209e38cdf15702c2f54ba759714
+    Reviewed-on: https://go-review.googlesource.com/20057
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ misc/cgo/testsanitizers/test.bash | 34 +++++++++++++++++++++++-----------
+ 1 file changed, 23 insertions(+), 11 deletions(-)

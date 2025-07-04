@@ -1,0 +1,15 @@
+commit 90626864dc965627590232adbed84949e3ba0e06
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue May 1 22:44:38 2012 -0700
+
+    os: conform to Go 1 API on Plan 9
+    
+    R=golang-dev, r, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/6117062
+
+ src/pkg/os/dir_plan9.go  | 34 +++++++++++++++---------------
+ src/pkg/os/file_plan9.go | 54 +++++++++++++++++++++++++++++-------------------
+ src/pkg/os/path_plan9.go |  4 ++--
+ src/pkg/os/stat_plan9.go | 24 ++++++++++-----------
+ 4 files changed, 64 insertions(+), 52 deletions(-)

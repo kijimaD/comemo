@@ -1,0 +1,24 @@
+commit 65306bcdae51195f32cc7cbfebfa2851b14a1163
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 15 14:24:00 2023 -0400
+
+    cmd/dist: refactor adding to the test list into a method
+    
+    Currently, there are four places that add distTests to the
+    tester.tests list. That means we're already missing a few name
+    uniqueness checks, and we're about to start enforcing some more
+    requirements on tests that would be nice to have in one place. Hence,
+    to prepare for this, this CL refactors the process of adding to the
+    tester.tests list into a method. That also means we can trivially use
+    a map to check name uniqueness rather than an n^2 slice search.
+    
+    For #37486.
+    
+    Change-Id: Ib7b64c7bbf65e5e870c4f4bfaca8c7f70983605c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495015
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 195 ++++++++++++++++++++++++---------------------------
+ 1 file changed, 92 insertions(+), 103 deletions(-)

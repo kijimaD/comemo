@@ -1,0 +1,19 @@
+commit 503aa6505e26f7dadf9e115eca186c9c01ff99d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 13 16:24:56 2012 -0400
+
+    go/build: fix boolean negation
+    
+    !(linux&cgo | darwin&cgo)
+    = (!linux|!cgo) & (!darwin|!cgo)
+    = (!linux&!darwin) | !cgo  // new comment
+    ≠ !linux | !darwin | !cgo  // old comment
+    
+    Fixes #3726.
+    
+    R=golang-dev, bsiegert
+    CC=golang-dev
+    https://golang.org/cl/6306076
+
+ src/pkg/go/build/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit b6e3a98cf3a7acb3d5c1431eb04e9c3edad6c6ed
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 10 13:03:42 2016 -0700
+
+    cmd/go: make C compiler warnings fatal on builders
+    
+    Fixes #14698
+    
+    Change-Id: I82fa781bf136c30e900d8e910ff576ba8b218acb
+    Reviewed-on: https://go-review.googlesource.com/23005
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

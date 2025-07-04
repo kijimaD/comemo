@@ -1,0 +1,23 @@
+commit 57dc6e247538301fb312e8ee35d3385f5d5efc28
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 9 18:48:16 2021 -0500
+
+    go/types: disallow type cycles through type parameter lists
+    
+    This is a port of CL 361922 to go/types.
+    
+    Change-Id: I790c8121a640c25fb655c926fb434d667dd59f76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362756
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/check.go                          |  1 +
+ src/go/types/decl.go                           | 57 +++++++++++++++++++-------
+ src/go/types/testdata/fixedbugs/issue45550.go2 |  4 +-
+ src/go/types/testdata/fixedbugs/issue46461.go2 |  6 +--
+ src/go/types/testdata/fixedbugs/issue47796.go2 | 14 +++----
+ src/go/types/testdata/fixedbugs/issue48529.go2 |  2 +-
+ src/go/types/testdata/fixedbugs/issue49439.go2 | 26 ++++++++++++
+ 7 files changed, 83 insertions(+), 27 deletions(-)

@@ -1,0 +1,37 @@
+commit 48531da9e706a9f3cf5e08319202e97022fb6813
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 12 13:21:55 2021 -0400
+
+    cmd/link: build dynexp symbol list directly
+    
+    Currently, setCgoAttr populates the cgo_export_{static,dynamic} maps
+    with symbol names of exported symbols, which are then re-looked-up by
+    deadcode and setupdynexp, which in turn puts the re-looked-up symbols
+    in ctxt.dynexp. setCgoAttr already looked up the Syms, so simplify all
+    of this by making setCgoAttr populate ctxt.dynexp directly and
+    eliminating the cgo_export_{static,dynamic} maps. Recording Syms
+    directly also sets us up to use correct symbol versions for these
+    exports, rather than just assuming version 0 for all lookups.
+    
+    Since setupdynexp doesn't really do any "setting up" of dynexp any
+    more with this change, we fold the remaining logic from setupdynexp
+    directly into addexport, where it has better context anyway. This also
+    eliminates a sorting step, since we no longer do a non-deterministic
+    map iteration to build the dynexp slice.
+    
+    For #40724.
+    
+    Change-Id: I3e1a65165268da8c2bf50d7485f2624133433260
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309340
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/deadcode.go | 16 +++++++-------
+ src/cmd/link/internal/ld/go.go       | 33 +++++++++++++++++++++++++----
+ src/cmd/link/internal/ld/lib.go      | 41 ------------------------------------
+ src/cmd/link/internal/ld/link.go     |  3 ---
+ src/cmd/link/internal/ld/main.go     |  1 -
+ 5 files changed, 37 insertions(+), 57 deletions(-)

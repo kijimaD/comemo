@@ -1,0 +1,28 @@
+commit ac08c05d4daa11957fcada6db33f2150936bac27
+Author: Ehden Sinai <ehdens@gmail.com>
+Date:   Thu Feb 1 13:38:56 2024 -0500
+
+    cmd/go: fix build config before creating actions for 'go list -cover'
+    
+    When -covermode is set to atomic, instrumented packages need to import
+    sync/atomic. If this is not already imported by a package being
+    instrumented, the build needs to ensure that sync/atomic is compiled
+    whenever 'go list' is run in a way that triggers package builds.
+    
+    The build config was already being made to ensure the import, but only
+    after the action graph had been created, so there was no guarantee that
+    sync/atomic would be built when needed.
+    
+    Fixes #65264.
+    
+    Change-Id: Ib3f1e102ce2ef554ea08330d9db69a8c98790ac5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560236
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/list/list.go          | 6 +++---
+ src/cmd/go/testdata/script/cover_list.txt | 4 ++++
+ 2 files changed, 7 insertions(+), 3 deletions(-)

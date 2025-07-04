@@ -1,0 +1,133 @@
+commit 924ef1c8eaf1830ac6880a603d3af0cb6c02d853
+Merge: 5348aed83e b2d3d6e676
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 7 09:33:20 2018 -0500
+
+    all: merge master into release-branch.go1.10, for go1.10rc2
+    
+    * b2d3d6e6 cmd/link/internal/loadelf: fix logic for computing ELF flags on ARM
+    * c07095cd cmd/cgo: revert CL 49490 "fix for function taking pointer typedef"
+    * 23e8e197 cmd/compile: use unsigned loads for multi-element comparisons
+    * 85bdd05c cmd/go: rebuild as needed for tests of packages that add methods
+    * fd7331a8 text/template: revert CL 66410 "add break, continue actions in ranges"
+    * f54f780d cmd/vet: unexported interface{} fields on %s are ok
+    * a0222ec5 cmd/internal/obj/arm64: fix assemble add/adds/sub/subs/cmp/cmn(extended register) bug
+    * 59523176 cmd/go: only run -race test if -race works
+    * 4558321e doc/editors: remove feature matrix for various editors/IDEs
+    * e6756ec1 cmd/go: ignore coverpkg match on sync/atomic in atomic coverage mode
+    * 10d096fe cmd/go: fix import config debugging flag
+    * f598ad58 go/internal/gccgoimporter: remove old and exp gccgo packages in test
+    * 2a8229d9 misc/cgo/test: get uintptr, not pointer, from dlopen
+    * 851e98f0 spec: remove need for separate Function production (cleanup)
+    * cbe1a61e net: fix the kernel state name for TCP listen queue on FreeBSD
+    * 6f37fee3 cmd/go: fix TestNoCache on Plan 9
+    * e5186895 runtime: restore RSB for sigpanic call on mips64x
+    * 3ff41cdf runtime: suppress "unexpected return pc" any time we're in cgo
+    * d929e40e syscall: use SYS_GETDENTS64 on linux/mips64{,le}
+    * 43288467 test: add test for gccgo bug 23545
+    * 19150303 cmd/go: if unable to initialize cache, just disable it
+    * ebe38b86 runtime: fail silently if we unwind over sigpanic into C code
+    * 5c2be42a runtime: don't unwind past asmcgocall
+    * 03e10bd9 os/signal: skip TestTerminalSignal if posix_openpt fails with EACCES
+    * d30591c1 cmd/vendor/github.com/google/pprof: cherry-pick fix to cope with $HOME not being writable
+    * bcc86d5f doc: add GOMIPS to source installation docs
+    * 926f2787 cmd/fix: cleanup directories created during typecheck
+    * 32a08d09 bootstrap.bash: only fetch git revision if we need it
+    * 14f8027a cmd/vet: extra args if any formats are indexed are ok
+    * 4072608b cmd/vet: %s is valid for an array of stringer
+    * 1f85917f cmd/vet: **T is not Stringer if *T has a String method
+    * 8c1f21d9 cmd/vet: disable complaint about 0 flag in print
+    * d529aa93 doc: fix the closing tag in contribute.html
+    * f8610bbd doc: fix two small mistakes in 1.10 release notes
+    * 5af1e7d7 cmd/go: skip external tests on plan9/arm
+    * 00587e89 doc: fix spelling mistake
+    * 3ee8c3cc os: document inheritance of thread state over exec
+    * b5b35be2 cmd/compile: don't inline functions that call recover
+    * 651ddbdb database/sql: buffers provided to Rows.Next should not be modified by drivers
+    * 7350297e doc: remove Sarah Adams from conduct working group contacts
+    
+    Change-Id: I3c04d83706cd4322252ddf732688afe5d938c1f5
+
+ api/go1.10.txt                                     |  18 --
+ doc/conduct.html                                   |   1 -
+ doc/contribute.html                                |   2 +-
+ doc/diagnostics.html                               |   4 +-
+ doc/editors.html                                   | 196 ---------------------
+ doc/editors/go-plus.png                            | Bin 15558 -> 0 bytes
+ doc/editors/goland.png                             | Bin 9430 -> 0 bytes
+ doc/editors/vimgo.png                              | Bin 7591 -> 0 bytes
+ doc/editors/vscodego.png                           | Bin 3373 -> 0 bytes
+ doc/go1.10.html                                    |  27 ++-
+ doc/go_spec.html                                   |   9 +-
+ doc/install-source.html                            |  27 ++-
+ misc/cgo/test/issue19832.go                        |  16 --
+ misc/cgo/test/issue4029.c                          |  19 ++
+ misc/cgo/test/issue4029.go                         |  17 +-
+ src/bootstrap.bash                                 |   6 +-
+ src/cmd/asm/internal/arch/arm64.go                 |   7 +-
+ src/cmd/asm/internal/asm/testdata/arm64.s          |  16 +-
+ src/cmd/asm/internal/asm/testdata/arm64error.s     |   2 +
+ src/cmd/cgo/gcc.go                                 |   6 -
+ src/cmd/compile/internal/gc/asm_test.go            |  14 ++
+ src/cmd/compile/internal/gc/inl.go                 |   8 +-
+ src/cmd/compile/internal/gc/walk.go                |   7 +-
+ src/cmd/fix/typecheck.go                           |   2 +-
+ src/cmd/go/go_test.go                              |  84 +++++++++
+ src/cmd/go/internal/cache/default.go               |   8 +-
+ src/cmd/go/internal/load/pkg.go                    |  10 ++
+ src/cmd/go/internal/test/test.go                   |  18 +-
+ src/cmd/internal/obj/arm64/asm7.go                 |  48 +++--
+ src/cmd/link/internal/loadelf/ldelf.go             |  27 +--
+ .../google/pprof/internal/driver/fetch_test.go     |  12 ++
+ src/cmd/vet/main.go                                |   6 +-
+ src/cmd/vet/print.go                               |  38 +++-
+ src/cmd/vet/testdata/print.go                      |  79 +++++++--
+ src/cmd/vet/types.go                               |  16 +-
+ src/database/sql/driver/driver.go                  |   4 +
+ src/database/sql/fakedb_test.go                    |   5 -
+ src/database/sql/sql_test.go                       |  40 +----
+ src/go/build/deps_test.go                          |   2 +-
+ .../gccgoimporter/gccgoinstallation_test.go        |   4 -
+ src/net/sock_bsd.go                                |   2 +-
+ src/os/exec.go                                     |   5 +
+ src/os/exec/exec.go                                |   5 +
+ src/os/signal/internal/pty/pty.go                  |  21 ++-
+ src/os/signal/signal_cgo_test.go                   |   4 +
+ src/runtime/crash_cgo_test.go                      |  21 +++
+ src/runtime/signal_linux_mips64x.go                |   1 +
+ src/runtime/signal_mips64x.go                      |   4 +-
+ src/runtime/testdata/testprogcgo/sigpanic.go       |  28 +++
+ src/runtime/traceback.go                           |  24 ++-
+ src/syscall/syscall_linux.go                       |   2 +-
+ src/syscall/syscall_linux_386.go                   |   1 -
+ src/syscall/syscall_linux_amd64.go                 |   1 -
+ src/syscall/syscall_linux_arm.go                   |   1 -
+ src/syscall/syscall_linux_arm64.go                 |   1 -
+ src/syscall/syscall_linux_mips64x.go               |   9 +-
+ src/syscall/syscall_linux_mipsx.go                 |   1 -
+ src/syscall/syscall_linux_ppc64x.go                |   1 -
+ src/syscall/syscall_linux_s390x.go                 |   1 -
+ src/syscall/zsyscall_linux_386.go                  |   2 +-
+ src/syscall/zsyscall_linux_amd64.go                |   2 +-
+ src/syscall/zsyscall_linux_arm.go                  |   2 +-
+ src/syscall/zsyscall_linux_arm64.go                |   2 +-
+ src/syscall/zsyscall_linux_mips.go                 |   2 +-
+ src/syscall/zsyscall_linux_mips64.go               |   2 +-
+ src/syscall/zsyscall_linux_mips64le.go             |   2 +-
+ src/syscall/zsyscall_linux_mipsle.go               |   2 +-
+ src/syscall/zsyscall_linux_ppc64.go                |   2 +-
+ src/syscall/zsyscall_linux_ppc64le.go              |   2 +-
+ src/syscall/zsyscall_linux_s390x.go                |   2 +-
+ src/syscall/ztypes_linux_mips64.go                 |   5 +-
+ src/syscall/ztypes_linux_mips64le.go               |   5 +-
+ src/text/template/doc.go                           |   6 -
+ src/text/template/exec.go                          |  84 +++------
+ src/text/template/exec_test.go                     |   4 -
+ src/text/template/parse/lex.go                     |   4 -
+ src/text/template/parse/lex_test.go                |   6 +-
+ src/text/template/parse/node.go                    |  64 -------
+ src/text/template/parse/parse.go                   |  44 +----
+ src/text/template/parse/parse_test.go              |  12 --
+ test/fixedbugs/issue23545.go                       |  35 ++++
+ test/fixedbugs/issue23719.go                       |  42 +++++
+ 82 files changed, 644 insertions(+), 627 deletions(-)

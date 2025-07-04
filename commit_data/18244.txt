@@ -1,0 +1,14 @@
+commit 077faf28511232203177f2fa6199561a6231e431
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 14 10:18:43 2014 -0800
+
+    api: update next.txt
+    
+    Now with more syscall!
+    
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/52150043
+
+ api/next.txt | 324 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 322 insertions(+), 2 deletions(-)

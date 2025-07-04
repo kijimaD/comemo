@@ -1,0 +1,19 @@
+commit 41fe746857104d8775a23dc8f69494240d683e54
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 14 10:45:16 2022 -0700
+
+    go/types, types2: use correct underlying type in union set computation
+    
+    Fixes #51658.
+    
+    Change-Id: Ibf415d7e12849b8f50b58d74713613d4e65bc347
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392575
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ .../types2/testdata/fixedbugs/issue51658.go2       | 39 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/typeset.go         |  2 +-
+ src/go/types/testdata/fixedbugs/issue51658.go2     | 39 ++++++++++++++++++++++
+ src/go/types/typeset.go                            |  2 +-
+ 4 files changed, 80 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit 09b5463d9bcdd7b9562838e0b44029b6c04c487d
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 2 12:56:51 2015 +1000
+
+    doc: finish the small library changes in go1.5.html; start work on tools
+    
+    Also add words about the assembler.
+    
+    Change-Id: I9bd8cc88076f06b0eef36a07f57d1ad5d9261d8d
+    Reviewed-on: https://go-review.googlesource.com/11853
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.5.html | 252 +++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 220 insertions(+), 32 deletions(-)

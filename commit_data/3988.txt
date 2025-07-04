@@ -1,0 +1,13 @@
+commit 8515a9f4e2eeafeec79104ec69a56d1ed861ab38
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 11 13:07:46 2009 -0800
+
+    log test: don't assume a fixed set of letters for $GOROOT
+    
+    Fixes #27.
+    
+    R=r
+    https://golang.org/cl/152075
+
+ src/pkg/log/log_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

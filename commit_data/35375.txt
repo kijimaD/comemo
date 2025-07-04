@@ -1,0 +1,33 @@
+commit 6495bf17105fbf5c76a719bdea3f383eea8b28db
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu May 10 10:10:36 2018 +0200
+
+    cmd/compile: ensure init of memclr happens after growslice in extendslice
+    
+    Using the extendslice init node list to add the init nodes for the memclr
+    call could add init nodes for memclr function before the growslice call
+    created by extendslice.
+    
+    As all arguments of the memclr were explicitly set in OAS nodes before
+    the memclr call this does not change the generated code currently.
+    ./all.bash runs fine when replacing memclr init with nil suggesting there
+    are currently no additional nodes added to the init of extendslice by
+    the memclr call.
+    
+    Add the init nodes for the memclr call directly before the node of the
+    memclr call to prevent additional future init nodes for function calls
+    and argument evaluations to be evaluated too early when other compiler
+    code is added.
+    
+    passes toolstash -cmp
+    
+    Updates #21266
+    
+    Change-Id: I44bd396fe864bfda315175aa1064f9d51c5fb57a
+    Reviewed-on: https://go-review.googlesource.com/112595
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 32 +++++++++++++-------------------
+ 1 file changed, 13 insertions(+), 19 deletions(-)

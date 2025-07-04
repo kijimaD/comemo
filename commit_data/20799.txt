@@ -1,0 +1,14 @@
+commit cd69218bdffc08e3c17023ac604bbb1a995b8602
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 27 22:47:50 2014 -0700
+
+    doc/go1.4.html: much of the go command's changes
+    still need to do internal and import comments
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/160600043
+
+ doc/go1.4.html | 152 ++++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 114 insertions(+), 38 deletions(-)

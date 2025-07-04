@@ -1,0 +1,20 @@
+commit 13772edbbdba1fa9dc904dbf41846d2b06519a18
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 5 18:49:36 2017 -0700
+
+    cmd/compile: simplify exporting universal 'error' type
+    
+    There shouldn't be any problems setting error's "Orig" (underlying)
+    type to a separate anonymous interface, as this is already how
+    go/types defines it.
+    
+    Change-Id: I44e9c4048ffe362ce329e8306632e38b5ccfecff
+    Reviewed-on: https://go-review.googlesource.com/61790
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go  | 16 +---------------
+ src/cmd/compile/internal/gc/universe.go |  5 +----
+ 2 files changed, 2 insertions(+), 19 deletions(-)

@@ -1,0 +1,12 @@
+commit 0ed8231e692b102fe2126e76ffdc417845e887a5
+Author: Giles Lean <giles.lean@pobox.com>
+Date:   Mon Mar 8 18:12:25 2010 -0800
+
+    encoding/base64: fix typo in comment
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/258041
+
+ src/pkg/encoding/base64/base64.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

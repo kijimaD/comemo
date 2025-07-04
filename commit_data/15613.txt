@@ -1,0 +1,12 @@
+commit 56d1faa8b667c6867c8704c276c1cbedf9c5be6a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 6 16:56:53 2013 -0500
+
+    net/http/httputil: fix build
+    
+    TBR=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7540043
+
+ src/pkg/net/http/httputil/dump_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

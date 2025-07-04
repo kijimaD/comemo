@@ -1,0 +1,24 @@
+commit ebc2aaae245be6a83f9b342f4c0147011c2fd423
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Mar 5 19:44:34 2023 -0800
+
+    go/types, types2: avoid 2nd lookup when looking for method on ptr recv
+    
+    If a method is not found on a type V, for better error messages we
+    report if the method is on *V. There's no need to do a 2nd lookup
+    for that because the relevant information is readily returned by
+    lookupFieldOrMethod already.
+    
+    Simplifies code and removes a long-standing TODO.
+    
+    Change-Id: Ibdb2269b04c0db61bfe4641404ab1df330397b2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473655
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/lookup.go | 26 +++++++++-----------------
+ src/go/types/lookup.go                    | 26 +++++++++-----------------
+ 2 files changed, 18 insertions(+), 34 deletions(-)

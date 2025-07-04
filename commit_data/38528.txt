@@ -1,0 +1,20 @@
+commit 869620bbeaef7698ef6210c896f913257fe2e43b
+Author: Petr Jediný <petr.jediny@gmail.com>
+Date:   Sat Mar 23 00:00:48 2019 +0000
+
+    log: expose Writer() method of the standard logger
+    
+    The Go 1.12 introduced Writer() method for logger objects, but
+    it was not exposed as log package function for standard logger.
+    This commit adds such Writer() function.
+    
+    Change-Id: Ia81b1524839fe05c152ecb5eaef047a076349fea
+    GitHub-Last-Rev: dc152ea641dd928178dbd921e2d0f6361661a0d6
+    GitHub-Pull-Request: golang/go#31009
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168920
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/log/log.go | 5 +++++
+ 1 file changed, 5 insertions(+)

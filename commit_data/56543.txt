@@ -1,0 +1,24 @@
+commit 9a9dd72d5c2b2f808a0a7ef204e307bc1dbee78c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 17 19:59:31 2024 -0400
+
+    cmd/link: add runtime.text.N symbols to macho symbol table in dynlink mode
+    
+    In dynamic linking mode (e.g. when using plugins) on darwin, the
+    marker symbols runtime.text and runtime.etext are added to Textp
+    in an early stage, so when adding symbols to the symbol table we
+    don't need to explicitly add them. However, when splitting text
+    sections, the runtime.text.N marker symbols for the addtional
+    sections are not added to Textp. So we do need to add them
+    explicitly to the symbol table.
+    
+    Fixes #66993.
+    
+    Change-Id: Ic718d03cd71fc0bfb931cff82640b1f4c53b89be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586555
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/cgo/internal/testplugin/plugin_test.go | 19 +++++++++++++++
+ src/cmd/link/internal/ld/macho.go              | 32 +++++++++++++++-----------
+ 2 files changed, 37 insertions(+), 14 deletions(-)

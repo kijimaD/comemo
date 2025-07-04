@@ -1,0 +1,14 @@
+commit f1ebbf80bd8fcc6b38e958f170ee755cf28c27f7
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Dec 23 02:47:48 2011 +1100
+
+    syscall: make pipe work on netbsd
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5504070
+
+ src/pkg/syscall/syscall_netbsd.go        | 4 ++--
+ src/pkg/syscall/zsyscall_netbsd_386.go   | 4 ++--
+ src/pkg/syscall/zsyscall_netbsd_amd64.go | 4 ++--
+ 3 files changed, 6 insertions(+), 6 deletions(-)

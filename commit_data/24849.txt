@@ -1,0 +1,17 @@
+commit a9ca2137aa3ebcf9cf094b20cf30cf50ba577892
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 12 12:24:36 2015 -0500
+
+    test: really force heap profile update in heapsampling.go
+    
+    The heap profile is only guaranteed to be up-to-date after two GC
+    cycles, so force two GCs instead of just one.
+    
+    Updates #13098.
+    
+    Change-Id: I4fb9287b698f4a3b90b8af9fc6a2efb3b082bfe5
+    Reviewed-on: https://go-review.googlesource.com/16848
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ test/heapsampling.go | 3 +++
+ 1 file changed, 3 insertions(+)

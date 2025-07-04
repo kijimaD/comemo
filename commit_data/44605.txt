@@ -1,0 +1,22 @@
+commit 9ece63f0647ec34cc729ad71a87254193014dcca
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 10 10:26:20 2021 +0100
+
+    crypto/rand, internal/syscall/unix: add support for getrandom syscall on solaris
+    
+    The getrandom syscall is available on Solaris and Illumos, see
+    https://docs.oracle.com/cd/E88353_01/html/E37841/getrandom-2.html and
+    https://illumos.org/man/2/getrandom
+    
+    Change-Id: Id1c65d6a5b2fbc80d20b43d8b32dab137ca950ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299134
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/rand/rand_batched.go                |  4 +-
+ src/crypto/rand/rand_batched_test.go           |  4 +-
+ src/crypto/rand/rand_solaris.go                | 10 +++++
+ src/internal/syscall/unix/getrandom_solaris.go | 53 ++++++++++++++++++++++++++
+ 4 files changed, 67 insertions(+), 4 deletions(-)

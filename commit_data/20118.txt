@@ -1,0 +1,14 @@
+commit 4064d5e9a3dce1b88866f1364a94a02f13db6162
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 25 20:26:32 2014 +0400
+
+    runtime: add comment
+    Explain why it's safe to allocate chans with flagNoScan.
+    
+    LGTM=rsc
+    R=golang-codereviews
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/125510045
+
+ src/pkg/runtime/chan.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

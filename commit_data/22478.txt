@@ -1,0 +1,12 @@
+commit 0d1c027bf35001d04e3ea4758f6e198542fe8961
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 13 14:40:09 2015 -0700
+
+    doc/go1.5.txt: fmt fix for empty byte slice
+    
+    Change-Id: I392cedc49847c8ea0daa38024fca97a289d805af
+    Reviewed-on: https://go-review.googlesource.com/8890
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

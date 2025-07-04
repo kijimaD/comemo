@@ -1,0 +1,14 @@
+commit 8c530becaf55ce3285121d0bf640085520ac3a4b
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Wed Dec 18 16:24:11 2013 +1100
+
+    log: add example
+    
+    Fixes #6028.
+    
+    R=golang-dev, bradfitz, adg, r
+    CC=golang-dev
+    https://golang.org/cl/43320043
+
+ src/pkg/log/example_test.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

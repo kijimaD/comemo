@@ -1,0 +1,15 @@
+commit 333b70bee05ad8782608483d05259d5b15e9d95d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 6 17:26:46 2008 -0700
+
+    snapshot of today's changes - more semantic tests
+    
+    R=r
+    OCL=13932
+    CL=13932
+
+ usr/gri/gosrc/ast.go     |  47 ++++++++++++++--
+ usr/gri/gosrc/globals.go |   1 +
+ usr/gri/gosrc/parser.go  | 144 ++++++++++++++++++++++++++++++++---------------
+ usr/gri/gosrc/type.go    |  10 ++++
+ 4 files changed, 151 insertions(+), 51 deletions(-)

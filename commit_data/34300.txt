@@ -1,0 +1,18 @@
+commit ebeea20a49c7f75ede9cdd403d474ed8c667dbf3
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Feb 21 18:19:52 2018 +0100
+
+    cmd/compile: use | in the most repetitive ppc64 rules
+    
+    For now, limited to the most repetitive rules that are also short and
+    simple, so that we can have a substantial conciseness win without
+    compromising rules readability.
+    
+    Ran rulegen, no changes in the rewrite files.
+    
+    Change-Id: I8d8cc67d02faca4756cc02402b763f1645ee31de
+    Reviewed-on: https://go-review.googlesource.com/95935
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 102 +++++++--------------------
+ 1 file changed, 25 insertions(+), 77 deletions(-)

@@ -1,0 +1,28 @@
+commit 6066fdcf38bbf92bd551f74a6db4cb72306ed493
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 22 10:47:54 2013 -0500
+
+    cmd/6g, cmd/8g: switch to DX for indirect call block
+    runtime: add context argument to gogocall
+    
+    Too many other things use AX, and at least one
+    (stack zeroing) cannot be moved onto a different
+    register. Use the less special DX instead.
+    
+    Preparation for step 2 of http://golang.org/s/go11func.
+    Nothing interesting here, just split out so that we can
+    see it's correct before moving on.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7395050
+
+ src/cmd/6g/ggen.c           |  2 +-
+ src/cmd/8g/ggen.c           |  2 +-
+ src/cmd/8l/pass.c           |  4 ++--
+ src/pkg/runtime/asm_386.s   | 29 ++++++++++++++++-------------
+ src/pkg/runtime/asm_amd64.s | 25 ++++++++++++++-----------
+ src/pkg/runtime/asm_arm.s   |  6 +++---
+ src/pkg/runtime/runtime.h   |  2 +-
+ src/pkg/runtime/stack.c     |  2 +-
+ 8 files changed, 39 insertions(+), 33 deletions(-)

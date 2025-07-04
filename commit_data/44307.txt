@@ -1,0 +1,24 @@
+commit 4da0188c6c1ec83db2a3659af8e4eaace155ab80
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 4 09:42:48 2021 -0500
+
+    cmd/go/internal/modget: split resolveCandidates into two methods
+    
+    It turns out that the existing call sites of the resolveCandidates
+    method pass only *either* a slice of queries or a slice of upgrades
+    (never both), and the behaviors triggered by the two parameters don't
+    overlap much at all. To clarify the two different operations, split
+    them into two separate methods.
+    
+    For #36460
+    
+    Change-Id: I64651637734fd44fea68740a3cdfbacfb73c19b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289697
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modget/get.go | 106 +++++++++++++++++++++-----------------
+ 1 file changed, 60 insertions(+), 46 deletions(-)

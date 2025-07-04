@@ -1,0 +1,27 @@
+commit 3974029671ead7fa0bf093e4372d354c7e620800
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 13 17:12:40 2023 -0400
+
+    go/ast: add File.GoVersion
+    
+    For #57001, compilers and others tools will need to understand that
+    a different Go version can be used in different files in a program,
+    according to the //go:build lines in those files.
+    
+    This CL adds a GoVersion string field to ast.File, to allow exposing this
+    per-file Go version information.
+    
+    For #59033.
+    
+    Change-Id: I3931ea86c237983d152964f48dce498bcb1f06aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476276
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ api/next/59033.txt         | 1 +
+ src/go/ast/ast.go          | 1 +
+ src/go/ast/example_test.go | 3 ++-
+ src/go/ast/filter.go       | 2 +-
+ 4 files changed, 5 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit 16f81b617eadc739b9097ce4b7d67e9a00a91c7c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 20 23:43:15 2016 +0000
+
+    image/draw: add FloydSteinberg Drawer example
+    
+    Updates #16360
+    
+    Change-Id: I80b981aa291a8e16d2986d4a2dfd84d3819bf488
+    Reviewed-on: https://go-review.googlesource.com/29443
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/image/draw/example_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 48 insertions(+)

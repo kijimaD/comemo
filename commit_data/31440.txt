@@ -1,0 +1,25 @@
+commit 2133d63fa81777315981fbf961338218832e5099
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Apr 28 14:24:31 2017 -0700
+
+    database/sql: ensure releaseConn is defined before a possible close
+    
+    When running a Query on Stmt a dependency is added to the stmt and
+    rows. To do that it needs a reference to Rows, so the releaseConn
+    function is defined after the definition. However the
+    rows.initContextClose was set to run before the releaseConn was
+    set on rows, setting up a situation where the connection could
+    be canceled before the releaseConn was set and resulting in
+    a segfault.
+    
+    Fixes #20160
+    
+    Change-Id: I5592e7db2cf653dfc48d42cbc2b03ca20501b1a0
+    Reviewed-on: https://go-review.googlesource.com/42139
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go      |  7 ++++++-
+ src/database/sql/sql_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 1 deletion(-)

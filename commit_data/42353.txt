@@ -1,0 +1,34 @@
+commit 14bec27743365511495eadb2accf76efaccbc525
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 6 16:22:15 2020 -0400
+
+    cmd/go: do not ignore permission errors when matching patterns
+    
+    While reviewing CL 228784, I noticed that various filepath.WalkFunc
+    implementations within cmd/go were dropping non-nil errors.
+    
+    Those errors turn out to be significant, at least in some cases: for
+    example, they can cause packages to appear to be missing when any
+    parent of the directory had the wrong permissions set.
+    
+    (This also turned up a bug in the existing list_dedup_packages test,
+    which was accidentally passing a nonexistent directory instead of the
+    intended duplicate path.)
+    
+    Change-Id: Ia09a0a33aa7a966d9f132d3747d6c674a5370b2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232579
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                              |   7 +-
+ src/cmd/go/internal/modget/get.go                  |  12 ++-
+ src/cmd/go/internal/modload/import.go              | 104 +++++++++++++++------
+ src/cmd/go/internal/modload/load.go                |  21 +++--
+ src/cmd/go/internal/modload/query.go               |  51 ++++++----
+ src/cmd/go/internal/modload/search.go              |  44 +++++----
+ src/cmd/go/internal/search/search.go               |  12 ++-
+ src/cmd/go/testdata/script/list_dedup_packages.txt |   2 +-
+ .../go/testdata/script/list_gofile_in_goroot.txt   |   3 +
+ src/cmd/go/testdata/script/list_permissions.txt    |  84 +++++++++++++++++
+ 10 files changed, 264 insertions(+), 76 deletions(-)

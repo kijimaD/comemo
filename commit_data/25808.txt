@@ -1,0 +1,14 @@
+commit 5fc43c94bf3ba6158d970488bff715e60f37e33f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 26 15:41:42 2015 -0700
+
+    net/url: simplify value lookup
+    
+    Change-Id: Ic998c189003d4dee758fca3b5ac954d5b54d3d36
+    Reviewed-on: https://go-review.googlesource.com/19764
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/url/url.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

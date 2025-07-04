@@ -1,0 +1,17 @@
+commit 7d24e9581a5a5958848e2ae8171fb33a1650c6b8
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Dec 9 15:13:24 2019 -0500
+
+    cmd/link: fix imports problem in elf_test.go
+    
+    Fix an imports problem in this test (doesn't compile).
+    
+    Updates #35779
+    
+    Change-Id: Icaeec0384bf2e75696e43d9410df7219f0245940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210578
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/elf_test.go | 1 +
+ 1 file changed, 1 insertion(+)

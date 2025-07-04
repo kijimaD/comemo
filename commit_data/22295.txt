@@ -1,0 +1,14 @@
+commit c45f4b7145ab9bb71380f275261f096a6078b254
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 3 11:02:32 2015 -0700
+
+    iostest.bash: warn if GOARCH is not correct
+    
+    Fixes #10334
+    
+    Change-Id: I468230870ca2afc691ce879707dac34e513e1b9e
+    Reviewed-on: https://go-review.googlesource.com/8442
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/iostest.bash | 4 ++++
+ 1 file changed, 4 insertions(+)

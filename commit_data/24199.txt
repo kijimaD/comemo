@@ -1,0 +1,12 @@
+commit c82c212649ecab171e5e8246cbbc7e9c969fdf14
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 8 10:39:03 2015 -0700
+
+    doc: strconv.QuoteToGraphic in go1.6.txt
+    
+    Change-Id: I2f05d0b62deb5d7d0886f6fc5af5e7b79792efba
+    Reviewed-on: https://go-review.googlesource.com/14381
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

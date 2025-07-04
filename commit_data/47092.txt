@@ -1,0 +1,36 @@
+commit 31249688487ca3a60f856ad082d4e84c4d5f79fb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 14:29:09 2020 -0400
+
+    cmd/fix: add buildtag fix
+    
+    Now that Go 1.17 is out and Go 1.15 is unsupported,
+    removing // +build lines can be done safely: in the worst case,
+    if code is compiled using Go 1.16 the toolchain will detect
+    the presence of a //go:build without // +build and fail the build.
+    (It will not silently choose the wrong files.)
+    
+    Note that +build lines will continue to work in Go sources forever.
+    This just provides a mechanism for users who are done with
+    Go 1.16 to remove them easily, by running "go fix".
+    
+    Also update for new generics AST.
+    
+    For #41184.
+    Fixes #48978.
+    
+    Change-Id: I11a432c319e5abd05ad68dda9ccd7a7fdcc8bbb8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240611
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/fix/buildtag.go        | 51 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/fix/buildtag_test.go   | 34 ++++++++++++++++++++++++++++
+ src/cmd/fix/fix.go             |  9 ++++++++
+ src/cmd/fix/main.go            | 28 ++++++++++++++++++++++-
+ src/cmd/fix/main_test.go       | 23 ++++++++++++++-----
+ src/cmd/go/alldocs.go          |  8 +++++--
+ src/cmd/go/internal/fix/fix.go | 30 +++++++++++++++++++++----
+ 7 files changed, 171 insertions(+), 12 deletions(-)

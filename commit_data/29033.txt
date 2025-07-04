@@ -1,0 +1,20 @@
+commit 1b0cf430dd130ad53e9f43bc04d2ed91bcd87b26
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 19 15:32:14 2016 -0700
+
+    cmd/compile: implement package-level aliases (no export yet)
+    
+    Requires -newparser=1.
+    
+    For #17487.
+    For #16339.
+    
+    Change-Id: I156fb0c0f8a97e8c72dbbfbd7fe821efee12b957
+    Reviewed-on: https://go-review.googlesource.com/31597
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/main.go  |  2 +
+ src/cmd/compile/internal/gc/noder.go | 91 +++++++++++++++++++++++++++++++++-
+ src/go/types/stdlib_test.go          |  1 +
+ test/alias2.go                       | 96 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 188 insertions(+), 2 deletions(-)

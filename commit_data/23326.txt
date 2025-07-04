@@ -1,0 +1,14 @@
+commit 637d59859d3f13a55eaab7d683b5061fcbfd616c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 11 13:21:46 2015 -0700
+
+    spec: clarify meaning of x op= y
+    
+    Suggested by mdempsky (see also issue #11161).
+    
+    Change-Id: I1ab28febe19b7a092029499015073ce8749b4d99
+    Reviewed-on: https://go-review.googlesource.com/10960
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

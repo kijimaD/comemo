@@ -1,0 +1,20 @@
+commit 109d7580a5c507b1e4f460445a5c4cd7313e4aa6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 20 11:59:40 2021 -0400
+
+    cmd/compile: disable name preservation on copies in expand_calls
+    
+    Apparently CL 309330 caused the compiler OOMing on some large
+    input (giant generated switch statement). I don't quite understand
+    it for now. Disable it for now.
+    
+    Change-Id: I19c84f3f5e158897bff0b32d6217fcff3c66874d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311829
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 18 ++++++++++--------
+ test/live_regabi.go                          |  5 ++++-
+ 2 files changed, 14 insertions(+), 9 deletions(-)

@@ -1,0 +1,19 @@
+commit b106105e52003627308189a0c455206506fcd925
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Oct 5 11:26:40 2019 +1000
+
+    syscall, internal/syscall/windows, internal/syscall/windows/registry: make go generate use new golang.org/x/sys/windows/mkwinsyscall
+    
+    Updates #34388
+    
+    Change-Id: I327a1c1557c47fa6c113c7a1a507a8e7355f9d1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199277
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/internal/syscall/windows/mksyscall.go          | 2 +-
+ src/internal/syscall/windows/registry/mksyscall.go | 2 +-
+ src/syscall/syscall.go                             | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

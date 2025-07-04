@@ -1,0 +1,29 @@
+commit 607975cfa15768e3587facfbde18ef9f18c46170
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Tue Sep 24 12:53:21 2024 +0000
+
+    cmd/dist: enforce the lowest bootstrap version
+    
+    The go1.24 release notes say that go1.22.6 is the
+    minimum bootstraps required,
+    the go team also use go1.22.6 bootstraps in testing,
+    so if there's a problem with using an older version,
+    automated testing won't uncover it.
+    
+    Now enforce this in dist to avoid
+    release notes that do not match reality, which can be confusing.
+    
+    For #64751
+    
+    Change-Id: Icd2f8a47b2bbb2d7c3dab9be9a228f43b9630063
+    GitHub-Last-Rev: 425cd7f03c09ca5e4017d5a70a71fe8cf56d63e5
+    GitHub-Pull-Request: golang/go#69168
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609762
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/dist/buildtool.go | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)

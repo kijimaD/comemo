@@ -1,0 +1,14 @@
+commit e38eddbfe4f2aff84a200d51b52fab4b38ae4f26
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Sep 12 11:18:34 2013 +1000
+
+    cmd/8l: fix 386 builds
+    
+    Remove set but unused variable.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/13490047
+
+ src/cmd/8l/pass.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

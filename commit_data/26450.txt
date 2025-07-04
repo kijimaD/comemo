@@ -1,0 +1,16 @@
+commit c16a61515fa725b81a6c461c80a32f2f0afad8db
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Mar 20 22:00:06 2016 -0400
+
+    misc/cgo/test: add RewindAndSetgid implementation for s390x
+    
+    Required to pass the issue9400 test.
+    
+    Change-Id: I595223c403b12faade54e2e46510f8537150af39
+    Reviewed-on: https://go-review.googlesource.com/20940
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/issue9400/asm_s390x.s | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

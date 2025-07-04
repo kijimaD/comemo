@@ -1,0 +1,18 @@
+commit 9aaf5234bf652fc788782fc04a06044879b5957a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 30 11:28:54 2023 -0700
+
+    os/user: use correct size for initial call in retryWithBuffer
+    
+    We were accidentally using the sysconf parameter constant.
+    Change to using the value of that sysconf parameter.
+    
+    Change-Id: Id7668e7cced0ce7504df99dbbff0757d29dee8c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524555
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/user/cgo_lookup_unix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

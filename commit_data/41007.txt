@@ -1,0 +1,17 @@
+commit a197c7bbf2bee9c7078e821736e81f9642548443
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 19 09:33:16 2019 -0500
+
+    cmd/go/internal/clean: make 'go clean -testcache' a no-op if the cache directory is gone
+    
+    Fixes #29100
+    
+    Change-Id: I195191aad825266ab55d38addef9d662cfc72dff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212099
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/clean/clean.go             | 4 +++-
+ src/cmd/go/testdata/script/clean_testcache.txt | 9 ++++++++-
+ 2 files changed, 11 insertions(+), 2 deletions(-)

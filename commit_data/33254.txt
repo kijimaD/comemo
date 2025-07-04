@@ -1,0 +1,34 @@
+commit c35f239d5226361cfccd3477e112bbea360c6ee2
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Fri Oct 13 15:37:16 2017 +0300
+
+    obj/x86: re-organize code to make codegen easier
+    
+    1. Move AXXX constants (A-enumeration) from "a.out.go" to "aenum.go"
+    2. Move VEX-encoded optabs from "asm6.go" to "vex_optabs.go"
+    
+    Also run "go generate" over aenum.go. This explains diff in "anames.go".
+    
+    Initialization of opindex is split into 2 loops:
+    one for `vexOptab`, second for `optab`.
+    
+    Rationale:
+    when VEX instructions are generated with current structure,
+    asm6.go is modified, which can lead to merge conflicts and
+    larger diffs than desired. Same for a.out.go.
+    
+    This change makes x86avxgen usage possible:
+    https://go-review.googlesource.com/c/arch/+/66972
+    
+    Change-Id: Id9eefcf5ccf0a89440e5d01bcb80926a8163b41d
+    Reviewed-on: https://go-review.googlesource.com/70630
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/x86/a.out.go      | 841 ---------------------------------
+ src/cmd/internal/obj/x86/aenum.go      | 837 ++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/x86/anames.go     |   2 +-
+ src/cmd/internal/obj/x86/asm6.go       |  66 +--
+ src/cmd/internal/obj/x86/vex_optabs.go |  61 +++
+ 5 files changed, 906 insertions(+), 901 deletions(-)

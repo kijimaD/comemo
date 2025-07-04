@@ -1,0 +1,66 @@
+commit 19a995945fc0d10c3cd92fdff2965f791ea0b0d2
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Aug 25 15:15:41 2017 -0700
+
+    archive/tar: add raw support for global PAX records
+    
+    The PAX specification says the following:
+    <<<
+    'g' represents global extended header records for the following files in the archive.
+    The format of these extended header records shall be as described in pax Extended Header.
+    Each value shall affect all subsequent files that do not override that value
+    in their own extended header record and until another global extended header record
+    is reached that provides another value for the same field.
+    >>>
+    
+    This CL adds support for parsing and composing global PAX records,
+    but intentionally does not provide support for automatically
+    persisting the global state across files.
+    
+    Changes made:
+    * When Reader encounters a TypeXGlobalRecord header, it parses the
+    PAX records and returns them to the user ad-verbatim. Reader does not
+    store them in its state, ensuring it has no effect on future Next calls.
+    * When Writer receives a TypeXGlobalRecord header, it writes the
+    PAX records to the archive ad-verbatim. It does not store them in
+    its state, ensuring it has no effect on future WriteHeader calls.
+    * The restriction regarding empty record values is lifted since this
+    value is used to represent deletion in global headers.
+    
+    Why provide raw support only:
+    * Some archives in the wild have a global header section (often empty)
+    and it is the user's responsibility to manually read and discard it's body.
+    The logic added here allows users to more easily skip over these sections.
+    * For users that do care about global headers, having access to the raw
+    records allows them to implement the functionality of global headers themselves
+    and manually persist the global state across files.
+    * We can still upgrade to a full implementation in the future.
+    
+    Why we don't provide full support:
+    * Even though the PAX specification describes their operation in detail,
+    both the GNU and BSD tar tools (which are the most common implementations)
+    do not have a consistent interpretation of many details.
+    * Global headers were a controversial feature in PAX, by admission of the
+    specification itself:
+      <<<
+      The concept of a global extended header (typeflag g) was controversial.
+    
+      The typeflag g global headers should not be used with interchange media that
+      could suffer partial data loss in transporting the archive.
+      >>>
+    * Having state persist from entry-to-entry complicates the implementation
+    for a feature that is not widely used and not well supported.
+    
+    Change-Id: I1d904cacc2623ddcaa91525a5470b7dbe226c7e8
+    Reviewed-on: https://go-review.googlesource.com/59190
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/archive/tar/common.go                       |  35 +++++++++++---
+ src/archive/tar/reader.go                       |  36 +++++++-------
+ src/archive/tar/reader_test.go                  |  51 ++++++++++++++++++--
+ src/archive/tar/tar_test.go                     |   3 +-
+ src/archive/tar/testdata/pax-global-records.tar | Bin 0 -> 7168 bytes
+ src/archive/tar/writer.go                       |  19 ++++++--
+ src/archive/tar/writer_test.go                  |  60 ++++++++++++++++++++++++
+ 7 files changed, 169 insertions(+), 35 deletions(-)

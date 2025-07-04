@@ -1,0 +1,26 @@
+commit 49ed4cbe853e910b6f8d83012bc8b9afedb4b6b6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 5 12:48:28 2018 -0700
+
+    cmd/compile: sort method sets using package height
+    
+    Also, when statically building itabs, compare *types.Sym instead of
+    name alone so that method sets with duplicate non-exported methods are
+    handled correctly.
+    
+    Fixes #24693.
+    
+    Change-Id: I2db8a3d6e80991a71fef5586a15134b6de116269
+    Reviewed-on: https://go-review.googlesource.com/105039
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go |  8 ++++++-
+ src/cmd/compile/internal/types/sym.go  | 15 ++++++++++++--
+ test/fixedbugs/issue24693.dir/a.go     | 11 ++++++++++
+ test/fixedbugs/issue24693.dir/b.go     | 38 ++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue24693.dir/c.go     | 12 +++++++++++
+ test/fixedbugs/issue24693.go           |  7 +++++++
+ test/fixedbugs/issue24693.out          |  2 ++
+ 7 files changed, 90 insertions(+), 3 deletions(-)

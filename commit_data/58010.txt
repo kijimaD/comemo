@@ -1,0 +1,24 @@
+commit 44d4b6994246094fa2385fafc182b679ef216f3a
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 13 19:50:44 2024 -0500
+
+    cmd/go: change Printer.Output -> Printer.Printf for consistency
+    
+    Currently, the Printer interface has `Output`, which acts like Print
+    and `Errorf`, which acts like Printf. It's confusing that the
+    formatting style is tied to whether it's regular output or an error.
+    
+    Fix this by replacing Output with Printf, so both use Printf-style
+    formatting.
+    
+    Change-Id: I4c76f941e956f2599c5620b455bf41e21636b44e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627795
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/load/printer.go | 16 ++++++++--------
+ src/cmd/go/internal/work/action.go  |  2 +-
+ src/cmd/go/internal/work/buildid.go |  4 ++--
+ src/cmd/go/internal/work/exec.go    |  4 ++--
+ src/cmd/go/internal/work/shell.go   | 16 ++++++++--------
+ 5 files changed, 21 insertions(+), 21 deletions(-)

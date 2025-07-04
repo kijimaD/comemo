@@ -1,0 +1,13 @@
+commit 0f8cd1438d46ecf7393305e8981857b940f50ef4
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 11 23:46:20 2014 +1100
+
+    doc/gopher: add jpgs of the 5th anniversary image
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/172980043
+
+ doc/gopher/fiveyears.jpg | Bin 0 -> 220526 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

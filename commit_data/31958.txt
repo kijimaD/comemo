@@ -1,0 +1,17 @@
+commit 6b8813ca4515cd558f12eb26582cdfd5909c9f3b
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Thu Jun 29 13:58:28 2017 +0300
+
+    net: fix Windows TestInterfaceHardwareAddrWithGetmac
+    
+    TestInterfaceHardwareAddrWithGetmac was panicing when getmac returned
+    multiple network cards.
+    
+    Change-Id: I6fefa5a4910bce805b4cd9c09f94bd56c9682b9e
+    Reviewed-on: https://go-review.googlesource.com/47190
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/net_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit f98081e51585ebb6c321ee2145b1e38312759ea3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 3 17:01:18 2018 +0000
+
+    net/http: document CanonicalHeaderKey from Header
+    
+    And remove some unnecessary textproto references. (The net/http
+    package's CanonicalHeaderKey just calls textproto's
+    CanonicalMIMEHeaderKey)
+    
+    Fixes #28894
+    
+    Change-Id: Ibd277893a168368c593147a2677ad6130870cb88
+    Reviewed-on: https://go-review.googlesource.com/c/152157
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/header.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

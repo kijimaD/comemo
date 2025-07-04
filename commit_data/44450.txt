@@ -1,0 +1,26 @@
+commit 5fafc0bbd4819578e58e5b9163981b0074ab0b01
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Feb 25 18:38:43 2021 -0500
+
+    cmd/go/internal/modload: don't query when fixing canonical versions
+    
+    If a canonical version is passed to fixVersion when loading the main
+    go.mod and that version don't match the module path's major version
+    suffix, don't call Query.
+    
+    Query doesn't return a useful error in this case when the path is
+    malformed, for example, when it doens't have a dot in the first path
+    element. It's better to report the major version mismatch error.
+    
+    Fixes #44494
+    
+    Change-Id: I97b1f64aee894fa0db6fb637aa03a51357ee782c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296590
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/init.go                |  5 +++--
+ .../go/testdata/script/mod_retract_fix_version.txt | 24 ++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 2 deletions(-)

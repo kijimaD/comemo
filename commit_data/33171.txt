@@ -1,0 +1,23 @@
+commit 12c9d753f83ab4755151c8a72c212358dd85bc83
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 19 11:23:12 2017 -0700
+
+    cmd/compile: refactor generic AST walking code
+    
+    racewalk's "foreach" function applies a function to all of a Node's
+    immediate children, but with a non-idiomatic signature.
+    
+    This CL reworks it to recursively iterate over the entire subtree
+    rooted at Node and provides a way to short-circuit iteration.
+    
+    Passes toolstash -cmp for std cmd with -race.
+    
+    Change-Id: I738b73953d608709802c97945b7e0f4e4940d3f4
+    Reviewed-on: https://go-review.googlesource.com/71911
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/racewalk.go | 40 ++++++++-------------------------
+ src/cmd/compile/internal/gc/syntax.go   | 20 +++++++++++++++++
+ 2 files changed, 29 insertions(+), 31 deletions(-)

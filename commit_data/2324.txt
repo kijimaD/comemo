@@ -1,0 +1,13 @@
+commit 5f460b38f9190f1a62b0575289511341849dfb10
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 27 10:05:23 2009 -0700
+
+    getrusage on darwin; untested but builds.
+    
+    R=dsymonds
+    DELTA=5  (5 added, 0 deleted, 0 changed)
+    OCL=29424
+    CL=29447
+
+ src/lib/syscall/proc_darwin.go | 5 +++++
+ 1 file changed, 5 insertions(+)

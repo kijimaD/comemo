@@ -1,0 +1,23 @@
+commit 0feebe6eb594e28c29022c65ffcd2ae0e8bebac7
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Feb 15 00:22:20 2022 +0000
+
+    runtime: add byte count parser for GOMEMLIMIT
+    
+    This change adds a parser for the GOMEMLIMIT environment variable's
+    input. This environment variable accepts a number followed by an
+    optional prefix expressing the unit. Acceptable units include
+    B, KiB, MiB, GiB, TiB, where *iB is a power-of-two byte unit.
+    
+    For #48409.
+    
+    Change-Id: I6a3b4c02b175bfcf9c4debee6118cf5dda93bb6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393400
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/export_test.go |   1 +
+ src/runtime/string.go      | 117 +++++++++++++++++++++++++++++++++++++-----
+ src/runtime/string_test.go | 123 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 229 insertions(+), 12 deletions(-)

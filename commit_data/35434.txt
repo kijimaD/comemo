@@ -1,0 +1,45 @@
+commit b812eec928e89648df5ebc6a207ae2c156660be0
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 23 17:38:55 2018 -0400
+
+    cmd/compile: detect OFORUNTIL inductive facts in prove
+    
+    Currently, we compile range loops into for loops with the obvious
+    initialization and update of the index variable. In this form, the
+    prove pass can see that the body is dominated by an i < len condition,
+    and findIndVar can detect that i is an induction variable and that
+    0 <= i < len.
+    
+    GOEXPERIMENT=preemptibleloops compiles range loops to OFORUNTIL and
+    we're preparing to unconditionally switch to a variation of this for
+     #24543. OFORUNTIL moves the increment and condition *after* the body,
+    which makes the bounds on the index variable much less obvious. With
+    OFORUNTIL, proving anything about the index variable requires
+    understanding the phi that joins the index values at the top of the
+    loop body block.
+    
+    This interferes with both prove's ability to see that i < len (this is
+    true on both paths that enter the body, but from two different
+    conditional checks) and with findIndVar's ability to detect the
+    induction pattern.
+    
+    Fix this by teaching prove to detect that the index in the pattern
+    constructed by OFORUNTIL is an induction variable and add both bounds
+    to the facts table. Currently this is done separately from findIndVar
+    because it depends on prove's factsTable, while findIndVar runs before
+    visiting blocks and building the factsTable.
+    
+    Without any GOEXPERIMENT, this has no effect on std or cmd. However,
+    with GOEXPERIMENT=preemptibleloops, this change becomes necessary to
+    prove 90 conditions in std and cmd.
+    
+    Change-Id: Ic025d669f81b53426309da5a6e8010e5ccaf4f49
+    Reviewed-on: https://go-review.googlesource.com/102603
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/loopbce.go |  56 +++++++++--------
+ src/cmd/compile/internal/ssa/prove.go   | 105 ++++++++++++++++++++++++++++++++
+ test/prove.go                           |  14 +++++
+ 3 files changed, 151 insertions(+), 24 deletions(-)

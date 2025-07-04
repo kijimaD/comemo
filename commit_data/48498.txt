@@ -1,0 +1,22 @@
+commit 909a7a32138367abec92434872695fb65aa9b7d1
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Mar 21 20:07:06 2022 -0400
+
+    cmd/compile: don't mark non-generic defined type symbol dupok
+    
+    For a non-generic defined type, we generate its type descriptor
+    symbol only in the defining package. So there is no duplicate and
+    it doesn't need to be dupok.
+    
+    For unnamed types and instantiated types, the type descriptor can
+    be generated in multiple packages and so still need to be dupok.
+    
+    Change-Id: I92ed68c998ad68c5917b77b1dfd62eac4ced6bcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394636
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

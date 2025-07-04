@@ -1,0 +1,19 @@
+commit b2ea4e6d345652f44595c038301720344350b459
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Oct 22 16:49:04 2019 -0400
+
+    cmd/go: make 'go mod verify' report an error outside a module
+    
+    Also, test that 'go mod download' without arguments reports an error.
+    
+    Fixes #32027
+    
+    Change-Id: I873fc59fba4c78ee2b4f49f0d846ee2ac0eee4db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202697
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modcmd/verify.go       |  2 +-
+ src/cmd/go/testdata/script/mod_outside.txt | 13 +++++++++----
+ 2 files changed, 10 insertions(+), 5 deletions(-)

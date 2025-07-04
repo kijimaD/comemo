@@ -1,0 +1,30 @@
+commit dbe56ff6c7a0162f318ed2dd7331c9de82e11d6d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 27 20:07:30 2022 -0700
+
+    go/types, types2: use "invalid operation: x rel y (cause)" for comparison error messages
+    
+    Matches compiler behavior and is consistent with what we do with other
+    binary operations.
+    
+    While at it, also use parentheses rather than a colon for a couple of
+    errors caused by not having a core type.
+    
+    For #55326.
+    
+    Change-Id: I0a5cec1a31ffda98d363e5528791965a1ccb5842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435618
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/expr.go             | 10 +++-------
+ src/go/types/expr.go                                | 10 +++-------
+ src/internal/types/testdata/check/expr2.go          |  8 ++++----
+ src/internal/types/testdata/check/typeparams.go     |  6 +++---
+ src/internal/types/testdata/fixedbugs/issue43671.go |  4 ++--
+ src/internal/types/testdata/fixedbugs/issue51335.go |  4 ++--
+ src/internal/types/testdata/fixedbugs/issue51472.go |  8 ++++----
+ 7 files changed, 21 insertions(+), 29 deletions(-)

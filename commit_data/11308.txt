@@ -1,0 +1,13 @@
+commit c3eddc4503adce7983ba5e38c6a5b4ad3626edf7
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Jan 21 17:02:54 2012 +1100
+
+    gc: test case for recursive interface bug.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5555066
+
+ test/interface/recursive1.go | 15 +++++++++++++++
+ test/interface/recursive2.go | 22 ++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

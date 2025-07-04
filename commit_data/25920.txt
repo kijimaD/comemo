@@ -1,0 +1,22 @@
+commit c747fce242ec46316db17df14e65b0fe23e2c1f1
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 25 19:17:55 2016 -0800
+
+    cmd/internal/obj: Fix generation of assembly with -S
+    
+    We can't drop Prog entries when we want to print disassembly.
+    
+    Added a test for -S.
+    
+    Fixes #14515
+    
+    Change-Id: I44c72f70f7a3919acc01c559d30335d26669e76f
+    Reviewed-on: https://go-review.googlesource.com/19930
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/global_test.go | 51 ++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/objfile.go            |  8 +++--
+ 2 files changed, 56 insertions(+), 3 deletions(-)

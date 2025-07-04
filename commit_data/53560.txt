@@ -1,0 +1,111 @@
+commit 3aea422e2cb8b1ec2e0c2774be97fe96c7299838
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Apr 25 13:15:04 2023 -0700
+
+    crypto/x509: use synthetic root for platform testing
+    
+    Rather than using the external network and real-world chains for testing
+    the integrations with platform verifiers, use a synthetic test root.
+    
+    This changes adds a constrained root and key pair to the tree, and adds
+    a test suite that verifies certificates issued from that root. These
+    tests are only executed if the root is detected in the trust store. For
+    reference, the script used to generate the root and key is attached to
+    the bottom of this commit message.
+    
+    This change leaves the existing windows/darwin TestPlatformVerifier
+    tests in place, since the trybots do not currently have the test root in
+    place, and as such cannot run the suite. Once the builder images have
+    the root integrated, we can remove the old flaky tests, and the trybots
+    will begin running the new suite automatically.
+    
+    Updates #52108
+    
+    -- gen.go --
+    package main
+    
+    import (
+            "crypto/ecdsa"
+            "crypto/elliptic"
+            "crypto/rand"
+            "crypto/x509"
+            "crypto/x509/pkix"
+            "encoding/pem"
+            "flag"
+            "log"
+            "math/big"
+            "net"
+            "os"
+            "time"
+    )
+    
+    func writePEM(pemType string, der []byte, path string) error {
+            enc := pem.EncodeToMemory(&pem.Block{
+                    Type:  pemType,
+                    Bytes: der,
+            })
+            return os.WriteFile(path, enc, 0666)
+    }
+    
+    func main() {
+            certPath := flag.String("cert-path", "platform_root_cert.pem", "Path to write certificate PEM")
+            keyPath := flag.String("key-path", "platform_root_key.pem", "Path to write key PEM")
+            flag.Parse()
+    
+            key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+            if err != nil {
+                    log.Fatalf("ecdsa.GenerateKey failed: %s", err)
+            }
+    
+            now := time.Now()
+            tmpl := &x509.Certificate{
+                    SerialNumber: big.NewInt(9009),
+                    Subject: pkix.Name{
+                            CommonName: "Go platform verifier testing root",
+                    },
+                    NotBefore:                   now.Add(-time.Hour),
+                    NotAfter:                    now.Add(time.Hour * 24 * 365 * 5),
+                    IsCA:                        true,
+                    BasicConstraintsValid:       true,
+                    PermittedDNSDomainsCritical: true,
+                    // PermittedDNSDomains restricts the names in certificates issued from this root to *.testing.golang.invalid.
+                    // The .invalid TLD is, per RFC 2606, reserved for testing, and as such anything issued for this certificate
+                    // should never be valid in the real world.
+                    PermittedDNSDomains: []string{"testing.golang.invalid"},
+                    // ExcludedIPRanges prevents any certificate issued from this root that contains an IP address in both the full
+                    // IPv4 and IPv6 ranges from being considered valid.
+                    ExcludedIPRanges: []*net.IPNet{{IP: make([]byte, 4), Mask: make([]byte, 4)}, {IP: make([]byte, 16), Mask: make([]byte, 16)}},
+                    KeyUsage:         x509.KeyUsageCertSign,
+                    ExtKeyUsage:      []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+            }
+    
+            certDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, key.Public(), key)
+            if err != nil {
+                    log.Fatalf("x509.CreateCertificate failed: %s", err)
+            }
+    
+            keyDER, err := x509.MarshalECPrivateKey(key)
+            if err != nil {
+                    log.Fatalf("x509.MarshalECPrivateKey failed: %s", err)
+            }
+    
+            if err := writePEM("CERTIFICATE", certDER, *certPath); err != nil {
+                    log.Fatalf("failed to write certificate PEM: %s", err)
+            }
+            if err := writePEM("EC PRIVATE KEY", keyDER, *keyPath); err != nil {
+                    log.Fatalf("failed to write key PEM: %s", err)
+            }
+    }
+    
+    Change-Id: If7c4a9f18466662a60fea5443e603232a9260026
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488855
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/x509/platform_root_cert.pem |  13 ++
+ src/crypto/x509/platform_root_key.pem  |   5 +
+ src/crypto/x509/platform_test.go       | 251 +++++++++++++++++++++++++++++++++
+ 3 files changed, 269 insertions(+)

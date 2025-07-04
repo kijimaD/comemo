@@ -1,0 +1,15 @@
+commit 552207611bc21a0feae14fb8d961668d14729c06
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 15 15:58:43 2013 -0700
+
+    net/http: fix test breakage on Windows
+    
+    Treat the Windows net server as uninteresting for leak
+    purposes too.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7818048
+
+ src/pkg/net/http/z_last_test.go | 1 +
+ 1 file changed, 1 insertion(+)

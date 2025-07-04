@@ -1,0 +1,19 @@
+commit 15a3a5cf6c3ba9ef29f086d20dd41a377428fadb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 1 14:33:24 2011 -0800
+
+    gofmt: applied gofmt -w -s src misc
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5451070
+
+ misc/cgo/gmp/pi.go                   | 2 +-
+ misc/swig/callback/run.go            | 2 +-
+ src/cmd/godoc/httpzip.go             | 4 ++--
+ src/cmd/gofix/timefileinfo.go        | 2 +-
+ src/pkg/archive/zip/writer_test.go   | 4 ++--
+ src/pkg/html/render_test.go          | 8 ++++----
+ src/pkg/html/template/escape.go      | 2 +-
+ src/pkg/html/template/escape_test.go | 2 +-
+ 8 files changed, 13 insertions(+), 13 deletions(-)

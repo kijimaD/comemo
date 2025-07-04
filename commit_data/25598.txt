@@ -1,0 +1,16 @@
+commit 49234ee2db71dc209a05038798777c2a0ad2b82c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 18 11:43:32 2016 -0800
+
+    net/http: panic on bogus use of CloseNotifier or Hijacker
+    
+    Fixes #14001
+    
+    Change-Id: I6f9bc3028345081758d8f537c3aaddb2e254e69e
+    Reviewed-on: https://go-review.googlesource.com/18708
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/server.go | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

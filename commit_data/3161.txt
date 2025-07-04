@@ -1,0 +1,14 @@
+commit bdec330c85dd28682e1979bde5de50348d6bda64
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 31 17:57:14 2009 -0700
+
+    remove leftover forward-decl syntax and example
+    (per feedback from Austin)
+    
+    R=rsc
+    DELTA=7  (0 added, 2 deleted, 5 changed)
+    OCL=34158
+    CL=34161
+
+ doc/go_spec.html | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

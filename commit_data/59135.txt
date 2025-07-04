@@ -1,0 +1,13 @@
+commit c558f017ef2a98fd625107d36271e184ae29c626
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Mar 20 15:03:43 2025 -0700
+
+    runtime/race: fix reversed conditional in test for fatal map access
+    
+    Change-Id: Icc4d90355d8af07fdec852b2adf720f7cfd1edd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659735
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/race/race_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

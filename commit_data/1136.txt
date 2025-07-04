@@ -1,0 +1,27 @@
+commit 5aa7dc5daf821d1bdacde2fe23523a5406c70e8e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 17 11:51:34 2008 -0800
+
+    adopt suggestions from Bentley and McIlroy (SP&E Nov 1993)
+    to make qsort more robust:
+    
+            * use "ninther" to choose pivot.
+            * use three-way partition to avoid quadratic
+              behavior on all-one-value arrays.
+    
+    also add tests suggested in that paper.
+    
+    the immediate cause of the slowness we observed was
+    in fact none of these: the recursive call was sorting
+    data[0:m] instead of data[a:m].
+    
+    also rename package to "sort" to match convention.
+    
+    R=r,gri
+    DELTA=358  (255 added, 21 deleted, 82 changed)
+    OCL=19341
+    CL=19373
+
+ src/lib/sort.go | 127 ++++++++++++++++++++++++--------
+ test/sorting.go | 225 ++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 293 insertions(+), 59 deletions(-)

@@ -1,0 +1,16 @@
+commit 5d12434eee031e3db9e0bfe753c663b565b6a0f9
+Author: Alexey Vilenskiy <bynovhack@gmail.com>
+Date:   Fri Aug 14 11:37:31 2020 +0300
+
+    reflect: support multiple keys in struct tags
+    
+    Fixes #40281
+    
+    Change-Id: Ie624bce3a78a06d7ed71bba1f501e66802dffd13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248341
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/reflect/all_test.go | 170 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/type.go     |  27 +++++++-
+ 2 files changed, 194 insertions(+), 3 deletions(-)

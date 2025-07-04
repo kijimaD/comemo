@@ -1,0 +1,31 @@
+commit d211c2d3774d78173e004f0ffb1e2eae9ae19706
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 22 17:02:22 2016 -0400
+
+    runtime: implement getcallersp in Go
+    
+    This makes it possible to inline getcallersp. getcallersp is on the
+    hot path of defers, so this slightly speeds up defer:
+    
+    name           old time/op  new time/op  delta
+    Defer-4        78.3ns ± 2%  75.1ns ± 1%  -4.00%   (p=0.000 n=9+8)
+    
+    Updates #14939.
+    
+    Change-Id: Icc1cc4cd2f0a81fc4c8344432d0b2e783accacdd
+    Reviewed-on: https://go-review.googlesource.com/29655
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/asm_386.s      |  5 -----
+ src/runtime/asm_amd64.s    |  5 -----
+ src/runtime/asm_amd64p32.s |  5 -----
+ src/runtime/asm_arm.s      |  6 ------
+ src/runtime/asm_arm64.s    |  6 ------
+ src/runtime/asm_mips64x.s  |  6 ------
+ src/runtime/asm_ppc64x.s   |  6 ------
+ src/runtime/asm_s390x.s    |  6 ------
+ src/runtime/stubs.go       | 11 ++++++++---
+ 9 files changed, 8 insertions(+), 48 deletions(-)

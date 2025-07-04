@@ -1,0 +1,20 @@
+commit 80bedb848092c993182f79a946d54776dc251549
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Fri Oct 29 15:24:28 2021 +0800
+
+    go/types: fix TypeName.IsAlias for type parameter names
+    
+    Fixes #49213
+    
+    Change-Id: I2bfc151b74b0d14efbd00e5d28584f4180126c5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359656
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/object.go                         | 2 ++
+ src/go/types/object_test.go                    | 3 +++
+ src/go/types/testdata/fixedbugs/issue45985.go2 | 2 +-
+ 3 files changed, 6 insertions(+), 1 deletion(-)

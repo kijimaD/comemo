@@ -1,0 +1,16 @@
+commit 96c9603a431f433e4cba82cf9c9f86165a831035
+Author: Raif S. Naffah <go@naffah-raif.name>
+Date:   Mon Mar 8 18:12:36 2010 -0800
+
+    crypto/ripemd160: new package
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/224081
+
+ src/pkg/Makefile                           |   1 +
+ src/pkg/crypto/ripemd160/Makefile          |  12 +++
+ src/pkg/crypto/ripemd160/ripemd160.go      | 116 +++++++++++++++++++++
+ src/pkg/crypto/ripemd160/ripemd160_test.go |  64 ++++++++++++
+ src/pkg/crypto/ripemd160/ripemd160block.go | 161 +++++++++++++++++++++++++++++
+ 5 files changed, 354 insertions(+)

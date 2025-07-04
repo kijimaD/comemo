@@ -1,0 +1,34 @@
+commit 765c9116be44641854f580c19e3589d7b86a3d28
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Sep 30 14:37:30 2021 -0700
+
+    cmd/go: move module build info formatting into runtime/debug
+    
+    Previously, modload.PackageBuildInfo returned a string containing
+    information about modules used to build an executable. This string is
+    embedded in the binary and can be read with debug.ReadBuildInfo or
+    'go version -m'.
+    
+    With this change, debug.BuildInfo now has a MarshalText method that
+    returns a string in the same format as modload.PackageBuildInfo.
+    
+    Package.load now calls Package.setBuildInfo, which constructs a
+    debug.BuildInfo, formats it with MarshalText, then sets
+    Package.Internal.BuildInfo. This is equivalent to what
+    modload.PackageBuildInfo did.
+    
+    modload.PackageBuildInfo is deleted, since it's no longer used.
+    
+    For #37475
+    
+    Change-Id: I5875a98cb64737637fec2a450ab2ffa7f1805707
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353886
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ api/next.txt                         |  1 +
+ src/cmd/go/internal/load/pkg.go      | 83 ++++++++++++++++++++++++++++++++++--
+ src/cmd/go/internal/modload/build.go | 48 ---------------------
+ src/runtime/debug/mod.go             | 37 ++++++++++++++++
+ 4 files changed, 118 insertions(+), 51 deletions(-)

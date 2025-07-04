@@ -1,0 +1,26 @@
+commit 902f8d9ca036974a853ade8efdd609434a19bbbe
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 7 20:13:35 2014 -0400
+
+    net/http/httptest: fix deadlock in TestIssue7264
+    
+    I am seeing deadlocks waiting on <-inHandler.
+    It seems to me that there is no guarantee that the
+    handler actually runs, if the client does
+    
+            write header
+            close connection
+    
+    fast enough. The server might see the EOF on the
+    connection before it manages to invoke the handler.
+    
+    This change fixes the deadlock, but it may make
+    the test not actually test anything. Not sure.
+    
+    LGTM=bradfitz
+    R=bradfitz, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/140970043
+
+ src/pkg/net/http/httptest/server_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

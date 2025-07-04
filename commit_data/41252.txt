@@ -1,0 +1,17 @@
+commit b8061825e57dcee97a37fe49272ca52e84600f5e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 10 16:00:29 2020 -0500
+
+    doc: fill in 'go mod init' section of module documentation
+    
+    Updates #33637
+    
+    Change-Id: I9c1345d0fa7a1b6c98c33b8b0837706e5261d5b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214381
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
+
+ doc/modules.md | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

@@ -1,0 +1,15 @@
+commit 504db532971b703d52f0bd4ced3e36a403b49da4
+Author: Norman B. Lancaster <qbradq@gmail.com>
+Date:   Wed Jul 10 17:31:00 2019 -0500
+
+    net/textproto: correct documentation of empty line handling
+    
+    Fixes #32493
+    
+    Change-Id: I9c93791c4cc5c0c14556802733066407de3181ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185542
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/textproto/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

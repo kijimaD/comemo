@@ -1,0 +1,12 @@
+commit 7bffdc724799c240ea796f3c7f5d1cbbb1e84d01
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Dec 20 13:16:36 2011 +1100
+
+    encoding/binary: add Write and Read examples
+    
+    R=golang-dev, r, adg
+    CC=golang-dev
+    https://golang.org/cl/5495095
+
+ src/pkg/encoding/binary/example_test.go | 52 +++++++++++++++++++++++++++++++++
+ 1 file changed, 52 insertions(+)

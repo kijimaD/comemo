@@ -1,0 +1,17 @@
+commit d96b4c494fcf915a49b004d59018c46deaa069bb
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 21 12:32:14 2015 -0700
+
+    cmd/internal/obj: fix PSRLW opcode
+    
+    The reg-reg version compiled to PSRAW, not PSRLW (arithmetic
+    instead of logical shift right).
+    
+    Fixes #13010.
+    
+    Change-Id: I69a47bd83c8bbe66c7f8d82442ab45e9bf3b94fb
+    Reviewed-on: https://go-review.googlesource.com/16168
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

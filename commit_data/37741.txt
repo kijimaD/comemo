@@ -1,0 +1,18 @@
+commit 3855fe7254cbce964a53efdf6d8c9fdde9b4419c
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Dec 18 13:00:26 2018 +0100
+
+    runtime: fix backtrace during C syscalls for aix/ppc64
+    
+    This commit fixes backtrace if a crash or an exit signal is received
+    during a C syscall on aix/ppc64.
+    This is similar to Solaris, Darwin or Windows implementation.
+    
+    Change-Id: I6040c0b1577a9f5b298f58bd4ee6556258a135ef
+    Reviewed-on: https://go-review.googlesource.com/c/154718
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os2_aix.go | 147 ++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 140 insertions(+), 7 deletions(-)

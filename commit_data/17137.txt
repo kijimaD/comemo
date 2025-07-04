@@ -1,0 +1,19 @@
+commit d9f93b0e0b351de6cfe05c03d8e8f78328178407
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 9 18:34:08 2013 -0400
+
+    go/build: add AllTags to Package
+    
+    AllTags lists all the tags that can affect the decision
+    about which files to include. Tools scanning packages
+    can use this to decide how many variants there are
+    and what they are.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12703044
+
+ src/pkg/go/build/build.go        | 66 ++++++++++++++++++++++++++--------------
+ src/pkg/go/build/build_test.go   | 63 ++++++++++++++++++++++++++------------
+ src/pkg/go/build/syslist_test.go |  2 +-
+ 3 files changed, 89 insertions(+), 42 deletions(-)

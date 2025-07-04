@@ -1,0 +1,12 @@
+commit 900b8becb3afbeffb5c8595b7b83e447ccf7c03f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 9 11:22:26 2012 -0800
+
+    cgo: if value for constant did not parse, get it from DWARF info
+    
+    R=rsc, borman
+    CC=golang-dev
+    https://golang.org/cl/5525043
+
+ src/cmd/cgo/gcc.go | 5 +++++
+ 1 file changed, 5 insertions(+)

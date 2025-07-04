@@ -1,0 +1,14 @@
+commit 096e2bffdf065dbaa4e5023d6b83ce694a37b949
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon May 8 16:40:49 2017 +1000
+
+    cmd/go: run tests that require symlinks
+    
+    Change-Id: I19a724ea4eb1ba0ff558721650c89a949e53b7c7
+    Reviewed-on: https://go-review.googlesource.com/42895
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 25 +++++--------------------
+ 1 file changed, 5 insertions(+), 20 deletions(-)

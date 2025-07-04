@@ -1,0 +1,22 @@
+commit 8c00e07c01c9864506054dfe5916fd343057b3db
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 8 15:00:41 2020 -0400
+
+    net/url: add URL.RawFragment, URL.EscapedFragment
+    
+    These are analogous to URL.RawPath and URL.EscapedPath
+    and allow users fine-grained control over how the fragment
+    section of the URL is escaped. Some tools care about / vs %2f,
+    same problem as in paths.
+    
+    Fixes #37776.
+    
+    Change-Id: Ie6f556d86bdff750c47fe65398cbafd834152b47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227645
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ doc/go1.15.html             | 13 +++++++--
+ src/net/url/example_test.go | 24 ++++++++++++++--
+ src/net/url/url.go          | 69 ++++++++++++++++++++++++++++++++++-----------
+ src/net/url/url_test.go     | 32 ++++++++++++++++++---
+ 4 files changed, 112 insertions(+), 26 deletions(-)

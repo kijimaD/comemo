@@ -1,0 +1,21 @@
+commit bbdc65bb3825dfde90603d1b26a2034e8963356c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Oct 25 17:30:26 2024 -0400
+
+    test: add a test for wasm memory usage
+    
+    Test that a small Wasm program uses 8 MB of linear memory. This
+    reflects the current allocator. We test an exact value, but if the
+    allocator changes, we can update or relax this.
+    
+    Updates #69018.
+    
+    Change-Id: Ifc0bb420af008bd30cde4745b3efde3ce091b683
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622378
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ test/wasmmemsize.dir/asm_wasm.s | 11 +++++++++++
+ test/wasmmemsize.dir/main.go    | 30 ++++++++++++++++++++++++++++++
+ test/wasmmemsize.go             | 11 +++++++++++
+ 3 files changed, 52 insertions(+)

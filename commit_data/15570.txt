@@ -1,0 +1,21 @@
+commit b0bb6f8ceec158c21dd5ea782c10c02d1cf5b2ef
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Mar 4 16:42:03 2013 +0100
+
+    cmd/gc: unbreak exporting of composite literals.
+    
+    Fixes #4932.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/7437043
+
+ src/cmd/gc/fmt.c                       | 31 ++++++++++++++++++++++---------
+ src/cmd/gc/go.h                        |  1 +
+ src/cmd/gc/subr.c                      | 14 +++++++++++++-
+ src/cmd/gc/typecheck.c                 | 19 ++++++++++---------
+ test/fixedbugs/issue4932.dir/foo.go    |  7 +++++++
+ test/fixedbugs/issue4932.dir/state.go  | 28 ++++++++++++++++++++++++++++
+ test/fixedbugs/issue4932.dir/state2.go |  9 +++++++++
+ test/fixedbugs/issue4932.go            |  9 +++++++++
+ 8 files changed, 99 insertions(+), 19 deletions(-)

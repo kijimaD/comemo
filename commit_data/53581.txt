@@ -1,0 +1,27 @@
+commit c1bc44642db321c2f125fd043c220cac08877e95
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 16 14:46:37 2023 -0400
+
+    path/filepath: avoid assuming that GOROOT/test is present
+    
+    GOROOT/test is pruned out by cmd/distpack. It isn't really needed for
+    the test anyway; the test can instead use the "src/unicode" subdirectory,
+    which is even within the same module.
+    
+    This test was previously adjusted in CL 13467045 and CL 31859.
+    
+    Unlike in previous iterations of the test, the directories used in
+    this revision are covered by the Go 1 compatibility policy and thus
+    unlikely to disappear.
+    
+    For #24904.
+    
+    Change-Id: I156ae18354bcbc2ddd8d22b210f16ba1e97cd5d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504116
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/path/filepath/path_test.go | 31 ++++++++++++++-----------------
+ 1 file changed, 14 insertions(+), 17 deletions(-)

@@ -1,0 +1,14 @@
+commit ca0be6f849f227c409b06819d9b2d349a8045098
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 25 11:53:33 2015 -0800
+
+    math/big: clean up Float.SetPrec, use shorter internal representation
+    
+    Change-Id: I9b78085adc12cbd240d0b8b48db6810ddb2aeadd
+    Reviewed-on: https://go-review.googlesource.com/5991
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 58 ++++++++++++++++++++++++++++++++--------------
+ src/math/big/float_test.go | 52 +++++++++++++++++++++++++++++++++++++++++
+ src/math/big/floatconv.go  |  6 ++---
+ 3 files changed, 95 insertions(+), 21 deletions(-)

@@ -1,0 +1,17 @@
+commit 7dfe686a91a60a135deb2b64d28bcc010ba90b15
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 20 20:34:17 2021 -0700
+
+    cmd/compile/internal/types2: export Named.Orig as Named.Origin
+    
+    This is a slightly adjusted port of CL 350996 from go/types to types2.
+    
+    Change-Id: I8f5902ecb20a4b4d2a5ef0d3641d857bc3a618e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351170
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/noder/types.go  |  2 +-
+ src/cmd/compile/internal/noder/writer.go |  2 +-
+ src/cmd/compile/internal/types2/named.go | 10 ++++------
+ 3 files changed, 6 insertions(+), 8 deletions(-)

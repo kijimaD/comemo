@@ -1,0 +1,26 @@
+commit 618126b9895db7f29a861caa4e330d149858ff56
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 28 15:03:54 2020 -0500
+
+    cmd/go: avoid matching wildcards rooted outside of available modules
+    
+    To avoid confusion, also distinguish between packages and dirs in
+    search.Match results.
+    
+    No test because this is technically only a performance optimization:
+    it would be very difficult to write such a test so that it would not
+    be flaky. (However, tested the change manually.)
+    
+    Fixes #37521
+    
+    Change-Id: I17b443699ce6a8f3a63805a7ef0be806f695a4b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221544
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/get/get.go              |  5 ++-
+ src/cmd/go/internal/modload/load.go         | 60 ++++++++++++++++++---------
+ src/cmd/go/internal/search/search.go        | 64 +++++++++++++++++------------
+ src/cmd/go/testdata/script/mod_list_std.txt | 10 +++++
+ 4 files changed, 90 insertions(+), 49 deletions(-)

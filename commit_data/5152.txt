@@ -1,0 +1,13 @@
+commit 7ffe938f083bd79c4adf0bc661d938c84264df9b
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 26 16:18:20 2010 -0700
+
+    regexp: don't return non-nil *Regexp if there is an error.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/787041
+
+ src/pkg/regexp/regexp.go  | 3 +++
+ src/pkg/testing/regexp.go | 3 +++
+ 2 files changed, 6 insertions(+)

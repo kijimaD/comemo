@@ -1,0 +1,25 @@
+commit fc3ce34903d5f86f398eda87ca6e334f483df604
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Tue Oct 18 17:01:42 2011 -0500
+
+    exp/template/html: fix bug in cssEscaper
+    
+    cssEscaper escapes using the CSS convention: `\` + hex + optional-space
+    
+    It outputs the space when the escape could be followed by
+    a hex digit to distinguish a "\na" from "\u00aa".
+    
+    It did not output a space when the escape is followed by a space
+    character so did not distinguish "\n " from "\n".
+    
+    Currently when doing lookahead, it does not distinguish spaces that
+    will be escaped later by the same function from ones that will not.
+    This is correct but suboptimal.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5306042
+
+ src/pkg/exp/template/html/css.go      | 11 ++++++++++-
+ src/pkg/exp/template/html/css_test.go | 12 ++++++++----
+ 2 files changed, 18 insertions(+), 5 deletions(-)

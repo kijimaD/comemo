@@ -1,0 +1,19 @@
+commit 2693fa15ee12acd67e45d8fa57626675903ab605
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 19 13:34:15 2016 -0400
+
+    html/template: add test case for unbounded template expansion
+    
+    Fixed by CL 31092 already, but that change is a few steps away
+    from the problem observed here, so add an explicit test.
+    
+    Fixes #17019.
+    
+    Change-Id: If4ece1418e6596b1976961347889ce12c5969637
+    Reviewed-on: https://go-review.googlesource.com/31466
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/html/template/clone_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

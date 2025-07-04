@@ -1,0 +1,23 @@
+commit 28a0971caf78688ab879112dd1459926bab86aff
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Mon Aug 9 10:21:54 2010 -0700
+
+    big: Several fixes to bitwise functions
+    
+    Fixed:
+    * SetString calls in bitwise tests
+    * Aliasing problem with self bitwise test
+    * One test case that was just flat out wrong
+    * Slice panics in nat.or and nat.xor
+    * Aliasing problems in Int.And, Int.AndNot, Int.Or, Int.Xor
+    
+    Fixes #1007.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1895049
+
+ src/pkg/big/int.go      | 18 +++++++++---------
+ src/pkg/big/int_test.go | 20 ++++++++++----------
+ src/pkg/big/nat.go      | 18 +++++++++---------
+ 3 files changed, 28 insertions(+), 28 deletions(-)

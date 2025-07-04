@@ -1,0 +1,17 @@
+commit 5a0743b020d3bf7875edd5ed50c9ee69d728e10e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 7 13:35:53 2019 -0800
+
+    cmd/go: improve error message for names forbidden by Windows
+    
+    Fixes #29589
+    
+    Change-Id: I69ad461e70b236d9729a42053e35128437449e32
+    Reviewed-on: https://go-review.googlesource.com/c/156658
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/module/module.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

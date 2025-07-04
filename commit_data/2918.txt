@@ -1,0 +1,18 @@
+commit 002623704fc4df936550e8261d60b0ceb5c84271
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 7 15:22:09 2009 -0700
+
+    remove 8.out before creating it.
+    hope this will work around Mac NFS bug
+    where writing to an 8.out that has crashed
+    recently sometimes wedges NFS.
+    
+    R=r
+    DELTA=3  (3 added, 0 deleted, 0 changed)
+    OCL=32906
+    CL=32908
+
+ src/cmd/5l/obj.c | 1 +
+ src/cmd/6l/obj.c | 1 +
+ src/cmd/8l/obj.c | 1 +
+ 3 files changed, 3 insertions(+)

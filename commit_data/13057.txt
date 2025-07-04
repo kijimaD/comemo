@@ -1,0 +1,12 @@
+commit 58bcec62c0f375f10e3bb32efc402e9c245c734b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon May 14 10:05:39 2012 +1000
+
+    misc/dashboard/codereview: set In-Reply-To header to properly thread mail.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/6208051
+
+ misc/dashboard/codereview/dashboard/cl.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

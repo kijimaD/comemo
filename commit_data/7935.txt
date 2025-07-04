@@ -1,0 +1,12 @@
+commit 61aaadf2175ec58e91d1188c1986d71c1d853389
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 30 09:46:11 2011 -0700
+
+    gotest: exclude . files when parsing directories (per r's suggestion)
+    
+    R=r, rsc1, iant2
+    CC=golang-dev
+    https://golang.org/cl/4329044
+
+ src/cmd/gotest/gotest.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

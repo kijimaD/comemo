@@ -1,0 +1,14 @@
+commit 826e10ce64d4ee01a365bb218450ba37a88e6260
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 8 09:50:16 2009 -0800
+
+    links to Go Nuts, issue tracker,
+    source code browser on code.google.com
+    (where LICENSE file is visible)
+    
+    R=r
+    http://go/go-review/1024023
+
+ doc/root.html        | 2 +-
+ lib/godoc/godoc.html | 6 ++++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

@@ -1,0 +1,55 @@
+commit 79561a84ceb4435c1294767d26b0b8a0dd77809d
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 20 22:45:18 2016 -0400
+
+    runtime: simplify reflectcall write barriers
+    
+    Currently reflectcall has a subtle dance with write barriers where the
+    assembly code copies the result values from the stack to the in-heap
+    argument frame without write barriers and then calls into the runtime
+    after the fact to invoke the necessary write barriers.
+    
+    For the hybrid barrier (and for ROC), we need to switch to a
+    *pre*-write write barrier, which is very difficult to do with the
+    current setup. We could tie ourselves in knots of subtle reasoning
+    about why it's okay in this particular case to have a post-write write
+    barrier, but this commit instead takes a different approach. Rather
+    than making things more complex, this simplifies reflection calls so
+    that the argument copy is done in Go using normal bulk write barriers.
+    
+    The one difficulty with this approach is that calling into Go requires
+    putting arguments on the stack, but the call* functions "donate" their
+    entire stack frame to the called function. We can get away with this
+    now because the copy avoids using the stack and has copied the results
+    out before we clobber the stack frame to call into the write barrier.
+    The solution in this CL is to call another function, passing arguments
+    in registers instead of on the stack, and let that other function
+    reserve more stack space and setup the arguments for the runtime.
+    
+    This approach seemed to work out the best. I also tried making the
+    call* functions reserve 32 extra bytes of frame for the write barrier
+    arguments and adjust SP up by 32 bytes around the call. However, even
+    with the necessary changes to the assembler to correct the spdelta
+    table, the runtime was still having trouble with the frame layout (and
+    the changes to the assembler caused many other things that do strange
+    things with the SP to fail to assemble). The approach I took doesn't
+    require any funny business with the SP.
+    
+    Updates #17503.
+    
+    Change-Id: Ie2bb0084b24d6cff38b5afb218b9e0534ad2119e
+    Reviewed-on: https://go-review.googlesource.com/31655
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/reflect/value.go       |  2 +-
+ src/runtime/asm_386.s      | 25 ++++++++++++++-----------
+ src/runtime/asm_amd64.s    | 30 ++++++++++++++++--------------
+ src/runtime/asm_amd64p32.s | 25 ++++++++++++++-----------
+ src/runtime/asm_arm.s      | 32 ++++++++++++++------------------
+ src/runtime/asm_arm64.s    | 38 +++++++++++++++-----------------------
+ src/runtime/asm_mips64x.s  | 38 +++++++++++++++-----------------------
+ src/runtime/asm_ppc64x.s   | 38 +++++++++++++++-----------------------
+ src/runtime/asm_s390x.s    | 37 ++++++++++++++-----------------------
+ src/runtime/mbarrier.go    | 24 +++++++++++++-----------
+ 10 files changed, 131 insertions(+), 158 deletions(-)

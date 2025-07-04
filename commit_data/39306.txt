@@ -1,0 +1,31 @@
+commit a0787f7bcc210e3f9dd725807cfa12895f90f29b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jun 4 16:50:59 2019 -0400
+
+    cmd/go: replace uses of ioutil.ReadFile with renameio.ReadFile
+    
+    Windows does not have atomic renames; instead, it produces one of a
+    handful of errors in case a read races with a rename.
+    
+    CL 180219 added a utility function that retries those errors in most
+    cases; this change updates the locations that use renameio for writes
+    to also use the new renameio.ReadFile function for reads.
+    
+    It remains possible for a renameio.ReadFile to fail with a spurious
+    ERROR_FILE_NOT_FOUND, but with retries in place for the other errors
+    (and practical limits on write concurrency) such failures are unlikely
+    in practice.
+    
+    Fixes #32188
+    
+    Change-Id: I78c81051cc871325c1e3229e696b921b0fcd865a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180517
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/cache/cache.go    |  2 +-
+ src/cmd/go/internal/modfetch/cache.go |  4 ++--
+ src/cmd/go/internal/modfetch/fetch.go | 10 +++++-----
+ src/cmd/go/internal/modload/init.go   |  4 ++--
+ 4 files changed, 10 insertions(+), 10 deletions(-)

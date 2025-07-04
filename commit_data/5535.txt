@@ -1,0 +1,15 @@
+commit 43c0a46ac6a68d931cc7e067ba9156fb08d5de43
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 24 15:25:09 2010 -0700
+
+    gc: bug280
+    
+    Fixes #808.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1273042
+
+ src/cmd/gc/align.c       |  2 ++
+ test/fixedbugs/bug280.go | 13 +++++++++++++
+ 2 files changed, 15 insertions(+)

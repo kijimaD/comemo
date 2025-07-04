@@ -1,0 +1,26 @@
+commit d5ef69814204f1bf8bee75bc89efcbcb33a64606
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sun Jan 11 11:29:00 2015 +0100
+
+    time: unify formatting of decimals for timestamps
+    
+    Change function appendUint to appendInt with variable-width 0-padding.
+    
+    This allows the decimal for the year to be generated without extra code
+    to handle the wider padding and directly handles negative numbers.
+    
+    Removes the special casing for numbers with one and two digits.
+    The special case for 0 was unreachable.
+    
+    The new version is slightly slower.
+    
+    benchmark              old ns/op     new ns/op     delta
+    BenchmarkFormat        444           454           +2.25%
+    BenchmarkFormatNow     398           415           +4.27%
+    
+    Change-Id: I4ddef96bf07ad35dca76053321d510441ec6d4f5
+    Reviewed-on: https://go-review.googlesource.com/2751
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/time/format.go | 111 ++++++++++++++++++++++-------------------------------
+ 1 file changed, 45 insertions(+), 66 deletions(-)

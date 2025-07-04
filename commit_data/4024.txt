@@ -1,0 +1,12 @@
+commit 845276ae685e5381b003fd5fd3da3cfcf63ad403
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 12 23:35:45 2009 -0800
+
+    remove dead code from test
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/152118
+
+ src/pkg/regexp/all_test.go | 76 +++++-----------------------------------------
+ 1 file changed, 8 insertions(+), 68 deletions(-)

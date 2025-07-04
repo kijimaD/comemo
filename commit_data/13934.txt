@@ -1,0 +1,39 @@
+commit 14f3276c9d2659f7ae295d63e2692cb739337fa4
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Sep 24 21:29:24 2012 +0200
+
+    cmd/8g: don't create redundant temporaries in bgen.
+    
+    Comparisons used to create temporaries for arguments
+    even if they were already variables or addressable.
+    Removing the extra ones reduces pressure on regopt.
+    
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkGobDecode         50787620     49908980   -1.73%
+    BenchmarkGobEncode         19870190     19473030   -2.00%
+    BenchmarkGzip            3214321000   3067929000   -4.55%
+    BenchmarkGunzip           496792800    465828600   -6.23%
+    BenchmarkJSONEncode       232524800    263864400  +13.48%
+    BenchmarkJSONDecode       622038400    506600600  -18.56%
+    BenchmarkMandelbrot200     23937310     45913060  +91.81%
+    BenchmarkParse             14364450     13997010   -2.56%
+    BenchmarkRevcomp         6919028000   6480009000   -6.35%
+    BenchmarkTemplate         594458800    539528200   -9.24%
+    
+    benchmark                  old MB/s     new MB/s  speedup
+    BenchmarkGobDecode            15.11        15.38    1.02x
+    BenchmarkGobEncode            38.63        39.42    1.02x
+    BenchmarkGzip                  6.04         6.33    1.05x
+    BenchmarkGunzip               39.06        41.66    1.07x
+    BenchmarkJSONEncode            8.35         7.35    0.88x
+    BenchmarkJSONDecode            3.12         3.83    1.23x
+    BenchmarkParse                 4.03         4.14    1.03x
+    BenchmarkRevcomp              36.73        39.22    1.07x
+    BenchmarkTemplate              3.26         3.60    1.10x
+    
+    R=mtj, daniel.morsing, rsc
+    CC=golang-dev
+    https://golang.org/cl/6547064
+
+ src/cmd/8g/cgen.c | 36 ++++++++++++++++++++++++------------
+ 1 file changed, 24 insertions(+), 12 deletions(-)

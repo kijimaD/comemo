@@ -1,0 +1,28 @@
+commit 08579c26ddc9b9f2a80c83ddeb9fd8336104ad41
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 16 20:20:50 2009 -0800
+
+    runtime: if os/signal is not in use, crash on
+            most signals, so that ordinary programs
+            can be killed, for example.
+    
+    Fixes #434.
+    
+    R=dsymonds1
+    CC=golang-dev, hoisie
+    https://golang.org/cl/180064
+
+ src/pkg/os/signal/signal.go            |  1 +
+ src/pkg/runtime/darwin/386/signal.c    |  5 +++--
+ src/pkg/runtime/darwin/amd64/signal.c  |  5 +++--
+ src/pkg/runtime/darwin/signals.h       | 28 ++++++++++++++--------------
+ src/pkg/runtime/extern.go              |  4 ++++
+ src/pkg/runtime/freebsd/386/signal.c   |  5 +++--
+ src/pkg/runtime/freebsd/amd64/signal.c |  5 +++--
+ src/pkg/runtime/freebsd/signals.h      | 30 +++++++++++++++---------------
+ src/pkg/runtime/linux/386/signal.c     |  5 +++--
+ src/pkg/runtime/linux/amd64/signal.c   |  5 +++--
+ src/pkg/runtime/linux/signals.h        | 32 ++++++++++++++++----------------
+ src/pkg/runtime/runtime.h              |  6 +++---
+ src/pkg/runtime/sigqueue.cgo           | 14 +++++++++++---
+ 13 files changed, 82 insertions(+), 63 deletions(-)

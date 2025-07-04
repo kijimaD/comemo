@@ -1,0 +1,15 @@
+commit 8cdd7d14ac67706163fb91055fb5aba16f6c7f3e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 08:04:21 2015 -0800
+
+    net: fix build
+    
+    https://golang.org/cl/16953 broke the world.
+    
+    Change-Id: I7cbd4105338ff896bd0c8f69a0b126b6272be2e5
+    Reviewed-on: https://go-review.googlesource.com/17914
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/hook.go      | 3 ---
+ src/net/hook_unix.go | 6 +++++-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

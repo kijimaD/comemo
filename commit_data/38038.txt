@@ -1,0 +1,15 @@
+commit 467456b0afcbe8b74c49b356f0e5d41d1c6efc9f
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Feb 26 18:18:44 2019 +0100
+
+    doc: add 1.12 to the project history
+    
+    Go 1.12 is released, but it's currently not listed in the
+    https://golang.org/project page.
+    
+    Change-Id: Ib5820f74245e4c986014c64eb40fa2911473e64b
+    Reviewed-on: https://go-review.googlesource.com/c/163837
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/contrib.html | 1 +
+ 1 file changed, 1 insertion(+)

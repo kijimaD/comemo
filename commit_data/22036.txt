@@ -1,0 +1,14 @@
+commit 3ab794c8c622e3216953020e5d06b45187534b2c
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Sun Mar 8 14:17:46 2015 +0100
+
+    cmd/cgo: add support for GOARCH=arm64
+    
+    Change-Id: Ia6c3d5e7a32b20e3c45d9485e66b48cd02644280
+    Reviewed-on: https://go-review.googlesource.com/7140
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/cgo/main.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,21 @@
+commit 3e3ed5d978b3449e0854584f6ec2b5bc4770d0f0
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 23 16:03:57 2013 +1000
+
+    fmt: one bad index shouldn't spoil them all
+    
+    In an indexed verb such as %[3]d, if the index is out of range, don't
+    skip processing the rest of the verbs. The bug was that the bad
+    index set a bit for the whole format instead of just the verb.
+    
+    Ok for 1.2 because this is a bug in a 1.2 feature.
+    
+    Fixes #6434
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/13632058
+
+ src/pkg/fmt/fmt_test.go | 2 ++
+ src/pkg/fmt/print.go    | 6 +++---
+ 2 files changed, 5 insertions(+), 3 deletions(-)

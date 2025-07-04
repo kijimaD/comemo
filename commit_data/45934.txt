@@ -1,0 +1,22 @@
+commit 48c88f1b1bac1ef4fc81246a7f31933f8f922706
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 14 14:46:09 2021 -0700
+
+    reflect: add Value.CanConvert
+    
+    For #395
+    For #46746
+    
+    Change-Id: I4bfc094cf1cecd27ce48e31f92384cf470f371a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334669
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ api/go1.17.txt          |  1 +
+ doc/go1.17.html         | 12 ++++++++++++
+ src/reflect/all_test.go |  9 +++++++++
+ src/reflect/value.go    | 20 ++++++++++++++++++++
+ 4 files changed, 42 insertions(+)

@@ -1,0 +1,18 @@
+commit 9979366e07fa8aa6fac81702a70f6eacf427c431
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Oct 19 16:14:51 2019 +0700
+
+    cmd/compile: disable checkptr for //go:nosplit functions
+    
+    Make go test -a -short -gcflags=all=-d=checkptr passes on darwin.
+    
+    Update #34972
+    
+    Change-Id: I71cf14ec1faccd4837713aa30c90ed665899b908
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202158
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

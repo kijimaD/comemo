@@ -1,0 +1,25 @@
+commit 33a7e5a4b49fa04ce6f65b5b0645a44a0c93eaad
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 18 14:13:33 2022 -0700
+
+    cmd/compile: combine multiple rotate instructions
+    
+    Rotating by c, then by d, is the same as rotating by c+d.
+    
+    Change-Id: I36df82261460ff80f7c6d39bcdf0e840cef1c91a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424894
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ruinan Sun <Ruinan.Sun@arm.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/ssa/gen/386.rules     |   6 -
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |   3 -
+ src/cmd/compile/internal/ssa/gen/generic.rules |   8 +
+ src/cmd/compile/internal/ssa/rewrite386.go     |  42 ----
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  40 ----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 304 +++++++++++++++++++++++++
+ test/codegen/rotate.go                         |  14 +-
+ 7 files changed, 323 insertions(+), 94 deletions(-)

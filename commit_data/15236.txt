@@ -1,0 +1,17 @@
+commit 691455f780c12e2a7994413d6133d5e512c70b53
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Feb 14 12:37:55 2013 +0400
+
+    runtime: move stack management related code to stack.c
+    No code changes.
+    This is mainly in preparation to scheduler changes,
+    oldstack/newstack are not related to scheduling.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/7311085
+
+ src/pkg/runtime/malloc.goc | 119 -------------------
+ src/pkg/runtime/proc.c     | 156 -------------------------
+ src/pkg/runtime/stack.c    | 279 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 279 insertions(+), 275 deletions(-)

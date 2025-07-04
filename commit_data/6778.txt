@@ -1,0 +1,12 @@
+commit b51f0c5cca0074257b76518dbe169d7cc2a30f00
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 19 16:04:25 2010 -0500
+
+    index/suffixarray: use sort.Search
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3200041
+
+ src/pkg/index/suffixarray/suffixarray.go | 22 ++--------------------
+ 1 file changed, 2 insertions(+), 20 deletions(-)

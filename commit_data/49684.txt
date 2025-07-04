@@ -1,0 +1,19 @@
+commit e95fd4c2380b0adaa10be40812739156198037b7
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Mon Aug 1 21:19:29 2022 +0800
+
+    doc/go1.19: fix typo: EM_LONGARCH -> EM_LOONGARCH
+    
+    Another last-minute fix. The whole repo is checked case-insensitively
+    against "longarch" and this is the only occurrence.
+    
+    Change-Id: If13c123c1e44001a346f1df1df9d839c699703b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420494
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/go1.19.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

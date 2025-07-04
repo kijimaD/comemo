@@ -1,0 +1,26 @@
+commit 44dcb5cb61aee5435e0b3c78544a1d3352a4cc98
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 5 19:26:25 2018 +0000
+
+    runtime: clean up MSpan* MCache* MCentral* in docs
+    
+    This change cleans up references to MSpan, MCache, and MCentral in the
+    docs via a bunch of sed invocations to better reflect the Go names for
+    the equivalent structures (i.e. mspan, mcache, mcentral) and their
+    methods (i.e. MSpan_Sweep -> mspan.sweep).
+    
+    Change-Id: Ie911ac975a24bd25200a273086dd835ab78b1711
+    Reviewed-on: https://go-review.googlesource.com/c/147557
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/heapdump.go  |  4 ++--
+ src/runtime/mcache.go    |  2 +-
+ src/runtime/mcentral.go  | 10 +++++-----
+ src/runtime/mfixalloc.go |  2 +-
+ src/runtime/mgcmark.go   |  2 +-
+ src/runtime/mgcsweep.go  | 20 ++++++++++----------
+ src/runtime/mheap.go     | 44 ++++++++++++++++++++++----------------------
+ src/runtime/mstats.go    |  2 +-
+ 8 files changed, 43 insertions(+), 43 deletions(-)

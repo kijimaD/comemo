@@ -1,0 +1,21 @@
+commit 93f964b4122b7f9a1ae3f80ad75363403a5753ca
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 22 11:54:22 2021 -0400
+
+    cmd/compile/internal/ssa: remove workarounds for #43938
+    
+    The cmd/go bug this worked around should be fixed as of CL 351329.
+    
+    Fixes #43938
+    Fixes #48550
+    
+    Change-Id: Ida930e7ee33d44d89556b9b8bbc3c26bb53697b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351529
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/debug_lines_test.go | 15 +++++----------
+ src/cmd/compile/internal/ssa/debug_test.go       |  3 +++
+ 2 files changed, 8 insertions(+), 10 deletions(-)

@@ -1,0 +1,18 @@
+commit 7b103c555f9200eed9329f433378e72c7909e398
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 19 09:54:47 2014 -0700
+
+    database/sql: more docs explaining that DB is a pool
+    
+    This is the main point of confusion and the emphasis of
+    a recent Gophercon talk.
+    
+    Fixes #5886. (mostly fixed in previous commits)
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/100560043
+
+ src/pkg/database/sql/sql.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

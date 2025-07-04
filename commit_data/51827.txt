@@ -1,0 +1,24 @@
+commit dbfdc446fe70a3639ba00eb3d9141ba10783d7cf
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sun Jan 29 14:40:22 2023 +0800
+
+    all: fix problematic comments
+    
+    Change-Id: If092ae7c72b66f172ae32fa6c7294a7ac250362e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463995
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/obj/sym.go                          | 2 +-
+ src/cmd/internal/src/pos.go                          | 2 +-
+ src/cmd/link/internal/benchmark/bench.go             | 2 +-
+ src/cmd/link/internal/ld/lib.go                      | 2 +-
+ src/cmd/link/internal/loader/loader.go               | 8 ++++----
+ src/cmd/pprof/readlineui.go                          | 2 +-
+ src/crypto/internal/edwards25519/field/fe_generic.go | 2 +-
+ src/crypto/tls/conn.go                               | 2 +-
+ src/encoding/gob/encode.go                           | 2 +-
+ src/fmt/scan.go                                      | 2 +-
+ 10 files changed, 13 insertions(+), 13 deletions(-)

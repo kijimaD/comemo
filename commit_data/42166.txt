@@ -1,0 +1,26 @@
+commit 287d1ec96c1271de532c6b1160cd9cbbe717ee34
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Apr 22 21:36:11 2020 +0000
+
+    runtime: ensure allocToCache updates searchAddr in a valid way
+    
+    Currently allocToCache assumes it can move the search address past the
+    block it allocated the cache from, which violates the property that
+    searchAddr should always point to mapped memory (i.e. memory represented
+    by pageAlloc.inUse).
+    
+    This bug was already fixed once for pageAlloc.alloc in the Go 1.14
+    release via CL 216697, but that changed failed to take into account
+    allocToCache.
+    
+    Fixes #38605.
+    
+    Change-Id: Id08180aa10d19dc0f9f551a1d9e327a295560dff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229577
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/mpagecache.go      | 13 +++++++++----
+ src/runtime/mpagecache_test.go | 33 +++++++++++++++++++++++++++++++--
+ 2 files changed, 40 insertions(+), 6 deletions(-)

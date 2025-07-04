@@ -1,0 +1,16 @@
+commit 8f2db14cd35bbd674cb2988a508306de6655e425
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Nov 10 11:32:04 2020 -0500
+
+    cmd/go: release note for -mod=readonly by default
+    
+    For #40728
+    Fixes #42466
+    
+    Change-Id: If2b21b37a590c243828c4fd278ab10b2705450f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268859
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

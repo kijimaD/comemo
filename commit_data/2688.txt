@@ -1,0 +1,15 @@
+commit 7258bac6e8b87325fe135676a34c6b627280097b
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Jul 13 20:33:59 2009 -0700
+
+    fix bug in codegen when we modified move instruction instead
+    of text.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=3  (1 added, 2 deleted, 0 changed)
+    OCL=31575
+    CL=31575
+
+ src/cmd/cc/pgen.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

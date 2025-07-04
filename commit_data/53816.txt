@@ -1,0 +1,25 @@
+commit 208fc13245add90c33cf48571e1419caf80a637c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed May 3 21:56:18 2023 +1000
+
+    cmd/internal/obj/arm64: avoid unnecessary literal pool usage for moves
+    
+    In a number of load and store cases, the use of the literal pool can be
+    entirely avoided by simply adding or subtracting the offset from the
+    register. This uses the same number of instructions, while avoiding a
+    load from memory, along with the need for the value to be in the literal
+    pool. Overall this reduces the size of binaries slightly and should have
+    lower overhead.
+    
+    Updates #59615
+    
+    Change-Id: I9cb6a403dc71e34a46af913f5db87dbf52f8688c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512539
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s | 33 +++++++++++++++++++++-
+ src/cmd/internal/obj/arm64/asm7.go        | 46 ++++++++++++++++++++++++++++---
+ 2 files changed, 74 insertions(+), 5 deletions(-)

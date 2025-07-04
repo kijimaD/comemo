@@ -1,0 +1,14 @@
+commit 328ec95878d15fb823d8ff6f9c9b2658874f6ab9
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jul 8 21:14:32 2013 -0500
+
+    cmd/ld: trivial: fix unhandled switch case
+    
+    Fix warning found by clang 3.3.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/11022043
+
+ src/cmd/ld/lib.c | 3 +++
+ 1 file changed, 3 insertions(+)

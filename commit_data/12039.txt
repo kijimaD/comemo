@@ -1,0 +1,16 @@
+commit e91bf2e9d1c3bf5e03340eb86bc6e34f82bb205f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Feb 19 10:50:03 2012 +0900
+
+    net: make LocalAddr on multicast return group address
+    
+    Fixes #3067.
+    
+    R=golang-dev, rsc, rsc
+    CC=golang-dev
+    https://golang.org/cl/5656098
+
+ src/pkg/net/multicast_test.go |  6 ++++++
+ src/pkg/net/sock.go           | 12 +++++++++---
+ src/pkg/net/udpsock_posix.go  |  2 +-
+ 3 files changed, 16 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit c3c90d0132437bf7bdf2bab791161768767cbc3a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 13 21:45:58 2019 -0800
+
+    test: add test case that caused a gccgo compiler crash
+    
+    Change-Id: Icdc980e0dcb5639c49aba5f4f252f33bd207e4fa
+    Reviewed-on: https://go-review.googlesource.com/c/162617
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/fixedbugs/gcc89321.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

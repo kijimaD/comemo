@@ -1,0 +1,12 @@
+commit 191873981af38f04e57a41815c36daad3724afd6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 23 09:26:46 2012 +1100
+
+    go/build: silence all warnings
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5529055
+
+ src/pkg/go/build/path.go | 22 +---------------------
+ 1 file changed, 1 insertion(+), 21 deletions(-)

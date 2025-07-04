@@ -1,0 +1,12 @@
+commit 111fcf15799c8bda58e3b9eb73fd5c8fa7ac5801
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 11 13:36:43 2012 -0500
+
+    doc/contribute: mention 'hg help codereview'
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6932053
+
+ doc/contribute.html | 5 +++++
+ 1 file changed, 5 insertions(+)

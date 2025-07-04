@@ -1,0 +1,22 @@
+commit e1ced3219506938daf404bb2373333cd3352f350
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Jun 27 11:36:32 2017 -0700
+
+    time: show how to get midnight on the current day
+    
+    A common task is trying to get today's date in the local time zone
+    with zero values for the hour, minute, second, and nanosecond fields.
+    I tried this recently and incorrectly used Truncate(24*time.Hour),
+    which truncates based on a UTC clock, and gave me 5pm Pacific time
+    instead of midnight Pacific.
+    
+    I thought it would be helpful to show a "correct" way to do this.
+    
+    Change-Id: I479e6b0cc56367068530981ca69882b34febf945
+    Reviewed-on: https://go-review.googlesource.com/46833
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/example_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

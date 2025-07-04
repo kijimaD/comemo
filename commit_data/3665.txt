@@ -1,0 +1,13 @@
+commit 5a02eb65ef2c4b860cebeb2e6329778d28f45d43
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 28 10:14:59 2009 -0700
+
+    fix for long label names impacting column width of previous lines
+    
+    R=rsc
+    http://go/go-review/1013017
+
+ src/pkg/go/printer/printer.go                 |  7 ++++++-
+ src/pkg/go/printer/testdata/statements.go     | 17 +++++++++++++++++
+ src/pkg/go/printer/testdata/statements.golden | 17 +++++++++++++++++
+ 3 files changed, 40 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 8b391060004dfc03c93a76faab4a0d208a60cc1b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Oct 5 17:46:09 2019 +0700
+
+    internal/reflectlite: add type mirror with reflect test
+    
+    Add test to check that struct type in reflectlite is mirror of reflect.
+    Note that the test does not check the field types, only check for number
+    of fields and field name are the same.
+    
+    Updates #34486
+    
+    Change-Id: Id5f9b26d35faec97863dd1fe7e5eab37d4913181
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199280
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/internal/reflectlite/reflect_mirror_test.go | 120 ++++++++++++++++++++++++
+ 1 file changed, 120 insertions(+)

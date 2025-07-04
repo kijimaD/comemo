@@ -1,0 +1,15 @@
+commit 28479f2c32479dffbdebd1e357bdebe4c718f908
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 27 18:04:34 2014 -0800
+
+    cmd/gc: liveness: don't add fallthough edge after panic
+    
+    update #7205
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/50730044
+
+ src/cmd/gc/plive.c | 1 +
+ 1 file changed, 1 insertion(+)

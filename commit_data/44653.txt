@@ -1,0 +1,20 @@
+commit a8b59fe3cdaeeb40c87d55122a45a2e390e60d88
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Sun Mar 14 18:12:59 2021 +0200
+
+    encoding/json: fix package shadowing in MarshalIndent example
+    
+    Prior to this CL, pasting the example from the website causes a
+    compilation error for some programs because it was shadowing the
+    "json" package.
+    
+    Change-Id: I39b68a66ca99468547f2027a7655cf1387b61e95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301492
+    Reviewed-by: Joe Tsai <joetsai@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Joe Tsai <joetsai@google.com>
+    Run-TryBot: Joe Tsai <joetsai@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/encoding/json/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

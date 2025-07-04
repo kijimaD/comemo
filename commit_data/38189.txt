@@ -1,0 +1,16 @@
+commit 44dec304add9b07c404197009f4c7c3e831ebc22
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Mon Feb 4 12:46:00 2019 +0000
+
+    encoding/base64: remove ineffectual assignment in test
+    
+    Change-Id: I4a0d5b2f76138895567939920fa5d83cbdec17d2
+    GitHub-Last-Rev: 061d9d1d5655a6a9d8371f08d2f77a0ed7a495cc
+    GitHub-Pull-Request: golang/go#30008
+    Reviewed-on: https://go-review.googlesource.com/c/160432
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/base64/base64_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 1428045469302d81a6bc19ae9f1dd1e2905ea855
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 29 14:06:11 2013 -0700
+
+    net/http/httputil: fix DumpRequestOut with ContentLength & false body param
+    
+    Fixes #6471
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/14920050
+
+ src/pkg/net/http/httputil/dump.go      | 28 +++++++++++++++++++++++++++-
+ src/pkg/net/http/httputil/dump_test.go | 30 ++++++++++++++++++++++++++++--
+ 2 files changed, 55 insertions(+), 3 deletions(-)

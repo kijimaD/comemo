@@ -1,0 +1,12 @@
+commit 8ceaefb74abf5ba9ae709b62323cc754208b43e2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Sep 1 12:31:18 2015 +1000
+
+    io/ioutil: clarify docs for ReadDir sort order.
+    
+    Change-Id: I6a4ab5a1f44b54cfa81a650055460587ceefb2fc
+    Reviewed-on: https://go-review.googlesource.com/14144
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/io/ioutil/ioutil.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

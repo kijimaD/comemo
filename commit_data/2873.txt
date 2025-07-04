@@ -1,0 +1,14 @@
+commit 7144e2d7f55c8ec3b2dfef1961121ef90e761346
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 4 14:22:23 2009 -0700
+
+    trailing newlines
+    
+    R=r
+    DELTA=0  (0 added, 0 deleted, 0 changed)
+    OCL=32730
+    CL=32735
+
+ src/Make.386   | 2 +-
+ src/Make.amd64 | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

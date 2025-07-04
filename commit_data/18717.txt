@@ -1,0 +1,22 @@
+commit 25668b9b349cf076f3ac07c02556a77d169f897b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 4 09:26:56 2014 +0900
+
+    syscall: add support for FreeBSD 10
+    
+    This CL tweaks syscall.InterfaceMessage to support FreeBSD 10 and
+    prior to 10.
+    
+    See http://svnweb.freebsd.org/base?view=revision&revision=254804.
+    
+    Fixes #7193.
+    
+    LGTM=iant
+    R=golang-codereviews, rsc, minux.ma, gobot, iant
+    CC=golang-codereviews
+    https://golang.org/cl/56980043
+
+ src/pkg/syscall/route_freebsd.go       | 10 ++++++++--
+ src/pkg/syscall/route_freebsd_32bit.go | 24 ++++++++++++++++++++++++
+ src/pkg/syscall/route_freebsd_64bit.go | 14 ++++++++++++++
+ 3 files changed, 46 insertions(+), 2 deletions(-)

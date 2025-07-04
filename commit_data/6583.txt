@@ -1,0 +1,16 @@
+commit f57f8b6f6881c5f167a7bccf7e819905c675d01d
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 20 17:43:57 2010 -0700
+
+    test/bench: update numbers
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/2631041
+
+ test/bench/fannkuch-parallel.go     |  2 +-
+ test/bench/fasta.c                  |  4 +-
+ test/bench/k-nucleotide-parallel.go |  2 +
+ test/bench/timing.log               | 92 +++++++++++++++++++++++++++++++++++--
+ test/bench/timing.sh                | 10 ++--
+ 5 files changed, 100 insertions(+), 10 deletions(-)

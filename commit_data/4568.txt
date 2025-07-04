@@ -1,0 +1,18 @@
+commit 5336cd8f915b6759581eea90234afd957721e54d
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Sun Jan 10 15:41:07 2010 -0800
+
+    math: Sqrt using 386 FPU.
+    
+    Note: sqrt_decl.go already in src/pkg/math/.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/183155
+
+ src/pkg/math/Makefile     |   4 ++
+ src/pkg/math/all_test.go  |   6 ++
+ src/pkg/math/sqrt.go      | 130 +-----------------------------------------
+ src/pkg/math/sqrt_386.s   |  10 ++++
+ src/pkg/math/sqrt_port.go | 141 ++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 162 insertions(+), 129 deletions(-)

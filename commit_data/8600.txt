@@ -1,0 +1,18 @@
+commit 4e9e92500249258e9baa77fbaf8075f0c07e56b2
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 3 07:48:06 2011 +1000
+
+    exec: change exec.PathError to exec.Error
+    There were two issues:
+    1) It might not be a path error, it might be 'permission denied'.
+    2) The concept of $PATH is Unix-specific.
+    
+    R=alex.brainman, rsc, r, mattn.jp
+    CC=golang-dev
+    https://golang.org/cl/4530096
+
+ src/pkg/exec/exec.go       | 23 ++++++++++++-----------
+ src/pkg/exec/lp_test.go    |  6 +++---
+ src/pkg/exec/lp_unix.go    | 21 ++++++++++++++-------
+ src/pkg/exec/lp_windows.go | 38 ++++++++++++++++++++++----------------
+ 4 files changed, 51 insertions(+), 37 deletions(-)

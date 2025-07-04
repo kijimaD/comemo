@@ -1,0 +1,14 @@
+commit 1ed7f18165eb5a35b612653244d05d5a56f8c5e4
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri May 1 18:07:33 2009 -0700
+
+    code improvement
+    better calling of morestack
+    
+    R=r
+    OCL=28179
+    CL=28179
+
+ src/cmd/6l/pass.c       | 120 ++++++++++++++++++++++++++++++++++--------------
+ src/runtime/amd64/asm.s |  24 ++++++++++
+ 2 files changed, 109 insertions(+), 35 deletions(-)

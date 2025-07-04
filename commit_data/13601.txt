@@ -1,0 +1,12 @@
+commit 4939b7b065d2eee1c37201c0d42ed4dd06d22265
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 8 15:41:47 2012 +1000
+
+    io: amend ReaderFrom doc as per r's comment
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6458097
+
+ src/pkg/io/io.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

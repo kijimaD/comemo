@@ -1,0 +1,19 @@
+commit 4efdaa7bc7220fad0177842d0009285ca429a823
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Sat Aug 28 16:06:43 2021 -0700
+
+    testing: skip panics when picking the line number for decoration
+    
+    Fixes #31154
+    
+    Change-Id: I4cfd98b5e79f1abdc93044fb66855ac2cc0a9a49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345909
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Carlos Amedee <carlos@golang.org>
+
+ src/testing/helper_test.go      | 35 +++--------------------------------
+ src/testing/helperfuncs_test.go | 32 ++++++++++++++++++++++++++++++++
+ src/testing/testing.go          |  3 +++
+ 3 files changed, 38 insertions(+), 32 deletions(-)

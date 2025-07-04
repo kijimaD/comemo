@@ -1,0 +1,19 @@
+commit b6ca586181f3f1531c01d51d632b50b2c7c784ba
+Author: pgxiaolianzi <gnnu_d13@163.com>
+Date:   Wed Feb 7 07:45:14 2024 +0000
+
+    log/slog: add test case for level_test.go
+    
+    adds a test case for the MarshalJSON and MarshalText method of the Level type in the slog package.
+    
+    Change-Id: I3f79f0b46c41252ad9d743e03e34503e19998f3e
+    GitHub-Last-Rev: dab00d4c206ca59fcca7ee8d97ca8cdc9475fdce
+    GitHub-Pull-Request: golang/go#65525
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561315
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/log/slog/level_test.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

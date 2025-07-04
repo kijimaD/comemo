@@ -1,0 +1,10 @@
+commit 6def94ad83bb50b4c4afb2df458b7147a7e47660
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 8 16:01:10 2008 -0700
+
+    - added missing keyword 'iota'
+    
+    SVN=126397
+
+ doc/go_lang.txt | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

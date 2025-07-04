@@ -1,0 +1,12 @@
+commit 171ef39949798a400a47389effa078d414e37945
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 7 21:12:46 2009 -0800
+
+    nice directory listings
+    
+    R=rsc
+    http://go/go-review/1026020
+
+ lib/godoc/listing.html | 23 +++++++++++++++++++++
+ src/cmd/godoc/godoc.go | 55 +++++++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 69 insertions(+), 9 deletions(-)

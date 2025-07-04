@@ -1,0 +1,18 @@
+commit 16e3ce278591069c4f49c29f28d222768f026747
+Author: Michael Matloob <matloob@golang.org>
+Date:   Sun Aug 21 18:34:24 2016 -0400
+
+    cmd/link/internal/ld: rename pobj.go to main.go
+    
+    The only thing pobj contains is the Ldmain function.
+    
+    Updates #16818
+    
+    Change-Id: Id114bdb264cb5ea2f372eb2166201f1f8eb99445
+    Reviewed-on: https://go-review.googlesource.com/27472
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/{pobj.go => main.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

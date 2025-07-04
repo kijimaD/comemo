@@ -1,0 +1,15 @@
+commit 626d25065dd5c0e99ddd7504567dab7fa5fa087c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 16 15:31:34 2009 -0800
+
+    casify struct fields
+    
+    R=r
+    OCL=22998
+    CL=22998
+
+ usr/gri/pretty/ast.go         |  6 +++---
+ usr/gri/pretty/compilation.go | 22 +++++++++++-----------
+ usr/gri/pretty/parser.go      |  2 +-
+ usr/gri/pretty/pretty.go      | 16 ++++++++--------
+ 4 files changed, 23 insertions(+), 23 deletions(-)

@@ -1,0 +1,13 @@
+commit bf04eefddf0150abcbc622ef7c3af03a2c7a88ac
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 19 12:12:28 2008 -0700
+
+    - simplified parser by better factoring
+    
+    R=r
+    OCL=15539
+    CL=15542
+
+ usr/gri/pretty/parser.go | 106 ++++++++++++++++++-----------------------------
+ usr/gri/pretty/pretty.go |  11 +++++
+ 2 files changed, 52 insertions(+), 65 deletions(-)

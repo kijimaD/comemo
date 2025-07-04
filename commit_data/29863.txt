@@ -1,0 +1,23 @@
+commit 86f2c5fe930b25ff69017002c36880c88157188e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Dec 20 17:39:54 2016 +0900
+
+    net: make InterfaceByIndex return a consistent name on solaris
+    
+    Also retightens test cases for Resolve{TCP,UDP,IP}Addr which are using
+    interface names for specifying IPv6 zone.
+    
+    Updates #14037.
+    Fixes #18362.
+    
+    Change-Id: I7444b6302e2847dfbdab8a0ad5b2e702bed1a3d6
+    Reviewed-on: https://go-review.googlesource.com/34670
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/interface.go      |  7 ++++++-
+ src/net/iprawsock_test.go | 27 +++++++++++++++------------
+ src/net/tcpsock_test.go   |  7 ++++---
+ src/net/udpsock_test.go   | 31 +++++++++++++++++++------------
+ 4 files changed, 44 insertions(+), 28 deletions(-)

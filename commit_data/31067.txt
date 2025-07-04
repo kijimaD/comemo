@@ -1,0 +1,16 @@
+commit 98a9aeb00987f556085fff9075359d3b84f69ce9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 10 13:38:28 2017 -0400
+
+    cmd/pprof: update README to explain relationship with github.com/google/pprof
+    
+    For google/pprof#132.
+    
+    Change-Id: I73785bc8662565ff7b2fac66e23497dd06fc25b6
+    Reviewed-on: https://go-review.googlesource.com/40231
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/pprof/README | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)

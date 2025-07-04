@@ -1,0 +1,17 @@
+commit 4a2bec9726eca30cd499695f210fe5e26f949229
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 4 17:17:16 2018 -0700
+
+    cmd/compile: fix printing of array types in error messages
+    
+    Fixes #23094.
+    
+    Change-Id: I9aa36046488baa5f55cf2099e10cfb39ecd17b06
+    Reviewed-on: https://go-review.googlesource.com/116256
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go |  2 +-
+ test/fixedbugs/issue23094.go       | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

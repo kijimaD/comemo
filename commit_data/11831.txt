@@ -1,0 +1,27 @@
+commit 6a75ece01c99164d04752f26d58fdfec268d9139
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 12 23:26:20 2012 -0500
+
+    runtime: delete Type and implementations (use reflect instead)
+    unsafe: delete Typeof, Reflect, Unreflect, New, NewArray
+    
+    Part of issue 2955 and issue 2968.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5650069
+
+ src/cmd/gc/go.h                |   1 +
+ src/cmd/gc/lex.c               |   4 +
+ src/cmd/gc/reflect.c           |  66 +++----------
+ src/cmd/ld/dwarf.c             |   2 +-
+ src/pkg/encoding/gob/decode.go |  12 +--
+ src/pkg/encoding/gob/encode.go |   8 +-
+ src/pkg/reflect/type.go        | 154 ++++++++++++++---------------
+ src/pkg/reflect/value.go       |  41 +++++---
+ src/pkg/runtime/error.go       |  39 +-------
+ src/pkg/runtime/iface.c        | 120 +++-------------------
+ src/pkg/runtime/runtime.h      |   2 +-
+ src/pkg/runtime/type.go        | 219 ++++++-----------------------------------
+ src/pkg/unsafe/unsafe.go       |  24 -----
+ 13 files changed, 176 insertions(+), 516 deletions(-)

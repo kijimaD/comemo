@@ -1,0 +1,31 @@
+commit 61ed6d5c3341f73af9529b4808dd0997c6c86ed4
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Aug 31 17:15:08 2022 -0700
+
+    crypto/rsa,crypto/internal/boring: fix PSS salt handling
+    
+    Fix the coversion between our sentinel salt length variables and the
+    BoringSSL versions in SignRSAPSS. We previously set -1 (hash length
+    equals salt length) when 0 was passed when we should've been setting
+    -2. This now matches the conversion that happens in VerifyRSAPSS. Also
+    adds a note documenting why we do this.
+    
+    Additionally in non-Boring mode, properly handle passing of salt lengths
+    with a negative value which aren't one of the magic constants, returning
+    an error instead of panicking.
+    
+    See https://commondatastorage.googleapis.com/chromium-boringssl-docs/rsa.h.html#RSA_sign_pss_mgf1
+    for the BoringSSL docs.
+    
+    Fixes #54803
+    
+    Change-Id: Id1bd14dcf0ef4733867367257830ed43e25ef882
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426659
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/internal/boring/rsa.go | 30 ++++++++++++++++++++++++++++--
+ src/crypto/rsa/pss.go             | 35 ++++++++++++++++++++++++-----------
+ src/crypto/rsa/pss_test.go        | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 80 insertions(+), 13 deletions(-)

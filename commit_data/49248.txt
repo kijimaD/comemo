@@ -1,0 +1,19 @@
+commit 89533024b011bcf41d6de295a5dfb1ad73486abf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 17 16:26:49 2022 -0400
+
+    vendor: revert stray edit from CL 406835
+    
+    In reviewing CL 406835, I missed that one of the edited files was in
+    src/vendor. This change reverts that file, fixing the failing
+    moddeps test on the longtest builders.
+    
+    Change-Id: Id04b45c3379cf6c17b333444eb7be1301ffcb5f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406895
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

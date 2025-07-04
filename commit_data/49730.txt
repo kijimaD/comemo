@@ -1,0 +1,17 @@
+commit 8f6884393d3d9026f3398d1e96c480a0368cc139
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 4 10:16:44 2022 -0400
+
+    sync/atomic: remove test64err in test
+    
+    This check was for very old QEMU, added in 2011 in
+    https://codereview.appspot.com/4313051/.
+    It may be safe to delete now. Let's find out.
+    In a separate CL for easy rollback.
+    
+    Change-Id: Ic99f8cf27ee348b8ffb1ef0ee36cc1c537dde722
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403978
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/sync/atomic/atomic_test.go | 87 ++----------------------------------------
+ 1 file changed, 4 insertions(+), 83 deletions(-)

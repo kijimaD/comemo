@@ -1,0 +1,21 @@
+commit f77a9025f1e4bf4bb3e2b582d13cce5f19c1ca51
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Aug 3 20:35:40 2020 +0000
+
+    runtime: replace some memstats with consistent stats
+    
+    This change replaces stacks_inuse, gcWorkBufInUse and
+    gcProgPtrScalarBitsInUse with their corresponding consistent stats. It
+    also adds checks to make sure the rest of the sharded stats line up with
+    existing stats in updatememstats.
+    
+    Change-Id: I17d0bd181aedb5c55e09c8dff18cef5b2a3a14e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247038
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mheap.go  | 18 ++-----------
+ src/runtime/mstats.go | 73 ++++++++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 62 insertions(+), 29 deletions(-)

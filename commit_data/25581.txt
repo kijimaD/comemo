@@ -1,0 +1,14 @@
+commit 4a8c15e0667318c523d1b21bb7e1e1d42eb5e3c2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 14 13:44:45 2016 +1100
+
+    doc: revise help page with categories and more links
+    
+    Fixes #12489
+    
+    Change-Id: I25dd3f76e4cfe9a71b987c3b31445724568391e9
+    Reviewed-on: https://go-review.googlesource.com/18625
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/help.html | 68 +++++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 45 insertions(+), 23 deletions(-)

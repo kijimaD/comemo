@@ -1,0 +1,12 @@
+commit 2b6d3b498c92371b5e9721d8ca69bc680f4c80f3
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Sep 3 10:30:05 2011 +1000
+
+    exp/template/html: string replacement refactoring.
+    
+    R=mikesamuel
+    CC=golang-dev
+    https://golang.org/cl/4968063
+
+ src/pkg/exp/template/html/js.go | 200 +++++++++++++++-------------------------
+ 1 file changed, 74 insertions(+), 126 deletions(-)

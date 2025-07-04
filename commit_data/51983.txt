@@ -1,0 +1,20 @@
+commit 5c5f8dc94793316ebeab24fc3e6cd6340a95df91
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Feb 9 14:41:42 2023 -0800
+
+    io: detect Writers that access io.Copy's buffer after returning
+    
+    When the race detector is enabled, scribble over copy buffers with
+    garbage after Write returns.
+    
+    For #58452
+    
+    Change-Id: I25547684bcbef7d302d76736cb02e59c89a640ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466865
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/io/io.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

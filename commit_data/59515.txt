@@ -1,0 +1,28 @@
+commit fc641e7fae1b09e25402bc73660d2deea51c2ad6
+Author: Yongyue Sun <abioy.sun@gmail.com>
+Date:   Thu May 15 13:53:23 2025 +0000
+
+    cmd/compile: create LSym for closures with type conversion
+    
+    Follow-up to #54959 with another failing case.
+    
+    The linker needs FuncInfo metadata for all inlined functions. CL 436240 explicitly creates LSym for direct closure calls to ensure we keep the FuncInfo metadata.
+    
+    However, CL 436240 won't work if the direct closure call is wrapped by a no-effect type conversion, even if that closure could be inlined.
+    
+    This commit should fix such case.
+    
+    Fixes #73716
+    
+    Change-Id: Icda6024da54c8d933f87300e691334c080344695
+    GitHub-Last-Rev: e9aed02eb6ef343e4ed2d8a79f6426abf917ab0e
+    GitHub-Pull-Request: golang/go#73718
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672855
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/inline/inl.go | 12 ++++++++---
+ test/fixedbugs/issue73716.go           | 37 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 3 deletions(-)

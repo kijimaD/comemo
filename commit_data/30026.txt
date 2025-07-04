@@ -1,0 +1,17 @@
+commit bb41b4d599f5758e25091666e123c41b401ac890
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Thu Dec 15 09:58:30 2016 -0500
+
+    net/http: make Server validate HTTP method
+    
+    Fixes #18319
+    
+    Change-Id: If88e60a86828f60d8d93fc291932c19bab19e8dc
+    Reviewed-on: https://go-review.googlesource.com/34470
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/request.go    |  3 +++
+ src/net/http/serve_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

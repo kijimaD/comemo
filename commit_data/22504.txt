@@ -1,0 +1,18 @@
+commit 888d44d3c16147019bb5a667b40bc68ecf4e7ba3
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 9 21:25:48 2015 +1000
+
+    cmd/internal/gc, cmd/7g: use zero register in Componentgen
+    
+    Fixes #9855
+    
+    Use an architectural zero register as the source for zeroing, if available.
+    
+    Change-Id: Ie5b4ba4e3d356c6f892bfd1cebd14d5152bdeeb0
+    Reviewed-on: https://go-review.googlesource.com/8722
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/7g/galign.go       |  1 +
+ src/cmd/internal/gc/gen.go | 16 +++++++++++-----
+ src/cmd/internal/gc/go.go  |  1 +
+ 3 files changed, 13 insertions(+), 5 deletions(-)

@@ -1,0 +1,13 @@
+commit 7df571aef71eaf5cd1e52ed74b7226a71ca20866
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 15 10:50:41 2008 -0800
+
+    off-by-one error assigning src files to functions
+    
+    R=r
+    DELTA=2  (2 added, 0 deleted, 0 changed)
+    OCL=21178
+    CL=21187
+
+ src/runtime/symtab.c | 2 ++
+ 1 file changed, 2 insertions(+)

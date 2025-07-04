@@ -1,0 +1,39 @@
+commit 37a32a1833a6e55baaa8d971406094148e42f7d1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Dec 3 13:32:11 2020 -0500
+
+    cmd/compile: make sure address of offset(SP) is rematerializeable
+    
+    An address of offset(SP) may point to the callee args area, and
+    may be used to move things into/out of the args/results. If an
+    address like that is spilled and picked up by the GC, it may hold
+    an arg/result live in the callee, which may not actually be live
+    (e.g. a result not initialized at function entry). Make sure
+    they are rematerializeable, so they are always short-lived and
+    never picked up by the GC.
+    
+    This CL changes 386, PPC64, and Wasm. On AMD64 we already have
+    the rule (line 2159). On other architectures, we already have
+    similar rules like
+    (OffPtr [off] ptr:(SP)) => (MOVDaddr [int32(off)] ptr)
+    to avoid this problem. (Probably me in the past had run into
+    this...)
+    
+    Fixes #42944.
+    
+    Change-Id: Id2ec73ac08f8df1829a9a7ceb8f749d67fe86d1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275174
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/386.rules   |  1 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  1 +
+ src/cmd/compile/internal/ssa/gen/Wasm.rules  |  1 +
+ src/cmd/compile/internal/ssa/rewrite386.go   | 13 +++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 14 ++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteWasm.go  | 14 ++++++++++++++
+ src/cmd/compile/internal/wasm/ssa.go         |  6 ++++++
+ test/fixedbugs/issue42944.go                 | 24 ++++++++++++++++++++++++
+ 8 files changed, 74 insertions(+)

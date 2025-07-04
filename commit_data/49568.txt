@@ -1,0 +1,20 @@
+commit 4d95fe6653b531b549b68f83c85d5a66468a44cf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 29 15:39:01 2022 -0700
+
+    test: add regress test for #53619
+    
+    Works with cmd/compile, but fails with gccgo currently.
+    
+    Updates #53619.
+    
+    Change-Id: I787faa9584cc33bd851c9cc8f146c91f4eb36fc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415238
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ test/fixedbugs/issue53619.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

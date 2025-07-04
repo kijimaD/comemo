@@ -1,0 +1,81 @@
+commit 11b3730a02c93fd5745bfd977156541a9033759b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu May 7 18:13:21 2020 -0400
+
+    runtime: disable preemption in startTemplateThread
+    
+    When a locked M wants to start a new M, it hands off to the template
+    thread to actually call clone and start the thread. The template thread
+    is lazily created the first time a thread is locked (or if cgo is in
+    use).
+    
+    stoplockedm will release the P (_Pidle), then call handoffp to give the
+    P to another M. In the case of a pending STW, one of two things can
+    happen:
+    
+    1. handoffp starts an M, which does acquirep followed by schedule, which
+    will finally enter _Pgcstop.
+    
+    2. handoffp immediately enters _Pgcstop. This only occurs if the P has
+    no local work, GC work, and no spinning M is required.
+    
+    If handoffp starts an M, and must create a new M to do so, then newm
+    will simply queue the M on newmHandoff for the template thread to do the
+    clone.
+    
+    When a stop-the-world is required, stopTheWorldWithSema will start the
+    stop and then wait for all Ps to enter _Pgcstop. If the template thread
+    is not fully created because startTemplateThread gets stopped, then
+    another stoplockedm may queue an M that will never get created, and the
+    handoff P will never leave _Pidle. Thus stopTheWorldWithSema will wait
+    forever.
+    
+    A sequence to trigger this hang when STW occurs can be visualized with
+    two threads:
+    
+      T1                                 T2
+    -------------------------------   -----------------------------
+    
+    LockOSThread                      LockOSThread
+      haveTemplateThread == 0
+      startTemplateThread
+        haveTemplateThread = 1
+        newm                            haveTemplateThread == 1
+          preempt -> schedule           g.m.lockedExt++
+            gcstopm -> _Pgcstop         g.m.lockedg = ...
+            park                        g.lockedm = ...
+                                        return
+    
+                                     ... (any code)
+                                       preempt -> schedule
+                                         stoplockedm
+                                           releasep -> _Pidle
+                                           handoffp
+                                             startm (first 3 handoffp cases)
+                                              newm
+                                                g.m.lockedExt != 0
+                                                Add to newmHandoff, return
+                                           park
+    
+    Note that the P in T2 is stuck sitting in _Pidle. Since the template
+    thread isn't running, the new M will not be started complete the
+    transition to _Pgcstop.
+    
+    To resolve this, we disable preemption around the assignment of
+    haveTemplateThread and the creation of the template thread in order to
+    guarantee that if handTemplateThread is set then the template thread
+    will eventually exist, in the presence of stops.
+    
+    Fixes #38931
+    
+    Change-Id: I50535fbbe2f328f47b18e24d9030136719274191
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232978
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/crash_test.go                     | 14 ++++++--
+ src/runtime/proc.go                           |  6 ++++
+ src/runtime/proc_test.go                      | 24 +++++++++++++
+ src/runtime/testdata/testprog/lockosthread.go | 49 +++++++++++++++++++++++++++
+ 4 files changed, 91 insertions(+), 2 deletions(-)

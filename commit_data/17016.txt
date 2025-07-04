@@ -1,0 +1,16 @@
+commit 910caf93454d177fee459a6e65cb4f5d8e0b56ad
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 4 11:23:17 2013 -0700
+
+    net/http: fix Response.Header documentation for multiple headers with same key
+    
+    Whether the keys are concatenated or separate (or a mixture) depends on the server.
+    
+    Fixes #5979.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12433043
+
+ src/pkg/net/http/response.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

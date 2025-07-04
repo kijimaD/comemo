@@ -1,0 +1,23 @@
+commit 67a46cc1636362bea54ab68b521f77a778968ea2
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 20 20:24:26 2017 -0700
+
+    encoding/gob: document the extra byte after a singleton
+    
+    This paragraph has been added, as the notion was missing from the
+    documentation.
+    
+    If a value is passed to Encode and the type is not a struct (or pointer to struct,
+    etc.), for simplicity of processing it is represented as a struct of one field.
+    The only visible effect of this is to encode a zero byte after the value, just as
+    after the last field of an encoded struct, so that the decode algorithm knows when
+    the top-level value is complete.
+    
+    Fixes #16978
+    
+    Change-Id: I5f008e792d1b6fe80d2e026a7ff716608889db32
+    Reviewed-on: https://go-review.googlesource.com/38414
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/gob/doc.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

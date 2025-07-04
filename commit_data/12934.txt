@@ -1,0 +1,14 @@
+commit b678c197855ef8417cd8ba5df40904c66d60a4c7
+Author: Pascal S. de Kloe <pascal@quies.net>
+Date:   Mon Apr 23 10:26:10 2012 -0700
+
+    net/http: lex cleanup
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6099043
+
+ src/pkg/net/http/cookie.go   |   7 +-
+ src/pkg/net/http/lex.go      | 206 +++++++++++++++++--------------------------
+ src/pkg/net/http/lex_test.go |  65 +++-----------
+ 3 files changed, 97 insertions(+), 181 deletions(-)

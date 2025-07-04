@@ -1,0 +1,21 @@
+commit b28e33d371cf96f6f34bbc576b6fd95468ea25bc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 29 13:13:24 2018 -0700
+
+    go/types: add struct field with invalid type if field has errors
+    
+    This ensures that all struct fields are present and thus the struct
+    has the original number of fields even if some fields have type
+    errors. (This only applies as long as the field names themselves
+    don't conflict.)
+    
+    Fixes #25627.
+    
+    Change-Id: I2414b1f432ce139b3cd2776ff0d46d8dcf38b650
+    Reviewed-on: https://go-review.googlesource.com/115115
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/issues_test.go      | 41 ++++++++++++++++++++++++++++++++++++++++
+ src/go/types/testdata/decls3.src |  4 ++--
+ src/go/types/typexpr.go          | 17 +++++++++++++++++
+ 3 files changed, 60 insertions(+), 2 deletions(-)

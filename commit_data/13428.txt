@@ -1,0 +1,14 @@
+commit a732cbb593c832a72e87c0ab19b6b06369cb7073
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Jul 2 09:33:22 2012 +0800
+
+    cmd/gc: add missing case for OCOM in defaultlit()
+            Fixes #3765.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6349064
+
+ src/cmd/gc/const.c       |  3 ++-
+ test/fixedbugs/bug445.go | 14 ++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

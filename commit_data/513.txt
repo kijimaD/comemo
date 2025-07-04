@@ -1,0 +1,15 @@
+commit 1e0b17b24c682cd856d2bb74062f3857ee5787c2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 11 11:40:19 2008 -0700
+
+    - added test case for compiler bug re: exported
+    variables of function pointer type
+    
+    R=r
+    OCL=14086
+    CL=14086
+
+ test/bugs/bug088.dir/bug0.go |  9 +++++++++
+ test/bugs/bug088.dir/bug1.go | 22 ++++++++++++++++++++++
+ test/bugs/bug088.go          |  6 ++++++
+ 3 files changed, 37 insertions(+)

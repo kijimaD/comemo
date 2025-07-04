@@ -1,0 +1,23 @@
+commit 87d5f6b9f65bc0f4a68d8712b500615df5df309c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 28 12:47:08 2017 -0700
+
+    reflect: make StructOf panic for methods that don't work
+    
+    When StructOf is used with an anonymous field that has methods, and
+    that anonymous field is not the first field, the methods we generate
+    are incorrect because they do not offset to the field as required.
+    If we encounter that case, panic rather than doing the wrong thing.
+    
+    Fixes #20824
+    Updates #15924
+    
+    Change-Id: I3b0901ddbc6d58af5f7e84660b5e3085a431035d
+    Reviewed-on: https://go-review.googlesource.com/47035
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/all_test.go | 86 ++++++++++++++++++++++++++++++++-----------------
+ src/reflect/type.go     | 15 +++++++--
+ 2 files changed, 69 insertions(+), 32 deletions(-)

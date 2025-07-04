@@ -1,0 +1,14 @@
+commit 89283781c69314f09e999fe131b12c57059c1ba1
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue May 24 20:03:31 2016 +0200
+
+    testing: added package doc for sub(tests/benchmarks)
+    
+    Change-Id: I6991cd7a41140da784a1ff8d69c5ea2032d05850
+    Reviewed-on: https://go-review.googlesource.com/23354
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/testing.go | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 55 insertions(+)

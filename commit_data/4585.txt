@@ -1,0 +1,13 @@
+commit 711088106e74e909f78a8139bd46501f39d13e7d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 12 10:03:02 2010 -0800
+
+    runtime: fix bug in preemption checks; was causing "lock count" panics
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/186078
+
+ src/pkg/runtime/malloc.cgo | 2 +-
+ src/pkg/runtime/proc.c     | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

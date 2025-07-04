@@ -1,0 +1,16 @@
+commit 0d71234ee4cfcac4a6664d8fef4be575cca1d7c7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 15 13:36:10 2022 -0400
+
+    reflect: avoid panic in reflect.Kind.String for negative Kind
+    
+    Kind(-1).String() used to panic; let's not.
+    
+    Change-Id: I1dfc0e3298beb37d77713d8327579bbde90dd156
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393015
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/all_test.go | 9 +++++++++
+ src/reflect/type.go     | 4 ++--
+ 2 files changed, 11 insertions(+), 2 deletions(-)

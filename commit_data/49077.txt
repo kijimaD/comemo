@@ -1,0 +1,26 @@
+commit 054323d809cb15d47ca72d0deeadb5cfc2737780
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Apr 1 11:12:22 2022 -0400
+
+    debug/pe: rework reading of aux symbols to fix endianity problems
+    
+    This patch reworks CL 394534 to fix things so that reading auxiliary
+    symbol info works properly in a cross-endian mode (running
+    debug/pe-based tool on a big-endian system). The previous
+    implementation read in all symbol records using the primary symbol
+    format, then just used a pointer cast to convert to the auxiliary
+    format, which doesn't play well if host and target have different
+    endianness.
+    
+    Fixes #52079.
+    
+    Change-Id: I143d94d9313a265f11ca7befd254bdb150698834
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397485
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/debug/pe/symbol.go       | 51 +++++++++++++++++++++++++++++++++++++++++---
+ src/debug/pe/symbols_test.go |  8 -------
+ 2 files changed, 48 insertions(+), 11 deletions(-)

@@ -1,0 +1,12 @@
+commit c3dbe5d24c8036679d733be3d7aef40f56c7d379
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun May 19 10:04:23 2013 +1000
+
+    misc/dashboard: add go.tools to list of subrepos
+    
+    R=r, adg, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/9535044
+
+ misc/dashboard/app/build/init.go | 1 +
+ 1 file changed, 1 insertion(+)

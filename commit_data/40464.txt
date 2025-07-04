@@ -1,0 +1,16 @@
+commit 7131eb08ec72cc241f7db02bc647cf10098648a5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 28 08:53:53 2019 -0700
+
+    cmd: gofmt
+    
+    Change-Id: I243b6521cb91ba5312c0857ca81cf422a7c7b21a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203881
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/fmtmap_test.go             | 66 +++++++++++++++---------------
+ src/cmd/compile/internal/ssa/branchelim.go |  2 +-
+ src/cmd/internal/src/pos.go                |  2 +-
+ 3 files changed, 35 insertions(+), 35 deletions(-)

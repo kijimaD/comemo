@@ -1,0 +1,12 @@
+commit 1c819cb194be25fa357ac478b07705f0aaa4c1bc
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Jan 5 16:50:52 2010 -0800
+
+    xml: Fix comment so that example code compiles
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/181138
+
+ src/pkg/xml/read.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

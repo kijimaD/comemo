@@ -1,0 +1,20 @@
+commit c55d5c887e8644df1e024573dbcf4e6e819371c2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 30 09:43:39 2021 -0700
+
+    cmd/compile/internal/types2: simplify use of TestManual
+    
+    Running the TestManual test (for manual debugging) requires
+    user-provided files as input. Rather than using another flag
+    (-files) to provide these files, just use the (remaining)
+    command line arguments.
+    
+    Change-Id: I9b20d9f1a6a7ce839bbd690c311ce3f0d0a10496
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315689
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check_test.go | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

@@ -1,0 +1,19 @@
+commit f284a3ff4d525da4fb1dff6580588cabdbeab423
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 1 11:13:50 2012 -0700
+
+    cmd/go: fixes to gccgo support
+    
+    * Use -fgo-pkgpath and -gccgopkgpath rather than -fgo-prefix
+      and -gccgoprefix.
+    * Define GOPKGPATH when compiling .c or .s files for gccgo.
+    * Use -fgo-relative-import-path.
+    * Produce .o files for gccgo, not .[568] files.
+    * Pass -E when linking if using cgo.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6820064
+
+ src/cmd/go/build.go | 62 ++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 47 insertions(+), 15 deletions(-)

@@ -1,0 +1,45 @@
+commit c98867d23a28c6502adadddc9635b22cdd998cc4
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat May 11 09:37:50 2024 +0000
+
+    crypto: replace encoding/binary in favour of internal/byteorder
+    
+    Updates #54097
+    
+    Change-Id: I827a5efd1736ce057b76f079466f2d9ead225898
+    GitHub-Last-Rev: 40af10469d85ce9f4bef4b40025589d9e44f43d6
+    GitHub-Pull-Request: golang/go#67321
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585017
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/crypto/aes/block.go                      | 38 +++++++++++++-------------
+ src/crypto/aes/ctr_s390x.go                  | 10 +++----
+ src/crypto/aes/gcm_ppc64x.go                 | 18 ++++++-------
+ src/crypto/aes/gcm_s390x.go                  |  8 +++---
+ src/crypto/cipher/gcm.go                     | 20 +++++++-------
+ src/crypto/des/block.go                      |  8 +++---
+ src/crypto/des/cipher.go                     | 10 +++----
+ src/crypto/ecdh/nist.go                      |  4 +--
+ src/crypto/internal/bigmod/nat.go            |  6 ++---
+ src/crypto/internal/edwards25519/field/fe.go | 14 +++++-----
+ src/crypto/internal/edwards25519/scalar.go   |  4 +--
+ src/crypto/internal/mlkem768/mlkem768.go     |  6 ++---
+ src/crypto/internal/nistec/p256_asm.go       |  4 +--
+ src/crypto/md5/gen.go                        | 10 +++----
+ src/crypto/md5/md5.go                        | 28 +++++++++----------
+ src/crypto/md5/md5block.go                   | 34 +++++++++++------------
+ src/crypto/rand/rand_plan9.go                |  4 +--
+ src/crypto/sha1/sha1.go                      | 26 +++++++++---------
+ src/crypto/sha256/sha256.go                  | 38 +++++++++++++-------------
+ src/crypto/sha512/sha512.go                  | 40 ++++++++++++++--------------
+ src/crypto/tls/bogo_shim_test.go             |  4 +--
+ src/crypto/tls/handshake_client_test.go      |  4 +--
+ src/crypto/tls/handshake_server_tls13.go     |  4 +--
+ src/go/build/deps_test.go                    |  8 +++---
+ 24 files changed, 174 insertions(+), 176 deletions(-)

@@ -1,0 +1,19 @@
+commit ea0fb5d8e2ba795f0fc985da27a9514492abd7bb
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Jun 28 07:15:22 2014 +1000
+
+    cmd/go: build non-runnable examples in xtests
+    
+    Include these files in the build,
+    even though they don't get executed.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/108180043
+
+ src/cmd/go/test.bash                             |  8 +++++
+ src/cmd/go/test.go                               | 39 +++++++++++++-----------
+ src/cmd/go/testdata/norunexample/example_test.go | 11 +++++++
+ src/cmd/go/testdata/norunexample/test_test.go    | 10 ++++++
+ 4 files changed, 50 insertions(+), 18 deletions(-)

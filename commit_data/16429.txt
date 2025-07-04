@@ -1,0 +1,19 @@
+commit ca986a2c81f85af0ae009e6b90098c703766c28a
+Author: John Shahid <jvshahid@gmail.com>
+Date:   Wed May 29 11:21:32 2013 -0400
+
+          crypto/tls: Check all certificates in the path.
+    
+    Currently we only check the leaf node's issuer against the list of
+    distinguished names in the server's CertificateRequest message. This
+    will fail if the client certiciate has more than one certificate in
+    the path and the leaf node issuer isn't in the list of distinguished
+    names, but the issuer's issuer was in the distinguished names.
+    
+    R=agl, agl
+    CC=gobot, golang-dev
+    https://golang.org/cl/9795043
+
+ src/pkg/crypto/tls/handshake_client.go      |  52 +-
+ src/pkg/crypto/tls/handshake_client_test.go | 912 ++++++++++++++++++++++++++++
+ 2 files changed, 940 insertions(+), 24 deletions(-)

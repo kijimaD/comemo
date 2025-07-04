@@ -1,0 +1,23 @@
+commit 8054d2da5bdbaf154b258d8d2fd24025a809b0de
+Author: zhi.wang <zhi.wang@kunlun-inc.com>
+Date:   Sun Apr 6 13:08:57 2025 +0000
+
+    strconv: use switch for '+'/'-' prefix handling
+    
+    Follow the approach used in strconv's readFloat, decimal.set, and Atoi,
+    where leading '+' and '-' are handled using a switch for clarity and
+    consistency.
+    
+    Change-Id: I41eff34ce90b5ac43fcdbc0bb88910d6d5fb4d39
+    GitHub-Last-Rev: 0c9d2efb5a828515fa00afdba8c436aa31fb0e53
+    GitHub-Pull-Request: golang/go#73185
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663257
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/strconv/atof.go | 26 ++++++++++++++------------
+ src/strconv/atoi.go |  7 ++++---
+ 2 files changed, 18 insertions(+), 15 deletions(-)

@@ -1,0 +1,14 @@
+commit 4cb660aad8c70c4c71f0020ac7a9bb17155b76ab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 25 15:28:53 2011 -0700
+
+    test: match gccgo error messages for bug081.go.
+    
+    bug081.go:9:9: error: expected type
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4280071
+
+ test/fixedbugs/bug081.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

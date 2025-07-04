@@ -1,0 +1,31 @@
+commit 13b1261175efde5aac7c4c7f6f66ae3b2c609a2d
+Author: Julia Lapenko <julia.lapenko@gmail.com>
+Date:   Thu Mar 6 17:54:17 2025 +0300
+
+    cmd/compile/internal/devirtualize: do not select a zero-weight edge as the hottest one
+    
+    When both a direct call and an interface call appear on the same line,
+    PGO devirtualization may make a suboptimal decision. In some cases,
+    the directly called function becomes a candidate for devirtualization
+    if no other relevant outgoing edges with non-zero weight exist for the
+    caller's IRNode in the WeightedCG. The edge to this candidate is
+    considered the hottest. Despite having zero weight, this edge still
+    causes the interface call to be devirtualized.
+    
+    This CL prevents devirtualization when the weight of the hottest edge
+    is 0.
+    
+    Fixes #72092
+    
+    Change-Id: I06c0c5e080398d86f832e09244aceaa4aeb98721
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655475
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/devirtualize/pgo.go       |  2 +-
+ .../compile/internal/test/pgo_devirtualize_test.go | 63 ++++++++++++++++++----
+ .../test/testdata/pgo/devirtualize/devirt.go       | 42 +++++++++++++++
+ .../test/testdata/pgo/devirtualize/devirt_test.go  | 16 ++++++
+ 4 files changed, 112 insertions(+), 11 deletions(-)

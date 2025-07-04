@@ -1,0 +1,20 @@
+commit f3962b1849a405995420fef4452f2a8493aa19e0
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Apr 18 15:49:06 2018 -0700
+
+    sync/atomic: use package prefix in examples
+    
+    Previously these examples declared "var v Value" but any caller would
+    need to write "var v atomic.Value", so we should use the external
+    package declaration form to avoid confusion about where Value comes
+    from.
+    
+    Change-Id: Ic0b1a05fb6b700da61cfc8efca594c49a9bedb69
+    Reviewed-on: https://go-review.googlesource.com/107975
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sync/atomic/example_test.go | 76 +++++++++++++++++++++++++++++++++++++++++
+ src/sync/atomic/value_test.go   | 67 ------------------------------------
+ 2 files changed, 76 insertions(+), 67 deletions(-)

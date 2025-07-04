@@ -1,0 +1,13 @@
+commit 7c96f9b527bc3d04eeb0e8d86c8fcf381a5981bb
+Author: Venil Noronha <veniln@vmware.com>
+Date:   Thu Aug 30 17:23:51 2018 -0600
+
+    A+C: add VMware as author, Venil Noronha as contributor
+    
+    Change-Id: I0dd843ac06f1b9987aa2fc90ae62074e668d6d4d
+    Reviewed-on: https://go-review.googlesource.com/132438
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

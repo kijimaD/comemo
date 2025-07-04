@@ -1,0 +1,12 @@
+commit 30c85bf14c32a836e666542b78a961e1e8fdc346
+Author: Ryan Hitchman <hitchmanr@gmail.com>
+Date:   Wed Jan 19 14:46:06 2011 -0500
+
+    codereview: don't mail change lists with no files
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3561041
+
+ lib/codereview/codereview.py | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

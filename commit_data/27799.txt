@@ -1,0 +1,16 @@
+commit 31ad583ab24263f9dbcb5cbcce849eed64e74040
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jun 25 15:11:25 2016 -0700
+
+    testing: respect benchtime on very fast benchmarks
+    
+    When ns/op dropped below 1, the old code
+    ignored benchtime and reverted to 1s.
+    
+    Change-Id: I59752cef88d8d73bfd5b085f5400ae657f78504e
+    Reviewed-on: https://go-review.googlesource.com/26664
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+
+ src/testing/benchmark.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

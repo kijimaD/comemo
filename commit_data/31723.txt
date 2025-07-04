@@ -1,0 +1,30 @@
+commit 4f2269edbd1b3e09484001c9cc7897b49c828b45
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 31 11:35:29 2017 -0400
+
+    cmd/link: add -importcfg to specify import resolution
+    
+    Adds the ability to specify the file location of each imported package,
+    like in the -importcfg added to cmd/compile in a related CL.
+    In effect, -importcfg is a generalization of and supersedes -installsuffix
+    and -L. Of course, those flags will continue to be supported, for
+    compatibility with other tools.
+    
+    Having this flag in Go 1.9 will let us try some experiments involving
+    package management without needing guinea pigs to build a custom
+    Go toolchain.
+    
+    This flag also helps with #14271 at some later point.
+    
+    For #20579.
+    
+    Change-Id: Ie4c171bcd3aa2faa446ac340e36516f2f9853882
+    Reviewed-on: https://go-review.googlesource.com/44851
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/ld.go   | 83 +++++++++++++++++++++++++++++++++-------
+ src/cmd/link/internal/ld/lib.go  | 13 +++++++
+ src/cmd/link/internal/ld/link.go |  3 ++
+ src/cmd/link/internal/ld/main.go |  1 +
+ 4 files changed, 87 insertions(+), 13 deletions(-)

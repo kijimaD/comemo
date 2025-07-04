@@ -1,0 +1,30 @@
+commit d7e5cd5851f9fea4512c20cf275d979516828521
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Thu Mar 6 09:23:15 2025 +0100
+
+    compress/flate,compress/lzw: fix incorrect godoc links
+    
+    Fix incorrect godoc links related to the use of the name "Reader" for
+    different things in the various compress/* packages:
+    - in compress/flate Reader is the interface describing the underlying reader,
+      not the decompressor as in other packages, so "returned reader" must
+      not be linked to Reader.
+    - in compress/lzw and compress/gzip Reader is the decompressor, not the
+      interface of the underlying reader, so "underlying reader" must not
+      be linked to Reader.
+    
+    With this patch the formatting of "underlying reader" and "returned
+    reader" is consistent accross compress/* packages.
+    
+    Change-Id: Iea315fd5ee5b6c177855693d68841f3709a382cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655335
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/compress/flate/deflate.go | 4 ++--
+ src/compress/flate/inflate.go | 4 ++--
+ src/compress/gzip/gunzip.go   | 4 ++--
+ src/compress/lzw/reader.go    | 2 +-
+ 4 files changed, 7 insertions(+), 7 deletions(-)

@@ -1,0 +1,23 @@
+commit d01bc571f7e55c7376f34e86be4e5660887bd30c
+Author: Tao Qingyun <qingyunha@gmail.com>
+Date:   Tue Jun 22 00:24:05 2021 +0000
+
+    runtime: make ncgocall a global counter
+    
+    ncgocall was stored per M, runtime.NumCgoCall lost the counter when a M die.
+    
+    Fixes #46789
+    
+    Change-Id: I85831fbb2713f4c30d1800d07e1f47aa0031970e
+    GitHub-Last-Rev: cbc15fa870de776d3fbf3b62fc9a5e01792e6a26
+    GitHub-Pull-Request: golang/go#46842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329729
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
+
+ src/runtime/cgocall.go | 2 ++
+ src/runtime/debug.go   | 2 +-
+ src/runtime/proc.go    | 2 ++
+ 3 files changed, 5 insertions(+), 1 deletion(-)

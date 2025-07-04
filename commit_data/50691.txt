@@ -1,0 +1,18 @@
+commit 690851ee3e48b85088698a9dbcc7dd112cef9eb5
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 10:44:32 2022 +0800
+
+    crypto: use fmt.Appendf
+    
+    Change-Id: I022a221e2d73cd8c70e8e04b7046c388748646a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435696
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/tls/common.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

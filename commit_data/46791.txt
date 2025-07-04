@@ -1,0 +1,28 @@
+commit c8dd89ed3dde52933d981d7d7c4c200160f47ec3
+Author: John Kelly <jkelly@squarespace.com>
+Date:   Thu Jul 29 15:47:23 2021 -0400
+
+    net/http: add Cookie.Valid method
+    
+    The (*http.Cookie).String method used by SetCookie will silently discard
+    or sanitize any fields it deems invalid, making it difficult to tell
+    whether a cookie will be sent as expected.
+    
+    This change introduces a new (*http.Cookie).Valid method which may be
+    used to check if any cookie fields will be discarded or sanitized prior
+    to calling (*http.Cookie).String.
+    
+    Fixes #46370
+    
+    Change-Id: I2db80078de190d267a9c675a9717c8be8acc8704
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338590
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ api/next.txt                |  1 +
+ src/net/http/cookie.go      | 33 +++++++++++++++++++++++++++++++++
+ src/net/http/cookie_test.go | 25 +++++++++++++++++++++++++
+ 3 files changed, 59 insertions(+)

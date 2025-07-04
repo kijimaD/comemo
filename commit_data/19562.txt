@@ -1,0 +1,21 @@
+commit 14c8143c31fc38fc661188247aa6d3b9d25ae394
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 17 21:59:50 2014 -0700
+
+    runtime: fix gogetcallerpc.
+    
+    Make assembly govet-clean.
+    Clean up fixes for CL 93380044.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/107160047
+
+ src/pkg/runtime/asm_386.s      |  4 ++--
+ src/pkg/runtime/asm_amd64.s    |  6 +++---
+ src/pkg/runtime/asm_amd64p32.s |  6 +++---
+ src/pkg/runtime/asm_arm.s      |  2 +-
+ src/pkg/runtime/string.go      | 10 +++++++---
+ src/pkg/runtime/stubs.goc      |  5 ++---
+ 6 files changed, 18 insertions(+), 15 deletions(-)

@@ -1,0 +1,28 @@
+commit 0d3143ea781298172cd432b637e8b8f0b0526951
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 25 20:36:07 2017 +0000
+
+    net/http: update bundled x/net/http2
+    
+    This updates the bundled http2 package from git rev
+    5602c733f70afc6dcec6766be0d5034d4c4f14de of the x/net repo for:
+    
+      http2: Use NO_ERROR instead of CANCEL when responding before the request is finished
+      https://golang.org/cl/40630
+    
+      http2: enforce write deadline per stream
+      https://golang.org/cl/34727
+    
+    Updates golang/go#19948
+    Fixes golang/go#18437
+    
+    Change-Id: I14500476e91551fa8f27a1aeb8ae3cac9600b74c
+    Reviewed-on: https://go-review.googlesource.com/41753
+    Reviewed-by: Kale Blankenship <kale@lemnisys.com>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Run-TryBot: Kale Blankenship <kale@lemnisys.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go  | 34 ++++++++++++++++++++++++++++------
+ src/net/http/serve_test.go |  2 --
+ 2 files changed, 28 insertions(+), 8 deletions(-)

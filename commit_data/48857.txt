@@ -1,0 +1,21 @@
+commit 347534343b114d9183efeefcb1d49458e1e8e34f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Apr 21 14:48:58 2022 -0400
+
+    Revert "runtime/internal/syscall: use ABIInternal for Syscall6 on amd64"
+    
+    This reverts CL 401096. Grandparent CL 388477 breaks cmd/go
+    TestScript/cover_pkgall_runtime.
+    
+    For #51087.
+    For #52472.
+    
+    Change-Id: Ie82fe5f50975f66eb91fb0d01cd8bbbd0265eb4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401634
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/internal/syscall/asm_linux_amd64.s | 44 +++++++++-----------------
+ 1 file changed, 15 insertions(+), 29 deletions(-)

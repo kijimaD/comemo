@@ -1,0 +1,20 @@
+commit 54023a94a6d7a282571ab18da7862a909d36d894
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Nov 26 21:31:42 2012 +0100
+
+    cmd/8l: fix data corruption for MULB SI,
+    
+    The 8l linker automatically inserts XCHG instructions
+    to support otherwise impossible byte registers
+    (only available on AX, BX, CX, DX).
+    
+    Sometimes AX or DX is needed (for MUL and DIV) so
+    we need to avoid clobbering them.
+    
+    R=golang-dev, dave, iant, iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/6846057
+
+ src/cmd/6l/span.c | 4 +++-
+ src/cmd/8l/span.c | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

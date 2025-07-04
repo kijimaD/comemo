@@ -1,0 +1,15 @@
+commit 63edd418b6684c0eed6d19d818eaef42e813a2ae
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon May 1 13:09:47 2023 -0400
+
+    cmd/compile: drop unused arg to mkinlcall
+    
+    Change-Id: I3cd8d81cc434257d78b34dfaae09a77ab3211121
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490896
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/inline/inl.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

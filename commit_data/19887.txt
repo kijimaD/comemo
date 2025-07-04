@@ -1,0 +1,35 @@
+commit f2f17c0ff2b2b712e588886cfa2c05066ef2ae87
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 5 17:10:15 2014 -0700
+
+    cmd/cgo: for -godefs, promote first field of anonymous union
+    
+    Update #6677
+    
+    When a struct contains an anonymous union, use the type and
+    name of the first field in the union.
+    
+    This should make the glibc <sys/resource.h> file work; in that
+    file struct rusage has fields like
+    
+    __extension__ union
+    {
+            long int ru_maxrss;
+            __syscall_slong_t __ru_maxrss_word;
+    };
+    
+    in which the field that matters is ru_maxrss and
+    __ru_maxrss_word just exists to advance to the next field on
+    systems where the kernel uses long long fields but userspace
+    expects long fields.
+    
+    LGTM=mikioh.mikioh
+    R=golang-codereviews, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/106260044
+
+ misc/cgo/testgodefs/anonunion.go | 26 ++++++++++++++++++++++++++
+ misc/cgo/testgodefs/main.go      | 12 ++++++++++++
+ misc/cgo/testgodefs/test.bash    | 20 ++++++++++++++++++++
+ src/cmd/cgo/gcc.go               | 23 +++++++++++++++++++++--
+ 4 files changed, 79 insertions(+), 2 deletions(-)

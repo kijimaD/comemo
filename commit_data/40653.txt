@@ -1,0 +1,26 @@
+commit 47360884638e5c8ad65003515b324ec33b823861
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 21 14:08:11 2019 -0400
+
+    cmd/internal/obj/arm64: mark unsafe points
+    
+    For async preemption, we will be using REGTMP as a temporary
+    register in injected call on ARM64, which will clobber it. So any
+    code that uses REGTMP is not safe for async preemption.
+    
+    In the assembler backend, we expand a Prog to multiple machine
+    instructions and use REGTMP as a temporary register if necessary.
+    These need to be marked unsafe. In fact, most of the
+    multi-instruction Progs use REGTMP, so we mark all of them,
+    except ones that are whitelisted.
+    
+    Change-Id: I6e97805a13950e3b693fb606d77834940ac3722e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203460
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/obj/arm64/asm7.go | 47 ++++++++++++++++++++-------
+ src/cmd/internal/obj/arm64/obj7.go |  6 ++++
+ src/cmd/internal/obj/plist.go      | 65 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 106 insertions(+), 12 deletions(-)

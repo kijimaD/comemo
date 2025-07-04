@@ -1,0 +1,16 @@
+commit fa7efa2cb01ed24cb7f9b3b054016e644377e610
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 10 19:27:49 2015 -0500
+
+    cmd/gc: add debugging to liveness analysis
+    
+    Even with debugmerge = 1, the debugging output only happens
+    with the -v command-line flag. This is useful because it gets added
+    in automatically when debugging things like registerization with -R -v.
+    
+    Change-Id: I9a5c7f562507b72e8e2fe2686fd07d069721345a
+    Reviewed-on: https://go-review.googlesource.com/4641
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/gc/popt.c | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)

@@ -1,0 +1,20 @@
+commit 034fffdb490ade3cbccd79eacdb9370850ef51d1
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 9 10:38:30 2021 +0100
+
+    net: use io.Discard in TestSendfileOnWriteTimeoutExceeded
+    
+    Replace ioutil.Discard which is deprecated as of Go 1.16.
+    
+    This was already done in CL 263142 but accidentially re-introduced in
+    CL 285914.
+    
+    Change-Id: Ife0944d416294b1ba7c8f6b602aa68a3b9213c50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299989
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/sendfile_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

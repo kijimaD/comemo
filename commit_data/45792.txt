@@ -1,0 +1,29 @@
+commit 770f1de8c54256d5b17447028e47b201ba8e62c8
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Jun 10 10:50:37 2021 -0700
+
+    net/http: remove test-only private key from production binaries
+    
+    The net/http/internal package contains a PEM-encoded private key used in
+    tests. This key is initialized at init time, which prevents it from
+    being stripped by the linker in non-test binaries.
+    
+    Move the certificate and key to a new net/http/internal/testcert
+    package to ensure it is only included in binaries that reference it.
+    
+    Fixes #46677.
+    
+    Change-Id: Ie98bda529169314cc791063e7ce4d99ef99113c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326771
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/go/build/deps_test.go                        | 4 +++-
+ src/net/http/httptest/server.go                  | 4 ++--
+ src/net/http/internal/{ => testcert}/testcert.go | 5 +++--
+ src/net/http/serve_test.go                       | 7 ++++---
+ src/net/http/transport_internal_test.go          | 4 ++--
+ src/net/http/transport_test.go                   | 4 ++--
+ 6 files changed, 16 insertions(+), 12 deletions(-)

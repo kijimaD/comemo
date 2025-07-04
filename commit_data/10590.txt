@@ -1,0 +1,12 @@
+commit 6f0ef845e6c2e56712ee458a605f08386fe539ee
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Fri Dec 2 10:13:02 2011 -0500
+
+    asn1: fix incorrect prints found by govet
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5449063
+
+ src/pkg/encoding/asn1/asn1_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

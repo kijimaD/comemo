@@ -1,0 +1,19 @@
+commit ecc268aa26b81cb53f2f6f62ea9d074a610771fe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 15 15:42:47 2022 -0700
+
+    test: add test that gofrontend fails
+    
+    For #52870
+    
+    Change-Id: Ic0791af4283c9e426f7cbfab0514517ff84cfa80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412535
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ test/fixedbugs/issue52870.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

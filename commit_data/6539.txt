@@ -1,0 +1,24 @@
+commit 8052786e51f606ac201e92d288ed8d49069b71f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Oct 17 11:41:23 2010 -0400
+
+    5l: stop using R12 as SB
+    
+    Because the SB is only good for 8k and Go programs
+    tend to have much more data than that, SB doesn't
+    save very much.  A fmt.Printf-based hello world program
+    has  360 kB text segment.  Removing SB makes the text
+    500 bytes (0.14%) longer.
+    
+    R=ken2, r2, ken3
+    CC=golang-dev
+    https://golang.org/cl/2487042
+
+ src/cmd/5l/l.h            | 10 ----------
+ src/cmd/5l/list.c         |  7 -------
+ src/cmd/5l/obj.c          |  3 +--
+ src/cmd/5l/optab.c        | 39 -------------------------------------
+ src/cmd/5l/span.c         | 49 ++++++++---------------------------------------
+ src/cmd/5l/thumb.c        | 41 ++++++++++++++++-----------------------
+ src/pkg/runtime/arm/asm.s |  2 +-
+ 7 files changed, 26 insertions(+), 125 deletions(-)

@@ -1,0 +1,19 @@
+commit 9c3bf097c8acae50f4ff3659083fc0c84e81bf00
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 17 11:21:02 2015 -0700
+
+    cmd/go: add $GOLINE to generate
+    
+    Also use os.Expand for variable substitution so ${x}y works.
+    
+    Fixes #9960.
+    
+    Change-Id: Ic8239b2e737d1f41910dde8ee9524ac48907cb03
+    Reviewed-on: https://go-review.googlesource.com/9007
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/doc.go                     |  2 ++
+ src/cmd/go/generate.go                | 58 +++++++++++++----------------------
+ src/cmd/go/test.bash                  |  8 ++---
+ src/cmd/go/testdata/generate/test3.go |  2 +-
+ 4 files changed, 29 insertions(+), 41 deletions(-)

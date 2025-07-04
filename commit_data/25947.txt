@@ -1,0 +1,57 @@
+commit 9d73a6dcad11238dfd31a39a4d5a9e63bbc1d207
+Author: Justin Nuß <nuss.justin@gmail.com>
+Date:   Tue Jan 26 21:14:35 2016 +0100
+
+    strconv: Avoid allocation in AppendQuote*
+    
+    The current implementations of the AppendQuote functions use quoteWith
+    (through Quote) for quoting the given value and appends the returned
+    string to the dst byte slice. quoteWith internally creates a byte slice
+    on each call which gets converted to a string in Quote.
+    
+    This means the AppendQuote functions always allocates a new byte slice
+    and a string only to append them to an existing byte slice. In the case
+    of (Append)QuoteRune the string passed to quoteWith will also needs to
+    be allocated from a rune first.
+    
+    Split quoteWith into two functions (quoteWith and appendQuotedWith) and
+    replace the call to Quote inside AppendQuote with appendQuotedWith,
+    which appends directly to the byte slice passed to AppendQuote and also
+    avoids the []byte->string conversion.
+    
+    Also introduce the 2 functions quoteRuneWith and appendQuotedRuneWith
+    that work the same way as quoteWith and appendQuotedWith, but take a
+    single rune instead of a string, to avoid allocating a new string when
+    appending a single rune, and use them in (Append)QuoteRune.
+    
+    Also update the ToASCII and ToGraphic variants to use the new functions.
+    
+    Benchmark results:
+    
+    benchmark                      old ns/op     new ns/op     delta
+    BenchmarkQuote-8               428           503           +17.52%
+    BenchmarkQuoteRune-8           148           105           -29.05%
+    BenchmarkAppendQuote-8         435           307           -29.43%
+    BenchmarkAppendQuoteRune-8     158           23.5          -85.13%
+    
+    benchmark                      old allocs     new allocs     delta
+    BenchmarkQuote-8               3              3              +0.00%
+    BenchmarkQuoteRune-8           3              2              -33.33%
+    BenchmarkAppendQuote-8         3              0              -100.00%
+    BenchmarkAppendQuoteRune-8     3              0              -100.00%
+    
+    benchmark                      old bytes     new bytes     delta
+    BenchmarkQuote-8               144           144           +0.00%
+    BenchmarkQuoteRune-8           16            16            +0.00%
+    BenchmarkAppendQuote-8         144           0             -100.00%
+    BenchmarkAppendQuoteRune-8     16            0             -100.00%
+    
+    Change-Id: I77c148d5c7242f1b0edbbeeea184878abb51a522
+    Reviewed-on: https://go-review.googlesource.com/18962
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strconv/quote.go      | 146 +++++++++++++++++++++++++---------------------
+ src/strconv/quote_test.go |  28 +++++++++
+ 2 files changed, 109 insertions(+), 65 deletions(-)

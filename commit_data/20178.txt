@@ -1,0 +1,16 @@
+commit b155e79f23d66d70f761d73cb7478c5fb59c915c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 28 11:07:46 2014 -0700
+
+    mime: style, perf, and test updates to case-insensitive lookups
+    
+    Only grab the lock once, don't allocate, add more tests.
+    
+    LGTM=ruiu
+    R=ruiu, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/139780043
+
+ src/pkg/mime/type.go      | 60 +++++++++++++++++++++++++++++++++--------------
+ src/pkg/mime/type_test.go | 39 ++++++++++++++++++++++--------
+ 2 files changed, 71 insertions(+), 28 deletions(-)

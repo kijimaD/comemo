@@ -1,0 +1,22 @@
+commit 386fa03609f2964ddea71581eb409bdda64fb475
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Sun Oct 18 17:04:05 2015 -0700
+
+    runtime: merge proc1.go -> proc.go
+    
+    from proc1.go to proc.go:
+    * prepend header comment explaining "Goroutine scheduler"
+    * insert m0 and g0 var defs after the comment
+    * append the rest
+    
+    Updates #12952
+    
+    Change-Id: I35ee9ae3287675cde0c1b6aeaca0a460393f2354
+    Reviewed-on: https://go-review.googlesource.com/16024
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/proc.go  | 3726 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/proc1.go | 3733 --------------------------------------------------
+ 2 files changed, 3726 insertions(+), 3733 deletions(-)

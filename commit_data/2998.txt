@@ -1,0 +1,25 @@
+commit 173ca5e7d3a4e9bea38b86b44d9a7e6a3718dfe6
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 17 14:45:19 2009 -0700
+
+    delete old, c-output compiler. won't be open-sourced anyway
+    
+    R=rsc
+    OCL=33407
+    CL=33409
+
+ src/old/c/const.c  |  377 -------------
+ src/old/c/dcl.c    |  807 ---------------------------
+ src/old/c/export.c |  585 --------------------
+ src/old/c/gen.c    | 1186 ---------------------------------------
+ src/old/c/gen.h    |  206 -------
+ src/old/c/go.h     |  517 -----------------
+ src/old/c/go.y     | 1286 -------------------------------------------
+ src/old/c/gsubr.c  |  524 ------------------
+ src/old/c/lex.c    | 1058 -----------------------------------
+ src/old/c/mpatof.c |  342 ------------
+ src/old/c/obj.c    | 1556 ----------------------------------------------------
+ src/old/c/subr.c   | 1522 --------------------------------------------------
+ src/old/c/test.c   |  138 -----
+ src/old/c/walk.c   |  978 ---------------------------------
+ 14 files changed, 11082 deletions(-)

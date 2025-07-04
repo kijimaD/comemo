@@ -1,0 +1,18 @@
+commit 24965bc96ce2fd1483b6b8d5759b0ea129688758
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Sep 15 14:20:55 2016 +1000
+
+    cmd/compile/internal/gc: remove dead code
+    
+    Remove unused functions spotted by honnef.co/go/unused.
+    
+    Change-Id: Iabf3b201215ce21e420a60f4ef2679b36231eda7
+    Reviewed-on: https://go-review.googlesource.com/29132
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/cgen.go  |  55 ----------------
+ src/cmd/compile/internal/gc/gen.go   | 121 -----------------------------------
+ src/cmd/compile/internal/gc/gsubr.go |  22 -------
+ 3 files changed, 198 deletions(-)

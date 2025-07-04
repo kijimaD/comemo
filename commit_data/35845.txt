@@ -1,0 +1,16 @@
+commit cbce223da02bb198b9984c161c6cd6291a80b3d9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 29 15:00:52 2018 +0000
+
+    net/http: update docs on Transport.DisableKeepAlives
+    
+    Be super explicit that HTTP keep-alives != TCP keep-alives.
+    
+    Fixes #26128
+    
+    Change-Id: I77d74a6fe077259d996543f901a58aa3e49c1093
+    Reviewed-on: https://go-review.googlesource.com/121616
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/transport.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

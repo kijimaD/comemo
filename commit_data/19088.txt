@@ -1,0 +1,31 @@
+commit 4abbd4a468ded765fc23cf4a4de3ff48f32b354b
+Author: Preetam Jinka <pj@preet.am>
+Date:   Thu Apr 10 13:58:03 2014 +1000
+
+    syscall: fix Getfsstat() for BSD
+    
+    The buffer length should be the size in bytes
+    instead of the number of structs.
+    
+    Fixes #6588.
+    
+    LGTM=mikioh.mikioh
+    R=golang-codereviews, mikioh.mikioh, adg
+    CC=golang-codereviews
+    https://golang.org/cl/84830043
+
+ src/pkg/syscall/syscall_bsd_test.go         | 34 +++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_darwin.go           | 16 +++++++++++++-
+ src/pkg/syscall/syscall_dragonfly.go        | 16 +++++++++++++-
+ src/pkg/syscall/syscall_freebsd.go          | 16 +++++++++++++-
+ src/pkg/syscall/syscall_openbsd.go          | 16 +++++++++++++-
+ src/pkg/syscall/zsyscall_darwin_386.go      | 17 ---------------
+ src/pkg/syscall/zsyscall_darwin_amd64.go    | 17 ---------------
+ src/pkg/syscall/zsyscall_dragonfly_386.go   | 17 ---------------
+ src/pkg/syscall/zsyscall_dragonfly_amd64.go | 17 ---------------
+ src/pkg/syscall/zsyscall_freebsd_386.go     | 17 ---------------
+ src/pkg/syscall/zsyscall_freebsd_amd64.go   | 17 ---------------
+ src/pkg/syscall/zsyscall_freebsd_arm.go     | 17 ---------------
+ src/pkg/syscall/zsyscall_openbsd_386.go     | 17 ---------------
+ src/pkg/syscall/zsyscall_openbsd_amd64.go   | 17 ---------------
+ 14 files changed, 94 insertions(+), 157 deletions(-)

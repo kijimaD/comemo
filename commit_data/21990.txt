@@ -1,0 +1,15 @@
+commit 4f489f59c28aa9d8e6114132869e49b0734bc6ec
+Author: Matt Joiner <anacrolix@gmail.com>
+Date:   Wed Mar 11 17:52:57 2015 +1100
+
+    net/http/pprof: Use relative links to profiles in index html
+    
+    This allows /debug/pprof/ and descendents to be used through
+    http.StripPrefix and other path rewriting handlers.
+    
+    Change-Id: I53673876c107bbfaf430123ead78e6524b42ac21
+    Reviewed-on: https://go-review.googlesource.com/7351
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/pprof/pprof.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

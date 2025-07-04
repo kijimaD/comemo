@@ -1,0 +1,12 @@
+commit ac74f14b6b94d05e9db6a535b7e7b57fdbf09007
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Mar 29 01:12:39 2011 -0400
+
+    kate: reorganize, remove closed()
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4325041
+
+ misc/kate/go.xml | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

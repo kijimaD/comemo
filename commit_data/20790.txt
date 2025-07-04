@@ -1,0 +1,16 @@
+commit aec37e7cb1d34896f65948e88465376ceca68e0c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 27 18:58:25 2014 -0400
+
+    encoding/json: encode \t as \t instead of \u0009
+    
+    Shorter and easier to read form for a common character.
+    
+    LGTM=bradfitz
+    R=adg, bradfitz
+    CC=golang-codereviews, zimmski
+    https://golang.org/cl/162340043
+
+ src/encoding/json/encode.go      |  8 ++++++-
+ src/encoding/json/encode_test.go | 52 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 1 deletion(-)

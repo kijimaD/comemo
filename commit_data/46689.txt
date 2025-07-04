@@ -1,0 +1,24 @@
+commit 6a79f358069195e1cddb821e81fab956d9a0c7d1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 27 08:59:46 2021 -0700
+
+    go/internal/gccgoimporter: change all .gox files to text
+    
+    Avoid problems with distro scanning by not using files that look like
+    object files.
+    
+    For #48548
+    
+    Change-Id: I4a06d5690d0870d6253f176e510faa5eebf2d057
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352450
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ .../internal/gccgoimporter/testdata/escapeinfo.gox  | Bin 824 -> 350 bytes
+ src/go/internal/gccgoimporter/testdata/time.gox     | Bin 7977 -> 7499 bytes
+ src/go/internal/gccgoimporter/testdata/unicode.gox  | Bin 7945 -> 7474 bytes
+ .../internal/gccgoimporter/testdata/v1reflect.gox   | Bin 10872 -> 10546 bytes
+ 4 files changed, 0 insertions(+), 0 deletions(-)

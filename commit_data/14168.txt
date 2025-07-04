@@ -1,0 +1,13 @@
+commit 4c2a1f95597cf84f237cb203283f764cd9b8ce0c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Oct 18 15:37:53 2012 +0900
+
+    A+C: Stephen McQuay (Individual CLA)
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6733043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

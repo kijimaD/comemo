@@ -1,0 +1,12 @@
+commit 60cfb63bd41eaffeb34146f96ab348e1a668b374
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Apr 2 22:23:34 2011 -0700
+
+    Make.pkg: increase test timeout to 120 seconds.
+    
+    R=r, peterGo
+    CC=golang-dev
+    https://golang.org/cl/4344053
+
+ src/Make.pkg | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

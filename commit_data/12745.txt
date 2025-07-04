@@ -1,0 +1,13 @@
+commit 304404895d2204f0557da4753684689198e20ccd
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Mar 26 10:01:17 2012 +0800
+
+    cmd/go: allow underscores in tool name
+            Otherwise we can't invoke go_bootstrap directly.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5900061
+
+ src/cmd/go/tool.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

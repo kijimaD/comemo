@@ -1,0 +1,14 @@
+commit 18ee75ec88593d96796089038b93ed66596ae4d9
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Jan 18 09:52:16 2012 +0100
+
+    gc: handle printing of string/arrayrune conversions
+    
+    Fixes #2714.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5540066
+
+ src/cmd/gc/fmt.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

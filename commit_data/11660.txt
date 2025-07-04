@@ -1,0 +1,18 @@
+commit 0d07600de3ec06204fb71906c136421dce69e206
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Feb 6 20:38:54 2012 +0100
+
+    cgo: print line numbers in fatal errors when relevant.
+    
+    Signatures of fatalf and error_ helpers have been matched for
+    consistency.
+    Fixes #1800.
+    
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5593049
+
+ src/cmd/cgo/gcc.go       | 68 +++++++++++++++++++++++++++---------------------
+ src/cmd/cgo/util.go      |  4 +++
+ test/fixedbugs/bug408.go | 16 ++++++++++++
+ 3 files changed, 58 insertions(+), 30 deletions(-)

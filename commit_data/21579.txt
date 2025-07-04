@@ -1,0 +1,13 @@
+commit 3b67e9c29922e3b192113206abd40d983fa2bfe8
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 11 12:44:50 2015 +1100
+
+    doc: update pre-requisites for bootstrapping
+    
+    Change-Id: Id86994c8692e29f9d073b6322733ce9219887dc3
+    Reviewed-on: https://go-review.googlesource.com/4520
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/install-source.html | 21 +++++++++++++++++----
+ 1 file changed, 17 insertions(+), 4 deletions(-)

@@ -1,0 +1,20 @@
+commit 18ffa7185d42427dbdc0144956fece6c2b54b27a
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 10 14:28:30 2023 -0400
+
+    cmd/dist: let several cgo tests run as regular cmd tests
+    
+    Several cgo tests no longer have any special conditions, so they can
+    just be normal cmd tests. This brings dist's "go_test:.*" tests much
+    closer to what "go test std cmd" runs.
+    
+    Change-Id: I4d09f60628a41081e97e6b6e7dd0d93df47a65bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495919
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/dist/test.go | 31 +++----------------------------
+ 1 file changed, 3 insertions(+), 28 deletions(-)

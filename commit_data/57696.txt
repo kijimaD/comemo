@@ -1,0 +1,24 @@
+commit 60ee99cf5d38801507042df3a00c622027ef5588
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 3 18:33:49 2024 +0000
+
+    runtime: break out the debug.malloc codepaths into functions
+    
+    This change breaks out the debug.malloc codepaths into dedicated
+    functions, both for making mallocgc easier to read, and to reduce the
+    function's size (currently all that code is inlined and really doesn't
+    need to be).
+    
+    This is a microoptimization that on its own changes very little, but
+    together with other optimizations and a breaking up of the various
+    malloc paths will matter all together ("death by a thousand cuts").
+    
+    Change-Id: I30b3ab4a1f349ba85b4a1b5b2c399abcdfe4844f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617879
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/malloc.go | 88 +++++++++++++++++++++++++++++----------------------
+ 1 file changed, 50 insertions(+), 38 deletions(-)

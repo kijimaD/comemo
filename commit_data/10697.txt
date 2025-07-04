@@ -1,0 +1,12 @@
+commit 3308891c9db7aa453eacb21225319a16e747e1d2
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Sun Dec 11 09:11:57 2011 -0800
+
+    net/http: fix trivial example server
+    
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/5479061
+
+ src/pkg/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

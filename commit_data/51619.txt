@@ -1,0 +1,24 @@
+commit f375b305c801515b587719490b4be0db1a66e20c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jan 4 21:51:50 2023 +0100
+
+    crypto/x509: clarify that CheckSignatureFrom and CheckSignature are low-level APIs
+    
+    In particular, CheckSignatureFrom just can't check the path length
+    limit, because it might be enforced above the parent.
+    
+    We don't need to document the supported signature algorithms for
+    CheckSignatureFrom, since we document at the constants in what contexts
+    they are allowed and not. That does leave CheckSignature ambiguous,
+    though, because that function doesn't have an explicit context.
+    
+    Change-Id: I4c107440a93f60bc0de07df2b7efeb1a4a766da0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460537
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/x509/x509.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

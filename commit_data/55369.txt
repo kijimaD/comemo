@@ -1,0 +1,41 @@
+commit e58e813950a630bd3d867802089773c0db2fcbf5
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Wed Dec 27 22:01:19 2023 +0100
+
+    internal/trace/v2: avoid several panics for malformed traces
+    
+    This addresses some panics (out of bounds slice accesses and nil pointer
+    dereferences) when parsing malformed data. These were found via light
+    fuzzing, not by any rigorous means, and more potential panics probably
+    exist.
+    
+    Fixes #64878.
+    Fixes #64879.
+    
+    Change-Id: I4085788ba7dc91fec62e4abd88f50777577db42f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/552995
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/internal/trace/v2/base.go                      |  9 ++++-
+ src/internal/trace/v2/batchcursor.go               |  8 +++-
+ src/internal/trace/v2/order.go                     | 23 ++++++++++-
+ src/internal/trace/v2/reader.go                    |  3 ++
+ src/internal/trace/v2/reader_test.go               | 47 ++++++++++++++++++++++
+ .../v2/testdata/fuzz/FuzzReader/0cb1786dee0f090b   |  2 +
+ .../v2/testdata/fuzz/FuzzReader/1e45307d5b2ec36d   |  2 +
+ .../v2/testdata/fuzz/FuzzReader/2b05796f9b2fc48d   |  2 +
+ .../v2/testdata/fuzz/FuzzReader/2b9be9aebe08d511   |  2 +
+ .../v2/testdata/fuzz/FuzzReader/344331b314da0b08   |  2 +
+ .../v2/testdata/fuzz/FuzzReader/365d7b5b633b3f97   |  2 +
+ .../v2/testdata/fuzz/FuzzReader/56f073e57903588c   |  2 +
+ .../v2/testdata/fuzz/FuzzReader/aeb749b6bc317b66   |  2 +
+ .../fuzz/FuzzReader/closing-unknown-region         |  2 +
+ .../v2/testdata/fuzz/FuzzReader/d478e18d2d6756b7   |  2 +
+ .../v2/testdata/fuzz/FuzzReader/d91203cd397aa0bc   |  2 +
+ .../v2/testdata/fuzz/FuzzReader/invalid-proc-state |  2 +
+ .../trace/v2/testdata/fuzz/FuzzReader/large-id     |  2 +
+ .../testdata/fuzz/FuzzReader/malformed-timestamp   |  2 +
+ 19 files changed, 113 insertions(+), 5 deletions(-)

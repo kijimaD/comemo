@@ -1,0 +1,13 @@
+commit c22c6daca0cc8d5478011da8df50ad96034e0d0e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 5 14:34:45 2011 -0500
+
+    A+C: Kyle Lemons (individual CLA)
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3766045
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

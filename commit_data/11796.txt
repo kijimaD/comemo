@@ -1,0 +1,15 @@
+commit 896f0c61c8fbdaf4f6fa6007da8c03bbb818d85d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 10 23:10:45 2012 -0500
+
+    gc: diagnose init loop involving func
+    
+    Fixes #2295.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5655057
+
+ src/cmd/gc/sinit.c       |  4 ++--
+ test/fixedbugs/bug413.go | 11 +++++++++++
+ 2 files changed, 13 insertions(+), 2 deletions(-)

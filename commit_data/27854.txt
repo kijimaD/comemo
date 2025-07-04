@@ -1,0 +1,31 @@
+commit 9d2b988e4aeb59424411a314748aa8ffd1e71033
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 1 10:58:30 2016 -0700
+
+    cmd/compile: accept literals in samesafeexpr
+    
+    This only triggers a few places in the stdlib,
+    but it helps a lot when it does.
+    
+    Before:
+    
+    runtime.mapassign1 t=1 size=2400 args=0x20 locals=0xe0
+    
+    After:
+    
+    runtime.mapassign1 t=1 size=2352 args=0x20 locals=0xd8
+    
+    name           old time/op  new time/op  delta
+    MapPop100-8    19.8µs ±11%  18.4µs ± 9%  -7.16%  (p=0.000 n=20+19)
+    MapPop1000-8    367µs ±17%   335µs ±11%  -8.63%  (p=0.000 n=19+19)
+    MapPop10000-8  7.29ms ±15%  6.86ms ±12%  -5.84%  (p=0.020 n=20+20)
+    
+    Change-Id: I9faf32f95a6ba6a6d5d0818eab32cc271e01d10a
+    Reviewed-on: https://go-review.googlesource.com/26666
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go     | 28 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/typecheck.go |  3 +++
+ 2 files changed, 31 insertions(+)

@@ -1,0 +1,26 @@
+commit 1e7e160d070443147ee38d4de530ce904637a4f3
+Author: thinkofher <mail@bdudek.xyz>
+Date:   Mon Sep 19 21:35:04 2022 +0000
+
+    mime/multipart: use %w when wrapping error in NextPart
+    
+    Use "%w" instead of "%v" as format verb for error value in the NextPart
+    method. This way it will be possible to use common go error utilities
+    from std library when parsing from custom io.Readers.
+    
+    This issue was discovered during attempts to use
+    http.Request.ParseMultipartForm together with http.MaxBytesHandler.
+    
+    Change-Id: Idb82510fb536b66b51ed1d943737c4828f07c2f2
+    GitHub-Last-Rev: 8bc49c945c1b393bcfb4d8df545c93593c9bd7c4
+    GitHub-Pull-Request: golang/go#55133
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431675
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/mime/multipart/multipart.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

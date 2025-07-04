@@ -1,0 +1,13 @@
+commit aeb8b9591c254560c1ecc4eafbc38b31d632da64
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 20 14:51:58 2016 -0400
+
+    encoding/json: fix bad formatting introduced in CL 20356
+    
+    Change-Id: I39a8b543e472e5ec5d4807a9b7f61657465c5ce5
+    Reviewed-on: https://go-review.googlesource.com/31816
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/json/decode.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

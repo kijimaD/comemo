@@ -1,0 +1,59 @@
+commit 870e821ded81043a65ff9abef871b29514efc1d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 16 12:51:38 2013 -0500
+
+    cmd/cc, cmd/gc: update compilers, assemblers for liblink changes
+    
+    - add buffered stdout to all tools and provide to link ctxt.
+    - avoid extra \n before ! in .6 files written by assemblers
+      (makes them match the C compilers).
+    - use linkwriteobj instead of linkouthist+linkwritefuncs.
+    - in assemblers and C compilers, record pc explicitly in Prog,
+      for use by liblink.
+    - in C compilers, preserve jump target links.
+    - in Go compilers (gsubr.c) attach gotype directly to
+      corresponding LSym* instead of rederiving from instruction stream.
+    - in Go compilers, emit just one definition for runtime.zerovalue
+      from each compilation.
+    
+    This CL consists entirely of small adjustments.
+    The heavy lifting is in CL 39680043.
+    Each depends on the other.
+    
+    R=golang-dev, dave, iant
+    CC=golang-dev
+    https://golang.org/cl/37030045
+
+ src/cmd/5a/a.h       |   2 +
+ src/cmd/5a/lex.c     |  11 +-
+ src/cmd/5c/list.c    | 276 +------------------------------------
+ src/cmd/5c/reg.c     |   4 +-
+ src/cmd/5c/swt.c     |   3 +-
+ src/cmd/5g/gsubr.c   |   2 +-
+ src/cmd/6a/a.h       |   1 +
+ src/cmd/6a/lex.c     |  12 +-
+ src/cmd/6c/list.c    | 328 +------------------------------------------
+ src/cmd/6c/reg.c     |   5 +-
+ src/cmd/6c/swt.c     |   3 +-
+ src/cmd/6c/txt.c     |   4 +-
+ src/cmd/6g/gsubr.c   |   2 +-
+ src/cmd/8a/a.h       |   1 +
+ src/cmd/8a/lex.c     |  11 +-
+ src/cmd/8c/list.c    | 289 +-------------------------------------
+ src/cmd/8c/reg.c     |   5 +-
+ src/cmd/8c/swt.c     |   3 +-
+ src/cmd/8c/txt.c     |   7 +-
+ src/cmd/8g/gsubr.c   |   2 +-
+ src/cmd/cc/cc.h      |   1 +
+ src/cmd/cc/lex.c     |   8 ++
+ src/cmd/cc/lexbody   |   2 +-
+ src/cmd/gc/go.h      |   3 +
+ src/cmd/gc/lex.c     |   6 +-
+ src/cmd/gc/obj.c     |  13 +-
+ src/cmd/gc/reflect.c |   2 +-
+ src/cmd/gc/subr.c    |   1 +
+ src/cmd/gc/walk.c    |  10 +-
+ src/liblink/list5.c  | 331 ++++++++++++++++++++++++++++++++++++++++++++
+ src/liblink/list6.c  | 382 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/liblink/list8.c  | 343 +++++++++++++++++++++++++++++++++++++++++++++
+ 32 files changed, 1147 insertions(+), 926 deletions(-)

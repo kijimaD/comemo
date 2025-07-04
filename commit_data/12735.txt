@@ -1,0 +1,14 @@
+commit 43ad726f3466440239954c3afab7a2cfeb6e97b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 23 11:31:29 2012 -0700
+
+    text/template: fix typo in package comment
+    
+    Fixes #3383.
+    
+    R=iant, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5891045
+
+ src/pkg/text/template/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

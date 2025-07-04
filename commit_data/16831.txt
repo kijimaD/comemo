@@ -1,0 +1,12 @@
+commit 87976e72a8e821666288a88e2946f2fcf42e1760
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Sat Jul 20 00:38:26 2013 -0700
+
+    libmach: support more 386/amd64 instructions
+    
+    R=golang-dev, dave, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/10030043
+
+ src/libmach/8db.c | 192 +++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 116 insertions(+), 76 deletions(-)

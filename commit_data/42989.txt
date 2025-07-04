@@ -1,0 +1,22 @@
+commit dbde566219336e84360b4a38da10b5f63b19021e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Sep 9 16:53:08 2020 -0400
+
+    cmd/go: default to -mod=readonly in most commands
+    
+    For #40728
+    
+    Change-Id: I6618f1b5a632e8b353a483a83bb0cdf4ef6df72c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251881
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                             | 85 ++++++++++-------------
+ src/cmd/go/internal/modload/help.go               | 85 ++++++++++-------------
+ src/cmd/go/internal/modload/init.go               | 18 ++---
+ src/cmd/go/testdata/script/mod_readonly.txt       | 15 ++--
+ src/cmd/go/testdata/script/mod_replace_import.txt |  5 +-
+ 5 files changed, 96 insertions(+), 112 deletions(-)

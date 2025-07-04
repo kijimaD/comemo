@@ -1,0 +1,27 @@
+commit a3f7be9b8cee00aa281a0bedeae22b4cd4bc64dd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 3 22:15:17 2021 -0400
+
+    net/http: reduce TestClientTimeout_h{1,2} latency
+    
+    The test had been setting an arbitrary 200ms timeout to allow the
+    server's handler to set up before timing out. That is not only
+    potentially flaky on slow machines, but also typically much longer
+    than necessary. Replace the hard-coded timeout with a much shorter
+    initial timeout, and use exponential backoff to lengthen it if needed.
+    
+    This allows the test to be run about 20x faster in the typical case,
+    which may make it easier to reproduce rare failure modes by running
+    with a higher -count flag.
+    
+    For #43120
+    
+    Change-Id: I1e0d0ec99d5a107fff56e3bcc7174d686ec582d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361275
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/client_test.go | 100 +++++++++++++++++++++++++-------------------
+ 1 file changed, 58 insertions(+), 42 deletions(-)

@@ -1,0 +1,31 @@
+commit eac5db7f4c6c7ffb00fe367a4318254238e9032e
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri May 1 13:21:53 2009 -0700
+
+    Copied 8g/6g into 5g. Used sharp tools to coax a .5 file out
+    of 5g. 5l balks at the output and running 5g with -S shows
+    the true extent of the disaster. Still, better than
+    yesterday. Maybe.
+    
+    Tested on the canonical:
+    
+    package main
+    func main() {
+    }
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=4182  (4181 added, 0 deleted, 1 changed)
+    OCL=27601
+    CL=28175
+
+ src/cmd/5g/Makefile |   39 +
+ src/cmd/5g/align.c  |   38 +
+ src/cmd/5g/cgen.c   |  923 ++++++++++++++++++++++++
+ src/cmd/5g/gen.c    |  331 +++++++++
+ src/cmd/5g/gg.h     |  144 ++++
+ src/cmd/5g/gsubr.c  | 1984 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/5g/list.c   |  300 ++++++++
+ src/cmd/5g/obj.c    |  531 ++++++++++++++
+ src/cmd/5l/5.out.h  |    3 +-
+ 9 files changed, 4292 insertions(+), 1 deletion(-)

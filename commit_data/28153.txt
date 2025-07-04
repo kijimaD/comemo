@@ -1,0 +1,19 @@
+commit 04ade8e428fdd302ab8666d3fc5d8953caa4abcb
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Thu Aug 25 16:39:07 2016 +0300
+
+    cmd/internal/obj/x86: Make VPSHUFD accept negative constant
+    
+    This partially reverts commit 4e24e1d9996b0b0155c8349e49244d9694c89708.
+    Since in release 1.7 VPSHUFD support negative constant as an argument,
+    removing it as part of 4e24e1d9996b0b0155c8349e49244d9694c89708 was wrong.
+    Add it back.
+    
+    Change-Id: Id1a3e062fe8fb4cf538edb3f9970f0664f3f545f
+    Reviewed-on: https://go-review.googlesource.com/27712
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

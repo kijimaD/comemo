@@ -1,0 +1,20 @@
+commit 5500f027f72cc7467e7f30447f83480448674f67
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Apr 19 11:00:47 2011 +1000
+
+    image/jpeg: add an encoder.
+    
+    It is based on changeset 4186064 by Raph Levien <raph@google.com>.
+    
+    R=r, nigeltao_gnome
+    CC=golang-dev
+    https://golang.org/cl/4435051
+
+ src/pkg/Makefile                  |   1 -
+ src/pkg/image/jpeg/Makefile       |   2 +
+ src/pkg/image/jpeg/fdct.go        | 190 ++++++++++++++
+ src/pkg/image/jpeg/idct.go        |   2 +-
+ src/pkg/image/jpeg/reader.go      |  14 +-
+ src/pkg/image/jpeg/writer.go      | 523 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/image/jpeg/writer_test.go |  87 +++++++
+ 7 files changed, 811 insertions(+), 8 deletions(-)

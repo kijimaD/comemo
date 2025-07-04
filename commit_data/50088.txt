@@ -1,0 +1,18 @@
+commit 44d057d5818e11982b679a83d54e9a4eac4f823f
+Author: Miguel Ángel Jimeno <miguelangel4b@gmail.com>
+Date:   Tue Aug 23 14:06:19 2022 +0200
+
+    net/http/httputil: do not duplicate 'Connection: close' headers
+    
+    Fixes #54616.
+    
+    Change-Id: I46f41bbccff7b49f26f60c1edf65acfd1701aed5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425155
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/net/http/httputil/dump.go      |  3 ---
+ src/net/http/httputil/dump_test.go | 13 +++++++++++++
+ 2 files changed, 13 insertions(+), 3 deletions(-)

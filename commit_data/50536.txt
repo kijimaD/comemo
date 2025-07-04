@@ -1,0 +1,20 @@
+commit e7312b1005e77633a4fbd3a5cbb371aef45b0867
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Sep 2 14:48:28 2022 -0700
+
+    net/http: correctly test for leading header spaces in TestReadRequest_Bad
+    
+    TestReadRequest_Bad's tests for leading whitespace in the first header
+    were also exercising the test verifying that a HEAD request has no
+    Content-Length. Also, the test intended to test a leading tab was
+    actually testing for a leading \t (literal backslash, literal t).
+    
+    Change-Id: I05b46d05851b49bf75f1d1257c421b953b66ea9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428134
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/readrequest_test.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

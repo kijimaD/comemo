@@ -1,0 +1,16 @@
+commit c5befcf0a76b930d525eaf1b09405bd058711012
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Apr 17 16:42:16 2015 -0400
+
+    misc/cgo/testcarchive: check that os.Args is set
+    
+    Change-Id: I4278abca9d2a8f25149fa8935a93d32e7d04a43a
+    Reviewed-on: https://go-review.googlesource.com/9050
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcarchive/main.c             |  3 +++
+ misc/cgo/testcarchive/src/libgo/libgo.go | 15 ++++++++++++++-
+ misc/cgo/testcarchive/test.bash          |  4 ++--
+ 3 files changed, 19 insertions(+), 3 deletions(-)

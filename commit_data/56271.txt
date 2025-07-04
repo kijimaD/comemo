@@ -1,0 +1,18 @@
+commit aa63ef4b8b997e59ab895841d8643afdae786edf
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Apr 5 22:09:30 2024 +0000
+
+    internal/intern: delete unused package
+    
+    The functionality within has been replaced with the unique package, and
+    all uses of it have been replaced by uses of the unique package.
+    
+    Change-Id: I399ca72972c712711d4ec6a5ddbdbcba7088ecd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577036
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go/build/deps_test.go          |   4 -
+ src/internal/intern/intern.go      | 181 ----------------------------------
+ src/internal/intern/intern_test.go | 197 -------------------------------------
+ 3 files changed, 382 deletions(-)

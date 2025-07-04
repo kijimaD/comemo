@@ -1,0 +1,20 @@
+commit b78676a49d77f6bde1c54bc4a6389120e5a8c391
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Jul 20 20:13:07 2008 -0700
+
+    start of select
+    random bugs fixed
+    
+    SVN=128149
+
+ src/cmd/6g/gen.c      |   5 ++
+ src/cmd/gc/const.c    |  10 +++-
+ src/cmd/gc/go.h       |   2 +-
+ src/cmd/gc/go.y       |  18 +++++-
+ src/cmd/gc/lex.c      |  20 +++----
+ src/cmd/gc/subr.c     |   1 +
+ src/runtime/chan.c    | 156 +++++++++++++++++++++++++++++++++++++++++++-------
+ src/runtime/proc.c    |  25 --------
+ src/runtime/runtime.h |  10 +---
+ test/chan/powser1.go  |  38 ++++++------
+ 10 files changed, 194 insertions(+), 91 deletions(-)

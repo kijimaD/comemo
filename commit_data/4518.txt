@@ -1,0 +1,12 @@
+commit c05f86a46a782283e217a0704616753fa7dbb3cf
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 4 07:36:39 2010 +1100
+
+    fix up YB and add ZB, EB in example
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/183107
+
+ doc/effective_go.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,0 +1,14 @@
+commit 6f911ccaa5a431bd4f06e759037e22046704df8b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 14 15:13:32 2009 -0700
+
+    6g bug: struct initializers must provide all field values unless the fields are named
+    
+    R=rsc,r
+    DELTA=16  (16 added, 0 deleted, 0 changed)
+    OCL=33292
+    CL=33303
+
+ test/bugs/bug189.go | 17 +++++++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 20 insertions(+)

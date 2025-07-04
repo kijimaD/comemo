@@ -1,0 +1,16 @@
+commit fb2a9d27e395af5bb0c88d0fa453bba868275800
+Author: Wayne Zuo <wdvxdr1123@gmail.com>
+Date:   Sun Mar 20 22:04:43 2022 +0800
+
+    mime/multipart: unified Part and Reader receiver name
+    
+    Change-Id: Ic36dd232f3ea049403715fadec00a74efbf7dc9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394075
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Damien Neil <dneil@google.com>
+
+ src/mime/multipart/multipart.go | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

@@ -1,0 +1,17 @@
+commit 70b1a45425a5e456b4e347e96fc94f94b04ce121
+Author: Sean Liao <seankhliao@gmail.com>
+Date:   Fri Jul 23 20:14:14 2021 +0200
+
+    .github: update IRC server
+    
+    Updates #46281
+    
+    Change-Id: I1c70ad72a155a39138f120df5b71de61bb01e20c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336931
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+
+ .github/SUPPORT.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

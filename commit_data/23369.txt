@@ -1,0 +1,36 @@
+commit 0d8366e2d66bb56fcda7669837dfeb289e9131e3
+Author: Paul Marks <pmarks@google.com>
+Date:   Fri Apr 10 14:15:54 2015 -0700
+
+    net: add sequential and RFC 6555-compliant TCP dialing.
+    
+    dialSerial connects to a list of addresses in sequence.  If a
+    timeout is specified, then each address gets an equal fraction of the
+    remaining time, with a magic constant (2 seconds) to prevent
+    "dial a million addresses" from allotting zero time to each.
+    
+    Normally, net.Dial passes the DNS stub resolver's output to dialSerial.
+    If an error occurs (like destination/port unreachable), it quickly skips
+    to the next address, but a blackhole in the network will cause the
+    connection to hang until the timeout elapses.  This is how UNIXy clients
+    traditionally behave, and is usually sufficient for non-broken networks.
+    
+    The DualStack flag enables dialParallel, which implements Happy Eyeballs
+    by racing two dialSerial goroutines, giving the preferred family a
+    head start (300ms by default).  This allows clients to avoid long
+    timeouts when the network blackholes IPv4 xor IPv6.
+    
+    Fixes #8453
+    Fixes #8455
+    Fixes #8847
+    
+    Change-Id: Ie415809c9226a1f7342b0217dcdd8f224ae19058
+    Reviewed-on: https://go-review.googlesource.com/8768
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial.go      | 249 ++++++++++++++++++++++---------
+ src/net/dial_test.go | 402 ++++++++++++++++++++++++++++++++++++++++++++++++---
+ src/net/hook.go      |   1 +
+ src/net/net.go       |   1 +
+ 4 files changed, 566 insertions(+), 87 deletions(-)

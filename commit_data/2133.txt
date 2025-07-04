@@ -1,0 +1,19 @@
+commit 2f284948af29a8333f14811a9458d420529980a8
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon May 4 15:14:22 2009 -0700
+
+    Remake exvar package to be more Go-ish.
+    
+    It now exports a Var interface (anyone can export their own custom var types now), so users need to create and manage their own vars and mark them as exportable via the Publish function. They are exposed via /debug/vars.
+    
+    R=r,rsc
+    APPROVED=r
+    DELTA=605  (314 added, 186 deleted, 105 changed)
+    OCL=28143
+    CL=28239
+
+ src/lib/Makefile      |   2 +-
+ src/lib/exvar.go      | 323 +++++++++++++++++++++++---------------------------
+ src/lib/exvar_test.go | 115 +++++++-----------
+ src/lib/http/triv.go  |  20 +++-
+ 4 files changed, 208 insertions(+), 252 deletions(-)

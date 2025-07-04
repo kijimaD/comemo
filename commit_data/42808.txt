@@ -1,0 +1,28 @@
+commit a9146a49d0db666a7efd5f5d4555cf6117405cf5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 23 00:45:27 2020 -0400
+
+    cmd/go/internal/modload: cache parsed go.mod files globally
+    
+    Previously they were cached per mvsReqs instance. However, the
+    contents of the go.mod file of a given dependency version can only
+    vary if the 'replace' directives that apply to that version have
+    changed, and the only time we change 'replace' directives is in 'go
+    mod edit' (which does not care about the build list or MVS).
+    
+    This not only simplifies the mvsReqs implementation, but also makes
+    more of the underlying logic independent of mvsReqs.
+    
+    For #36460
+    
+    Change-Id: Ieac20c2fcd56f64d847ac8a1b40f9361ece78663
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244774
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/build.go               |  15 +-
+ src/cmd/go/internal/modload/modfile.go             | 171 +++++++++++++++++++++
+ src/cmd/go/internal/modload/mvs.go                 | 109 +------------
+ src/cmd/go/testdata/script/mod_invalid_version.txt |   4 +-
+ 4 files changed, 190 insertions(+), 109 deletions(-)

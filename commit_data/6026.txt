@@ -1,0 +1,12 @@
+commit 132d2f11a82cf1bd6c0601eddfe41d53b7427480
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 16 06:42:41 2010 +1000
+
+    spec: delete erroneous word 'pointer' in specification of select.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1960044
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

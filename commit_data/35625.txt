@@ -1,0 +1,15 @@
+commit 0e1517c0b313d565b0d5f69b9bbd46e9d4a940d6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 7 15:46:19 2018 +0000
+
+    cmd/go: skip TestBinaryOnlyPackages until it's fixed
+    
+    Updates #25784
+    
+    Change-Id: I638eab82b026d3df89da532b5cc3f5c06b02d6c8
+    Reviewed-on: https://go-review.googlesource.com/117075
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 1 +
+ 1 file changed, 1 insertion(+)

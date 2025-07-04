@@ -1,0 +1,20 @@
+commit 906f97911951c5e33b8290a88a3badc1b328dae8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 4 15:03:45 2016 -0500
+
+    cmd/dist: wait for pending tests before exiting
+    
+    When 'go tool dist test' stops, it was intended that it first wait for
+    pending background tests, like a failed compilation waits for pending
+    background compiles. But these three lines prevented that.
+    Fix by deleting them. (The actual loop already contains the correct
+    logic to avoid running the others and to wait for what's left.)
+    
+    Change-Id: I4e945495ada903fb0af567910626241bc1c52ba6
+    Reviewed-on: https://go-review.googlesource.com/18232
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 3 ---
+ 1 file changed, 3 deletions(-)

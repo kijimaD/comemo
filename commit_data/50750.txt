@@ -1,0 +1,29 @@
+commit 8a0cf719a626ebd1ec11531ebaeacccbd19178ec
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Sep 9 12:29:48 2022 -0400
+
+    cmd/link/internal/ld: panic if inlined functions missing FuncInfo
+    
+    All inlined functions are Go functions, and thus should be capable of
+    having a FuncInfo. Missing FuncInfo is likely indication of a compiler
+    bug that dropped the symbol too early, failing to add it to the symbol
+    list used for writing output. I believe all existing cases have been
+    fixed; this check will prevent regressions.
+    
+    The exception is -linkshared mode. There symbols are loaded from the
+    shared library, and the FuncInfo is not available. This is a bug, as it
+    can result in incorrect the FuncID in inlinedCall, but it is very
+    involved to fix.
+    
+    For #54959.
+    For #55954.
+    
+    Change-Id: Ib0dc4f1ea62525b55f68604d6013ff33223fdcdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429637
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/pcln.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

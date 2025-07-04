@@ -1,0 +1,14 @@
+commit 9ccbd027dd070921ac1799bde5df044e50e33a99
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jan 19 17:19:46 2015 +0900
+
+    cmd/go: make use of Runnable method
+    
+    Reported via unsupported Github pull request: #9299
+    
+    Change-Id: I0e98dd68cbc68fcc6bcec15c5b33f20b6a861ec6
+    Reviewed-on: https://go-review.googlesource.com/3025
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

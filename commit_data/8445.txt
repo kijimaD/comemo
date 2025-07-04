@@ -1,0 +1,12 @@
+commit b9f90876051425b4effe93098dc1562c40553839
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri May 20 14:26:00 2011 +1000
+
+    godoc: don't display navigation list with only 1 element
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4547056
+
+ doc/godocs.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

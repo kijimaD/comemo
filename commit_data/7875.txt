@@ -1,0 +1,14 @@
+commit 47c1cef56b77263bcabada3f193d1c8f271879e7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 25 13:31:30 2011 -0700
+
+    test: match gccgo error messages for bug016.go.
+    
+    bug016.go:11:8: error: negative shift count
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/4312055
+
+ test/fixedbugs/bug016.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

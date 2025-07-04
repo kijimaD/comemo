@@ -1,0 +1,25 @@
+commit daf944a531fecf2431b60da608e70680f4927412
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Sat Jun 8 12:57:59 2019 -0400
+
+    syscall: fix Getdirentries on 32-bit freebsd 12
+    
+    On freebsd 12, the system call for getdirentries writes 64 bits to
+    *basep, even on 32-bit systems. Accomodate that by providing a uint64
+    to the system call and copy the base to/from that uint64.
+    The uint64 seems to be a virtual file offset, so failing if the high
+    bits are not zero should be fine for reasonable-sized directories.
+    
+    Fixes #32498
+    
+    Change-Id: Ie22c0d301c6091bd20e813432928b24ab95cc314
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181377
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/syscall_freebsd.go        | 18 ++++++++++++++++--
+ src/syscall/zsyscall_freebsd_386.go   |  2 +-
+ src/syscall/zsyscall_freebsd_amd64.go |  2 +-
+ src/syscall/zsyscall_freebsd_arm.go   |  2 +-
+ 4 files changed, 19 insertions(+), 5 deletions(-)

@@ -1,0 +1,26 @@
+commit 14305527f686ced0de8d08b3a62bd96fe6359481
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 10 12:21:45 2020 -0800
+
+    cmd/compile: fix select statement evaluation order corner case
+    
+    The Go spec requires that select case clauses be evaluated in order,
+    which is stricter than normal ordering semantics. cmd/compile handled
+    this correctly for send clauses, but was not correctly handling
+    receive clauses that involved bare variable references.
+    
+    Discovered with @cuonglm.
+    
+    Fixes #43111.
+    
+    Change-Id: Iec93b6514dd771875b084ba49c15d7f4531b4a6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277132
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/order.go |  2 +-
+ test/fixedbugs/issue43111.go         | 70 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+), 1 deletion(-)

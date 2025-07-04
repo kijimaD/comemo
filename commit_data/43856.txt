@@ -1,0 +1,26 @@
+commit 78e59bb1f72c9cd16e204dbfeee05ae99a2462e3
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Nov 20 14:09:03 2020 -0500
+
+    cmd/go: support the -overlay flag for go mod commands
+    
+    Move the declaration of the -overlay flag to base.AddModCommonFlags,
+    where other flags that are needed for go mod commands and for builds
+    are declared. The flag's already initialized in modload.Init so
+    there's no additional work needed to be done to support it in the go
+    mod commands.
+    
+    For #39958
+    
+    Change-Id: I70725d620cc69cb820f6ed923d626f4fe041b1c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272126
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/base/flag.go           | 2 ++
+ src/cmd/go/internal/work/build.go          | 7 +++++--
+ src/cmd/go/testdata/script/mod_overlay.txt | 6 ++++++
+ 3 files changed, 13 insertions(+), 2 deletions(-)

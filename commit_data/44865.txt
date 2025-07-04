@@ -1,0 +1,21 @@
+commit 89b141c06e1f97e7ccd84aa820ea0b64291ac3f8
+Author: David Chase <drchase@google.com>
+Date:   Mon Mar 29 18:46:37 2021 -0400
+
+    cmd/compile: emit writebarriers in specified ABI
+    
+    old code was always ABI0, new code tracks the default
+    this may cause some write barrier removals to fail to fire
+    
+    Updates #40724.
+    
+    Change-Id: I656bdd5511c5bd6ee6e021999e30d842a6b9f0a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305671
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/writebarrier.go | 48 +++++++++++++++++++---------
+ 1 file changed, 33 insertions(+), 15 deletions(-)

@@ -1,0 +1,19 @@
+commit a22b0f82a2fd8e16cf3fab8701a3cff91c93177f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 5 15:30:27 2012 +1100
+
+    doc: add command docs page, canonicalize reference paths
+    
+    R=golang-dev, kyle, r
+    CC=golang-dev
+    https://golang.org/cl/5728055
+
+ doc/debugging_with_gdb.html |  3 +-
+ doc/effective_go.html       |  2 +-
+ doc/effective_go.tmpl       |  2 +-
+ doc/go_faq.html             |  6 ++--
+ doc/go_mem.html             |  3 +-
+ doc/go_spec.html            |  3 +-
+ doc/reference-cmd.html      | 84 +++++++++++++++++++++++++++++++++++++++++++++
+ doc/reference.html          | 34 ++++++++++++------
+ 8 files changed, 118 insertions(+), 19 deletions(-)

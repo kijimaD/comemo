@@ -1,0 +1,18 @@
+commit e2ff73286f68543d024f632a1764e93a6b21ccee
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 16 21:42:00 2019 -0500
+
+    doc/go1.12: link to ABIInternal design document
+    
+    The ABI changes should be completely transparent to Go code, but could
+    cause linking issues in certain situations involving assembly code
+    reaching across package boundaries. If users encounter linking
+    problems, point them to the "Compatibility" section of the ABI design
+    document, which gives some guidance.
+    
+    Change-Id: I4156d164562e2ec0de7ae8f9a3631a32ec45b317
+    Reviewed-on: https://go-review.googlesource.com/c/158237
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

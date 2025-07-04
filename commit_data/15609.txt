@@ -1,0 +1,19 @@
+commit 0ed517e5e68813581de8f6a7e94211d82ff36dd2
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 6 12:49:56 2013 -0800
+
+    cmd/vet: isolate the type checking code into a separate file
+    We can enable/disable type checking with a build tag.
+    Should simplify cutting the go1.1 distribution free of go/types.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7482045
+
+ src/cmd/vet/Makefile    |   3 +-
+ src/cmd/vet/main.go     |  19 +-----
+ src/cmd/vet/print.go    | 115 -------------------------------
+ src/cmd/vet/taglit.go   |  24 ++-----
+ src/cmd/vet/types.go    | 178 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/vet/typestub.go |  45 ++++++++++++
+ 6 files changed, 231 insertions(+), 153 deletions(-)

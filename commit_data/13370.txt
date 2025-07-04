@@ -1,0 +1,16 @@
+commit e2f2929d85ab27960ed83e740728a89cd1d521e6
+Author: David G. Andersen <dave.andersen@gmail.com>
+Date:   Fri Jun 22 15:07:22 2012 -0700
+
+    net/rpc: fix typo in documentation, clarify semantics of error return
+    
+    Several of my students were confused by trying to use both the error
+    return and a reply return, so I figured it was worth explicitly clarifying
+    that returning an error overrides the reply.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6327051
+
+ src/pkg/net/rpc/server.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

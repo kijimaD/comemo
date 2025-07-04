@@ -1,0 +1,24 @@
+commit c0ac33c00614a2f36c88671ef7c520d246cd8bc9
+Author: Frank Viernau <frank_viernau@epam.com>
+Date:   Mon Feb 20 09:08:00 2023 +0000
+
+    cmd/go: don't compute Embed fields if they're not needed
+    
+    If the user provides the -json flag to explicitly specify fields, but doesn't specify any *Embed* field, skip computing the embed fields.
+    
+    This enhances the initial implementation of #29666.
+    
+    Change-Id: I60e86fb25a445689aecbcc7f3f3f88e0f37a0fc5
+    GitHub-Last-Rev: 2795c195bf995f798a45e928becebc253c89b9d6
+    GitHub-Pull-Request: golang/go#58522
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468075
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/list/list.go                |  5 ++--
+ src/cmd/go/internal/load/pkg.go                 | 18 ++++++++----
+ src/cmd/go/testdata/script/list_json_fields.txt | 38 +++++++++++++++++++++++++
+ 3 files changed, 53 insertions(+), 8 deletions(-)

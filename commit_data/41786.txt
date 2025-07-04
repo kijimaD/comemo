@@ -1,0 +1,24 @@
+commit 0b7c202e98949b530f7f4011efd454164356ba69
+Author: Alexander Greim <alexxx@iltempo.de>
+Date:   Sun Mar 29 17:10:44 2020 +0200
+
+    strings: make variable/type association consistent in function signatures
+    
+    The type annotation of some trim functions are inconsistent with all
+    other function signatures of the strings package.
+    
+    Example:
+    func TrimRight(s string, cutset string) string
+    
+    To be:
+    func TrimRight(s, cutset string) string
+    
+    Change-Id: I456a33287bfb4ad6a7962e30a6424f209ac320c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226339
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/strings/strings.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

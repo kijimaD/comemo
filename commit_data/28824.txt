@@ -1,0 +1,23 @@
+commit 6347367be36df608cce84beb097378f8654dd208
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Sep 7 16:35:32 2016 +0300
+
+    strings: use Index in Count
+    
+    This simplifies code and provides performance iprovments:
+    Similar to https://go-review.googlesource.com/#/c/28577
+    
+    CountHard1-48               1.74ms ±14%  0.17ms ±14%  -90.16%  (p=0.000 n=19+19)
+    CountHard2-48               1.78ms ±15%  0.25ms ±13%  -86.10%  (p=0.000 n=19+20)
+    CountHard3-48               1.78ms ±12%  0.80ms ±11%  -55.19%  (p=0.000 n=17+20)
+    CountTorture-48             13.5µs ±14%  13.6µs ±11%     ~     (p=0.625 n=18+19)
+    CountTortureOverlapping-48  6.92ms ±13%  8.42ms ±11%  +21.72%  (p=0.000 n=19+17)
+    
+    Change-Id: Ief120aee918a66487c76be56e0796871c8502f89
+    Reviewed-on: https://go-review.googlesource.com/28586
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strings/strings.go | 46 ++++++++--------------------------------------
+ 1 file changed, 8 insertions(+), 38 deletions(-)

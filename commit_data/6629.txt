@@ -1,0 +1,29 @@
+commit 8fff9166f6bfd7444fe8722f7e79c358f125c4e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 25 21:25:13 2010 -0700
+
+    arm: enable all tests
+    
+    ARM functionality is now completely working.
+    (Or if it's not, we'll fix it.)
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2738041
+
+ src/all-arm.bash                 |  30 ---
+ src/pkg/runtime/arm/asm.s        |   4 +-
+ src/pkg/strconv/atof.go          |   4 +-
+ src/pkg/strconv/ftoa.go          |   4 -
+ src/pkg/strconv/internal_test.go |   8 -
+ test/arm-pass.txt                | 487 ---------------------------------------
+ test/fail-arm-native.txt         |  11 -
+ test/float_lit.go                | 211 +++++++++++------
+ test/golden-arm-native.out       | 151 ------------
+ test/golden-arm.out              | 131 -----------
+ test/literal.go                  |  33 +--
+ test/recover2.go                 |   4 +-
+ test/recover3.go                 |  16 +-
+ test/run                         |  10 -
+ test/run-arm                     | 102 --------
+ 15 files changed, 169 insertions(+), 1037 deletions(-)

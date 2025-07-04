@@ -1,0 +1,17 @@
+commit 5372257e600989ab4cf742b35e3fa649cad3f45c
+Author: Inada Naoki <songofacandy@gmail.com>
+Date:   Thu Dec 27 00:47:20 2018 +0900
+
+    runtime: skip stack barrier copy when there are no pointers
+    
+    After CL 31455, "go fun(n)" may put "n" to write barrier buffer
+    when there are no pointers in fun's arguments.
+    
+    Fixes #29362
+    
+    Change-Id: Icfa42b8759ce8ad9267dcb3859c626feb6fda381
+    Reviewed-on: https://go-review.googlesource.com/c/155779
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/proc.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

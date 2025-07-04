@@ -1,0 +1,18 @@
+commit 806318d6ad39e3839183ffbbd9b56a690c0379d1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 22 21:34:48 2020 -0700
+
+    cmd/compile: simplify zcse
+    
+    Minor refactoring.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I91e981bf369d4b719163107644fa58f583356c25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229598
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/zcse.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

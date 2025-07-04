@@ -1,0 +1,16 @@
+commit 297c1d297f4cee55a6aee5eb68583d0139aef076
+Author: Andrei Korzhevskii <a.korzhevskiy@gmail.com>
+Date:   Mon Mar 23 18:23:53 2015 +0300
+
+    database/sql: provide stats on number of open connections to the database.
+    
+    This change provides a convenient way to monitor database connection pool.
+    
+    Change-Id: I4b3757855b43f3b254acf9312e2a16e2f87840d0
+    Reviewed-on: https://go-review.googlesource.com/7950
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go      | 16 ++++++++++++++++
+ src/database/sql/sql_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

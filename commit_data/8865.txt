@@ -1,0 +1,12 @@
+commit 8475832f0d8957840d0aec1b027a89e5c03ed3bf
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 27 18:50:27 2011 -0400
+
+    testing: scale benchmark precision to 0.01ns if needed
+    
+    R=dvyukov, r
+    CC=golang-dev
+    https://golang.org/cl/4657053
+
+ src/pkg/testing/benchmark.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

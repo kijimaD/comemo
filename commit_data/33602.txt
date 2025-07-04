@@ -1,0 +1,13 @@
+commit 8e28a8d2a025c7061323b30189992d8f85acabb4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 16 11:56:45 2017 -0500
+
+    cmd/go: fix cgo-disabled test failure from CL 77151
+    
+    Change-Id: I8ed4c6dd32a74d94565d77771bb773f006ff90ac
+    Reviewed-on: https://go-review.googlesource.com/78317
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

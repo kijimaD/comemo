@@ -1,0 +1,12 @@
+commit 177191237e7400d5f277405f7340bd95d9b09676
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Jun 9 23:15:39 2013 +0800
+
+    doc/install-source.html: recent ARM and 386 updates
+    
+    R=golang-dev, dave, adg, remyoudompheng, r
+    CC=golang-dev
+    https://golang.org/cl/6845083
+
+ doc/install-source.html | 63 ++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 47 insertions(+), 16 deletions(-)

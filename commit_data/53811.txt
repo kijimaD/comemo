@@ -1,0 +1,24 @@
+commit c17e0cd2da0d69aba28d23aab12186eedc579dc1
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Thu Jul 27 16:20:58 2023 +0800
+
+    net: ignore blackhole route in TestDialCancel
+    
+    CL 496037 had ignored 3 types of null route, however blackhole route
+    is not included i.e. on Linux we can add a blackhole route by
+    `ip route add blackhole 198.18.0.254/32`
+    
+    Fixes #61590
+    
+    Change-Id: I9ddb86c5be0e5e261afa96cbaf55d9fdf30b2795
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513595
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: M Zhuo <mzh@golangcn.org>
+
+ src/net/dial_test.go | 1 +
+ 1 file changed, 1 insertion(+)

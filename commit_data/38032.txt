@@ -1,0 +1,25 @@
+commit e1a6d1fc08b2701ac9f67353cb52c51d52877669
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 29 22:13:54 2019 -0500
+
+    fmt: format hex floats and complexes
+    
+    This CL modifies fmt's printer to implement %x and %X
+    for formatting floating-point data (floats and complexes)
+    in standard hexadecimal notation.
+    
+    See golang.org/design/19308-number-literals for background.
+    
+    For #29008.
+    Vet update is #29986.
+    
+    Change-Id: If2842a11631bc393a1ebcf6914ed07658652af5a
+    Reviewed-on: https://go-review.googlesource.com/c/160245
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/doc.go      |  2 ++
+ src/fmt/fmt_test.go | 24 ++++++++++++++++++++++++
+ src/fmt/format.go   | 15 +++++++++++----
+ src/fmt/print.go    |  4 ++--
+ 4 files changed, 39 insertions(+), 6 deletions(-)

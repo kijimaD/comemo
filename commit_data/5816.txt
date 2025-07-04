@@ -1,0 +1,12 @@
+commit 5958fd7f8908243338976258e03f18735679f7f2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 15 12:32:38 2010 -0700
+
+    Clarify that a new goroutine is not started for each finalizer.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1698051
+
+ src/pkg/runtime/extern.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

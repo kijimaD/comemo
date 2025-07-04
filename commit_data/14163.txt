@@ -1,0 +1,13 @@
+commit 561561fc2d64d088892778463a266120a6c2f716
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 17 14:21:58 2012 -0400
+
+    A+C: add Shane Hansen (Individual CLA)
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6714053
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

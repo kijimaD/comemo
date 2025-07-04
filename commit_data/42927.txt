@@ -1,0 +1,25 @@
+commit bdad4285709d1c5e04458268880775087be63027
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Aug 28 15:05:44 2020 -0400
+
+    cmd/go: make 'go get' preserve sums for content of new requirements
+    
+    This preserves zip sums when 'go get' is run on a module that does not
+    have a package in the root directory. The zip must be fetched to
+    determine whether the package should be loaded, so we already load and
+    verify the sum.
+    
+    Note that 'go mod tidy' may still remove these sums, since they
+    aren't needed to load packages.
+    
+    Fixes #41103
+    
+    Change-Id: I78f10a25f0392461fdc98518a7c92a38ee3233c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251880
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/init.go               | 38 +++++++++++++++++------
+ src/cmd/go/testdata/script/mod_get_sum_noroot.txt | 11 +++++++
+ 2 files changed, 39 insertions(+), 10 deletions(-)

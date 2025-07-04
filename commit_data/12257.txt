@@ -1,0 +1,17 @@
+commit c10f50859ead8f1578e86e65d5f376ae6a3a32df
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Feb 28 21:48:03 2012 +0100
+
+    all: remove various unused unexported functions and constants.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5702050
+
+ src/pkg/archive/zip/reader.go   | 28 ----------------------------
+ src/pkg/bufio/bufio.go          |  1 -
+ src/pkg/encoding/json/encode.go |  5 -----
+ src/pkg/net/http/lex.go         |  8 --------
+ src/pkg/time/format.go          |  8 --------
+ src/pkg/time/time.go            |  4 ----
+ 6 files changed, 54 deletions(-)

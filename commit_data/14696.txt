@@ -1,0 +1,14 @@
+commit 2874cc4eedf1e152f8327c1d93fb5d6a6a973a15
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 21 07:03:00 2012 +1100
+
+    cmd/godoc: redirect for file with trailing /
+    
+    Fixes #4543.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6971050
+
+ src/cmd/godoc/godoc.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

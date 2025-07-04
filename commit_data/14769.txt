@@ -1,0 +1,14 @@
+commit b2e9ca7f2ee9a93b01edaf5d42c94e6a6e848124
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jan 2 16:38:47 2013 +0400
+
+    doc: add race detector manual
+    
+    R=minux.ma, franciscossouza, rsc, adg, adg
+    CC=golang-dev
+    https://golang.org/cl/6948043
+
+ doc/articles/race_detector.html | 353 ++++++++++++++++++++++++++++++++++++++++
+ doc/docs.html                   |   1 +
+ doc/go1.1.html                  |   6 +
+ 3 files changed, 360 insertions(+)

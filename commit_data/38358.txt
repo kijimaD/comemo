@@ -1,0 +1,20 @@
+commit 21a634e2e91752aa61b4e4a008ec500eeb4ee462
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 7 08:41:02 2019 +0100
+
+    os: drop special case for FreeBSD 10.4 in newFile
+    
+    Support for FreeBSD 10 will be dropped with Go 1.13, so revert the
+    workaround introduced in CL 157099.
+    
+    Updates #29633
+    Updates #27619
+    
+    Change-Id: I1a2e50d3f807a411389f3db07c0f4535a590da02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165801
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/file_unix.go | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

@@ -1,0 +1,21 @@
+commit bd01a1b756caf9f7a1e86296c3c69ff65c69b734
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Apr 28 15:32:43 2020 +0200
+
+    cmd/compile: port first part of arm64 opt rules to typed aux
+    
+    Fairly minimal changes.
+    
+    Passes
+    
+      GOARCH=arm64 gotip build -toolexec 'toolstash -cmp' -a std
+    
+    Change-Id: I14b2e3ad4933ef14b1b6993f427bf84fe85b1818
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229939
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 234 +++++++++++------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 272 +++++++++++++--------------
+ 2 files changed, 253 insertions(+), 253 deletions(-)

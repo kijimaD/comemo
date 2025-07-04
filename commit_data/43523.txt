@@ -1,0 +1,24 @@
+commit a8b28ebc87854fb6f2ba99f415f046dc2ff63604
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Aug 6 16:47:58 2020 +0000
+
+    runtime,runtime/metrics: add heap goal and GC cycle metrics
+    
+    This change adds three new metrics: the heap goal, GC cycle count, and
+    forced GC count. These metrics are identical to their MemStats
+    counterparts.
+    
+    For #37112.
+    
+    Change-Id: I5a5e8dd550c0d646e5dcdbdf38274895e27cdd88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247044
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/metrics.go             | 51 ++++++++++++++++++++++++++++++++------
+ src/runtime/metrics/description.go | 23 +++++++++++++++++
+ src/runtime/metrics/doc.go         | 12 +++++++++
+ src/runtime/metrics_test.go        |  8 ++++++
+ 4 files changed, 86 insertions(+), 8 deletions(-)

@@ -1,0 +1,15 @@
+commit 70f3b6097bb3c083f39c313fba3889d4e39ef680
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Sat May 18 19:22:30 2013 +0800
+
+    cmd/go: Update documentation of go run to match current behaviour.
+    
+    Fixes #5511.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/9530043
+
+ src/cmd/go/doc.go | 1 -
+ src/cmd/go/run.go | 1 -
+ 2 files changed, 2 deletions(-)

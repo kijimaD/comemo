@@ -1,0 +1,28 @@
+commit 810809ebc2e2c834da9656e4b52bb3a7d6089502
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sat Mar 9 02:30:35 2019 +0100
+
+    misc/android: copy less from GOROOT to the device
+    
+    The android emulator builders is running out of space after CL 165797
+    copied most of GOROOT to the device.
+    The pkg directory is by far the largest, so only include what seems
+    necessary to build the x/ repositories: pkg/android_$GOARCH and
+    pkg/tool/android_$GOARCH.
+    
+    While here, rename the device root directory to match the exec
+    wrapper name and make sure the deferred cleanups actually run before
+    os.Exit.
+    
+    Hopefully fixes the emulator builders.
+    
+    Updates #23824
+    
+    Change-Id: I4d1e3ab2c89fd1e5818503d323ddb87f073094da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166397
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/android/go_android_exec.go | 147 ++++++++++++++++++++++++++++------------
+ 1 file changed, 103 insertions(+), 44 deletions(-)

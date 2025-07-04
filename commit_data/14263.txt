@@ -1,0 +1,14 @@
+commit 369a974b41d0b75778a50f6d531263c99d98432a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 31 15:07:25 2012 -0700
+
+    spec: slight wording change to remove a formal contradiction
+    
+    Fixes #4324.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6822062
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

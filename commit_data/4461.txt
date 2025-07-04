@@ -1,0 +1,12 @@
+commit 10e85dfee4d2a5e905045bdc17e5505ed1d3efa7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 17:28:22 2009 -0800
+
+    Make.pkg: fix cgo for TARG=a/b
+    
+    R=dho, phf
+    CC=golang-dev
+    https://golang.org/cl/180082
+
+ src/Make.pkg | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

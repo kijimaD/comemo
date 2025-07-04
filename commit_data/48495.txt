@@ -1,0 +1,29 @@
+commit fd1b5904ae7cc76eefd94d315f92265da5b81b14
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Mar 21 16:08:38 2022 -0400
+
+    cmd/compile/internal/importer: key tparams by Package instead of pkgname
+    
+    The importer type param index used package name type parameter key,
+    causing type parameters to be reused/overwritten if two packages in the
+    import graph had the same combination of (name, declaration name, type
+    parameter name).
+    
+    Fix this by instead using the *Package in the key.
+    
+    Fixes #51836
+    
+    Change-Id: I881ceaf3cf7c1ab4e0835962350feb552e79b233
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394219
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/importer/iimport.go |  6 +++---
+ src/go/internal/gcimporter/iimport.go        |  6 +++---
+ test/typeparam/issue51836.dir/a.go           |  8 ++++++++
+ test/typeparam/issue51836.dir/aa.go          | 13 +++++++++++++
+ test/typeparam/issue51836.dir/p.go           | 11 +++++++++++
+ test/typeparam/issue51836.go                 |  7 +++++++
+ 6 files changed, 45 insertions(+), 6 deletions(-)

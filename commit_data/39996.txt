@@ -1,0 +1,23 @@
+commit c4fbaee8596bbab16ced99c1a1cc3229c37d4934
+Author: Gregory Man <man.gregory@gmail.com>
+Date:   Sun Sep 22 13:30:45 2019 +0300
+
+    cmd/go: allow -I= and -I$SYSROOT in cgo CFLAGS
+    
+    Current checkFlags() didn't allow any not safe charactars in arguments.
+    In GCC "=" in arguments will be replaced with sysroot prefix, and used
+    by users to work with different SDK versions.
+    
+    This CL allow to use "=" and $SYSROOT with -I argument.
+    
+    Fixes #34449
+    
+    Change-Id: I3d8b2b9d13251e454ea18e9d34a94b87c373c7b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196783
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/work/security.go      | 9 +++++++++
+ src/cmd/go/internal/work/security_test.go | 4 ++++
+ 2 files changed, 13 insertions(+)

@@ -1,0 +1,24 @@
+commit 3d9a89b05733f6787900ea7034aab0471e065946
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Feb 1 00:39:30 2024 +1100
+
+    cmd/compile: use integer min/max instructions on riscv64
+    
+    When GORISCV64 enables rva22u64, make use of integer MIN/MINU/MAX/MAXU
+    instructions in compiler rewrite rules.
+    
+    Change-Id: I4e7c514516acad03f2869d4c8936f06582cf7ea9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559660
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+
+ src/cmd/compile/internal/riscv64/ssa.go         |  4 +-
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 10 +++
+ src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go |  6 ++
+ src/cmd/compile/internal/ssa/_gen/genericOps.go |  6 ++
+ src/cmd/compile/internal/ssa/opGen.go           | 88 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 81 +++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go          | 19 ++++++
+ 7 files changed, 212 insertions(+), 2 deletions(-)

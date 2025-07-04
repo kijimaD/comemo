@@ -1,0 +1,20 @@
+commit 3aa3c052e302add1d30b0481b0347c47f190bef9
+Author: Aleksandr Razumov <ar@cydev.ru>
+Date:   Tue Aug 28 03:29:01 2018 +0300
+
+    net/http: rewind request body unconditionally
+    
+    When http2 fails with ErrNoCachedConn the request is retried with body
+    that has already been read.
+    
+    Fixes #25009
+    
+    Change-Id: I51ed5c8cf469dd8b17c73fff6140ab80162bf267
+    Reviewed-on: https://go-review.googlesource.com/c/131755
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go               |  5 +-
+ src/net/http/transport_internal_test.go | 83 +++++++++++++++++++++++++++++++++
+ 2 files changed, 85 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit 1da727a31f949e63636c465698059bf89b7bc3ce
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Sep 19 20:43:30 2008 -0700
+
+    fix bugs in asynch select
+    
+    R=r
+    OCL=15586
+    CL=15586
+
+ src/runtime/chan.c | 68 ++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 51 insertions(+), 17 deletions(-)

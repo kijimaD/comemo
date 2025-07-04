@@ -1,0 +1,22 @@
+commit 17396575135ba71472ab8a5b82f31af50d8bf312
+Author: Keith Randall <khr@golang.org>
+Date:   Sat May 28 21:15:24 2016 -0700
+
+    cmd/compile: shift tests, fix triple-shift rules
+    
+    Add a bunch of tests for shifts.
+    
+    Fix triple-shift rules to always take constant shifts as 64 bits.
+    (Earlier rules always promote shift amounts to 64 bits.)
+    Add overflow checks.
+    
+    Increases generic rule coverage to 91%
+    
+    Change-Id: I6b42d368d19d36ac482dbb8e0d4f67e30ad7145d
+    Reviewed-on: https://go-review.googlesource.com/23555
+    Reviewed-by: Todd Neal <todd@tneal.org>
+
+ src/cmd/compile/internal/gc/shift_test.go      | 907 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/generic.rules |  94 ++-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 692 ++++++++++++++++---
+ 3 files changed, 1588 insertions(+), 105 deletions(-)

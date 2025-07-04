@@ -1,0 +1,14 @@
+commit 7d4ea6cc9edf75199c72a42cfa3481f0e98f5d89
+Author: Rob Pike <r@golang.org>
+Date:   Sun Aug 4 09:06:14 2013 +1000
+
+    html/template: delete panic recovery code from test
+    
+    The test isn't checking deliberate panics so catching them just makes the code longer.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/12420043
+
+ src/pkg/html/template/content_test.go | 6 ------
+ 1 file changed, 6 deletions(-)

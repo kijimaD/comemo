@@ -1,0 +1,20 @@
+commit be16caf87257ac285bb568d2da133dd18088f7c2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 23:38:39 2009 -0700
+
+    step toward no function prototypes.
+    
+    delay evaluation of most types (all but func)
+    from parse time to type check time.
+    
+    R=ken
+    OCL=31585
+    CL=31585
+
+ src/cmd/gc/dcl.c  | 156 +++++++++++++++++++++--------------------
+ src/cmd/gc/go.h   |   9 ++-
+ src/cmd/gc/go.y   | 177 +++++++++++++++++++----------------------------
+ src/cmd/gc/subr.c |  50 +++++++++-----
+ src/cmd/gc/walk.c | 203 ++++++++++++++++++++++++++++++++++++++++++++++--------
+ test/golden.out   |  16 ++---
+ 6 files changed, 376 insertions(+), 235 deletions(-)

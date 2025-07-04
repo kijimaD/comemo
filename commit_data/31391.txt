@@ -1,0 +1,17 @@
+commit e51e0f9cdd2a351fb1cb0ab6405c02d58c35d537
+Author: Weichao Tang <tevic.tt@gmail.com>
+Date:   Tue Apr 18 10:57:12 2017 +0800
+
+    net/http: close resp.Body when error occurred during redirection
+    
+    Fixes #19976
+    
+    Change-Id: I48486467066784a9dcc24357ec94a1be85265a6f
+    Reviewed-on: https://go-review.googlesource.com/40940
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client.go   | 3 +++
+ src/net/http/response.go | 6 ++++++
+ 2 files changed, 9 insertions(+)

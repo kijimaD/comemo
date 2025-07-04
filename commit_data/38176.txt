@@ -1,0 +1,16 @@
+commit 45861a64d311e05c43f18d58d53ae258222519c8
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Fri Mar 1 12:08:00 2019 +0100
+
+    androidtest.bash: delete
+    
+    Android now works with all.bash.
+    
+    Change-Id: I1087308865d2eb31f02501b5798e14d11145b185
+    Reviewed-on: https://go-review.googlesource.com/c/164700
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/android/go_android_exec.go |  5 ++---
+ src/androidtest.bash            | 37 -------------------------------------
+ 2 files changed, 2 insertions(+), 40 deletions(-)

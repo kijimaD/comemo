@@ -1,0 +1,35 @@
+commit d80ab3e85a76581277f62761ae3c22817dab745d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 1 12:38:10 2019 -0700
+
+    runtime: wake netpoller when dropping P, don't sleep too long in sysmon
+    
+    When dropping a P, if it has any timers, and if some thread is
+    sleeping in the netpoller, wake the netpoller to run the P's timers.
+    This mitigates races between the netpoller deciding how long to sleep
+    and a new timer being added.
+    
+    In sysmon, if all P's are idle, check the timers to decide how long to sleep.
+    This avoids oversleeping if no thread is using the netpoller.
+    This can happen in particular if some threads use runtime.LockOSThread,
+    as those threads do not block in the netpoller.
+    
+    Also, print the number of timers per P for GODEBUG=scheddetail=1.
+    
+    Before this CL, TestLockedDeadlock2 would fail about 1% of the time.
+    With this CL, I ran it 150,000 times with no failures.
+    
+    Updates #6239
+    Updates #27707
+    Fixes #35274
+    Fixes #35288
+    
+    Change-Id: I7e5193e6c885e567f0b1ee023664aa3e2902fcd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204800
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go | 49 ++++++++++++++++++++++++++-----------------------
+ src/runtime/time.go | 21 +++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 23 deletions(-)

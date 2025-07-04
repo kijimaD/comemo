@@ -1,0 +1,17 @@
+commit fc128403dcfc596da7c77251bab2ca5623a406a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 9 08:03:51 2011 -0500
+
+    gc: minor changes for inlining
+    
+    Copied from 5400043 since they stand alone from inlining.
+    
+    R=lvd
+    CC=golang-dev
+    https://golang.org/cl/5479046
+
+ src/cmd/gc/dcl.c                |  8 +++++---
+ src/cmd/gc/typecheck.c          |  3 ++-
+ src/cmd/gc/walk.c               | 12 +++++++++---
+ src/pkg/exp/types/gcimporter.go | 16 ++++++----------
+ 4 files changed, 22 insertions(+), 17 deletions(-)

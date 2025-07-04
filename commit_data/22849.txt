@@ -1,0 +1,15 @@
+commit 660a6825eabcf8529826e25052a8546ac8e1f08f
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 4 11:28:51 2015 -0700
+
+    fmt: catch overflow in width and prec calculations
+    
+    Fixes #10674.
+    
+    Change-Id: If3fae3244d87aeaa70815f499105c264394aa7ad
+    Reviewed-on: https://go-review.googlesource.com/9657
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/fmt/fmt_test.go | 1 +
+ src/fmt/print.go    | 3 +++
+ 2 files changed, 4 insertions(+)

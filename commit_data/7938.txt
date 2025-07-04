@@ -1,0 +1,19 @@
+commit 7a5bbfd47f81985ebfb87fb7b5d6dcb76c144c41
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 30 15:27:23 2011 -0700
+
+    gotype: support for more tests, added one new test
+    
+    also: minor fix to parser
+    
+    Note: gotest won't run the gotype test yet until
+    it permits TestXXX functions where XXX is empty.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4300053
+
+ src/cmd/gotype/gotype_test.go    | 34 +++++++++++++++++++++++++++-------
+ src/cmd/gotype/testdata/test1.go |  6 ++++++
+ src/pkg/go/parser/parser.go      |  5 +++--
+ 3 files changed, 36 insertions(+), 9 deletions(-)

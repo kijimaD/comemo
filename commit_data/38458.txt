@@ -1,0 +1,31 @@
+commit 0cd74d1f1181c113352476d2913141e7cc88abc2
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 20 16:52:35 2019 +0100
+
+    cmd, runtime: fix C trampolines on aix/ppc64
+    
+    C trampolines are made by fixup CSECTS which are added between two
+    symbols. If such CSECTS is added inside Go functions, all method
+    offsets stored in moduledatas will be wrong.
+    In order to prevent this, every C code is moved at the end of the
+    executable and long calls are created for GO functions called by C
+    code.
+    The main function can't longer be made in Go as AIX __start isn't using
+    a long call to branch on it. Therefore, a main is defined on
+    runtime/cgo.
+    
+    Change-Id: I214b18decdb83107cf7325b298609eef9f9d1330
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164010
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/exec.go  | 21 +++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go   | 19 +++++++++++++++++++
+ src/cmd/link/internal/ld/pcln.go  |  2 +-
+ src/cmd/link/internal/ld/xcoff.go |  6 +++---
+ src/runtime/asm_ppc64x.s          |  7 +++++++
+ src/runtime/cgo/callbacks_aix.go  | 10 ++++++++++
+ src/runtime/cgo/gcc_aix_ppc64.S   |  4 ++--
+ src/runtime/cgo/gcc_aix_ppc64.c   | 22 ++++++++++++++++++++++
+ 8 files changed, 85 insertions(+), 6 deletions(-)

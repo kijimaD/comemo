@@ -1,0 +1,20 @@
+commit da0a582564da3a0afeaa17336a025876a925db0e
+Author: Steve Newman <devnull@localhost>
+Date:   Tue Jun 2 12:48:18 2009 -0700
+
+    Fixes to URL functionality:
+    - Extend http.URLUnescape to convert '+' to space
+    - Add http.URLEscape
+    - Rename URL.Query to EncodedQuery (and stop decoding it, as decoding this field
+      before separating key/value pairs loses important information)
+    - Report a clean error on incomplete hex escapes
+    - Update existing tests, add new ones
+    
+    APPROVED=rsc
+    DELTA=293  (256 added, 3 deleted, 34 changed)
+    OCL=29685
+    CL=29759
+
+ src/lib/http/url.go      | 117 ++++++++++++++++++++++-----
+ src/lib/http/url_test.go | 200 ++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 285 insertions(+), 32 deletions(-)

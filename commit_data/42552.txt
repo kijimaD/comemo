@@ -1,0 +1,16 @@
+commit 18bcc7c2854f900dfb631d7ef01a839021e24576
+Author: Katie Hockman <katie@golang.org>
+Date:   Thu Jun 18 11:26:07 2020 -0400
+
+    net/http: document Dir behavior with symlinks
+    
+    Based on CL 229377.
+    
+    Change-Id: I016eec20672c909e8fabe799c277f4d2540fc555
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238698
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/net/http/fs.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

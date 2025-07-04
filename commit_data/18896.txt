@@ -1,0 +1,22 @@
+commit cb502775107ce5f6f22e9b47c9c77300859864b4
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed Mar 19 05:48:00 2014 +0100
+
+    cmd/gc: check exponent overflow and underflow in mparith
+    
+    A too large float constant is an error.
+    A too small float constant is rounded to zero.
+    
+    Fixes #7419
+    Update #6902
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/76730046
+
+ src/cmd/gc/go.h             |  1 +
+ src/cmd/gc/mparith1.c       | 11 ++++++++---
+ src/cmd/gc/mparith3.c       | 34 +++++++++++++++++++++++++++++-----
+ test/fixedbugs/issue7419.go | 25 +++++++++++++++++++++++++
+ 4 files changed, 63 insertions(+), 8 deletions(-)

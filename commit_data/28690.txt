@@ -1,0 +1,22 @@
+commit eee727d0855b9e78f9df87e08d57b1d7f264876c
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Tue Sep 13 13:21:23 2016 -0700
+
+    cmd/go: note when some Go files were ignored on no-Go-files errors
+    
+    It is pretty confusing when there are Go files ignored for mismatching
+    build tags and similar and we output "no buildable Go files" without
+    giving any other information about some Go files have been ignored.
+    
+    Fixes #17008.
+    
+    Change-Id: I1766ee86a9a7a72f6694deae3f73b47bfc9d0be5
+    Reviewed-on: https://go-review.googlesource.com/29113
+    Run-TryBot: Jaana Burcu Dogan <jbd@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/build.go                    | 11 ++++++++---
+ src/go/build/build_test.go               | 11 +++++++++++
+ src/go/build/testdata/ignored/ignored.go |  3 +++
+ 3 files changed, 22 insertions(+), 3 deletions(-)

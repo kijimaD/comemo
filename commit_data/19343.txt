@@ -1,0 +1,18 @@
+commit 95e4181b0c7c7f9e6db672067847b1152eafa58c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 13 01:38:10 2014 -0400
+
+    cmd/go: fix go test again
+    
+    Fixes subrepo builds.
+    
+    LGTM=iant, mikioh.mikioh
+    R=golang-codereviews, iant, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/96310043
+
+ src/cmd/go/test.bash                        | 10 +++++
+ src/cmd/go/test.go                          | 62 ++++++++++++++++-------------
+ src/cmd/go/testdata/src/xtestonly/f.go      |  3 ++
+ src/cmd/go/testdata/src/xtestonly/f_test.go | 12 ++++++
+ 4 files changed, 60 insertions(+), 27 deletions(-)

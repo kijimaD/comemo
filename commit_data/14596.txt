@@ -1,0 +1,19 @@
+commit f0d9ccb8da4c2f0b8f900c970073eb4c980dcc38
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 10 17:25:31 2012 -0500
+
+    bufio: minor fixes
+    
+    * note end-of-line and EOF behavior for ReadLine
+    * diagnose broken Readers
+    
+    Fixes #3825.
+    Fixes #4276.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/6907060
+
+ src/pkg/bufio/bufio.go      |  8 ++++++++
+ src/pkg/bufio/bufio_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

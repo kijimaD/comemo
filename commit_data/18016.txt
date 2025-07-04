@@ -1,0 +1,19 @@
+commit a075fdbaa647879c37b1969437366b9c94acd010
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 17 10:49:45 2013 -0800
+
+    image: roll back 13239051 (add RGB and RGB48)
+    
+    They cause too much bloat in the internals as we find ourselves adding
+    special case code for all the cross-connections. It's better to use RGBA
+    and just max out the alpha. We lose a little memory but reduce the number
+    of special cases the encoders, decoders, and drawers need to provide.
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/42910045
+
+ src/pkg/image/color/color.go |  45 ------------
+ src/pkg/image/image.go       | 170 -------------------------------------------
+ src/pkg/image/image_test.go  |   3 -
+ 3 files changed, 218 deletions(-)

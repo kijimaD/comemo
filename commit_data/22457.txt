@@ -1,0 +1,14 @@
+commit 8c5f66bce4bc95eb6ab1506c37446d18e51e683f
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:16:24 2015 -0400
+
+    path/filepath: skip test on darwin/arm64
+    
+    Just like darwin/arm.
+    
+    Change-Id: I4b0ab4a104f2c8a821ca8b5fa8d266e51883709f
+    Reviewed-on: https://go-review.googlesource.com/8816
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/path/filepath/path_test.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

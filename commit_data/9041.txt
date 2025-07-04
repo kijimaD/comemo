@@ -1,0 +1,23 @@
+commit c1c8d46d20638feed689cc2b3e8475e54fc9451e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 13 13:20:05 2011 +1000
+
+    go_tutorial: change the way it's generated.
+    No longer do we generate HTML from it; instead the input
+    file is already in HTML but has template invocations to
+    extract programs from other files.
+    Delete htmlgen, which is no longer needed.
+    Add tmpltohtml, which runs the templating code.
+    
+    R=golang-dev, dsymonds, adg
+    CC=golang-dev
+    https://golang.org/cl/4699041
+
+ doc/Makefile         |   4 +-
+ doc/go_tutorial.html | 100 +++---
+ doc/go_tutorial.tmpl | 990 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/go_tutorial.txt  | 932 ------------------------------------------------
+ doc/htmlgen.go       | 312 ----------------
+ doc/makehtml         |   6 +-
+ doc/tmpltohtml.go    | 176 +++++++++
+ 7 files changed, 1221 insertions(+), 1299 deletions(-)

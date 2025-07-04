@@ -1,0 +1,15 @@
+commit bf9a00bc8f048e2ca8d9d12d0bcf5dfc41505693
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sat Jun 1 16:33:54 2013 +0200
+
+    cmd/gc: fix overflow in array bounds calculation.
+    
+    Fixes #5609.
+    
+    R=golang-dev, remyoudompheng, r
+    CC=golang-dev
+    https://golang.org/cl/9757045
+
+ src/cmd/gc/typecheck.c      |  8 ++++----
+ test/fixedbugs/issue5609.go | 13 +++++++++++++
+ 2 files changed, 17 insertions(+), 4 deletions(-)

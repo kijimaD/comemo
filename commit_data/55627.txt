@@ -1,0 +1,21 @@
+commit 0a04641871d8a035da0f088899f414d21067f342
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Fri Feb 16 01:51:54 2024 +0000
+
+    hash/maphash: parallel run test
+    
+    This reduces the go test hash/maphash time
+    by more than half.
+    
+    Change-Id: If184ca99544809c86b4c1baeb45d3afede91b41a
+    GitHub-Last-Rev: 440c35f8b544a16cc733e3291f963f738dd59a47
+    GitHub-Pull-Request: golang/go#65739
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564576
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/hash/maphash/smhasher_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,0 +1,16 @@
+commit 0ce90459e8654762d54b36d488f9ce0121589242
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed May 30 00:08:58 2012 +0200
+
+    net: add CloseRead, CloseWrite methods to UnixConn.
+    
+    Fixes #3345.
+    
+    R=golang-dev, r, rsc, dave
+    CC=golang-dev, remy
+    https://golang.org/cl/6214061
+
+ src/pkg/net/net_test.go       | 55 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/unixsock_plan9.go | 12 ++++++++++
+ src/pkg/net/unixsock_posix.go | 18 ++++++++++++++
+ 3 files changed, 85 insertions(+)

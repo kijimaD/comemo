@@ -1,0 +1,25 @@
+commit e25a83d03e97edf0d8474ad41ed2edd0a63b19fc
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Dec 14 21:40:31 2011 +1100
+
+    html: close <button> element before opening a new one
+    
+    Pass tests6.dat, test 13:
+    <button><button>
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <button>
+    |     <button>
+    
+    Also pass tests through test 25:
+    <table><colgroup>foo
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5487072
+
+ src/pkg/html/parse.go      | 5 +++++
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 6 insertions(+), 1 deletion(-)

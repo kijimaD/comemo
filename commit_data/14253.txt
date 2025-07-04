@@ -1,0 +1,15 @@
+commit 7dc1182c274e469c5b27e2284bc4876118b2ae6d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 30 20:56:32 2012 -0700
+
+    test: match gccgo error messages for bug358.go
+    
+    I fixed a bug in gccgo that was causing it to only give an
+    error for the first package that was imported and not used.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6813058
+
+ test/fixedbugs/bug358.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

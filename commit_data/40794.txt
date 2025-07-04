@@ -1,0 +1,15 @@
+commit 3f21c2381d9b0f0977f388cc89104f557a7d2c88
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 13 17:33:03 2019 -0800
+
+    os/signal: don't ignore SIGINT in TestAtomicStop child process
+    
+    Fixes #35085
+    
+    Change-Id: Ice611e1223392f687061a43fd4c2298ea22774fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207081
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/os/signal/signal_test.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

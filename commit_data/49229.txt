@@ -1,0 +1,27 @@
+commit b79c135f377e2cbae888ef50b83f1ee5025af906
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 16 17:03:59 2022 -0700
+
+    cmd/compile: skip exporting generic functions for -buildmode=plugin
+    
+    Generic functions require instantiation, which package plugin doesn't
+    support, and likely never will. So instead, we can just skip writing
+    out any generic functions, which avoids an ICE in the plugin
+    generation code.
+    
+    This issue doesn't affect GOEXPERIMENT=unified, because it avoids
+    leaking any non-instantiated types/functions to the rest of the
+    compiler backend.
+    
+    Fixes #52937.
+    
+    Change-Id: Ie35529c5c241e46b77fcb5b8cca48bb99ce7bfcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406358
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go |  3 +++
+ test/run.go                                     |  5 ++++-
+ test/typeparam/issue52937.go                    | 14 ++++++++++++++
+ 3 files changed, 21 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 433c0bc76949fb01bed4747f1d83038ea242a90e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 8 13:22:01 2015 -0700
+
+    runtime: avoid fault in heapBitsBulkBarrier
+    
+    Change-Id: I0512e461de1f25cb2a1cb7f23e7a77d00700667c
+    Reviewed-on: https://go-review.googlesource.com/10803
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mbitmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

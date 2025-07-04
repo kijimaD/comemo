@@ -1,0 +1,12 @@
+commit 080c25c15e67907a8cf1e3527c1958aae5eb329e
+Author: quasilyte <quasilyte@gmail.com>
+Date:   Sun Apr 15 10:08:45 2018 +0300
+
+    C: add Iskander Sharipov's individual CLA mail
+    
+    Change-Id: I2e58e20e26674175b3e35b6c8a05998a93db4646
+    Reviewed-on: https://go-review.googlesource.com/107215
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 327b6c637e2d55d34642984cc9941d6c6e96882d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 13 18:01:24 2009 -0700
+
+    fix links in tutorial
+    
+    R=rsc
+    DELTA=30  (0 added, 22 deleted, 8 changed)
+    OCL=35694
+    CL=35697
+
+ doc/go_tutorial.html | 20 +++-----------------
+ doc/go_tutorial.txt  | 14 +++-----------
+ 2 files changed, 6 insertions(+), 28 deletions(-)

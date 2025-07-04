@@ -1,0 +1,22 @@
+commit 12dbd20a50f223aa3b7adc579e4db0fd9abfb8dd
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Wed Jul 31 11:45:32 2019 +0700
+
+    cmd/link: set .dynsym info field
+    
+    .dynsym section info field is the index of first non-local symbol, mean
+    the number of local symbols.
+    
+    The go linker have never ever set it before, so just set it.
+    
+    Fixes #33358
+    
+    Change-Id: Ifde2deb7c15471b04d565861f5d81daffb0c0d3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187979
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/elf.go      | 13 +++++-
+ src/cmd/link/internal/ld/elf_test.go | 79 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 90 insertions(+), 2 deletions(-)

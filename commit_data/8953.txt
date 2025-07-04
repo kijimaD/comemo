@@ -1,0 +1,12 @@
+commit 381a555f40bf6357bbea18093ad63dad2b7106fd
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 6 15:56:39 2011 +1000
+
+    exp/template: improve error message for non-exported field.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4636086
+
+ src/pkg/exp/template/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

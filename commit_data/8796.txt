@@ -1,0 +1,15 @@
+commit 12b226986000dcc80ba46190b17f85d4e9703154
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Jun 20 14:18:04 2011 -0400
+
+    5g, 5l: fix more set but not used warnings
+    
+    These are present when building with gcc 4.6.
+    
+    R=golang-dev, dave
+    CC=golang-dev, lvd
+    https://golang.org/cl/4636047
+
+ src/cmd/5g/reg.c  | 42 +++++++++++++++++++++---------------------
+ src/cmd/5l/noop.c | 24 ------------------------
+ 2 files changed, 21 insertions(+), 45 deletions(-)

@@ -1,0 +1,15 @@
+commit a469983943fcbaa63faa63230daad917447b34a0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 1 08:49:47 2023 -0700
+
+    doc/go1.21: fix type in closing tag
+    
+    Change-Id: Ibcdedb8222a80c0478f783f4a1800e472dbe062c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499935
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.21.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit ef9c211de82d690f4d93a5146b01b800fca077a9
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 31 17:26:04 2023 -0400
+
+    cmd/compile: modify debug-hash to support match exclusion
+    
+    The goal here is to enable a search that will locate all the instances
+    of a failure, not just the first one.  This helps with searches for
+    loopvar-change breakage, FP differences from fused-multiply-add, and
+    allows certain semantics queries that can be implemented as compiler
+    changes (for example, where does integer overflow routinely occur?)
+    
+    Change-Id: Ic28f1695d47e421c2089d1f3f7c4b40c56db970f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481195
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/base/hashdebug.go | 127 ++++++++++++++++++++---------
+ 1 file changed, 89 insertions(+), 38 deletions(-)

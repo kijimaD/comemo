@@ -1,0 +1,15 @@
+commit 898714a92f3ef3744b3c74487421c41ebbe7ab66
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 7 18:05:30 2009 -0800
+
+    tutorial fixes
+    
+    R=r
+    CC=go-dev
+    http://go/go-review/1024014
+
+ doc/go_tutorial.html   | 112 +++++++++++++++++++++++--------------------------
+ doc/go_tutorial.txt    | 104 ++++++++++++++++++++++-----------------------
+ doc/progs/cat_rot13.go |   4 +-
+ doc/progs/echo.go      |   4 +-
+ 4 files changed, 106 insertions(+), 118 deletions(-)

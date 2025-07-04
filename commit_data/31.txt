@@ -1,0 +1,8 @@
+commit 65348a89b80610be80012bd4c0780cbffe77731f
+Author: Rob Pike <r@golang.org>
+Date:   Sun Mar 16 21:47:38 2008 -0700
+
+    SVN=112717
+
+ doc/go_lang.txt | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

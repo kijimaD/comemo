@@ -1,0 +1,32 @@
+commit 76f578459a3db0153237816a7513497092463aae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 10 17:19:29 2018 -0700
+
+    go/types: use correct receiver types for embedded interface methods
+    
+    Interface methods don't declare a receiver (it's implicit), but after
+    type-checking the respective *types.Func objects are marked as methods
+    by having a receiver. For interface methods, the receiver base type used
+    to be the interface that declared the method in the first place, even if
+    the method also appeared in other interfaces via embedding. A change in
+    the computation of method sets for interfaces for Go1.10 changed that
+    inadvertently, with the consequence that sometimes a method's receiver
+    type ended up being an interface into which the method was embedded.
+    The exact behavior also depended on file type-checking order, and because
+    files are sometimes sorted by name, the behavior depended on file names.
+    
+    This didn't matter for type-checking (the typechecker doesn't need the
+    receiver), but it matters for clients, and for printing of methods.
+    
+    This change fixes interface method receivers at the end of type-checking
+    when we have all relevant information.
+    
+    Fixes #28005.
+    
+    Change-Id: I96c120fb0e517d7f8a14b8530f0273674569d5ea
+    Reviewed-on: https://go-review.googlesource.com/c/141358
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/issues_test.go | 67 +++++++++++++++++++++++++++++++++++++++++++++
+ src/go/types/typexpr.go     | 27 ++++++++++++++++--
+ 2 files changed, 92 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit b42c8294ebe5bde8e7368716f909385cf7be148d
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 29 13:52:07 2013 -0700
+
+    fmt: fix crash for Printf("%.", 3)
+    Fixes #5311
+    
+    R=golang-dev, bradfitz, iant
+    CC=golang-dev
+    https://golang.org/cl/8961050
+
+ src/pkg/fmt/fmt_test.go | 3 +++
+ src/pkg/fmt/print.go    | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,24 @@
+commit 6ab049b96578547b78f919810d01f94d94cc1981
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 15 15:10:32 2019 -0400
+
+    testing: panic on calls to Short/Verbose before Parse
+    
+    CL 121936 added this diagnostic to avoid a panic accessing *short.
+    (Hence the "This shouldn't really be a panic" comment.)
+    
+    That CL was right to produce a clearer error than a plain memory fault,
+    but I think wrong to print+exit instead of panicking. I just ran into
+    one of these in a real program, and there is no indication anywhere
+    of how the program reached this point. The panic will show that.
+    So change print+exit to a panic with a helpful message, in contrast
+    to the original panic with an unhelpful message and the current
+    helpful message without stack trace.
+    
+    Change-Id: Ib2bae1dead4ccde92f00fa3a34c05241ff7690c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177419
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/testing.go | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

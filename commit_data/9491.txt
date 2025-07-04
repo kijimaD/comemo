@@ -1,0 +1,14 @@
+commit dd0b8e7975e6965008f377d1194c80bf33fc995a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 25 16:53:54 2011 -0400
+
+    doc: emphasize that environment variables are optional
+    
+    Also update $GOARM description.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4972041
+
+ doc/install.html | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

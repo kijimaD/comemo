@@ -1,0 +1,18 @@
+commit 8f14f33f96d35416786d65664ca731ae75d1c733
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Jan 27 23:55:30 2020 +1100
+
+    cmd/compile/internal/ssa/gen: avoid importing internal riscv64 packages
+    
+    Duplicate the register definitions and names to avoid importing the
+    cmd/internal/obj/riscv64 package. This makes it possible to build compiler rules
+    with a stable Go tool chain.
+    
+    Fixes #36663
+    
+    Change-Id: I09116a97bb037ca1bc00073306a82bb88862b1e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216518
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go | 40 +++++++++++++++++++++-----
+ 1 file changed, 33 insertions(+), 7 deletions(-)

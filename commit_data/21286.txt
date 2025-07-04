@@ -1,0 +1,16 @@
+commit c3b459d328fefabe877368d907d3f2e10b44a506
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 15 21:02:51 2015 -0800
+
+    test: generate tests for arithmetic on narrow types
+    
+    Fixes #9607
+    Related to #9604
+    Inadvertently found #9609
+    
+    Change-Id: I8a8ddf84ac72d3e18986fd8e9288734459f3f174
+    Reviewed-on: https://go-review.googlesource.com/2962
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ test/fixedbugs/issue9604b.go | 177 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 177 insertions(+)

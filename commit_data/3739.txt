@@ -1,0 +1,15 @@
+commit 96ea081c04a1f59aefb8d90b52641e08d8a642a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 3 14:20:37 2009 -0800
+
+    6l -e: emit external ELF symbol table.
+    enough to make nm and oprofile work.
+    
+    R=r
+    http://go/go-review/1017016
+
+ src/cmd/6l/asm.c  | 52 ++++++++++++++++++++++++++++-
+ src/cmd/6l/l.h    |  4 +++
+ src/cmd/6l/span.c | 98 +++++++++++++++++++++++++++++++++++++++++++++++--------
+ src/cmd/ld/elf.c  |  2 +-
+ 4 files changed, 140 insertions(+), 16 deletions(-)

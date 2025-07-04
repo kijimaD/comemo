@@ -1,0 +1,13 @@
+commit 371aa14e0606f0a34a89330be1a34e908603e6c2
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Jun 14 17:32:47 2011 +1000
+
+    mail: decode RFC 2047 "B" encoding.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4584056
+
+ src/pkg/mail/message.go      | 89 ++++++++++++++++++++++++++++++--------------
+ src/pkg/mail/message_test.go | 23 +++++++++++-
+ 2 files changed, 83 insertions(+), 29 deletions(-)

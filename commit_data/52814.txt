@@ -1,0 +1,20 @@
+commit 69e66a1626eb585cd3e7261f8192590a931a4874
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 27 16:42:26 2023 -0700
+
+    go/types, types2: remove parse (we only need mustParse for tests)
+    
+    While at it, also simplify mustTypecheck again as it can just use
+    typecheck.
+    
+    Change-Id: I6cb07b1078d9a39e0f22851028fdd4442127f2f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490015
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/api_test.go | 22 ++++------------------
+ src/go/types/api_test.go                    | 24 +++++-------------------
+ 2 files changed, 9 insertions(+), 37 deletions(-)

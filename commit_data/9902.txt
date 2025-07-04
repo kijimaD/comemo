@@ -1,0 +1,12 @@
+commit b5260364b1e9176417a577796ebe8f0a9f37f8b0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Oct 7 22:53:12 2011 +0900
+
+    net: add File method to IPConn
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5237041
+
+ src/pkg/net/iprawsock_posix.go | 5 +++++
+ 1 file changed, 5 insertions(+)

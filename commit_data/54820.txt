@@ -1,0 +1,20 @@
+commit f215a0be4d1231d897123e28324ab024f3502a52
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sun Oct 29 02:11:19 2023 +0000
+
+    cmd/compile/internal/ssa: add missing space in comment
+    
+    Change-Id: I54c3e8e0d61ceb6533284098dc32944f9f14459e
+    GitHub-Last-Rev: 9793d9d039911b74396b315ce47ad0a53169d25c
+    GitHub-Pull-Request: golang/go#63806
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538375
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+
+ src/cmd/compile/internal/ssa/lca.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 3f38342e24ead62afb8834de965e4d8758b5051f
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Jan 5 13:00:08 2011 +1100
+
+    doc: update contribution guidelines to prefix the change description
+    with the primary affected package.
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/3867041
+
+ doc/contribute.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

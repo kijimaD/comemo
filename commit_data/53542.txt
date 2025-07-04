@@ -1,0 +1,18 @@
+commit ee5af6103da43c44104b1d06eaf5a23cd9b87085
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 7 16:56:28 2023 -0700
+
+    spec: document new program initialization process
+    
+    For #57411.
+    
+    Change-Id: I94982d939d16ad17174f801cc167cc10ddc8da30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501696
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ doc/go_spec.html | 39 +++++++++++++++++++++++++--------------
+ 1 file changed, 25 insertions(+), 14 deletions(-)

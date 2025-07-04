@@ -1,0 +1,20 @@
+commit ec10bf8f4323713dd1c7aaf2f34a6a2783bbd349
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 28 14:54:53 2009 -0700
+
+    permit only one method name per method signature in interface types
+    (in sync with spec CL 35047)
+    
+    R=rsc
+    DELTA=44  (4 added, 8 deleted, 32 changed)
+    OCL=35048
+    CL=35054
+
+ src/pkg/go/parser/parser.go                     | 19 ++++++++-----------
+ src/pkg/go/printer/printer.go                   |  7 ++-----
+ src/pkg/go/printer/testdata/comments.go         |  9 +++++----
+ src/pkg/go/printer/testdata/comments.golden     |  9 +++++----
+ src/pkg/go/printer/testdata/comments.x          |  6 +++---
+ src/pkg/go/printer/testdata/declarations.go     | 10 +++++-----
+ src/pkg/go/printer/testdata/declarations.golden | 12 ++++++------
+ 7 files changed, 34 insertions(+), 38 deletions(-)

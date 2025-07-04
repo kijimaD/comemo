@@ -1,0 +1,17 @@
+commit 06f709a04acc6d5ba0ba181129e9ee93ed20f311
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 26 10:07:13 2019 -0400
+
+    doc/go1.13: move 'go get -t' paragraph to be adjacent to 'go get -u' changes
+    
+    As suggested by thepudds in CL 183630.
+    
+    Also adjust the paragraph to harmonize the transitions between the
+    newly-adjacent paragraphs.
+    
+    Change-Id: Ie85abea946db81804c1995d27be4951d5db6b812
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183918
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.13.html | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

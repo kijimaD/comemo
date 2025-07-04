@@ -1,0 +1,15 @@
+commit 71b3b460738decbce5f1797492eaa59b06d69687
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Feb 26 00:45:43 2013 +0100
+
+    cmd/gc: accept cases with same value but different types in switch.
+    
+    Fixes #4781.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7365056
+
+ src/cmd/gc/swt.c | 12 ++++++++----
+ test/switch.go   | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 4 deletions(-)

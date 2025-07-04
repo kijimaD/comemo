@@ -1,0 +1,21 @@
+commit fc583c542b99b3b1a41ac22964b8f48fc340fc95
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 24 09:53:26 2017 -0700
+
+    .github: update ISSUE_TEMPLATE to be closer to 'go bug'
+    
+    Ask whether the issue reproduces with the latest release.
+    
+    'go bug' places the version and system details last,
+    in part because they're automatically filled.
+    I'd like to do the same here, but I worry
+    that they'll get ignored.
+    
+    Change-Id: Iec636a27e6e36d61dca421deaf24ed6fe35d4b11
+    Reviewed-on: https://go-review.googlesource.com/50931
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Avelino <t@avelino.xxx>
+
+ .github/ISSUE_TEMPLATE | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

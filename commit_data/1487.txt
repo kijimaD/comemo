@@ -1,0 +1,12 @@
+commit 3decb42e6f519ff324383033777d84e3e097b42f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 15 16:20:21 2009 -0800
+
+    add warning for export of lowercase too.
+    
+    R=ken
+    OCL=22887
+    CL=22887
+
+ src/cmd/gc/export.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit ce9417ee1a2bb90fca34c87dc4f7516dfb5519b5
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 12 17:08:47 2009 -0700
+
+    fix language regarding type of numeric literals
+    
+    R=rsc
+    DELTA=4  (0 added, 2 deleted, 2 changed)
+    OCL=26208
+    CL=26212
+
+ doc/go_spec.html | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

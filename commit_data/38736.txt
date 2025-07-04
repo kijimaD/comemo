@@ -1,0 +1,22 @@
+commit 134ef176f0ebe7e47cd69a400f73cb310a3152c0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 12 09:29:43 2019 -0700
+
+    cmd/link, cmd/internal/obj: use encoding/binary for varint
+    
+    This code was written before the c2go toolchain conversion.
+    Replace the handwritten varint encoding routines
+    and the handwritten unsigned-to-signed conversions
+    with calls to encoding/binary.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I30d7f408cde3772ee98a3825e83075c4e1ec96d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171769
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/pcln.go     | 34 +++++++++----------
+ src/cmd/link/internal/ld/pcln.go | 72 ++++++++++++++--------------------------
+ 2 files changed, 40 insertions(+), 66 deletions(-)

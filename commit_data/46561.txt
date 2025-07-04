@@ -1,0 +1,28 @@
+commit 1319b1476ea6f55c780936d133a005054fa81234
+Author: Zvonimir Pavlinovic <zpavlinovic@google.com>
+Date:   Wed Aug 11 13:47:07 2021 -0700
+
+    cmd/go/internal/test: pass only analysis flags to vet
+    
+    In go test vet=x, x should be off, all, or one of the analyses supported
+    by vet. All other flags should not be passed to vet. This CL maintains a
+    list of supported vet analyzers by running go tool vet -flags and
+    parsing the flag info to figure out the names of the supported analyzers
+    and their aliases.
+    
+    Fixes #47309
+    
+    Change-Id: I16ade8024301ad4aee5ad45aa92cf63b63dbc2d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341334
+    Trust: Zvonimir Pavlinovic <zpavlinovic@google.com>
+    Run-TryBot: Zvonimir Pavlinovic <zpavlinovic@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/test/flagdefs.go               | 34 +++++++++++
+ src/cmd/go/internal/test/flagdefs_test.go          | 19 ++++++
+ src/cmd/go/internal/test/genflags.go               | 21 ++++++-
+ .../go/internal/test/internal/genflags/vetflag.go  | 68 ++++++++++++++++++++++
+ src/cmd/go/internal/test/testflag.go               | 10 +++-
+ src/cmd/go/testdata/script/test_vet.txt            | 11 ++++
+ 6 files changed, 160 insertions(+), 3 deletions(-)

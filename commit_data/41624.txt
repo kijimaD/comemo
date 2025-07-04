@@ -1,0 +1,37 @@
+commit 040855e39bb471b09f3803cbca2c8d683b2bc6dc
+Author: David Chase <drchase@google.com>
+Date:   Wed Mar 11 20:17:14 2020 -0400
+
+    test: restore no-gogcflags build shortcut, save time
+    
+    With a clean cache on a laptop
+    before change
+    time go run run.go -- . fixedbugs
+      real  2m10.195s
+      user  3m16.547s
+      sys   1m52.939s
+    
+    Or, before, directly after make.bash (the actual use case we care about)
+    time go run run.go -- . fixedbugs
+      real  2m8.704s
+      user  3m12.327s
+      sys   1m49.123s
+    
+    after change
+    time go run run.go -- . fixedbugs
+      real  1m38.915s
+      user  2m38.389s
+      sys   1m8.490s
+    
+    Tests, fortunately, still seem to pass.
+    
+    Latest version of this takes the slow route for cross-compilation, which includes wasm.
+    
+    Change-Id: Iad19951612defa96c4e9830bce920c5e8733834a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223083
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/run.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

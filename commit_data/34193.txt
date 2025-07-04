@@ -1,0 +1,13 @@
+commit 229a8ce639f6c729700ad19321705b654890b502
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 14 18:08:19 2018 -0800
+
+    doc: remove draft notice from Go 1.10 release notes
+    
+    Change-Id: I063b556b59ecb8a8f4a3f121c32982b90eee2d74
+    Reviewed-on: https://go-review.googlesource.com/94159
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.10.html | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

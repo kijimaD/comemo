@@ -1,0 +1,18 @@
+commit ed2f84a94e1d0903bc16974dca308a9382b596b6
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Wed Jul 11 23:39:49 2018 +0300
+
+    cmd/internal/obj/arm64: simplify some bool expressions
+    
+    Replace `!(o1 != 0)` with `o1 == 0` (for readability).
+    
+    Found using https://go-critic.github.io/overview.html#boolExprSimplify-ref
+    
+    Change-Id: I4fc035458f530973f9be15b38441ec7b5fb591ec
+    Reviewed-on: https://go-review.googlesource.com/123377
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/arm64/asm7.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

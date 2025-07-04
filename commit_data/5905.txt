@@ -1,0 +1,17 @@
+commit 1ea5d154075033742ed2017950466af094d862f7
+Author: Vinu Rajashekhar <vinutheraj@gmail.com>
+Date:   Wed Jul 28 18:26:29 2010 -0700
+
+    test/sigchld.go: use syscall.Kill instead of a combination
+    of syscall.Syscall and syscall.SYS_KILL.
+    
+    In RTEMS, there is no syscall.Syscall support, but it does
+    support POSIX signals. So, if this testcase is changed to use
+    syscall.Kill, then it would run fine on RTEMS, when using gccgo.
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/1863046
+
+ test/sigchld.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

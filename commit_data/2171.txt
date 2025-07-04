@@ -1,0 +1,34 @@
+commit c8b47c6fceeb249ab9e6f39503615ebe2ea205ce
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 8 11:22:57 2009 -0700
+
+    Name change to improve embeddability:
+            io.Read->io.Reader
+            io.Write,Close,etc.->io.Writer,Closer etc.
+    
+    R=rsc
+    DELTA=190  (0 added, 0 deleted, 190 changed)
+    OCL=28525
+    CL=28535
+
+ src/cmd/gobuild/makefile.go       |  8 +++---
+ src/lib/bufio/bufio.go            | 22 +++++++--------
+ src/lib/bufio/bufio_test.go       | 14 +++++-----
+ src/lib/fmt/print.go              | 14 +++++-----
+ src/lib/go/parser/parser.go       |  2 +-
+ src/lib/http/server.go            |  6 ++---
+ src/lib/io/io.go                  | 56 +++++++++++++++++++--------------------
+ src/lib/io/pipe.go                |  6 ++---
+ src/lib/io/pipe_test.go           | 22 +++++++--------
+ src/lib/log/log.go                |  6 ++---
+ src/lib/net/tcpserver_test.go     |  2 +-
+ src/lib/tabwriter/tabwriter.go    |  6 ++---
+ src/lib/template/format.go        |  6 ++---
+ src/lib/template/template.go      |  6 ++---
+ src/lib/template/template_test.go |  4 +--
+ usr/gri/pretty/astprinter.go      | 22 +++++++--------
+ usr/gri/pretty/comment.go         |  4 +--
+ usr/gri/pretty/format.go          | 18 ++++++-------
+ usr/gri/pretty/godoc.go           | 10 +++----
+ usr/gri/pretty/pretty.go          |  8 +++---
+ 20 files changed, 121 insertions(+), 121 deletions(-)

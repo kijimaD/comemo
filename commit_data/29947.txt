@@ -1,0 +1,20 @@
+commit 0642b8a2f1837901f31066b679173e89325b6be3
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Sep 30 11:12:01 2016 -0400
+
+    syscall: export Fsid.X__val on s390x
+    
+    mkpost.go replaces all variables prefixed with 'X_' with '_' on s390x
+    because most of them do not need to be exposed. X__val is being used
+    by a third party library so it turns out we do need to expose it on
+    s390x (it is already exposed on all other Linux architectures).
+    
+    Fixes #17298 and updates #18632.
+    
+    Change-Id: Ic03463229a5f75ca41a4a4b50300da4b4d892d45
+    Reviewed-on: https://go-review.googlesource.com/30130
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/mkpost.go             | 7 +++++++
+ src/syscall/ztypes_linux_s390x.go | 2 +-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

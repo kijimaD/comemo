@@ -1,0 +1,14 @@
+commit 0ed86cda677f04a9ca01498dfa9722f234f984d2
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Aug 5 17:57:29 2019 +0200
+
+    doc: mention Unicode update in release notes
+    
+    Fixes #33472
+    
+    Change-Id: Iab69e69589f2e017f4cf9770858884b1a570c89e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188799
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.13.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

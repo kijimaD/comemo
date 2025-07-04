@@ -1,0 +1,23 @@
+commit 3c745d750e8342b1dd4144a83488b559efb8b271
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat May 13 19:11:44 2017 +0200
+
+    go/types: don't panic in complex division
+    
+    Make sure that in complex division we reject divisors that would
+    underflow to zero when using the textbook complex-division method we
+    currently use.
+    
+    This change does for go/types what golang.org/cl/42650 did for gc.
+    
+    Fixes #20227
+    
+    Change-Id: Iaa784ac5e60141f51c501eb0e3ce0e9c1c2993d0
+    Reviewed-on: https://go-review.googlesource.com/44590
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/expr.go        | 22 ++++++++++++++++++----
+ src/go/types/stdlib_test.go |  1 -
+ 2 files changed, 18 insertions(+), 5 deletions(-)

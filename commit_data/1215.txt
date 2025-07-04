@@ -1,0 +1,18 @@
+commit 5a863a4ece7e23f77e89cc4c9420df73e5d786ae
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 21 12:36:16 2008 -0800
+
+    convert lib to a Makefile,
+    mainly for "make bufio.install".
+    
+    R=r
+    DELTA=144  (80 added, 62 deleted, 2 changed)
+    OCL=19760
+    CL=19799
+
+ src/clean.bash     |  2 +-
+ src/lib/Makefile   | 84 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/clean.bash | 13 ---------
+ src/lib/make.bash  | 56 ------------------------------------
+ src/make.bash      |  2 +-
+ 5 files changed, 86 insertions(+), 71 deletions(-)

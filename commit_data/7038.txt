@@ -1,0 +1,15 @@
+commit c0332fc93f36bfaf6a5fe681c73d743c36d9f301
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 5 10:11:34 2011 -0800
+
+    fmt: normalize processing of format string
+    The old loop was a bit odd; change it to be more regular.
+    This also enables a diagnostic for Printf("%", 3): %!(NOVERB)
+    
+    R=rsc, Kyle C
+    CC=golang-dev
+    https://golang.org/cl/3749044
+
+ src/pkg/fmt/fmt_test.go |  8 +++++---
+ src/pkg/fmt/print.go    | 20 +++++++++++---------
+ 2 files changed, 16 insertions(+), 12 deletions(-)

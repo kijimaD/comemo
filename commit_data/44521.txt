@@ -1,0 +1,25 @@
+commit f0b6d3753f57bf37487b127f968920743c401ed9
+Author: Tao Qingyun <qingyunha@gmail.com>
+Date:   Fri Mar 5 04:01:00 2021 +0000
+
+    cmd/go: update PWD variable for 'go generate'
+    
+    Most subprocess invocations in the go command use base.AppendPWD to
+    append an accurate value of PWD to the command's environment, which can
+    speed up calls like os.Getwd and also help to provide less-confusing
+    output from scripts. Update `go generate` to do so.
+    
+    Fixes #43862
+    
+    Change-Id: I3b756f1532b2d922f7d74fd86414d5567a0122c0
+    GitHub-Last-Rev: 3ec8da265a2777d1dcbcea00f107b8f5905f3640
+    GitHub-Pull-Request: golang/go#43940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287152
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Baokun Lee <bk@golangcn.org>
+
+ src/cmd/go/internal/generate/generate.go |  1 +
+ src/cmd/go/testdata/script/generate.txt  | 10 +++++++++-
+ 2 files changed, 10 insertions(+), 1 deletion(-)

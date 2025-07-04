@@ -1,0 +1,13 @@
+commit 3f42f44227db4bdcfd5848c5089ab96795ffc06e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 31 13:28:01 2009 -0700
+
+    - incorporation of suggestions by rsc
+    
+    R=rsc
+    OCL=26959
+    CL=26959
+
+ usr/gri/pretty/compilation.go | 24 +++++------
+ usr/gri/pretty/parser.go      | 97 ++++++++++++++++++++++++++-----------------
+ 2 files changed, 68 insertions(+), 53 deletions(-)

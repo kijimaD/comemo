@@ -1,0 +1,22 @@
+commit a79623b019b1ea3f4afb7e274c76c1e9936f0aa6
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 4 14:33:41 2022 -0400
+
+    doc/go1.19: add more TODOs from updated relnote
+    
+    CL 410244 changes relnote to look for api file changes as well
+    as references to proposal issues, finding various things that
+    were missing from the release notes.
+    
+    This CL adds the TODOs that the updated relnote found.
+    
+    For #51400.
+    
+    Change-Id: I512a9b8f1349a6c68c8a6979f55a07964d630175
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410361
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ doc/go1.19.html | 224 ++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 201 insertions(+), 23 deletions(-)

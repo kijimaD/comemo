@@ -1,0 +1,16 @@
+commit 1d2955a2afac04f5d392ecb1ad8b489f28976bf4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 25 13:31:55 2014 -0400
+
+    runtime: round channel size in allocation instead of using system-specific pad field
+    
+    Followup to CL 128700043.
+    
+    LGTM=bradfitz, dvyukov
+    R=dvyukov, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/133850043
+
+ src/pkg/runtime/chan.go | 4 ++--
+ src/pkg/runtime/chan.h  | 3 ---
+ 2 files changed, 2 insertions(+), 5 deletions(-)

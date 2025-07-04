@@ -1,0 +1,46 @@
+commit 972e8839254d59dc04a1193c4c9633a74595a2e7
+Author: Changkun Ou <hi@changkun.de>
+Date:   Tue Feb 23 09:58:14 2021 +0100
+
+    runtime/cgo: add Handle for managing (c)go pointers
+    
+    A non-trivial Cgo program may need to use callbacks and interact with
+    go objects per goroutine. Because of the rules for passing pointers
+    between Go and C, such a program needs to store handles to associated
+    Go values. This often causes much extra effort to figure out a way to
+    correctly deal with: 1) map collision; 2) identifying leaks and 3)
+    concurrency.
+    
+    This CL implements a Handle representation in runtime/cgo package, and
+    related methods such as Value, Delete, etc. which allows Go users can
+    use a standard way to handle the above difficulties.
+    
+    In addition, the CL allows a Go value to have multiple handles, and the
+    NewHandle always returns a different handle compare to the previously
+    returned handles. In comparison, CL 294670 implements a different
+    behavior of NewHandle that returns a unique handle when the Go value is
+    referring to the same object.
+    
+    Benchmark:
+    name                      time/op
+    Handle/non-concurrent-16  487ns ± 1%
+    Handle/concurrent-16      674ns ± 1%
+    
+    Fixes #37033
+    
+    Change-Id: I0eadb9d44332fffef8fb567c745246a49dd6d4c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295369
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Zhang <cherryyz@google.com>
+
+ doc/go1.17.html                 |   9 ++++
+ misc/cgo/test/cgo_test.go       |   1 +
+ misc/cgo/test/test.go           |  22 +++++++++
+ misc/cgo/test/testx.go          |  12 +++++
+ src/cmd/cgo/doc.go              |   3 ++
+ src/cmd/link/internal/ld/lib.go |   7 ++-
+ src/runtime/cgo/handle.go       | 103 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/cgo/handle_test.go  | 103 ++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 259 insertions(+), 1 deletion(-)

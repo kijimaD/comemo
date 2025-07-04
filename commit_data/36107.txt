@@ -1,0 +1,29 @@
+commit 30d7e6449fd7fb18415f9b3889309f2d24559ada
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 20 15:51:40 2018 -0400
+
+    misc/cgo/test: disable some Darwin tests in cgo mode
+    
+    For unknown reasons, linking against CoreFoundation on macOS 10.10
+    sometimes causes mmap to ignore the hint address, which makes the Go
+    allocator incompatible with TSAN. Currently, the effect of this is to
+    run the allocator out of arena hints on the very first allocation,
+    causing a "too many address space collisions for -race mode" panic.
+    
+    This CL skips the cgo tests that link against CoreFoundation in race
+    mode.
+    
+    Updates #26475.
+    Updates #26513.
+    
+    Change-Id: I52ec638c99acf5d4966e68ff0054f7679680dac6
+    Reviewed-on: https://go-review.googlesource.com/125304
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ misc/cgo/test/issue21897.go             | 11 ++++++++++-
+ misc/cgo/test/issue21897b.go            |  2 +-
+ misc/cgo/test/issue24161_darwin_test.go |  8 ++++++++
+ 3 files changed, 19 insertions(+), 2 deletions(-)

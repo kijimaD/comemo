@@ -1,0 +1,23 @@
+commit 5a3d871831c9febebe513863a26ecc6da1c9c4f3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 22 12:20:26 2021 -0500
+
+    net: allow more generous slop in Fluctuation tests
+    
+    It appears that at least the OpenBSD kernel gets sloppier the longer
+    the timeout we give it, up to an observed overhead of around 25%.
+    Let's give it a little more than that (33%) in the comparison, and
+    also increase the growth curve to match the actual observed times
+    instead of exponential initial growth.
+    
+    Fixes #36108
+    
+    Change-Id: Id3e54559b7c45b7c8bc0ca07dce74ca60e77e7ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366176
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/timeout_test.go | 61 +++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 46 insertions(+), 15 deletions(-)

@@ -1,0 +1,25 @@
+commit b0cbe158da10aac1876680e825a902d58a9d1bac
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Mon Apr 11 22:19:34 2016 +0300
+
+    cmd/link: move function only lsym fields to pcln struct
+    
+    name       old secs    new secs    delta
+    LinkCmdGo   0.53 ± 9%   0.53 ±10%  -1.30%  (p=0.022 n=100+99)
+    
+    name       old MaxRSS  new MaxRSS  delta
+    LinkCmdGo   151k ± 4%   142k ± 6%  -5.92%  (p=0.000 n=98+100)
+    
+    Change-Id: Ic30e63a948f8e626b3396f458a0163f7234810c1
+    Reviewed-on: https://go-review.googlesource.com/21920
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/deadcode.go |  7 +++++--
+ src/cmd/link/internal/ld/dwarf.go    |  2 +-
+ src/cmd/link/internal/ld/lib.go      | 17 ++++++++++++++---
+ src/cmd/link/internal/ld/link.go     |  6 +++---
+ src/cmd/link/internal/ld/objfile.go  | 13 +++++++------
+ src/cmd/link/internal/ld/pcln.go     |  6 +++++-
+ 6 files changed, 35 insertions(+), 16 deletions(-)

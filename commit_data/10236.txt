@@ -1,0 +1,21 @@
+commit a7f1141dee05bf889b64401c787f08e1c8643e88
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 3 14:44:29 2011 -0700
+
+    net/http/httputil: new package; move ClientConn and ServerConn
+    
+    Part of http diet plan.
+    
+    More of the lesser-used and newcomer-misleading parts of http will
+    move here.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5336049
+
+ src/pkg/Makefile                           |  4 ++-
+ src/pkg/net/http/Makefile                  |  1 -
+ src/pkg/net/http/httputil/Makefile         | 11 ++++++++
+ src/pkg/net/http/{ => httputil}/persist.go | 43 ++++++++++++++----------------
+ src/pkg/net/http/serve_test.go             |  3 ++-
+ 5 files changed, 36 insertions(+), 26 deletions(-)

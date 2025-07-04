@@ -1,0 +1,13 @@
+commit eaa070448354c1710f053806dc703ad1d3a20558
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 16 21:14:38 2013 +0400
+
+    test: say that nilptr2.go requires 256+MB stack
+    Fixes #6161.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13059043
+
+ test/nilptr2.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

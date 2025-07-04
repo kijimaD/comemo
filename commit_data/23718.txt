@@ -1,0 +1,12 @@
+commit 816222d10ffc9317386da8a8cdffca14b32b562f
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jul 16 11:13:42 2015 +1000
+
+    image/color: fix format typo in the tests.
+    
+    Change-Id: I6f79d201aa4e8c0e3be8d965f14ed36518536036
+    Reviewed-on: https://go-review.googlesource.com/12281
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/color/ycbcr_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

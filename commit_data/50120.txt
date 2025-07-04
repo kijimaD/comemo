@@ -1,0 +1,23 @@
+commit 95a786da1265d84290c1a0d1186352f71475ff9f
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Sat Nov 13 02:18:30 2021 +0200
+
+    path/filepath, io/fs: add SkipAll
+    
+    Fixes #47209
+    
+    Change-Id: If75b0dd38f2c30a23517205d80c7a6683a5c921c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363814
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ api/next/47209.txt                    |  2 ++
+ src/cmd/go/internal/fsys/fsys_test.go | 36 ++++++++++++++++++++++
+ src/io/fs/walk.go                     | 20 ++++++++----
+ src/path/filepath/path.go             | 16 +++++++---
+ src/path/filepath/path_test.go        | 58 +++++++++++++++++++++++++++++++++++
+ 5 files changed, 121 insertions(+), 11 deletions(-)

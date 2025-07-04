@@ -1,0 +1,30 @@
+commit 48403b268bd31a220685c28a94259a461b352e3e
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Tue Apr 14 10:12:32 2020 +0100
+
+    cmd/compile: error if register is reused when setting edge state
+    
+    When setting the edge state in register allocation we should only
+    be setting each register once. It is not possible for a register
+    to hold multiple values at once.
+    
+    This CL converts the runtime error seen in #38195 into an internal
+    compiler error (ICE). It is better for the compiler to fail than
+    generate an incorrect program.
+    
+    The bug reported in #38195 is now exposed as:
+    
+    ./parserc.go:459:11: internal compiler error: 'yaml_parser_parse_node': R5 is already set (v1074/v1241)
+    
+    [stack trace]
+    
+    Updates #38195.
+    
+    Change-Id: Id95842fd850b95494cbd472b6fd5a55513ecacec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228060
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 3 +++
+ 1 file changed, 3 insertions(+)

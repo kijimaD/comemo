@@ -1,0 +1,14 @@
+commit 825373e4f02d415b687806d8f5ebe9bc19f1d336
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jul 10 10:14:31 2013 +1000
+
+    encoding/xml: fix typo in docs
+    
+    Fixes #5843.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/11073043
+
+ src/pkg/encoding/xml/read.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 649b89377e91ad6dbe710784f9e662082d31a1ff
+Author: David Heuschmann <heuschmann.d@gmail.com>
+Date:   Tue Nov 20 12:30:14 2018 +0100
+
+    os: return an error from UserHomeDir to match UserCacheDir
+    
+    UserHomeDir used to return an empty string if the corresponding
+    environment variable was not set. Changed it to return an error if the
+    variable is not set, to have the same signature and behaviour as UserCacheDir.
+    
+    Fixes #28562
+    
+    Change-Id: I42c497e8011ecfbbadebe7de1751575273be221c
+    Reviewed-on: https://go-review.googlesource.com/c/150418
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/x509/root_darwin.go |  6 +++---
+ src/os/file.go                 | 18 ++++++++++--------
+ src/os/os_test.go              |  9 ++++++---
+ 3 files changed, 19 insertions(+), 14 deletions(-)

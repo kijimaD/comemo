@@ -1,0 +1,12 @@
+commit a665e2924c295b5dd935032b88a6c0f5ed66b3c0
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Feb 21 12:41:34 2009 -0800
+
+    bug with select :=
+    
+    R=r
+    OCL=25278
+    CL=25278
+
+ src/cmd/gc/walk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

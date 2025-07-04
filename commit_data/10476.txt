@@ -1,0 +1,16 @@
+commit 86c08e961136f01d34db7759166433d55e8914b2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Nov 22 07:10:25 2011 +1100
+
+    goinstall: support googlecode subrepos and add repo match tests
+    goinstall: don't hit network unless a checkout or update is required
+    
+    R=rsc, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/5343042
+
+ src/cmd/goinstall/doc.go           |   4 +
+ src/cmd/goinstall/download.go      | 504 ++++++++++++++++++++++---------------
+ src/cmd/goinstall/download_test.go | 140 +++++++++++
+ src/cmd/goinstall/main.go          |  20 +-
+ 4 files changed, 470 insertions(+), 198 deletions(-)

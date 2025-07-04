@@ -1,0 +1,14 @@
+commit 0282cc5e7437593787ccb8418b178c7e04870089
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 15 14:26:33 2009 -0800
+
+    gc: var x, ok = m[y]
+    
+    Fixes #384.
+    
+    R=ken2
+    https://golang.org/cl/179061
+
+ src/cmd/gc/sinit.c       |  6 ++++++
+ test/fixedbugs/bug227.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+)

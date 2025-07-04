@@ -1,0 +1,25 @@
+commit 309144b7f1090cbc7c3a90eb252d20a939caf398
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 1 11:05:30 2016 -0700
+
+    cmd/compile: fix x=x assignments
+    
+    No point in doing anything for x=x assignments.
+    In addition, skipping these assignments prevents generating:
+        VARDEF x
+        COPY x -> x
+    which is bad because x is incorrectly considered
+    dead before the vardef.
+    
+    Fixes #14904
+    
+    Change-Id: I6817055ec20bcc34a9648617e0439505ee355f82
+    Reviewed-on: https://go-review.googlesource.com/21470
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/ssa.go                 |  11 +++
+ src/cmd/compile/internal/gc/ssa_test.go            |   2 +
+ .../compile/internal/gc/testdata/namedReturn.go    | 101 +++++++++++++++++++++
+ test/live_ssa.go                                   |  13 ++-
+ 4 files changed, 120 insertions(+), 7 deletions(-)

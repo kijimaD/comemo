@@ -1,0 +1,15 @@
+commit 7bb335c7de19c52ca1cd3dec7b1433fde01595b6
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 6 03:43:44 2009 -0800
+
+    document io
+    
+    R=rsc
+    DELTA=44  (30 added, 4 deleted, 10 changed)
+    OCL=25819
+    CL=25835
+
+ src/lib/io/bytebuffer.go | 21 ++++++++++++++-------
+ src/lib/io/io.go         | 26 +++++++++++++++++++++-----
+ src/lib/io/pipe.go       |  5 ++++-
+ 3 files changed, 39 insertions(+), 13 deletions(-)

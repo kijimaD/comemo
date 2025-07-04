@@ -1,0 +1,33 @@
+commit f8779b9e757e38810bec2284e06fea20bbf09bf4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Apr 1 17:01:51 2021 -0400
+
+    runtime: rename _m_ to mp [generated]
+    
+    _g_, _p_, and _m_ are primarily vestiges of the C version of the
+    runtime, while today we prefer Go-style variable names (generally gp,
+    pp, and mp).
+    
+    This change replaces all remaining uses of _m_ with mp. There are very
+    few remaining and all replacements are trivial.
+    
+    [git-generate]
+    cd src/runtime
+    
+    rf 'mv canpanic._m_ canpanic.mp'
+    GOOS=solaris \
+      rf 'mv semasleep._m_ semasleep.mp'
+    GOOS=aix GOARCH=ppc64 \
+      rf 'mv semasleep._m_ semasleep.mp'
+    
+    Change-Id: I83690f7b4d4dc57557963100e9a2560ff343f3e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307813
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/os3_solaris.go | 42 +++++++++++++++++++++---------------------
+ src/runtime/os_aix.go      |  8 ++++----
+ src/runtime/panic.go       |  8 ++++----
+ 3 files changed, 29 insertions(+), 29 deletions(-)

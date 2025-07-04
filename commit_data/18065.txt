@@ -1,0 +1,15 @@
+commit 2b3ad827a6c45395db669aeec3313ac134582a56
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Dec 19 07:40:10 2013 +0900
+
+    net: add test cases for the both of netgo, cgo DNS lookups
+    
+    Update #4078
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/14638043
+
+ src/pkg/net/cgo_unix_test.go   | 24 ++++++++++++++++++++++++
+ src/pkg/net/netgo_unix_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)

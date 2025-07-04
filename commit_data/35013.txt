@@ -1,0 +1,20 @@
+commit 1670921a07bc25116d6fdcafb849e1ff8bd6e9bc
+Author: tengufromsky <nick27surgut@gmail.com>
+Date:   Sat Apr 14 10:50:52 2018 +0300
+
+    time: increase test coverage for Time.Sub
+    
+    Existing tests don't check overflow and underflow case for subtraction
+    monotonic time.
+    
+    Updates #17858
+    
+    Change-Id: I95311440134c92eadd7d5e409a0fc7c689e9bf41
+    Reviewed-on: https://go-review.googlesource.com/107056
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/internal_test.go | 5 +++++
+ src/time/time_test.go     | 2 ++
+ 2 files changed, 7 insertions(+)

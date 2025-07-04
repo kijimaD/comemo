@@ -1,0 +1,18 @@
+commit 3a7f8ccf246a5929458a7f818c1d4c125ac72892
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Jul 1 18:10:02 2020 -0400
+
+    go/types: add tests for AssignableTo and ConvertibleTo
+    
+    These exported functions are mostly trivial wrappers, but do make
+    certain assumptions about how the underlying Checker APIs can be called.
+    Add some simple tests.
+    
+    Change-Id: I68e9ae875353c12d118ec961a6f3834385fbbb97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241262
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/api_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)

@@ -1,0 +1,12 @@
+commit a915cb47eef8acc8998414cd5f88c13614821e92
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 4 01:05:32 2014 -0400
+
+    runtime: fix onM test for curg on arm
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/137130043
+
+ src/pkg/runtime/asm_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

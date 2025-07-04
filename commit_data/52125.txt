@@ -1,0 +1,21 @@
+commit af2bc6de6203608f26217d59db0d1a31549272e6
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Mon Feb 27 12:07:57 2023 +0800
+
+    net,os: set the theoretical unlimited remaining bytes to max int64
+    
+    Based on https://go-review.googlesource.com/c/go/+/466015/comment/073a63fa_7a9e485f
+    
+    Change-Id: I3e1b035de6b8217c5fa5695e436f164b3058e33c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471439
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/net/sendfile_linux.go | 2 +-
+ src/net/splice_linux.go   | 2 +-
+ src/os/readfrom_linux.go  | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,30 @@
+commit c3a871fde17a33605600b1206904daa7f7d04bb3
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Sep 22 01:26:50 2019 +0200
+
+    cmd/compile: in poset, make constant handling more flexible
+    
+    Currently, constants in posets, in addition to being stored in
+    a DAG, are also stored as SSA values in a slice. This allows to
+    quickly go through all stored constants, but it's not easy to search
+    for a specific constant.
+    
+    Following CLs will benefit from being able to quickly find
+    a constants by value in the poset, so change the constants
+    structure to a map. Since we're at it, don't store it as
+    *ssa.Value: poset always uses dense uint32 indices when
+    referring a node, so just switch to it.
+    
+    Using a map also forces us to have a single node per
+    constant value: this is a good thing in the first place,
+    so this CL also make sure we never create two nodes for
+    the same constant value.
+    
+    Change-Id: I099814578af35f935ebf14bc4767d607021f5f8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196781
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/poset.go | 161 +++++++++++++++++++++-------------
+ 1 file changed, 99 insertions(+), 62 deletions(-)

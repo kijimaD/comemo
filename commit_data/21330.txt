@@ -1,0 +1,15 @@
+commit 19c1b163e85ba5a25d95f8174a90b2dc2470a18f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 22 09:16:20 2015 -0800
+
+    bytes, strings: improve documentation for Count functions
+    
+    Fixes #9659.
+    
+    Change-Id: If364d5984a0c9a48858ae524b1560f633e621826
+    Reviewed-on: https://go-review.googlesource.com/3181
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/bytes/bytes.go     | 3 ++-
+ src/strings/strings.go | 1 +
+ 2 files changed, 3 insertions(+), 1 deletion(-)

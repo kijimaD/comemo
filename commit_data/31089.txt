@@ -1,0 +1,15 @@
+commit 20edbda5ea38a690d3260e5396c25135afc80069
+Author: Alexander Menzhinsky <amenzhinsky@gmail.com>
+Date:   Mon Apr 10 13:12:51 2017 -0500
+
+    cmd/go: add better error message when gccgo is missing
+    
+    Fixes #19628
+    
+    Change-Id: I19baf694c66aaca8e0d95297c97aacb40db24c47
+    Reviewed-on: https://go-review.googlesource.com/40250
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/build.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

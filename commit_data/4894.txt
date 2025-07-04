@@ -1,0 +1,32 @@
+commit c0aac20e20b72a5f1bf455a9a1587023f64bbd4b
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Feb 18 23:33:21 2010 -0800
+
+    combined pchw and embedded into tiny. added section on arm to README
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194151
+
+ src/pkg/runtime/embedded/README                   |   4 -
+ src/pkg/runtime/embedded/mem.c                    |  40 ----------
+ src/pkg/runtime/pchw/386/signal.c                 |   1 -
+ src/pkg/runtime/pchw/os.h                         |   1 -
+ src/pkg/runtime/pchw/thread.c                     |  89 ----------------------
+ src/pkg/runtime/{embedded/arm => tiny/386}/defs.h |   0
+ src/pkg/runtime/{pchw => tiny}/386/rt0.s          |   0
+ src/pkg/runtime/tiny/386/signal.c                 |  10 +++
+ src/pkg/runtime/{pchw => tiny}/386/sys.s          |   0
+ src/pkg/runtime/{pchw => tiny}/README             |  53 +++++++++++--
+ src/pkg/runtime/{pchw/386 => tiny/arm}/defs.h     |   0
+ src/pkg/runtime/{embedded => tiny}/arm/rt0.s      |   0
+ src/pkg/runtime/{embedded => tiny}/arm/signal.c   |   0
+ src/pkg/runtime/{embedded => tiny}/arm/sys.s      |   0
+ src/pkg/runtime/{pchw => tiny}/bootblock          | Bin
+ src/pkg/runtime/{pchw => tiny}/dot-bochsrc        |   0
+ src/pkg/runtime/{pchw => tiny}/io.go              |   0
+ src/pkg/runtime/{pchw => tiny}/mem.c              |   0
+ src/pkg/runtime/{embedded => tiny}/os.h           |   0
+ src/pkg/runtime/{pchw => tiny}/signals.h          |   0
+ src/pkg/runtime/{embedded => tiny}/thread.c       |   2 +-
+ 21 files changed, 58 insertions(+), 142 deletions(-)

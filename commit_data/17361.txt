@@ -1,0 +1,14 @@
+commit d3043b7b4ac636fd1c2e43ff5e77e84a08b9a49f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 22 12:13:54 2013 +0900
+
+    net: add test for protocol numbers lookup using internal information base
+    
+    Update #5344
+    
+    R=alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/12966046
+
+ src/pkg/net/ipraw_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

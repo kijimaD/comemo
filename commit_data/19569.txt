@@ -1,0 +1,17 @@
+commit c70c20db67233a18f2905178085187ca1efd4c6b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 19 10:26:57 2014 +1000
+
+    doc: document Go 1.3
+    
+    This is a clone of 101370043, which I accidentally applied to the
+    release branch first.
+    No big deal, it needed to be applied there anyway.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/108090043
+
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

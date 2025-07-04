@@ -1,0 +1,13 @@
+commit fd41926347c6f1cf1cc06079050912b9c48a1f09
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 10 22:59:39 2013 +0400
+
+    runtime: fix one-time memory leak on linux
+    Update #5641.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10144043
+
+ src/pkg/runtime/mem_linux.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

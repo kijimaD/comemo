@@ -1,0 +1,13 @@
+commit ec2460a3149d24e9611adc7544b5c0d67ba266b6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 23 20:30:03 2012 -0800
+
+    A+C: Add John Graham-Cumming (Individual CLA)
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6846095
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

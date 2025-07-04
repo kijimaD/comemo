@@ -1,0 +1,15 @@
+commit b049dc3074704856305bf12f421144b04d6844f9
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 12 15:45:35 2014 -0700
+
+    doc/compat1.html: link to go.sys
+    You talked me into it. This and other links should be updated
+    once the new import paths for the subrepos are established.
+    
+    LGTM=minux
+    R=golang-codereviews, minux
+    CC=golang-codereviews
+    https://golang.org/cl/124260043
+
+ doc/go1compat.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

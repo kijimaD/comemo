@@ -1,0 +1,16 @@
+commit b22151f7dc94734ebc67431240282cd569027423
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 20 09:03:43 2011 -0700
+
+    mime/multipart: add a multipart Writer
+    
+    Fixes #1823
+    
+    R=golang-dev, adg, robert.hencke
+    CC=golang-dev
+    https://golang.org/cl/4530054
+
+ src/pkg/mime/multipart/Makefile       |   1 +
+ src/pkg/mime/multipart/writer.go      | 160 ++++++++++++++++++++++++++++++++++
+ src/pkg/mime/multipart/writer_test.go |  71 +++++++++++++++
+ 3 files changed, 232 insertions(+)

@@ -1,0 +1,14 @@
+commit 34cbccd3411308bffecab9982a27735a56b648f3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 18 14:16:28 2015 -0800
+
+    cmd/compile/internal/gc: add line numbers for complit elts if needed (addresses TODO)
+    
+    For #13243.
+    
+    Change-Id: I802cef3dad5d1236e70d0cd52047008a6a7a311a
+    Reviewed-on: https://go-review.googlesource.com/17045
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 49 ++++++++++++++++++-----------------
+ 1 file changed, 25 insertions(+), 24 deletions(-)

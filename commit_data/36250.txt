@@ -1,0 +1,23 @@
+commit 479da24aac375d4d61dd34733b4fda643141991e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 9 17:03:05 2018 -0400
+
+    cmd/go: fix handling of gopkg.in/macaroon-bakery.v2-unstable
+    
+    When we added v2.0.0+incompatible we generalized the API
+    enough to make it easy to also accepting these gopkg-specific
+    v2-unstable suffixes. Do that.
+    
+    Fixes #23989.
+    
+    Change-Id: Ieabed11a5250c2999d73450c10b20f4c645ad445
+    Reviewed-on: https://go-review.googlesource.com/128901
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo.go           |  7 +++++++
+ src/cmd/go/internal/modfetch/pseudo.go             |  1 +
+ src/cmd/go/internal/module/module.go               |  8 +++++++-
+ src/cmd/go/proxy_test.go                           |  6 +++---
+ .../mod/gopkg.in_dummy.v2-unstable_v2.0.0.txt      |  9 +++++++++
+ src/cmd/go/testdata/script/mod_gopkg_unstable.txt  | 22 ++++++++++++++++++++++
+ 6 files changed, 49 insertions(+), 4 deletions(-)

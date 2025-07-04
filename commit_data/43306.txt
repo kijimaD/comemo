@@ -1,0 +1,19 @@
+commit 50b7171af05531df6744cf33dabfceaa98e986e0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 15 22:49:30 2020 +0700
+
+    cmd/compile: simplify exprformat untyped condition checking
+    
+    L1337 in fmt.go can be checked just by using "!n.Type.IsUntyped".
+    
+    Passes toolstash-check.
+    
+    Change-Id: I5b0c81543bc929367f70713d0ca40b289f905b48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262637
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

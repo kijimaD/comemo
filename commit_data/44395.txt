@@ -1,0 +1,24 @@
+commit 691ac806d20616fab66bb50752edfa9e4e9f8151
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Feb 22 15:05:20 2021 -0500
+
+    cmd/go: fix version validation in 'go mod edit -exclude'
+    
+    The fix is to pull in CL 295089 from the x/mod repo.
+    
+    Fixes #44497
+    
+    Change-Id: I008b58d0f4bb48c09d4f1e6ed31d11a714f87dc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295150
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go.mod                                  |  2 +-
+ src/cmd/go.sum                                  |  3 +-
+ src/cmd/go/testdata/script/mod_edit.txt         | 27 ++++------
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 65 +++++++++++++++++--------
+ src/cmd/vendor/modules.txt                      |  2 +-
+ 5 files changed, 60 insertions(+), 39 deletions(-)

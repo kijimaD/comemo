@@ -1,0 +1,14 @@
+commit ad50408fe7d9edfc7a1d9791e7391df132bc58b2
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Sep 20 19:43:34 2016 +0900
+
+    path/filepath: simplify TestToNorm
+    
+    Change-Id: I8a176ed9c7f59ebdfd39c1e2b88905f977179982
+    Reviewed-on: https://go-review.googlesource.com/31119
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/path/filepath/path_windows_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

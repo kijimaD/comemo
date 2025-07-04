@@ -1,0 +1,13 @@
+commit 7b8f8bf5b55fb4fb2b74472c51366bde6ccff561
+Author: Rob Pike <r@golang.org>
+Date:   Sun Mar 25 11:35:16 2012 +1100
+
+    doc/reference-cmd: use vet as example, not fmt
+    "go tool fmt" doesn't work, "go tool vet" does.
+    
+    R=golang-dev, rogpeppe, r, minux.ma, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5900049
+
+ doc/reference-cmd.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

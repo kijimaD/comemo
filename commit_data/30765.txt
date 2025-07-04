@@ -1,0 +1,21 @@
+commit 24dc8c6cb52aaa2680d0817298d109cb12098cda
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Mar 21 14:57:58 2017 +0100
+
+    cmd/compile,runtime: fix atomic And8 for mipsle
+    
+    Removing stray xori that came from big endian copy/paste.
+    Adding atomicand8 check to runtime.check() that would have revealed
+    this error.
+    Might fix #19396.
+    
+    Change-Id: If8d6f25d3e205496163541eb112548aa66df9c2a
+    Reviewed-on: https://go-review.googlesource.com/38257
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/MIPS.rules | 3 +--
+ src/cmd/compile/internal/ssa/rewriteMIPS.go | 7 ++-----
+ src/runtime/runtime1.go                     | 6 ++++++
+ 3 files changed, 9 insertions(+), 7 deletions(-)

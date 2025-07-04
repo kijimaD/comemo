@@ -1,0 +1,19 @@
+commit 5c3827cb9fef53f1f6c4aadc7787e8d3540b0d59
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 27 21:54:04 2010 -0400
+
+    http: correct escaping of different parts of URL
+    
+    Fixes #1076.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/2248045
+
+ src/pkg/http/client.go            |   2 +-
+ src/pkg/http/readrequest_test.go  |  18 +--
+ src/pkg/http/request.go           |   2 +-
+ src/pkg/http/requestwrite_test.go |  18 +--
+ src/pkg/http/url.go               | 273 ++++++++++++++++++++++++++------------
+ src/pkg/http/url_test.go          | 238 +++++++++++++++++++--------------
+ 6 files changed, 348 insertions(+), 203 deletions(-)

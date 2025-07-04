@@ -1,0 +1,15 @@
+commit 6a42568701b9e35ced4bc5fccadd5569b676d972
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 31 11:47:33 2017 -0400
+
+    cmd/go: fix ugly "BUG" in go help message output
+    
+    Change-Id: I4c579d0d02f6c9cbef1dc2bc2c93cff614538dea
+    Reviewed-on: https://go-review.googlesource.com/44854
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go            | 7 ++++---
+ src/cmd/go/internal/test/test.go | 7 ++++---
+ 2 files changed, 8 insertions(+), 6 deletions(-)

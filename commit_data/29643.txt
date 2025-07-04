@@ -1,0 +1,14 @@
+commit 7e455163dedfe0ba73f13adbd1d9f0728a383bc9
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Nov 22 14:07:03 2016 -0800
+
+    net: update documentation on Conn and PacketConn
+    
+    Fixes #17982
+    
+    Change-Id: I4884a6b57905420ac0e37210c411de98c582de1d
+    Reviewed-on: https://go-review.googlesource.com/33473
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/net.go | 40 ++++++++++++++++++++++++++--------------
+ 1 file changed, 26 insertions(+), 14 deletions(-)

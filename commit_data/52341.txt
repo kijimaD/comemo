@@ -1,0 +1,27 @@
+commit 86ad2d570c79e1687ba0782a2be891195da42cbf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 20 10:54:31 2023 -0700
+
+    Revert "cmd/go: use platform.MustLinkExternal in externalLinkingForced"
+    
+    This reverts CL 477395.
+    
+    Failing on darwin-amd64 builders:
+    https://build.golang.org/log/b07ec5e40a896f5d099e4c85f4094321ecc84f21
+    
+    loadinternal: cannot find runtime/cgo
+    signal: trace/BPT trap
+    FAIL    crypto/x509     0.024s
+    FAIL
+    2023/03/20 12:16:35 Failed: exit status 1
+    
+    Change-Id: Ib9923f9ff7e24c3b5f8690ba1d6b5d0b6693d49c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477736
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/load/pkg.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

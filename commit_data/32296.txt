@@ -1,0 +1,23 @@
+commit d6cada7fa4ef92190c2b59c9048413f9280e4a74
+Author: Naoki Kanatani <k12naoki@gmail.com>
+Date:   Fri Jul 21 00:35:31 2017 +0900
+
+    net/http: delete unnecessary string concatenation
+    
+    In the existing implementation, if pattern is an empty string,
+    program calls a panic with the message which is a concatenation of
+    "http: invalid pattern " and pattern.
+    In this case, pattern is an empty, so the commit removes
+    this concatenation and the trailing space.
+    
+    Fixes: #21102
+    
+    Change-Id: I49f58b52d835311a6ac642de871eb15646e48a54
+    Reviewed-on: https://go-review.googlesource.com/50350
+    Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Run-TryBot: Tom Bergan <tombergan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

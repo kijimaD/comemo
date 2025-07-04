@@ -1,0 +1,20 @@
+commit 55b2d479d774d9887a6ec32b34e2c413f7c84f78
+Author: Nikhil Benesch <nikhil.benesch@gmail.com>
+Date:   Sun Oct 18 21:55:55 2020 -0400
+
+    net/http/cgi: preserve LD_LIBRARY_PATH on NetBSD, too
+    
+    This makes the behavior of the cgi package on NetBSD consistent with its
+    behavior on the other BSDs. It is also necessary for the test suite to
+    pass on NetBSD with gccgo (see CL 261137).
+    
+    Change-Id: I531a6e0954f895a921204dcc61e3f3e90860a23d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263577
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+
+ src/net/http/cgi/host.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

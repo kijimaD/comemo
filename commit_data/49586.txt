@@ -1,0 +1,30 @@
+commit c1110910713766eb06d75ed48db3722d318a845e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 1 16:10:19 2022 -0400
+
+    cmd/go: make module@nonexistentversion failures reusable
+    
+    CL 411398 added the -reuse flag for reusing cached JSON output
+    when the remote Git repository has not changed. One case that was
+    not yet cached is a lookup of a nonexistent version.
+    
+    This CL adds caching of failed lookups of nonexistent versions,
+    by saving a checksum of all the heads and tags refs on the remote
+    server (we never consider other kinds of refs). If none of those have
+    changed, then we don't need to download the full server.
+    
+    Fixes #53644.
+    
+    Change-Id: I428bbc8ec8475bd7d03788934d643e1e2be3add0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415678
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/cache.go             | 26 ++++++----
+ src/cmd/go/internal/modfetch/codehost/codehost.go |  9 +++-
+ src/cmd/go/internal/modfetch/codehost/git.go      | 48 ++++++++++++++++--
+ src/cmd/go/internal/modfetch/coderepo.go          | 10 +++-
+ src/cmd/go/internal/modload/query.go              |  2 +-
+ src/cmd/go/testdata/script/reuse_git.txt          | 62 +++++++++++++++++++++--
+ 6 files changed, 136 insertions(+), 21 deletions(-)

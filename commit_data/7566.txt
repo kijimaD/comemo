@@ -1,0 +1,12 @@
+commit 176eb49d9cd8f1c27cc08d7203529114b1888022
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 25 11:16:39 2011 +1100
+
+    runtime: add empty windows/signals.h file to fix build
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4223049
+
+ src/pkg/runtime/windows/signals.h | 3 +++
+ 1 file changed, 3 insertions(+)

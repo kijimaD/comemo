@@ -1,0 +1,13 @@
+commit 217693e93c23fed2f3224dfaf1eb730d8e5256bb
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 12 11:08:39 2011 +1100
+
+    os: add Sync to *File, wraps syscall.Fsync
+    
+    R=rsc, brainman, r, r2
+    CC=golang-dev
+    https://golang.org/cl/3887042
+
+ src/pkg/os/file.go                 | 13 +++++++++++++
+ src/pkg/syscall/syscall_windows.go |  3 +++
+ 2 files changed, 16 insertions(+)

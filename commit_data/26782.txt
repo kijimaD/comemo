@@ -1,0 +1,16 @@
+commit e6181eb9e1dc4ab9e297a102ed192997582ac46c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 7 14:00:00 2016 -0400
+
+    cmd/link: disable DWARF when not generating symtab
+    
+    Fixes #15166
+    
+    Change-Id: I30284e3c0fb2c80b26a2572e2fb249b8018e85f9
+    Reviewed-on: https://go-review.googlesource.com/21587
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 3 +++
+ 1 file changed, 3 insertions(+)

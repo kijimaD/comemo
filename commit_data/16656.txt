@@ -1,0 +1,202 @@
+commit 6fa3c89b77c2b616be41ef9dd250b9f0e3e851f5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 27 11:32:01 2013 -0400
+
+    runtime: record proper goroutine state during stack split
+    
+    Until now, the goroutine state has been scattered during the
+    execution of newstack and oldstack. It's all there, and those routines
+    know how to get back to a working goroutine, but other pieces of
+    the system, like stack traces, do not. If something does interrupt
+    the newstack or oldstack execution, the rest of the system can't
+    understand the goroutine. For example, if newstack decides there
+    is an overflow and calls throw, the stack tracer wouldn't dump the
+    goroutine correctly.
+    
+    For newstack to save a useful state snapshot, it needs to be able
+    to rewind the PC in the function that triggered the split back to
+    the beginning of the function. (The PC is a few instructions in, just
+    after the call to morestack.) To make that possible, we change the
+    prologues to insert a jmp back to the beginning of the function
+    after the call to morestack. That is, the prologue used to be roughly:
+    
+            TEXT myfunc
+                    check for split
+                    jmpcond nosplit
+                    call morestack
+            nosplit:
+                    sub $xxx, sp
+    
+    Now an extra instruction is inserted after the call:
+    
+            TEXT myfunc
+            start:
+                    check for split
+                    jmpcond nosplit
+                    call morestack
+                    jmp start
+            nosplit:
+                    sub $xxx, sp
+    
+    The jmp is not executed directly. It is decoded and simulated by
+    runtime.rewindmorestack to discover the beginning of the function,
+    and then the call to morestack returns directly to the start label
+    instead of to the jump instruction. So logically the jmp is still
+    executed, just not by the cpu.
+    
+    The prologue thus repeats in the case of a function that needs a
+    stack split, but against the cost of the split itself, the extra few
+    instructions are noise. The repeated prologue has the nice effect of
+    making a stack split double-check that the new stack is big enough:
+    if morestack happens to return on a too-small stack, we'll now notice
+    before corruption happens.
+    
+    The ability for newstack to rewind to the beginning of the function
+    should help preemption too. If newstack decides that it was called
+    for preemption instead of a stack split, it now has the goroutine state
+    correctly paused if rescheduling is needed, and when the goroutine
+    can run again, it can return to the start label on its original stack
+    and re-execute the split check.
+    
+    Here is an example of a split stack overflow showing the full
+    trace, without any special cases in the stack printer.
+    (This one was triggered by making the split check incorrect.)
+    
+    runtime: newstack framesize=0x0 argsize=0x18 sp=0x6aebd0 stack=[0x6b0000, 0x6b0fa0]
+            morebuf={pc:0x69f5b sp:0x6aebd8 lr:0x0}
+            sched={pc:0x68880 sp:0x6aebd0 lr:0x0 ctxt:0x34e700}
+    runtime: split stack overflow: 0x6aebd0 < 0x6b0000
+    fatal error: runtime: split stack overflow
+    
+    goroutine 1 [stack split]:
+    runtime.mallocgc(0x290, 0x100000000, 0x1)
+            /Users/rsc/g/go/src/pkg/runtime/zmalloc_darwin_amd64.c:21 fp=0x6aebd8
+    runtime.new()
+            /Users/rsc/g/go/src/pkg/runtime/zmalloc_darwin_amd64.c:682 +0x5b fp=0x6aec08
+    go/build.(*Context).Import(0x5ae340, 0xc210030c71, 0xa, 0xc2100b4380, 0x1b, ...)
+            /Users/rsc/g/go/src/pkg/go/build/build.go:424 +0x3a fp=0x6b00a0
+    main.loadImport(0xc210030c71, 0xa, 0xc2100b4380, 0x1b, 0xc2100b42c0, ...)
+            /Users/rsc/g/go/src/cmd/go/pkg.go:249 +0x371 fp=0x6b01a8
+    main.(*Package).load(0xc21017c800, 0xc2100b42c0, 0xc2101828c0, 0x0, 0x0, ...)
+            /Users/rsc/g/go/src/cmd/go/pkg.go:431 +0x2801 fp=0x6b0c98
+    main.loadPackage(0x369040, 0x7, 0xc2100b42c0, 0x0)
+            /Users/rsc/g/go/src/cmd/go/pkg.go:709 +0x857 fp=0x6b0f80
+    ----- stack segment boundary -----
+    main.(*builder).action(0xc2100902a0, 0x0, 0x0, 0xc2100e6c00, 0xc2100e5750, ...)
+            /Users/rsc/g/go/src/cmd/go/build.go:539 +0x437 fp=0x6b14a0
+    main.(*builder).action(0xc2100902a0, 0x0, 0x0, 0xc21015b400, 0x2, ...)
+            /Users/rsc/g/go/src/cmd/go/build.go:528 +0x1d2 fp=0x6b1658
+    main.(*builder).test(0xc2100902a0, 0xc210092000, 0x0, 0x0, 0xc21008ff60, ...)
+            /Users/rsc/g/go/src/cmd/go/test.go:622 +0x1b53 fp=0x6b1f68
+    ----- stack segment boundary -----
+    main.runTest(0x5a6b20, 0xc21000a020, 0x2, 0x2)
+            /Users/rsc/g/go/src/cmd/go/test.go:366 +0xd09 fp=0x6a5cf0
+    main.main()
+            /Users/rsc/g/go/src/cmd/go/main.go:161 +0x4f9 fp=0x6a5f78
+    runtime.main()
+            /Users/rsc/g/go/src/pkg/runtime/proc.c:183 +0x92 fp=0x6a5fa0
+    runtime.goexit()
+            /Users/rsc/g/go/src/pkg/runtime/proc.c:1266 fp=0x6a5fa8
+    
+    And here is a seg fault during oldstack:
+    
+    SIGSEGV: segmentation violation
+    PC=0x1b2a6
+    
+    runtime.oldstack()
+            /Users/rsc/g/go/src/pkg/runtime/stack.c:159 +0x76
+    runtime.lessstack()
+            /Users/rsc/g/go/src/pkg/runtime/asm_amd64.s:270 +0x22
+    
+    goroutine 1 [stack unsplit]:
+    fmt.(*pp).printArg(0x2102e64e0, 0xe5c80, 0x2102c9220, 0x73, 0x0, ...)
+            /Users/rsc/g/go/src/pkg/fmt/print.go:818 +0x3d3 fp=0x221031e6f8
+    fmt.(*pp).doPrintf(0x2102e64e0, 0x12fb20, 0x2, 0x221031eb98, 0x1, ...)
+            /Users/rsc/g/go/src/pkg/fmt/print.go:1183 +0x15cb fp=0x221031eaf0
+    fmt.Sprintf(0x12fb20, 0x2, 0x221031eb98, 0x1, 0x1, ...)
+            /Users/rsc/g/go/src/pkg/fmt/print.go:234 +0x67 fp=0x221031eb40
+    flag.(*stringValue).String(0x2102c9210, 0x1, 0x0)
+            /Users/rsc/g/go/src/pkg/flag/flag.go:180 +0xb3 fp=0x221031ebb0
+    flag.(*FlagSet).Var(0x2102f6000, 0x293d38, 0x2102c9210, 0x143490, 0xa, ...)
+            /Users/rsc/g/go/src/pkg/flag/flag.go:633 +0x40 fp=0x221031eca0
+    flag.(*FlagSet).StringVar(0x2102f6000, 0x2102c9210, 0x143490, 0xa, 0x12fa60, ...)
+            /Users/rsc/g/go/src/pkg/flag/flag.go:550 +0x91 fp=0x221031ece8
+    flag.(*FlagSet).String(0x2102f6000, 0x143490, 0xa, 0x12fa60, 0x0, ...)
+            /Users/rsc/g/go/src/pkg/flag/flag.go:563 +0x87 fp=0x221031ed38
+    flag.String(0x143490, 0xa, 0x12fa60, 0x0, 0x161950, ...)
+            /Users/rsc/g/go/src/pkg/flag/flag.go:570 +0x6b fp=0x221031ed80
+    testing.init()
+            /Users/rsc/g/go/src/pkg/testing/testing.go:-531 +0xbb fp=0x221031edc0
+    strings_test.init()
+            /Users/rsc/g/go/src/pkg/strings/strings_test.go:1115 +0x62 fp=0x221031ef70
+    main.init()
+            strings/_test/_testmain.go:90 +0x3d fp=0x221031ef78
+    runtime.main()
+            /Users/rsc/g/go/src/pkg/runtime/proc.c:180 +0x8a fp=0x221031efa0
+    runtime.goexit()
+            /Users/rsc/g/go/src/pkg/runtime/proc.c:1269 fp=0x221031efa8
+    
+    goroutine 2 [runnable]:
+    runtime.MHeap_Scavenger()
+            /Users/rsc/g/go/src/pkg/runtime/mheap.c:438
+    runtime.goexit()
+            /Users/rsc/g/go/src/pkg/runtime/proc.c:1269
+    created by runtime.main
+            /Users/rsc/g/go/src/pkg/runtime/proc.c:166
+    
+    rax     0x23ccc0
+    rbx     0x23ccc0
+    rcx     0x0
+    rdx     0x38
+    rdi     0x2102c0170
+    rsi     0x221032cfe0
+    rbp     0x221032cfa0
+    rsp     0x7fff5fbff5b0
+    r8      0x2102c0120
+    r9      0x221032cfa0
+    r10     0x221032c000
+    r11     0x104ce8
+    r12     0xe5c80
+    r13     0x1be82baac718
+    r14     0x13091135f7d69200
+    r15     0x0
+    rip     0x1b2a6
+    rflags  0x10246
+    cs      0x2b
+    fs      0x0
+    gs      0x0
+    
+    Fixes #5723.
+    
+    R=r, dvyukov, go.peter.90, dave, iant
+    CC=golang-dev
+    https://golang.org/cl/10360048
+
+ src/cmd/5g/gsubr.c               |   3 +-
+ src/cmd/5l/noop.c                | 176 ++++++++++++++++-----------------------
+ src/cmd/6g/gsubr.c               |   1 +
+ src/cmd/6l/pass.c                |  84 +++++++++++++------
+ src/cmd/8g/gsubr.c               |   1 +
+ src/cmd/8l/pass.c                |  83 ++++++++++++------
+ src/libmach/8db.c                |   5 ++
+ src/pkg/runtime/asm_386.s        |  14 ++--
+ src/pkg/runtime/asm_amd64.s      |  14 ++--
+ src/pkg/runtime/asm_arm.s        |  17 ++--
+ src/pkg/runtime/mgc0.c           |   5 +-
+ src/pkg/runtime/mprof.goc        |   2 +-
+ src/pkg/runtime/os_plan9_386.c   |   2 +
+ src/pkg/runtime/os_plan9_amd64.c |   2 +
+ src/pkg/runtime/panic.c          |   1 +
+ src/pkg/runtime/proc.c           |  22 ++++-
+ src/pkg/runtime/runtime.h        |   8 +-
+ src/pkg/runtime/signal_386.c     |   3 +
+ src/pkg/runtime/signal_amd64.c   |   3 +
+ src/pkg/runtime/signal_arm.c     |   2 +
+ src/pkg/runtime/stack.c          |  65 +++++++++++----
+ src/pkg/runtime/stack.h          |  12 ++-
+ src/pkg/runtime/symtab.c         |   4 +-
+ src/pkg/runtime/sys_arm.c        |  18 ++++
+ src/pkg/runtime/sys_x86.c        |  21 +++++
+ src/pkg/runtime/traceback_arm.c  |  75 ++++++++---------
+ src/pkg/runtime/traceback_x86.c  |  83 ++++++++----------
+ 27 files changed, 426 insertions(+), 300 deletions(-)

@@ -1,0 +1,20 @@
+commit db6e27c38d20cdd6af205bbf99c1b1d3327e6c6f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 21 15:57:06 2017 -0800
+
+    cmd/compile: update builtin writeBarrier to match runtime
+    
+    The definition of writeBarrier in the runtime was changed in CL 22855
+    to include padding. Update the definition built in to the compiler to match.
+    This doesn't affect the generated code, as the compiler sets the type
+    to use anyhow, but having them be different seems clearly wrong.
+    
+    Change-Id: I8eac05bf70a424a0b2338ba5e9e41af231316de0
+    Reviewed-on: https://go-review.googlesource.com/37377
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/builtin.go         | 151 +++++++++++++------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   2 +
+ 2 files changed, 78 insertions(+), 75 deletions(-)

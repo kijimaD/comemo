@@ -1,0 +1,23 @@
+commit beea7c1ba6a93c2a2991e79936ac4050bae851c4
+Author: Chemaclass <chemaclass@outlook.es>
+Date:   Sat Apr 13 14:24:11 2024 +0000
+
+    io: fix typo inside copyBuffer
+    
+    The "rt" seems to be caused after copy-pasting the previous "wt" block
+    which make sense as WriterTo, but for ReaderFrom it makes more sense
+    thinking of rf instead of rt.
+    
+    Change-Id: I873699c27211bea6cdba3e199f36eb3c38188d70
+    GitHub-Last-Rev: 1795600a9b29946d824ba645c137da216bdf6302
+    GitHub-Pull-Request: golang/go#66811
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578635
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/io/io.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,10 @@
+commit e2e6b7e4cc52055ab3461285dac731f9075b6b85
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 12 13:38:54 2008 -0700
+
+    remove reference to 9ar
+    
+    SVN=122487
+
+ src/cmd/gc/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 5612215d32643f2a5b729730c3bfdefda78e75d1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 28 14:49:50 2022 -0700
+
+    go/types, types2: remove (C/c)ompilerErrorMessages flag - not needed anymore
+    
+    Fixes #55326.
+    
+    Change-Id: Ic300976ddf504224faadc5bae21736fe94dac6bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435416
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/noder/irgen.go | 7 +++----
+ src/cmd/compile/internal/types2/api.go  | 5 -----
+ src/go/types/check.go                   | 4 ----
+ 3 files changed, 3 insertions(+), 13 deletions(-)

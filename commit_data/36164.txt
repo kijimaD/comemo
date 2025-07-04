@@ -1,0 +1,18 @@
+commit f152f83a6e3aba0eb7d5ce2f0c73463ac307ec55
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 31 14:37:43 2018 -0400
+
+    cmd/go/internal/modfetch/codehost: quote arguments to commands printed from -x
+    
+    Some of the arguments — particularly format strings passed to git commands — may
+    contain spaces, and it's useful to be able to paste commands from 'go get -x
+    foo' directly into a shell to reproduce their output.
+    
+    Change-Id: I4f0c0b4e05db8b5232458e9a271f2ccbb665e85a
+    Reviewed-on: https://go-review.googlesource.com/126955
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/codehost/codehost.go | 30 ++++++++++++++++++++---
+ 1 file changed, 27 insertions(+), 3 deletions(-)

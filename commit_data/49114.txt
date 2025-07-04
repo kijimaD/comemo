@@ -1,0 +1,25 @@
+commit dd7d9b773f0c1319955eee0857e07dd411628e00
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Apr 22 13:18:15 2022 -0400
+
+    go/doc: remove brackets from receiver in example identifier
+    
+    When constructing a string for a method that will match an example
+    function's name, remove brackets from the receiver. This makes it
+    possible to write an example associated with a method of a generic
+    type.
+    
+    Also, modify the test for classifying examples to check that all the
+    expected examples actually appear.
+    
+    Fixes golang/go#52496.
+    
+    Change-Id: Iebc5768f6cb91df9671dd701b97958fb8081f986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401761
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/doc/example.go      | 21 +++++++++++++++++++--
+ src/go/doc/example_test.go | 19 +++++++++++++++++++
+ 2 files changed, 38 insertions(+), 2 deletions(-)

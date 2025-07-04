@@ -1,0 +1,20 @@
+commit db2f680fdfc9118013cb3996e3ea8664c196e6ba
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 24 19:10:08 2018 -0400
+
+    cmd/go: allow internal imports based on module paths
+    
+    Updates #23970.
+    
+    Change-Id: I2e69ad15b9d1097bfeef9947f03cfa6834a6a049
+    Reviewed-on: https://go-review.googlesource.com/125676
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/load/pkg.go                    | 31 ++++++++++-----
+ .../mod/golang.org_notx_useinternal_v0.1.0.txt     | 13 +++++++
+ .../testdata/mod/golang.org_x_internal_v0.1.0.txt  | 43 +++++++++++++++++++++
+ .../mod/golang.org_x_useinternal_v0.1.0.txt        | 13 +++++++
+ src/cmd/go/testdata/script/mod_internal.txt        | 44 ++++++++++++++++++++++
+ 5 files changed, 135 insertions(+), 9 deletions(-)

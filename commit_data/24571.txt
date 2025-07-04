@@ -1,0 +1,17 @@
+commit 76285213b8a453ed0825d98e9a6bb3e044d20022
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 20 14:45:36 2015 -0700
+
+    cmd/compile/internal/gc: there are no -0 floating-point constants
+    
+    Fixes #12577.
+    
+    Change-Id: Id469cd92f5f9436b0ef948ee1a252ed1842bc7aa
+    Reviewed-on: https://go-review.googlesource.com/16133
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/mparith3.go | 24 +++++++++---
+ test/fixedbugs/issue12577.go            | 66 +++++++++++++++++++++++++++++++++
+ 2 files changed, 84 insertions(+), 6 deletions(-)

@@ -1,0 +1,31 @@
+commit 9372166faa1bf04f0d83706da2b33ed2659ee976
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Dec 1 09:39:59 2017 -0500
+
+    cmd/compile: fix DWARF type symbol buglet
+    
+    The code that generates the list of DWARF variables for a function
+    (params and autos) will emit a "no-location" entry in the DWARF for a
+    user var that appears in the original pre-optimization version of the
+    function but is no longer around when optimization is complete. The
+    intent is that if a GDB user types "print foo" (where foo has been
+    optimized out), the response will be "<optimized out>" as opposed to
+    "there is no such variable 'foo'). This change fixes said code to
+    include vars on the autom list for the function, to insure that the
+    type symbol for the variable makes it to the linker.
+    
+    Fixes #22941.
+    
+    Change-Id: Id29f1f39d68fbb798602dfd6728603040624fc41
+    Reviewed-on: https://go-review.googlesource.com/81415
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/pgen.go   | 12 ++++++++++++
+ test/fixedbugs/issue22941.dir/a.go    |  7 +++++++
+ test/fixedbugs/issue22941.dir/b.go    | 30 ++++++++++++++++++++++++++++++
+ test/fixedbugs/issue22941.dir/main.go | 15 +++++++++++++++
+ test/fixedbugs/issue22941.go          |  7 +++++++
+ 5 files changed, 71 insertions(+)

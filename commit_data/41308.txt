@@ -1,0 +1,16 @@
+commit 9c68d85db57ea68d9631aa36622653c06d2bbbca
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Feb 19 16:28:26 2020 -0500
+
+    cmd/go/testdata/script: fix typo in get_domain_root.txt
+    
+    golang.org/cl/214141 introduced the typo 'skup' for 'skip', which
+    broke tests. This change fixes it.
+    
+    Change-Id: I1b3c230b545f1c093d3e0feedc3b41f3f0b41bec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220157
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/get_domain_root.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

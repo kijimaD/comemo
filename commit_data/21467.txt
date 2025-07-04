@@ -1,0 +1,14 @@
+commit 5ab3823c6bbb3dfe95a4f72956e16c5149e0fc6d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 4 11:27:08 2015 +0900
+
+    net: update TDDO
+    
+    The issue #8432 has been marked as an issue for golang.org/x/net.
+    
+    Change-Id: Ia39abd99b685c820ea6169ee6505b16028e7e77f
+    Reviewed-on: https://go-review.googlesource.com/3836
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/net.go | 3 ---
+ 1 file changed, 3 deletions(-)

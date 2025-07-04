@@ -1,0 +1,18 @@
+commit 3b0fc5a51f16f15934a6445ac88e5694fba6abfd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 11 13:24:54 2023 -0700
+
+    net: clear malloc'ed memory in cgoResSearch
+    
+    For #61666
+    
+    Change-Id: I7a0a849fba0abebe28804bdd6d364b154456e399
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534516
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/cgo_unix.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

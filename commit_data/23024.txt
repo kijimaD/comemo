@@ -1,0 +1,12 @@
+commit 5abdc24b006b98f32d5390691733a5c12b521b11
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 14 15:14:57 2015 -0700
+
+    go/types: remove "vendoring" script - not useful anymore
+    
+    Change-Id: I4f4e6b99a22054666cd2284679cb0eca7f1042b8
+    Reviewed-on: https://go-review.googlesource.com/10086
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/go/types.bash | 97 -------------------------------------------------------
+ 1 file changed, 97 deletions(-)

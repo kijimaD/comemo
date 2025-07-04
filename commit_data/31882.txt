@@ -1,0 +1,24 @@
+commit 0b6fbaae6ec4218fc35d8a6f4415ae8f88198301
+Author: David Chase <drchase@google.com>
+Date:   Wed Jun 21 17:19:24 2017 -0400
+
+    cmd/compile: make loop guard+rotate conditional on GOEXPERIMENT
+    
+    Loops of the form "for i,e := range" needed to have their
+    condition rotated to the "bottom" for the preemptible loops
+    GOEXPERIMENT, but this caused a performance regression
+    because it degraded bounds check removal.  For now, make
+    the loop rotation/guarding conditional on the experiment.
+    
+    Fixes #20711.
+    Updates #10958.
+    
+    Change-Id: Icfba14cb3b13a910c349df8f84838cf4d9d20cf6
+    Reviewed-on: https://go-review.googlesource.com/46410
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/range.go | 11 ++++++++---
+ test/loopbce.go                      |  2 +-
+ 2 files changed, 9 insertions(+), 4 deletions(-)

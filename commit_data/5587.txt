@@ -1,0 +1,17 @@
+commit 5df40b434d2b10fd7f8ba6ab1ea283864c9c0d26
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 1 15:22:01 2010 -0700
+
+    fmt.Scan: renamings, strings, errors
+    - implement scanning for all renamed types
+            (compiler bug stops complex from being renamable,
+            so it can't be tested but the code is there)
+    - %q %x for strings
+    - error handling now done with panic/recover
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1458041
+
+ src/pkg/fmt/scan.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

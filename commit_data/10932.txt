@@ -1,0 +1,32 @@
+commit 9ca57a706c7831f1aab47cedee0d383c3ddb7868
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Dec 21 21:44:47 2011 +1100
+
+    crypto/mime/net/time: add netbsd to +build tags
+    
+    R=golang-dev, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/5501052
+
+ src/pkg/crypto/rand/rand_unix.go   | 2 +-
+ src/pkg/mime/type_unix.go          | 2 +-
+ src/pkg/net/cgo_stub.go            | 2 +-
+ src/pkg/net/dnsclient_unix.go      | 2 +-
+ src/pkg/net/dnsconfig.go           | 2 +-
+ src/pkg/net/fd.go                  | 2 +-
+ src/pkg/net/file.go                | 2 +-
+ src/pkg/net/interface_bsd.go       | 2 +-
+ src/pkg/net/iprawsock_posix.go     | 2 +-
+ src/pkg/net/ipsock_posix.go        | 2 +-
+ src/pkg/net/lookup_unix.go         | 2 +-
+ src/pkg/net/newpollserver.go       | 2 +-
+ src/pkg/net/port.go                | 2 +-
+ src/pkg/net/sendfile_stub.go       | 2 +-
+ src/pkg/net/sock.go                | 2 +-
+ src/pkg/net/sock_bsd.go            | 2 +-
+ src/pkg/net/udpsock_posix.go       | 2 +-
+ src/pkg/net/unixsock_posix.go      | 2 +-
+ src/pkg/path/filepath/path_unix.go | 2 +-
+ src/pkg/time/sys_unix.go           | 2 +-
+ src/pkg/time/zoneinfo_unix.go      | 2 +-
+ 21 files changed, 21 insertions(+), 21 deletions(-)

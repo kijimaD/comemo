@@ -1,0 +1,14 @@
+commit ef1d2a32ea0b096b1aca9f1bda096f0718f6a2ef
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Feb 9 23:10:27 2012 -0500
+
+    dist: prevent recusive loop on windows when fatal() is called.
+    
+    Fixes #2931.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev, rsc
+    https://golang.org/cl/5651049
+
+ src/cmd/dist/windows.c | 28 +++++++++++++++++++++++-----
+ 1 file changed, 23 insertions(+), 5 deletions(-)

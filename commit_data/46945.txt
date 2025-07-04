@@ -1,0 +1,26 @@
+commit 3a07ab70a2d63e3ac1fc126529dde29852a972f5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 18 17:17:08 2021 -0700
+
+    cmd/compile/internal/types2: add support for inferring type instances
+    
+    This is an essentially clean port of CL 356489 from go/types to types2,
+    with minor adjustments due to the different AST packages and error
+    reporting.
+    
+    Fixes #47990.
+    
+    Change-Id: I52187872474bfc1fb49eb77905f22fc820b7295b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356514
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go            | 32 ++++++++-
+ src/cmd/compile/internal/types2/instantiate.go     | 49 -------------
+ src/cmd/compile/internal/types2/named.go           |  3 +-
+ .../check/{tinference.go2 => funcinference.go2}    | 29 ++++----
+ .../types2/testdata/check/typeinference.go2        | 47 +++++++++++++
+ .../internal/types2/testdata/check/typeinst2.go2   |  4 ++
+ .../types2/testdata/check/typeinstcycles.go2       | 11 +++
+ src/cmd/compile/internal/types2/typexpr.go         | 80 +++++++++++++++++++---
+ 8 files changed, 177 insertions(+), 78 deletions(-)

@@ -1,0 +1,12 @@
+commit 1460cce0813e1336102e73e8403ed5845744eac1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 8 10:25:03 2012 -0500
+
+    CONTRIBUTORS: code review email for Jamie Gennis
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5646051
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

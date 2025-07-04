@@ -1,0 +1,17 @@
+commit 7983830423ca0017dc5d990532e28df13862dc2d
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 4 16:27:56 2021 -0500
+
+    runtime: add ABIInternal to strhash and memhash on ppc64x
+    
+    In testing the register ABI changes I found that the benchmarks
+    for strhash and memhash degraded unless I marked them as
+    ABIInternal. This fixes that.
+    
+    Change-Id: I9c7a04eaa6a66b888877f43454c51277c07e638a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353832
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/runtime/asm_ppc64x.s | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

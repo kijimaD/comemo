@@ -1,0 +1,37 @@
+commit 30311e8860ed47ded091c17e1188c14b08553a95
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Apr 18 12:35:34 2018 -0400
+
+    cmd/compile: generate load without DS relocation for go.string on ppc64le
+    
+    Due to some recent optimizations related to the compare
+    instruction, DS-form load instructions started to be used
+    to load 8-byte go.strings. This can cause link time errors
+    if the go.string is not aligned to 4 bytes.
+    
+    For DS-form instructions, the value in the offset field must
+    be a multiple of 4. If the offset is known at the time the
+    rules are processed, a DS-form load will not be chosen. But for
+    go.strings, the offset is not known at that time, but a
+    relocation is generated indicating that the linker should fill
+    in the DS relocation. When the linker tries to fill in the
+    relocation, if the offset is not aligned properly, a link error
+    will occur.
+    
+    To fix this, when loading a go.string using MOVDload, the full
+    address of the go.string is generated and loaded into the base
+    register. Then the go.string is loaded with a 0 offset field.
+    
+    Added a testcase that reproduces this problem.
+    
+    Fixes #24799
+    
+    Change-Id: I6a154e8e1cba64eae290be0fbcb608b75884ecdd
+    Reviewed-on: https://go-review.googlesource.com/107855
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go | 38 ++++++++++++++++++++++-
+ test/fixedbugs/issue24799.go          | 58 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 95 insertions(+), 1 deletion(-)

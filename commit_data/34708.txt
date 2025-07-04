@@ -1,0 +1,17 @@
+commit 3db3826a57ccb39c1e30fe70dc82f2a6c2785877
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Fri Mar 23 14:37:20 2018 -0500
+
+    cmd/internal/obj/x86: use PutOpBytesLit in more places
+    
+    We already replaced most loops with PutOpBytesLit where possible,
+    do this in a last few places.
+    
+    Change-Id: I8c90de017810145a12394fa6b887755e9111b22a
+    Reviewed-on: https://go-review.googlesource.com/102276
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/x86/asm6.go | 18 ++----------------
+ 1 file changed, 2 insertions(+), 16 deletions(-)

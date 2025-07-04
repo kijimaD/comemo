@@ -1,0 +1,20 @@
+commit 95ff296a11606cec32fb697c74aee520f23498b0
+Author: David Chase <drchase@google.com>
+Date:   Wed Feb 17 18:01:52 2021 -0500
+
+    cmd/compile: pass arguments as register parameters to StaticCall.
+    
+    Additional register-parameter plumbing, not all the way to the end;
+    if you test register parameter-passing, it fails mid-compilation.
+    
+    For #40724.
+    
+    Change-Id: Ibb675022c9156779a451726329890e52fca1cb33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293398
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 49 ++++++++++++++--------------
+ 1 file changed, 25 insertions(+), 24 deletions(-)

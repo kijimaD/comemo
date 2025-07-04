@@ -1,0 +1,14 @@
+commit 5526ef1c51eaebe0f9d0ca0ae883f8389ccccaeb
+Author: Daniel Nephin <dnephin@gmail.com>
+Date:   Sat Mar 24 17:33:16 2018 +0000
+
+    cmd/test2json: document missing "skip" action
+    
+    Change-Id: I906e61170279f0647598e2fd4fa931aac1b69288
+    GitHub-Last-Rev: f6df43e8e10e3b032a67490611c0ba5ad8e948df
+    GitHub-Pull-Request: golang/go#24517
+    Reviewed-on: https://go-review.googlesource.com/102396
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/test2json/main.go | 1 +
+ 1 file changed, 1 insertion(+)

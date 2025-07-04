@@ -1,0 +1,22 @@
+commit a34cec8e411a2599ca7d2373dd2773aec25634ea
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Dec 16 13:43:16 2022 -0500
+
+    cmd/internal/obj: drop Filesym from DwarfAbstractFunc
+    
+    PutAbstractFunc doesn't use FnState.Filesym, so it isn't needed, but
+    more importantly it is misleading. DwarfAbstractFunc is frequently used
+    on inlined functions from outside the current compilation unit. For
+    those function, ctxt.fileSymbol returns nil, meaning it probably isn't
+    safe to use if the original compilation unit could also generate an
+    abstract func with the correct file symbol.
+    
+    Change-Id: I0e6c76e41d75ac9ca07e0f775e49d791249e1c5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458198
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/cmd/internal/obj/dwarf.go | 5 -----
+ 1 file changed, 5 deletions(-)

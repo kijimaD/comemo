@@ -1,0 +1,17 @@
+commit c50d811c7aa0de05e8c4b73c218ffb13f92b8573
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Aug 25 20:08:37 2021 +1000
+
+    cmd/interna/obj/riscv: use obj.REG_NONE rather than 0
+    
+    No functional change, but makes the code consistent and more readable.
+    
+    Change-Id: I33db681fe0ed501842755f27b6e7843cdc8877cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345049
+    Trust: Joel Sing <joel@sing.id.au>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+
+ src/cmd/internal/obj/riscv/obj.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

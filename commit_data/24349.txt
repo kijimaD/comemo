@@ -1,0 +1,18 @@
+commit 9deb940d2481396944f090dd9f205f2d5b3d94ee
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Sep 22 01:28:09 2015 -0700
+
+    compress/flate: detect truncated streams
+    
+    Reader failed to detect truncated streams since calls to
+    io.ReadFull did not check if the error is io.EOF.
+    
+    Change-Id: I0634e0d8de1ab04e8f93242c27a9f89e57743e87
+    Reviewed-on: https://go-review.googlesource.com/14833
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/compress/flate/flate_test.go | 17 +++++++++++++++++
+ src/compress/flate/inflate.go    |  6 ++++++
+ 2 files changed, 23 insertions(+)

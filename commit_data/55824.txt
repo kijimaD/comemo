@@ -1,0 +1,31 @@
+commit b09ac10badb169828240a3b0bfaa4a428eaca969
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Feb 28 16:07:27 2024 +0100
+
+    os: don't normalize volumes to drive letters in os.Readlink
+    
+    This CL updates os.Readlink so it no longer tries to normalize volumes
+    to drive letters, which was not always even possible.
+    
+    This behavior is controlled by the `winreadlinkvolume` setting.
+    For Go 1.23, it defaults to `winreadlinkvolume=1`.
+    Previous versions default to `winreadlinkvolume=0`.
+    
+    Fixes #63703.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-windows-arm64
+    Change-Id: Icd6fabbc8f0b78e23a82eef8db89940e89e9222d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567735
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/godebug.md                                    |   6 +
+ doc/next/6-stdlib/99-minor/os/63703.md            |  11 ++
+ doc/next/6-stdlib/99-minor/path/filepath/63703.md |   6 +
+ src/internal/godebugs/table.go                    |   1 +
+ src/os/file_windows.go                            |  10 +-
+ src/os/os_windows_test.go                         | 210 ++++++++++++----------
+ src/path/filepath/path_windows_test.go            |  14 +-
+ src/runtime/metrics/doc.go                        |   4 +
+ 8 files changed, 160 insertions(+), 102 deletions(-)

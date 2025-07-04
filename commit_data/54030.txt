@@ -1,0 +1,28 @@
+commit be0b8e84b09733ddc6f36eca489193fe974accc9
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Aug 10 11:17:25 2023 +0200
+
+    os: support file systems without file IDs when reading directories on windows
+    
+    Some file systems do not support file IDs. We should not use
+    FILE_ID_BOTH_DIR_INFO when reading directories on these file systems,
+    as it will fail. Instead, we should use FILE_ID_FULL_DIR_INFO,
+    which doesn't require file ID support.
+    
+    Fixes #61907
+    Fixes #61918
+    
+    Change-Id: I83d0a898f8eb254dffe5b8fc68a4ca4ef21c0d85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518195
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/internal/syscall/windows/symlink_windows.go |  2 +
+ src/internal/syscall/windows/syscall_windows.go | 15 +++++
+ src/os/dir_windows.go                           | 82 +++++++++++++++++++------
+ src/os/export_windows_test.go                   |  9 +--
+ src/os/os_windows_test.go                       | 70 +++++++++++++++++++++
+ src/os/types_windows.go                         | 31 ++++++++--
+ 6 files changed, 181 insertions(+), 28 deletions(-)

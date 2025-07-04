@@ -1,0 +1,14 @@
+commit 0e2cce70cbdfcfbf224c54d3a13fcf124abced2b
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Jul 13 22:04:24 2009 -0700
+
+    tiny naming cleanup
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=17  (0 added, 0 deleted, 17 changed)
+    OCL=31503
+    CL=31579
+
+ src/cmd/5g/cgen.c | 34 +++++++++++++++++-----------------
+ 1 file changed, 17 insertions(+), 17 deletions(-)

@@ -1,0 +1,40 @@
+commit 0ad368675bae1e3228c9146e092cd00cfb29ac27
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 19 15:33:02 2019 -0400
+
+    context: use fewer goroutines in WithCancel/WithTimeout
+    
+    If the parent context passed to WithCancel or WithTimeout
+    is a known context implementation (one created by this package),
+    we attach the child to the parent by editing data structures directly;
+    otherwise, for unknown parent implementations, we make a
+    goroutine that watches for the parent to finish and propagates
+    the cancellation.
+    
+    A common problem with this scheme, before this CL, is that
+    users who write custom context implementations to manage
+    their value sets cause WithCancel/WithTimeout to start
+    goroutines that would have not been started before.
+    
+    This CL changes the way we map a parent context back to the
+    underlying data structure. Instead of walking up through
+    known context implementations to reach the *cancelCtx,
+    we look up parent.Value(&cancelCtxKey) to return the
+    innermost *cancelCtx, which we use if it matches parent.Done().
+    
+    This way, a custom context implementation wrapping a
+    *cancelCtx but not changing Done-ness (and not refusing
+    to return wrapped keys) will not require a goroutine anymore
+    in WithCancel/WithTimeout.
+    
+    For #28728.
+    
+    Change-Id: Idba2f435c81b19fe38d0dbf308458ca87c7381e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196521
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/context/context.go      | 61 ++++++++++++++++++++++++---------
+ src/context/context_test.go | 82 ++++++++++++++++++++++++++++++++++++++++++++-
+ src/context/x_test.go       |  1 +
+ src/go/build/deps_test.go   |  2 +-
+ 4 files changed, 129 insertions(+), 17 deletions(-)

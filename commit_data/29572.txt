@@ -1,0 +1,25 @@
+commit b2d34fa51bd509f0aa780151a3d30c5ca77f1f4e
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Nov 9 09:09:37 2016 -0600
+
+    runtime: handle bad ftab index in symtab.go
+    
+    If a program has had its text section split into multiple
+    sections then the ftab that is built is based on addresses
+    prior to splitting.  That means all the function addresses
+    are there and correct because of relocation but the
+    but the computed idx won't always match up quite right and
+    in some cases go beyond the end of the table, causing a panic.
+    
+    To resolve this, determine if the idx is too large and if it is,
+    set it to the last index in ftab.  Then search backward to find the
+    matching function address.
+    
+    Fixes #17854
+    
+    Change-Id: I6940e76a5238727b0a9ac23dc80000996db2579a
+    Reviewed-on: https://go-review.googlesource.com/32972
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/symtab.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

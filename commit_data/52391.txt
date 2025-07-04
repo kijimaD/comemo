@@ -1,0 +1,25 @@
+commit e0c69587c4b7cfa7e6aada6f63c196d75588ddf5
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Thu Mar 23 21:50:21 2023 +0000
+
+    Revert "os/user: lookup Linux users and groups via systemd userdb"
+    
+    This reverts CL 459455.
+    
+    Reason for revert: breaks tests on various platforms, see https://go-review.googlesource.com/c/go/+/459455/74#message-3d9462b24872f6e0b12b4abf5ea3983e1588f91a
+    
+    Change-Id: I4c79b28f750c2369909688f86616d76d7eaf0ab4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479135
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/user/listgroups_unix.go         |   9 -
+ src/os/user/lookup_unix.go             |  30 --
+ src/os/user/user.go                    |   4 -
+ src/os/user/userdbclient.go            |  22 -
+ src/os/user/userdbclient_linux.go      | 772 ---------------------------------
+ src/os/user/userdbclient_linux_test.go | 504 ---------------------
+ src/os/user/userdbclient_stub.go       |  29 --
+ 7 files changed, 1370 deletions(-)

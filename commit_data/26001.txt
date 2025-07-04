@@ -1,0 +1,18 @@
+commit 0d1a98e21080f7471b8a9306e1ad0ef55d2727ca
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Feb 29 17:50:00 2016 -0900
+
+    cmd/link: rename Hide to Hidden and make a bool
+    
+    Change-Id: Ic99bd63c96b1eba5cc2b5cd2be3a575890a02996
+    Reviewed-on: https://go-review.googlesource.com/20103
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go  | 16 ++++++++--------
+ src/cmd/link/internal/ld/go.go     |  4 ++--
+ src/cmd/link/internal/ld/lib.go    |  2 +-
+ src/cmd/link/internal/ld/link.go   |  2 +-
+ src/cmd/link/internal/ld/symtab.go | 12 ++++++------
+ 5 files changed, 18 insertions(+), 18 deletions(-)

@@ -1,0 +1,31 @@
+commit 44a0da4ff11a5447dcfe2b62ac46bca134736d81
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Apr 20 02:46:33 2021 +0000
+
+    cmd/internal/obj/arm64: refactor the handling of shifted RSP
+    
+    Some arithmetic operation instructions such as ADD and SUB support two
+    formats of left shift (<<) operation, namely shifted register format and
+    extended register format. And the encoding, supported registers and shifted
+    amount are both different.
+    
+    The assembly parser doesn't distinguish them and parses them into TYPE_SHIFT
+    type, because the parser can't tell them apart and in most cases extended
+    left-shift can be replaced by shifted left-shift. The only exception is
+    when the second source register or the destination register is RSP.
+    
+    This CL converts this case into the extended format in the preprocess stage,
+    which helps to simplify some of the logic of the new assembler implementation
+    and also makes this situation look more reasonable.
+    
+    Change-Id: I2cd7d2d663b38a7ba77a9fef1092708b8cb9bc3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311709
+    Trust: Eric Fang <eric.fang@arm.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  4 +-
+ src/cmd/internal/obj/arm64/asm7.go             | 61 +++++++-------------------
+ src/cmd/internal/obj/arm64/obj7.go             | 18 ++++++++
+ 3 files changed, 35 insertions(+), 48 deletions(-)

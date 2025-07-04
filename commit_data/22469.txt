@@ -1,0 +1,17 @@
+commit 4af5dcb2db977ea3c2e2218be7912951b3a44113
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 13 09:30:56 2015 -0700
+
+    iostest.bash: do not restart device by default
+    
+    This is friendlier for manual runs and personal devices.
+    Builders will pass -restart.
+    
+    Fixes #10333.
+    
+    Change-Id: Ia64c8f1660e275b5a1543d7f81f5f5efb623182f
+    Reviewed-on: https://go-review.googlesource.com/8870
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/iostest.bash | 34 ++++++++++++++++++----------------
+ 1 file changed, 18 insertions(+), 16 deletions(-)

@@ -1,0 +1,17 @@
+commit 315f4c70f123cfbf061d097543af555547acd9c7
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Feb 18 16:29:39 2016 -0500
+
+    runtime: use correct psABI SP alignment before calling libc mmap
+    
+    Fixes #14384.
+    
+    Change-Id: Ib025cf2d20754b4c2db52f0a8a4717fd303371d6
+    Reviewed-on: https://go-review.googlesource.com/19660
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/sys_linux_amd64.s | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

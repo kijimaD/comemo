@@ -1,0 +1,21 @@
+commit 01971b97c11cd55e9e65f628b7f1c3fc8ef81944
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Nov 10 06:58:36 2018 -0800
+
+    cmd/compile: cull dead code
+    
+    The special case for ODOTPTR to handle zero-width fields is unneeded.
+    It is an artifact of the old backend, from which time this code dates.
+    The Node to SSA converter is careful to insert a nil check.
+    This is tested in test/nilptr2.go, among other places.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I6c1d99f7ff5abdae9aa08ee047dc088a3fe8dc3c
+    Reviewed-on: https://go-review.googlesource.com/c/148828
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)

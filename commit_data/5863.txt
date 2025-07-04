@@ -1,0 +1,50 @@
+commit 9a2f0029bcd6b3ada2cc8dbc6b52b5500e064047
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 21 10:57:46 2010 -0700
+
+    io: Avoid another race condition in pipes.
+    
+    Goroutine 1:
+      Call Read on read half of pipe, entering pipeHalf.rw.
+      Check ioclosed field, which is false.
+      Send data to p.c1
+      Wait for response on p.c2.
+    
+    Goroutine 2:
+      Call Close on read half of pipe, entering pipeHalf.close.
+      Set closed field.
+      Send error to p.cclose.
+      Set ioclosed field.
+      Send 1 to p.done.
+      Return and exit goroutine.
+    
+    Goroutine 3:
+      This is the goroutine running pipe.run, and for some reason
+      it has started late.
+      Read error from p.rclose; set rerr and continue.
+      Read 1 from p.done; increment ndone and continue.
+      Read data from r1 (sent by goroutine 1); set r1 = nil and continue
+    
+    Now goroutine 1 is waiting for a response, and goroutine 3 is
+    waiting for something else to happen.
+    
+    This patch fixes the race by having the runner check whether
+    the read half is closed when it is asked for read data, and
+    similarly for the corresponding race on the write half.
+    
+    This patch also fixes the similar race in which ndone gets
+    bumped up to 2 while there is a reader or writer waiting.
+    
+    There is still another race to fix.  It is possible for the
+    read half and the write half to both be closed, and for the
+    runner goroutine to exit, all before the runner goroutine sees
+    the request from a reader.  E.g., in the above, have goroutine
+    2 also close the write half, and have goroutine 3 see both
+    done messages before it sees the request from goroutine 1.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1862045
+
+ src/pkg/io/pipe.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

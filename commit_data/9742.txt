@@ -1,0 +1,12 @@
+commit 24257a1ea2bee3f16efd6a154e87f02fccaf0ef2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 19 13:19:07 2011 -0400
+
+    json: clearer Unmarshal doc
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5056049
+
+ src/pkg/json/decode.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

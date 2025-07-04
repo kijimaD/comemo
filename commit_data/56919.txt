@@ -1,0 +1,15 @@
+commit a6f3add91a51365ec0ea73f88a5019d8e69cca2a
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Sun Jul 21 15:04:38 2024 +0200
+
+    net: add godoc links on UDP related symbols
+    
+    Change-Id: Ibc861e7b2aebc8fd1e0ba15d8d35ae0ecfe7747e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/599996
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/udpsock.go | 48 ++++++++++++++++++++++++------------------------
+ 1 file changed, 24 insertions(+), 24 deletions(-)

@@ -1,0 +1,21 @@
+commit 08816cb8d7ed16b9c804587ff02c1ad1c3af6cd5
+Author: Peter Weinberger <pjw@google.com>
+Date:   Mon Oct 29 10:18:05 2018 -0400
+
+    cmd/trace: use new traceparser to parse the raw trace files
+    
+    Change-Id: I8b224ae48a2f8acd5a64c9ff283e97821479a9a8
+    Reviewed-on: https://go-review.googlesource.com/c/145457
+    Run-TryBot: Peter Weinberger <pjw@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/trace/annotations.go      |   7 +-
+ src/cmd/trace/annotations_test.go |  14 ++--
+ src/cmd/trace/goroutines.go       |  11 +--
+ src/cmd/trace/main.go             |  49 +++++------
+ src/cmd/trace/pprof.go            |  64 +++++++++------
+ src/cmd/trace/trace.go            | 168 +++++++++++++++++++-------------------
+ src/cmd/trace/trace_test.go       |  46 ++++++-----
+ src/cmd/trace/trace_unix_test.go  |  12 ++-
+ 8 files changed, 194 insertions(+), 177 deletions(-)

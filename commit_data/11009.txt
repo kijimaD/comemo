@@ -1,0 +1,14 @@
+commit 6a88f1c4cb212bc8c9ab7517b8eab2b4c20c6e67
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 26 23:49:24 2011 -0800
+
+    bytes.Buffer: read of 0 bytes at EOF shouldn't be an EOF
+    This corner case arose doing an RPC with a empty-slice payload. Ouch.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5505073
+
+ src/pkg/bytes/buffer.go      |  5 ++++-
+ src/pkg/bytes/buffer_test.go | 13 +++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 8bdd24df6afa746cede600351feb2aa4395a63ea
+Author: Nikson Kanti Paul <nikson.sust@gmail.com>
+Date:   Tue Jan 21 01:50:27 2020 +0100
+
+    build: in clean.bash, look for 'go' in GOROOT/bin instead of GOBIN
+    
+    Updates #14340
+    Updates #32674
+    Fixes #36659
+    
+    Change-Id: I5bfaba4e53dab894d113dd5065794d66f1a25f2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215478
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/clean.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

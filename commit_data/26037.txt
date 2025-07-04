@@ -1,0 +1,23 @@
+commit 0c84c4f19cedd13445c64fcdc409b4821ff9a7d2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Mar 3 10:51:30 2016 -0500
+
+    cmd/link: combine all string data into one symbol
+    
+    This CL introduces a mergestrings pass after the reachability
+    analysis to combine all reachable go.string."..." character data
+    symbols into a single symbol.
+    
+    Shrinks juju by 1.2mb (1.5%).
+    Shrinks cmd/go by 0.5% when building without DWARF.
+    No noticable effect on linker speed.
+    
+    Change-Id: I2ba3e60bf418f65766bda257f6ca9eea26d895b6
+    Reviewed-on: https://go-review.googlesource.com/20165
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/mergestrings.go | 66 ++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/pobj.go         |  1 +
+ 2 files changed, 67 insertions(+)

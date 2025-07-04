@@ -1,0 +1,21 @@
+commit 0d09b7e041e24fd2707282b5440e029019c73190
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 30 16:36:39 2019 -0500
+
+    cmd/go: convert TestGoBuildNotMain to script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: Icd62dc8db55bec52ad326bc370ee7e435aae2559
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212812
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                        | 10 ----------
+ src/cmd/go/testdata/script/build_exe.txt     | 21 +++++++++++++++++++++
+ src/cmd/go/testdata/src/not_main/not_main.go |  3 ---
+ 3 files changed, 21 insertions(+), 13 deletions(-)

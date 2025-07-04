@@ -1,0 +1,25 @@
+commit e1f38ccab14d27b934f0ebe7282fad556a788dd6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 13 17:28:54 2017 +0000
+
+    flag: make default Usage prefer CommandLine's output over just os.Stderr
+    
+    CommandLine (exported in Go 1.2) has default output of os.Stderr.
+    
+    Before it was exported, it made sense to have the global Usage func
+    (the implicit usage func if CommandLine.Usage is nil) hard-code
+    os.Stderr has its output. But once CommandLine was exported, Usage
+    should use it if provided.
+    
+    Fixes #20998
+    
+    Change-Id: I9e1c0415a563a982634b9808199c9ee175d72f4c
+    Reviewed-on: https://go-review.googlesource.com/48390
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/flag/export_test.go |  2 ++
+ src/flag/flag.go        |  5 +++--
+ src/flag/flag_test.go   | 14 ++++++++++++++
+ 3 files changed, 19 insertions(+), 2 deletions(-)

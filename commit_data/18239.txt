@@ -1,0 +1,13 @@
+commit e0dcf73d6163beeb4e92715d2f64fdc0ca9573be
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jan 14 12:58:13 2014 +0400
+
+    runtime: fix comment
+    Void function can not return false.
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/52000043
+
+ src/pkg/runtime/proc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

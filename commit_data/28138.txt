@@ -1,0 +1,18 @@
+commit be23e98e06b1e1c65de19d460537c4df21ebf555
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 29 13:29:46 2016 -0700
+
+    reflect: cleanup wording for type identity/equality
+    
+    Use terms like "equal" and "identical types" to match the Go spec,
+    rather than inventing a new explanation. See also discussion on
+    golang.org/cl/27170.
+    
+    Updates #16348.
+    
+    Change-Id: I0fe0bd01c0d1da3c8937a579c2ba44cf1eb16b71
+    Reviewed-on: https://go-review.googlesource.com/28054
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/reflect/type.go | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

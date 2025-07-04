@@ -1,0 +1,18 @@
+commit 179d41feccc29260d1a16294647df218f1a6746a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jan 27 23:17:46 2014 +0400
+
+    runtime: tune P retake logic
+    When GOMAXPROCS>1 the last P in syscall is never retaken
+    (because there are already idle P's -- npidle>0).
+    This prevents sysmon thread from sleeping.
+    On a darwin machine the program from issue 6673 constantly
+    consumes ~0.2% CPU. With this change it stably consumes 0.0% CPU.
+    Fixes #6673.
+    
+    R=golang-codereviews, r
+    CC=bradfitz, golang-codereviews, iant, khr
+    https://golang.org/cl/56990045
+
+ src/pkg/runtime/proc.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

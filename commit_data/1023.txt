@@ -1,0 +1,12 @@
+commit 6fff0efdd8520a2128e116ce881b1f4cd3c6df27
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Nov 1 15:56:06 2008 -0700
+
+    sprint changed to snprint
+    
+    R=r
+    OCL=18316
+    CL=18316
+
+ src/cmd/6l/list.c | 60 +++++++++++++++++++++++++++----------------------------
+ 1 file changed, 30 insertions(+), 30 deletions(-)

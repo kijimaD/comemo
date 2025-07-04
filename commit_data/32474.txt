@@ -1,0 +1,23 @@
+commit 6126384f6da7866fb0a0ec2e33509306c738c40b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 25 13:18:30 2017 -0700
+
+    runtime: unify sigTabT type across Unix systems
+    
+    Change-Id: I8e8a3a118b1216f191c9076b70a88f6f3f19f79f
+    Reviewed-on: https://go-review.googlesource.com/59150
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/runtime2.go             |  1 +
+ src/runtime/signal_darwin.go        |  5 -----
+ src/runtime/signal_dragonfly.go     |  5 -----
+ src/runtime/signal_freebsd.go       |  5 -----
+ src/runtime/signal_netbsd.go        |  5 -----
+ src/runtime/signal_openbsd.go       |  5 -----
+ src/runtime/signal_solaris.go       |  5 -----
+ src/runtime/signal_unix.go          | 10 ++++++++++
+ src/runtime/sigtab_linux_generic.go |  5 -----
+ src/runtime/sigtab_linux_mipsx.go   |  5 -----
+ 10 files changed, 11 insertions(+), 40 deletions(-)

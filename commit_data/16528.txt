@@ -1,0 +1,19 @@
+commit 06f55f50097293027a4634ba88140c75702c6a5d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jun 11 02:55:16 2013 +0800
+
+    net: introduce netgo build tag to build a pure Go net package.
+    Fixes #4078.
+    
+    R=golang-dev, bradfitz, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/7100050
+
+ doc/go1.2.txt              | 1 +
+ src/pkg/net/cgo_bsd.go     | 1 +
+ src/pkg/net/cgo_linux.go   | 2 ++
+ src/pkg/net/cgo_netbsd.go  | 2 ++
+ src/pkg/net/cgo_openbsd.go | 2 ++
+ src/pkg/net/cgo_stub.go    | 2 +-
+ src/pkg/net/cgo_unix.go    | 1 +
+ 7 files changed, 10 insertions(+), 1 deletion(-)

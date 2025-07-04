@@ -1,0 +1,13 @@
+commit 3ff5e727e278066650f5604794109b7ad1e8ce8c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 27 10:59:59 2009 -0700
+
+    fix bug in CL 30057: missed if+continue in one place.
+    
+    R=gri
+    DELTA=2  (2 added, 0 deleted, 0 changed)
+    OCL=32214
+    CL=32223
+
+ src/pkg/runtime/darwin/thread.c | 2 ++
+ 1 file changed, 2 insertions(+)

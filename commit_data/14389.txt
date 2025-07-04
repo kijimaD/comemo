@@ -1,0 +1,19 @@
+commit 306afc7725e5174e7ad06fc7ba160ec7bc262cb7
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Nov 13 16:18:37 2012 +0900
+
+    net: consolidate common socket functions for Plan 9
+    
+    This CL extends changeset 13126:fc4a62e14aba to Plan 9.
+    
+    R=ality, golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6820124
+
+ src/pkg/net/fd_plan9.go      | 115 ++++++++++++++++++++++++
+ src/pkg/net/ipsock_plan9.go  | 202 ++++---------------------------------------
+ src/pkg/net/net.go           |  97 +++++++++++++++++++++
+ src/pkg/net/net_posix.go     | 110 -----------------------
+ src/pkg/net/tcpsock_plan9.go | 115 ++++++++++++++++++++----
+ src/pkg/net/udpsock_plan9.go |  36 ++++----
+ 6 files changed, 349 insertions(+), 326 deletions(-)

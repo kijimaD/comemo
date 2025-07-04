@@ -1,0 +1,17 @@
+commit 1d40e2b14b67f74681d71255ae833c6748d47b3f
+Author: Muhammed Uluyol <uluyol0@gmail.com>
+Date:   Sat Mar 5 23:51:25 2016 -0500
+
+    Rewrite leftover references to plan9.bell-labs.com to 9p.io.
+    
+    Change-Id: Iadb4aa016a7b361d01827787dbc59164d5d147f2
+    Reviewed-on: https://go-review.googlesource.com/20291
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/yacc/doc.go                | 2 +-
+ src/debug/gosym/symtab.go          | 2 +-
+ src/image/color/palette/gen.go     | 2 +-
+ src/image/color/palette/palette.go | 2 +-
+ src/path/filepath/path.go          | 2 +-
+ src/path/path.go                   | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)

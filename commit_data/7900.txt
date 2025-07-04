@@ -1,0 +1,19 @@
+commit 5a3aae4bf7410fd28fe4a92551f2a3c5ae58003a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 28 18:48:52 2011 -0700
+
+    go/printer, gofmt: rely on existing line breaks when formatting expression lists
+    
+    No impact on existing sources.
+    
+    Fixes #1632.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4271083
+
+ src/pkg/go/printer/nodes.go                    | 16 ++--------------
+ src/pkg/go/printer/testdata/expressions.golden | 10 ++++++++++
+ src/pkg/go/printer/testdata/expressions.input  | 10 ++++++++++
+ src/pkg/go/printer/testdata/expressions.raw    | 10 ++++++++++
+ 4 files changed, 32 insertions(+), 14 deletions(-)

@@ -1,0 +1,24 @@
+commit ae0c435877d3aacb9af5e706c40f9dddde5d3e67
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 19 10:48:53 2018 +1100
+
+    flag: return a consistent parse error if the flag value is invalid
+    
+    Return a consistently formatted error string that reports either
+    a parse error or a range error.
+    
+    Before:
+            invalid boolean value "3" for -debug: strconv.ParseBool: parsing "3": invalid syntax
+    
+    After:
+            invalid boolean value "3" for -debug: parse error
+    
+    Fixes #26822
+    
+    Change-Id: I60992bf23da32a4c0cf32472a8af486a3c9674ad
+    Reviewed-on: https://go-review.googlesource.com/c/143257
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/flag/flag.go      | 43 +++++++++++++++++++++++++++++++++++++++++
+ src/flag/flag_test.go | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 96 insertions(+)

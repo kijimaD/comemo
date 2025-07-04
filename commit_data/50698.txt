@@ -1,0 +1,16 @@
+commit 36f046d934c66fb6eb47d568e04665708c096ad7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Sep 29 12:13:16 2022 +0200
+
+    cmd/go/internal/lockedfile/internal/filelock: remove unused type token
+    
+    Change-Id: If815d17851e4e4eac026417b820f15d11939d9cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436595
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go | 2 --
+ 1 file changed, 2 deletions(-)

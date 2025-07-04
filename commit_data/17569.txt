@@ -1,0 +1,12 @@
+commit e333b96529da99e40fe920ecf084dea4e18309ef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 11 17:18:52 2013 -0700
+
+    spec: define s[i:j:k]
+    
+    R=rsc, r, iant, ken
+    CC=golang-dev
+    https://golang.org/cl/10243046
+
+ doc/go_spec.html | 65 ++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 61 insertions(+), 4 deletions(-)

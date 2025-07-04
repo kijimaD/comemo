@@ -1,0 +1,21 @@
+commit 8994607f828e46272bae5e7959997dea8cb1a19a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 22 14:40:50 2020 -0400
+
+    go/build: clean up ctxt.shouldBuild, tests
+    
+    Make ctxt.shouldBuild return multiple values
+    instead of modifying *sawBinaryOnly in place.
+    Also give it a table-driven test.
+    
+    Cleanup in preparation for boolean expressions,
+    but nice even if those don't end up happening.
+    
+    Change-Id: Ibb78b0080070deafac7299a6de87ab8bebeb702d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240598
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/go/build/build.go      |  21 ++++-----
+ src/go/build/build_test.go | 113 +++++++++++++++++++++++++++++----------------
+ 2 files changed, 81 insertions(+), 53 deletions(-)

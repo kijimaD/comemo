@@ -1,0 +1,25 @@
+commit 131eb8fbf80fd8b51ae8b5c5220d566582a41e71
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 1 14:01:58 2019 -0700
+
+    cmd/compile: trim more unnecessary escape analysis messages
+    
+    "leaking closure reference" is redundant for similar reasons as "&x
+    escapes to heap" for OADDR nodes: the reference itself does not
+    allocate, and we already report when the referenced variable is moved
+    to heap.
+    
+    "mark escaped content" is redundant with "leaking param content".
+    
+    Updates #23109.
+    
+    Change-Id: I1ab599cb1e8434f1918dd80596a70cba7dc8a0cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170321
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go |  8 --------
+ test/escape2.go                    | 24 ++++++++++++------------
+ test/escape2n.go                   | 24 ++++++++++++------------
+ test/escape_array.go               |  8 ++++----
+ 4 files changed, 28 insertions(+), 36 deletions(-)

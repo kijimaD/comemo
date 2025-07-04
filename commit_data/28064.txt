@@ -1,0 +1,14 @@
+commit a656390b6986c3d559873b64683aa3454a151115
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 25 21:01:17 2016 -0700
+
+    spec: clarify text on init functions
+    
+    For #16874.
+    
+    Change-Id: I2e13f582297606e506d805755a6cfc1f3d4306a2
+    Reviewed-on: https://go-review.googlesource.com/27817
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

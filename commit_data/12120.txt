@@ -1,0 +1,12 @@
+commit 9c8923f7dc4b983dca233085560adf4dc079dc25
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 22 11:22:09 2012 +1100
+
+    net/http: update test to use time.Duration better
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5688063
+
+ src/pkg/net/http/serve_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

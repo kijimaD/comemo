@@ -1,0 +1,16 @@
+commit d278f09333edec3db982d1e4b4dfad0e1e8cce49
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 19 01:37:21 2018 -0400
+
+    cmd/go: skip TestScript/mod_* on Windows
+    
+    I don't know why it's failing.
+    Filed #26457.
+    
+    Change-Id: I84833293a572c5a1a25135bd01cb88518fc7441e
+    Reviewed-on: https://go-review.googlesource.com/124857
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/script_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

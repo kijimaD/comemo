@@ -1,0 +1,15 @@
+commit 9da6666a8aec5994edb8f1a204257c2b8fdd8180
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 22:09:58 2009 -0800
+
+    gc: check for assignment to private fields during initialization
+    
+    R=ken2
+    https://golang.org/cl/165055
+
+ src/cmd/gc/typecheck.c         |  8 ++++++--
+ test/assign.go                 |  8 ++++++++
+ test/fixedbugs/bug226.dir/x.go |  9 +++++++++
+ test/fixedbugs/bug226.dir/y.go | 31 +++++++++++++++++++++++++++++++
+ test/fixedbugs/bug226.go       |  7 +++++++
+ 5 files changed, 61 insertions(+), 2 deletions(-)

@@ -1,0 +1,26 @@
+commit 830b393bcd5a3090b13cd0bd05f51e3d594807f3
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Nov 9 00:05:58 2021 +0700
+
+    cmd/compile,cmd/go: fix long test builders
+    
+    CL 361411 improved error message for go version requirement, but forgot
+    to update the test in cmd/go to match new error message. That causes
+    longtest builders failed.
+    
+    This CL changes mod_vendor_goversion.txt to match compiler error, and
+    limit fixedbugs/issue49368.go to run with -G=3 only.
+    
+    Updates #49368
+    
+    Change-Id: I125fe0a8c2a1595066d39c03e97819e7a1274e0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361963
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/mod_vendor_goversion.txt | 2 +-
+ test/fixedbugs/issue49368.go                        | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

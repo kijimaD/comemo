@@ -1,0 +1,24 @@
+commit 0d52c144a2564fbd5b755cd06759ab7d6870c85b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 28 00:05:46 2018 -0400
+
+    cmd/vet: fix ironic misuse of fmt.Sprintf
+    
+    Move badf helper into top-level function so that prints from buildtag.go
+    are once again themselves printf-format-checked by vet.
+    Also, fix implementation, which was missing a ... in the Sprintf call and
+    produced messages like:
+    
+    /Users/rsc/x_test.go:1: +build comment must appear before package clause and be followed by a blank line%!(EXTRA []interface {}=[])
+    
+    These were introduced in CL 111415.
+    
+    Change-Id: I000af3a4e01dc99fc79c9146aa68a71dace1460f
+    Reviewed-on: https://go-review.googlesource.com/121300
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/buildtag.go                   | 23 +++++++++++------------
+ src/cmd/vet/testdata/buildtag/buildtag.go |  2 +-
+ 2 files changed, 12 insertions(+), 13 deletions(-)

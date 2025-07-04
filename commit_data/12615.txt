@@ -1,0 +1,13 @@
+commit 62bb39e2baad708c3910abc6b5b51c49f91418d4
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 14 04:59:17 2012 +0800
+
+    fmt: remove dead code
+         Also fix a typo in comment.
+    
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/5808043
+
+ src/pkg/fmt/scan_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

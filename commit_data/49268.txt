@@ -1,0 +1,19 @@
+commit b93ceefa7b47167f7bc9ec471905c136b234d34f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 18 23:47:03 2022 +0000
+
+    runtime: use osyield in runqgrab on netbsd
+    
+    NetBSD appears to have the same issue OpenBSD had in runqgrab. See
+    issue #52475 for more details.
+    
+    For #35166.
+    
+    Change-Id: Ie53192d26919b4717bc0d61cadd88d688ff38bb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407139
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

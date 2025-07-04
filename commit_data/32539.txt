@@ -1,0 +1,13 @@
+commit 91b6425031038ea4d91fb25bd1fb70c8d054ed09
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Aug 23 20:01:48 2017 +0200
+
+    runtime: add comments to race annotations
+    
+    Change-Id: Icfb68e73ac38d0a0acc0cda1e41f9e9c5b75ecf5
+    Reviewed-on: https://go-review.googlesource.com/58110
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/race.go | 108 +++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 65 insertions(+), 43 deletions(-)

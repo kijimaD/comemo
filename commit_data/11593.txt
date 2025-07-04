@@ -1,0 +1,12 @@
+commit bd41831f66837f59428ae824b33979db9eaaf30c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 3 08:33:29 2012 -0800
+
+    godoc: diagnostic for empty FS tree
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5615055
+
+ src/cmd/godoc/godoc.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

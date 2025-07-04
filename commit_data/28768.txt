@@ -1,0 +1,21 @@
+commit 6ca48f710f6ae163aa87e883a0a4cf8a91dad0a4
+Author: Chris McGee <sirnewton_01@yahoo.ca>
+Date:   Wed Sep 28 21:29:08 2016 -0400
+
+    net: implement network interface API for Plan 9
+    
+    The new implementation parses the plan9 interface files
+    and builds Interface representations for the net package.
+    
+    Updates #17218
+    
+    Change-Id: I3199d18d9e96a17e922186c3abff1d7cd9cbec2e
+    Reviewed-on: https://go-review.googlesource.com/29963
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/interface.go       |   2 +-
+ src/net/interface_plan9.go | 199 +++++++++++++++++++++++++++++++++++++++++++++
+ src/net/interface_stub.go  |   2 +-
+ 3 files changed, 201 insertions(+), 2 deletions(-)

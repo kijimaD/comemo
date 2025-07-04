@@ -1,0 +1,16 @@
+commit 1583931bcf522c4128087f0fb7dc84c4caa2af28
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Jan 31 18:14:02 2012 -0800
+
+    syscall: cache environment variables on Plan 9.
+    
+    This can drastically reduce the number of system
+    calls made by programs that repeatedly query the
+    environment.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5599054
+
+ src/pkg/syscall/env_plan9.go | 136 ++++++++++++++++++++++++++++++-------------
+ 1 file changed, 95 insertions(+), 41 deletions(-)

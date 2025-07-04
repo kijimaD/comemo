@@ -1,0 +1,14 @@
+commit 9c8ae6ca34640eb835eda8afc268815c6fbde039
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jul 27 22:21:33 2012 +1000
+
+    os: move epipecheck from file_posix.go and into file_unix.go to fix windows build
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6450058
+
+ src/pkg/os/file_posix.go   | 11 -----------
+ src/pkg/os/file_unix.go    | 11 +++++++++++
+ src/pkg/os/file_windows.go |  3 +++
+ 3 files changed, 14 insertions(+), 11 deletions(-)

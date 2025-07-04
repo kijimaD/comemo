@@ -1,0 +1,27 @@
+commit 52ee654b25970a0b8c0ce9d2c8eda604df2026bb
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 8 18:15:32 2017 -0400
+
+    internal/trace: use banding to optimize MMU computation
+    
+    This further optimizes MMU construction by first computing a
+    low-resolution summary of the utilization curve. This "band" summary
+    lets us compute the worst-possible window starting in each of these
+    low-resolution bands (even without knowing where in the band the
+    window falls). This in turn lets us compute precise minimum mutator
+    utilization only in the worst low-resolution bands until we can show
+    that any remaining bands can't possibly contain a worse window.
+    
+    This slows down MMU construction for small traces, but these are
+    reasonably fast to compute either way. For large traces (e.g.,
+    150,000+ utilization changes) it's significantly faster.
+    
+    Change-Id: Ie66454e71f3fb06be3f6173b6d91ad75c61bda48
+    Reviewed-on: https://go-review.googlesource.com/c/60792
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/go/build/deps_test.go      |   2 +-
+ src/internal/traceparser/gc.go | 182 ++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 179 insertions(+), 5 deletions(-)

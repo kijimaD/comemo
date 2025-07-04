@@ -1,0 +1,14 @@
+commit 5103500d130b3b74c0c3a75ac8dab5285111ffbe
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 8 18:07:33 2014 -0400
+
+    runtime: mark endcgo go:nosplit
+    
+    Should help windows/amd64.
+    
+    TBR=khr
+    CC=golang-codereviews
+    https://golang.org/cl/134660043
+
+ src/runtime/cgocall.go | 1 +
+ 1 file changed, 1 insertion(+)

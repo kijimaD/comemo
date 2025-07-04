@@ -1,0 +1,41 @@
+commit edcde86990abd9d7336eee5115b63d8c0863a5dd
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed May 21 23:55:43 2025 +0200
+
+    crypto,hash: add and implement hash.Cloner
+    
+    Fixes #69521
+    
+    Co-authored-by: qiulaidongfeng <2645477756@qq.com>
+    Change-Id: I6a6a465652f5ab7e6c9054e826e17df2b8b34e41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675197
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/69521.txt                               |  9 +++++
+ doc/next/6-stdlib/99-minor/crypto/sha3/69521.md  |  1 +
+ doc/next/6-stdlib/99-minor/hash/69521.md         |  2 ++
+ doc/next/6-stdlib/99-minor/hash/maphash/69521.md |  1 +
+ src/crypto/hmac/hmac_test.go                     | 12 +++++++
+ src/crypto/internal/cryptotest/hash.go           |  6 ++++
+ src/crypto/internal/fips140/hmac/hmac.go         | 26 +++++++++++++++
+ src/crypto/internal/fips140/sha256/sha256.go     |  6 ++++
+ src/crypto/internal/fips140/sha512/sha512.go     |  6 ++++
+ src/crypto/md5/md5.go                            |  5 +++
+ src/crypto/md5/md5_test.go                       |  9 ++++-
+ src/crypto/sha1/sha1.go                          |  5 +++
+ src/crypto/sha1/sha1_test.go                     |  9 ++++-
+ src/crypto/sha256/sha256_test.go                 | 15 ++++++---
+ src/crypto/sha3/sha3.go                          |  6 ++++
+ src/crypto/sha3/sha3_test.go                     | 15 +++++----
+ src/crypto/sha512/sha512_test.go                 | 23 ++++++++-----
+ src/hash/adler32/adler32.go                      |  5 +++
+ src/hash/crc32/crc32.go                          |  5 +++
+ src/hash/crc64/crc64.go                          |  5 +++
+ src/hash/fnv/fnv.go                              | 30 +++++++++++++++++
+ src/hash/hash.go                                 | 12 +++++++
+ src/hash/maphash/maphash.go                      | 10 +++++-
+ src/internal/testhash/hash.go                    | 42 ++++++++++++++++++++++++
+ 24 files changed, 243 insertions(+), 22 deletions(-)

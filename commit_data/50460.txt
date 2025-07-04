@@ -1,0 +1,22 @@
+commit 77420fa119643163f820be7752668a69100487d7
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Sep 13 19:28:58 2022 +1000
+
+    cmd/link: generate an error if the entry symbol cannot be found
+    
+    If the entry symbol cannot be found (for example, a new port is being brought
+    up and no rt0 code has been provided), the linker will currently panic. Rather
+    than panicing, generate an error that aids in debugging:
+    
+            missing entry symbol "_rt0_arm64_openbsd"
+    
+    Change-Id: I9cc38eaab48f730d596ca7fa9e9e3d68250ae4d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430555
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/lib.go | 4 ++++
+ 1 file changed, 4 insertions(+)

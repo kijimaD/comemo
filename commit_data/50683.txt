@@ -1,0 +1,17 @@
+commit c4a3fae27e33a5334a8f900147ae313c14694c5b
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 21:23:06 2022 +0800
+
+    cmd/asm: use opd.String() instead of fmt.Sprintf
+    
+    Change-Id: Idbade74025bddb26ec3c10527de5af5dc2b8c1cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435940
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/asm/internal/arch/arm64.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

@@ -1,0 +1,27 @@
+commit 88bd9852394c02a71040226d523903bcb718e51c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 17 15:02:10 2024 -0700
+
+    cmd/compile/internal/types2: use syntax.EndPos instead of local computation
+    
+    Previously, the end position for a select statement clause body was
+    computed explicitly as the start of the next clause or the closing "}"
+    of the select statement, respectively.
+    
+    Since syntax.EndPos computes the end position of a node, there's no
+    need to compute these positions "manually", we can simply use the
+    syntax.ExdPos for each clause. The positions are not exactly the
+    same as before but for the purpose of identifier visibility in
+    scopes there is no semantic change.
+    
+    Simplifies the code and brings it more in line with go/types.
+    
+    Change-Id: I24bca85a131a0ea31a2adaafc08ab713450258fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593016
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/stmt.go | 26 ++++++--------------------
+ 1 file changed, 6 insertions(+), 20 deletions(-)

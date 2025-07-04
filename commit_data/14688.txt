@@ -1,0 +1,16 @@
+commit 4e406a2372b65ce58b2c4d26ada1c8b27c791af8
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Dec 18 16:38:00 2012 -0800
+
+    go/token: add test for concurrent use of FileSet.Pos
+    
+    Update #4354.
+    
+    Add a test to expose the race in the FileSet position cache.
+    
+    R=dvyukov, gri
+    CC=fullung, golang-dev
+    https://golang.org/cl/6940078
+
+ src/pkg/go/token/position_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

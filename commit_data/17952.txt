@@ -1,0 +1,12 @@
+commit c69402d82b5860df253b77ad07b6aa572c9f87cd
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Tue Dec 10 11:17:43 2013 -0800
+
+    runtime: remove outdated comment and related indentation
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/39810043
+
+ src/pkg/runtime/mgc0.c | 212 ++++++++++++++++++++++++-------------------------
+ 1 file changed, 103 insertions(+), 109 deletions(-)

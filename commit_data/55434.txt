@@ -1,0 +1,36 @@
+commit b495ddbe13e6e836d52ae39de7bf809283928e50
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jan 24 22:13:17 2024 +0100
+
+    net/netip: further optimize AddrPort.String
+    
+    name                          old time/op    new time/op    delta
+    AddrPortString/v4-8             29.0ns ± 0%    28.2ns ± 1%   -2.74%  (p=0.000 n=8+9)
+    AddrPortString/v6-8             96.0ns ± 0%    65.1ns ± 0%  -32.22%  (p=0.000 n=10+10)
+    AddrPortString/v6_ellipsis-8    98.5ns ± 0%    68.0ns ± 1%  -30.95%  (p=0.000 n=10+10)
+    AddrPortString/v6_v4-8          71.8ns ± 1%    33.9ns ± 0%  -52.88%  (p=0.000 n=10+10)
+    AddrPortString/v6_zone-8        98.5ns ± 0%    68.6ns ± 0%  -30.35%  (p=0.000 n=8+9)
+    
+    name                          old alloc/op   new alloc/op   delta
+    AddrPortString/v4-8              24.0B ± 0%     24.0B ± 0%     ~     (all equal)
+    AddrPortString/v6-8              96.0B ± 0%     48.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    AddrPortString/v6_ellipsis-8     56.0B ± 0%     32.0B ± 0%  -42.86%  (p=0.000 n=10+10)
+    AddrPortString/v6_v4-8           56.0B ± 0%     32.0B ± 0%  -42.86%  (p=0.000 n=10+10)
+    AddrPortString/v6_zone-8         56.0B ± 0%     32.0B ± 0%  -42.86%  (p=0.000 n=10+10)
+    
+    name                          old allocs/op  new allocs/op  delta
+    AddrPortString/v4-8               1.00 ± 0%      1.00 ± 0%     ~     (all equal)
+    AddrPortString/v6-8               2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    AddrPortString/v6_ellipsis-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    AddrPortString/v6_v4-8            2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    AddrPortString/v6_zone-8          2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    
+    Change-Id: Iae077c5c80db3d236d7ec9a02d20a96b0e3a96e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557775
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/net/netip/netip.go | 52 ++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 31 insertions(+), 21 deletions(-)

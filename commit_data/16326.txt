@@ -1,0 +1,15 @@
+commit c15ca825ade48dd37ac024a9aae45d26fcdfb251
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 17 14:23:29 2013 +1000
+
+    runtime: revert 3c2cddfbdaec
+    
+    It appears, syscall.NewCallback still
+    uses heap to store executable code.
+    
+    R=golang-dev, khr
+    CC=golang-dev
+    https://golang.org/cl/9060046
+
+ src/pkg/runtime/mem_windows.c | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

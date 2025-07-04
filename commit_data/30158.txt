@@ -1,0 +1,23 @@
+commit 39366326cc2600792a9d9f8c170aae5bc1613d25
+Author: Kale Blankenship <kale@lemnisys.com>
+Date:   Sun Jan 22 17:16:59 2017 -0800
+
+    net/http/pprof: return error when requested profile duration exceeds WriteTimeout
+    
+    Updates Profile and Trace handlers to reject requests for durations >=
+    WriteTimeout.
+    
+    Modifies go tool pprof to print the body of the http response when
+    status != 200.
+    
+    Fixes #18755
+    
+    Change-Id: I6faed21685693caf39f315f003039538114937b0
+    Reviewed-on: https://go-review.googlesource.com/35564
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/pprof/internal/fetch/fetch.go | 18 +++++++++++++++---
+ src/net/http/pprof/pprof.go           | 23 +++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 3 deletions(-)

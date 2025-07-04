@@ -1,0 +1,14 @@
+commit eb80431b6136663c7a1141a879c89b64fb8ba24f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 17:59:45 2013 -0400
+
+    runtime: fix netbsd after reorg (again)
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7719046
+
+ src/pkg/runtime/signal_netbsd_386.h   | 2 +-
+ src/pkg/runtime/signal_netbsd_amd64.h | 2 +-
+ src/pkg/runtime/signal_netbsd_arm.h   | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

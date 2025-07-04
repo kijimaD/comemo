@@ -1,0 +1,14 @@
+commit 162f1bf7c21116d218c41b085f844dcd75ef6544
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 9 17:34:07 2020 -0700
+
+    test: add test case that gccgo failed to compile
+    
+    Change-Id: I08ca5f77b7352fe3ced1fbe3d027d6f5b4828e35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227783
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ test/fixedbugs/bug508.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

@@ -1,0 +1,14 @@
+commit 631cdec676a1f92284b54297ca8ce4c209e2fc9d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 7 20:04:11 2017 -0700
+
+    test: add test that caused gccgo undefined symbol error
+    
+    Change-Id: I94aa87fe951701413b479c05b0bc8810255eb01c
+    Reviewed-on: https://go-review.googlesource.com/45085
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/bug502.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

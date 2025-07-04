@@ -1,0 +1,46 @@
+commit 62f0127d8104d8266d9a3fb5a87e2f09ec8b6f5b
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Feb 6 13:16:02 2018 -0800
+
+    os/user: add a way to enforce pure Go implementation
+    
+    This provides a way to enforce pure Go implementation of os/user
+    lookup functions on UNIX platforms by means of "osusergo" build tag,
+    in a manner similar to netgo/netcgo tags in the net package.
+    
+    If "osusergo" build tag is set, Go implementation is selected.
+    
+    If "osusergo" build tag is NOT set, the old behavior is retained,
+    that is to use cgo (libc-backed) implementation if both cgo and such
+    and such implementation are available.
+    
+    The reason behind this change is to make it possible to build proper
+    static binaries on Linux. The problem is, glibc implementation of
+    getpw*, getgrp* and getgrouplist functions relies on presense of
+    libnss*.so libraries during runtime, making it impossible to build
+    a self-contained static binary which uses both cgo and os/user.
+    In such case, linker warnings like this are shown:
+    
+    > warning: Using 'getgrouplist' in statically linked applications
+    > requires at runtime the shared libraries from the glibc version
+    > used for linking
+    
+    While this can be solved by recompiling glibc with --enable-static-nss
+    flag or using a different libc implementation (like musl on Alpine Linux),
+    it is not always practical or even possible.
+    
+    Fixes #23265
+    
+    Change-Id: I383a448a2ecf15493ec93dbd5d076b6330cb14cb
+    Signed-off-by: Kir Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-on: https://go-review.googlesource.com/92456
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/user/cgo_lookup_unix.go |  2 +-
+ src/os/user/listgroups_unix.go |  1 +
+ src/os/user/lookup_stubs.go    |  2 +-
+ src/os/user/lookup_unix.go     |  2 +-
+ src/os/user/user.go            | 13 ++++++++++++-
+ 5 files changed, 16 insertions(+), 4 deletions(-)

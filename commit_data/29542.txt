@@ -1,0 +1,22 @@
+commit 27b68474ca8bffea06a4dd11424b293243ae846c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 14 15:51:30 2016 -0800
+
+    cmd/cgo: run cgo pointer checks for pointer to union
+    
+    If a C union type (or a C++ class type) can contain a pointer field,
+    then run the cgo checks on pointers to that type. This will test the
+    pointer as though it were an unsafe.Pointer, and will crash if it points
+    to Go memory that contains a pointer.
+    
+    Fixes #15942.
+    
+    Change-Id: Ic2d07ed9648d4b27078ae7683e26196bcbc59fc9
+    Reviewed-on: https://go-review.googlesource.com/33237
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/errors/ptr.go | 21 +++++++++++++++++++
+ src/cmd/cgo/gcc.go     | 56 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+)

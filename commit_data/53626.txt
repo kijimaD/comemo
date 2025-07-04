@@ -1,0 +1,20 @@
+commit 1dbbafc70fd3e2c284469ab3e0936c1bb56129f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 26 13:52:37 2023 -0700
+
+    go/types, types2: replace TODO with clarifying comment
+    
+    This resolves an open question.
+    No non-comment code changes.
+    
+    Change-Id: Idc92794090b2dde694394d1fcd916f6ea61f03e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506395
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/unify.go | 7 +++++--
+ src/go/types/unify.go                    | 7 +++++--
+ 2 files changed, 10 insertions(+), 4 deletions(-)

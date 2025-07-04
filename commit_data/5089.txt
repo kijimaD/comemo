@@ -1,0 +1,12 @@
+commit f9d6af9fb8d9882ed4b01c22568f49ce37906eed
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 19 16:33:27 2010 -0700
+
+    Make.cmd: make 'all' the default target (was 'clean': BUG)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/661041
+
+ src/Make.cmd | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

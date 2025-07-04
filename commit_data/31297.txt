@@ -1,0 +1,14 @@
+commit 716219ffd9dc32415cdd9167bf1343e13662ebfb
+Author: Todd Neal <todd@tneal.org>
+Date:   Fri Apr 21 19:44:24 2017 -0500
+
+    cmd/compile: remove dead code
+    
+    Change-Id: I2d287981d5fcef3aace948c405d618f46200948e
+    Reviewed-on: https://go-review.googlesource.com/41450
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/rewrite.go | 16 ----------------
+ 1 file changed, 16 deletions(-)

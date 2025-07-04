@@ -1,0 +1,14 @@
+commit 58d5d6f34f210f5b184b72f0ae4739525cc6e903
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 12 14:27:44 2010 -0800
+
+    http: clarify ServeHTTP return
+    
+    Fixes #580.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/207086
+
+ src/pkg/http/server.go | 5 +++++
+ 1 file changed, 5 insertions(+)

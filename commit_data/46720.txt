@@ -1,0 +1,19 @@
+commit d9952ff5119d35751d44d5cd66c7164c7bc21ce0
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Oct 4 12:51:06 2021 -0400
+
+    cmd/compile: set opendefer info symbol as content-addressable
+    
+    Also move the logic of setting arginfo symbols content-addressable
+    to the place of symbol creation.
+    
+    Change-Id: Ia5c3d77b1cec988c42c84d573170120948575c07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353830
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/gc/obj.go     | 1 -
+ src/cmd/compile/internal/ssagen/ssa.go | 5 +++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

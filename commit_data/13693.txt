@@ -1,0 +1,12 @@
+commit e2a83b47e7f604cd55adc747c2534270040e5624
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Aug 28 03:57:27 2012 +0800
+
+    C: add Tobias Columbus's email used in Rietveld
+    
+    R=golang-dev, tobias.columbus, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6483058
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

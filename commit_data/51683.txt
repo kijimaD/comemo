@@ -1,0 +1,22 @@
+commit 5454834f011c019ca32d844d26d469cd47f407ad
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Thu Jan 12 19:37:18 2023 +0800
+
+    cmd/internal/obj/riscv: add check for invalid shift amount input
+    
+    Current RISCV64 assembler do not check the invalid shift amount. This CL
+    adds the check to avoid generating invalid instructions.
+    
+    Fixes #57755
+    
+    Change-Id: If33877605e161baefd98c50db1f71641ca057507
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461755
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+
+ src/cmd/asm/internal/asm/testdata/riscv64error.s | 12 ++++++++++++
+ src/cmd/internal/obj/riscv/obj.go                | 10 ++++++++++
+ 2 files changed, 22 insertions(+)

@@ -1,0 +1,24 @@
+commit a3ffb8a1ac0edc57fff7dd8d79e3ff9129ed6708
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 12 14:55:42 2019 -0500
+
+    cmd/go: convert TestCacheVet to a script
+    
+    This test was failing when GOROOT was read-only.
+    
+    (I'm not sure why that was the case, but it's simpler to convert to to
+    a script than to try to debug the non-script test.)
+    
+    Updates #28387
+    
+    Change-Id: I9943e28d990e5d8b01da10e70531f3ab99e319a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206897
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go                    | 32 --------------------------------
+ src/cmd/go/script_test.go                | 11 +++++++++++
+ src/cmd/go/testdata/script/README        |  1 +
+ src/cmd/go/testdata/script/cache_vet.txt | 22 ++++++++++++++++++++++
+ 4 files changed, 34 insertions(+), 32 deletions(-)

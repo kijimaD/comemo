@@ -1,0 +1,23 @@
+commit 579120323fdf0c6939fa3e3c6c63b669b6437e31
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Aug 5 09:58:41 2017 -0700
+
+    runtime: mapassign_* should use typedmemmove to update keys
+    
+    We need to make sure that when the key contains a pointer, we use
+    a write barrier to update the key.
+    
+    Also mapdelete_* should use typedmemclr.
+    
+    Fixes #21297
+    
+    Change-Id: I63dc90bec1cb909c2c6e08676c9ec853d736cdf8
+    Reviewed-on: https://go-review.googlesource.com/53414
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/hashmap_fast.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit f326b3e2b3761ae4562204a5faee41b4d5211502
+Author: guoguangwu <guoguangwu@magic-shield.com>
+Date:   Tue Feb 27 05:18:10 2024 +0000
+
+    go/types, types2: fix typo in comment
+    
+    Change-Id: I410c5fdd9fa3aa7ce5eb1d688621c7684f03a6f9
+    GitHub-Last-Rev: c3f53de27fb8602b500180242e0be274dc242f8d
+    GitHub-Pull-Request: golang/go#65950
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566858
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/decl.go | 2 +-
+ src/go/types/decl.go                    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

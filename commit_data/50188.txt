@@ -1,0 +1,22 @@
+commit c22865fcfa1ec434e5655c652c6376fa2d0eb821
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Aug 26 15:11:40 2022 +0800
+
+    cmd/go: go clean should not accept flags like -modcache with packages
+    
+    For #53725
+    
+    Change-Id: I99a85b437d5f918dba74c4eccefcf8087193646a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425874
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/clean/clean.go             | 17 +++++++++++++++++
+ src/cmd/go/testdata/script/clean_cache_n.txt   |  3 +++
+ src/cmd/go/testdata/script/clean_testcache.txt |  2 ++
+ src/cmd/go/testdata/script/mod_clean_cache.txt |  3 +++
+ src/cmd/go/testdata/script/test_fuzz_cache.txt |  3 +++
+ 5 files changed, 28 insertions(+)

@@ -1,0 +1,13 @@
+commit f448057b8a7ec0e6d75dcb5ccb966b495963ecb5
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 24 14:47:34 2009 -0700
+
+    Sqrt in assembler is worth 3-4X for nbody
+    
+    R=rsc
+    DELTA=10  (10 added, 0 deleted, 0 changed)
+    OCL=34987
+    CL=34987
+
+ test/bench/timing.log | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

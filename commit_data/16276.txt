@@ -1,0 +1,13 @@
+commit 2f326da27e61194320cf925b1e2362603d9306b3
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 7 11:41:36 2013 -0700
+
+    effective_go.html: be more accepting in the guidelines for interface names
+    Fixes #5421.
+    
+    R=golang-dev, bradfitz, adg
+    CC=golang-dev
+    https://golang.org/cl/9274043
+
+ doc/effective_go.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

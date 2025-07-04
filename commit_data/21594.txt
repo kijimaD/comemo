@@ -1,0 +1,15 @@
+commit 1ac65f82adf00f6af925a266b9c8282325b3c39f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 12 15:20:13 2015 -0500
+
+    runtime: eliminate b == 0 special case from scanblock
+    
+    We no longer ever call scanblock with b == 0.
+    
+    Change-Id: I9b01da39595e0cc251668c24d58748d88f5f0792
+    Reviewed-on: https://go-review.googlesource.com/4782
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 19 +++++++------------
+ 1 file changed, 7 insertions(+), 12 deletions(-)

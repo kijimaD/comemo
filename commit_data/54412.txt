@@ -1,0 +1,18 @@
+commit 905b58b5377e8f542590a46a3c90146ab45a6c96
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 11 17:23:55 2023 -0700
+
+    cmd/compile/internal/typecheck: remove HasNamedResults check
+    
+    types2 has already checked for us that bare returns are valid, so no
+    need to duplicate the effort in typecheck.
+    
+    Change-Id: I13b2387173966ba44058fbc841327896e04184e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527515
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/node.go        |  5 -----
+ src/cmd/compile/internal/typecheck/stmt.go | 11 ++++-------
+ 2 files changed, 4 insertions(+), 12 deletions(-)

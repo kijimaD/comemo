@@ -1,0 +1,13 @@
+commit 2d0258d49568d4b34f5c4dec53985bb80bf370cc
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Wed Nov 25 02:40:32 2020 +0100
+
+    crypto/ed25519/internal/edwards25519: fix typo in comments
+    
+    Change-Id: I8133762d53d9e5d3cc13e0f97b9679a3248a7f0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273087
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/ed25519/internal/edwards25519/edwards25519.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

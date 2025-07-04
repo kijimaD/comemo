@@ -1,0 +1,38 @@
+commit a17d959debdb04cd550016a3501dd09d50cd62e7
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Jan 30 14:42:17 2023 +0100
+
+    runtime: always use LoadLibraryEx to load system libraries
+    
+    This CL removes a fallback that used LoadLibraryA when the runtime
+    was loading system DLLs on Windows 7, Windows Server 2008 R2,
+    or earlier.
+    
+    We can safely remove that fallback now, as go1.21 will require at least
+    Windows 8 or Server 2012.
+    
+    This CL also saves some syscall initialization time and bytes:
+    
+    new:
+        init syscall @2.3 ms, 0 ms clock, 1000 bytes, 18 allocs
+    old:
+        init syscall @3.6 ms, 0.52 ms clock, 1744 bytes, 24 allocs
+    
+    Updates #57003
+    
+    Change-Id: I7dcc1173537785b6b580e9f78632c0c74da658d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463842
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/runtime/export_windows_test.go  |  4 --
+ src/runtime/os_windows.go           | 78 +++++++++++++------------------------
+ src/runtime/syscall_windows.go      | 31 +++++----------
+ src/runtime/syscall_windows_test.go | 23 +----------
+ src/syscall/dll_windows.go          | 28 +------------
+ src/syscall/security_windows.go     |  1 -
+ src/syscall/zsyscall_windows.go     |  9 -----
+ 7 files changed, 40 insertions(+), 134 deletions(-)

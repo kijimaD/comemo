@@ -1,0 +1,15 @@
+commit 48155f5440ab4ffb2e3c31646cecb504af735ff5
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Nov 2 17:37:31 2015 -0500
+
+    misc/ios: fix an error when getenv encounters unset variable
+    
+    The error message should indicate the name of the unset variable,
+    rather than the value. The value will alwayse be empty.
+    
+    Change-Id: I6f6c165074dfce857b6523703a890d205423cd28
+    Reviewed-on: https://go-review.googlesource.com/16555
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

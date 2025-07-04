@@ -1,0 +1,22 @@
+commit 2fe8eadc9aed6e6637312ef93c4939f6344a48a0
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jan 12 13:58:30 2015 -0800
+
+    crypto/x509: write exact BitLength in ASN.1 encoding for certificate KeyUsage
+    
+    The encoded value of the certificate KeyUsage did contain additonal padding
+    that was not present with other certificate generators. According to ITU-T
+    X.690 the BitLength value should have no padding in a DER encoding.
+    
+    See discussion:
+    https://groups.google.com/forum/#!topic/golang-nuts/dzaJ3hMpDcs
+    
+    This CL has been discussed at: http://golang.org/cl/168990043
+    
+    Change-Id: I1eff3f441b0566966a2d279631901ad9287c917d
+    Reviewed-on: https://go-review.googlesource.com/2255
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/x509.go      | 23 ++++++++++++++++++++++-
+ src/crypto/x509/x509_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 1 deletion(-)

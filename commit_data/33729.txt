@@ -1,0 +1,14 @@
+commit ed8b7dedd35c479bd56ab4dd2dd2671727db464c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 29 21:15:31 2017 +0000
+
+    bytes: mention strings.Builder in Buffer.String docs
+    
+    Fixes #22778
+    
+    Change-Id: I37f7a59c15828aa720fe787fff42fb3ef17729c7
+    Reviewed-on: https://go-review.googlesource.com/80815
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bytes/buffer.go | 2 ++
+ 1 file changed, 2 insertions(+)

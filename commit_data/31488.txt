@@ -1,0 +1,43 @@
+commit b8c7fddd58432b6cbe12af221d275935a1ffc8f0
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed May 3 14:46:28 2017 -0400
+
+    cmd/go: use os.Executable to find GOROOT
+    
+    Before this change, building a GOROOT using make.bash, and then
+    moving the entire to a new path confused the go tool. Correct
+    operation of the go tool under these conditions required either
+    running make.bash again (not always possible if the new location
+    was owned by a different system user) or setting the GOROOT
+    environment variable. Setting GOROOT is unfortunate and
+    discouraged, as it makes it too easy to use the go tool from
+    one GOROOT and the compiler from another GOROOT.
+    
+    With this change, the go tool finds its GOROOT relative to its
+    own location, using os.Executable. It checks it is in a GOROOT
+    by searching for the GOROOT/pkg/tool directory, to avoid two
+    plausible situations:
+    
+            ln -s $GOROOT/bin/go /usr/local/bin/go
+    
+    and
+    
+            PATH=$HOME/bin:$PATH
+            GOPATH=$HOME
+            ln -s $GOROOT/bin/go $HOME/bin/go
+    
+    Additionally, if the current executable path is not in a GOROOT,
+    the tool will follow any symlinks for the executable and check
+    to see if its original path is a GOROOT.
+    
+    Fixes #18678
+    
+    Change-Id: I151d7d449d213164f98193cc176b616849e6332c
+    Reviewed-on: https://go-review.googlesource.com/42533
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go          | 128 +++++++++++++++++++++++++++++++++++++++--
+ src/cmd/go/internal/cfg/cfg.go |  37 +++++++++++-
+ 2 files changed, 158 insertions(+), 7 deletions(-)

@@ -1,0 +1,22 @@
+commit 87e4dcd446df2ab1985ef61ce15da329493248a1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 19 13:51:53 2021 -0700
+
+    archive/zip: only return directory once via io/fs.FS
+    
+    While we're here fix the ModTime value for directories.
+    
+    Fixes #43872
+    Fixes #45345
+    
+    Change-Id: I155e6517713ef6a9482b9431f1167a44337c6ad2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311530
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/archive/zip/reader.go           |  54 ++++++++++++++++++++++++----------
+ src/archive/zip/reader_test.go      |  56 ++++++++++++++++++++++++++++++++++--
+ src/archive/zip/testdata/subdir.zip | Bin 0 -> 428 bytes
+ 3 files changed, 92 insertions(+), 18 deletions(-)

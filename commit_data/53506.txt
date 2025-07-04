@@ -1,0 +1,17 @@
+commit 471561c590459c0b2b32978c124e395bbf4eb1a1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 7 17:07:59 2023 -0700
+
+    doc/go1.21: mention html/template.ErrJSTemplate
+    
+    For #59584
+    
+    Change-Id: Iaa3f8b23010ad452c134ac608c63d2a41cc4e409
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501698
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ doc/go1.21.html | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

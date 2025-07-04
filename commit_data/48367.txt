@@ -1,0 +1,27 @@
+commit ab0f7611d739fe10d0265dbc6bdc17684423bfc8
+Author: Uzondu Enudeme <uzondu@orijtech.com>
+Date:   Thu Mar 10 00:08:52 2022 +0100
+
+    net/url: add OmitHost bool to url.URL
+    
+    Previously, myscheme:/path and myscheme:///path were treated as the same URL
+    although materially different. The distinction made clear by RFC 3986 sec. 5.3 where
+    a different recomposition behavior is expected when a URI reference has an undefined
+    host(authority) as in myscheme:/path vs. one with an empty host(authority)
+    as in myscheme:///path.
+    
+    This change fixes the Parse/String roundtrip limitation for URLs with an undefined
+    host and a single slash.
+    
+    Fixes #46059
+    
+    Change-Id: I1b8d6042135513616374ff8c8dfb1cdb640f8efe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391294
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/url/url.go      | 28 +++++++++++++++++++---------
+ src/net/url/url_test.go | 13 +++++++------
+ 2 files changed, 26 insertions(+), 15 deletions(-)

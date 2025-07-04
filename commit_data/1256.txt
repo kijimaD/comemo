@@ -1,0 +1,12 @@
+commit 548609654311809b904f2b5a0926f3b38b45b7b4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 1 16:03:09 2008 -0800
+
+    be more precise in ftoa_test.
+    
+    R=ken
+    OCL=20173
+    CL=20173
+
+ src/lib/strconv/ftoa_test.go | 29 +++++++++++++++++------------
+ 1 file changed, 17 insertions(+), 12 deletions(-)

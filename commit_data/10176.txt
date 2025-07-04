@@ -1,0 +1,33 @@
+commit 758200f219641b2ca8af1a5264456a72124a1b21
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 21:45:21 2011 -0400
+
+    gofix: error fix
+    
+    To make the error fix more useful, expand typecheck to gather
+    more information about struct fields, typecheck range statements,
+    typecheck indirect and index of named types, and collect information
+    about assignment conversions.
+    
+    Also, change addImport to rename top-level uses of a to-be-imported
+    identifier to avoid conflicts.  This duplicated some of the code in
+    the url fix, so that fix is now shorter.
+    
+    R=iant, r, r
+    CC=golang-dev
+    https://golang.org/cl/5305066
+
+ src/cmd/gofix/Makefile       |   1 +
+ src/cmd/gofix/error.go       | 352 +++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/error_test.go  | 232 ++++++++++++++++++++++++++++
+ src/cmd/gofix/fix.go         | 101 ++++++++++++-
+ src/cmd/gofix/httpheaders.go |   2 +-
+ src/cmd/gofix/imagecolor.go  |  11 +-
+ src/cmd/gofix/main.go        |  17 ++-
+ src/cmd/gofix/math.go        |   9 +-
+ src/cmd/gofix/reflect.go     |   2 +-
+ src/cmd/gofix/signal.go      |   8 +-
+ src/cmd/gofix/typecheck.go   | 109 ++++++++++++--
+ src/cmd/gofix/url.go         |  22 +--
+ src/cmd/gofix/url_test.go    |   4 +-
+ 13 files changed, 805 insertions(+), 65 deletions(-)

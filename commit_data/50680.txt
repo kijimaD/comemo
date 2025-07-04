@@ -1,0 +1,19 @@
+commit 13d48bb6a1ad3787c10fbbe4265ad11672d90a37
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Sep 28 14:41:30 2022 -0700
+
+    encoding/gob: add top level security doc
+    
+    Add a slightly expanded version of the Decoder type comment to the top
+    level package doc, which explains that this package is not designed
+    to be hardened against adversarial inputs.
+    
+    Change-Id: I8b83433838c8235eb06ded99041fdf726c811ee5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436096
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/encoding/gob/doc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

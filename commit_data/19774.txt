@@ -1,0 +1,14 @@
+commit 9a8a20bdb831144a2e12c3d6f2ac32d7c94e7b21
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Jul 18 21:00:35 2014 -0400
+
+    codereview: revive the tests.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/105500043
+
+ lib/codereview/codereview.py | 24 ++++++++++++++++++++----
+ lib/codereview/test.sh       | 21 +++++++++++----------
+ 2 files changed, 31 insertions(+), 14 deletions(-)

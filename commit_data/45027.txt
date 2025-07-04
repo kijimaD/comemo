@@ -1,0 +1,20 @@
+commit ec367e5b05becab0cfb371fdf10ba55319301e9d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 8 15:24:08 2021 -0400
+
+    cmd/compile: adjust interface conversion function selection with 0-sized fields
+    
+    0-sized fields do not affect how arguments are passed under the
+    register ABI. But it does affect the size and alignment of the
+    type, and may affect the choice of interface conversion function.
+    Specifically, struct { a [0]int32; b [4]byte } should be passed in
+    memory, therefore should not use convT32.
+    
+    Change-Id: Idfa21af79b81c196b50253b0be1fa4edecd12b45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308651
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/walk/convert.go | 17 ++---------------
+ 1 file changed, 2 insertions(+), 15 deletions(-)

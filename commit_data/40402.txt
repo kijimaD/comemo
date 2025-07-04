@@ -1,0 +1,21 @@
+commit 05ee5065d0fa9d8dbb043f2099e11e1809de1133
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 24 17:00:57 2019 +0700
+
+    syscall: correct comment in testGetdirentries
+    
+    Correct comment about allocating big enough slice to copy result of
+    Getdirentries.
+    
+    While at it, also convert from Dirent directly to slice of byte.
+    
+    Updates #35092
+    
+    Change-Id: I892de7953120622882e1561728e1e56b009a2351
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202880
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/getdirentries_test.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

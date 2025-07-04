@@ -1,0 +1,16 @@
+commit 77f56af0bc2932b94506f1963228a33c26c8b289
+Author: Rick Hudson <rlh@golang.org>
+Date:   Wed Apr 22 15:06:35 2015 -0400
+
+    runtime: Improve scanning performance
+    
+    To achieve a 2% improvement in the garbage benchmark this CL removes
+    an unneeded assert and avoids one hbits.next() call per object
+    being scanned.
+    
+    Change-Id: Ibd542d01e9c23eace42228886f9edc488354df0d
+    Reviewed-on: https://go-review.googlesource.com/9244
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgcmark.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

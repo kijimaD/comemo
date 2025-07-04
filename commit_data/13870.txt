@@ -1,0 +1,18 @@
+commit 7cda7dbe9aa688c105ae9ed55a2e39e7dff3d0ac
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 18 22:04:07 2012 -0700
+
+    api: fix build; regenerate api.txt with fixed signatures
+    
+    Update to tip (to get 6475062 and 6525047)
+    Rebuild cmd/api.
+    Switch to a go1 release branch.
+    Run go tool api > api/go1.txt.new in release branch.
+    Back to tip.
+    
+    R=golang-dev, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/6528047
+
+ api/go1.txt | 1340 +++++++++++++++++++++++++++++------------------------------
+ 1 file changed, 664 insertions(+), 676 deletions(-)

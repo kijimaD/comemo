@@ -1,0 +1,52 @@
+commit 6bd5741a4c600ee9a48dfa5244f0c4116b718404
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Feb 27 14:01:13 2025 +0100
+
+    crypto/tls: add ConnectionState.CurveID
+    
+    This required adding a new field to SessionState for TLS 1.0–1.2, since
+    the key exchange is not repeated on resumption. The additional field is
+    unfortunately not backwards compatible because current Go versions check
+    that the encoding has no extra data at the end, but will cause
+    cross-version tickets to be ignored. Relaxed that so we can add fields
+    in a backwards compatible way the next time.
+    
+    For the cipher suite, we check that the session's is still acceptable
+    per the Config. That would arguably make sense here, too: if a Config
+    for example requires PQ, we should reject resumptions of connections
+    that didn't use PQ. However, that only applies to pre-TLS 1.3
+    connections, since in TLS 1.3 we always do a fresh key exchange on
+    resumption. Since PQ is the only main differentiator between key
+    exchanges (aside from off-by-default non-PFS RSA, which are controlled
+    by the cipher suite in TLS 1.0–1.2) and it's PQ-only, we can skip that
+    check.
+    
+    Fixes #67516
+    
+    Change-Id: I6a6a465681a6292edf66c7b8df8f4aba4171a76b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653315
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ api/next/67516.txt                                 |   1 +
+ doc/next/6-stdlib/99-minor/crypto/tls/67516.md     |   2 +
+ src/crypto/tls/common.go                           |   9 +-
+ src/crypto/tls/conn.go                             |   3 +-
+ src/crypto/tls/handshake_client.go                 |   4 +-
+ src/crypto/tls/handshake_messages_test.go          |   6 +-
+ src/crypto/tls/handshake_server.go                 |   1 +
+ src/crypto/tls/handshake_server_test.go            |   2 +-
+ .../testdata/Server-TLSv10-ExportKeyingMaterial    |  78 +++----
+ src/crypto/tls/testdata/Server-TLSv12-ALPN         |  62 ++---
+ .../tls/testdata/Server-TLSv12-ALPN-Fallback       |  64 +++---
+ .../tls/testdata/Server-TLSv12-ALPN-NotConfigured  |  64 +++---
+ .../testdata/Server-TLSv12-ExportKeyingMaterial    |  80 +++----
+ src/crypto/tls/testdata/Server-TLSv12-IssueTicket  |  74 +++---
+ .../testdata/Server-TLSv12-IssueTicketPreDisable   |  74 +++---
+ src/crypto/tls/testdata/Server-TLSv12-Resume       |  89 ++++----
+ src/crypto/tls/ticket.go                           |  63 +++---
+ src/crypto/tls/tls_test.go                         | 249 ++++++++++++++-------
+ 18 files changed, 509 insertions(+), 416 deletions(-)

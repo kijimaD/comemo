@@ -1,0 +1,19 @@
+commit c12a0e645a9e5e69bb549d69811c54351f562eae
+Author: Philip Hofer <phofer@umich.edu>
+Date:   Tue Mar 29 11:29:28 2016 -0700
+
+    cmp/compile: rewrite CMP $0 with TEST
+    
+    The CMP* family of instructions are longer than their TEST counterparts by one byte.
+    
+    After this change, my go tool has 13 cmp.*$0x0 instructions, compared to 5612 before.
+    
+    Change-Id: Ieb87d65657917e494c0e4b711a7ba2918ae27610
+    Reviewed-on: https://go-review.googlesource.com/21255
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  6 ++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 52 ++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+)

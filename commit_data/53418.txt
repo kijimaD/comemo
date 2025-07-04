@@ -1,0 +1,28 @@
+commit 7911f7c21d4bba89eee0eab857d089b7ed6232d4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 31 14:45:30 2023 -0400
+
+    runtime: only increment extraMInUse when actually in use
+    
+    Currently lockextra always increments extraMInUse, even if the M won't
+    be used (or doesn't even exist), such as in addExtraM. addExtraM fails
+    to decrement extraMInUse, so it stays elevated forever.
+    
+    Fix this bug and simplify the model by moving extraMInUse out of
+    lockextra to getExtraM, where we know the M will actually be used.
+    
+    While we're here, remove the nilokay argument from getExtraM, which is
+    always false.
+    
+    Fixes #60540.
+    
+    Change-Id: I7a5d97456b3bc6ea1baeb06b5b2975e3b8dd96a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499677
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/proc.go                          | 17 ++++++++---------
+ src/runtime/testdata/testprogcgo/callback.go | 22 ++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 9 deletions(-)

@@ -1,0 +1,15 @@
+commit c013417a45fbf950e8eb5a5e2ae37d2219c9e1d8
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue May 19 02:48:15 2015 -0400
+
+    misc/cgo/testshared: when checking for RPATHs also look for DT_RUNPATH
+    
+    On my systems, ld -rpath sets DT_RUNPATH instead of DT_RPATH.
+    
+    Change-Id: I5047e795fb7ef9336f5fa13ba24bb6245c0b0582
+    Reviewed-on: https://go-review.googlesource.com/10260
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testshared/shared_test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

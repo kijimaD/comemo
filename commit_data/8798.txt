@@ -1,0 +1,12 @@
+commit 58ff8c1dfd3659ec4ce8ed35a92583b375f30fe4
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Jun 20 14:50:00 2011 -0400
+
+    codereview.py: note that hg change -d abandons a change list
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4644043
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

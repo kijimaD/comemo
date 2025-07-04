@@ -1,0 +1,20 @@
+commit caf8fb1e828deb05cdd2df45f9de13c048de39c6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 7 17:26:17 2022 -0500
+
+    cmd/go: use Cancel and WaitDelay to terminate test subprocesses
+    
+    Updates #50436.
+    Updates #56163.
+    Fixes #24050.
+    
+    Change-Id: I1b00eb8fb60e0879f029642b5bad97b2e139fee6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456116
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/test/test.go                  | 72 ++++++++++---------
+ src/cmd/go/testdata/script/test_timeout_stdin.txt | 88 +++++++++++++++++++++++
+ 2 files changed, 125 insertions(+), 35 deletions(-)

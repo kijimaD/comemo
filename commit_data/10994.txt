@@ -1,0 +1,18 @@
+commit eef71840460669105aca633ad0d22c8ac5281166
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 22 22:24:43 2011 -0500
+
+    cmd/go: two testing fixes
+    
+    1. Show passing output for "go test" (no args) and with -v flag.
+    2. Warn about out-of-date packages being rebuilt.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5504080
+
+ src/cmd/go/build.go    | 39 ++++++++++++++++++++-------------
+ src/cmd/go/pkg.go      |  1 +
+ src/cmd/go/test.go     | 59 ++++++++++++++++++++++++++++++++++++++------------
+ src/cmd/go/testflag.go | 33 +++++++++++++++++++++++++++-
+ 4 files changed, 102 insertions(+), 30 deletions(-)

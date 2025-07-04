@@ -1,0 +1,18 @@
+commit 9f8ecd75fcbee462dc9f1f2d1ce1025a14e1cf5b
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 3 17:21:36 2016 -0700
+
+    cmd/compile: use SSA tests on legacy compiler
+    
+    Why not?  Because the 386 backend can't handle one of them.
+    But other than that, it should work.
+    
+    Change-Id: Iaeb9735f8c3c281136a0734376dec5ddba21be3b
+    Reviewed-on: https://go-review.googlesource.com/22748
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/ssa_test.go                | 10 ++++++----
+ src/cmd/compile/internal/gc/testdata/arithConst_ssa.go |  8 ++++----
+ 2 files changed, 10 insertions(+), 8 deletions(-)

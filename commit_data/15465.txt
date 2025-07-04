@@ -1,0 +1,15 @@
+commit 73c21b13127c8dfad73d4477aa3dd9785515bf2b
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Wed Feb 27 10:44:50 2013 -0800
+
+    sort: use proper mass unit in example
+    
+    The values for the planet masses are given in
+    earth mass, not solar mass.
+    
+    R=golang-dev, dave, r
+    CC=golang-dev
+    https://golang.org/cl/7368054
+
+ src/pkg/sort/example_keys_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit e2e11f02a4627e4090083d433e6c66602b514ab7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 26 11:35:55 2016 -0700
+
+    runtime: unify Unix implementations of unminit
+    
+    Change-Id: I2cbb13eb85876ad05a52cbd498a9b86e7a28899c
+    Reviewed-on: https://go-review.googlesource.com/29772
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os3_solaris.go  | 4 +---
+ src/runtime/os_darwin.go    | 4 +---
+ src/runtime/os_dragonfly.go | 4 +---
+ src/runtime/os_freebsd.go   | 4 +---
+ src/runtime/os_linux.go     | 4 +---
+ src/runtime/os_netbsd.go    | 4 +---
+ src/runtime/os_openbsd.go   | 4 +---
+ src/runtime/signal_unix.go  | 9 +++++++++
+ 8 files changed, 16 insertions(+), 21 deletions(-)

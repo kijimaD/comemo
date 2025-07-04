@@ -1,0 +1,20 @@
+commit 08b956f37846bd317aace534aa98dcd9353d868b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Apr 28 17:59:05 2019 +1000
+
+    runtime: initialise cpu.HWCap on openbsd/arm64
+    
+    OpenBSD does not provide auxv, however we still need to initialise cpu.HWCap.
+    For now initialise it to the bare minimum, until some form of CPU capability
+    detection is implemented or becomes available - see issue #31746.
+    
+    Updates #31656
+    
+    Change-Id: I68c3c069319fe60dc873f46def2a67c9f3d937d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174129
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/auxv_none.go        |  1 +
+ src/runtime/os_openbsd_arm64.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+)

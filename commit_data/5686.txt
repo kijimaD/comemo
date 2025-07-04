@@ -1,0 +1,22 @@
+commit 3ce29380d57a77496daec145b2a5510663d23901
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Jun 21 11:01:20 2010 -0700
+
+    goinstall: process dependencies for package main
+    
+    Currently to install a command, you have to manually
+    goinstall each of the remote packages that it depends on.
+    This patch lets goinstall P work where P is
+    contains files in package main.
+    It does not actually build the package, but
+    it installs all of its dependencies and prints a message
+    to that effect.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1301043
+
+ src/cmd/goinstall/main.go  | 10 +++++++++-
+ src/cmd/goinstall/make.go  |  3 +--
+ src/cmd/goinstall/parse.go | 33 ++++++++++++++++++++-------------
+ 3 files changed, 30 insertions(+), 16 deletions(-)

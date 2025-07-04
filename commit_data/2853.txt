@@ -1,0 +1,13 @@
+commit 9f2f8eadb62a9208a7c07746108db30a51228e87
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 31 12:52:03 2009 -0700
+
+    add test of invariant in findVar
+    
+    R=rsc
+    DELTA=23  (23 added, 0 deleted, 0 changed)
+    OCL=32592
+    CL=32595
+
+ src/pkg/template/template_test.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

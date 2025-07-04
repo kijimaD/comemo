@@ -1,0 +1,31 @@
+commit 82bf12902f2abecdbe2cb5fa38299ac70cf9c67e
+Author: Ludi Rehak <ludi317@gmail.com>
+Date:   Wed May 4 15:22:21 2022 -0700
+
+    regexp/syntax: test for lowercase letters first in IsWordChar
+    
+    Lowercase letters occur more frequently than uppercase letters
+    in English text.  In IsWordChar, evaluate the most common case
+    (lowercase letters) first to minimize the expected value of its
+    execution time. Code clarity does not suffer by rearranging the
+    order of the checks.
+    
+    Add a benchmark on a sentence demonstrating the performance
+    improvement.
+    
+    name           old time/op  new time/op  delta
+    IsWordChar-10   122ns ± 0%   114ns ± 1%  -6.68%  (p=0.000 n=8+10)
+    
+    Change-Id: Ieee8126a4bd8ee8703905b4f75724623029f6fa2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404100
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: thepudds <thepudds1460@gmail.com>
+
+ src/regexp/syntax/prog.go      |  4 +++-
+ src/regexp/syntax/prog_test.go | 15 +++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

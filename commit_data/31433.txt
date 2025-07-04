@@ -1,0 +1,16 @@
+commit 95e7897bd81885f1068faa0652cc463c00364f62
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 28 21:16:03 2017 +0000
+
+    Revert "build: fail nicely if somebody runs all.bash from a binary tarball package"
+    
+    This reverts commit 3d86d45dd60358636c569e9cf06b23b5e0e04e8a.
+    
+    Reason for revert: Fixing a different way. See #20008.
+    
+    Change-Id: I6f4382ffdfff83a4504b013ba37100319b2c1aad
+    Reviewed-on: https://go-review.googlesource.com/42138
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/all.bash | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,0 +1,21 @@
+commit a3b97e7628680984ae6f29e5af945c11a30e6bdc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 01:01:18 2021 -0500
+
+    test: disable nilptr on windows/arm64
+    
+    The address space starts at 4GB, so dummy is too far out.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    
+    Change-Id: I5f67e268ce729086d9f9fc8541722fabccfd0145
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288823
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ test/nilptr.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

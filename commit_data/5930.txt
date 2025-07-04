@@ -1,0 +1,12 @@
+commit 5443bbe292b0bea4032fee888f4a978de16ab738
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Aug 3 11:06:18 2010 +1000
+
+    builder: update script so it doesn't create tar-bombs
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1857048
+
+ misc/dashboard/builder.sh | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

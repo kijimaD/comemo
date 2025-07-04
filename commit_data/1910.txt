@@ -1,0 +1,13 @@
+commit f538760552275788a65474156adb9483f7a3aa2b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 30 16:08:41 2009 -0700
+
+    fix last 3 references to 'type guards'
+    
+    R=gri
+    DELTA=3  (0 added, 0 deleted, 3 changed)
+    OCL=26908
+    CL=26908
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

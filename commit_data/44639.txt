@@ -1,0 +1,24 @@
+commit 8e725f8452ac0ece548837a95d125bc67b9d8828
+Author: John Bampton <jbampton@gmail.com>
+Date:   Fri Mar 5 01:53:00 2021 +0000
+
+    all: use HTML5 br tags
+    
+    In HTML5 br tags don't need a closing slash
+    
+    Change-Id: Ic53c43faee08c5b1267daa9a02cc186b1c255ca1
+    GitHub-Last-Rev: 652208116944d01b23b8af8f1af485da5e916d32
+    GitHub-Pull-Request: golang/go#44283
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292370
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ misc/trace/trace_viewer_full.html    | 16 ++++++++--------
+ src/cmd/compile/internal/ssa/html.go |  2 +-
+ src/cmd/trace/mmu.go                 | 22 +++++++++++-----------
+ src/encoding/xml/xml.go              |  2 +-
+ src/encoding/xml/xml_test.go         |  2 +-
+ src/net/http/pprof/pprof.go          |  2 +-
+ 6 files changed, 23 insertions(+), 23 deletions(-)

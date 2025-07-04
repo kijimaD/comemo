@@ -1,0 +1,26 @@
+commit 5faba3057dacdf365572b89b4c9ec9e27f3a6133
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 9 14:00:23 2017 -0800
+
+    cmd/compile: use constants directly for fast map access calls
+    
+    CL 35554 taught order.go to use static variables
+    for constants that needed to be addressable for runtime routines.
+    However, there is one class of runtime routines that
+    do not actually need an addressable value: fast map access routines.
+    This CL teaches order.go to avoid using static variables
+    for addressability in those cases.
+    Instead, it avoids introducing a temp at all,
+    which the backend would just have to optimize away.
+    
+    Fixes #19015.
+    
+    Change-Id: I5ef780c604fac3fb48dabb23a344435e283cb832
+    Reviewed-on: https://go-review.googlesource.com/36693
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/asm_test.go | 32 ++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/order.go    | 20 +++++++++++----
+ src/cmd/compile/internal/gc/walk.go     | 43 +++++++++++++++------------------
+ 3 files changed, 66 insertions(+), 29 deletions(-)

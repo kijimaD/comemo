@@ -1,0 +1,19 @@
+commit ca4314d39efd5f9dfa12b2eff7a945d9ead0b69e
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 27 15:44:43 2019 +0100
+
+    net: allow build on aix/ppc64 with cgo
+    
+    This commit adds C support for net package for aix/ppc64.
+    
+    Change-Id: I704710991fc013c6ec3511671def6791df4854f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164038
+    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.public.networking@gmail.com>
+
+ src/net/cgo_aix.go       | 24 ++++++++++++++++++++++++
+ src/net/cgo_sockold.go   |  2 +-
+ src/net/cgo_unix.go      |  7 ++++++-
+ src/net/cgo_unix_test.go |  2 +-
+ 4 files changed, 32 insertions(+), 3 deletions(-)

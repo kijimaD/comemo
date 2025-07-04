@@ -1,0 +1,14 @@
+commit 1d18e891253ec934c114cb5d102c458d3a49e598
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 26 10:36:05 2010 -0700
+
+    net: add Pipe
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1004043
+
+ src/pkg/net/Makefile     |  1 +
+ src/pkg/net/pipe.go      | 62 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/pipe_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 120 insertions(+)

@@ -1,0 +1,31 @@
+commit 6f1b895daf66c1055a270527faad3a70b42fd0fc
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Jun 21 13:49:42 2023 -0400
+
+    go/ast: deprecate Object
+    
+    The following declarations related to syntactic object resolution
+    are now deprecated:
+    - Ident.Obj
+    - Object
+    - Scope
+    - File.{Scope,Unresolved}
+    - Importer
+    - Package, NewPackage
+    New programs should use the type checker instead.
+    
+    Updates golang/go#52463
+    Updates golang/go#48141
+    
+    Change-Id: I82b315f49b1341c11ae20dcbf81106084bd2ba86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504915
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+
+ api/go1.21.txt             |  5 +++++
+ src/go/ast/ast.go          |  8 +++++---
+ src/go/ast/resolve.go      |  4 ++++
+ src/go/ast/scope.go        | 15 +++++++++++++++
+ src/go/parser/interface.go | 12 +++++++-----
+ 5 files changed, 36 insertions(+), 8 deletions(-)

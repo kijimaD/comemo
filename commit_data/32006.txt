@@ -1,0 +1,19 @@
+commit 75f1de8329e8c0873d24397c29de31cf8f08ede5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 12 21:31:30 2017 +0000
+
+    syscall: use correct go binary in test
+    
+    Usually this test is skipped (on builders and when not root), so
+    people are unlikely to see this error.
+    
+    Updates #19296
+    
+    Change-Id: I3acb81260034dad8776c305f83d7cbac4b718e75
+    Reviewed-on: https://go-review.googlesource.com/48191
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_linux_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

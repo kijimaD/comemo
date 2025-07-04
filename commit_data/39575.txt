@@ -1,0 +1,18 @@
+commit d1338ec30e8c611395a6b253b441734adb9635de
+Author: Keith Randall <khr@google.com>
+Date:   Mon Jul 29 14:41:00 2019 -0700
+
+    syscall: include complete prototype of system calls
+    
+    The prototypes were truncated because they were on multiple lines
+    of the source file.
+    
+    Copied from the STD lines for these functions in
+    https://svn.freebsd.org/base/stable/12/sys/kern/syscalls.master
+    
+    Change-Id: I618a5444f1353aabee2758c06f86ad726185d19c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188077
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/syscall_freebsd.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

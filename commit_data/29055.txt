@@ -1,0 +1,23 @@
+commit a2f77e9ef8ba2e956453ad0dda1ebdf4ae7c4fdb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 19 13:13:31 2016 -0700
+
+    cmd/compile: cleanup gdata slightly
+    
+    In sinit.go, gdata can already handle strings and complex, so no
+    reason to handle them separately.
+    
+    In obj.go, inline gdatastring and gdatacomplex into gdata, since it's
+    the only caller. Allows extracting out the common Linksym calls.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I3cb18d9b4206a8a269c36e0d30a345d8e6caba1f
+    Reviewed-on: https://go-review.googlesource.com/31498
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/obj.go   | 56 ++++++++++++++----------------------
+ src/cmd/compile/internal/gc/sinit.go | 25 ++--------------
+ 2 files changed, 24 insertions(+), 57 deletions(-)

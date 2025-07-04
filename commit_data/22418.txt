@@ -1,0 +1,36 @@
+commit 4b956ae317355a5bb87e0dd834b9182f0d4929ed
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 3 15:27:44 2015 -0400
+
+    runtime: start concurrent GC promptly when we reach its trigger
+    
+    Currently, when allocation reaches the concurrent GC trigger size, we
+    start the concurrent collector by ready'ing its G. This simply puts it
+    on the end of the P's run queue, which means we may not actually start
+    GC for some time as the current G continues to run and then the P
+    drains other Gs already on its run queue. Since the mutator can
+    continue to allocate, the heap can potentially be much larger than we
+    intended by the time GC actually starts. Furthermore, how much larger
+    is difficult to predict since it depends on the scheduler.
+    
+    Fix this by preempting the current G and switching directly to the
+    concurrent GC G as soon as we reach the trigger heap size.
+    
+    On the garbage benchmark from the benchmarks subrepo with
+    GOMAXPROCS=4, this reduces the time from triggering the GC to the
+    beginning of sweep termination by 10 to 30 milliseconds, which reduces
+    allocation after the trigger by up to 10MB (a large fraction of the
+    64MB live heap the benchmark tries to maintain).
+    
+    One other known source of delay before we "really" start GC is the
+    sweep finalization performed before sweep termination. This has
+    similar negative effects on heap size and predictability, but is an
+    orthogonal problem. This change adds a TODO for this.
+    
+    Change-Id: I8bae98cb43685c1bf353ff55868e4647e3743c47
+    Reviewed-on: https://go-review.googlesource.com/8513
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go   | 21 ++++++++++++++++++++-
+ src/runtime/proc1.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit e0611b16645dba6768cab405f1ec1b3fce83334a
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Wed Apr 13 10:58:38 2016 +0200
+
+    cmd/compile: use shared dom tree for cse, too
+    
+    Missed this in the previous CL where the shared
+    dom tree was introduced.
+    
+    Change-Id: If0bd85d4b4567d7e87814ed511603b1303ab3903
+    Reviewed-on: https://go-review.googlesource.com/21970
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/compile.go  | 5 +++--
+ src/cmd/compile/internal/ssa/cse.go      | 8 +++-----
+ src/cmd/compile/internal/ssa/cse_test.go | 1 +
+ 3 files changed, 7 insertions(+), 7 deletions(-)

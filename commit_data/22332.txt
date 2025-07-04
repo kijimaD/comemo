@@ -1,0 +1,21 @@
+commit f8bcebe47cfbb2fc442fee7d2aafe9cd5ffebd11
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 7 11:42:45 2015 +0000
+
+    Revert "misc/cgo/testso: add test for fixed issue 4339"
+    
+    This reverts commit 9fa9f966e99eb514f9b6f61821f83d5f9178a4a2.
+    
+    The change has broken darwin and netbsd builders. It needs to be tested properly.
+    
+    Change-Id: Id9e2d30caa8764c362c9f33890015dfc1aae0dab
+    Reviewed-on: https://go-review.googlesource.com/8527
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ misc/cgo/testso/cgoso.c   |  5 -----
+ misc/cgo/testso/cgoso.go  | 19 -------------------
+ misc/cgo/testso/cgoso_c.c |  4 ----
+ misc/cgo/testso/cgoso_c.h | 17 -----------------
+ misc/cgo/testso/test.bat  |  2 +-
+ 5 files changed, 1 insertion(+), 46 deletions(-)

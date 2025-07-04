@@ -1,0 +1,17 @@
+commit 7729c3f955886769494f391140c4d79157ee0205
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 27 14:16:28 2009 -0700
+
+    fix gc bug causing make smoketest to die in cmd/gofmt.
+    
+    saving of sp was too far away from use in scanstack;
+    the stack had changed since the sp was saved.
+    
+    R=r
+    DELTA=9  (4 added, 2 deleted, 3 changed)
+    OCL=32232
+    CL=32237
+
+ src/pkg/runtime/amd64/traceback.c |  1 +
+ src/pkg/runtime/mgc0.c            | 11 ++++++-----
+ 2 files changed, 7 insertions(+), 5 deletions(-)

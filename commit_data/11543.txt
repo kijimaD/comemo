@@ -1,0 +1,21 @@
+commit 71c19b610f1f5c0d61cc339d122eba730fc78c71
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 1 11:43:40 2012 -0800
+
+    mat/big: add raw access to Int bits
+    
+    This is a minimal API extension, it makes it possible
+    to implement missing Int functionality externally w/o
+    compromising efficiency. It is the hope that this will
+    reduce the number of feature requests going directly
+    into the big package.
+    
+    Also: Fixed some naming inconsistencies: The receiver
+    is only called z when it is also the result.
+    
+    R=golang-dev, agl
+    CC=golang-dev
+    https://golang.org/cl/5607055
+
+ src/pkg/math/big/int.go | 62 ++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 41 insertions(+), 21 deletions(-)

@@ -1,0 +1,12 @@
+commit 5b46fc417fdc908fd41d1e88a909d8e92a29504c
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Dec 18 12:19:04 2012 +1100
+
+    go/doc: add "hdr-" prefix to headers generated from package overviews.
+    
+    R=golang-dev, bradfitz, gri
+    CC=golang-dev
+    https://golang.org/cl/6935071
+
+ src/pkg/go/doc/comment.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

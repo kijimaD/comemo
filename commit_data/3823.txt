@@ -1,0 +1,19 @@
+commit d3d3accdb77af52798369c87e198800449588190
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 15:37:55 2009 -0800
+
+    gofmt-ify io, json, runtime, encoding
+    
+    R=rsc
+    http://go/go-review/1017056
+
+ src/pkg/encoding/ascii85/ascii85_test.go | 14 ++---
+ src/pkg/encoding/git85/git_test.go       | 16 +++---
+ src/pkg/io/pipe_test.go                  | 12 ++--
+ src/pkg/io/utils.go                      | 12 +++-
+ src/pkg/io/utils_test.go                 |  8 +--
+ src/pkg/json/struct.go                   |  9 +--
+ src/pkg/json/struct_test.go              | 46 +++++++--------
+ src/pkg/runtime/extern.go                |  2 +-
+ src/pkg/runtime/type.go                  | 97 ++++++++++++++++----------------
+ 9 files changed, 112 insertions(+), 104 deletions(-)

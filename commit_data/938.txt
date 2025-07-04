@@ -1,0 +1,22 @@
+commit 5d30161ca7a2318c99de9d26ca0bc0d3471330a2
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 22 17:12:07 2008 -0700
+
+    move reflection code into final place.
+    this is just a branch.
+    next cl will update and add to build
+    
+    R=rsc
+    DELTA=4528  (2264 added, 2264 deleted, 0 changed)
+    OCL=17670
+    CL=17672
+
+ {usr/r => src/lib}/reflect/Makefile     | 0
+ {usr/r => src/lib}/reflect/cast_amd64.s | 0
+ {usr/r => src/lib}/reflect/gencast.sh   | 0
+ {usr/r => src/lib}/reflect/main.go      | 0
+ {usr/r => src/lib}/reflect/tostring.go  | 0
+ {usr/r => src/lib}/reflect/type.go      | 0
+ {usr/r => src/lib}/reflect/typestring.c | 0
+ {usr/r => src/lib}/reflect/value.go     | 0
+ 8 files changed, 0 insertions(+), 0 deletions(-)

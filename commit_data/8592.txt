@@ -1,0 +1,24 @@
+commit e59aa8ea4ac311e3ba73f77002747f7d9b9f5a10
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Thu Jun 2 18:48:17 2011 +0200
+
+    gc: typecheck the whole tree before walking.  preparation for some escape-analysis related changes.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4528116
+
+ src/cmd/5g/Makefile |  13 +++---
+ src/cmd/5g/ggen.c   | 110 ++----------------------------------------------
+ src/cmd/6g/Makefile |  11 ++---
+ src/cmd/6g/ggen.c   | 111 ++----------------------------------------------
+ src/cmd/8g/Makefile |  11 ++---
+ src/cmd/8g/ggen.c   | 111 ++----------------------------------------------
+ src/cmd/gc/dcl.c    |   3 --
+ src/cmd/gc/go.h     |   2 +
+ src/cmd/gc/init.c   |   5 ++-
+ src/cmd/gc/lex.c    |  16 ++++++-
+ src/cmd/gc/pgen.c   | 119 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/subr.c   |   3 ++
+ src/cmd/gc/walk.c   |   7 +++-
+ 13 files changed, 177 insertions(+), 345 deletions(-)

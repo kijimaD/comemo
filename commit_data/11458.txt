@@ -1,0 +1,17 @@
+commit faa1bf04fdea86d89583ea0063561c2cdc959b2d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 30 14:50:36 2012 +1100
+
+    dashboard: ask builders to re-build Go tip to freshen subrepos
+    
+    This ensures we always have results for subrepo-tip at go-tip.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5569091
+
+ misc/dashboard/app/build/build.go   |  7 +++++++
+ misc/dashboard/app/build/handler.go | 37 ++++++++++++++++++++++++++++++++-----
+ misc/dashboard/app/build/test.go    |  8 ++++++--
+ misc/dashboard/app/build/ui.go      |  2 +-
+ 4 files changed, 46 insertions(+), 8 deletions(-)

@@ -1,0 +1,13 @@
+commit 2119b3672db42e596e468a2516cf2e61729e683b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 14 23:03:08 2009 -0700
+
+    interfaces and methods.
+    
+    R=rsc
+    DELTA=160  (143 added, 5 deleted, 12 changed)
+    OCL=35748
+    CL=35758
+
+ doc/effective_go.html | 172 +++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 155 insertions(+), 17 deletions(-)

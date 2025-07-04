@@ -1,0 +1,22 @@
+commit c82bbc0e8edbbebe47e92729e8f3f1b60d380b5b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Aug 18 00:21:36 2022 +0700
+
+    runtime: convert timer0When/timerModifiedEarliest to atomic.Int64
+    
+    So they match with when/nextwhen fields of timer struct.
+    
+    Updates #53821
+    
+    Change-Id: Iad0cceb129796745774facfbbfe5756df3a320b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423117
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/runtime/proc.go     |  4 ++--
+ src/runtime/runtime2.go |  4 ++--
+ src/runtime/time.go     | 16 ++++++++--------
+ 3 files changed, 12 insertions(+), 12 deletions(-)

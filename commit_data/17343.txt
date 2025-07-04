@@ -1,0 +1,12 @@
+commit 478c871f02f3b1b9b5c768a5d19fe7450b760dfd
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 21 08:37:32 2013 +1000
+
+    doc/go1.2.txt: archive/tar's fixed FileInfo
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/13140043
+
+ doc/go1.2.txt | 3 +++
+ 1 file changed, 3 insertions(+)

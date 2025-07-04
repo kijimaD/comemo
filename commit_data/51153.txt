@@ -1,0 +1,17 @@
+commit e5d2814576937162ce183d5aab09616ae13d983c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Nov 7 17:05:33 2022 -0500
+
+    cmd/compile: adjust PGO debug output slightly
+    
+    - Include the callee names in hot call inlining message.
+    - Print the graph when pgoinline >= 2.
+    
+    Change-Id: Iceb89b5f18cefc69ab9256aca9a910743d22ec0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448496
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/inline/inl.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

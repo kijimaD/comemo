@@ -1,0 +1,41 @@
+commit ae54cf73cafad51188863dc5eada1b9d6c4d6a95
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 15 12:42:24 2009 -0700
+
+    last round: non-package code
+    
+    R=r
+    DELTA=127  (38 added, 3 deleted, 86 changed)
+    OCL=34640
+    CL=34650
+
+ doc/progs/sortmain.go                  |   2 +-
+ test/assign.go                         |   4 ++
+ test/bench/chameneosredux.go           |   2 +-
+ test/bench/regex-dna.go                |   4 +-
+ test/bugs/bug193.go                    |   1 +
+ test/chan/perm.go                      |   9 +++
+ test/decl.go                           |   1 +
+ test/declbad.go                        |   7 +++
+ test/escape.go                         |   2 +-
+ test/fixedbugs/bug022.go               |   1 +
+ test/fixedbugs/bug030.go               |   1 +
+ test/fixedbugs/bug047.go               |   2 +
+ test/fixedbugs/bug048.go               |   1 +
+ test/fixedbugs/bug056.go               |   1 +
+ test/fixedbugs/bug065.go               |   1 +
+ test/fixedbugs/bug143.go               |   9 ++-
+ test/fixedbugs/bug146.go               |   1 +
+ test/fixedbugs/bug152.go               |   2 +-
+ test/fixedbugs/bug173.go               |   4 +-
+ test/fixedbugs/bug183.go               |   6 +-
+ test/fixedbugs/bug184.go               |   2 +
+ test/fixedbugs/bug189.go               |   1 +
+ test/fixedbugs/bug201.go               |  12 ++--
+ test/fixedbugs/bug204.go               |   2 +-
+ test/initialize.go                     |   2 +-
+ test/mallocrep1.go                     |   2 +-
+ test/map.go                            | 111 ++++++++++++++++-----------------
+ test/range.go                          |   2 +-
+ usr/dsymonds/iterable/iterable_test.go |   2 +-
+ 29 files changed, 116 insertions(+), 81 deletions(-)

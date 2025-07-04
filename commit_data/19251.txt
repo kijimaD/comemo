@@ -1,0 +1,18 @@
+commit 7e41abbc6b9f00f84374c69f3acb63b56fcf4728
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 29 12:37:16 2014 +0900
+
+    net: make WriteTo, WriteToIP and WriteMsgIP fail when IPConn is already connected
+    
+    This CL tries to fill the gap between Linux and other Unix-like systems
+    in the same way UDPConn and UnixConn already did.
+    
+    Fixes #7887.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/97810043
+
+ src/pkg/net/iprawsock_posix.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

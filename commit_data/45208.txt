@@ -1,0 +1,33 @@
+commit 14dbd6e7762662f8bec95d537281f09ad3d508e4
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 15 16:18:30 2021 -0400
+
+    internal/buildcfg: make regabi an alias for regabi sub-experiments
+    
+    Currently, specifying GOEXPERIMENT=regabi will turn on all regabi
+    sub-experiments, but GOEXPERIMENT=noregabi won't turn anything off.
+    Regabi also isn't a "real" experiment in the sense that nothing in the
+    code base should depend on it as an experiment flag (it should depend
+    on the appropriate sub-experiments).
+    
+    Hence, drop Regabi from goexperiment.Flags and make "regabi" in
+    GOEXPERIMENT be a real alias for all of the sub-flags, so regabi will
+    turn on all of the sub-flags and noregabi will turn off all of the
+    sub-flags.
+    
+    This way, once we enable the sub-experiments in the baseline
+    configuration, it will be easy to turn off with "noregabi".
+    
+    For #40724.
+    
+    Change-Id: I0fb95be42f756d412e729a396be607d629ae2bab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310609
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/internal/buildcfg/exp.go       | 31 +++++++++++++++++--------------
+ src/internal/goexperiment/flags.go |  7 ++++---
+ 2 files changed, 21 insertions(+), 17 deletions(-)

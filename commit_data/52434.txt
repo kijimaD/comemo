@@ -1,0 +1,32 @@
+commit 8c5e8a38df141dcb2ff8aebe87786a84ca362996
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 22 15:04:35 2023 -0700
+
+    go/types, types2: refactor initVars
+    
+    As with changes in prior CLs, we don't suppress legitimate
+    "declared but not used" errors anymore simply because the
+    respective variables are used in incorrect assignments,
+    unrelated to the variables in question.
+    Adjust several (ancient) tests accordingly.
+    
+    Change-Id: I5826393264d9d8085c64777a330d4efeb735dd2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478716
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go | 137 +++++++++++++++----------
+ src/go/types/assignments.go                    | 133 ++++++++++++++++--------
+ test/fixedbugs/bug037.go                       |   1 +
+ test/fixedbugs/bug072.go                       |   1 +
+ test/fixedbugs/bug091.go                       |   1 +
+ test/fixedbugs/bug103.go                       |   1 +
+ test/fixedbugs/bug107.go                       |   1 +
+ test/fixedbugs/bug122.go                       |   1 +
+ test/fixedbugs/bug175.go                       |   1 +
+ test/fixedbugs/issue19012.go                   |   2 +-
+ test/fixedbugs/issue48558.go                   |   8 ++
+ 11 files changed, 188 insertions(+), 99 deletions(-)

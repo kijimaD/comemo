@@ -1,0 +1,19 @@
+commit deb2f89eb16929819cddbd293240f06f5f396bc1
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Nov 4 16:35:22 2023 +0800
+
+    time: add available godoc link
+    
+    Change-Id: Idfe9cf2f2e4750d6673455f98deef2efc2d292a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539837
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/time/format.go   | 34 +++++++++++++++++-----------------
+ src/time/sleep.go    | 20 ++++++++++----------
+ src/time/tick.go     |  8 ++++----
+ src/time/time.go     | 50 +++++++++++++++++++++++++-------------------------
+ src/time/zoneinfo.go |  4 ++--
+ 5 files changed, 58 insertions(+), 58 deletions(-)

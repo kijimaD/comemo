@@ -1,0 +1,17 @@
+commit fc486e4758700a1e17b3f80a0ace0426d4f89994
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Aug 29 13:52:07 2023 +0200
+
+    internal/poll, net: use (*FD).SetsockoptInet4Addr in setIPv4MulticastInterface on windows
+    
+    Change-Id: Ic29d15bf62d8e693ca969354b415d958823bf41d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523915
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/internal/poll/sockopt_windows.go | 9 ---------
+ src/net/sockoptip_windows.go         | 3 +--
+ 2 files changed, 1 insertion(+), 11 deletions(-)

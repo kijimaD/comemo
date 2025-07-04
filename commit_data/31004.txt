@@ -1,0 +1,19 @@
+commit 10991fd5af24fd01483ab23c9b3d7de52de580b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 5 10:57:03 2017 -0400
+
+    cmd/go: add test for test -race -i behavior
+    
+    This was fixed in CL 37598 but the test was (rightly) dropped
+    because it modified $GOROOT. Here's a variant that does not.
+    
+    For #19151.
+    
+    Change-Id: Iccdbbf9ae8ac4c252e52f4f8ff996963573c4682
+    Reviewed-on: https://go-review.googlesource.com/39592
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

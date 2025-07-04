@@ -1,0 +1,22 @@
+commit 9743fdd097171cada6231503974209edc5400ee8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 30 16:36:14 2022 -0700
+
+    go/build: set allTags even when short-circuiting x_GOOS_GOARCH.go
+    
+    Fixes #52053
+    
+    Change-Id: I0e1f2737f97a4656913b34a731d8de2c77a15b4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396918
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/build/build.go                         |  4 +++
+ src/go/build/build_test.go                    | 36 +++++++++++++++++++++++++++
+ src/go/build/testdata/alltags/alltags.go      |  5 ++++
+ src/go/build/testdata/alltags/x_netbsd_arm.go |  5 ++++
+ 4 files changed, 50 insertions(+)

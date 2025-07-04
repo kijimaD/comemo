@@ -1,0 +1,18 @@
+commit 80543aca7e2cc56d3084f273cba631a7a225a005
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 18 15:27:20 2009 -0700
+
+    Public AES block interface.
+    The higher-level stream modes will be in crypto/block.
+    
+    R=r
+    DELTA=205  (136 added, 7 deleted, 62 changed)
+    OCL=29002
+    CL=29006
+
+ src/lib/crypto/aes/Makefile    |  13 +++--
+ src/lib/crypto/aes/aes_test.go | 110 +++++++++++++++++++++++++++--------------
+ src/lib/crypto/aes/block.go    |  62 +++++++++++++++--------
+ src/lib/crypto/aes/cipher.go   |  71 ++++++++++++++++++++++++++
+ src/lib/crypto/aes/modes.go    |   7 ---
+ 5 files changed, 196 insertions(+), 67 deletions(-)

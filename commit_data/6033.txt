@@ -1,0 +1,13 @@
+commit 30ab8cf792b8938672d2980dfa7095837e8c3d83
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 17 09:44:16 2010 +1000
+
+    template: retain leading space if the line is not an action.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1985042
+
+ src/pkg/template/template.go      | 7 ++++---
+ src/pkg/template/template_test.go | 1 +
+ 2 files changed, 5 insertions(+), 3 deletions(-)

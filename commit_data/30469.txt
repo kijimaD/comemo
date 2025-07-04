@@ -1,0 +1,18 @@
+commit 1eed80f09adc7641227ac80a9031fd3781e54d7d
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Feb 19 09:37:22 2017 -0800
+
+    cmd/compile: fix disassembly of invalid instructions
+    
+    Make sure that if we encode an explicit base register, we print it.
+    That will ensure that if we make an Addr with an auto variable but
+    a base that isn't SP, then it will be obvious from the disassembly.
+    
+    Update #19184
+    
+    Change-Id: If5556a5183f344d719ec7197aa935a0166061e6f
+    Reviewed-on: https://go-review.googlesource.com/37255
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/util.go | 41 +++++++++++++++++++++++++++++++----------
+ 1 file changed, 31 insertions(+), 10 deletions(-)

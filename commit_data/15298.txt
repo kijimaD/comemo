@@ -1,0 +1,13 @@
+commit 68ff170ebece48b7fbef3c14c1514811a4d6c370
+Author: Andrew Wilkins <axwalk@gmail.com>
+Date:   Mon Feb 18 19:03:10 2013 -0800
+
+    go/types: Permit dereferencing of named pointer types.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/7358044
+
+ src/pkg/go/types/expr.go            |  2 +-
+ src/pkg/go/types/testdata/expr0.src | 10 ++++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

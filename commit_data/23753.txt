@@ -1,0 +1,18 @@
+commit f35868a49a6b337806faf49824c6dba1870c2649
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 19 18:20:06 2015 -0700
+
+    cmd/go: don't run TestInstalls in short mode
+    
+    It changes GOROOT, so we shouldn't run it in short mode.  Also, it's
+    fairly slow.
+    
+    Update #11779.
+    
+    Change-Id: I3d3344954cf9b2ac70070c878a67cb65ac8fd85c
+    Reviewed-on: https://go-review.googlesource.com/12364
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/go_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

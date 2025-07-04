@@ -1,0 +1,15 @@
+commit 9228d7d7d523e6831933b79f768dfbb51f8ffb5b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jun 9 15:11:57 2022 -0400
+
+    doc/go1.19: add a release note for module indexing
+    
+    Change-Id: I264499d955049c5b7c4bdda7ce23cf7fe7031402
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411497
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ doc/go1.19.html | 5 +++++
+ 1 file changed, 5 insertions(+)

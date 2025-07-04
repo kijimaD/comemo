@@ -1,0 +1,13 @@
+commit b1d37b74d9dfa9a9eb0daa897209620fb7e9f78b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 12 14:19:39 2008 -0800
+
+    reflect.PtrValue.SetSub() to set pointers
+    
+    R=rsc
+    OCL=19101
+    CL=19101
+
+ src/lib/reflect/test.go  | 11 +++++++++++
+ src/lib/reflect/value.go | 10 ++++++++++
+ 2 files changed, 21 insertions(+)

@@ -1,0 +1,24 @@
+commit 53941b6150a1f9ca01c02316c8db51024294a4c9
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Mar 25 08:30:19 2021 -0400
+
+    cmd/compile: fix defer desugar keepalive arg handling buglet
+    
+    Fix a bug in the go/defer desugar handling of keepalive arguments. The
+    go/defer wrapping code has special handling for calls whose arguments
+    are pointers that have been cast to "uintptr", so as to insure that
+    call "keepalive" machinery for such calls continues to work. This
+    patch fixes a bug in the special case code to insure that it doesn't
+    kick in for other situations where you have an unsafe.Pointer ->
+    uintptr argument (outside the keepalive context).
+    
+    Fixes make.bat on windows with GOEXPERIMENT=regabidefer in effect.
+    
+    Change-Id: I9db89c4c73f0db1235901a4fae57f62f88c94ac3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304457
+    Trust: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/walk/order.go | 59 ++++++++++++++++++++++++++--------
+ 1 file changed, 45 insertions(+), 14 deletions(-)

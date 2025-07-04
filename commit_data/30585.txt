@@ -1,0 +1,19 @@
+commit b992c2649e6c30d25baeb3c26aba0e90b800a1f4
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 7 15:20:40 2017 -0500
+
+    runtime: print SP/FP on bad pointer crashes
+    
+    If the bad pointer is on a stack, this makes it possible to find the
+    frame containing the bad pointer.
+    
+    Change-Id: Ieda44e054aa9ebf22d15d184457c7610b056dded
+    Reviewed-on: https://go-review.googlesource.com/37858
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mbitmap.go | 1 +
+ src/runtime/mgcmark.go | 2 ++
+ 2 files changed, 3 insertions(+)

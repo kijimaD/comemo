@@ -1,0 +1,13 @@
+commit 86c9aca41eef98d5bc24655004bf3f44c88080e0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 3 14:58:00 2010 -0700
+
+    bug285: assignment compatible map keys must be accepted
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1473042
+
+ test/bugs/bug285.go | 118 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/golden.out     |  14 +++++++
+ 2 files changed, 132 insertions(+)

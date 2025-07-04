@@ -1,0 +1,16 @@
+commit 19aa4209aebce5deaf485268e210ed3fc29cacd5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 16 04:41:34 2015 +0000
+
+    syscall: fix nacl listener to not accept connections once closed
+    
+    Change-Id: I3ba6e97089ef6e69ba31dfb632df465859906a74
+    Reviewed-on: https://go-review.googlesource.com/15940
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/net_test.go     | 9 ++++++++-
+ src/syscall/net_nacl.go | 8 +++++++-
+ 2 files changed, 15 insertions(+), 2 deletions(-)

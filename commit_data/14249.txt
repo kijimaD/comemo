@@ -1,0 +1,16 @@
+commit ad487dad75faca0c5cd6a152d9f04d9ff93aaff5
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Oct 31 10:02:11 2012 +1100
+
+    image/jpeg: don't call ensureNBits unless we have to.
+    
+    benchmark                     old ns/op    new ns/op    delta
+    BenchmarkDecodeBaseline         3155638      2783998  -11.78%
+    BenchmarkDecodeProgressive      4008088      3660310   -8.68%
+    
+    R=r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6775072
+
+ src/pkg/image/jpeg/huffman.go | 24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)

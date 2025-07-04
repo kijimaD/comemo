@@ -1,0 +1,16 @@
+commit 73ca5c0dace9e43330d92b751547759075d3b828
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 7 15:56:20 2023 -0500
+
+    cmd/go: simplify cgo and buildmode checks in tests
+    
+    Change-Id: I0d6e49226a8708cc5f6ed3bea7658bec202a7ae7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474138
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/go_test.go          | 114 ++++++++++++++++-------------------------
+ src/cmd/go/scriptconds_test.go |   4 +-
+ 2 files changed, 45 insertions(+), 73 deletions(-)

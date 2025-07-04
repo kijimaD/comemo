@@ -1,0 +1,14 @@
+commit a0ab6cd6852cec430e280217a9516d6be3c1ef5f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 12 00:22:39 2016 +0000
+
+    net/http: add test that panic in a handler signals an error to the client
+    
+    Change-Id: Iba40edc9ddad62534b06c5af20bbc3dd3dc14d0a
+    Reviewed-on: https://go-review.googlesource.com/21881
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/clientserver_test.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

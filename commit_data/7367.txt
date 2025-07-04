@@ -1,0 +1,17 @@
+commit 4a14bc524bbcf401e4d7a8cc54566605bda4b4d1
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Feb 4 09:00:17 2011 -0500
+
+    crypto/openpgp/packet: add public key support
+    
+    Note that DSA public key support is nascent and the verification
+    functions clearly don't support it yet. I'm intending to get RSA keys
+    working first.
+    
+    R=bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/3973054
+
+ src/pkg/crypto/openpgp/packet/public_key.go      | 260 +++++++++++++++++++++++
+ src/pkg/crypto/openpgp/packet/public_key_test.go |  58 +++++
+ 2 files changed, 318 insertions(+)

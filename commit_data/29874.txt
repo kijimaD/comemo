@@ -1,0 +1,18 @@
+commit 17190343e3db72a3f299e5a4359ae6bc3e5ed194
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Dec 22 08:59:52 2016 +0900
+
+    cmd/go: skip flaky TestCgoConsistentResults on FreeBSD
+    
+    FreeBSD 11 or above uses clang-3.6 or higher by default.
+    
+    Updates #15405.
+    
+    Change-Id: If49ce298130165f9e1525c7fd0fd5aa39099ad53
+    Reviewed-on: https://go-review.googlesource.com/34675
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

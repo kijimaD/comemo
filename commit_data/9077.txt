@@ -1,0 +1,15 @@
+commit 3f53475c977c50f8370cc916bc3ed4e0045f23dd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 14 11:54:55 2011 -0700
+
+    json: add omitempty struct tag option
+    
+    Fixes #2032
+    
+    R=rsc, dsymonds, r, r
+    CC=golang-dev
+    https://golang.org/cl/4709044
+
+ src/pkg/json/encode.go      | 74 +++++++++++++++++++++++++++++++++++++--------
+ src/pkg/json/encode_test.go | 44 +++++++++++++++++++++++++++
+ 2 files changed, 105 insertions(+), 13 deletions(-)

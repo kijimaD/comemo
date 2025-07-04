@@ -1,0 +1,20 @@
+commit 97711bfd60575b2f51e212b0b5181729597e9091
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 6 09:07:03 2020 -0700
+
+    runtime: skip TestPingPongHog in race mode
+    
+    TestPingPongHog tests properties of the scheduler.
+    But the race detector intentionally does randomized scheduling,
+    so the test is not applicable.
+    
+    Fixes #38266
+    
+    Change-Id: Ib06aa317b2776cb1faa641c4e038e2599cf70b2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227344
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/proc_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

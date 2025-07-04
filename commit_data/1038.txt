@@ -1,0 +1,12 @@
+commit c4969a3b938794817649f6609a5b2dea8b5e5fe0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 3 15:38:27 2008 -0800
+
+    update names after 6g change
+    
+    TBR=r
+    OCL=18381
+    CL=18383
+
+ src/lib/reflect/test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,24 @@
+commit d6c1ef52ad31eea6795b199801969a11b0dc55d1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 6 08:53:54 2023 -0400
+
+    math/rand/v2: remove Read
+    
+    In math/rand, Read is deprecated. Remove in v2.
+    People should use crypto/rand if they need long strings.
+    
+    For #61716.
+    
+    Change-Id: Ib254b7e1844616e96db60a3a7abb572b0dcb1583
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502497
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/61716.txt               |   3 -
+ src/math/rand/v2/race_test.go    |   1 -
+ src/math/rand/v2/rand.go         |  86 +---------------------------
+ src/math/rand/v2/rand_test.go    | 118 ---------------------------------------
+ src/math/rand/v2/regress_test.go | 100 +++++++++++++--------------------
+ 5 files changed, 43 insertions(+), 265 deletions(-)

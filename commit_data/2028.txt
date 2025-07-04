@@ -1,0 +1,12 @@
+commit 65d397f747f565cbea57dd40f4f838bbab803243
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 15 20:27:22 2009 -0700
+
+    compiler implementation of array slice change
+    
+    R=ken
+    OCL=27533
+    CL=27533
+
+ src/cmd/gc/walk.c | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

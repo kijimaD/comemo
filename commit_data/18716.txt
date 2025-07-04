@@ -1,0 +1,15 @@
+commit d30d42915ab9ae24b20674ef20a9f1eac745c714
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 4 09:26:28 2014 +0900
+
+    api: add FreeBSD 10 exceptions
+    
+    Update #7193
+    
+    LGTM=minux.ma
+    R=golang-codereviews, rsc, minux.ma, iant
+    CC=golang-codereviews
+    https://golang.org/cl/57210043
+
+ api/except.txt | 76 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 76 insertions(+)

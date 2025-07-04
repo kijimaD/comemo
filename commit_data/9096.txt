@@ -1,0 +1,12 @@
+commit 8c5c3c504c66a704294e20742f5a701aaf8674f0
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Jul 18 08:46:47 2011 +1000
+
+    cmd/5l/Makefile: directory prefix nit, "../5l/" is not needed.
+    
+    R=golang-dev, r
+    CC=golang-dev, rsc
+    https://golang.org/cl/4755046
+
+ src/cmd/5l/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

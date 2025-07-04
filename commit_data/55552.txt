@@ -1,0 +1,21 @@
+commit 414161ebfaa58218ffac7907b4d8ef2babb236cb
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Feb 7 04:56:26 2024 +0000
+
+    encoding/xml: rewrite func procInst
+    
+    This CL tries to make function procInst more exact,
+    also adds test cases, however, including tricky ones.
+    
+    Change-Id: If421299fc84d136e56a25dba7a4919c4424702c8
+    GitHub-Last-Rev: b9a3192718ae5535d66fddd260c27b48d93b4af1
+    GitHub-Pull-Request: golang/go#64336
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544475
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/xml/xml.go      | 25 ++++++++++++++++++-------
+ src/encoding/xml/xml_test.go |  7 +++++++
+ 2 files changed, 25 insertions(+), 7 deletions(-)

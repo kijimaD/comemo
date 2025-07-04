@@ -1,0 +1,16 @@
+commit 03b25a92a3e51dcb0b654945ad1d34eb7ed377bf
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 27 14:55:14 2009 -0700
+
+    catch
+            a := true;
+            a |= a;
+    in the front end.
+    
+    R=ken
+    OCL=32240
+    CL=32243
+
+ src/cmd/gc/walk.c        | 12 +++++++++---
+ test/fixedbugs/bug172.go | 12 ++++++++++++
+ 2 files changed, 21 insertions(+), 3 deletions(-)

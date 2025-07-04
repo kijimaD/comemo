@@ -1,0 +1,13 @@
+commit 03e6073b1340f9a9d92dc4902108ace36f9d5531
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Mar 16 03:13:17 2020 +1100
+
+    math: implement Min/Max in riscv64 assembly
+    
+    Change-Id: If34422859d47bc8f44974a00c6b7908e7655ff41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223561
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/math/dim_riscv64.s   | 70 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/math/stubs_riscv64.s |  6 -----
+ 2 files changed, 70 insertions(+), 6 deletions(-)

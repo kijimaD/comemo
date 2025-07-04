@@ -1,0 +1,15 @@
+commit f4ef6977ffab6c741b059d03147562e7c5901c0c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Apr 2 10:19:28 2014 +0400
+
+    runtime: ignore pointers to global objects in SetFinalizer
+    Update #7656
+    
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/82560043
+
+ src/pkg/runtime/malloc.goc     | 11 ++++++++++-
+ src/pkg/runtime/mfinal_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

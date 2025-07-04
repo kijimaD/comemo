@@ -1,0 +1,43 @@
+commit c02fc1605ad1816f95f61811883dbcdb38a9aec6
+Author: Wei Xiao <wei.xiao@arm.com>
+Date:   Thu Jul 27 01:55:03 2017 +0000
+
+    cmd/compile: memory clearing optimization for arm64
+    
+    Use "STP (ZR, ZR), O(R)" instead of "MOVD ZR, O(R)" to implement memory clearing.
+    Also improve assembler supports to STP/LDP.
+    Results (A57@2GHzx8):
+    
+    benchmark                   old ns/op     new ns/op     delta
+    BenchmarkClearFat8-8        1.00          1.00          +0.00%
+    BenchmarkClearFat12-8       1.01          1.01          +0.00%
+    BenchmarkClearFat16-8       1.01          1.01          +0.00%
+    BenchmarkClearFat24-8       1.52          1.52          +0.00%
+    BenchmarkClearFat32-8       3.00          2.02          -32.67%
+    BenchmarkClearFat40-8       3.50          2.52          -28.00%
+    BenchmarkClearFat48-8       3.50          3.03          -13.43%
+    BenchmarkClearFat56-8       4.00          3.50          -12.50%
+    BenchmarkClearFat64-8       4.25          4.00          -5.88%
+    BenchmarkClearFat128-8      8.01          8.01          +0.00%
+    BenchmarkClearFat256-8      16.1          16.0          -0.62%
+    BenchmarkClearFat512-8      32.1          32.0          -0.31%
+    BenchmarkClearFat1024-8     64.1          64.1          +0.00%
+    
+    Change-Id: Ie5f5eac271ff685884775005825f206167a5c146
+    Reviewed-on: https://go-review.googlesource.com/55610
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/arm64/ggen.go       |   9 +-
+ src/cmd/compile/internal/arm64/ssa.go        |  37 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  78 ++++-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  13 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  32 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 495 +++++++++++++++++++++++++--
+ src/cmd/internal/obj/arm64/a.out.go          |   6 +-
+ src/cmd/internal/obj/arm64/anames7.go        |   4 +
+ src/cmd/internal/obj/arm64/asm7.go           | 260 ++++++++++++--
+ src/runtime/duff_arm64.s                     | 192 ++++-------
+ src/runtime/mkduff.go                        |   7 +-
+ 11 files changed, 904 insertions(+), 229 deletions(-)

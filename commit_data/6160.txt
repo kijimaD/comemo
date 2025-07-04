@@ -1,0 +1,15 @@
+commit 5bf658cc8f4bab6fa2f7e9e641d6df18db78ab1e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 2 14:20:02 2010 -0400
+
+    build: create bin and pkg directories as needed; drop from hg
+    
+    R=dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/2050043
+
+ bin/~place-holder~ | 4 ----
+ pkg/~place-holder~ | 4 ----
+ src/env.bash       | 2 +-
+ src/make.bash      | 6 ++++++
+ 4 files changed, 7 insertions(+), 9 deletions(-)

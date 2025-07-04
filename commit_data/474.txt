@@ -1,0 +1,12 @@
+commit 0cc772cbc088a3413394c7d4d6ac467c130527d9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 4 09:47:52 2008 -0700
+
+    - adjust Make.conf to use cc instead of cc64 for now
+    
+    TBR=rsc
+    OCL=13804
+    CL=13804
+
+ src/Make.conf | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

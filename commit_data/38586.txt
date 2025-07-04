@@ -1,0 +1,17 @@
+commit 57bd57745431da4aeb85d6caae145e5f4dfbca38
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Mar 26 14:55:48 2019 +0100
+
+    cmd/vet/all: enable AIX checks
+    
+    Fixes #27985
+    
+    Change-Id: I2f3d06ced9da9fc56f30f1285a8d393e689c29ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169019
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/vet/all/main.go                 | 6 ------
+ src/cmd/vet/all/whitelist/aix_ppc64.txt | 8 ++++++++
+ 2 files changed, 8 insertions(+), 6 deletions(-)

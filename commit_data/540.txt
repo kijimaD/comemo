@@ -1,0 +1,13 @@
+commit bb0594263886d8a82895cb04714f804aa4558fff
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 20 16:32:00 2008 -0700
+
+    updated section on reserved words
+    
+    R=r
+    DELTA=44  (27 added, 2 deleted, 15 changed)
+    OCL=14353
+    CL=14355
+
+ doc/go_lang.txt | 57 +++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 41 insertions(+), 16 deletions(-)

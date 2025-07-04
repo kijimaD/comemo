@@ -1,0 +1,79 @@
+commit 4faada90e10f91e68cb6b47d042b201ebac249b6
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Nov 4 16:50:03 2019 -0500
+
+    go/doc: add NewFromFiles with support for classifying examples
+    
+    This CL is based on work started by Joe Tsai in CL 94855.
+    It's rebased on top of the latest master branch, and
+    addresses various code review comments and findings
+    from attempting to use the original CL in practice.
+    
+    The testing package documents a naming convention for examples
+    so that documentation tools can associate them with:
+    
+    • a package (Example or Example_suffix)
+    • a function F (ExampleF or ExampleF_suffix)
+    • a type T (ExampleT or ExampleT_suffix)
+    • a method T.M (ExampleT_M or ExampleT_M_suffix)
+    
+    This naming convention is in widespread use and enforced
+    via existing go vet checks.
+    
+    This change adds first-class support for classifying examples
+    to go/doc, the package responsible for computing package
+    documentation from Go AST.
+    
+    There isn't a way to supply test files to New that works well.
+    External test files may have a package name with "_test" suffix,
+    so ast.NewPackage may end up using the wrong package name if given
+    test files. A workaround is to add test files to *ast.Package.Files
+    after it is returned from ast.NewPackage:
+    
+            pkg, _ := ast.NewPackage(fset, goFiles, ...)
+            for name, f := range testGoFiles {
+                    pkg.Files[name] = f
+            }
+            p := doc.New(pkg, ...)
+    
+    But that is not a good API.
+    
+    After nearly 8 years, a new entry-point is added to the go/doc
+    package, the function NewFromFiles. It accepts a Go package in
+    the form of a list of parsed Go files (including _test.go files)
+    and an import path. The caller is responsible with filtering out
+    files based on build constraints, as was the case before with New.
+    NewFromFiles computes package documentation from .go files,
+    extracts examples from _test.go files and classifies them.
+    
+    Examples fields are added to Package, Type, and Func. They are
+    documented to only be populated with examples found in _test.go
+    files provided to NewFromFiles.
+    
+    The new behavior is:
+    
+    1. NewFromFiles computes package documentation from provided
+       parsed .go files. It extracts examples from _test.go files.
+    2. It assigns each Example to corresponding Package, Type,
+       or Func.
+    3. It sets the Suffix field in each example to the suffix.
+    4. Malformed examples are skipped.
+    
+    This change implements behavior that matches the current behavior
+    of existing godoc-like tools, and will enable them to rely on the
+    logic in go/doc instead of reimplementing it themselves.
+    
+    Fixes #23864
+    
+    Change-Id: Iae834f2ff92fbd1c93a9bb7c2bf47d619bee05cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204830
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/doc/doc.go              | 104 +++++++++++++++++++-
+ src/go/doc/doc_test.go         |  13 ++-
+ src/go/doc/example.go          | 111 +++++++++++++++++++++-
+ src/go/doc/example_test.go     | 211 +++++++++++++++++++++++++++++++++++++++++
+ src/go/doc/testdata/bugpara.go |   4 +
+ 5 files changed, 435 insertions(+), 8 deletions(-)

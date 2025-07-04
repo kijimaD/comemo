@@ -1,0 +1,17 @@
+commit 3ec7be64c55d4bc0de27889a2a8b47181317a193
+Author: Uriel Mangado <uriel@berlinblue.org>
+Date:   Sun Sep 23 16:18:19 2012 -0500
+
+    doc: Remove obsolete references to weekly releases.
+    
+    This was misleading and often confusing for new users.
+    
+    Leaving the actual weekly release history page for historical reference.
+    
+    R=golang-dev, rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/6555053
+
+ doc/contrib.html       | 3 ---
+ doc/devel/release.html | 7 ++-----
+ 2 files changed, 2 insertions(+), 8 deletions(-)

@@ -1,0 +1,16 @@
+commit c22ed1290c55e7ca0e8cbd7028ddd4c397a71174
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 5 10:42:03 2014 -0700
+
+    cmd/cgo: for typedef of untagged struct, use typedef name in C code
+    
+    Fixes #8148.
+    
+    LGTM=cookieo9, rsc
+    R=rsc, cookieo9
+    CC=golang-codereviews
+    https://golang.org/cl/103080043
+
+ misc/cgo/test/issue8148.go | 31 +++++++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go         |  5 +++++
+ 2 files changed, 36 insertions(+)

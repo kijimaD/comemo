@@ -1,0 +1,17 @@
+commit 8644463bb22418023950a399ce18e9d04e26c76b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jul 16 08:38:43 2017 -0600
+
+    cmd/go: remove Action.Objpkg
+    
+    This is an intermediate step toward not being able to predict
+    the final generated file name for a package build, so that
+    parent builds can refer directly to cache files.
+    
+    Change-Id: I4dea5e8d8b80e6b995b3d9dc1d8c6f0ac9b88d72
+    Reviewed-on: https://go-review.googlesource.com/56285
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/build.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

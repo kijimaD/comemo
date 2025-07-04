@@ -1,0 +1,20 @@
+commit 145108ed368e66c04231880d2d4c12b50d075b64
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 8 09:41:12 2011 -0800
+
+    strings: add IndexRune tests, ASCII fast path
+    
+    $ gotest -test.v -test.run=IndexRune -test.bench=.*
+    === RUN  strings_test.TestIndexRune
+    --- PASS: strings_test.TestIndexRune (0.0 seconds)
+    PASS
+    strings_test.BenchmarkIndexRune 20000000   105 ns/op
+    strings_test.BenchmarkIndexByte 50000000    48 ns/op
+    
+    R=rsc, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4267050
+
+ src/pkg/strings/strings.go      | 16 +++++++++++++---
+ src/pkg/strings/strings_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 3 deletions(-)

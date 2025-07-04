@@ -1,0 +1,14 @@
+commit 1a116c76ae9918720279c3700df8120d9f30f809
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Jul 20 14:59:19 2014 +0400
+
+    sync/atomic: fix data races in tests
+    Fixes #8389.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/111320044
+
+ src/pkg/sync/atomic/atomic_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

@@ -1,0 +1,13 @@
+commit eb825b58ccbda0f748406a6cf9f76833774ab30e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 27 17:37:59 2012 +1100
+
+    archive/zip: use smarter putUintXX functions to hide offsets
+    
+    R=bradfitz, r, dsymonds, kyle
+    CC=golang-dev
+    https://golang.org/cl/5701055
+
+ src/pkg/archive/zip/reader_test.go |   2 +-
+ src/pkg/archive/zip/writer.go      | 117 ++++++++++++++++++++-----------------
+ 2 files changed, 63 insertions(+), 56 deletions(-)

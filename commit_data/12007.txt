@@ -1,0 +1,16 @@
+commit fc444ebac1521b4f36a70c0e1b19c2e78cf5520f
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Fri Feb 17 11:21:46 2012 -0500
+
+    8a, 8l: add EMMS instruction
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5673081
+
+ src/cmd/8a/lex.c              | 1 +
+ src/cmd/8l/8.out.h            | 2 ++
+ src/cmd/8l/optab.c            | 2 ++
+ src/libmach/8db.c             | 1 +
+ src/pkg/sync/atomic/asm_386.s | 6 ++----
+ 5 files changed, 8 insertions(+), 4 deletions(-)

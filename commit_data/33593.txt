@@ -1,0 +1,16 @@
+commit da21113b0c1d1b2979657d78320c31ffcb3c2c92
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 8 11:06:09 2017 -0800
+
+    cmd/go: add dependencies for implicit SWIG imports
+    
+    This fixes the misc/swig tests.
+    
+    Change-Id: I60c87bbd361fe8b4f69e4507b25dc99a226da3d7
+    Reviewed-on: https://go-review.googlesource.com/76610
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/load/pkg.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

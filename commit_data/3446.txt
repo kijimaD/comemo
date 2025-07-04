@@ -1,0 +1,13 @@
+commit c915bc54ba171f6fb42db9af111e0443d5378bb7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 5 19:32:10 2009 -0700
+
+    remove a file from idempotency test so that the entire suite passes
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=35355
+    CL=35358
+
+ src/cmd/gofmt/test.sh | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit d7b7957db16da1311ce1a8623d7c4c5a154cf815
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Oct 7 19:32:28 2012 +1100
+
+    image/jpeg: move the huffman bit decoder state higher up in the
+    decoder struct, inside the unmappedzero limit, to eliminate some
+    TESTB instructions in the inner decoding loop.
+    
+    benchmark          old ns/op    new ns/op    delta
+    BenchmarkDecode      2943204      2746360   -6.69%
+    
+    R=r, dave
+    CC=golang-dev
+    https://golang.org/cl/6625058
+
+ src/pkg/image/jpeg/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

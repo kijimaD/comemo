@@ -1,0 +1,22 @@
+commit 055113ef364337607e3e72ed7d48df67fde6fc66
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Jul 15 10:43:44 2022 -0700
+
+    math/big: check buffer lengths in GobDecode
+    
+    In Float.GobDecode and Rat.GobDecode, check buffer sizes before
+    indexing slices.
+    
+    Fixes #53871
+    
+    Change-Id: I1b652c32c2bc7a0e8aa7620f7be9b2740c568b0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417774
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+
+ src/math/big/floatmarsh.go      |  7 +++++++
+ src/math/big/floatmarsh_test.go | 12 ++++++++++++
+ src/math/big/ratmarsh.go        |  6 ++++++
+ src/math/big/ratmarsh_test.go   | 12 ++++++++++++
+ 4 files changed, 37 insertions(+)

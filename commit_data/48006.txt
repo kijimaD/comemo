@@ -1,0 +1,72 @@
+commit b66bc0a9d5eba193f7d7f4977ca64a77527f4b3b
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Jan 24 10:37:59 2022 -0500
+
+    go/types, types2: make each method instantiation independently lazy
+    
+    Method signatures can introduce a significant number of edges into the
+    type graph. One can imagine a generic type with many methods, each of
+    which may use other instantiated types, etc. For performance, when type
+    checking generic code, we should avoid unnecessary instantiation of
+    methods wherever possible.
+    
+    This CL achieves this by making method instantiation lazy at the
+    individual method level. It abstracts method access into a methodList
+    type, which may be either eager or lazy. In the lazy case, methods are
+    only instantiated when they are accessed via the Named.Method,
+    MethodSet, or LookupFieldOrMethod APIs. Factoring out a methodList type
+    makes it easier to verify that we're not leaking the methods slice
+    anywhere, and as a side benefit reduces the size of *Named types in the
+    case where there are no methods. The effective memory footprint of Named
+    types with methods increases by a pointer (to hold the slice of guards),
+    and the footprint of instantiated named types increases additionally by
+    a sync.Once per method. We estimate that this memory increase is more
+    than offset by the reduction in the number of instantiated methods.
+    
+    This also simplifies the code. Previously we had to work around the fact
+    that named type expansion could occur before all signatures were set-up,
+    by stashing the instantiated receiver into a partially filled-out *Func.
+    With fully lazy methods, we can rely on the invariant that any use of
+    methods in valid code can only occur after all signatures can be type
+    checked. This means that we can fully instantiate the *Func, and don't
+    need to deal with partially instantiated stubs.
+    
+    Finally, this CL fixes a bug (issue #50619), where traversing
+    Method->Receiver Type->Method did not get us back where we started. This
+    is fixed by not instantiating a new method if t is already the receiver
+    base of the original method.
+    
+    A test is added to explicitly verify the invariant above, and more test
+    cases are added for the behavior of Info with respect to generic code.
+    
+    Fixes #50619
+    
+    Change-Id: I5b6d2bdc4404c9f5dcb583a29cb64e8af9794c54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380499
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/api_test.go        | 113 ++++++++++++++
+ src/cmd/compile/internal/types2/decl.go            |  12 +-
+ src/cmd/compile/internal/types2/instantiate.go     |   2 +-
+ src/cmd/compile/internal/types2/lookup.go          |   2 +-
+ src/cmd/compile/internal/types2/methodlist.go      |  79 ++++++++++
+ src/cmd/compile/internal/types2/methodlist_test.go |  40 +++++
+ src/cmd/compile/internal/types2/named.go           | 171 +++++++++++----------
+ src/cmd/compile/internal/types2/object.go          |   9 +-
+ src/cmd/compile/internal/types2/sizeof_test.go     |   4 +-
+ src/cmd/compile/internal/types2/typexpr.go         |   2 +-
+ src/go/types/api_test.go                           | 114 ++++++++++++++
+ src/go/types/decl.go                               |  12 +-
+ src/go/types/instantiate.go                        |   2 +-
+ src/go/types/lookup.go                             |   2 +-
+ src/go/types/methodlist.go                         |  78 ++++++++++
+ src/go/types/methodlist_test.go                    |  41 +++++
+ src/go/types/methodset.go                          |  35 +++--
+ src/go/types/named.go                              | 171 +++++++++++----------
+ src/go/types/object.go                             |   9 +-
+ src/go/types/sizeof_test.go                        |   4 +-
+ src/go/types/typexpr.go                            |   2 +-
+ 21 files changed, 698 insertions(+), 206 deletions(-)

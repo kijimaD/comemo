@@ -1,0 +1,23 @@
+commit 0b5bcf53ee4af0e244ba1991069741774bf4f164
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Sep 10 02:32:12 2015 -0400
+
+    runtime/cgo: explicitly link msvcrt on windows
+    
+    It's because runtime links to ntdll, and ntdll exports a couple
+    incompatible libc functions. We must link to msvcrt first and
+    then try ntdll.
+    
+    Fixes #12030.
+    
+    Change-Id: I0105417bada108da55f5ae4482c2423ac7a92957
+    Reviewed-on: https://go-review.googlesource.com/14472
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue12030.go | 35 +++++++++++++++++++++++++++++++++++
+ src/runtime/cgo/cgo.go      |  4 +++-
+ 3 files changed, 39 insertions(+), 1 deletion(-)

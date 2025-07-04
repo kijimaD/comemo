@@ -1,0 +1,16 @@
+commit 669ac1228a51f7724baab9325d57ac04025db493
+Author: Benjamin Cable <cable.benjamin@gmail.com>
+Date:   Thu Aug 2 14:54:16 2018 +0100
+
+    math/rand: improve package documentation
+    
+    Notify readers that interval notation is used.
+    Fixes: #26765
+    
+    Change-Id: Id02a7fcffbf41699e85631badeee083f5d4b2201
+    Reviewed-on: https://go-review.googlesource.com/127549
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/math/rand/normal.go | 6 +++---
+ src/math/rand/rand.go   | 3 +++
+ 2 files changed, 6 insertions(+), 3 deletions(-)

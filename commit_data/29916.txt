@@ -1,0 +1,14 @@
+commit a37b9e8e70fd8e614caa6077b3b8afb488f7f59e
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Thu Jan 5 12:28:06 2017 -0800
+
+    doc: explain how to set GOPATH to a custom value
+    
+    Updates #18294.
+    
+    Change-Id: Ib6b84243a15ed921cc8960e5fa355fd7594181e6
+    Reviewed-on: https://go-review.googlesource.com/34821
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/code.html | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

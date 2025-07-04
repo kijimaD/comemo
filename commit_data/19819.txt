@@ -1,0 +1,14 @@
+commit 61864c09fc312ebfbc978b6d9e01fc0857bbc78c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Jul 26 17:44:47 2014 -0400
+
+    cmd/5l: remove unused noop.c
+    
+    LGTM=dave
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/116330043
+
+ src/cmd/5l/l.h    |  1 -
+ src/cmd/5l/noop.c | 43 -------------------------------------------
+ 2 files changed, 44 deletions(-)

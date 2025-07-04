@@ -1,0 +1,29 @@
+commit 13766fe7d89c44bb45cfb33591b137553bda7c7d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Nov 29 19:17:22 2023 -0500
+
+    runtime: preempt more aggressively when panicking
+    
+    When we are crashing from an unrecovered panic, we freeze the
+    world, and print stack traces for all goroutines if GOTRACEBACK is
+    set to a high enough level. Freezing the world is best effort, so
+    there could still be goroutines that are not preempted, and so its
+    stack trace is unavailable and printed as "goroutine running on
+    other thread".
+    
+    As we're crashing and not resuming execution on preempted
+    goroutines, we can make preemption more aggressive, preempting
+    cases that are not safe for resumption or stack scanning. This may
+    make goroutines more likely to be preempted in freezing the world
+    and have their stacks available.
+    
+    Change-Id: Ie16269e2a05e007efa61368b695addc28d7a97ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546135
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+
+ src/runtime/os_windows.go  |  2 +-
+ src/runtime/preempt.go     | 15 +++++++++++++--
+ src/runtime/signal_unix.go |  2 +-
+ 3 files changed, 15 insertions(+), 4 deletions(-)

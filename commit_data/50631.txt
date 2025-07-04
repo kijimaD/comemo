@@ -1,0 +1,18 @@
+commit 17078f5860699e0d1e1f6f3ca328f92621ac49d0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 27 16:13:40 2022 +0200
+
+    cmd/api: skip tests on platforms that cannot exec
+    
+    These tests execute commands using exec.Command.
+    
+    Change-Id: I2708d6d24762fe2b2a902b1b221cc67392bf5c41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435235
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/cmd/api/goapi_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

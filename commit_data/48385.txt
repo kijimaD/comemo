@@ -1,0 +1,16 @@
+commit 4e26ab0ed891530cd07174813b89cea04b0fa559
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 14 10:29:51 2022 -0700
+
+    cmd/go: document that 'go run' strips debug info
+    
+    Change-Id: Ie7293a33862853ac56ee0a9017b201d8ff0ba1f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392574
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go          | 4 ++++
+ src/cmd/go/internal/run/run.go | 4 ++++
+ 2 files changed, 8 insertions(+)

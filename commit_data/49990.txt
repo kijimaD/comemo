@@ -1,0 +1,31 @@
+commit a5370d038e56ced398c982f6a610a2ddde1703ff
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jul 19 13:15:05 2022 -0700
+
+    cmd/compile: remove OFORUNTIL
+    
+    Not used any more.
+    
+    Fixes #53860
+    
+    Change-Id: Id0b1c3ed30b576d6c5f08f064d1262de337262b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418374
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/escape/stmt.go         |  2 +-
+ src/cmd/compile/internal/ir/fmt.go              | 18 ++-----
+ src/cmd/compile/internal/ir/node.go             | 26 +++-------
+ src/cmd/compile/internal/ir/node_gen.go         |  5 --
+ src/cmd/compile/internal/ir/op_string.go        | 69 ++++++++++++-------------
+ src/cmd/compile/internal/ir/stmt.go             |  9 ----
+ src/cmd/compile/internal/ssa/prove.go           |  3 +-
+ src/cmd/compile/internal/ssagen/ssa.go          | 50 ++++++------------
+ src/cmd/compile/internal/typecheck/stmt.go      |  3 --
+ src/cmd/compile/internal/typecheck/typecheck.go |  6 +--
+ src/cmd/compile/internal/walk/range.go          | 13 -----
+ src/cmd/compile/internal/walk/stmt.go           |  7 +--
+ 12 files changed, 69 insertions(+), 142 deletions(-)

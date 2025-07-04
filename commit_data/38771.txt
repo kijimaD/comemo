@@ -1,0 +1,15 @@
+commit 4ee85e67e127b6679d461f1d4ae836afdf4251f4
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Mon Apr 8 15:49:58 2019 +0200
+
+    misc/cgo/testcshared: support testing on self-hosted android
+    
+    Only invoke adb for android if we're not running on android already.
+    
+    Change-Id: I4eb94286a5bf09b382716a0474f3aebec40f5d74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170953
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcshared/cshared_test.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

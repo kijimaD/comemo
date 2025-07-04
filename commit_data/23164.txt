@@ -1,0 +1,30 @@
+commit 3ba6387bd09d8dd67d04e16725a9a0ffab78756b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 18 11:09:29 2015 -0700
+
+    test: re-enable rotate tests
+    
+    Memory usage has been reduced.
+    The tests are still slow,
+    but that is issue #10571.
+    
+    /usr/bin/time shows significant variation
+    in the peak memory usage compiling with tip.
+    This is unsurprising, given GC.
+    
+    Using Go 1.4.2, memory is stable at 410mb.
+    Using tip at d2ee09298,
+    memory ranges from 470mb (+15%) to 534mb (+30%),
+    with a mean of 504mb (+23%), with n=50.
+    
+    Fixes #9933.
+    
+    Change-Id: Id31f3ae086ec324abf70e8f1a8044c4a0c27e274
+    Reviewed-on: https://go-review.googlesource.com/10211
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/rotate0.go | 2 --
+ test/rotate1.go | 2 --
+ test/rotate2.go | 2 --
+ test/rotate3.go | 2 --
+ 4 files changed, 8 deletions(-)

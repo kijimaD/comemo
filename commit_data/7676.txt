@@ -1,0 +1,16 @@
+commit ff40deee6234dc8ad72af0dba1a28c1047f497f6
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Mar 7 12:08:52 2011 -0500
+
+    goinstall: handle .s files with gc
+    
+    As a data point, with this change goinstall is able to
+    fully build package big out of the box.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4264049
+
+ src/cmd/goinstall/make.go  | 34 +++++++++++++++++++++++++---------
+ src/cmd/goinstall/parse.go | 19 +++++++++++++++----
+ 2 files changed, 40 insertions(+), 13 deletions(-)

@@ -1,0 +1,30 @@
+commit aad2336c5131d8c79158040fad57f4fc0e14e321
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 13 11:22:32 2019 -0400
+
+    cmd/go: convert semver tags with metadata to pseudoversions
+    
+    Some repositories include tags like 'v1.0.0-rc.1+oryOS.9'.
+    
+    If we were to allow such tags, they could become ambiguous: semantic
+    versioning defines versions that differ only in metadata to have equal
+    precedence, so if someone added a tag 'v1.0.0-rc.1+other' at a
+    different commit, then the version 'v1.0.0-rc.1' would become
+    ambiguous.
+    
+    However, we should still allow those tags to be used to resolve
+    versions, and since we can even parse the underlying semantic version,
+    we can at least use that as the basis for a unique (and well-ordered)
+    pseudo-version.
+    
+    Fixes #31713
+    
+    Change-Id: I5035f76d74ead6e786c04a368595cb5e42d36f91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176905
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/query.go      | 24 +++++++++++++++---------
+ src/cmd/go/internal/modload/query_test.go |  5 ++++-
+ 2 files changed, 19 insertions(+), 10 deletions(-)

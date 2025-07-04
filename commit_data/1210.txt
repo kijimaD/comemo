@@ -1,0 +1,33 @@
+commit 67addd4e11f147125952b0d4b50c1ed2563129e9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 20 17:32:18 2008 -0800
+
+    symbol table changes
+    
+            * add gotype string to symbol table
+            * fill in gotype in 6l for known funcs/vars
+            * print gotype with nm -t
+    
+            * load symbol and pc/ln tables into memory at magic address 0x99<<32.
+            * add sys.symdat() to retrieve raw bytes of symbol table
+              and pc/ln table.
+    
+    most of this should be considered experimental
+    and subject to change.
+    
+    R=r
+    DELTA=157  (128 added, 0 deleted, 29 changed)
+    OCL=19746
+    CL=19750
+
+ include/mach_amd64.h    |  1 +
+ src/cmd/6l/asm.c        | 49 ++++++++++++++++++++++++++++++++++++++++---------
+ src/cmd/6l/go.c         | 21 +++++++++++++++++++++
+ src/cmd/6l/l.h          |  2 ++
+ src/cmd/6l/span.c       | 39 +++++++++++++++++++++++----------------
+ src/cmd/gc/sys.go       |  3 +++
+ src/cmd/gc/sysimport.c  |  3 ++-
+ src/cmd/nm/nm.c         | 11 ++++++++---
+ src/libmach_amd64/sym.c | 26 ++++++++++++++++++++++++++
+ src/runtime/runtime.c   | 31 +++++++++++++++++++++++++++++++
+ 10 files changed, 157 insertions(+), 29 deletions(-)

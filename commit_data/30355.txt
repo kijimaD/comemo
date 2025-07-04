@@ -1,0 +1,25 @@
+commit b5e51943063a1d78045f0c3ce6c87b424795e643
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 16 14:20:24 2017 -0800
+
+    reflect: fix bucketOf to only look at ptrdata entries in gcdata
+    
+    The gcdata field only records ptrdata entries, not size entries.
+    
+    Also fix an obsolete comment: the enforced limit on pointer maps is
+    now 2048 bytes, not 16 bytes.
+    
+    I wasn't able to contruct a test case for this. It would require
+    building a type whose size is greater than 64 bytes but less than 128
+    bytes, with at least one pointer in first 64 bytes but no pointers
+    after the first 64 bytes, such that the linker arranges for the one
+    byte gcbits value to be immediately followed by a non-zero byte.
+    
+    Change-Id: I9118d3e4ec6f07fd18b72f621c1e5f4fdfe5f80b
+    Reviewed-on: https://go-review.googlesource.com/37142
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/reflect/type.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

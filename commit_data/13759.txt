@@ -1,0 +1,14 @@
+commit a225eaf9b771cdb42defcc89015dc12cd04c4438
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 6 14:58:37 2012 -0700
+
+    cmd/yacc: always import fmt, safely
+    The parser depends on it but the client might not import it, so make sure it's there.
+    Fixes #4038.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6497094
+
+ src/cmd/yacc/yacc.go | 130 ++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 119 insertions(+), 11 deletions(-)

@@ -1,0 +1,26 @@
+commit 4f248e988aa67a122d3355f6a22d50c1675697bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 16 00:12:34 2019 -0400
+
+    test: skip cross-arch codegen tests in all.bash
+    
+    The test/codegen tests check all architectures
+    mentioned in the test file, but this requires
+    building at least the runtime for that architecture.
+    This CL changes the test to only check the local
+    architecture, leaving checking of other architectures
+    to the relevant builders, as usual.
+    
+    This cuts 'go run run.go codegen' by 12r 78u 21s.
+    
+    After this change, all.bash runs in ~4:40 on my laptop.
+    
+    For #26473.
+    
+    Change-Id: Ia0354d1aff2df2949f838528c8171410bc42dc8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177577
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/run.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

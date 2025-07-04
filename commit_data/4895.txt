@@ -1,0 +1,12 @@
+commit 80a14df1228a57e38fd084782353e1df31b9392a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 18 23:33:57 2010 -0800
+
+    gc: double-initialization
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/217044
+
+ src/cmd/gc/subr.c | 1 -
+ 1 file changed, 1 deletion(-)

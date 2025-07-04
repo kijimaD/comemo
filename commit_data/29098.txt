@@ -1,0 +1,18 @@
+commit f46324cffbf87b0a6334e09f72e5f73fb79f5a73
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 25 20:38:20 2016 -0400
+
+    cmd/compile: remove unused writebarrierptr, typedmemmove Nodes
+    
+    Now that SSA's write barrier pass is generating calls to these,
+    compile doesn't need to look them up.
+    
+    Change-Id: Ib50e5f2c67b247ca280d467c399e23877988bc12
+    Reviewed-on: https://go-review.googlesource.com/32170
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/go.go   | 3 ---
+ src/cmd/compile/internal/gc/pgen.go | 2 --
+ 2 files changed, 5 deletions(-)

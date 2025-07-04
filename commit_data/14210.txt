@@ -1,0 +1,12 @@
+commit a35f23f34e1dbbbe23ac45563ae00de8e81d55ce
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Oct 24 11:28:18 2012 +0200
+
+    exp/locale/collate/tools/colcmp: add locale to output of regression failure.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6749058
+
+ src/pkg/exp/locale/collate/tools/colcmp/colcmp.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

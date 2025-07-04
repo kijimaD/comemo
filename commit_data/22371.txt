@@ -1,0 +1,23 @@
+commit ad266b9605ca89ce5af5e28525831b3698f667f2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 7 21:46:58 2015 -0700
+
+    go/types: more selective disabling of tests
+    
+    Disable importer-dependent tests on platforms for which the
+    respective builders don't have access to importable packages.
+    
+    Fixes #10368.
+    
+    Change-Id: I8072c59d2bbbc24a43d771fd04fd0b1a678d765a
+    Reviewed-on: https://go-review.googlesource.com/8611
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/go/types/api_test.go                           | 25 +++++------
+ src/go/types/check_test.go                         |  4 +-
+ src/go/types/eval_test.go                          |  4 +-
+ .../types/internal/gcimporter/gcimporter_test.go   | 50 +++++++++++-----------
+ src/go/types/resolver_test.go                      |  4 +-
+ src/go/types/stdlib_test.go                        | 18 ++++----
+ src/go/types/typestring_test.go                    |  4 +-
+ 7 files changed, 46 insertions(+), 63 deletions(-)

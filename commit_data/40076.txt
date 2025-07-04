@@ -1,0 +1,27 @@
+commit 931365763a294950200096d071a35f799ffade2c
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Sat Aug 24 08:59:01 2019 +0900
+
+    math/rand: devirtualize interface in lockedSource
+    
+    Avoid interface calls, enable inlining, and store the rngSource close to the
+    Mutex to exploit better memory locality.
+    
+    Also add a benchmark to properly measure the threadsafe nature of globalRand.
+    
+    On a linux/amd64 VM:
+    
+    name                       old time/op  new time/op  delta
+    Int63Threadsafe-4          36.4ns ±12%  20.6ns ±11%  -43.52%  (p=0.000 n=30+30)
+    Int63ThreadsafeParallel-4  79.3ns ± 5%  56.5ns ± 5%  -28.69%  (p=0.000 n=29+30)
+    
+    Change-Id: I6ab912c1a1e9afc7bacd8e72c82d4d50d546a510
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191538
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/inl_test.go | 4 ++++
+ src/math/rand/rand.go                   | 7 +++++--
+ src/math/rand/rand_test.go              | 8 ++++++++
+ 3 files changed, 17 insertions(+), 2 deletions(-)

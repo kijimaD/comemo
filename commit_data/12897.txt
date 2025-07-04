@@ -1,0 +1,12 @@
+commit 50d5cf6bc95b206ed1f3a067f99e042bc6562523
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 17 02:41:27 2012 +1000
+
+    doc/code: mention $GOBIN
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5989045
+
+ doc/code.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

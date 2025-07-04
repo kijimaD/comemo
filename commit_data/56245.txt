@@ -1,0 +1,35 @@
+commit 104c293ffe0037de2462cdd404a6910dcf58298d
+Author: Jacob <vattlabs@gmail.com>
+Date:   Thu Apr 18 16:24:24 2024 +0000
+
+    syscall/js: allocate arg slices on stack for small numbers of args
+    
+    The existing implementation causes unnecessary heap allocations for
+    javascript syscalls: Call, Invoke, and New. The new change seeks to
+    hint the Go compiler to allocate arg slices with length <=16 to the
+    stack.
+    
+    Original Work: CL 367045
+    - Calling a JavaScript function with 16 arguments or fewer will not
+    induce two additional heap allocations, at least with the current Go
+    compiler.
+    - Using syscall/js features with slices and strings of
+    statically-known length will not cause them to be escaped to the heap,
+    at least with the current Go compiler.
+    - The reduction in allocations has the additional benefit that the
+    garbage collector runs less often, blocking WebAssembly's one and only
+    thread less often.
+    
+    Fixes #39740
+    
+    Change-Id: I815047e1d4f8ada796318e2064d38d3e63f73098
+    GitHub-Last-Rev: 36df1b33a4506e216767d8a73395f2fafdd80eba
+    GitHub-Pull-Request: golang/go#66684
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576575
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/js/js.go      | 105 ++++++++++++++++++++++++++++++++++++++++++----
+ src/syscall/js/js_test.go |  74 ++++++++++++++++++++++++++++++++
+ 2 files changed, 170 insertions(+), 9 deletions(-)

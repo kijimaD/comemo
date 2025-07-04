@@ -1,0 +1,17 @@
+commit 53badd4836f88c45e686c60712ac3c9d6364e505
+Author: Neal Patel <nealpatel@google.com>
+Date:   Tue Apr 1 17:04:29 2025 -0400
+
+    net/http: push roundTrip panic higher in the stack
+    
+    If Transport is a non-nil interface pointing to a nil implementer,
+    then a panic inside of roundTrip further obsfucates the issue.
+    
+    Change-Id: I47664b8e6185c5f56b5e529f49022484b5ea1d94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661897
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Neal Patel <nealpatel@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/roundtrip.go | 3 +++
+ 1 file changed, 3 insertions(+)

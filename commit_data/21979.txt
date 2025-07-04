@@ -1,0 +1,18 @@
+commit 9d332a8324dbbfaafceffaf9ad765c6d8d083450
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Mar 10 20:38:32 2015 +0300
+
+    cmd/trace: dump thread id on proc start
+    
+    Augment ProcStart events with OS thread id.
+    This helps in scheduler locality analysis.
+    
+    Change-Id: I93fea75d3072cf68de66110d0b59d07101badcb5
+    Reviewed-on: https://go-review.googlesource.com/7302
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/trace/trace.go          | 9 ++++++++-
+ src/internal/trace/parser.go    | 4 ++--
+ src/runtime/pprof/trace_test.go | 3 ++-
+ src/runtime/trace.go            | 4 ++--
+ 4 files changed, 14 insertions(+), 6 deletions(-)

@@ -1,0 +1,25 @@
+commit 8ccd007f24673adca90feb5fd23f2131b42b99d0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 13 16:11:13 2017 -0800
+
+    cmd/vet/all: work around vet printf checker deficiencies
+    
+    cmd/vet has a known deficiency in its handling of fmt.Formatters.
+    This causes a spurious printf error only for non-host platforms.
+    Since cmd/vet/all may get run on any given platform,
+    whitelists cannot help here.
+    
+    Work around the issue by skipping printf tests entirely
+    for non-host platforms.
+    
+    Work around the one known acceptable false positive from vet
+    by whitelisting the file that contains it.
+    
+    Change-Id: Id74b3d4db0519cf9a670a065683715f856266e45
+    Reviewed-on: https://go-review.googlesource.com/36936
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/all/main.go           | 26 +++++++++++++++++++++++---
+ src/cmd/vet/all/whitelist/all.txt |  1 -
+ 2 files changed, 23 insertions(+), 4 deletions(-)

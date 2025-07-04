@@ -1,0 +1,17 @@
+commit 7e8bc474dbb9fdeda1a3e57121519084f2d673d8
+Author: Fabrizio Milo <mistobaan@gmail.com>
+Date:   Mon May 12 09:37:36 2014 -0700
+
+    net/http: fix flaky test
+    
+    Prevent idle transport on race condition.
+    
+    Fixes #7847
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/96230044
+
+ src/pkg/net/http/transport_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

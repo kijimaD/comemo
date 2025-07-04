@@ -1,0 +1,20 @@
+commit 82a65299050cb1146583c72350f841684256bb3c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Mar 6 19:52:08 2022 -0800
+
+    cmd/compile: remove unneeded type alias code in unified IR
+    
+    Before #46477, the Go generics proposal allowed `type T = U` where `U`
+    was an uninstantiated generic type. However, we decided not to allow
+    that, and go/types and types2 have already been updated to disallow
+    it. This CL just removes the analogous code from unified IR.
+    
+    Change-Id: I0fe6d1754c96790b498c1d5185b948333646d7de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390315
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/noder/writer.go | 14 +-------------
+ 1 file changed, 1 insertion(+), 13 deletions(-)

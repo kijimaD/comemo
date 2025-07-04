@@ -1,0 +1,33 @@
+commit 8d0bbe2b48fae8c41b990c5605d614e8f4b5e6d4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 10:32:40 2016 -0700
+
+    cmd/compile: implement fmt.Formatter for *Type formats %s, %v
+    
+    Change-Id: I878ac549430abc7859c30d176d52d52ce02c5827
+    Reviewed-on: https://go-review.googlesource.com/28333
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/amd64/gsubr.go  |   2 +-
+ src/cmd/compile/internal/arm64/gsubr.go  |   2 +-
+ src/cmd/compile/internal/gc/align.go     |   4 +-
+ src/cmd/compile/internal/gc/bexport.go   |   2 +-
+ src/cmd/compile/internal/gc/bimport.go   |   4 +-
+ src/cmd/compile/internal/gc/cgen.go      |   4 +-
+ src/cmd/compile/internal/gc/closure.go   |   4 +-
+ src/cmd/compile/internal/gc/const.go     |   4 +-
+ src/cmd/compile/internal/gc/dcl.go       |  10 +-
+ src/cmd/compile/internal/gc/export.go    |   6 +-
+ src/cmd/compile/internal/gc/fmt.go       | 187 ++++++++++++++++++-------------
+ src/cmd/compile/internal/gc/gen.go       |   2 +-
+ src/cmd/compile/internal/gc/gsubr.go     |   2 +-
+ src/cmd/compile/internal/gc/inl.go       |  10 +-
+ src/cmd/compile/internal/gc/reflect.go   |  14 +--
+ src/cmd/compile/internal/gc/subr.go      |   8 +-
+ src/cmd/compile/internal/gc/swt.go       |  11 +-
+ src/cmd/compile/internal/gc/typecheck.go |  18 +--
+ src/cmd/compile/internal/gc/walk.go      |   4 +-
+ src/cmd/compile/internal/mips64/gsubr.go |   2 +-
+ src/cmd/compile/internal/ppc64/gsubr.go  |   2 +-
+ src/cmd/compile/internal/s390x/gsubr.go  |   2 +-
+ 22 files changed, 167 insertions(+), 137 deletions(-)

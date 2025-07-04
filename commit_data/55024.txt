@@ -1,0 +1,18 @@
+commit 7bf540012cd361cb7fac1fd224d7e7795fd52d81
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Nov 11 05:32:13 2023 +0000
+
+    log/slog: fix comments for *handleState.appendAttr
+    
+    Change-Id: I8b9a6d177d297b9b1e890bf1d8a46a4b3311910f
+    GitHub-Last-Rev: 24067b8714129debd778098b1906d3c5cc3f9d5e
+    GitHub-Pull-Request: golang/go#64070
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541519
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+
+ src/log/slog/handler.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,37 @@
+commit e0329248d5cda9a6a6c1492a2fdeeacd982afc9c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 21 15:22:13 2017 -0700
+
+    cmd/compile/internal/syntax: add position info for { and } braces
+    
+    This change adds position information for { and } braces in the
+    source. There's a 1.9% increase in memory use for syntax.Nodes,
+    which is negligible relative to overall compiler memory consumption.
+    
+    Parsing the std library (using syntax package only) and memory
+    consumption before this change (fastest of 5 runs):
+    
+      $ go test -run StdLib -fast
+      parsed 1516827 lines (3392 files) in 780.612335ms (1943124 lines/s)
+      allocated 379.903Mb (486.673Mb/s)
+    
+    After this change (fastest of 5 runs):
+    
+      $ go test -run StdLib -fast
+      parsed 1517022 lines (3394 files) in 793.487886ms (1911840 lines/s)
+      allocated 387.086Mb (267B/line, 487.828Mb/s)
+    
+    While not an exact apples-to-apples comparison (the syntax package
+    has changed and is also parsed), the overall impact is small.
+    
+    Also: Small improvements to nodes_test.go.
+    
+    Change-Id: Ib8a7f90bbe79de33d83684e33b1bf8dbc32e644a
+    Reviewed-on: https://go-review.googlesource.com/38435
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/nodes.go       | 72 ++++++++++++++------------
+ src/cmd/compile/internal/syntax/nodes_test.go  | 70 ++++++++++++++-----------
+ src/cmd/compile/internal/syntax/parser.go      | 25 ++++++---
+ src/cmd/compile/internal/syntax/parser_test.go |  2 +-
+ 4 files changed, 95 insertions(+), 74 deletions(-)

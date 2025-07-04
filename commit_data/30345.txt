@@ -1,0 +1,19 @@
+commit e51737aea14375ac72fb8c50241969d8972bb8fb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 20 22:57:10 2017 -0800
+
+    crypto/aes: minor ppc64 assembly naming improvements
+    
+    doEncryptKeyAsm is tail-called from other assembly routines.
+    Give it a proper prototype so that vet can check it.
+    Adjust one assembly FP reference accordingly.
+    
+    Change-Id: I263fcb0191529214b16e6bd67330fadee492eef4
+    Reviewed-on: https://go-review.googlesource.com/37305
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/aes/asm_ppc64le.s     | 2 +-
+ src/crypto/aes/cipher_ppc64le.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 0e1305abc2e1e7dad8af5a319779b393114931de
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 28 16:45:45 2013 -0800
+
+    cmd/api: normalize byte to uint8 and rune to int32
+    
+    R=golang-dev, adg, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/7195049
+
+ api/go1.txt                                | 2312 ++++++++++++++--------------
+ api/next.txt                               |  128 +-
+ src/cmd/api/goapi.go                       |   12 +
+ src/cmd/api/testdata/src/pkg/p1/golden.txt |    7 +-
+ src/cmd/api/testdata/src/pkg/p1/p1.go      |    8 +
+ src/cmd/api/testdata/src/pkg/p3/golden.txt |    2 +-
+ 6 files changed, 1247 insertions(+), 1222 deletions(-)

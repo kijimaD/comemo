@@ -1,0 +1,25 @@
+commit d76b1cdf286551a81fd4c1012cbf8686d344cc32
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 10 16:37:00 2018 -0400
+
+    cmd/go: support background processes in TestScript
+    
+    This will be used to test fixes for bugs in concurrent 'go' command
+    invocations, such as #26794.
+    
+    See the README changes for a description of the semantics.
+    
+    Updates #26794
+    
+    Change-Id: I897e7b2d11ff4549a4711002eadd6a54f033ce0b
+    Reviewed-on: https://go-review.googlesource.com/c/141218
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go                      |  21 +++
+ src/cmd/go/script_test.go                  | 203 ++++++++++++++++++++++++-----
+ src/cmd/go/testdata/script/README          |  22 +++-
+ src/cmd/go/testdata/script/script_wait.txt |  22 ++++
+ 4 files changed, 233 insertions(+), 35 deletions(-)

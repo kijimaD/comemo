@@ -1,0 +1,20 @@
+commit 42b79f08239216eeea3cc1b0febc992f91bd88de
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Wed Dec 26 13:34:47 2018 +0100
+
+    misc/wasm: better adapt to different JavaScript environments
+    
+    This change adds support for using wasm with Electron. It refactors
+    environment detection to a more modular approach instead of explicitly
+    testing for Node.js.
+    
+    Fixes #29404
+    
+    Change-Id: I882a9c56523744e7fd7cb2013d158df91cf91d14
+    Reviewed-on: https://go-review.googlesource.com/c/164665
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/wasm/wasm_exec.js | 72 +++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 50 insertions(+), 22 deletions(-)

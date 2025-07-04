@@ -1,0 +1,12 @@
+commit 8a9045634905c8777a3b6acd5eb78a8eee7828c6
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Fri Aug 9 08:56:15 2013 -0700
+
+    misc/emacs: clear previous overlays before adding new ones
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12578044
+
+ misc/emacs/go-mode.el | 1 +
+ 1 file changed, 1 insertion(+)

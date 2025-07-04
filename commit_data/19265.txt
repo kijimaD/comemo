@@ -1,0 +1,13 @@
+commit 3b3e1a09a9dc495a0d5fc298f472538a7216a503
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Thu May 1 16:29:34 2014 -0400
+
+    html: fix small typo
+    
+    LGTM=dsymonds, adg, crawshaw, r, bradfitz, campoy, nigeltao, sameer, iant, robsc, djd, michael.j.fromberger, gmlewis, adonovan, rsc
+    R=golang-codereviews, dsymonds, adg, crawshaw, r, nigeltao, sameer, iant, robsc, djd, michael.j.fromberger, gmlewis, adonovan, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/98880043
+
+ src/pkg/html/template/js.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

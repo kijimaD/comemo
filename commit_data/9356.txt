@@ -1,0 +1,12 @@
+commit 8a439334adc7f60992e23504dcb26f01646ad5b5
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sun Aug 14 14:02:48 2011 +1000
+
+    exp/norm: fix incorrect prints found by govet.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4895042
+
+ src/pkg/exp/norm/maketables.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

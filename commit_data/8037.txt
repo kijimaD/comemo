@@ -1,0 +1,14 @@
+commit 8fc67033914902065b6150fc6f0808b00dbe05b5
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Apr 8 15:43:19 2011 -0400
+
+    big: don't crash when printing nil ints
+    
+    "%#v" of a structure with *big.Int's tends to crash a lot otherwise.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4382044
+
+ src/pkg/big/int.go | 4 ++++
+ 1 file changed, 4 insertions(+)

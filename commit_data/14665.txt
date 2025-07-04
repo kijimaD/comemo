@@ -1,0 +1,13 @@
+commit a89aaad195a186c5946edb9eb953c1d87f1c7d59
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Dec 17 23:32:08 2012 +0800
+
+    net/http/pprof: fix doc for /debug/pprof/
+    Fixes #4548.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6944053
+
+ src/pkg/net/http/pprof/pprof.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

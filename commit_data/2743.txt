@@ -1,0 +1,16 @@
+commit ba0cf083a22a403e84f25c1ec053bc7494c69967
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 17 14:20:33 2009 -0700
+
+    change reflect.Type.Name() into two functions: Name() and PkgPath() for ease of use.
+    
+    R=rsc
+    DELTA=31  (8 added, 2 deleted, 21 changed)
+    OCL=31778
+    CL=31792
+
+ src/pkg/gob/decode.go   |  2 +-
+ src/pkg/gob/type.go     |  7 +++----
+ src/pkg/reflect/type.go | 37 ++++++++++++++++++++++---------------
+ src/pkg/rpc/server.go   |  2 +-
+ 4 files changed, 27 insertions(+), 21 deletions(-)

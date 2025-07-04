@@ -1,0 +1,23 @@
+commit b2215e49c79ef5078f3c1b46adc0bef6109af388
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jun 9 19:14:55 2023 +0000
+
+    runtime,runtime/metrics: clarify OS stack metrics
+    
+    There are some subtle details here about measuring OS stacks in cgo
+    programs. There's also an expectation about magnitude in the MemStats
+    docs that isn't in the runtime/metrics docs. Fix both.
+    
+    Fixes #54396.
+    
+    Change-Id: I6b60a62a4a304e6688e7ab4d511d66193fc25321
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502156
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/metrics/description.go | 18 ++++++++++++------
+ src/runtime/metrics/doc.go         | 11 ++++++++++-
+ src/runtime/mstats.go              | 12 +++++++++++-
+ 3 files changed, 33 insertions(+), 8 deletions(-)

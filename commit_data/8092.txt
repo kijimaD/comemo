@@ -1,0 +1,20 @@
+commit bd43a2d9ff53c0cda30571df8241dcefb9bf6b88
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 14 10:42:48 2011 -0400
+
+    ld: defend against some broken object files
+    
+    Fixes #1698.
+    Fixes #1699.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4419041
+
+ src/cmd/5l/obj.c  |  2 +-
+ src/cmd/6l/obj.c  | 11 ++++++++++-
+ src/cmd/8l/obj.c  |  2 +-
+ src/cmd/ld/data.c |  6 ++++--
+ src/cmd/ld/lib.c  |  2 +-
+ src/cmd/ld/lib.h  |  2 +-
+ 6 files changed, 18 insertions(+), 7 deletions(-)

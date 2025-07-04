@@ -1,0 +1,14 @@
+commit 6d06d4862d4cfc7b78c8805effbc820190a004d8
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sun Feb 8 19:00:43 2015 +0300
+
+    net: don't allocate dialer closure if we won't use it
+    
+    When we use dialMulti we also allocate dialSingle closure for no reason.
+    
+    Change-Id: I074282a9d6e2c2a1063ab311a1b95e10fe65219f
+    Reviewed-on: https://go-review.googlesource.com/4119
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

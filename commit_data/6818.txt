@@ -1,0 +1,16 @@
+commit b88b38ac12ef6d10fe15f2b03a9a1d8559f4b038
+Author: Jamie Gennis <jgennis@google.com>
+Date:   Thu Dec 2 10:42:10 2010 -0800
+
+    go/printer: preserve newlines in func parameter lists
+    
+    Fixes #1179.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3225042
+
+ src/pkg/go/printer/nodes.go                     | 16 ++++++-
+ src/pkg/go/printer/testdata/declarations.golden | 57 +++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/declarations.input  | 57 +++++++++++++++++++++++++
+ 3 files changed, 128 insertions(+), 2 deletions(-)

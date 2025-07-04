@@ -1,0 +1,145 @@
+commit f4b48de3ad8d9f4f2495acc7cd7d54775b0d101f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 28 17:31:24 2015 -0700
+
+    cmd/internal/obj/x86: make function prologue more predictable
+    
+    Static branch prediction guesses that forward branches aren't taken.
+    Since stacks are rarely grown, make the forward branch mean grow.
+    
+    Sample disassembly for
+    
+    func f() {
+            _ = [128]byte{}
+    }
+    
+    Before:
+    
+    TEXT main.f(SB) x.go
+            x.go:3  0x2000  65488b0c25a0080000      GS MOVQ GS:0x8a0, CX
+            x.go:3  0x2009  483b6110                CMPQ 0x10(CX), SP
+            x.go:3  0x200d  7707                    JA 0x2016
+            x.go:3  0x200f  e88c410400              CALL runtime.morestack_noctxt(SB)
+            x.go:3  0x2014  ebea                    JMP main.f(SB)
+            x.go:3  0x2016  4881ec80000000          SUBQ $0x80, SP
+            x.go:4  0x201d  488d3c24                LEAQ 0(SP), DI
+            x.go:4  0x2021  31c0                    XORL AX, AX
+            x.go:4  0x2023  e8cc640400              CALL 0x484f4
+            x.go:5  0x2028  4881c480000000          ADDQ $0x80, SP
+            x.go:5  0x202f  c3                      RET
+    
+    After:
+    
+    TEXT main.f(SB) x.go
+            x.go:3  0x2000  65488b0c25a0080000      GS MOVQ GS:0x8a0, CX
+            x.go:3  0x2009  483b6110                CMPQ 0x10(CX), SP
+            x.go:3  0x200d  761a                    JBE 0x2029
+            x.go:3  0x200f  4881ec80000000          SUBQ $0x80, SP
+            x.go:4  0x2016  488d3c24                LEAQ 0(SP), DI
+            x.go:4  0x201a  31c0                    XORL AX, AX
+            x.go:4  0x201c  e813740400              CALL 0x49434
+            x.go:5  0x2021  4881c480000000          ADDQ $0x80, SP
+            x.go:5  0x2028  c3                      RET
+            x.go:3  0x2029  e8224f0400              CALL runtime.morestack_noctxt(SB)
+            x.go:3  0x202e  ebd0                    JMP main.f(SB)
+    
+    Updates #10587.
+    
+    Sample benchmarks on a 2.8 GHz Intel Core i7:
+    
+    package sort
+    
+    name            old mean              new mean              delta
+    SearchWrappers   134ns × (0.99,1.01)   132ns × (0.99,1.01)  -1.73% (p=0.000 n=15+14)
+    SortString1K     215µs × (0.99,1.01)   213µs × (0.99,1.01)  -0.61% (p=0.020 n=14+15)
+    StableString1K   311µs × (0.99,1.02)   309µs × (0.99,1.02)    ~    (p=0.077 n=14+15)
+    SortInt1K        103µs × (0.99,1.02)   100µs × (0.98,1.01)  -3.34% (p=0.000 n=15+15)
+    StableInt1K      102µs × (0.99,1.01)    98µs × (0.97,1.04)  -3.53% (p=0.000 n=15+15)
+    SortInt64K      10.1ms × (0.98,1.02)   9.7ms × (0.99,1.01)  -3.86% (p=0.000 n=14+15)
+    StableInt64K    8.70ms × (0.99,1.01)  8.44ms × (0.99,1.03)  -2.93% (p=0.000 n=14+15)
+    Sort1e2         51.2µs × (1.00,1.01)  48.9µs × (0.99,1.02)  -4.48% (p=0.000 n=13+15)
+    Stable1e2        100µs × (0.99,1.02)    99µs × (0.99,1.01)  -1.15% (p=0.000 n=14+13)
+    Sort1e4         11.1ms × (0.99,1.02)  10.4ms × (0.99,1.01)  -6.02% (p=0.000 n=15+14)
+    Stable1e4       30.6ms × (0.99,1.01)  30.3ms × (0.99,1.02)  -1.02% (p=0.001 n=15+14)
+    Sort1e6          1.75s × (0.99,1.02)   1.66s × (0.98,1.03)  -4.95% (p=0.000 n=14+15)
+    Stable1e6        6.31s × (0.99,1.01)   6.26s × (0.99,1.01)  -0.79% (p=0.002 n=15+15)
+    
+    package regexp
+    
+    name                          old mean              new mean              delta
+    Literal                        131ns × (0.99,1.01)   130ns × (0.99,1.03)  -1.07% (p=0.004 n=14+15)
+    NotLiteral                    2.13µs × (0.99,1.01)  2.01µs × (0.99,1.03)  -5.71% (p=0.000 n=14+14)
+    MatchClass                    3.15µs × (0.99,1.01)  3.04µs × (0.99,1.02)  -3.40% (p=0.000 n=15+15)
+    MatchClass_InRange            2.92µs × (0.99,1.01)  2.77µs × (0.99,1.02)  -5.05% (p=0.000 n=13+15)
+    ReplaceAll                    2.17µs × (0.99,1.02)  2.06µs × (0.99,1.01)  -5.19% (p=0.000 n=15+13)
+    AnchoredLiteralShortNonMatch   116ns × (0.99,1.02)   113ns × (0.99,1.01)  -2.75% (p=0.000 n=15+14)
+    AnchoredLiteralLongNonMatch    125ns × (0.99,1.01)   127ns × (0.98,1.02)  +1.49% (p=0.000 n=15+15)
+    AnchoredShortMatch             178ns × (0.99,1.02)   175ns × (0.99,1.01)  -1.62% (p=0.000 n=15+13)
+    AnchoredLongMatch              328ns × (0.99,1.00)   341ns × (0.99,1.01)  +3.73% (p=0.000 n=12+15)
+    OnePassShortA                  773ns × (0.99,1.02)   752ns × (0.99,1.01)  -2.78% (p=0.000 n=15+13)
+    NotOnePassShortA               794ns × (0.99,1.03)   780ns × (0.99,1.02)  -1.75% (p=0.001 n=15+15)
+    OnePassShortB                  608ns × (0.99,1.01)   591ns × (0.99,1.02)  -2.86% (p=0.000 n=15+14)
+    NotOnePassShortB               576ns × (0.99,1.01)   571ns × (0.99,1.02)  -0.74% (p=0.035 n=15+15)
+    OnePassLongPrefix              131ns × (0.99,1.02)   130ns × (0.99,1.02)  -1.32% (p=0.003 n=15+15)
+    OnePassLongNotPrefix           503ns × (0.99,1.02)   481ns × (0.99,1.01)  -4.34% (p=0.000 n=15+13)
+    MatchEasy0_32                  102ns × (0.98,1.01)   101ns × (0.99,1.02)    ~    (p=0.907 n=15+14)
+    MatchEasy0_1K                  617ns × (0.99,1.02)   634ns × (0.98,1.02)  +2.77% (p=0.000 n=15+15)
+    MatchEasy0_32K                10.9µs × (0.99,1.01)  11.1µs × (0.99,1.01)  +1.59% (p=0.000 n=15+15)
+    MatchEasy0_1M                  406µs × (0.99,1.02)   410µs × (0.99,1.02)  +1.01% (p=0.000 n=14+15)
+    MatchEasy0_32M                13.4ms × (0.99,1.01)  13.7ms × (0.99,1.02)  +1.64% (p=0.000 n=12+15)
+    MatchEasy1_32                 83.7ns × (0.98,1.02)  83.0ns × (0.98,1.02)    ~    (p=0.190 n=15+15)
+    MatchEasy1_1K                 1.46µs × (0.99,1.02)  1.39µs × (0.99,1.02)  -4.83% (p=0.000 n=15+15)
+    MatchEasy1_32K                49.4µs × (0.99,1.01)  49.4µs × (0.99,1.01)    ~    (p=0.205 n=15+15)
+    MatchEasy1_1M                 1.72ms × (0.99,1.02)  1.75ms × (0.99,1.01)  +1.34% (p=0.000 n=15+15)
+    MatchEasy1_32M                55.5ms × (0.99,1.01)  56.1ms × (0.99,1.02)  +1.10% (p=0.002 n=15+15)
+    MatchMedium_32                1.37µs × (0.99,1.04)  1.33µs × (0.99,1.01)  -2.87% (p=0.000 n=15+15)
+    MatchMedium_1K                41.1µs × (0.99,1.02)  40.4µs × (0.99,1.02)  -1.59% (p=0.000 n=15+15)
+    MatchMedium_32K               1.71ms × (0.99,1.01)  1.75ms × (0.99,1.02)  +2.36% (p=0.000 n=14+15)
+    MatchMedium_1M                54.5ms × (0.99,1.01)  56.1ms × (0.99,1.01)  +2.94% (p=0.000 n=13+15)
+    MatchMedium_32M                1.75s × (0.99,1.01)   1.80s × (0.99,1.01)  +2.77% (p=0.000 n=15+15)
+    MatchHard_32                  2.12µs × (0.99,1.02)  2.06µs × (0.99,1.01)  -2.60% (p=0.000 n=15+14)
+    MatchHard_1K                  64.4µs × (0.98,1.02)  62.2µs × (0.99,1.01)  -3.33% (p=0.000 n=15+15)
+    MatchHard_32K                 2.74ms × (0.99,1.01)  2.75ms × (0.99,1.01)    ~    (p=0.310 n=15+14)
+    MatchHard_1M                  87.1ms × (0.99,1.02)  88.2ms × (0.99,1.01)  +1.36% (p=0.000 n=14+15)
+    MatchHard_32M                  2.79s × (0.99,1.02)   2.83s × (0.99,1.02)  +1.26% (p=0.004 n=15+14)
+    
+    go1 benchmarks
+    
+    name                   old time/op    new time/op    delta
+    BinaryTree17              3.34s ± 3%     3.28s ± 2%  -1.86%  (p=0.000 n=67+66)
+    Fannkuch11                2.50s ± 1%     2.51s ± 1%  +0.24%  (p=0.016 n=63+66)
+    FmtFprintfEmpty          50.3ns ± 1%    50.2ns ± 2%  -0.30%  (p=0.001 n=62+67)
+    FmtFprintfString          178ns ± 1%     166ns ± 1%  -7.10%  (p=0.000 n=62+59)
+    FmtFprintfInt             168ns ± 1%     161ns ± 2%  -4.41%  (p=0.000 n=66+64)
+    FmtFprintfIntInt          292ns ± 1%     282ns ± 2%  -3.55%  (p=0.000 n=62+60)
+    FmtFprintfPrefixedInt     245ns ± 2%     239ns ± 2%  -2.24%  (p=0.000 n=66+65)
+    FmtFprintfFloat           338ns ± 2%     326ns ± 1%  -3.42%  (p=0.000 n=64+59)
+    FmtManyArgs              1.14µs ± 1%    1.10µs ± 2%  -3.55%  (p=0.000 n=62+62)
+    GobDecode                8.88ms ± 2%    8.74ms ± 1%  -1.55%  (p=0.000 n=66+62)
+    GobEncode                6.84ms ± 2%    6.61ms ± 2%  -3.32%  (p=0.000 n=61+67)
+    Gzip                      356ms ± 2%     352ms ± 2%  -1.07%  (p=0.000 n=67+66)
+    Gunzip                   90.6ms ± 2%    89.8ms ± 1%  -0.83%  (p=0.000 n=65+64)
+    HTTPClientServer         82.6µs ± 2%    82.5µs ± 2%    ~     (p=0.832 n=65+63)
+    JSONEncode               17.5ms ± 2%    16.8ms ± 2%  -3.77%  (p=0.000 n=63+63)
+    JSONDecode               63.3ms ± 2%    59.0ms ± 2%  -6.85%  (p=0.000 n=64+63)
+    Mandelbrot200            3.85ms ± 1%    3.85ms ± 1%    ~     (p=0.127 n=65+62)
+    GoParse                  3.75ms ± 2%    3.66ms ± 2%  -2.39%  (p=0.000 n=66+64)
+    RegexpMatchEasy0_32       100ns ± 2%     100ns ± 1%  -0.65%  (p=0.000 n=62+64)
+    RegexpMatchEasy0_1K       342ns ± 1%     341ns ± 1%  -0.43%  (p=0.000 n=65+64)
+    RegexpMatchEasy1_32      82.8ns ± 2%    82.8ns ± 2%    ~     (p=0.977 n=63+64)
+    RegexpMatchEasy1_1K       511ns ± 2%     506ns ± 2%  -1.01%  (p=0.000 n=63+64)
+    RegexpMatchMedium_32      139ns ± 1%     134ns ± 3%  -3.27%  (p=0.000 n=59+60)
+    RegexpMatchMedium_1K     41.8µs ± 2%    40.5µs ± 2%  -3.05%  (p=0.000 n=62+64)
+    RegexpMatchHard_32       2.13µs ± 1%    2.09µs ± 1%  -2.22%  (p=0.000 n=60+65)
+    RegexpMatchHard_1K       64.4µs ± 3%    62.8µs ± 2%  -2.58%  (p=0.000 n=65+59)
+    Revcomp                   531ms ± 2%     529ms ± 1%  -0.28%  (p=0.022 n=61+61)
+    Template                 73.2ms ± 1%    73.1ms ± 1%    ~     (p=0.794 n=66+63)
+    TimeParse                 369ns ± 1%     352ns ± 1%  -4.68%  (p=0.000 n=65+66)
+    TimeFormat                374ns ± 2%     348ns ± 2%  -7.01%  (p=0.000 n=66+64)
+    
+    Change-Id: Ib190b5bb48a3e9087711d9e3383621d3103dd342
+    Reviewed-on: https://go-review.googlesource.com/10367
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/x86/obj6.go | 62 +++++++++++++++++++---------------------
+ 1 file changed, 29 insertions(+), 33 deletions(-)

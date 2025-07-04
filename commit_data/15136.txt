@@ -1,0 +1,23 @@
+commit d1e16d06b4df98930b5c6b0775cdd414dfdebd50
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 4 20:26:25 2013 -0800
+
+    net/http: fix Server blocking after a Handler's Write fails
+    
+    If a Handle's Write to a ResponseWriter fails (e.g. via a
+    net.Conn WriteDeadline via WriteTimeout on the Server), the
+    Server was blocking forever waiting for reads on that
+    net.Conn, even after a Write failed.
+    
+    Instead, once we see a Write fail, close the connection,
+    since it's then dead to us anyway.
+    
+    Fixes #4741
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7301043
+
+ src/pkg/net/http/serve_test.go | 60 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/server.go     |  4 +++
+ 2 files changed, 64 insertions(+)

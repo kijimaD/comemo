@@ -1,0 +1,18 @@
+commit 211102c85f7c7c626853813567188379b5fd7292
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Jan 28 02:01:50 2017 -0500
+
+    math: fix typos in Bessel function docs
+    
+    While we're at it, also document Yn(0, 0) = -Inf for completeness.
+    
+    Fixes #18823.
+    
+    Change-Id: Ib6db68f76d29cc2373c12ebdf3fab129cac8c167
+    Reviewed-on: https://go-review.googlesource.com/35970
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/jn.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,23 @@
+commit 08270c3e18673f7f1319dce9d27d84c9a4c8eb49
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 9 23:58:42 2017 -0500
+
+    cmd/cover: do not report coverage for assembly functions
+    
+    cover -func mode was reporting a coverage for function
+    declarations without bodies - assembly functions.
+    Since we are not annotating their code, we have no data
+    for those functions and should not report them at all.
+    
+    Fixes #6880.
+    
+    Change-Id: I4b8cd90805accf61f54e3ee167f54f4dc10c7c59
+    Reviewed-on: https://go-review.googlesource.com/77152
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cover/func.go                      |  4 ++++
+ src/cmd/go/go_test.go                      | 13 +++++++++++++
+ src/cmd/go/testdata/src/coverasm/p.go      |  7 +++++++
+ src/cmd/go/testdata/src/coverasm/p.s       |  2 ++
+ src/cmd/go/testdata/src/coverasm/p_test.go |  7 +++++++
+ 5 files changed, 33 insertions(+)

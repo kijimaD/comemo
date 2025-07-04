@@ -1,0 +1,14 @@
+commit cd2eb4872223073ad00c6b06371c1ffcbad8fb63
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 30 10:27:26 2013 -0400
+
+    cmd/gc: don't report mark if other things are broken
+    
+    Fixes #5598.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/12104043
+
+ src/cmd/gc/dcl.c | 2 ++
+ 1 file changed, 2 insertions(+)

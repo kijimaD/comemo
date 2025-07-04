@@ -1,0 +1,12 @@
+commit b8b308d184a73926eb0eb468f96f7a0f4dc63402
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 21 14:29:16 2012 -0700
+
+    doc/effective_go.html: undo local font change
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5876043
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit d340b10366a0ce9425365ca233c5b6636c62faaa
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 8 14:55:45 2015 -0700
+
+    log: logging an empty string should still print a line
+    
+    Print("") was printing a header but no line.
+    
+    Fixes #9665.
+    
+    Change-Id: Iac783187786065e1389ad6e8d7ef02c579ed7bd8
+    Reviewed-on: https://go-review.googlesource.com/8665
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/log/log.go      |  2 +-
+ src/log/log_test.go | 17 ++++++++++++++++-
+ 2 files changed, 17 insertions(+), 2 deletions(-)

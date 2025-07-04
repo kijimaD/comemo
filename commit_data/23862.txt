@@ -1,0 +1,39 @@
+commit 22936858b9b263f69707246a7527115bbd7d0b95
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 27 22:38:17 2015 -0400
+
+    encoding/json: take new decoder code off Decode path completely
+    
+    The new Token API is meant to sit on the side of the Decoder,
+    so that you only get the new code (and any latent bugs in it)
+    if you are actively using the Token API.
+    
+    The unconditional use of dec.peek in dec.tokenPrepareForDecode
+    violates that intention.
+    
+    Change tokenPrepareForDecode not to call dec.peek unless needed
+    (because the Token API has advanced the state).
+    This restores the old code path behavior, no peeking allowed.
+    
+    I checked by patching in the new tests from CL 12726 that
+    this change suffices to "fix" the error handling bug in dec.peek.
+    Obviously that bug should be fixed too, but the point is that
+    with this CL, bugs in dec.peek do not affect plain use of Decode
+    or Unmarshal.
+    
+    I also checked by putting a panic in dec.peek that the only
+    tests that now invoke peek are:
+    
+            TestDecodeInStream
+            ExampleDecoder_Token
+            ExampleDecoder_Decode_stream
+    
+    and those tests all invoke dec.Token directly.
+    
+    Change-Id: I0b242d0cb54a9c830548644670dc5ab5ccef69f2
+    Reviewed-on: https://go-review.googlesource.com/12740
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Peter Waldschmidt <peter@waldschmidt.com>
+
+ src/encoding/json/stream.go | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

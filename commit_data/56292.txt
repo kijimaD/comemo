@@ -1,0 +1,43 @@
+commit e7aeeae0c89f5bae76ba263b1ab2b82c56ad32a3
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Apr 22 23:36:32 2024 +1000
+
+    image/jpeg: ignore garbage bytes before a RST marker
+    
+    Well-formed JPEG images will not have garbage bytes. However, for
+    corrupted JPEG images, the RST (restart) mechanism is specifically
+    designed so that a decoder can re-synchronize to an upcoming restartable
+    MCU (Minimum Coded Unit, e.g. 16x16 block of pixels) boundary and resume
+    decoding. Even if the resultant image isn't perfect, a 98%-good image is
+    better than a fatal error.
+    
+    Every JPEG marker is encoded in two bytes, the first of which is 0xFF.
+    There are 8 possible RST markers, cycling as "0xFF 0xD0", "0xFF 0xD1",
+    ..., "0xFF 0xD7". Suppose that, our decoder is expecting "0xFF 0xD1".
+    
+    Before this commit, Go's image/jpeg package would accept only two
+    possible inputs: a well-formed "0xFF 0xD1" or one very specific pattern
+    of spec non-compliance, "0xFF 0x00 0xFF 0xD1".
+    
+    After this commit, it is more lenient, similar to libjpeg's jdmarker.c's
+    next_marker function.
+    https://github.com/libjpeg-turbo/libjpeg-turbo/blob/2dfe6c0fe9e18671105e94f7cbf044d4a1d157e6/jdmarker.c#L892-L935
+    
+    The new testdata file was created by:
+    
+    $ convert video-001.png a.ppm
+    $ cjpeg -restart 2 a.ppm > video-001.restart2.jpeg
+    $ rm a.ppm
+    
+    Fixes #40130
+    
+    Change-Id: Ic598a5f489f110d6bd63e0735200fb6acac3aca3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580755
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+
+ src/image/jpeg/reader_test.go              |  42 +++++++++++++++++
+ src/image/jpeg/scan.go                     |  71 ++++++++++++++++++++---------
+ src/image/testdata/video-001.restart2.jpeg | Bin 0 -> 4855 bytes
+ 3 files changed, 91 insertions(+), 22 deletions(-)

@@ -1,0 +1,19 @@
+commit 4a70ff425b3c16c19785b04bb89ca856749ed65b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 5 11:14:25 2020 -0500
+
+    cmd/go/internal/renameio: skip test affected by kernel bug on macOS 10.14 builders
+    
+    The test will remain flaky on the -nocgo builder until #37695 is addressed.
+    
+    Updates #37695
+    Fixes #33041
+    
+    Change-Id: I5d661ef39e82ab1dce3a76e0e4059cf556135e89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222158
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/renameio/renameio_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,0 +1,13 @@
+commit 765479ccb01fdfef10bdec2e651fcf7a4af50336
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Sep 16 16:26:07 2013 +1000
+
+    doc/go1.2.html: add a "New packages" section similar to
+    http://golang.org/doc/go1.1#new_packages
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/13368053
+
+ doc/go1.2.html | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

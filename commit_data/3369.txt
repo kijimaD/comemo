@@ -1,0 +1,12 @@
+commit ed6de5af4ca96405610753e2a57c537877149468
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 24 17:55:22 2009 -0700
+
+    comparisons have type bool
+    
+    R=ken
+    OCL=34995
+    CL=34997
+
+ src/cmd/gc/typecheck.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

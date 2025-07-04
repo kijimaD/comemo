@@ -1,0 +1,24 @@
+commit cdd9e939ef28390ecb04c780499f1e3cc2195234
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 18 22:30:03 2022 -0800
+
+    go/types, types2: validType argument must be *Named type
+    
+    Now that we have a separate top-level entry point for validType
+    we can use the more narrow type *Named (instead of Type) for its
+    argument.
+    
+    Preparation for fixing issue #48962.
+    
+    Change-Id: I93aee4abc87036c6a68323dc970efe8e617a9103
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379434
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/decl.go      | 4 +++-
+ src/cmd/compile/internal/types2/validtype.go | 2 +-
+ src/go/types/decl.go                         | 4 +++-
+ src/go/types/validtype.go                    | 2 +-
+ 4 files changed, 8 insertions(+), 4 deletions(-)

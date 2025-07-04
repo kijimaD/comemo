@@ -1,0 +1,13 @@
+commit a6799963ef2e2a67d8eed0bb4d1f6b3c8062cad9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 23:30:30 2009 -0700
+
+    update 6g to new REGARG convention.
+    silence gcc warning.
+    
+    R=ken
+    OCL=31583
+    CL=31583
+
+ src/cmd/6g/peep.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

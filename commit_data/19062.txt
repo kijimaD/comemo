@@ -1,0 +1,13 @@
+commit 969dc7626b16445d95477ff3fb08bc999ec98a32
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 9 07:12:20 2014 +1000
+
+    doc/go1.3.html: Performance, plus some library details
+    
+    LGTM=dvyukov, iant, rsc
+    R=golang-codereviews, dvyukov, iant, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/85250043
+
+ doc/go1.3.html | 120 +++++++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 96 insertions(+), 24 deletions(-)

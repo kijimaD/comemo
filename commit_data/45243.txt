@@ -1,0 +1,21 @@
+commit 3f8e64878a93a1b005e1ff0f2a939bab826b8b9f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 20 12:58:53 2021 +0200
+
+    internal/poll, net: fix comments regarding accept and sysSocket
+    
+    The implementation of accept was moved from package net to internal/poll
+    in CL 36799.
+    
+    Change-Id: I6e5964e0ee22e9c84bc444860cdd497817451fec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311571
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/sock_cloexec.go | 4 ++--
+ src/internal/poll/sys_cloexec.go  | 4 ++--
+ src/net/sock_cloexec.go           | 4 ++--
+ src/net/sys_cloexec.go            | 4 ++--
+ 4 files changed, 8 insertions(+), 8 deletions(-)

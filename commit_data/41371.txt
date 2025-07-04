@@ -1,0 +1,16 @@
+commit f9c51e353fd8b5d5e8bc27979bcfccd647e54b21
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 20 12:05:08 2020 -0800
+
+    time: remove unnecessary trailing slash from "/etc/"
+    
+    Fixes #36640
+    
+    Change-Id: I2049b572347da1cb967f5a3f2bc342b310216435
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215519
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/zoneinfo_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 6349d38ebcc29511919c6ae31d267646a6e3ed55
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 30 18:50:29 2008 -0700
+
+    - fixed semicolon handling in pretty printer
+    - some scanner cleanup
+    - new pretty-printed code can be compiled again (for some files)
+    
+    R=r
+    OCL=16272
+    CL=16272
+
+ usr/gri/pretty/parser.go  |  34 ++++----
+ usr/gri/pretty/printer.go | 209 ++++++++++++++++++++++------------------------
+ usr/gri/pretty/scanner.go | 179 ++++++++++++++++++++-------------------
+ 3 files changed, 209 insertions(+), 213 deletions(-)

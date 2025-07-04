@@ -1,0 +1,15 @@
+commit e1bf165b28f204ede84b46821a04ed14785dd5ea
+Author: Adam Langley <agl@golang.org>
+Date:   Thu May 5 13:37:42 2011 -0400
+
+    crypto/x509: export raw SubjectPublicKeyInfo.
+    
+    The SPKI will probably be used for identifying public keys in future
+    HSTS specs.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4485044
+
+ src/pkg/crypto/x509/x509.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

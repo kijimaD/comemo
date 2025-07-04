@@ -1,0 +1,27 @@
+commit 57c115e1f68a997ba8978d4a5abd6ccc954ae3dd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 24 10:06:36 2021 -0700
+
+    crypto/sha{256,512}: unname result parameters for consistency
+    
+    Sum224 and Sum256 didn't look the same at:
+    
+        https://golang.org/pkg/crypto/sha256/
+    
+    Now they match. Likewise with sha512's funcs.
+    
+    Per:
+    https://github.com/golang/go/wiki/CodeReviewComments#named-result-parameters
+    
+    Change-Id: I6b88c8ef15141c78a6cddeb0960b3ad52db34244
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322329
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/sha256/sha256.go |  6 +++---
+ src/crypto/sha512/sha512.go | 18 +++++++++---------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

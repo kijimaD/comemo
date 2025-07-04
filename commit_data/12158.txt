@@ -1,0 +1,15 @@
+commit a5b59645240e2e7b5304d5d869acb801f2b7ef00
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 23 15:51:53 2012 +1100
+
+    net/http: some more cookie tests
+    
+    Including a commented-out test we might
+    tackle later, after seeing what browsers do.
+    
+    R=dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/5694045
+
+ src/pkg/net/http/cookie_test.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

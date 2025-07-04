@@ -1,0 +1,22 @@
+commit 5e94c65b5d893924b0a8ba94de3881f9ffc4c293
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 6 17:53:17 2015 -0700
+
+    cmd/cgo: add -exportheader option
+    
+    The -exportheader option tells cgo to generate a header file declaring
+    expoted functions.  The header file is only created if there are, in
+    fact, some exported functions, so it also serves as a signal as to
+    whether there were any.
+    
+    In future CLs the go tool will use this option to install header files
+    for packages that use cgo and export functions.
+    
+    Change-Id: I5b04357d453a9a8f0e70d37f8f18274cf40d74c9
+    Reviewed-on: https://go-review.googlesource.com/9796
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/cgo/doc.go  |  4 ++++
+ src/cmd/cgo/main.go |  1 +
+ src/cmd/cgo/out.go  | 37 +++++++++++++++++++++++++++----------
+ 3 files changed, 32 insertions(+), 10 deletions(-)

@@ -1,0 +1,30 @@
+commit 6945c67e102da9a37725de590b7e825d880ac848
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Sep 24 17:55:19 2017 +0100
+
+    cmd/compile: merge bytes inline test with the rest
+    
+    In golang.org/cl/42813, a test was added in the bytes package to check
+    if a Buffer method was being inlined, using 'go tool nm'.
+    
+    Now that we have a compiler test that verifies that certain funcs are
+    inlineable, merge it there. Knowing whether the funcs are inlineable is
+    also more reliable than whether or not their symbol appears in the
+    binary, too. For example, under some circumstances, inlineable funcs
+    can't be inlined, such as if closures are used.
+    
+    While at it, add a few more bytes.Buffer methods that are currently
+    inlined and should clearly stay that way.
+    
+    Updates #21851.
+    
+    Change-Id: I62066e32ef5542d37908bd64f90bda51276da4de
+    Reviewed-on: https://go-review.googlesource.com/65658
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/buffer_test.go                | 22 ----------------------
+ src/cmd/compile/internal/gc/inl_test.go | 12 ++++++++++++
+ 2 files changed, 12 insertions(+), 22 deletions(-)

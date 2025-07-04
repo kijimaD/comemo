@@ -1,0 +1,25 @@
+commit 5481a97ab097ad27e9eeb9d10feeae22fd20e5ec
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Dec 18 10:05:59 2019 +0000
+
+    text/template: indirect interfaces before slicing
+    
+    The recently added slice function used indirectInterface, but then
+    forgot to actually call reflect.Value.Slice on its result. Calling the
+    Slice method on the original Value without indirectInterface would
+    result in a panic, if our slice was indeed behind an interface.
+    
+    Fix that, and add test cases for all three built-in functions that work
+    with slices.
+    
+    Fixes #36199.
+    
+    Change-Id: I9a18f4f604a3b29967eefeb573f8960000936b88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211877
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/exec_test.go | 3 +++
+ src/text/template/funcs.go     | 4 ++--
+ 2 files changed, 5 insertions(+), 2 deletions(-)

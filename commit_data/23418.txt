@@ -1,0 +1,26 @@
+commit 3925a7c5dbde952a94fc4c46686d78bb1ff71ed8
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon May 18 15:50:00 2015 -0400
+
+    all: switch to the new deprecation convention
+    
+    While we're at it, move some misplaced comment blocks around.
+    
+    Change-Id: I1847d7f1ca1dbb8e5de737203c4ed6c66e112508
+    Reviewed-on: https://go-review.googlesource.com/10188
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/archive/zip/struct.go            |   4 +-
+ src/cmd/internal/obj/textflag.go     |   4 +-
+ src/cmd/link/internal/ld/objfile.go  |  96 +++++++++++++++++++++++++
+ src/cmd/link/internal/ld/textflag.go | 136 +++++------------------------------
+ src/go/doc/doc.go                    |   3 +-
+ src/image/jpeg/reader.go             |   2 +-
+ src/runtime/debug/stack.go           |   2 +-
+ src/syscall/exec_plan9.go            |  10 +--
+ src/syscall/exec_unix.go             |  10 +--
+ src/syscall/syscall.go               |  12 ++--
+ src/syscall/syscall_windows.go       |  13 ++--
+ src/text/template/parse/node.go      |  10 +--
+ 12 files changed, 155 insertions(+), 147 deletions(-)

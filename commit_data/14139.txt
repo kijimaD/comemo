@@ -1,0 +1,15 @@
+commit 366268aa7951b81d55c4c8e69383758556917577
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Oct 12 23:19:39 2012 +0800
+
+    runtime: FreeBSD/ARM support
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6625071
+
+ src/pkg/runtime/defs_freebsd_arm.h   | 183 ++++++++++++++++++++++++
+ src/pkg/runtime/rt0_freebsd_arm.s    |   8 ++
+ src/pkg/runtime/signal_freebsd_arm.c | 156 +++++++++++++++++++++
+ src/pkg/runtime/sys_freebsd_arm.s    | 262 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 609 insertions(+)

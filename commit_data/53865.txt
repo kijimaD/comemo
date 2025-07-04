@@ -1,0 +1,18 @@
+commit 431612eacb1089ad2e264e2aea3b8c9370e9bc62
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 26 10:40:12 2023 -0700
+
+    doc/go1.21: finish last TODO for go/types.Package.GoVersion
+    
+    Updates #58645.
+    
+    Change-Id: I7352bf7f03c478d92ebd0b8345d676d5b2dfccb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513475
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Bypass: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go1.21.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

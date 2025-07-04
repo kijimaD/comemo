@@ -1,0 +1,14 @@
+commit 8cd6341cf8c3179966f708b267fc8cee4afa774f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 14:55:46 2013 -0400
+
+    cmd/gc: allow x[i:j:k] (and x[:j:k]) into the release
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/13512053
+
+ src/cmd/gc/go.y    |    9 -
+ src/cmd/gc/y.tab.c | 1875 ++++++++++++++++++----------------------------------
+ src/cmd/gc/y.tab.h |   46 +-
+ 3 files changed, 654 insertions(+), 1276 deletions(-)

@@ -1,0 +1,21 @@
+commit 83f0af1742db6830a5b3124bbef7f6d2bf2a1ddf
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Sep 12 22:51:17 2017 +0200
+
+    cmd/compile: remove a few unnecessary gotos
+    
+    Rework the logic to remove them. These were the low hanging fruit,
+    with labels that were used only once and logic that was fairly
+    straightforward.
+    
+    Change-Id: I02a01c59c247b8b2972d8d73ff23f96f271de038
+    Reviewed-on: https://go-review.googlesource.com/63410
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/reflect.go   | 20 +++++++++-----------
+ src/cmd/compile/internal/gc/subr.go      |  4 ++--
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++---
+ src/cmd/compile/internal/gc/walk.go      | 13 +++++--------
+ 4 files changed, 19 insertions(+), 24 deletions(-)

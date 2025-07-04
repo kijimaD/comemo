@@ -1,0 +1,50 @@
+commit b6b4004d5a5bf7099ac9ab76777797236da7fe63
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 14 17:47:25 2016 -0700
+
+    net: context plumbing, add Dialer.DialContext
+    
+    For #12580 (http.Transport tracing/analytics)
+    Updates #13021
+    
+    Change-Id: I126e494a7bd872e42c388ecb58499ecbf0f014cc
+    Reviewed-on: https://go-review.googlesource.com/22101
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/go/build/deps_test.go      |   4 +-
+ src/net/cgo_unix_test.go       |   7 +-
+ src/net/dial.go                | 283 +++++++++++++++++++++++------------------
+ src/net/dial_test.go           |  59 ++++-----
+ src/net/dnsclient_unix.go      |  15 ++-
+ src/net/dnsclient_unix_test.go |  22 ++--
+ src/net/error_test.go          |   7 +-
+ src/net/fd_unix.go             |  54 ++++----
+ src/net/fd_windows.go          |  43 ++++---
+ src/net/hook.go                |  16 ++-
+ src/net/iprawsock.go           |  11 +-
+ src/net/iprawsock_plan9.go     |   6 +-
+ src/net/iprawsock_posix.go     |  10 +-
+ src/net/ipsock.go              |   8 +-
+ src/net/ipsock_posix.go        |   7 +-
+ src/net/lookup.go              |  41 +++---
+ src/net/lookup_plan9.go        |   6 +-
+ src/net/lookup_stub.go         |   9 +-
+ src/net/lookup_test.go         |  14 +-
+ src/net/lookup_unix.go         |  14 +-
+ src/net/lookup_windows.go      | 113 ++++++++++------
+ src/net/net.go                 |  17 +++
+ src/net/netgo_unix_test.go     |   7 +-
+ src/net/sock_posix.go          |  10 +-
+ src/net/tcpsock.go             |   7 +-
+ src/net/tcpsock_plan9.go       |  15 ++-
+ src/net/tcpsock_posix.go       |  19 ++-
+ src/net/udpsock.go             |  13 +-
+ src/net/udpsock_plan9.go       |  10 +-
+ src/net/udpsock_posix.go       |  14 +-
+ src/net/unixsock.go            |   7 +-
+ src/net/unixsock_plan9.go      |   8 +-
+ src/net/unixsock_posix.go      |  18 +--
+ 33 files changed, 517 insertions(+), 377 deletions(-)

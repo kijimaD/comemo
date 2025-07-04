@@ -1,0 +1,21 @@
+commit 2a931bad4e4d7eabdb685b6dc74406373ad6e7e4
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Wed Apr 17 01:19:54 2019 +0900
+
+    net/http: rename DialerAndTLSConfigSupportsHTTP2 to ForceAttemptHTTP2
+    
+    Transport.DialerAndTLSConfigSupportsHTTP2 was added just earlier
+    in CL 130256 but we thought of a better name moments after submitting.
+    ForceAttemptHTTP2 is shorter, more direct, and doesn't constrain what
+    we can use it with in the future.
+    
+    Updates #14391
+    Updates #27011
+    
+    Change-Id: Ie5fc71bafcbcaa1941b5d49f748b6d710503d477
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172299
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go      | 18 +++++++++---------
+ src/net/http/transport_test.go |  4 ++--
+ 2 files changed, 11 insertions(+), 11 deletions(-)

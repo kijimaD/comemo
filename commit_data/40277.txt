@@ -1,0 +1,35 @@
+commit 72ab424bc899735ec3c1e2bd3301897fc11872ba
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Oct 16 18:09:27 2019 +1100
+
+    time: change genzabbrs.go to fetch windowsZones.xml file from GitHub
+    
+    It seems that windowsZones.xml file has moved to Github. I opened
+    
+    http://unicode.org/cldr/data/common/supplemental/windowsZones.xml
+    
+    in my browser, and it redirected me to
+    
+    https://github.com/unicode-org/cldr/blob/master/common/supplemental/windowsZones.xml
+    
+    Very nice of them.
+    
+    And we could see windowsZones.xml change history now. We could even
+    probably file issues against this file, if we find problems.
+    
+    Anyway, this CL adjusts genzabbrs.go to use new GitHub location.
+    
+    I also run 'go generate' command with updated genzabbrs.go to update
+    zoneinfo_abbrs_windows.go.
+    
+    Fixes #34917
+    
+    Change-Id: I69b71a4e02edd999435738ecb225a6f9793a66d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201378
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/time/genzabbrs.go              | 2 +-
+ src/time/zoneinfo_abbrs_windows.go | 9 ++++++---
+ 2 files changed, 7 insertions(+), 4 deletions(-)

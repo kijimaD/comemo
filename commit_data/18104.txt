@@ -1,0 +1,12 @@
+commit e8b7def7f41c0cee643e0222adc296be85022318
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Dec 21 12:52:53 2013 +1100
+
+    doc/go1.3.txt: mention windows syscall.NewCallbackCDecl
+    
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/44160044
+
+ doc/go1.3.txt | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

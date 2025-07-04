@@ -1,0 +1,17 @@
+commit c93cd8614965c6c114671fabf82b69fbd952f52f
+Author: 徐志伟 <juwan.xu@qq.com>
+Date:   Tue Mar 30 23:25:56 2021 +0000
+
+    net/http: use consistent case in URL in names
+    
+    Change-Id: Iff5074713e1a4484c04b8628fb2611b6d4e154c7
+    GitHub-Last-Rev: bb0861bbbe31bc2bbda667c05402b5ef886a762b
+    GitHub-Pull-Request: golang/go#45294
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305772
+    Reviewed-by: Ben Shi <powerman1st@163.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/http/client_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

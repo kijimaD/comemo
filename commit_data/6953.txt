@@ -1,0 +1,12 @@
+commit 3fb6d62e3af7f5d0df4ec9b41cabfc7f5b6bec10
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 14 10:22:00 2010 -0800
+
+    suffixarray: rename Data() -> Bytes()
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3540042
+
+ src/pkg/index/suffixarray/suffixarray.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

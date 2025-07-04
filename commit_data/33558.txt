@@ -1,0 +1,12 @@
+commit f71cbc8a96056248d6789581b214ac44a2e6f91e
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Aug 30 12:24:37 2017 -0400
+
+    runtime/trace: fix a typo in doc
+    
+    Change-Id: I63f3d2edb09801c99957a1f744639523fb6d0b62
+    Reviewed-on: https://go-review.googlesource.com/60331
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/trace/trace.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

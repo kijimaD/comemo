@@ -1,0 +1,19 @@
+commit ecb79e8afa7811fd23b2e550a2bc5b22ea0aa82d
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Oct 29 12:12:19 2020 +0100
+
+    cmd/compile: run rulegen to include missing condition
+    
+    Rulegen was not run again between patchsets 2 and 3 of CL 264683, so
+    the rewritegeneric.go file is out of sync. Run rulegen.
+    
+    Change-Id: I67d8d267c4f666943ed9bf8c33aac2ac6013336a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266080
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rémy Oudompheng <remyoudompheng@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

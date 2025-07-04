@@ -1,0 +1,33 @@
+commit 87a18c61094debb31ebf4d1b80067bae302dacbe
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 27 12:13:17 2018 -0400
+
+    cmd/compile: refactor inlining parameters; inline panic
+    
+    Inlining was refactored to perform tuning experiments,
+    with the "knobs" now set to also inline functions/methods
+    that include panic(), and -l=4 (inline calls) now expressed
+    as a change to costs, rather than scattered if-thens.
+    
+    The -l=4 inline-calls penalty is chosen to be the best
+    found during experiments; it makes some programs much
+    larger and slower (notably, the compiler itself) and is
+    believed to be risky for machine-generated code in general,
+    which is why it is not the default.  It is also not
+    well-tested with the debugger and DWARF output.
+    
+    This change includes an explicit go:noinline applied to the
+    method that is the largest cause of compiler binary growth
+    and slowdown for midstack inlining; there are others,
+    ideally whatever heuristic eventually appears will make
+    this unnecessary.
+    
+    Change-Id: Idf7056ed2f961472cf49d2fd154ee98bef9421e2
+    Reviewed-on: https://go-review.googlesource.com/109918
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/inl.go    | 61 +++++++++++++++++++++++------------
+ src/cmd/compile/internal/ssa/value.go |  3 ++
+ 2 files changed, 44 insertions(+), 20 deletions(-)

@@ -1,0 +1,18 @@
+commit e97789f7d9c937810c99f556ae1586e16213b744
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Fri Mar 18 16:56:47 2016 +0100
+
+    fmt: simplify handling of reporting flags to formatters
+    
+    Remove rewriting of flags before calling formatters.
+    Change Flag method to directly take plusV and sharpV flags
+    into account when reporting if plus or sharp flag is set.
+    
+    Change-Id: Ic3423881ad89e5a5f9fff5ab59e842062394ef6d
+    Reviewed-on: https://go-review.googlesource.com/20859
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/print.go | 33 ++-------------------------------
+ 1 file changed, 2 insertions(+), 31 deletions(-)

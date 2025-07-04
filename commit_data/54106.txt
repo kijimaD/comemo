@@ -1,0 +1,22 @@
+commit 7b2f81eb3b19232c1d3a60241cb92c1c50d0e4ab
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 18 01:14:50 2023 -0700
+
+    cmd/compile/internal/typecheck: remove NeedRuntimeType
+    
+    The only remaining use for typecheck.NeedRuntimeType is to make sure
+    that method expressions with anonymous receiver types (e.g.,
+    "struct{T}.M") have the promoted-method wrapper generated. But the
+    unified frontend takes care of arranging for this now.
+    
+    Change-Id: I89340cb6a81343f35e0de1062610cbb993d3b6bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521036
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/main.go             |  2 --
+ src/cmd/compile/internal/typecheck/typecheck.go | 15 ---------------
+ 2 files changed, 17 deletions(-)

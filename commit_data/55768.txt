@@ -1,0 +1,22 @@
+commit 2278ffcb2664b13ad2a2309cb1aba24260b9fab3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 28 09:43:52 2024 -0800
+
+    cmd/compile/internal/syntax: rename test file to match issue
+    
+    Follow-up on CL 565518 which addressed issue #65790 but added
+    testdata/issue65970.go instead of testdata/issue65790.go.
+    Rename that file to match the issue.
+    
+    For #65790.
+    
+    Change-Id: I647c297286355137fa950fb6722e31ae4340393b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567875
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/syntax/testdata/{issue65970.go => issue65790.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

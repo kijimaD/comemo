@@ -1,0 +1,21 @@
+commit 1e4a88fa0a599cb8c201996a5f7b069b85be9905
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 19 13:48:15 2019 -0500
+
+    cmd/link/internal/ld: make dwarf_test and associated testdata module-agnostic
+    
+    Updates #30228
+    
+    Change-Id: I31aac4cb113c0c88a54329181ad27aee3d8acc71
+    Reviewed-on: https://go-review.googlesource.com/c/162835
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/dwarf_test.go             | 24 ++++++----------------
+ .../ld/testdata/httptest/{src => }/main/main.go    |  0
+ .../ld/testdata/issue25459/{src => }/a/a.go        |  0
+ .../ld/testdata/issue25459/{src => }/main/main.go  |  2 +-
+ .../ld/testdata/issue26237/{src => }/b.dir/b.go    |  0
+ .../ld/testdata/issue26237/{src => }/main/main.go  |  2 +-
+ 6 files changed, 8 insertions(+), 20 deletions(-)

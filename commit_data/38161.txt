@@ -1,0 +1,19 @@
+commit 60abc07113e66873d468f54bb5be09fbdd20ca07
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Thu Feb 28 08:40:55 2019 +0100
+
+    misc/android: adb push --sync testdata
+    
+    (A stripped down version of) $GOROOT is uploaded to the device
+    before running standar library tests, including many (all?)
+    testdata directories.
+    
+    Use the --sync flag when pushing testdata directories to the device
+    in case it is already present.
+    
+    Change-Id: If8104f9d15838c1be3623adcf831a7188303c376
+    Reviewed-on: https://go-review.googlesource.com/c/164338
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/android/go_android_exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

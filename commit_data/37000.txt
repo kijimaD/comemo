@@ -1,0 +1,45 @@
+commit 0b63086f64ad7da114b003b98f1c78a6beb6ef26
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Tue Jul 17 19:02:53 2018 -0700
+
+    cmd/compile: fix label redefinition error column numbers
+    
+    Ensure that label redefinition error column numbers
+    print the actual start of the label instead of the
+    position of the label's delimiting token ":".
+    
+    For example, given this program:
+    
+    package main
+    
+    func main() {
+    
+                foo:
+       foo:
+    foo:
+    foo            :
+    }
+    
+    * Before:
+    main.go:5:13: label foo defined and not used
+    main.go:6:7: label foo already defined at main.go:5:13
+    main.go:7:4: label foo already defined at main.go:5:13
+    main.go:8:16: label foo already defined at main.go:5:13
+    
+    * After:
+    main.go:5:13: label foo defined and not used
+    main.go:6:4: label foo already defined at main.go:5:13
+    main.go:7:1: label foo already defined at main.go:5:13
+    main.go:8:1: label foo already defined at main.go:5:13
+    
+    Fixes #26411
+    
+    Change-Id: I8eb874b97fdc8862547176d57ac2fa0f075f2367
+    Reviewed-on: https://go-review.googlesource.com/c/124595
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/syntax/branches.go |  2 +-
+ test/fixedbugs/issue26411.go                | 94 +++++++++++++++++++++++++++++
+ 2 files changed, 95 insertions(+), 1 deletion(-)

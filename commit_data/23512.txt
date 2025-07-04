@@ -1,0 +1,15 @@
+commit 379d8327cb6e811b7dd80f56622d61626cf872db
+Author: Steve Streeting <steve@stevestreeting.com>
+Date:   Thu Jun 25 16:52:51 2015 +0100
+
+    net/http: don't overwrite Authorization headers when URL has username
+    
+    Fixes #11399
+    
+    Change-Id: I3be7fbc86c5f62761f47122632f3e11b56cb6be6
+    Reviewed-on: https://go-review.googlesource.com/11510
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/client.go      |  2 +-
+ src/net/http/client_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 1 deletion(-)

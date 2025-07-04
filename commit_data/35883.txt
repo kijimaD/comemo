@@ -1,0 +1,17 @@
+commit 36c623046b9d9da2ae614f9dd526709271160c3c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 3 12:05:51 2018 -0700
+
+    cmd/go: don't pass both -static and -pie to cgo compiler
+    
+    Along with CL 122135,
+    Fixes #26197
+    
+    Change-Id: I61e8cfb0dcc39885acf8ffa1ffb34cbbe4dc1dc3
+    Reviewed-on: https://go-review.googlesource.com/122155
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/work/exec.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 8e11cb3f3b5e383023736172bcbfd847ea529176
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Sep 24 18:13:26 2017 +0200
+
+    runtime: improve comments for nextSample
+    
+    The previous comment of nextSample didn't mention Poisson processes,
+    which is the reason why it needed to create an exponential
+    distribution, so it was hard to follow the reasoning for people
+    not highly familiar with statistics.
+    
+    Since we're at it, we also make it clear that we are just creating
+    a random number with exponential distribution by moving the
+    bulk of the function into a new fastexprand().
+    
+    No functional changes.
+    
+    Change-Id: I9c275e87edb3418ee0974257af64c73465028ad7
+    Reviewed-on: https://go-review.googlesource.com/65657
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/malloc.go | 46 ++++++++++++++++++++++++++--------------------
+ 1 file changed, 26 insertions(+), 20 deletions(-)

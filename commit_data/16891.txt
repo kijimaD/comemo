@@ -1,0 +1,19 @@
+commit a64bea5c99a7d6b471655cdef44b8daec6fce1dc
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jul 28 16:15:07 2013 +0900
+
+    net: make UnixAddr implement sockaddr interface
+    
+    This is in preparation for runtime-integrated network pollster for BSD
+    variants.
+    
+    Update #5199
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/11932044
+
+ src/pkg/net/sock_posix.go     |  4 ++--
+ src/pkg/net/unixsock.go       |  7 -------
+ src/pkg/net/unixsock_posix.go | 34 +++++++++++++++++++++++++---------
+ 3 files changed, 27 insertions(+), 18 deletions(-)

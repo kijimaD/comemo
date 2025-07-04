@@ -1,0 +1,17 @@
+commit 5c096cc092013331022c33c5e3d31228edd17dab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 23 17:16:21 2016 -0800
+
+    runtime: deflake TestCgoCheckBytes
+    
+    Bump up the multiplier to 20.  Also run the fast version first, so that
+    the slow version is likely to start up faster.
+    
+    Change-Id: Ia0654cc1212ab03a45da1904d3e4b57d6a8d02a0
+    Reviewed-on: https://go-review.googlesource.com/19835
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/crash_cgo_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

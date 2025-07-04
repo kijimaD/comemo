@@ -1,0 +1,17 @@
+commit 0c662f60a5ef82a92b7bea26788a14f74b12fb52
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon May 24 19:32:42 2010 -0700
+
+    Optimize exp/draw/x11 flusher inner loop.
+    
+    On my laptop, time to prepare and write 800x600 pixels over the
+    socket falls from 125-ish ms to 80-ish ms.
+    
+    Thanks to Roger Peppe for the suggestion.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1228044
+
+ src/pkg/exp/draw/x11/conn.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

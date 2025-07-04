@@ -1,0 +1,16 @@
+commit a562351e512682046623ecbd106f4973f3525be9
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Wed Sep 14 12:57:15 2016 +1000
+
+    net/http: clarify Request.ContentLength behavior on the client.
+    
+    While you could argue the previous wording technically said that -1 is
+    an acceptable way to indicate "unknown" on the client, it could be read
+    as ambiguous. Now it's clear that both 0 and -1 mean unknown.
+    
+    Change-Id: I3bc5a3fd5afd1999e487296ec121eb548415e6b0
+    Reviewed-on: https://go-review.googlesource.com/29130
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

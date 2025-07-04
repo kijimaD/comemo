@@ -1,0 +1,15 @@
+commit 96faeb0bb01ad6fcc04dc7ef07ba10d4ec6aecff
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Fri Jun 8 18:28:37 2018 +0200
+
+    misc/wasm: set non-empty default for os.Args
+    
+    os.Args is usually never empty and the flag package panics if it is.
+    This commit makes os.Args default to ["js"] for js/wasm.
+    
+    Change-Id: Iba527145686487b052da438fca40159e57e61a81
+    Reviewed-on: https://go-review.googlesource.com/117475
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/wasm/wasm_exec.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

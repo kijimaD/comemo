@@ -1,0 +1,16 @@
+commit 5f3a7aa2172c4b78de6bae19f740024c4088b5e3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Oct 11 10:37:32 2013 +0900
+
+    go.tools/misc/dist: copy doc.go from go.tools to go root
+    
+    This will allow "godoc godoc", "godoc vet", "godoc cover" to work.
+    
+    Fixes #6527.
+    
+    R=r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/14566049
+
+ misc/dist/bindist.go | 29 +++++++++++++++++++++++++++--
+ 1 file changed, 27 insertions(+), 2 deletions(-)

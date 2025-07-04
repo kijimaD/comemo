@@ -1,0 +1,14 @@
+commit 14cb1a1da98bbecaf64c8393138b845ce5562c23
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Fri Apr 12 15:58:34 2013 -0700
+
+    test: raise the allocation threshold for chan/select2.go failure
+    
+    Updates #5282
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8718045
+
+ test/chan/select2.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

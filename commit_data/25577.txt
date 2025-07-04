@@ -1,0 +1,22 @@
+commit ed03dab85384c156d7c222890ca13d1af3f69b4b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 5 09:27:40 2016 -0500
+
+    cmd/internal/obj: separate code layout from object writing
+    
+    This will allow the compiler to crunch Prog lists down to code as each
+    function is compiled, instead of waiting until the end, which should
+    reduce the working set of the compiler. But not until Go 1.7.
+    
+    This also makes it easier to write some machine code output tests
+    for the assembler, which is why it's being done now.
+    
+    For #13822.
+    
+    Change-Id: I0811123bc6e5717cebb8948f9cea18e1b9baf6f7
+    Reviewed-on: https://go-review.googlesource.com/18311
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/link.go    |  6 ++++++
+ src/cmd/internal/obj/objfile.go | 36 +++++++++++++++++++++++++-----------
+ 2 files changed, 31 insertions(+), 11 deletions(-)

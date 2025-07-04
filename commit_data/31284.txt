@@ -1,0 +1,20 @@
+commit a495fe2775147dca0c72263cd65e0bd20f4edfda
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:20:54 2017 -0700
+
+    cmd/compile: make ggloblsym work with obj.LSyms
+    
+    Automated refactoring using gorename, eg, and gofmt -r.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ib50f368bf62a07e5ced50b1b92a29c669ba9a158
+    Reviewed-on: https://go-review.googlesource.com/41401
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/gsubr.go   |  6 +-----
+ src/cmd/compile/internal/gc/obj.go     |  8 ++++----
+ src/cmd/compile/internal/gc/pgen.go    |  2 +-
+ src/cmd/compile/internal/gc/reflect.go | 28 ++++++++++++++--------------
+ 4 files changed, 20 insertions(+), 24 deletions(-)

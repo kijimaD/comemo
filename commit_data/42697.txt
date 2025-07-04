@@ -1,0 +1,14 @@
+commit 681559e1f10f83a053b4ebab101de3d77ede8353
+Author: zero.xu <zero.xu@bytedance.com>
+Date:   Mon Aug 17 07:06:32 2020 +0000
+
+    runtime: update comment: modTimer is called by Timer.Reset
+    
+    Change-Id: I97d0d1343d41b603a68388e496411fb040dc6d66
+    GitHub-Last-Rev: d11177ad249bd844dd9e7e355eea28596d0b1fa8
+    GitHub-Pull-Request: golang/go#38625
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229767
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/runtime/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

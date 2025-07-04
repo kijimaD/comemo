@@ -1,0 +1,16 @@
+commit 8c30b3f038fe140d7f05ebe60d090e1d4a2eb3b5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Feb 14 10:11:16 2013 +1100
+
+    net: remove noisy test for issue 3590
+    
+    The test for issue 3590 causes an error to be printed to stderr when run (although the error is obscured during go test std). This is confusing for people who get breakage in the net package as the error is harmless and most likely unrelated to their build breakage.
+    
+    Given the way the test works, by reaching into the guts of the netFD, I can't see a way to silence the error without adding a bunch of code to support the test, therefore I am suggesting the test be removed before Go 1.1 ships.
+    
+    R=alex.brainman, mikioh.mikioh, rsc
+    CC=golang-dev
+    https://golang.org/cl/7307110
+
+ src/pkg/net/fd_unix_test.go | 48 ---------------------------------------------
+ 1 file changed, 48 deletions(-)

@@ -1,0 +1,13 @@
+commit 00efa446e1abc3852882ecd8e83d8973927ed925
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 7 22:09:15 2016 -0800
+
+    cmd/compile/internal/obj: remove superfluous addvarint parameter and assignment
+    
+    Change-Id: I395625dca9b719290c52d2c46f60b53e8fb3abc4
+    Reviewed-on: https://go-review.googlesource.com/34139
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/pcln.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

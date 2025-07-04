@@ -1,0 +1,17 @@
+commit 6f74c0774cf4fd906292bf0a733cb596f0849780
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 11 11:18:17 2016 -0700
+
+    runtime: move printing of extra newline
+    
+    No functional changes, makes vet happy.
+    
+    Updates #11041
+    
+    Change-Id: I59f3aba46d19b86d605508978652d76a1fe7ac7b
+    Reviewed-on: https://go-review.googlesource.com/27125
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/testdata/testprogcgo/threadprof.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

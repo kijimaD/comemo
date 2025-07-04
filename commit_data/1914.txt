@@ -1,0 +1,23 @@
+commit 8971cf23541e9f567a502e7c681b9e8684d97679
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 30 17:13:11 2009 -0700
+
+    daily snapshot:
+    - separating printing of AST and documentation
+    - astprinter: will subsume ast printing functionality of printer
+    - docprinter: will subsume doc printing functionality of printer
+            also: more logic to collect all the documentation pertaining
+                  to all files of a package
+    - parser: some cleanups, stricter syntax checks
+    - gds: hooks to test new doc printer (disabled)
+    
+    R=r
+    OCL=26915
+    CL=26915
+
+ usr/gri/pretty/Makefile      |    6 +-
+ usr/gri/pretty/astprinter.go | 1369 ++++++++++++++++++++++++++++++++++++++++++
+ usr/gri/pretty/docprinter.go |  167 ++++++
+ usr/gri/pretty/gds.go        |   33 +-
+ usr/gri/pretty/parser.go     |  158 ++---
+ 5 files changed, 1660 insertions(+), 73 deletions(-)

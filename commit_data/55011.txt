@@ -1,0 +1,27 @@
+commit e62bf150cc0802b3697da315ee41e19c0bbfb7eb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 13 16:46:47 2023 -0800
+
+    go/types, types2: move exported predicates into separate file
+    
+    This allows those functions to be generated for go/types.
+    Also, change the generator's renameIdent mechanism so that
+    it can rename multiple identifiers in one pass through the
+    AST instead of requiring multiple passes.
+    
+    No type-checker functionality changes.
+    
+    Change-Id: Ic78d899c6004b6a0692a95902fdc13f8ffb47824
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542757
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api.go            | 77 --------------------
+ src/cmd/compile/internal/types2/api_predicates.go | 84 ++++++++++++++++++++++
+ src/go/types/api.go                               | 77 --------------------
+ src/go/types/api_predicates.go                    | 86 +++++++++++++++++++++++
+ src/go/types/generate_test.go                     | 48 ++++++++-----
+ 5 files changed, 199 insertions(+), 173 deletions(-)

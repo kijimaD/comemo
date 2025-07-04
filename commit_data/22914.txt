@@ -1,0 +1,21 @@
+commit 2f9acc13c1ef5cf42c55cd86b7e8a6a0a18d31ec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 5 18:19:28 2015 -0700
+
+    cmd/cgo: readability improvements to generated _cgo_export.h
+    
+    Also copy doc comments from Go code to _cgo_export.h.
+    
+    This is a step toward installing this generated file when using
+    -buildmode=c-archive or c-shared, so that C code can #include it.
+    
+    Change-Id: I3a243f7b386b58ec5c5ddb9a246bb9f9eddc5fb8
+    Reviewed-on: https://go-review.googlesource.com/9790
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/cgo/ast.go  |  8 ++++++++
+ src/cmd/cgo/doc.go  |  3 +++
+ src/cmd/cgo/main.go |  5 ++++-
+ src/cmd/cgo/out.go  | 37 +++++++++++++++++++++++++++++++------
+ 4 files changed, 46 insertions(+), 7 deletions(-)

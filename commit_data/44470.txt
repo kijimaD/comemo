@@ -1,0 +1,38 @@
+commit 312fd9937d6e8675a166fe60df77c1c24015a369
+Author: witchard <witchard@hotmail.co.uk>
+Date:   Tue Mar 2 21:16:24 2021 +0000
+
+    cmd/go: remove -insecure flag on go get
+    
+    Resolves #37519
+    
+    Change-Id: Iba675a180b0e61b12835cdb6ecd4c6dc61e0605c
+    GitHub-Last-Rev: aa018af6f8fc7f0b829820e831ad96734adcb8d0
+    GitHub-Pull-Request: golang/go#44724
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297709
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.17.html                                    | 12 +++++++--
+ src/cmd/go/alldocs.go                              | 26 ++++---------------
+ src/cmd/go/internal/cfg/cfg.go                     |  2 --
+ src/cmd/go/internal/get/get.go                     | 27 ++++++++-----------
+ src/cmd/go/internal/help/helpdoc.go                |  7 +++--
+ src/cmd/go/internal/modfetch/insecure.go           | 16 ------------
+ src/cmd/go/internal/modfetch/repo.go               |  4 +--
+ src/cmd/go/internal/modfetch/sumdb.go              |  2 +-
+ src/cmd/go/internal/modget/get.go                  | 30 ++++++++--------------
+ src/cmd/go/internal/web/http.go                    |  2 +-
+ src/cmd/go/testdata/script/get_404_meta.txt        |  5 ++--
+ src/cmd/go/testdata/script/get_insecure.txt        | 20 ++++++++++-----
+ .../testdata/script/get_insecure_custom_domain.txt |  4 ++-
+ .../go/testdata/script/get_insecure_deprecated.txt | 21 ---------------
+ .../script/get_insecure_no_longer_supported.txt    | 13 ++++++++++
+ .../go/testdata/script/get_insecure_redirect.txt   |  5 ++--
+ src/cmd/go/testdata/script/get_insecure_update.txt |  8 +++---
+ .../testdata/script/mod_get_insecure_redirect.txt  |  4 +--
+ src/cmd/go/testdata/script/mod_sumdb_cache.txt     |  7 -----
+ 19 files changed, 83 insertions(+), 132 deletions(-)

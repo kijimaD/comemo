@@ -1,0 +1,14 @@
+commit 77026ef902d3fa21597400d230701979bc1f0efc
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun May 22 02:20:11 2016 -0700
+
+    runtime: document heap scavenger memory summary
+    
+    Fixes #15212.
+    
+    Change-Id: I2628ec8333330721cddc5145af1ffda6f3e0c63f
+    Reviewed-on: https://go-review.googlesource.com/23319
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/extern.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

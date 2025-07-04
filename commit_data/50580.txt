@@ -1,0 +1,29 @@
+commit 2f3008386fbfbc62544e3799d14db40cbe703218
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Sep 22 16:39:11 2022 -0700
+
+    cmd: update vendored golang.org/x/tools for multiple error wrapping
+    
+    Updates vet to permit errors with an Unwrap method returning []error
+    and multiple %w verbs in fmt.Errorf.
+    
+    For #53435.
+    
+    Change-Id: If097715f86c5a03ed606e6d4fb048e17b154b489
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433057
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../x/tools/go/analysis/passes/inspect/inspect.go  |   2 +-
+ .../go/analysis/passes/loopclosure/loopclosure.go  | 209 +++++++++++++++------
+ .../x/tools/go/analysis/passes/printf/printf.go    |  13 +-
+ .../x/tools/go/analysis/passes/printf/types.go     |  10 -
+ .../go/analysis/passes/stdmethods/stdmethods.go    |  13 ++
+ .../golang.org/x/tools/go/ast/inspector/typeof.go  |   3 +-
+ .../x/tools/internal/analysisinternal/analysis.go  |   7 +-
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 10 files changed, 177 insertions(+), 88 deletions(-)

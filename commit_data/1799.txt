@@ -1,0 +1,15 @@
+commit d671daf7f7b7b1027ccb53862d7a46440f81931a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 10 17:08:05 2009 -0700
+
+    - allow unicode digits in identifiers
+    - fixed a bug with character escapes (before: allowed arbitrary long sequences)
+    
+    R=r
+    DELTA=63  (33 added, 19 deleted, 11 changed)
+    OCL=26010
+    CL=26070
+
+ src/lib/go/scanner.go      | 63 +++++++++++++++++++++++++---------------------
+ src/lib/go/scanner_test.go |  7 ++++++
+ 2 files changed, 42 insertions(+), 28 deletions(-)

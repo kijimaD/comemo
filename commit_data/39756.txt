@@ -1,0 +1,23 @@
+commit c96d794f66e952f216e415d0305f2555a3bfada9
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Mon Aug 26 07:21:36 2019 -0600
+
+    ld: ensure that PE versions sync for internal and external linkage
+    
+    Previously users who opted into cgo might have received a bit of a
+    behavior surprise when their mingw installation defaulted to a
+    potentially older and different set of compatibility hacks. Since Go is
+    explicitly targeting >=6.1 for internal linkage, propagate these changes
+    to external linkage too.
+    
+    While we're at it, we move these values into constant variables so that
+    they don't become out of sync and allow for easy updating as Go
+    gradually drops compatibility for older operating systems.
+    
+    Change-Id: I41e654d135be6e3db9088e73efeb414933e36caa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191842
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/cmd/link/internal/ld/lib.go |  5 +++++
+ src/cmd/link/internal/ld/pe.go  | 21 +++++++++++++--------
+ 2 files changed, 18 insertions(+), 8 deletions(-)

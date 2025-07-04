@@ -1,0 +1,19 @@
+commit 2d4bd3db7f0eb3d833453ae39079a5f2e5db2737
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Nov 28 16:50:57 2018 +0100
+
+    plugin: fix build constraint to disable test on linux/arm64
+    
+    CL 151478 was suppose to fix the build failure on linux/arm64 but the
+    build constraint didn't exclude linux/arm64 properly.
+    
+    Fixes #28982
+    
+    Change-Id: Ia80265b0adba0384cd28bc2deb1726418664975a
+    Reviewed-on: https://go-review.googlesource.com/c/151303
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/plugin/plugin_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

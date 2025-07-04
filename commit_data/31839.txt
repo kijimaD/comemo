@@ -1,0 +1,18 @@
+commit e7c650bca5fc7a8161527924bc7cb889fb8ab5e0
+Author: Kale Blankenship <kale@lemnisys.com>
+Date:   Wed Jun 14 20:11:21 2017 -0700
+
+    testing: clarify -timeout flag
+    
+    Fixes #20090
+    
+    Change-Id: I881607e55cd946a703e74a7d8ae2bbde67546510
+    Reviewed-on: https://go-review.googlesource.com/45816
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go            | 5 +++--
+ src/cmd/go/internal/test/test.go | 5 +++--
+ src/testing/testing.go           | 2 +-
+ 3 files changed, 7 insertions(+), 5 deletions(-)

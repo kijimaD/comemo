@@ -1,0 +1,23 @@
+commit e0307c25bebd694b98ae538065cda0681ef9ecf1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 5 15:59:55 2016 +0000
+
+    net/http: document that Handlers shouldn't mutate Request
+    
+    Also, don't read from the Request.Headers in the http Server code once
+    ServeHTTP has started. This is partially redundant with documenting
+    that handlers shouldn't mutate request, but: the space is free due to
+    bool packing, it's faster to do the checks once instead of N times in
+    writeChunk, and it's a little nicer to code which previously didn't
+    play by the unwritten rules. But I'm not going to fix all the cases.
+    
+    Fixes #14940
+    
+    Change-Id: I612a8826b41c8682b59515081c590c512ee6949e
+    Reviewed-on: https://go-review.googlesource.com/21530
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/server.go | 27 +++++++++++++++++++--------
+ 1 file changed, 19 insertions(+), 8 deletions(-)

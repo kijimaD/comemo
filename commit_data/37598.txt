@@ -1,0 +1,27 @@
+commit f6be1cf109a2be59b96d1fa913adfa1fbc628579
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Mon Aug 6 15:41:34 2018 -0400
+
+    crypto/x509: fix root CA extraction on macOS (cgo path)
+    
+    The cgo path was not taking policies into account, using the last
+    security setting in the array whatever it was. Also, it was not aware of
+    the defaults for empty security settings, and for security settings
+    without a result type. Finally, certificates restricted to a hostname
+    were considered roots.
+    
+    The API docs for this code are partial and not very clear, so this is a
+    best effort, really.
+    
+    Updates #24652
+    
+    Change-Id: I8fa2fe4706f44f3d963b32e0615d149e997b537d
+    Reviewed-on: https://go-review.googlesource.com/c/128056
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@google.com>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/root_cgo_darwin.go | 258 ++++++++++++++++++++++++++-----------
+ src/crypto/x509/root_darwin.go     |  18 +--
+ 2 files changed, 192 insertions(+), 84 deletions(-)

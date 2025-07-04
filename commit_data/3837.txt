@@ -1,0 +1,11 @@
+commit f31bc223b34d3fc97a966c87b8c8a892bd64cce8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 5 18:23:26 2009 -0800
+
+    fix UTF-8 upload bug
+    
+    TBR=r
+    http://go/go-review/1026001
+
+ lib/codereview/codereview.py | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

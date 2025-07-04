@@ -1,0 +1,31 @@
+commit add89dd1bae04b641944d082467375f1dc787cd2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 12 10:26:38 2009 -0700
+
+    stack overflow debugging and fix.
+    
+      * in 6l, -K already meant check for stack underflow.
+        add -KK to mean double-check stack overflows
+        even in nosplit functions.
+    
+      * comment out print locks; they deadlock too easily
+         but are still useful to put back for special occasions.
+    
+      * let runcgo assembly switch to scheduler stack
+        without involving scheduler directly.  because runcgo
+        gets called from matchmg, it is too hard to keep it
+        from being called on other stacks.
+    
+    R=r
+    DELTA=94  (65 added, 18 deleted, 11 changed)
+    OCL=35591
+    CL=35604
+
+ src/cmd/6l/pass.c           | 50 +++++++++++++++++++++++++++++++++++++++------
+ src/pkg/runtime/386/asm.s   | 14 +++++++++++--
+ src/pkg/runtime/amd64/asm.s | 20 ++++++++++++++----
+ src/pkg/runtime/cgocall.c   |  5 +----
+ src/pkg/runtime/print.c     |  6 +++---
+ src/pkg/runtime/proc.c      | 11 +---------
+ src/pkg/runtime/runtime.h   |  1 -
+ 7 files changed, 77 insertions(+), 30 deletions(-)

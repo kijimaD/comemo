@@ -1,0 +1,27 @@
+commit 1135b9d6718b1095775460c0903ee831374738fd
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Aug 24 15:07:58 2015 +1000
+
+    runtime: check pointer equality in arm cmpbody
+    
+    Updates #11336
+    
+    Follow the lead of amd64 do a pointer equality check
+    before comparing string/byte contents on arm.
+    
+    BenchmarkCompareBytesEqual-4               208             211             +1.44%
+    BenchmarkCompareBytesToNil-4               83.6            81.8            -2.15%
+    BenchmarkCompareBytesEmpty-4               80.2            75.2            -6.23%
+    BenchmarkCompareBytesIdentical-4           208             75.2            -63.85%
+    BenchmarkCompareBytesSameLength-4          126             128             +1.59%
+    BenchmarkCompareBytesDifferentLength-4     128             130             +1.56%
+    BenchmarkCompareBytesBigUnaligned-4        14192804        14060971        -0.93%
+    BenchmarkCompareBytesBig-4                 12277313        12128193        -1.21%
+    BenchmarkCompareBytesBigIdentical-4        9385046         78.5            -100.00%
+    
+    Change-Id: I5b24620018688c5fe04b6ff6743a24c4ce225788
+    Reviewed-on: https://go-review.googlesource.com/13881
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/asm_arm.s | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,14 @@
+commit 165d78717da980eafd3536594c23bea21d9d4acd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 19 14:32:15 2008 -0800
+
+    - adjust sort.go to use new naming conventions
+    
+    R=rsc
+    DELTA=31  (0 added, 0 deleted, 31 changed)
+    OCL=19618
+    CL=19620
+
+ src/lib/sort.go | 56 ++++++++++++++++++++++++++++----------------------------
+ test/sorting.go |  6 +++---
+ 2 files changed, 31 insertions(+), 31 deletions(-)

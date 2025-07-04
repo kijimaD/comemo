@@ -1,0 +1,20 @@
+commit 6bf95d40bb9b0ad90315544d2581e1540a040542
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Sep 10 01:16:14 2024 +1000
+
+    test/codegen: add combined conversion and shift tests
+    
+    This adds tests for type conversion and shifts, detailing various
+    poor bad code generation that currently exists for riscv64. This
+    will be addressed in future CLs.
+    
+    Change-Id: Ie1d366dfe878832df691600f8500ef383da92848
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615678
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ test/codegen/shift.go | 64 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 64 insertions(+)

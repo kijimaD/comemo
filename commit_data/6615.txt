@@ -1,0 +1,18 @@
+commit 41b5fb47612d35606db29d5b740c5ea40b29a0c5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 25 16:18:16 2010 -0700
+
+    5c: implement uint32 -> float
+    
+    There are other missing conversion cases
+    still but they do not show up in my tests.
+    This one is needed for vlrt.c's _v2d (int64, uint64 -> float).
+    
+    Thankfully, VFP has a single instruction to do this.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2726041
+
+ src/cmd/5c/txt.c | 51 ++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 40 insertions(+), 11 deletions(-)

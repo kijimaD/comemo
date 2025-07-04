@@ -1,0 +1,14 @@
+commit 5f199f2d5a6054cffbea5a869004a3af55b4f401
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Thu Aug 15 20:40:38 2013 -0700
+
+    misc/emacs: when defining prog-mode, define it like GNU Emacs 24 would
+    
+    Fixes #6156.
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/13035043
+
+ misc/emacs/go-mode.el | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

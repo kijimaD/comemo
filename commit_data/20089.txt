@@ -1,0 +1,25 @@
+commit 48452a276d63639f54d3ce1a8d36663e26949526
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Aug 23 23:01:59 2014 -0400
+
+    runtime: adjust errorCString definition to avoid allocation
+    
+    The low-level implementation of divide on ARM assumes that
+    it can panic with an error created by newErrorCString without
+    allocating. If we make interface data words require pointer values,
+    the current definition would require an allocation when stored
+    in an interface. Changing the definition to use unsafe.Pointer
+    instead of uintptr avoids the allocation. This change is okay
+    because the field really is a pointer (to a C string in rodata).
+    
+    Update #8405.
+    
+    This should make CL 133830043 safe to try again.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=dave, golang-codereviews, r
+    https://golang.org/cl/133820043
+
+ src/pkg/runtime/error.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

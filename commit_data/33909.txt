@@ -1,0 +1,12 @@
+commit 9c64c65d0ea251c3ac4d49556f10ad6ceb532f52
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Dec 19 12:31:14 2017 -0800
+
+    cmd/compile: fix spelling error
+    
+    Change-Id: Ifc533ee98a7684060d20340087c1b29f722ae46b
+    Reviewed-on: https://go-review.googlesource.com/84835
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

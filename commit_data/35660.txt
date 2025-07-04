@@ -1,0 +1,14 @@
+commit 1352de3829df049f669d5a889832f4e06d4dab5b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 12 01:24:00 2018 +0000
+
+    cmd/go/internal/cfg: note the copy of this code in x/tools/cmd/godoc
+    
+    Updates #23445
+    
+    Change-Id: I4b09073e53b1cf04de698b711fb5fb0d08bc02df
+    Reviewed-on: https://go-review.googlesource.com/118077
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/cfg/cfg.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

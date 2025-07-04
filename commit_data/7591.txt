@@ -1,0 +1,19 @@
+commit bb0e7bda35baa7963cb6a4bb74239609f7e34cf7
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 28 17:43:16 2011 -0800
+
+    goyacc: provide -p flag to set prefix for names.
+    
+    This should allow multiple goyacc grammars to be
+    compiled into the same binary. There's a chance it
+    Fixes #1562.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/4256044
+
+ src/cmd/goyacc/Makefile  |   2 +-
+ src/cmd/goyacc/doc.go    |  11 +-
+ src/cmd/goyacc/goyacc.go | 314 ++++++++++++++++++++++++-----------------------
+ src/cmd/goyacc/units.y   |   9 +-
+ 4 files changed, 175 insertions(+), 161 deletions(-)

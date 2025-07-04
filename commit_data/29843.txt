@@ -1,0 +1,14 @@
+commit 12979345b1166163788846453f396afafdf1503a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Dec 19 06:01:18 2016 +0900
+
+    crypto/tls: fix a typo
+    
+    Change-Id: Id0044c45c23c12ee0bca362a9cdd25369ed7776c
+    Reviewed-on: https://go-review.googlesource.com/34533
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/conn.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

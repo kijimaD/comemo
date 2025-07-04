@@ -1,0 +1,14 @@
+commit 6a537c1d4718f2804bbad983037b9a6e4b40bc60
+Author: Avelino <t@avelino.xxx>
+Date:   Fri Sep 1 12:43:04 2017 -0300
+
+    cmd/link: Grouping declaration of variables on ld/pe.go
+    
+    Change-Id: I33284d3154db43b2b89418c5076df79407e7cf41
+    Reviewed-on: https://go-review.googlesource.com/60931
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)

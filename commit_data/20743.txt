@@ -1,0 +1,26 @@
+commit e330cc16f477471c11f78a88c8a71a155a9ca8ec
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Oct 18 21:02:49 2014 -0700
+
+    runtime: dequeue the correct SudoG
+    
+    select {
+           case <- c:
+           case <- c:
+    }
+    
+    In this case, c.recvq lists two SudoGs which have the same G.
+    So we can't use the G as the key to dequeue the correct SudoG,
+    as that key is ambiguous.  Dequeueing the wrong SudoG ends up
+    freeing a SudoG that is still in c.recvq.
+    
+    The fix is to use the actual SudoG pointer as the key.
+    
+    LGTM=dvyukov
+    R=rsc, bradfitz, dvyukov, khr
+    CC=austin, golang-codereviews
+    https://golang.org/cl/159040043
+
+ src/runtime/chan_test.go | 29 +++++++++++++++++++++++++++++
+ src/runtime/select.go    |  8 ++++----
+ 2 files changed, 33 insertions(+), 4 deletions(-)

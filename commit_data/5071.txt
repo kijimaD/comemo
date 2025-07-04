@@ -1,0 +1,12 @@
+commit 8c24fa95aa5dbf2123d639cf7977a1b56d8abdb8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Mar 17 20:07:14 2010 -0700
+
+    Fix src/pkg/syscall/mkall.sh: don't assume that . is on PATH.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/614042
+
+ src/pkg/syscall/mkall.sh | 38 +++++++++++++++++++-------------------
+ 1 file changed, 19 insertions(+), 19 deletions(-)

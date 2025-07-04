@@ -1,0 +1,22 @@
+commit 8cd75f3da094931c59636b85a87b4f680a208799
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Tue Oct 13 16:16:24 2020 -0600
+
+    token: more descriptive panics
+    
+    Currently, there are several panics in token that simply say "illegal!". This CL
+    adds the values.
+    
+    This is valuable when the token call is wrapped under several layers and you
+    can't easily see which value is being passed to token.
+    
+    Change-Id: Ib04b55cafcd9b9ec6820dcf416fc4d49afaea15f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262017
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Jean de Klerk <deklerk@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/token/position.go | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)

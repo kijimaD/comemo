@@ -1,0 +1,12 @@
+commit bc495c5751201854366b422e5a642ac55b42414a
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon May 22 14:00:09 2017 +0200
+
+    doc: mention that go tools is needed to access some tool
+    
+    Change-Id: I020cd3d10a441ba4047800fdf4f93433c458398a
+    Reviewed-on: https://go-review.googlesource.com/43717
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/cmd.html | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,19 @@
+commit 7b9c2c1950c167b16f8b3cda179363ca8df2c1b2
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Jun 5 08:14:57 2018 +0200
+
+    internal/cpu: add and use cpu.CacheLinePad for padding structs
+    
+    Add a CacheLinePad struct type to internal/cpu that has a size of CacheLineSize.
+    This can be used for padding structs in order to avoid false sharing.
+    
+    Updates #25203
+    
+    Change-Id: Icb95ae68d3c711f5f8217140811cad1a1d5be79a
+    Reviewed-on: https://go-review.googlesource.com/116276
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/cpu/cpu.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

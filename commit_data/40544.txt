@@ -1,0 +1,20 @@
+commit 40b74558771ba9db493728dcaabe43318daf9b97
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 13 11:27:47 2019 -0400
+
+    runtime: add GODEBUG=asyncpreemptoff=1
+    
+    This doesn't do anything yet, but it will provide a way to disable
+    non-cooperative preemption.
+    
+    For #10958, #24543.
+    
+    Change-Id: Ifdef303f103eabd0922ced8d9bebbd5f0aa2cda4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201757
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/extern.go   | 7 +++++++
+ src/runtime/runtime1.go | 2 ++
+ 2 files changed, 9 insertions(+)

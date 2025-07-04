@@ -1,0 +1,15 @@
+commit 696a7e1595e30c1d05c4556b1bcf3107eae5609a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 5 14:31:26 2014 -0700
+
+    doc: refer to wiki page for downloads
+    
+    We will serve downloads from here until we work out a better plan.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/95980044
+
+ doc/install.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

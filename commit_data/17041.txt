@@ -1,0 +1,42 @@
+commit d8e27db39562d2106f0c9cf7518eaa9ade748a4f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 5 16:27:24 2013 -0700
+
+    undo CL 12486043 / ab644299d124
+    
+    Uglier.
+    
+    ««« original CL description
+    all: use strings.IndexByte instead of Index where possible
+    
+    R=golang-dev, khr
+    CC=golang-dev
+    https://golang.org/cl/12486043
+    »»»
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/12485044
+
+ src/pkg/crypto/x509/pem_decrypt.go | 2 +-
+ src/pkg/debug/gosym/symtab.go      | 4 ++--
+ src/pkg/encoding/json/tags.go      | 4 ++--
+ src/pkg/encoding/xml/typeinfo.go   | 2 +-
+ src/pkg/encoding/xml/xml.go        | 2 +-
+ src/pkg/go/build/build.go          | 6 +++---
+ src/pkg/go/printer/printer.go      | 2 +-
+ src/pkg/math/big/rat.go            | 4 ++--
+ src/pkg/mime/mediatype.go          | 6 +++---
+ src/pkg/net/http/cgi/child.go      | 2 +-
+ src/pkg/net/http/cookie.go         | 6 +++---
+ src/pkg/net/http/fs.go             | 2 +-
+ src/pkg/net/http/request.go        | 6 +++---
+ src/pkg/net/http/server.go         | 4 ++--
+ src/pkg/net/url/url.go             | 4 ++--
+ src/pkg/os/os_test.go              | 2 +-
+ src/pkg/os/user/lookup_unix.go     | 2 +-
+ src/pkg/path/match.go              | 2 +-
+ src/pkg/regexp/exec_test.go        | 4 ++--
+ src/pkg/regexp/regexp.go           | 4 ++--
+ src/pkg/unicode/maketables.go      | 2 +-
+ 21 files changed, 36 insertions(+), 36 deletions(-)

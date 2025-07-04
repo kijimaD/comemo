@@ -1,0 +1,15 @@
+commit 2d58fa6f18a9b7e798301e244abb3df2314a21db
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 14 10:45:43 2009 -0700
+
+    - use new scanner error handling code
+    
+    R=rsc
+    DELTA=109  (0 added, 87 deleted, 22 changed)
+    OCL=31573
+    CL=31603
+
+ src/pkg/ebnf/ebnf.go      | 87 +++++------------------------------------------
+ src/pkg/ebnf/ebnf_test.go |  8 ++---
+ src/pkg/ebnf/parser.go    | 32 ++++-------------
+ 3 files changed, 20 insertions(+), 107 deletions(-)

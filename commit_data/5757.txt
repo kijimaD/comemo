@@ -1,0 +1,12 @@
+commit 285312a05cdaaadad93878f693c6cc90a02ca902
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 1 12:51:00 2010 -0700
+
+    6l: drop confusing comment
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1693047
+
+ src/cmd/6l/optab.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

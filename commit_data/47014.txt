@@ -1,0 +1,19 @@
+commit 95372efc4d300c54738406fb81d84a72bd8149cc
+Author: wdvxdr <wdvxdr1123@gmail.com>
+Date:   Mon Oct 25 18:15:43 2021 +0800
+
+    cmd/compile: use SetInit instead of *PtrInit
+    
+    Change-Id: Ie802ff27b611ed248d7b14f6e972e6300c181f43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358316
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/inline/inl.go   | 4 ++--
+ src/cmd/compile/internal/noder/noder.go  | 4 ++--
+ src/cmd/compile/internal/walk/complit.go | 2 +-
+ src/cmd/compile/internal/walk/select.go  | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

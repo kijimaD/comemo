@@ -1,0 +1,12 @@
+commit 396d3af8d0f7d28beedebcff28276f564884341d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 30 00:19:21 2013 -0700
+
+    cmd/ld: disable relocation range check so build can go green while we debug the issue.
+    
+    R=golang-dev, dsymonds, dave
+    CC=golang-dev
+    https://golang.org/cl/9038043
+
+ src/cmd/ld/data.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

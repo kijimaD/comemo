@@ -1,0 +1,30 @@
+commit 94484d8ed5155873306ab41f49b0b30be19031a9
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Thu Oct 5 15:45:46 2017 -0500
+
+    cmd/compile: intrinsify math.{Trunc/Ceil/Floor} on amd64
+    
+    This significantly speed-ups Trunc.
+    Ceil/Floor are using the same instruction, so do them too.
+    
+    name     old time/op  new time/op  delta
+    Floor-6  3.33ns ± 1%  3.22ns ± 0%   -3.39%  (p=0.000 n=10+10)
+    Ceil-6   3.33ns ± 1%  3.22ns ± 0%   -3.16%  (p=0.000 n=10+7)
+    Trunc-6  4.83ns ± 0%  3.22ns ± 0%  -33.36%  (p=0.000 n=6+8)
+    
+    Change-Id: If848790e458eedfe38a6a0407bb4f589c68ac254
+    Reviewed-on: https://go-review.googlesource.com/68630
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go          | 12 ++++++++
+ src/cmd/compile/internal/gc/builtin.go         |  1 +
+ src/cmd/compile/internal/gc/builtin/runtime.go |  1 +
+ src/cmd/compile/internal/gc/ssa.go             | 41 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  4 +++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  4 +++
+ src/cmd/compile/internal/ssa/opGen.go          | 15 +++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 42 ++++++++++++++++++++++++++
+ src/math/floor_amd64.s                         | 12 --------
+ 9 files changed, 120 insertions(+), 12 deletions(-)

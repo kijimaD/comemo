@@ -1,0 +1,21 @@
+commit 29b631e6f4fb3729cf4b369bcf47316f0d426845
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jun 11 14:41:58 2018 +0200
+
+    net: update file read position after sendfile syscall
+    
+    On dragonfly, freebsd and solaris the sendfile syscall does not update
+    the read position of the source fd. Update it after sendfile so
+    successive calls start at the correct position.
+    
+    Fixes #25809
+    
+    Change-Id: Iaac79f89704b75b8038d4bb60eaf793a262cdd8f
+    Reviewed-on: https://go-review.googlesource.com/117895
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/sendfile_test.go     | 6 ------
+ src/net/sendfile_unix_alt.go | 6 ++++++
+ 2 files changed, 6 insertions(+), 6 deletions(-)

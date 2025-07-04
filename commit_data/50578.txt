@@ -1,0 +1,16 @@
+commit 7ed6073da0bb62b65984ffd2bba320334d928bd5
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 10 02:36:59 2022 +0700
+
+    cmd/compile: update bottomUpVisitor.visit comments
+    
+    Change-Id: I83a62b15c5946cfe61afc53c2c528aa3a62f815e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429975
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ir/scc.go | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)

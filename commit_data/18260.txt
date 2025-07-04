@@ -1,0 +1,14 @@
+commit 35710eecd64097598ba33166692fba54078d6b34
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 15 13:12:32 2014 -0800
+
+    net/http: add disabled test for Body Read/Close lock granularity
+    
+    Update #7121
+    
+    R=golang-codereviews, gobot, dsymonds
+    CC=golang-codereviews
+    https://golang.org/cl/51750044
+
+ src/pkg/net/http/serve_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

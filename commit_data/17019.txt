@@ -1,0 +1,15 @@
+commit 49217cf5fd35e17b1e0b97a5eaad968402dc505d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Aug 4 23:32:40 2013 +0400
+
+    runtime: remove unused scheduler knob
+    Blockingsyscall was used in net package on windows,
+    it's not used anymore.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12436043
+
+ src/pkg/runtime/cgocall.c | 15 +--------------
+ src/pkg/runtime/runtime.h |  2 --
+ 2 files changed, 1 insertion(+), 16 deletions(-)

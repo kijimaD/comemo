@@ -1,0 +1,28 @@
+commit d394f99f49aa9249324f7c3ef3bc77a7cc1cebf7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 13:43:28 2022 -0700
+
+    go/parser: more tolerant parsing of import declarations
+    
+    This is a port of CL 427156 from the syntax package's parser
+    to go/parser.
+    
+    While at it, remove an unused token.Pos parameter from
+    parseSpecFunction and dependent declarations.
+    
+    Also, consolidate the respective test file.
+    
+    For #54511.
+    
+    Change-Id: Id6a28eb3d23a46fa5fa1d85d2c4e634b7015513c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427157
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ .../types2/testdata/fixedbugs/issue43190.go        |  3 ++
+ src/go/parser/parser.go                            | 34 +++++++++++++---------
+ src/go/types/testdata/fixedbugs/issue43190.go      | 18 ++++++++----
+ 3 files changed, 36 insertions(+), 19 deletions(-)

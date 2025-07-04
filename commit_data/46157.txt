@@ -1,0 +1,30 @@
+commit d2f002cb39bebdfac560282a43f3199c5d0903d7
+Author: korzhao <korzhao95@gmail.com>
+Date:   Sat Aug 21 07:26:19 2021 +0800
+
+    time/format: avoid growslice in time.String()/time.GoString()
+    
+    Pre-allocate the slice of buf with enough capacity
+    to avoid growslice calls.
+    
+    benchmark                   old ns/op     new ns/op     delta
+    BenchmarkTimeString-4       493           409           -17.12%
+    BenchmarkTimeGoString-4     309           182           -41.30%
+    
+    benchmark                   old allocs     new allocs     delta
+    BenchmarkTimeString-4       5              3              -40.00%
+    BenchmarkTimeGoString-4     4              1              -75.00%
+    
+    benchmark                   old bytes     new bytes     delta
+    BenchmarkTimeString-4       152           128           -15.79%
+    BenchmarkTimeGoString-4     248           80            -67.74%
+    
+    Change-Id: I64eabe2ab0b3d4a846453c2e8e548a831d720b8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343971
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
+
+ src/time/format.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

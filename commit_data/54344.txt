@@ -1,0 +1,19 @@
+commit 9a9aa6e2388a54c20ba522335e15f2a1758af0fe
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Aug 31 11:58:16 2023 +0000
+
+    encoding/gob: make comment more idiomatic for *Encoder.writer
+    
+    Change-Id: I89a4d7f4af8dfb67a35647283be6c1d2965595f5
+    GitHub-Last-Rev: f7c11c156cd0c1d7e9e811c5eb2d19d233c568dd
+    GitHub-Pull-Request: golang/go#62389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524735
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/encoding/gob/encoder.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

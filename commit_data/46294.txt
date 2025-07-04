@@ -1,0 +1,29 @@
+commit 7609b5070174905478ba33876679c9b592367a5c
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Sep 2 10:50:42 2021 -0400
+
+    go/types: systematic detection of missing instantiation
+    
+    This is a port of CL 346471 to go/types. Additionally, CheckExpr was
+    updated for the new API to explicitly allow generic expressions.
+    
+    The error messages in issue39634.go2 are different because go/parser
+    produces an IndexExpr with BadExpr index value, for backward
+    compatibility.
+    
+    Change-Id: I725926de183a016381513fe0e750d1280688ce29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347391
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/builtins.go                       |  2 +-
+ src/go/types/call.go                           | 19 +++++-----
+ src/go/types/eval.go                           | 11 +++---
+ src/go/types/expr.go                           | 49 +++++++++++++++++++++-----
+ src/go/types/index.go                          | 10 +++++-
+ src/go/types/stmt.go                           |  4 +--
+ src/go/types/testdata/examples/types.go2       |  1 +
+ src/go/types/testdata/fixedbugs/issue39634.go2 |  3 ++
+ 8 files changed, 74 insertions(+), 25 deletions(-)

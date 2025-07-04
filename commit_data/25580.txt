@@ -1,0 +1,16 @@
+commit 353ee32f8846defc1cea6e08a351efadc1169dc2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 21:13:02 2016 -0500
+
+    doc: document archive/tar changes
+    
+    Fixes #13647.
+    
+    Change-Id: I28df7ade9b5abd79ce6b9c3d14ceaa988e86fc01
+    Reviewed-on: https://go-review.googlesource.com/18642
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go1.6.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

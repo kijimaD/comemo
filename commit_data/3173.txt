@@ -1,0 +1,15 @@
+commit 2f5e75859b8bcb1ad3b8a8d3c4db078ecc5a6158
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 1 13:46:59 2009 -0700
+
+    casing operations for byte arrays
+    
+    R=rsc
+    DELTA=186  (181 added, 0 deleted, 5 changed)
+    OCL=34203
+    CL=34203
+
+ src/pkg/bytes/bytes.go      | 85 ++++++++++++++++++++++++++++++++++++++-
+ src/pkg/bytes/bytes_test.go | 98 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/strings/strings.go  |  8 ++--
+ 3 files changed, 186 insertions(+), 5 deletions(-)

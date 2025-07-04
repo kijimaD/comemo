@@ -1,0 +1,15 @@
+commit 2c7ec3d8617baab14a76d471fb954d6b2f72695e
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Sep 18 12:47:44 2009 -0700
+
+    fix 5g -S and -g output
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=115  (93 added, 14 deleted, 8 changed)
+    OCL=34798
+    CL=34802
+
+ src/cmd/5g/gg.h   |   1 +
+ src/cmd/5g/list.c | 122 ++++++++++++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 101 insertions(+), 22 deletions(-)

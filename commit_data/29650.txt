@@ -1,0 +1,16 @@
+commit 8a2c34e413bfbcb0ec9b01fd1dac3bc59d921256
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Nov 28 17:23:12 2016 -0500
+
+    os: Executable can use /proc/self/exe on android
+    
+    Fixes the os test on the Android builder.
+    
+    Change-Id: Ibb9db712156a620fcccf515e035475c5e2f535a5
+    Reviewed-on: https://go-review.googlesource.com/33650
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/executable_procfs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

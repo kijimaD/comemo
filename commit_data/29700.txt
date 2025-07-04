@@ -1,0 +1,14 @@
+commit 85bcf7f59d68c59be50087f68f7f25736c6a2adf
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Dec 1 07:10:21 2016 -0800
+
+    doc: update go1.8 release notes to say NamedArg not NamedParam
+    
+    Fixes #18135
+    
+    Change-Id: I54ef9d6fc804d0fb77b729a04367a138e40f9ddf
+    Reviewed-on: https://go-review.googlesource.com/33766
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

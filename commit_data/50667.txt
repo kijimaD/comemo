@@ -1,0 +1,26 @@
+commit 4350c4a13196fabd7cef04eab2f8783f6c518804
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Fri Sep 9 11:22:55 2022 -0500
+
+    cmd/internal/obj/ppc64: remove unnecessary opcodes
+    
+    This CL removes some opcode placeholders that do not correspond
+    to any existing instructions and hence create confusion. Some
+    instructions that are no longer valid like LDMX are also removed.
+    Any references to this instruction in ISA 3.0 are considered
+    as documentation errata.
+    
+    Change-Id: Ib71a657099723bbe1db88873233ee573b5c42fe7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429860
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
+
+ src/cmd/internal/obj/ppc64/a.out.go  |  8 --------
+ src/cmd/internal/obj/ppc64/anames.go |  8 --------
+ src/cmd/internal/obj/ppc64/asm9.go   | 28 +++++++---------------------
+ src/cmd/internal/obj/ppc64/obj9.go   |  2 --
+ 4 files changed, 7 insertions(+), 39 deletions(-)

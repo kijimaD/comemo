@@ -1,0 +1,21 @@
+commit 69a8954282dc4500bb645e67fb912d53a7f78a5c
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Fri Aug 12 19:08:35 2022 +0200
+
+    runtime: document GODEBUG=cpu.* in runtime package
+    
+    So far was only documented in doc/diagnostics.
+    
+    Fixes: #54183
+    
+    Change-Id: Iab67a1500547f30325453c614a2f2f6621dfadb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423275
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/runtime/extern.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

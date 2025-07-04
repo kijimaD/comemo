@@ -1,0 +1,24 @@
+commit acd858eee024469103bce2b9a669e2e96ccbf189
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 18 14:02:41 2011 -0500
+
+    syscall: correct WSTOPPED on OS X
+    
+    Have to set #defines correctly to get correct value.
+    Otherwise get a mask for use in implementing WIFSTOPPED(status).
+    
+    Changed WSTOPPED definition in os because on
+    OS X WSTOPPED and WUNTRACED have different values
+    even though they seem to mean the same thing.
+    
+    Fixes #1374.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4063042
+
+ src/pkg/os/exec.go                      |  8 +++----
+ src/pkg/syscall/mkerrors.sh             |  3 ++-
+ src/pkg/syscall/zerrors_darwin_386.go   | 37 ++++++++++++++++++++++++++++++++-
+ src/pkg/syscall/zerrors_darwin_amd64.go | 37 ++++++++++++++++++++++++++++++++-
+ 4 files changed, 78 insertions(+), 7 deletions(-)

@@ -1,0 +1,18 @@
+commit 4efd581383ade76c562953289ed8210bb55bff47
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Tue Apr 13 15:51:58 2021 +0300
+
+    archive/zip: fix imports block of biggestZipBytes generator
+    
+    Fixes #45529
+    
+    Change-Id: I4d64c40aa6733b783dc4066e222f17abeb7ad413
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309357
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Trust: Joe Tsai <thebrokentoaster@gmail.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/archive/zip/reader_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

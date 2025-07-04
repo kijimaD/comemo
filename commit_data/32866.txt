@@ -1,0 +1,17 @@
+commit abd7ba026d4cfe65fdc99808de63a703694432c2
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Sep 21 21:03:42 2017 +0200
+
+    encoding/json: remove superfluous comment
+    
+    Remove an old comment introduced in golang.org/cl/9073.
+    
+    Change-Id: I14be27ddfac987f44d839920bc4d02361a576f06
+    Reviewed-on: https://go-review.googlesource.com/66371
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/json/stream.go | 17 -----------------
+ 1 file changed, 17 deletions(-)

@@ -1,0 +1,16 @@
+commit eff3c1e426559660993d47eba569a4060f0bb69b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 21:16:09 2019 -0700
+
+    runtime: add new resettimer function
+    
+    Updates #27707
+    
+    Change-Id: I02f97ec7869ec8a3fb2dfc94cff246badc7ea0fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171833
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/time.go | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 54 insertions(+), 1 deletion(-)

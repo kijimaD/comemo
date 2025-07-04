@@ -1,0 +1,16 @@
+commit fb1a5fcacf837f1004cebc392dfbc2594c2ead65
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Tue Feb 28 11:34:48 2012 -0500
+
+    crypto/tls: force OS X target version to 10.6 for API compatibility
+    
+    This is a band-aid until we can use weak imports with cgo.
+    
+    Fixes #3131.
+    
+    R=minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/5700083
+
+ src/pkg/crypto/tls/root_darwin.go | 32 ++++++++------------------------
+ 1 file changed, 8 insertions(+), 24 deletions(-)

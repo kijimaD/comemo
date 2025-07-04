@@ -1,0 +1,29 @@
+commit 8494a6243ee5c80da51da8f4e1ad4d719eddf409
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 29 16:06:19 2020 -0400
+
+    cmd/go: make TestScript/mod_get_patchmod self-contained
+    
+    I find it pretty difficult to reason about test-dependency modules
+    when they aren't in the same file as the rest of the test.
+    
+    Now that 'go get' supports replacements (CL 258220 and CL 266018),
+    we can localize tests that need 'go get' but don't specifically depend
+    on module proxy semantics.
+    
+    For #36460
+    For #37438
+    
+    Change-Id: Ib37a6c170f251435399dfc23e60d96681a81eadc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266369
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ .../go/testdata/mod/example.net_pkgremoved_v0.1.0.txt    | 16 ----------------
+ .../go/testdata/mod/example.net_pkgremoved_v0.2.0.txt    | 15 ---------------
+ .../go/testdata/mod/example.net_pkgremoved_v0.2.1.txt    | 15 ---------------
+ src/cmd/go/testdata/script/mod_get_patchmod.txt          | 16 +++++++++++++++-
+ 4 files changed, 15 insertions(+), 47 deletions(-)

@@ -1,0 +1,14 @@
+commit c4da610197a9e20f6b3cf28a0102fc00378af680
+Author: JBD <jbd@google.com>
+Date:   Wed Dec 13 15:57:46 2017 -0800
+
+    doc: make it clear which pprof package is used
+    
+    Updates #22027.
+    
+    Change-Id: I5a5bae77a744c7a2ecb75172846e6461a98ee8af
+    Reviewed-on: https://go-review.googlesource.com/83916
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/diagnostics.html | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

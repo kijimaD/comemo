@@ -1,0 +1,13 @@
+commit 2257e7670f35def119b43566e9e755a1432e9522
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 23 16:11:49 2012 -0800
+
+    doc/go1: image changes
+    
+    R=nigeltao, christoph, rsc, r, tux21b
+    CC=golang-dev
+    https://golang.org/cl/5573048
+
+ doc/go1.html | 120 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ doc/go1.tmpl | 120 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 238 insertions(+), 2 deletions(-)

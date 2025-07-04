@@ -1,0 +1,18 @@
+commit 6484e813b5ec80a399ed1b8e4608070db2144b39
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:11:08 2022 -0500
+
+    cmd/internal/moddeps: use testenv.Command instead of exec.Command in tests
+    
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
+    
+    Change-Id: Ia18c323067a416381e5a70d08c50f51576054a79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450698
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/moddeps/moddeps_test.go | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

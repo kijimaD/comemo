@@ -1,0 +1,18 @@
+commit e8d9fd707f4914bdd298f5dcdd14d3b6035e278b
+Author: Jordan Liggitt <liggitt@google.com>
+Date:   Wed Mar 30 09:53:58 2022 -0400
+
+    crypto/x509: move sha1 removal to unspecified future release
+    
+    Updates #41682
+    
+    Change-Id: I3a2d6eedf4030cdc7308001aef549eb20eeb11c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396774
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Run-TryBot: Filippo Valsorda <valsorda@google.com>
+    Auto-Submit: Filippo Valsorda <valsorda@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

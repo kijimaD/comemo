@@ -1,0 +1,15 @@
+commit f8f34c330c651b16ef8c54e60f4862b4a66b4a41
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Apr 17 01:40:04 2014 -0400
+
+    doc/effective_go: mention that b.Write is a shorthand for (&b).Write when b is addressable.
+    
+    The rewrite is due to Rob.
+    
+    LGTM=r, bradfitz, josharian
+    R=golang-codereviews, bradfitz, r, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/87410043
+
+ doc/effective_go.html | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)

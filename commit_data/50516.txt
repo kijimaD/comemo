@@ -1,0 +1,64 @@
+commit 8451529e9ab26901f952976f9dcadd498d808c32
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Sep 8 20:59:02 2022 +0000
+
+    runtime: tweak bgsweep "low-priority" heuristic
+    
+    Currently bgsweep attempts to be a low-priority background goroutine
+    that runs mainly when the application is mostly idle. To avoid
+    complicating the scheduler further, it achieves this with a simple
+    heuristic: call Gosched after each span swept. While this is somewhat
+    inefficient as there's scheduling overhead on each iteration, it's
+    mostly fine because it tends to just come out of idle time anyway. In a
+    busy system, the call to Gosched quickly puts bgsweep at the back of
+    scheduler queues.
+    
+    However, what's problematic about this heuristic is the number of
+    tracing events it produces. Average span sweeping latencies have been
+    measured as low as 30 ns, so every 30 ns in the sweep phase, with
+    available idle time, there would be a few trace events emitted. This
+    could result in an overwhelming number, making traces much larger than
+    they need to be. It also pollutes other observability tools, like the
+    scheduling latencies runtime metric, because bgsweep stays runnable the
+    whole time.
+    
+    This change fixes these problems with two modifications to the
+    heursitic:
+    
+    1. Check if there are any idle Ps before yielding. If there are, don't
+       yield.
+    2. Sweep at least 10 spans before trying to yield.
+    
+    (1) is doing most of the work here. This change assumes that the
+    presence of idle Ps means that there is available CPU time, so bgsweep
+    is already making use of idle time and there's no reason it should stop.
+    This will have the biggest impact on the aforementioned issues.
+    
+    (2) is a mitigation for the case where GOMAXPROCS=1, because we won't
+    ever observe a zero idle P count. It does mean that bgsweep is a little
+    bit higher priority than before because it yields its time less often,
+    so it could interfere with goroutine scheduling latencies more. However,
+    by sweeping 10 spans before volunteering time, we directly reduce trace
+    event production by 90% in all cases. The impact on scheduling latencies
+    should be fairly minimal, as sweeping a span is already so fast, that
+    sweeping 10 is unlikely to make a dent in any meaningful end-to-end
+    latency. In fact, it may even improve application latencies overall by
+    freeing up spans and sweep work from goroutines allocating memory. It
+    may be worth considering pushing this number higher in the future.
+    
+    Another reason to do (2) is to reduce contention on npidle, which will
+    be checked as part of (1), but this is a fairly minor concern. The main
+    reason is to capture the GOMAXPROCS=1 case.
+    
+    Fixes #54767.
+    
+    Change-Id: I4361400f17197b8ab84c01f56203f20575b29fc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429615
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgcsweep.go | 26 ++++++++++++++++++++++++--
+ src/runtime/proc.go     | 12 ++++++++++++
+ 2 files changed, 36 insertions(+), 2 deletions(-)

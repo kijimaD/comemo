@@ -1,0 +1,21 @@
+commit 3628c2d52f14c1e4dfa0df264086dd55b21a8f44
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 19 11:45:58 2017 -0700
+
+    cmd/compile: remove {Mark,Pop}dcl calls in bimport
+    
+    These were previously only relevant for recording scoping level so
+    that invalid 'fallthrough' statements could be rejected. However,
+    that's handled differently since CL 61130 (in particular, there's no
+    use of types.Block anymore), so these calls can be safely removed.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I8631b156594df85b8d39f57acad3ebcf099d52f9
+    Reviewed-on: https://go-review.googlesource.com/64810
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go | 10 ----------
+ 1 file changed, 10 deletions(-)

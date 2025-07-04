@@ -1,0 +1,12 @@
+commit b87d7a5cf6da24b8dbe2f43cb69f61bd4dbc93f5
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Sep 16 11:35:53 2016 -0400
+
+    cmd/link: give RelocVariant a type, document Reloc
+    
+    Change-Id: Ib20263405a08674b5e160295fc965da4c8b54b34
+    Reviewed-on: https://go-review.googlesource.com/29248
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/link.go | 39 ++++++++++++++++++++++++++-------------
+ 1 file changed, 26 insertions(+), 13 deletions(-)

@@ -1,0 +1,12 @@
+commit 2363784653c9200a0313910832aa90b7bc51b9b7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 25 11:33:07 2011 -0700
+
+    test/run: clear $E in case it's already set in environment.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4312054
+
+ test/run | 2 ++
+ 1 file changed, 2 insertions(+)

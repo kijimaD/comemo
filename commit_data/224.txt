@@ -1,0 +1,11 @@
+commit deaac9800fc24c8ae50b089ed9e929d00a53ba89
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 24 21:44:48 2008 -0700
+
+    previous change was a nit too aggressive - regular comparison should apply when comparing
+    internal symbol names
+    
+    SVN=124461
+
+ src/libmach_amd64/sym.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

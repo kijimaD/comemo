@@ -1,0 +1,39 @@
+commit 1959c3ac5bcc901115878babe74b819026de97be
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 23 13:48:56 2010 +1000
+
+    tests: fix prints
+    - delete unnecessary newlines
+    - make sure formatted prints call the formatting routines
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/2225046
+
+ src/pkg/asn1/asn1_test.go       |   2 +-
+ src/pkg/big/int_test.go         |  10 +-
+ src/pkg/big/nat_test.go         |   4 +-
+ src/pkg/bufio/bufio_test.go     |   4 +-
+ src/pkg/bytes/buffer_test.go    |  32 +++---
+ src/pkg/cmath/cmath_test.go     |  86 +++++++--------
+ src/pkg/expvar/expvar_test.go   |   2 +-
+ src/pkg/fmt/fmt_test.go         |   6 +-
+ src/pkg/gob/codec_test.go       |   4 +-
+ src/pkg/gob/encoder_test.go     |   4 +-
+ src/pkg/io/multi_test.go        |   2 +-
+ src/pkg/math/all_test.go        | 232 ++++++++++++++++++++--------------------
+ src/pkg/netchan/netchan_test.go |   4 +-
+ src/pkg/nntp/nntp_test.go       |   2 +-
+ src/pkg/path/match_test.go      |   2 +-
+ src/pkg/rand/rand_test.go       |  12 +--
+ src/pkg/strconv/atof_test.go    |  10 +-
+ src/pkg/strconv/atoi_test.go    |  16 +--
+ src/pkg/strconv/decimal_test.go |  10 +-
+ src/pkg/strconv/fp_test.go      |   2 +-
+ src/pkg/strconv/itoa_test.go    |  24 ++---
+ src/pkg/syslog/syslog_test.go   |   2 +-
+ src/pkg/time/time_test.go       |  20 ++--
+ src/pkg/unicode/digit_test.go   |   4 +-
+ src/pkg/unicode/letter_test.go  |  20 ++--
+ src/pkg/unicode/script_test.go  |   8 +-
+ 26 files changed, 262 insertions(+), 262 deletions(-)

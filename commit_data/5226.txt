@@ -1,0 +1,12 @@
+commit a267ff6a815ce9f8f92f9bcb41cc53f6ebae122a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 5 22:55:05 2010 -0700
+
+    http: fix documentation example
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/813043
+
+ src/pkg/http/server.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

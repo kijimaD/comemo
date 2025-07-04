@@ -1,0 +1,12 @@
+commit 1930cd5d38d908606112c77b3bb3c5f8524570b0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 13 10:21:08 2010 +1000
+
+    dashboard: use jQuery Autocomplete plugin from Google AJAX Libs API
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1677053
+
+ misc/dashboard/godashboard/project-edit.html | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

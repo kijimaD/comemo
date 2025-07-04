@@ -1,0 +1,12 @@
+commit 5db0a8b9ef6c050323fa398374cf56617e21358d
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Sat Mar 5 14:44:05 2011 -0500
+
+    http: fixed race condition in persist.go
+    
+    R=rsc, bradfitzgo, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4266042
+
+ src/pkg/http/persist.go | 94 ++++++++++++++++++++++++++++---------------------
+ 1 file changed, 54 insertions(+), 40 deletions(-)

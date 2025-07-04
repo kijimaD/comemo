@@ -1,0 +1,15 @@
+commit 150a64572b2a11c8d704ea143ec78a0c7166f8f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 30 20:01:59 2009 -0700
+
+    remove declarations for functions that cannot be called from c
+    (because they return values in the input parameters).
+    
+    R=iant
+    DELTA=12  (0 added, 11 deleted, 1 changed)
+    OCL=30952
+    CL=30965
+
+ src/pkg/runtime/mem.c     |  2 +-
+ src/pkg/runtime/runtime.h | 11 -----------
+ 2 files changed, 1 insertion(+), 12 deletions(-)

@@ -1,0 +1,17 @@
+commit 8166b2da192919679cd4583c4edb34becbe36e8c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 18 12:23:38 2013 -0400
+
+    runtime: record full frame size for arm _sfloat2
+    
+    With preemption, _sfloat2 can show up in stack traces.
+    Write the function prototype in a way that accurately
+    shows the frame size and the fact that it might contain
+    pointers.
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/11523043
+
+ src/pkg/runtime/softfloat_arm.c | 33 +++++++++++++++++++++++++++------
+ 1 file changed, 27 insertions(+), 6 deletions(-)

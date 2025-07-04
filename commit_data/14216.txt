@@ -1,0 +1,16 @@
+commit 335eef85c33d80c068db766b0841a12d7c1e6d79
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Oct 26 00:29:44 2012 +0200
+
+    cmd/6g: fix crash in cgen_bmul.
+    
+    Used to print:
+    ../test/torture.go:116: internal compiler error: bad width: 0463 (../test/torture.go:116) MOVB    ,BX (0, 8)
+    
+    R=nigeltao, rsc
+    CC=golang-dev
+    https://golang.org/cl/6736068
+
+ src/cmd/6g/ggen.c | 29 ++++++++++++++++------------
+ test/torture.go   | 58 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 75 insertions(+), 12 deletions(-)

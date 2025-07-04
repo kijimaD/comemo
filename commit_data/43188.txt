@@ -1,0 +1,22 @@
+commit b064eb7e1bb1b138405b9c8da1d90c476a266ef5
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Sep 24 11:26:23 2020 -0400
+
+    cmd/go: update go_windows_test to use test go binary
+    
+    Most of the cmd/go tests build the cmd/go binary and run that binary to
+    test it, but TestAbsolutePath used the GOROOT's cmd/go instead, which
+    makes debugging confusing and means that make.bash has to be run in each
+    iteration cycle. Update TestAbsolutePath to use the same go binary as
+    the rest of the cmd/go tests.
+    
+    Change-Id: Ib4e8ae707b66f1f75ceb346b98358f5604fd28c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256979
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/go_windows_test.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,19 @@
+commit 3e732411e5e0679af5375a3cbd84c41ef5cd2430
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Apr 19 16:27:57 2022 -0400
+
+    runtime/internal/syscall: use ABIInternal for Syscall6 on amd64
+    
+    This is an exact copy of CL 401096 after fixing #52472 in CL 401654.
+    
+    For #51087
+    For #52472
+    
+    Change-Id: Ib3c914949a15517aacdca2d72e69e1c7b217e430
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401656
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/internal/syscall/asm_linux_amd64.s | 44 +++++++++++++++++---------
+ 1 file changed, 29 insertions(+), 15 deletions(-)

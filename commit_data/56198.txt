@@ -1,0 +1,46 @@
+commit 2c5849dc40152cef6b7c3465ba0a1d6eb8f3c985
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Tue Apr 2 18:16:07 2024 -0400
+
+    runtime, cmd/trace: remove code paths that include v1 tracer
+    
+    This change makes the new execution tracer described in #60773, the
+    default tracer. This change attempts to make the smallest amount of
+    changes for a single CL.
+    
+    Updates #66703
+    For #60773
+    
+    Change-Id: I3742f3419c54f07d7c020ae5e1c18d29d8bcae6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576256
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/trace/annotations_test.go         |  357 ------
+ src/cmd/trace/trace_test.go               |   92 --
+ src/cmd/trace/trace_unix_test.go          |  108 --
+ src/cmd/trace/v2/testdata/mktests.go      |    2 -
+ src/internal/trace/v2/testdata/mktests.go |    2 -
+ src/internal/trace/v2/trace_test.go       |    2 +-
+ src/runtime/crash_cgo_test.go             |   39 -
+ src/runtime/crash_test.go                 |    5 -
+ src/runtime/mgcmark.go                    |   37 +-
+ src/runtime/proc.go                       |  176 +--
+ src/runtime/sizeof_test.go                |   13 +-
+ src/runtime/trace.go                      | 1936 -----------------------------
+ src/runtime/trace/annotation_test.go      |  125 --
+ src/runtime/trace/trace_stack_test.go     |  338 -----
+ src/runtime/trace/trace_test.go           |  758 +----------
+ src/runtime/trace2.go                     |    2 -
+ src/runtime/trace2buf.go                  |    2 -
+ src/runtime/trace2cpu.go                  |    2 -
+ src/runtime/trace2event.go                |    2 -
+ src/runtime/trace2map.go                  |    2 -
+ src/runtime/trace2region.go               |    2 -
+ src/runtime/trace2runtime.go              |    6 -
+ src/runtime/trace2stack.go                |    2 -
+ src/runtime/trace2status.go               |    2 -
+ src/runtime/trace2string.go               |    2 -
+ src/runtime/trace2time.go                 |    2 -
+ src/runtime/trace_cgo_test.go             |   26 +-
+ 27 files changed, 68 insertions(+), 3974 deletions(-)

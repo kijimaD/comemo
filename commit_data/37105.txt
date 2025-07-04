@@ -1,0 +1,39 @@
+commit c659be4dc862cdf14a24134f2cfc16fa81e6d84c
+Author: Eugene Kalinin <e.v.kalinin@gmail.com>
+Date:   Thu Jun 21 01:23:37 2018 +0300
+
+    net: make cgo resolver work more accurately with network parameter
+    
+    Unlike the go resolver, the existing cgo resolver exchanges both DNS A
+    and AAAA RR queries unconditionally and causes unreasonable connection
+    setup latencies to applications using the cgo resolver.
+    
+    This change adds new argument (`network`) in all functions through the
+    series of calls: from Resolver.internetAddrList to cgoLookupIPCNAME.
+    
+    Benefit: no redundant DNS calls if certain IP version is used IPv4/IPv6
+    (no `AAAA` DNS requests if used tcp4, udp4, ip4 network. And vice
+    versa: no `A` DNS requests if used tcp6, udp6, ip6 network)
+    
+    Fixes #25947
+    
+    Change-Id: I39edbd726d82d6133fdada4d06cd90d401e7e669
+    Reviewed-on: https://go-review.googlesource.com/c/120215
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/cgo_stub.go            |  2 +-
+ src/net/cgo_unix.go            | 37 +++++++++++++++++++++----------------
+ src/net/cgo_unix_test.go       |  4 ++--
+ src/net/dial_test.go           |  4 ++--
+ src/net/error_test.go          |  6 +++---
+ src/net/hook.go                |  5 +++--
+ src/net/http/transport_test.go | 10 +++++-----
+ src/net/ipsock.go              |  2 +-
+ src/net/lookup.go              | 30 ++++++++++++++++++++++++++++--
+ src/net/lookup_fake.go         |  2 +-
+ src/net/lookup_plan9.go        |  2 +-
+ src/net/lookup_test.go         | 30 ++++++++++++++++++++++++++++--
+ src/net/lookup_unix.go         |  4 ++--
+ src/net/lookup_windows.go      | 14 +++++++++++---
+ src/net/netgo_unix_test.go     |  2 +-
+ 15 files changed, 110 insertions(+), 44 deletions(-)

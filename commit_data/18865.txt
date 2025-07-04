@@ -1,0 +1,13 @@
+commit b8d40172ce2a724ecb125746f37aee989ced5ac9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Mar 14 21:11:04 2014 +0400
+
+    runtime: do not shrink stacks GOCOPYSTACK=0
+    
+    LGTM=rsc
+    R=golang-codereviews
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/76070043
+
+ src/pkg/runtime/stack.c | 2 ++
+ 1 file changed, 2 insertions(+)

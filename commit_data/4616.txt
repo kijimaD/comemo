@@ -1,0 +1,16 @@
+commit 9a6b8e21e40000d92c3a74452fee3c7e8a16453e
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Fri Jan 15 13:21:47 2010 -0800
+
+    math: special cases for Hypot
+    
+    Added special case tests to all_test.go. Added tests to hypot.go,
+    otherwise hangs.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/186118
+
+ src/pkg/math/all_test.go | 104 ++++++++++++++++++++++++++++++++++++-----------
+ src/pkg/math/hypot.go    |  15 ++++++-
+ 2 files changed, 95 insertions(+), 24 deletions(-)

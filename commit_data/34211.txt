@@ -1,0 +1,16 @@
+commit 864ac315bbdfd4ee4508d5754cc7b1be8c25ec8c
+Author: zaq1tomo <zaq1tomo@gmail.com>
+Date:   Thu Feb 15 16:12:24 2018 +0000
+
+    cmd/cgo: delete double space in comment
+    
+    delete double space from comment
+    
+    Change-Id: I71af5c1149941575016f79a91269f128b1fc16af
+    GitHub-Last-Rev: aba8874bd362d05d6c29c8647049369dfcd796f5
+    GitHub-Pull-Request: golang/go#23851
+    Reviewed-on: https://go-review.googlesource.com/94415
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/gcc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

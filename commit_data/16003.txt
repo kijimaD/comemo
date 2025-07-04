@@ -1,0 +1,12 @@
+commit c1786a9e3b99f4d243425b9db3de726a3b01a8e0
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri Mar 29 10:28:37 2013 -0700
+
+    doc: fix typo in effective_go.html
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7548045
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

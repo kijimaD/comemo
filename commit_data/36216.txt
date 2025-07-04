@@ -1,0 +1,18 @@
+commit 6d0f757bb9a9e9caa6ed0356ab43e7705c3e2015
+Author: Mario Arranz <marioarranzr@gmail.com>
+Date:   Mon Aug 6 18:50:41 2018 +0000
+
+    cmd/asm/internal/arch: add package definition
+    
+    The package arch didn't have a definition as you can see in https://tip.golang.org/pkg/cmd/asm/internal/arch/
+    
+    Change-Id: I07653b396393a75c445d04dbae5e22e90a0d5133
+    GitHub-Last-Rev: a859e9410f38073853687b933f53eb6570af3216
+    GitHub-Pull-Request: golang/go#26817
+    Reviewed-on: https://go-review.googlesource.com/127929
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/asm/internal/arch/arch.go | 1 +
+ 1 file changed, 1 insertion(+)

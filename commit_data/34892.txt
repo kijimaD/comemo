@@ -1,0 +1,22 @@
+commit 67cc1af133a2917e8f6ef4bd08b1251695fd2346
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Fri Apr 6 22:22:03 2018 +0300
+
+    cmd/internal/obj/x86: remove redundant code (fix TODO)
+    
+    Special cases described in TODO comments are
+    fixed in https://golang.org/cl/6901.
+    
+    One of those blocks was needed until old 6a assembler was removed.
+    This happened in https://golang.org/cl/12784.
+    
+    Fixes #24734 (Also contains more details and reasoning)
+    
+    Change-Id: If1f2f155d36ab236b16ae6f309a0716e00aa6371
+    Reviewed-on: https://go-review.googlesource.com/105156
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/x86/asm6.go | 35 +++--------------------------------
+ 1 file changed, 3 insertions(+), 32 deletions(-)

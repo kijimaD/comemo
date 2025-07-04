@@ -1,0 +1,17 @@
+commit a555758909530b36d5b7fc5b2897698924222d14
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 1 14:30:19 2013 -0700
+
+    cmd/ld: fix syms that are both cgo_import_static & cgo_import_dynamic
+    
+    This is needed for SWIG when linking in internal mode.  In
+    internal mode if a symbol was cgo_import_static we used to
+    forget that it was also cgo_import_dynamic.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/9080043
+
+ src/cmd/ld/go.c  |  5 +++--
+ src/cmd/ld/lib.c | 12 ++++++++++--
+ 2 files changed, 13 insertions(+), 4 deletions(-)

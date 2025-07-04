@@ -1,0 +1,19 @@
+commit 4c113ffe162236d44106a1c44ab8bfb623c1c795
+Author: Michael T. Jones <mtj@google.com>
+Date:   Sun Nov 27 11:10:59 2011 -0800
+
+    math/big: use recursive subdivision for significant speedup
+    
+    This change adds the second aspect to the conversion code, the
+    use of large divisiors (powers of big base) to greatly speed up
+    the divsion of large numbers. Speedups of 30x are common in the
+    large cases. Also includes new tests and tuning code for the
+    key internal parameters.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5438058
+
+ src/pkg/math/big/nat.go      | 223 +++++++++++++++++++++++++++++++++-------
+ src/pkg/math/big/nat_test.go | 240 +++++++++++++++++++++----------------------
+ 2 files changed, 303 insertions(+), 160 deletions(-)

@@ -1,0 +1,19 @@
+commit 9c0e56bf9de5ff8faa73860ab6bb43562722c18f
+Author: two <oohcode@gmail.com>
+Date:   Sat Sep 21 14:08:07 2019 +0000
+
+    runtime/type: change fieldalign to use mixedCaps
+    
+    All spelling in source code is "fieldAlign", except this place, so change
+    "fieldalign" to use mixedCaps.
+    
+    Change-Id: Icbd9b9d23d9b4f756174e9a3cc4b25776fd90def
+    GitHub-Last-Rev: 44a4fe140a4a473a234ceb5bd927109cbc35bb30
+    GitHub-Pull-Request: golang/go#34441
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196757
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/runtime/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

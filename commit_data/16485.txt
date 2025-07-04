@@ -1,0 +1,16 @@
+commit 2449909d816de46bc43065e6e93fe801c7770055
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Jun 4 15:18:02 2013 -0700
+
+    cmd/5c, cmd/6c, cmd/8c: isolate textflag and dataflag
+    
+    Fixes #5419.
+    
+    R=golang-dev, dave, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/9241044
+
+ src/cmd/5c/txt.c | 11 ++++++++---
+ src/cmd/6c/txt.c | 14 ++++++++++----
+ src/cmd/8c/txt.c | 14 ++++++++++----
+ 3 files changed, 28 insertions(+), 11 deletions(-)

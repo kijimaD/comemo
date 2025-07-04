@@ -1,0 +1,27 @@
+commit e0dba45c620866bb16cd0db2c51732f03a9b27f3
+Author: Dmitrii Martynov <fkr011288@gmail.com>
+Date:   Mon Apr 7 17:08:19 2025 +0300
+
+    runtime: size field for gQueue and gList
+    
+    Before CL, all instances of gQueue and gList stored the size of
+    structures in a separate variable. The size changed manually and passed
+    as a separate argument to different functions. This CL added an
+    additional field to gQueue and gList structures to store the size. Also,
+    the calculation of size was moved into the implementation of API for
+    these structures. This allows to reduce possible errors by eliminating
+    manual calculation of the size and simplifying functions' signatures.
+    
+    Change-Id: I087da2dfaec4925e4254ad40fce5ccb4c175ec41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664777
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/runtime/mgc.go      |   4 +-
+ src/runtime/mgcmark.go  |   8 +--
+ src/runtime/proc.go     | 155 ++++++++++++++++++++----------------------------
+ src/runtime/runtime2.go |  10 +---
+ 4 files changed, 72 insertions(+), 105 deletions(-)

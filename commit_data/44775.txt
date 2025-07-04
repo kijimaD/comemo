@@ -1,0 +1,30 @@
+commit 53dd0d78098a43cbca26d6807fea3d58aec64ef7
+Author: Zhang Boyang <zhangboyang.id@gmail.com>
+Date:   Mon Mar 15 15:27:51 2021 +0000
+
+    net: make go resolver aware of network parameter
+    
+    Currently, the go resolver always send two DNS queries (A and AAAA) even
+    if tcp4/udp4/ip4 or tcp6/udp6/ip6 is used. This can cause unwanted
+    latencies when making IPv4-only or IPv6-only connections.
+    
+    This change make go resolver aware of network parameter. Now, only one A
+    query is sent when tcp4/udp4/ip4 is used, and vice versa for
+    tcp6/udp6/ip6.
+    
+    Fixes #45024
+    
+    Change-Id: I815f909e6df5f7242cfc900f7dfecca628c3a2c8
+    GitHub-Last-Rev: 3d30c486dedd0d211366b1989034480a22ef2ffc
+    GitHub-Pull-Request: golang/go#45016
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301709
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/net/dnsclient_unix.go      | 18 ++++++++++++------
+ src/net/dnsclient_unix_test.go |  4 ++--
+ src/net/lookup_unix.go         |  4 ++--
+ src/net/netgo_unix_test.go     |  2 +-
+ 4 files changed, 17 insertions(+), 11 deletions(-)

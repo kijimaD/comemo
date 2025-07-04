@@ -1,0 +1,18 @@
+commit b0a1f6462f34c9907ea35813b7ffa0f600646e80
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Sep 22 02:14:28 2015 -0700
+
+    compress/gzip: detect truncated streams
+    
+    Reader fails to detect truncated streams since calls to io.ReadFull
+    do not check if the error is io.EOF.
+    
+    Change-Id: I052cd03161e43fec17e3d328106c40e17923e52b
+    Reviewed-on: https://go-review.googlesource.com/14832
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/compress/gzip/gunzip.go      | 16 ++++++++++++++++
+ src/compress/gzip/gunzip_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)

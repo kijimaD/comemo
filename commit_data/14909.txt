@@ -1,0 +1,12 @@
+commit 2ee06a51bed4db90ffa872ed9adef120112561e2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 18 19:25:45 2013 +1100
+
+    lib/godoc: link to Projects wiki page instead of dashboard
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7139057
+
+ lib/godoc/package.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

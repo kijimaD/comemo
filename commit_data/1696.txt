@@ -1,0 +1,12 @@
+commit 6950491b4f0475f488a3a47b8d7771131cd2e8e7
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 17 19:59:23 2009 -0800
+
+    drop trailing slashes - missed comment from last review
+    
+    TBR=rsc
+    OCL=25135
+    CL=25135
+
+ src/lib/http/triv.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

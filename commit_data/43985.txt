@@ -1,0 +1,25 @@
+commit d0f40d29223a2aef58475f81a559b2d27396134a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Dec 4 16:04:53 2020 +0000
+
+    runtime/metrics: add ordering line to supported metrics docs
+    
+    This change adds an additional line explaining the ordering of the
+    supported metrics list. It's also necessary to ensure "Supported
+    metrics" is displayed by godoc as a proper header.
+    
+    This modification does mean the description test, that ensures
+    descriptions line up with documentation, needs to change slightly
+    so it it doesn't read this new line as documentation. Make this
+    new line the line the test uses to decide when to begin.
+    
+    Change-Id: I654c1c20e97a80ea79c8eb864445153ce91950bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275852
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/metrics/description_test.go | 2 +-
+ src/runtime/metrics/doc.go              | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

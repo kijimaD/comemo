@@ -1,0 +1,17 @@
+commit 0ac8739ad5394c3fe0420cf53232954fefb2418f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 18 09:54:45 2019 -0500
+
+    cmd/fix: eliminate data races in TestRewrite and gofmt
+    
+    Fixes #35632
+    
+    Change-Id: I55c3d53c2a6240868ec001866047a15ec8f91809
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207603
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/fix/main.go      | 4 +---
+ src/cmd/fix/main_test.go | 1 +
+ 2 files changed, 2 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit 0dabbcdc435e4babf76bd561cfe67a486404d73a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 27 16:42:42 2016 -0400
+
+    math/big: flip long/short flag on TestFloat32Distribution
+    
+    It looks like a typo in CL 30707.
+    
+    Change-Id: Ia2d013567dbd1a49901d9be0cd2d5a103e6e38cf
+    Reviewed-on: https://go-review.googlesource.com/32187
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/math/big/rat_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

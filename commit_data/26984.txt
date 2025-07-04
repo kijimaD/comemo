@@ -1,0 +1,17 @@
+commit 3c8d6af8e02bbf230c2bef9f181d8ea393068299
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 16 11:08:41 2016 -0400
+
+    cmd/link: use -znocopyreloc when dynamic linking
+    
+    On ARM, use the gold linker to avoid copy relocations.
+    https://sourceware.org/bugzilla/show_bug.cgi?id=19962
+    
+    Change-Id: Icf82a38d39495d4518812713b957a03a6652c728
+    Reviewed-on: https://go-review.googlesource.com/22141
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

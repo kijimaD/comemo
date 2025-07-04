@@ -1,0 +1,17 @@
+commit 9d93d57465909d6c7f0f0021d42143cd70a1b4c4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 10 15:54:16 2010 -0700
+
+    test: Run garbage collector before testing malloc numbers.
+    
+    The gccgo library generates some garbage in the init routines
+    because it handles interfaces slightly differently.  Since the
+    test sets MemStats.Alloc to 0, the first time the garbage
+    collector runs it goes negative and the test fails.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/2110044
+
+ test/mallocrep.go | 1 +
+ 1 file changed, 1 insertion(+)

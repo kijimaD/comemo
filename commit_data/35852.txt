@@ -1,0 +1,14 @@
+commit 3198b90ea856f1658b4cd3c45231301310b9ab47
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 20 19:36:14 2018 +0000
+
+    time: clarify Unix, UnixNano, and In a bit
+    
+    Fixes #23316
+    
+    Change-Id: Ia1758b406d369bbfaace0bdfea02cd6f40735b65
+    Reviewed-on: https://go-review.googlesource.com/120060
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/time.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

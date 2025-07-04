@@ -1,0 +1,20 @@
+commit dd7b58317938a5258bf26f043582f2aa3405012a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 2 14:11:40 2009 -0700
+
+    move abortChan into Thread.
+    reuse Thread in function calls.
+    
+    R=austin
+    DELTA=59  (8 added, 7 deleted, 44 changed)
+    OCL=34266
+    CL=34266
+
+ usr/austin/eval/abort.go     | 38 +++++++++++++++++---------------------
+ usr/austin/eval/expr.go      | 20 ++++++++++----------
+ usr/austin/eval/expr1.go     | 10 +++++-----
+ usr/austin/eval/func.go      | 15 ++++++++++-----
+ usr/austin/eval/gen.go       |  4 ++--
+ usr/austin/eval/stmt.go      |  2 +-
+ usr/austin/eval/stmt_test.go |  2 +-
+ 7 files changed, 46 insertions(+), 45 deletions(-)

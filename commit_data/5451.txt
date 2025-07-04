@@ -1,0 +1,15 @@
+commit eb48bfbbdaf3a99dbb861f251a73a3b6ae45cc8b
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 6 11:50:47 2010 -0700
+
+    runtime.GOMAXPROCS: hack it to have it return the old value.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1140041
+
+ src/pkg/runtime/extern.go    |  6 ++++--
+ src/pkg/runtime/proc.c       | 13 ++++++++-----
+ src/pkg/runtime/runtime.h    |  1 +
+ src/pkg/runtime/runtime1.goc |  3 +++
+ 4 files changed, 16 insertions(+), 7 deletions(-)

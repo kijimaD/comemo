@@ -1,0 +1,20 @@
+commit 6bad7e82430bb1eb927a2901f44f9664637db27d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 17 13:38:07 2022 -0700
+
+    compress/gzip: always close bodyReader in Example_compressingReader
+    
+    For #53362
+    Fixes #53414
+    
+    Change-Id: I352164e70c136eed210c7ee4ceba5dc631f81f94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412955
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/compress/gzip/example_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit ad4410d40b6479493db4dff6c24a0c907d53c70a
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Mar 15 19:49:50 2016 +0100
+
+    archive/zip: add missing argument to error message
+    
+    Silence vet.
+    
+    Change-Id: I987438847389500cf3b5bc545ef918c66917b51a
+    Reviewed-on: https://go-review.googlesource.com/20683
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/zip/reader_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

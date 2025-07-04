@@ -1,0 +1,21 @@
+commit 46ecac99fb83c3e9ea0d817839c7136ef74d3d10
+Author: David Lazar <lazard@golang.org>
+Date:   Tue Apr 18 15:12:54 2017 -0400
+
+    io: correctly compute call depth in test
+    
+    TestMultiReaderFlatten determines the call depth by counting PCs
+    returned by runtime.Callers. With inlining, this is incorrect because
+    a PC can represent multiple calls. Furthermore, runtime.Callers might
+    return an additional "skip" PC, which does not represent a real call.
+    This modifies the test to use CallersFrames to determine the call depth.
+    Now the test passes with -l=4.
+    
+    Change-Id: I284f3b1e0b2d194bd08c230c616914503e5a370d
+    Reviewed-on: https://go-review.googlesource.com/40990
+    Run-TryBot: David Lazar <lazard@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/io/multi_test.go | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

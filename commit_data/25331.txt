@@ -1,0 +1,16 @@
+commit 0d641c754f73a71ffd21a9f9d58ea3fe38d727b4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 01:53:47 2015 -0500
+
+    cmd/go: allow ~ as first char of path element in general git import paths
+    
+    This makes go get gitserver/~user/repo.git/foo work.
+    
+    Fixes #9193.
+    
+    Change-Id: I8c9d4096903288f7f0e82d6ed1aa78bf038fb81a
+    Reviewed-on: https://go-review.googlesource.com/17952
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/vcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

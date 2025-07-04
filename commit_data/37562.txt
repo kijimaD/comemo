@@ -1,0 +1,19 @@
+commit cef41e0d4b121ed31173a613039c32f5dd2e07f5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 3 11:23:15 2018 -0800
+
+    misc/cgo/testcshared: don't run TestGo2C2Go on Darwin
+    
+    Darwin doesn't support the multiple copies of the runtime package
+    implied by linking a c-shared library into a Go program.
+    
+    Updates #29061
+    
+    Change-Id: I6cf5d00babf82f1de05689c1345aaa5ae0b0659c
+    Reviewed-on: https://go-review.googlesource.com/c/152159
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcshared/cshared_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

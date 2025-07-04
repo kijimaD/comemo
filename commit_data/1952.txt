@@ -1,0 +1,23 @@
+commit 07687705a4c2db718a3601d3558807833938dfbf
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 2 21:38:11 2009 -0700
+
+    type n t;
+    was copying a bit too much about t into n,
+    like whether the signature was queued to be printed.
+    (bug reported by anton)
+    
+    was also editing t, meaning you could do
+            type T int;
+            func (p int) Meth() { }
+    
+    both fixed.
+    
+    R=ken
+    OCL=27052
+    CL=27052
+
+ src/cmd/gc/dcl.c  | 14 ++++++++++++--
+ src/cmd/gc/obj.c  |  1 +
+ src/cmd/gc/subr.c |  2 +-
+ 3 files changed, 14 insertions(+), 3 deletions(-)

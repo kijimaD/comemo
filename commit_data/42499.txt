@@ -1,0 +1,12 @@
+commit 619072be4138e3fc092a9b77d57a9abc5333a4ab
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 9 09:11:11 2020 -0700
+
+    runtime: fix typo in comment (object -> objects)
+    
+    Change-Id: I2af1f9dcd1a9609681e58ab07e73e6d7a5f8a12b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237160
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/mstats.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

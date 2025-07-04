@@ -1,0 +1,20 @@
+commit f1515a01fd5d77b964194d3830d36ae006823ea3
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Sep 12 13:33:00 2016 -0400
+
+    runtime, math/big: allow R0 on s390x to contain values other than 0
+    
+    The new SSA backend for s390x can use R0 as a general purpose register.
+    This change modifies assembly code to either avoid using R0 entirely
+    or explicitly set R0 to 0.
+    
+    R0 can still be safely used as 0 in address calculations.
+    
+    Change-Id: I3efa723e9ef322a91a408bd8c31768d7858526c8
+    Reviewed-on: https://go-review.googlesource.com/28976
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/big/arith_s390x.s |  2 ++
+ src/runtime/asm_s390x.s    | 14 +++++-----
+ src/runtime/memclr_s390x.s | 70 +++++++++++++++++++++++-----------------------
+ 3 files changed, 44 insertions(+), 42 deletions(-)

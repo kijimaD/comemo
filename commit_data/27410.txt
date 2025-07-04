@@ -1,0 +1,14 @@
+commit 1b86862d0d6eeb818bc622fee5f140951bd31063
+Author: Scott Bell <scott@sctsm.com>
+Date:   Mon May 16 13:13:25 2016 -0700
+
+    doc: fix broken link to the vet command documentation
+    
+    Fixes #15188
+    
+    Change-Id: I0ab7791f7db499cef6bc52292d3d93ff4da7caff
+    Reviewed-on: https://go-review.googlesource.com/23151
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/cmd.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

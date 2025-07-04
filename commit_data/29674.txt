@@ -1,0 +1,19 @@
+commit 012ec29ad46128265e0ec2dd2ac3a620c01619c5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 30 01:44:15 2016 +0000
+
+    doc: more go1.8.html additions
+    
+    And start deleting from go1.8.txt.
+    
+    TBR=See https://golang.org/cl/33244
+    
+    Updates #17929
+    
+    Change-Id: I71011d97b23a7ba94cd51e16ae61fda18e8b96eb
+    Reviewed-on: https://go-review.googlesource.com/33680
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 130 +++++++++++++++++++--
+ doc/go1.8.txt  | 353 +--------------------------------------------------------
+ 2 files changed, 124 insertions(+), 359 deletions(-)

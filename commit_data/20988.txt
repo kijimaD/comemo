@@ -1,0 +1,18 @@
+commit df1739c77d4eb4f700722b4eb70b6036df96a9b9
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Dec 12 13:45:19 2014 -0800
+
+    runtime: if key type is reflexive, don't call equal(k, k)
+    
+    Most types are reflexive (k == k for all k of type t), so don't
+    bother calling equal(k, k) when the key type is reflexive.
+    
+    Change-Id: Ia716b4198b8b298687843b94b878dbc5e8fc2c65
+    Reviewed-on: https://go-review.googlesource.com/1480
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/reflect.c   | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/type.go    | 27 +++++++++++++++++++++++++++
+ src/runtime/hashmap.go |  6 +++---
+ src/runtime/type.go    |  1 +
+ 4 files changed, 81 insertions(+), 3 deletions(-)

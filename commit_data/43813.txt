@@ -1,0 +1,30 @@
+commit 3e56bad13b0d287cd77472763fec5e75d9846de6
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Nov 17 02:04:34 2020 +0000
+
+    cmd/go: revert "in 'go get', only load retractions for resolved versions"
+    
+    This reverts CL 269019.
+    
+    Reason for revert: The TestScript/mod_gonoproxy test is failing
+    on linux-386-longtest and linux-amd64-longtest builders.
+    
+    Change-Id: I7e132fb4fb5a9c00add28e5100a0e96a9250282c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270521
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modget/get.go                  | 149 +++++++++------------
+ src/cmd/go/internal/modload/build.go               |   8 +-
+ src/cmd/go/internal/modload/modfile.go             |  20 +--
+ ...ple.com_retract_ambiguous_nested_v1.9.0-bad.txt |  10 --
+ .../example.com_retract_ambiguous_other_v1.0.0.txt |  12 --
+ .../mod/example.com_retract_ambiguous_v1.0.0.txt   |   9 --
+ src/cmd/go/testdata/script/mod_get_retract.txt     |  19 +--
+ .../testdata/script/mod_get_retract_ambiguous.txt  |  10 --
+ .../go/testdata/script/mod_retract_rationale.txt   |  14 +-
+ src/cmd/go/testdata/script/mod_retract_rename.txt  |   2 +-
+ 10 files changed, 92 insertions(+), 161 deletions(-)

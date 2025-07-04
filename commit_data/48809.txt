@@ -1,0 +1,32 @@
+commit caa46312eeca1275ce22ecf8985ca31ef8de7883
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon May 3 11:00:54 2021 -0500
+
+    cmd/link: use TOC-relative trampolines on PPC64 when needed
+    
+    When linking a PIE binary with the internal linker, TOC relative
+    relocations need to be generated. Update trampolines to indirect
+    call using R12 to more closely match the AIX/ELFv2 regardless of
+    buildmode, and work with position-indepdent code.
+    
+    Likewise, update the check for offseting R_CALLPOWER relocs to
+    make a local call. It should be checking ldr.AttrExternal, not
+    ldr.IsExternal. This offset should not be adjusted for external
+    (non-go) object files, it is handled when ELF reloc are translated
+    into go relocs.
+    
+    And, update trampoline tests to verify these are generated correctly
+    and produce a working binary using -buildmode=pie on ppc64le.
+    
+    Fixes #52337
+    
+    Change-Id: I8a2dea06c3237bdf0e87888b56a17b6c4c99a7de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400234
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ppc64/asm.go | 51 +++++++++-----------
+ src/cmd/link/link_test.go          | 98 +++++++++++++++++++++-----------------
+ 2 files changed, 78 insertions(+), 71 deletions(-)

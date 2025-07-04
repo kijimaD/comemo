@@ -1,0 +1,12 @@
+commit 4551b00da36e0419251f718fe80cf72132fd6f7d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 22 13:05:23 2009 -0800
+
+    hgtags: delete "release" (step 1 of new release)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/180118
+
+ .hgtags | 1 -
+ 1 file changed, 1 deletion(-)

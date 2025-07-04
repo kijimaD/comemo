@@ -1,0 +1,19 @@
+commit 52393ad036e795f2da1e2692f17f76ccb00fb410
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Nov 14 15:31:32 2015 -0800
+
+    runtime: remove go:nosplit comment from reflect.typelinks
+    
+    A nosplit comment was added to reflect.typelinks accidentally in
+    https://golang.org/cl/98510044.  There is only one caller of
+    reflect.typelinks, reflect.typesByString, and that function is not
+    nosplit.  There is no reason for reflect.typelinks to be nosplit.
+    
+    Change-Id: I0fd3cc66fafcd92643e38e53fa586d6b2f868a0a
+    Reviewed-on: https://go-review.googlesource.com/16932
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/runtime1.go | 1 -
+ 1 file changed, 1 deletion(-)

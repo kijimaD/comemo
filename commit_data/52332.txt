@@ -1,0 +1,28 @@
+commit 50479b79bcd5920bcbca9698f6a382660bb53179
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Mar 17 11:40:25 2023 -0400
+
+    cmd/go: make sure linker -o for plugin doesn't include tempdir path
+    
+    There is already a case that when buildmode=shared passes only the
+    basename of the -o argument to the link command to the linker (and
+    runs in the directory of that argument) to avoid having that
+    (temporary) directory of the file be included in the LC_ID_DYLIB load
+    command. Extend the case to buildmode=plugin, because the same thing
+    can happen there.
+    
+    This can only happen on darwin: the -o command can be embedded into
+    Mach-O and PE binaries, but plugin isn't supported on Windows.
+    
+    For #58557
+    
+    Change-Id: I7a4a5627148e77c6906ac4583af3d9f053d5b249
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477296
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/work/gc.go                           |  2 +-
+ src/cmd/go/testdata/script/build_plugin_reproducible.txt | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

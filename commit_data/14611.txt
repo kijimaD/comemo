@@ -1,0 +1,20 @@
+commit 1a6f8dcbaf123bcf25f5ebebebc481326a5f806a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 11 10:17:33 2012 -0800
+
+    exp/types: filling in more blanks
+    
+    - implemented built-in complex()
+    - implemented missing expression switch checks
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6920046
+
+ src/pkg/exp/gotype/gotype_test.go       |  6 ++--
+ src/pkg/exp/types/builtins.go           | 50 ++++++++++++++++++++++++++++--
+ src/pkg/exp/types/const.go              | 16 ++++++++++
+ src/pkg/exp/types/stmt.go               | 55 ++++++++++++++++++++++++++-------
+ src/pkg/exp/types/testdata/builtins.src | 31 ++++++++++++++++---
+ src/pkg/exp/types/testdata/stmt0.src    | 26 +++++++++++++++-
+ 6 files changed, 163 insertions(+), 21 deletions(-)

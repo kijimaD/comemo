@@ -1,0 +1,10 @@
+commit ff4b01b440221cc399ee4be02b185f47b4f31119
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jun 28 12:54:24 2008 -0700
+
+    fix two (!) bugs printing floating point zero
+    
+    SVN=125260
+
+ src/lib/fmt.go | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

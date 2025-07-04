@@ -1,0 +1,15 @@
+commit 9eef49cfa6eb016e3b20df189e540c6c5a71f365
+Author: Toasa <atsushi.tohyama.160.333@gmail.com>
+Date:   Mon Jan 4 12:58:18 2021 +0000
+
+    math/rand: fix typo in comment
+    
+    Change-Id: I57fbabf272bdfd61918db155ee6f7091f18e5979
+    GitHub-Last-Rev: e138804b1ab8086b3742861873b077d6cca8108a
+    GitHub-Pull-Request: golang/go#43495
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281373
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/math/rand/gen_cooked.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

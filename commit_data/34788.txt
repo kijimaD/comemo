@@ -1,0 +1,17 @@
+commit fdf33730e1f84a5f0cd13bcbf2efbdceedab1114
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Mar 31 15:53:21 2018 -0700
+
+    cmd/compile: refactor constant node constructors
+    
+    Passes toolstash-check.
+    
+    Change-Id: I6a2d46e69d4d3a06858c80c4ea1ad3f5a58f6956
+    Reviewed-on: https://go-review.googlesource.com/103859
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/const.go |  1 +
+ src/cmd/compile/internal/gc/subr.go  | 28 ++++++++--------------------
+ 2 files changed, 9 insertions(+), 20 deletions(-)

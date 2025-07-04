@@ -1,0 +1,18 @@
+commit 64785bf96c5942e5e2a3d326b48eae4e7b189e03
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Oct 3 10:06:08 2019 +0200
+
+    cmd/go/internal/modfetch: update TestCodeRepo for gopkg.in/yaml.v2 again
+    
+    Update the expected data to fix the longtest builder.
+    
+    Updates #28856
+    
+    Change-Id: I7fb6ee72e8469d974561b4b4057f40142f5b3654
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198557
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go/internal/modfetch/coderepo_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

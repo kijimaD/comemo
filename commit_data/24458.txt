@@ -1,0 +1,19 @@
+commit 40457745e51eb327751de5be4c69c9079db69f66
+Author: Gordon Klaus <gordon.klaus@gmail.com>
+Date:   Mon Oct 5 22:12:46 2015 +0200
+
+    database/sql: fix conversions to and from user-defined types
+    
+    In particular, don't assume that one reflect.Value can be assigned to another just because they have the same reflect.Kind.
+    
+    Fixes #12401
+    
+    Change-Id: Ia4605a5c46557ff8f8f1d44f26d492850666c6d1
+    Reviewed-on: https://go-review.googlesource.com/15420
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/convert.go      |  7 ++++++-
+ src/database/sql/convert_test.go | 40 +++++++++++++++++++++++++++-------------
+ 2 files changed, 33 insertions(+), 14 deletions(-)

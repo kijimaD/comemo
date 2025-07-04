@@ -1,0 +1,20 @@
+commit 66c22cdb849d609b56e59927917ddb62ce13a65a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Nov 16 15:14:04 2023 +0100
+
+    runtime: remove unused _CTL_KERN on openbsd
+    
+    This was supposed to be removed in CL 539155 already.
+    
+    Change-Id: I22be1a72d5d8eb02514045609429e706c344d5fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542915
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/os_openbsd.go | 2 --
+ 1 file changed, 2 deletions(-)

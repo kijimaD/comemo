@@ -1,0 +1,12 @@
+commit a142ed99d525d93b91f9f3ea6ef9b7e03a1a88ae
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Mar 3 04:47:42 2012 +0800
+
+    fix build for FreeBSD/amd64
+    
+    R=rsc, golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5732043
+
+ src/cmd/ld/lib.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

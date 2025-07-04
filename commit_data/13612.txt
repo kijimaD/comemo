@@ -1,0 +1,18 @@
+commit 0f2529317f7ab02309589bd493189d6b714f2020
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 9 11:55:00 2012 -0700
+
+    exp/types: add more import tests
+    
+    Also simplified parsing of interface
+    types since they can only contain
+    methods (and no embedded interfaces)
+    in the export data.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6446084
+
+ src/pkg/exp/types/gcimporter.go      | 30 ++++++++------------------
+ src/pkg/exp/types/gcimporter_test.go | 41 +++++++++++++++++++++++++++++++++++-
+ 2 files changed, 49 insertions(+), 22 deletions(-)

@@ -1,0 +1,18 @@
+commit 0965459bd908fdbd0ffc6a6cb82d58bd0091fc0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 9 11:08:22 2013 -0400
+
+    debug/dwarf: handle surprising clang encoding
+    
+    Fixes a bug in cgo on OS X using clang.
+    See golang.org/issue/6472 for details.
+    
+    Fixes #6472.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/14575043
+
+ misc/cgo/test/issue6472.go  | 22 ++++++++++++++++++++++
+ src/pkg/debug/dwarf/type.go | 43 +++++++++++++++++++++++++++++++------------
+ 2 files changed, 53 insertions(+), 12 deletions(-)

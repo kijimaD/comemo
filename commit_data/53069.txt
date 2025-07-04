@@ -1,0 +1,21 @@
+commit 54031132c87931d7a5844a1ce05e637b03703c38
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 12 14:39:42 2023 -0700
+
+    internal/abi: update type name in comment
+    
+    method -> Method
+    
+    For #59670
+    
+    Change-Id: I78e0410f3d5094aa12b2f3ccd6735fec0d696190
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494795
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/internal/abi/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 9e4638ad20181ba4c3b1985da48c56be121901fb
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Aug 6 05:42:25 2022 +0000
+
+    net: discard unrooted 254 byte names, not rooted ones
+    
+    Fixes #54285
+    
+    Change-Id: I20d4d6b9d0532d8a344582b99d446352ae94edcf
+    GitHub-Last-Rev: ad1337450caeaab80755d2951dd01422a906eacc
+    GitHub-Pull-Request: golang/go#54293
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421674
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/net/dnsclient_unix.go      |   2 +-
+ src/net/dnsclient_unix_test.go | 128 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 129 insertions(+), 1 deletion(-)

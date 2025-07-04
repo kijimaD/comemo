@@ -1,0 +1,13 @@
+commit 8a68b8287bf0e4df70a615f7250f2ee300e961cd
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 12 10:11:18 2010 -0700
+
+    CLA: Andrei Vieru
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/890044
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

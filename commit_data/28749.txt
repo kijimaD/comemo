@@ -1,0 +1,36 @@
+commit 15817e409bce6eeaa7ea2ae158db6ce4618f27f2
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Oct 6 15:06:45 2016 -0400
+
+    cmd/compile: make link register allocatable in non-leaf functions
+    
+    We save and restore the link register in non-leaf functions because
+    it is clobbered by CALLs. It is therefore available for general
+    purpose use.
+    
+    Only enabled on s390x currently. The RC4 benchmarks in particular
+    benefit from the extra register:
+    
+    name     old speed     new speed     delta
+    RC4_128  243MB/s ± 2%  341MB/s ± 2%  +40.46%  (p=0.008 n=5+5)
+    RC4_1K   267MB/s ± 0%  359MB/s ± 1%  +34.32%  (p=0.008 n=5+5)
+    RC4_8K   271MB/s ± 0%  362MB/s ± 0%  +33.61%  (p=0.008 n=5+5)
+    
+    Change-Id: Id23bff95e771da9425353da2f32668b8e34ba09f
+    Reviewed-on: https://go-review.googlesource.com/30597
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/config.go        |   9 +
+ src/cmd/compile/internal/ssa/gen/386Ops.go    |   1 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go  |   1 +
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go  |   1 +
+ src/cmd/compile/internal/ssa/gen/ARMOps.go    |   1 +
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |   1 +
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go  |   1 +
+ src/cmd/compile/internal/ssa/gen/S390XOps.go  |   3 +-
+ src/cmd/compile/internal/ssa/gen/main.go      |   2 +
+ src/cmd/compile/internal/ssa/opGen.go         | 635 +++++++++++++-------------
+ src/cmd/compile/internal/ssa/regalloc.go      |  18 +
+ 11 files changed, 358 insertions(+), 315 deletions(-)

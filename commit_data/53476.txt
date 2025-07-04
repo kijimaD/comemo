@@ -1,0 +1,89 @@
+commit 2496653d0a5c6c26b879bb5bdd135e1f7504e051
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Tue May 9 11:47:57 2023 -0700
+
+    runtime: implement SUID/SGID protections
+    
+    On Unix platforms, the runtime previously did nothing special when a
+    program was run with either the SUID or SGID bits set. This can be
+    dangerous in certain cases, such as when dumping memory state, or
+    assuming the status of standard i/o file descriptors.
+    
+    Taking cues from glibc, this change implements a set of protections when
+    a binary is run with SUID or SGID bits set (or is SUID/SGID-like). On
+    Linux, whether to enable these protections is determined by whether the
+    AT_SECURE flag is passed in the auxiliary vector. On platforms which
+    have the issetugid syscall (the BSDs, darwin, and Solaris/Illumos), that
+    is used. On the remaining platforms (currently only AIX) we check
+    !(getuid() == geteuid() && getgid == getegid()).
+    
+    Currently when we determine a binary is "tainted" (using the glibc
+    terminology), we implement two specific protections:
+      1. we check if the file descriptors 0, 1, and 2 are open, and if they
+         are not, we open them, pointing at /dev/null (or fail).
+      2. we force GOTRACKBACK=none, and generally prevent dumping of
+         trackbacks and registers when a program panics/aborts.
+    
+    In the future we may add additional protections.
+    
+    This change requires implementing issetugid on the platforms which
+    support it, and implementing getuid, geteuid, getgid, and getegid on
+    AIX.
+    
+    Thanks to Vincent Dehors from Synacktiv for reporting this issue.
+    
+    Fixes #60272
+    Fixes CVE-2023-29403
+    
+    Change-Id: I73fc93f2b7a8933c192ce3eabbf1db359db7d5fa
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1878434
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501223
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/extern.go                 |  19 +++++
+ src/runtime/os2_aix.go                |  12 +++
+ src/runtime/os_aix.go                 |  40 ++++++++++
+ src/runtime/os_dragonfly.go           |   2 +
+ src/runtime/os_freebsd.go             |   2 +
+ src/runtime/os_linux.go               |   7 ++
+ src/runtime/os_netbsd.go              |   2 +
+ src/runtime/os_openbsd_syscall2.go    |   2 +
+ src/runtime/os_solaris.go             |   4 +
+ src/runtime/panic.go                  |   4 +
+ src/runtime/proc.go                   |   1 +
+ src/runtime/security_aix.go           |  17 ++++
+ src/runtime/security_issetugid.go     |  19 +++++
+ src/runtime/security_linux.go         |  15 ++++
+ src/runtime/security_nonunix.go       |  13 ++++
+ src/runtime/security_test.go          | 143 ++++++++++++++++++++++++++++++++++
+ src/runtime/security_unix.go          |  72 +++++++++++++++++
+ src/runtime/signal_unix.go            |   4 +
+ src/runtime/sys_darwin.go             |   7 ++
+ src/runtime/sys_darwin_amd64.s        |   4 +
+ src/runtime/sys_darwin_arm64.s        |   4 +
+ src/runtime/sys_dragonfly_amd64.s     |  10 +++
+ src/runtime/sys_freebsd_386.s         |   8 ++
+ src/runtime/sys_freebsd_amd64.s       |  11 +++
+ src/runtime/sys_freebsd_arm.s         |   8 ++
+ src/runtime/sys_freebsd_arm64.s       |   8 ++
+ src/runtime/sys_freebsd_riscv64.s     |   9 +++
+ src/runtime/sys_netbsd_386.s          |   8 ++
+ src/runtime/sys_netbsd_amd64.s        |  11 +++
+ src/runtime/sys_netbsd_arm.s          |   7 ++
+ src/runtime/sys_netbsd_arm64.s        |   7 ++
+ src/runtime/sys_openbsd2.go           |  10 +++
+ src/runtime/sys_openbsd_386.s         |   9 +++
+ src/runtime/sys_openbsd_amd64.s       |   6 ++
+ src/runtime/sys_openbsd_arm.s         |   9 +++
+ src/runtime/sys_openbsd_arm64.s       |   6 ++
+ src/runtime/sys_openbsd_mips64.s      |   7 ++
+ src/runtime/syscall2_solaris.go       |   2 +
+ src/runtime/syscall_solaris.go        |   1 +
+ src/runtime/testdata/testsuid/main.go |  25 ++++++
+ 40 files changed, 555 insertions(+)

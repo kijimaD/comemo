@@ -1,0 +1,29 @@
+commit 23093f86eebbefb0cf11298c45513da360d2b48d
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Feb 17 13:07:17 2013 +0100
+
+    strings: better mean complexity for Count and Index.
+    
+    The O(n+m) complexity is obtained probabilistically
+    by using Rabin-Karp algorithm, which provides the needed complexity
+    unless exceptional collisions occur, without memory allocation.
+    
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkIndexHard1         6532331      4045886  -38.06%
+    BenchmarkIndexHard2         8178173      4038975  -50.61%
+    BenchmarkIndexHard3         6973687      4042591  -42.03%
+    BenchmarkCountHard1         6270864      4071090  -35.08%
+    BenchmarkCountHard2         7838039      4072853  -48.04%
+    BenchmarkCountHard3         6697828      4071964  -39.20%
+    BenchmarkIndexTorture       2730546        28934  -98.94%
+    BenchmarkCountTorture       2729622        29064  -98.94%
+    
+    Fixes #4600.
+    
+    R=rsc, donovanhide, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/7314095
+
+ src/pkg/strings/strings.go      | 66 ++++++++++++++++++++++++++++++++++++-----
+ src/pkg/strings/strings_test.go | 51 +++++++++++++++++++++++++++++++
+ 2 files changed, 109 insertions(+), 8 deletions(-)

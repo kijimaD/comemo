@@ -1,0 +1,32 @@
+commit 80344887818a2321296ce7fa71cca8ca2520611d
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Mon Nov 18 13:43:58 2024 +0100
+
+    os: sysctl-based Executable implementation for NetBSD
+    
+    FreeBSD and Dragonfly have used the sysctl method for years, while
+    NetBSD has read the name of the executable from /proc. Unfortunately,
+    some folks are hitting errors when building Go software in a sandbox
+    that lacks a mounted /proc filesystem.
+    
+    Switch NetBSD to use the same implementation as FreeBSD and Dragonfly.
+    Unfortunately, the order of the arguments in the MIB is also
+    OS-dependent.
+    
+    Change-Id: I6fd774904af417ccd127e3779af45a20dc8696ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629035
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/os/executable_dragonfly.go |  2 ++
+ src/os/executable_freebsd.go   |  2 ++
+ src/os/executable_netbsd.go    | 14 ++++++++++++++
+ src/os/executable_procfs.go    |  4 +---
+ src/os/executable_sysctl.go    |  8 +++-----
+ 5 files changed, 22 insertions(+), 8 deletions(-)

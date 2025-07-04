@@ -1,0 +1,21 @@
+commit 96081f854547353caaa77b795974f76b24572493
+Author: nimelehin <nimelehin@gmail.com>
+Date:   Mon Dec 6 18:46:25 2021 +0300
+
+    cmd/compile: remove a false dependency for TZCNT
+    
+    LZCNT/TZCNT on some Intel CPUs suffer from a false dependency on
+    the destination register.
+    
+    The problem was mentioned in the GCC Ticket: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=62011#c7
+    and fixed with https://gcc.gnu.org/viewcvs?rev=214112&root=gcc&view=rev
+    
+    Change-Id: I8109e84f03ac85f221b06d3b913612b58320d151
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369019
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Alex Rakoczy <alex@golang.org>
+    Run-TryBot: Alex Rakoczy <alex@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

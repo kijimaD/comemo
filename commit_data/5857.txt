@@ -1,0 +1,13 @@
+commit 47b6400556ce7e7abd9ac4ba9adc801c2ba908b0
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Jul 21 14:14:21 2010 +0300
+
+    arm: fix build by disabling list copying optimization for 5g.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1697053
+
+ src/cmd/gc/range.c  | 4 +++-
+ test/golden-arm.out | 4 ++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)

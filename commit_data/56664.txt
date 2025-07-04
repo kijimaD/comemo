@@ -1,0 +1,24 @@
+commit 9b5d27faf93d326bb634946b720900e5c5da515c
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu May 23 13:07:31 2024 +0000
+
+    cmd/go,testdeps: move import of internal/coverage/cfile to testmain
+    
+    Instead of having testing/internal/testdeps import the
+    internal/coverage/cfile package directly, have the code in testmain
+    pass in pointers to cfile functions during setup in the case that
+    we're running a "go test -cover" binary. This reduces the size of
+    regular non-coverage test binaries back to what they were before CL
+    585820.
+    
+    Updates #67401.
+    Fixes #67588.
+    
+    Change-Id: Iaf1a613bc7d3c9df9943189065d0161ca9120d34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587795
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/load/test.go      | 10 ++++++++++
+ src/testing/internal/testdeps/deps.go | 17 +++++++++++++----
+ 2 files changed, 23 insertions(+), 4 deletions(-)

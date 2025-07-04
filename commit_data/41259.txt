@@ -1,0 +1,28 @@
+commit 6a8164a254117729104f70aecb47ecf481263c8d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Feb 7 11:15:11 2020 -0500
+
+    go/doc: clarify that NewFromFiles caller must filter by GOOS/GOARCH
+    
+    The most well known and important build constraints to take into
+    account when rendering package documentation are the GOOS/GOARCH
+    values. Make it more clear in the NewFromFiles documentation that
+    they are a part of all build constraints that the caller is
+    responsible for filtering out.
+    
+    Also suggest the "go/build".Context.MatchFile method for performing
+    file matching. The logic to perform build context file matching is
+    subtle and has many rules that aren't well known (for example,
+    taking the gc or gccgo compiler into account). It is currently the
+    only exported API in the standard library that implements this logic,
+    and it would be unfortunate if people attempt to re-create it because
+    they don't realize it is already available.
+    
+    Updates #23864
+    
+    Change-Id: I3c5901e7081acf79125b2d429ec3aa3b58416ed7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218477
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/doc/doc.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

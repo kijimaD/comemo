@@ -1,0 +1,24 @@
+commit 999e230ac17390f8e1dd917db1769c447b10585b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Apr 28 12:27:53 2018 +0900
+
+    net/http: use DialWithConn method of socks.Dialer
+    
+    This change uses the DialWithConn method of socks.Dialer to ensure that
+    the bundled SOCKS client implementation is agnostic to the behavior and
+    capabilities of transport connections.
+    
+    Also updates the bundled golang.org/x/net/internal/socks at git rev
+    7594486. (golang.org/cl/110135)
+    
+    Updates #25104.
+    
+    Change-Id: I87c2e99eeb857f182ea5d8ef569181d4f45f2e5d
+    Reviewed-on: https://go-review.googlesource.com/110136
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/socks_bundle.go | 79 ++++++++++++++++++++++++++++++++++++--------
+ src/net/http/transport.go    |  5 +--
+ 2 files changed, 66 insertions(+), 18 deletions(-)

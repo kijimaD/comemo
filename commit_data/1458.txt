@@ -1,0 +1,13 @@
+commit cbd08ed2615e9393460760b8d3f2bd352b7e95f5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 9 15:38:01 2009 -0800
+
+    test of automatic indirect
+    
+    R=r
+    DELTA=93  (93 added, 0 deleted, 0 changed)
+    OCL=22458
+    CL=22461
+
+ test/indirect.go | 97 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 97 insertions(+)

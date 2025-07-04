@@ -1,0 +1,13 @@
+commit 06f1be65a158632f78cc046124c40db09e4cf263
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 25 17:24:08 2012 -0800
+
+    A+C: add Blake Mizerany (Individual CLA)
+    
+    R=golang-dev, iant, adg
+    CC=golang-dev
+    https://golang.org/cl/5574072
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

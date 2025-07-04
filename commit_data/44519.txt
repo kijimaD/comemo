@@ -1,0 +1,21 @@
+commit b62da089091e305b6231082d8a69b27c56603b51
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 4 21:09:17 2021 -0500
+
+    cmd/go: update error expectations in TestScript/mod_install_pkg_version
+    
+    This test was missed in CL 298650, and not caught by TryBots because
+    it is skipped it short mode (and we forgot to add longtest TryBots on
+    that CL).
+    
+    Updates #44745
+    
+    Change-Id: I696d01307dabf351b0e4735db0644f4e09c8e369
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298794
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/mod_install_pkg_version.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

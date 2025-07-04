@@ -1,0 +1,14 @@
+commit 4925f8aa79db712f746cc4abbff643e90d7200b2
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Fri Apr 12 16:04:19 2013 -0700
+
+    test: make goprint.go wait longer for go its routine to execute
+    
+    Update #5281
+    
+    R=golang-dev, r, bradfitz, cshapiro
+    CC=golang-dev
+    https://golang.org/cl/8631047
+
+ test/goprint.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

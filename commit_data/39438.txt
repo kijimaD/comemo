@@ -1,0 +1,25 @@
+commit 599aa6dd6d2d3d35a596302d8c109d0c15b6e8be
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Mon Jun 17 11:07:39 2019 +0700
+
+    cmd/go: validate path in mod init path
+    
+    When mod init with given module path, validate that module path is a
+    valid import path.
+    
+    Note that module.CheckImportPath is used, because module.CheckPath
+    verifies that module path is something that "go get" can fetch, which is
+    strictly stronger condition than "a valid module path".
+    
+    Updates #28389
+    Fixes #32644
+    
+    Change-Id: Ia60f218dd7d79186f87be723c28a96d6cb63017e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182560
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/init.go          |  3 +++
+ src/cmd/go/testdata/script/mod_init_path.txt | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

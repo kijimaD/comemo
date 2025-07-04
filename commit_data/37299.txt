@@ -1,0 +1,17 @@
+commit 5d6e8f3142ae9cd118b887e02576943ce5544ed7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 2 16:38:11 2018 -0700
+
+    cmd/go: add goversion environment variable to testing script language
+    
+    Updates #28221
+    
+    Change-Id: I8a1e352cd9122bce200d45c6b19955cb50308d71
+    Reviewed-on: https://go-review.googlesource.com/c/147280
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/script_test.go         | 12 ++++++++++++
+ src/cmd/go/testdata/script/README |  1 +
+ 2 files changed, 13 insertions(+)

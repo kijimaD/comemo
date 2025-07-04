@@ -1,0 +1,16 @@
+commit 827248484004300c52162d55dfa05083862062ed
+Author: Kevin Zita <bleedgreenandgold@gmail.com>
+Date:   Fri Aug 3 18:08:09 2018 +0000
+
+    strings: revise ToUpperSpecial and ToLowerSpecial wording
+    
+    Fixes #26654
+    
+    Change-Id: I4832c45cad40607b83e1a8a9b562fa12e639b7d9
+    GitHub-Last-Rev: c9ceedb7d4b4c01f91ea4fe3dc3496e73eed9120
+    GitHub-Pull-Request: golang/go#26781
+    Reviewed-on: https://go-review.googlesource.com/127716
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strings/strings.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit e405c29ce74bf8145f88e4ce33b292474911ce71
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 11 11:54:29 2016 -0800
+
+    database/sql/driver: clarify DefaultParameterConverter docs
+    
+    Fixes #11489
+    
+    Change-Id: I887ebac2dcb772e73ee393891c487f694028aaf2
+    Reviewed-on: https://go-review.googlesource.com/18520
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/database/sql/driver/types.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

@@ -1,0 +1,29 @@
+commit ca8b31920a23541dda56bc76d3ddcaef3c3c0866
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 13 09:51:55 2022 -0400
+
+    cmd/api: make check pickier about api/*.txt
+    
+    We don't have a formatter for these files, so check here that
+    they are in the right form to allow 'cat next/*.txt >go1.X.txt'
+    at the end of each cycle.
+    
+    Fix the api files that the check finds.
+    
+    Change-Id: I0c5e4ab11751c7d0afce32503131d487313f41c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431335
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/42537.txt   |  2 +-
+ api/next/43620.txt   |  2 +-
+ api/next/45899.txt   |  2 +-
+ api/next/46746.txt   |  2 +-
+ api/next/50429.txt   |  2 +-
+ api/next/51896.txt   |  2 +-
+ api/next/53482.txt   |  4 ++--
+ src/cmd/api/goapi.go | 43 +++++++++++++++++++++++++++++++++----------
+ 8 files changed, 41 insertions(+), 18 deletions(-)

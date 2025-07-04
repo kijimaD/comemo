@@ -1,0 +1,19 @@
+commit 383963b50622d9e0a28a3deb75aba8533e5ad949
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 1 19:44:07 2014 -0700
+
+    runtime: zero at start of frame more efficiently.
+    
+    Use Duff's device for zeroing.  Combine adjacent regions.
+    
+    Update #7680
+    Update #7624
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/83200045
+
+ src/cmd/6g/ggen.c | 71 +++++++++++++++++++++++++++++++++++++++----------------
+ src/cmd/8g/ggen.c | 69 +++++++++++++++++++++++++++++++++++++----------------
+ 2 files changed, 98 insertions(+), 42 deletions(-)

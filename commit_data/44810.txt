@@ -1,0 +1,19 @@
+commit 402d784b8fc0a7914955eb168ea288338e2025ff
+Author: Aman Gupta <aman@tmm1.net>
+Date:   Fri Sep 4 16:07:12 2020 -0700
+
+    path/filepath: make Rel handle Windows UNC share
+    
+    Fixes #41230
+    
+    Change-Id: Iea15e4ae6d56328333fd22de5d78dfcad78ef1bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253197
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/path/filepath/path.go      | 4 ++++
+ src/path/filepath/path_test.go | 1 +
+ 2 files changed, 5 insertions(+)

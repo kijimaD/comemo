@@ -1,0 +1,18 @@
+commit 71588bc2bceddb95795bc5a306c835e5d8f58fdc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 16 10:20:03 2012 -0700
+
+    exp/types/staging: index and slice type checks
+    
+    Also: handle assignments to the blank identifier.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6658050
+
+ src/pkg/exp/types/staging/const.go            |  16 +++
+ src/pkg/exp/types/staging/expr.go             | 150 +++++++++++++++++++-------
+ src/pkg/exp/types/staging/stmt.go             |  12 ++-
+ src/pkg/exp/types/staging/testdata/decls1.src |   4 +-
+ src/pkg/exp/types/staging/testdata/expr3.src  |  74 ++++++++++++-
+ 5 files changed, 213 insertions(+), 43 deletions(-)

@@ -1,0 +1,15 @@
+commit ffd334493c69bb39bf12ec639f33f8718bff998b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri May 1 12:38:11 2015 +1000
+
+    cmd/cover: fix build
+    
+    Fix the various builds which don't have a real filesystem or don't support forking.
+    
+    Change-Id: I3075c662fe6191ecbe70ba359b73d9a88bb06f35
+    Reviewed-on: https://go-review.googlesource.com/9528
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/cover/cover_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

@@ -1,0 +1,12 @@
+commit 84b044e8fb882dbf29c382733cf9b62a08f6d63c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 16:14:11 2010 -0800
+
+    codereview: correct handling of files created with hg cp
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/194118
+
+ lib/codereview/codereview.py | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

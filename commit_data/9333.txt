@@ -1,0 +1,19 @@
+commit c02423902d72b44a87157d2a04640e350334e174
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 10 21:36:48 2011 -0400
+
+    build: allow builds without cgo
+    
+    R=bradfitz, dsymonds, fshahriar
+    CC=golang-dev
+    https://golang.org/cl/4859043
+
+ src/Make.inc                   | 26 +++++++++++++++++++++-----
+ src/pkg/net/Makefile           | 29 ++++++++++++++++++-----------
+ src/pkg/os/user/Makefile       |  2 +-
+ src/pkg/os/user/lookup_unix.go |  4 ++++
+ src/pkg/os/user/user.go        |  2 ++
+ src/pkg/os/user/user_test.go   |  4 ++--
+ src/pkg/runtime/cgo/Makefile   | 21 ++-------------------
+ src/run.bash                   |  6 +++---
+ 8 files changed, 53 insertions(+), 41 deletions(-)

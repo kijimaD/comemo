@@ -1,0 +1,14 @@
+commit d13b24598f3f63db601ac2e0caf3d66fc7431380
+Author: Ingo Oeser <nightlyone@googlemail.com>
+Date:   Mon Mar 12 14:41:01 2012 -0400
+
+    cmd/go: allow ssh tunnelled bzr, git and svn
+    
+    This is often used in private hosting and collaborating environments.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5753063
+
+ src/cmd/go/vcs.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit 397b687324f9d178ee06557754d4b85c6f7e44ef
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 29 15:46:07 2012 -0700
+
+    net: skip UnixShutdown test on windows
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6259052
+
+ src/pkg/net/net_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

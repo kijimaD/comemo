@@ -1,0 +1,24 @@
+commit 856fd8f50e0ccc7b43a0d4846f4c3de9f53a4e9a
+Author: Mark Ryan <mark.d.ryan@intel.com>
+Date:   Fri Jun 23 14:13:11 2017 +0100
+
+    encoding/ascii85: make bigtest big again
+    
+    ascii85_test.go contains a variable called bigtest that is used as
+    test data for TestDecoderBuffering and TestEncoderBuffering.  The
+    variable is initialised to a copy of the last element of the pairs
+    slice.  When the variable was first added the last element of this
+    slice contained a sizable test case, 342 encoded characters.  However,
+    https://golang.org/cl/5970078 added a new element to the end of the pairs
+    slice without updating bigtest.  As the new element contained only 1 byte
+    of encoded data bigtest became very small test.  This commit fixes the
+    problem by resetting bigtest to its original value and making its
+    initialisation independent of the layout of pairs.  All the unit tests
+    still pass.
+    
+    Change-Id: If7fb609ced9da93a2321dfd8372986b2fa772fd5
+    Reviewed-on: https://go-review.googlesource.com/46475
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/ascii85/ascii85_test.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

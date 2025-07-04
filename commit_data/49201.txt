@@ -1,0 +1,22 @@
+commit 80f3e3deba619fcf0ddcb547c61c9cbbd8b81968
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri May 13 19:04:59 2022 +0700
+
+    cmd/compile/internal/ir: remove NilExpr.Sym_
+    
+    Historically, the compiler used to use a name node to represent "nil".
+    Now, "nil" is represented by NilExpr, so it's not necessary to associate
+    a Sym with it anymore.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ied1ddefa06ea55ada18ca52c8fcf71defa4c23b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406174
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/ir/expr.go            | 4 ----
+ src/cmd/compile/internal/typecheck/universe.go | 4 +---
+ 2 files changed, 1 insertion(+), 7 deletions(-)

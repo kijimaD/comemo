@@ -1,0 +1,19 @@
+commit ff451e8670cff9f825706b193657c8b2129310f8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 30 14:07:50 2012 -0800
+
+    godoc: add URL mode m=methods
+    
+    If set, all methods are shown, not just those
+    of non-exported anonynous fields.
+    
+    This change will only become functional once
+    CL 5576057 is submitted.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5599048
+
+ src/cmd/godoc/doc.go   |  3 ++-
+ src/cmd/godoc/godoc.go | 13 +++++++++----
+ 2 files changed, 11 insertions(+), 5 deletions(-)

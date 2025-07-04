@@ -1,0 +1,24 @@
+commit a1ce5503c7a9518c96a231e3ff867d5c994afda2
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Dec 21 11:49:38 2021 -0500
+
+    all: update vendored golang.org/x/crypto for cryptobyte fix
+    
+    Fixes #49678
+    
+    Change-Id: I47dd959a787180a67856e60dfa6eba3ddd045972
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373360
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
+
+ src/cmd/go.mod                                    |  2 +-
+ src/cmd/go.sum                                    |  4 +-
+ src/cmd/vendor/modules.txt                        |  2 +-
+ src/crypto/x509/x509_test.go                      | 95 +++++++++++++++++++++++
+ src/go.mod                                        |  2 +-
+ src/go.sum                                        |  4 +-
+ src/vendor/golang.org/x/crypto/cryptobyte/asn1.go |  7 +-
+ src/vendor/modules.txt                            |  2 +-
+ 8 files changed, 109 insertions(+), 9 deletions(-)

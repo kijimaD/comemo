@@ -1,0 +1,15 @@
+commit a809dc7adb8065368c73900a8256048c55cde79b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 12 15:09:56 2015 -0800
+
+    math/big: don't scan past a binary exponent if not accepted syntactically
+    
+    TBR adonovan
+    
+    Change-Id: I842cbc855dbd560f65e76c9a557dff1a22c5d610
+    Reviewed-on: https://go-review.googlesource.com/4882
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/floatconv.go |  7 ++++---
+ src/math/big/ratconv.go   | 23 ++++++++++++++++++-----
+ 2 files changed, 22 insertions(+), 8 deletions(-)

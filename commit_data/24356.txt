@@ -1,0 +1,13 @@
+commit 0befa47ae8a32fcc42bca8d126f9420da27b9e4b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 23 09:52:21 2015 -0700
+
+    strconv: slightly simplified roundShortest; better comments
+    
+    Change-Id: If886f15468680f7e1c589873066b4391eb9784b5
+    Reviewed-on: https://go-review.googlesource.com/14856
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/strconv/ftoa.go      | 18 ++++++++----------
+ src/strconv/ftoa_test.go |  6 +++---
+ 2 files changed, 11 insertions(+), 13 deletions(-)

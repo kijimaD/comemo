@@ -1,0 +1,15 @@
+commit 1247354a08a377e4731e3004528ef28e83a47dec
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Thu May 26 17:41:07 2022 -0700
+
+    doc/go1.19: mention runtime/trace's CPU samples
+    
+    Change-Id: Ia8becc3e28523e9b1da4f7a274c800309add331a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408994
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+
+ doc/go1.19.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

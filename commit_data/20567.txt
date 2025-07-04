@@ -1,0 +1,13 @@
+commit 56c4d0a5c63a81de4a0d935337b226d229a44c07
+Author: Rob Pike <r@golang.org>
+Date:   Sat Sep 27 11:56:54 2014 -0700
+
+    doc/faq: update for 1.4
+    
+    LGTM=iant
+    R=golang-codereviews, bradfitz, iant
+    CC=golang-codereviews
+    https://golang.org/cl/150190043
+
+ doc/go_faq.html | 53 ++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 38 insertions(+), 15 deletions(-)

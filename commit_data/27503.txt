@@ -1,0 +1,18 @@
+commit 7b6b5e340403c32756a92294729dc52f308b841a
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Wed May 25 00:12:22 2016 +0600
+
+    doc: add notes on good commit messages
+    
+    Explain Brad's algorithm for generating commit headlines.
+    
+    Fixes #15700
+    
+    Change-Id: Ic602f17629b3dd7675e2bb1ed119062c03353ee9
+    Reviewed-on: https://go-review.googlesource.com/23355
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/contribute.html | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

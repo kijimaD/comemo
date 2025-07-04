@@ -1,0 +1,16 @@
+commit d189bdd6846f1b7569d71cdcd5eeb77931f5c570
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 11 08:58:52 2019 -0400
+
+    internal/reflectlite: skip TestMirrorWithReflect reflect package source is unavailable
+    
+    Fixes #34847
+    
+    Change-Id: Ibb58c8820cdab8b9f3755fcfba754ad0c9ca982f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200657
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+
+ src/internal/reflectlite/reflect_mirror_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

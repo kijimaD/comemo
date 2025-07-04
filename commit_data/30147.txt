@@ -1,0 +1,21 @@
+commit bd5616991b9310b95262c2dfea9a6590187c05ee
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 7 23:15:24 2017 +0000
+
+    time: bound file reads and validate LoadLocation argument
+    
+    Fixes #18985
+    
+    Change-Id: I956117f47d1d2b453b4786c7b78c1c944defeca0
+    Reviewed-on: https://go-review.googlesource.com/36551
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/export_test.go   |  2 ++
+ src/time/sys_plan9.go     |  4 ++++
+ src/time/sys_unix.go      |  4 ++++
+ src/time/sys_windows.go   |  4 ++++
+ src/time/time_test.go     | 13 +++++++++++++
+ src/time/zoneinfo.go      | 21 +++++++++++++++++++++
+ src/time/zoneinfo_read.go | 11 +++++++++++
+ src/time/zoneinfo_test.go | 24 ++++++++++++++++++++++--
+ 8 files changed, 81 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 5776c20164e5852ec13828db10277019db86180b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon May 2 04:44:46 2016 +0900
+
+    net/http: gofmt -w -s
+    
+    Change-Id: I7e07888e90c7449f119e74b97995efcd7feef76e
+    Reviewed-on: https://go-review.googlesource.com/22682
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/transport_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

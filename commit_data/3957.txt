@@ -1,0 +1,11 @@
+commit c90d392ce3d3203e0c32b3f98d1e68c4c2b4c49b
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Nov 10 15:05:15 2009 -0800
+
+    spell it with an "e"
+    
+    R=rsc
+    http://go/go-review/1025037
+
+ src/pkg/os/file.go | 1 +
+ 1 file changed, 1 insertion(+)

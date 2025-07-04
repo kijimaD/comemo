@@ -1,0 +1,23 @@
+commit a986d98053a817600509b2c0088e1cf118cf573a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 18 12:51:23 2011 -0700
+
+    mime: ParseMediaType returns os.Error now, not a nil map
+    
+    ParseMediaType previously documented that it always returned
+    a non-nil map, but also documented that it returned a nil map
+    to signal an error.
+    
+    That is confusing, contradictory and not Go-like.
+    
+    Now it returns (mediatype string, params map, os.Error).
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4867054
+
+ src/pkg/http/request.go             | 18 ++++++++++++------
+ src/pkg/mime/mediatype.go           | 32 ++++++++++++++++++--------------
+ src/pkg/mime/mediatype_test.go      | 19 +++++++++++++------
+ src/pkg/mime/multipart/multipart.go |  5 +++--
+ 4 files changed, 46 insertions(+), 28 deletions(-)

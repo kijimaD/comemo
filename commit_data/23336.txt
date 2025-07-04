@@ -1,0 +1,25 @@
+commit f5c60ff2da4851f9056120a423ce6b48624fb97e
+Author: Alexander Morozov <lk4d4math@gmail.com>
+Date:   Wed Jun 3 10:50:39 2015 -0700
+
+    syscall: add GidMappingsEnableSetgroups to Linux SysProcAttr
+    
+    Linux 3.19 made a change in the handling of setgroups and the 'gid_map' file to
+    address a security issue.
+    The upshot of the 3.19 changes is that in order to update the 'gid_maps' file,
+    use of the setgroups() system call in this user namespace must first be disabled
+    by writing "deny" to one of the /proc/PID/setgroups files for this namespace.
+    
+    Also added tests for remapping uid_map and gid_map inside new user
+    namespace.
+    
+    Fixes #10626
+    
+    Change-Id: I4d2539acbab741a37092d277e10f31fc39a8feb7
+    Reviewed-on: https://go-review.googlesource.com/10670
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_linux.go      | 35 ++++++++++++++++++
+ src/syscall/exec_linux_test.go | 84 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 119 insertions(+)

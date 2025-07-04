@@ -1,0 +1,19 @@
+commit 986ad31b2dad78d2238a426904fcf9fbf120d2c8
+Author: Ron Minnich <rminnich@gmail.com>
+Date:   Mon Nov 7 11:42:13 2011 -0500
+
+    gc: use HEADER_IO macro from gopack
+    
+    Use HEADER_IO macro from gopack to read archive header
+    The HEADER_IO macro portably reads archive headers. The
+    current arsize code fails in the case of archive headers produced
+    on plan 9 6c and read on other systems (it's not portable).
+    Modify lex.c to use the portable macro
+    Build tested (including tests) on OSX.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5323072
+
+ src/cmd/gc/lex.c | 24 ++++++++++++++++++------
+ 1 file changed, 18 insertions(+), 6 deletions(-)

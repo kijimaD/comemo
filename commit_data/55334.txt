@@ -1,0 +1,25 @@
+commit 1dddd83c494849dd71b72a4415c5238b0716dd30
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 13 12:29:32 2023 -0800
+
+    doc: document version at which new language features were introduced in spec
+    
+    Add a new section to the Appendix describing what features were
+    changed or added in which language version.
+    
+    Add short links with references to the required language version
+    where relevant.
+    
+    Fixes #63857.
+    
+    Change-Id: I5250f856d8688a71602076fcc662aa678d96a5d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549518
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ doc/go_spec.html | 216 ++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 192 insertions(+), 24 deletions(-)

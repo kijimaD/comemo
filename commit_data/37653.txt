@@ -1,0 +1,19 @@
+commit ba1de79a3a542b5bf25c4cc3be1c91d1ede47c55
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 11 16:55:16 2018 -0800
+
+    os: in RemoveAll, try Remove first
+    
+    Otherwise we can fail to remove a unreadable empty directory.
+    
+    Fixes #29178
+    
+    Change-Id: I43d5c89fce57a86626abe2a1c2bbf145716e087b
+    Reviewed-on: https://go-review.googlesource.com/c/153720
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/removeall_at.go   |  6 ++++++
+ src/os/removeall_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

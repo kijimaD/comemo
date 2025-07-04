@@ -1,0 +1,17 @@
+commit 0e6f927108dc785812b6e5ce94cea2ff4ca395cc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Sep 25 17:06:39 2012 +1000
+
+    syscall: do not use int to test network syscall results (on windows)
+    
+    Fixes #4147.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6569050
+
+ src/pkg/syscall/mksyscall_windows.pl      |   2 +-
+ src/pkg/syscall/syscall_windows.go        |  32 ++++---
+ src/pkg/syscall/zsyscall_windows_386.go   | 146 +++++++++++++++---------------
+ src/pkg/syscall/zsyscall_windows_amd64.go | 146 +++++++++++++++---------------
+ 4 files changed, 164 insertions(+), 162 deletions(-)

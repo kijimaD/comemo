@@ -1,0 +1,12 @@
+commit 88b308a265c556df1cb4fffd10f3ff5e25a25cb2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 21 18:29:18 2010 -0700
+
+    roll back 1193046 - fix build
+    
+    R=dho
+    CC=golang-dev
+    https://golang.org/cl/1257043
+
+ src/cmd/cgo/main.go | 5 -----
+ 1 file changed, 5 deletions(-)

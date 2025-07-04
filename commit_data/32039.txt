@@ -1,0 +1,20 @@
+commit ba6cd156f30ad9d5b42663cdd93e58f0b91b9811
+Author: Iccha Sethi <icchasethi@gmail.com>
+Date:   Sat Jul 15 13:28:12 2017 -0500
+
+    encoding/json: fix indentation in Decode stream example
+    
+    The existing example for Decoder.Decode (Stream) had excessive
+    indentation in the godoc interface for the const jsonStream,
+    making it hard to read. This fixes the indentation in the
+    example_test.go to improve the readability in godoc.
+    
+    Helps #21026.
+    
+    Change-Id: I16f56b82182da1dcc73cca44e535a7f5695e975d
+    Reviewed-on: https://go-review.googlesource.com/48910
+    Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/example_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

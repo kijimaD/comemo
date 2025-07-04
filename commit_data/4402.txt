@@ -1,0 +1,13 @@
+commit 31645cc0bb223b70cd96cbd82ae8534a03d04004
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Sun Dec 13 12:21:44 2009 -0800
+
+    Ported godefs to Windows.
+    
+    R=rsc
+    https://golang.org/cl/164049
+
+ lib/codereview/codereview.py |   2 +
+ src/cmd/godefs/a.h           |   1 +
+ src/cmd/godefs/main.c        | 146 +++++++++++++++++++++++--------------------
+ 3 files changed, 82 insertions(+), 67 deletions(-)

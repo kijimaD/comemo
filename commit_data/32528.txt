@@ -1,0 +1,12 @@
+commit ac9be2020b3d57c4b23e83432d732c1d0b308316
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:45:56 2017 +1000
+
+    cmd/link: introduce and use peFile.writeFileHeader
+    
+    Change-Id: I1324b69ab9edb870589197fa601b5764634d42a4
+    Reviewed-on: https://go-review.googlesource.com/59427
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 82 +++++++++++++++++++++++-------------------
+ 1 file changed, 45 insertions(+), 37 deletions(-)

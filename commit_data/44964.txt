@@ -1,0 +1,17 @@
+commit 84162b88324aa7993fe4a8580a2b65c6a7055f88
+Author: cui <cuiweixie@gmail.com>
+Date:   Tue Apr 6 03:26:35 2021 +0000
+
+    cmd/compile/internal/typecheck: call tcConv directly
+    
+    Change-Id: I9f71acfa93c47cff620b006918872ecd90bbebe9
+    GitHub-Last-Rev: 2fed2e23054d75f7a743f9c5a6e5574a545e3080
+    GitHub-Pull-Request: golang/go#45366
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307109
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/cmd/compile/internal/typecheck/func.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

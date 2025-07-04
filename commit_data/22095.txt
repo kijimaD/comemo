@@ -1,0 +1,18 @@
+commit 55b4516fd65b0e471556330a0d89af6b7e59ae93
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 17 13:56:29 2015 -0700
+
+    cmd/internal/gc: clean up walk conv* and assert*
+    
+    This is preliminary cleanup for another change.
+    
+    No functional changes. Passes toolstash -cmp.
+    
+    Change-Id: I11d562fbd6cba5c48d9636f3149e210e5f5308ad
+    Reviewed-on: https://go-review.googlesource.com/7696
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/internal/gc/subr.go | 13 ++++++++
+ src/cmd/internal/gc/walk.go | 80 +++++++++++++--------------------------------
+ 2 files changed, 36 insertions(+), 57 deletions(-)

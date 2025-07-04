@@ -1,0 +1,18 @@
+commit 69f0d4c6bebc775cfbc50e9562b5533ba86b90c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 13:03:11 2015 -0400
+
+    cmd/link: detect -X setting non-string variable
+    
+    Fixes #9621.
+    
+    Change-Id: Ib9c6001378364af899f57fd4b89fb23af2042923
+    Reviewed-on: https://go-review.googlesource.com/11694
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 14 ++++++++++++++
+ src/cmd/link/internal/ld/pobj.go |  1 +
+ test/linkx.go                    |  3 +++
+ test/linkx_run.go                | 18 ++++++++++++++++++
+ 4 files changed, 36 insertions(+)

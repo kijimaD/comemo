@@ -1,0 +1,42 @@
+commit 4228eb791523d4641b5c1c2434b347f596f6760e
+Author: John Graham-Cumming <jgc@jgc.org>
+Date:   Tue Nov 27 10:21:43 2012 -0500
+
+    log/syslog: correct message format
+    
+    The syslog implementation was not correctly implementing the
+    traditional syslog format because it had a confused notion of
+    'priority'.  syslog priority is not a single number but is, in
+    fact, the combination of a facility number and a severity. The
+    previous Go syslog implementation had a single Priority that
+    appeared to be the syslog severity and no way of setting the
+    facility.  That meant that all syslog messages from Go
+    programs appeared to have a facility of 0 (LOG_KERN) which
+    meant they all appeared to come from the kernel.
+    
+    Also, the 'prefix' was in fact the syslog tag (changed the
+    internal name for clarity as the term tag is more widely used)
+    and the timestamp and hostname values were missing from
+    messages.
+    
+    With this change syslog messages are generated in the correct
+    format with facility and severity combined into a priority,
+    the timestamp in RFC3339 format, the hostname, the tag (with
+    the PID in [] appened) and the message.
+    
+    The format is now:
+    
+       <PRI>1 TIMESTAMP HOSTNAME TAG[PID]: MSG
+    
+    The TIMESTAMP, HOSTNAME and PID fields are filled in
+    automatically by the package. The TAG and the MSG are supplied
+    by the user. This is what rsyslogd calls TraditionalFormat and
+    should be compatible with multiple systems.
+    
+    R=rsc, jgc, 0xjnml, mikioh.mikioh, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6782118
+
+ src/pkg/log/syslog/syslog.go      | 155 ++++++++++++++++++++++++++------------
+ src/pkg/log/syslog/syslog_test.go |  77 +++++++++++++------
+ 2 files changed, 158 insertions(+), 74 deletions(-)

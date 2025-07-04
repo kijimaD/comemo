@@ -1,0 +1,35 @@
+commit a526ec1569984fd452acb09c8c48c9d972a442d3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Jun 15 21:49:50 2022 +0100
+
+    go/printer: avoid copying bytes when counting node sizes
+    
+    When making the recursive call to fprint,
+    we just need to know how many bytes were written
+    and whether multiple lines were written.
+    
+    We don't need a buffer to accomplish those;
+    a custom writer can keep track of the two in a cheap way,
+    avoiding the allocation of a byte slice and copying bytes.
+    
+            name      old time/op    new time/op    delta
+            Print-16    6.28ms ± 2%    6.12ms ± 1%  -2.50%  (p=0.000 n=10+9)
+    
+            name      old speed      new speed      delta
+            Print-16  8.26MB/s ± 3%  8.47MB/s ± 1%  +2.56%  (p=0.000 n=10+9)
+    
+            name      old alloc/op   new alloc/op   delta
+            Print-16     483kB ± 0%     443kB ± 0%  -8.20%  (p=0.000 n=10+10)
+    
+            name      old allocs/op  new allocs/op  delta
+            Print-16     17.8k ± 0%     17.3k ± 0%  -2.31%  (p=0.000 n=9+10)
+    
+    Change-Id: Ib8411ae6738a2acae6af6d185da71727ce2eb97a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412555
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+
+ src/go/printer/nodes.go | 36 +++++++++++++++++++++++++-----------
+ 1 file changed, 25 insertions(+), 11 deletions(-)

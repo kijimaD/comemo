@@ -1,0 +1,16 @@
+commit bdafe73ce4f4910efd71eb5fdd7a5fc4614a9afe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 27 20:38:52 2013 -0700
+
+    test: recognize gccgo error message in index.go
+    
+    When a floating point constant is used as an array/slice
+    index, gccgo prints "error: index must be integer"; gc prints
+    "constant 2.1 truncated to integer".
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/14044044
+
+ test/index.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

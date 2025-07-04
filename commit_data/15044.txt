@@ -1,0 +1,12 @@
+commit e7ef3b6dafd1bd8d460029880d559a403d46d20c
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Jan 30 15:06:35 2013 -0800
+
+    cmd/gc: support GNU Bison 2.7 in bisonerrors
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/7235064
+
+ src/cmd/gc/bisonerrors | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

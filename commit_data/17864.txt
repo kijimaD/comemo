@@ -1,0 +1,15 @@
+commit 692a14787f4a539142f1f7fefa5e610e4e3dc8b5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 4 12:35:11 2013 -0500
+
+    net/textproto: fix CanonicalMIMEHeaderKey panic
+    
+    Fixes #6712
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/21450043
+
+ src/pkg/net/textproto/reader.go      | 9 +++------
+ src/pkg/net/textproto/reader_test.go | 4 ++++
+ 2 files changed, 7 insertions(+), 6 deletions(-)

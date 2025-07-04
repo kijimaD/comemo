@@ -1,0 +1,12 @@
+commit 848e2feac68be7b97e36d0064c28be7a850b033d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Mar 3 12:59:23 2015 +1100
+
+    image: make Rectangle implement Image.
+    
+    Change-Id: I01e328fc3644b679bacf2209c3d7ade9d8bffe53
+    Reviewed-on: https://go-review.googlesource.com/6551
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/geom.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

@@ -1,0 +1,20 @@
+commit e299381cd1b4b7efecf7642ebfcd5e76ffa65e6d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 8 15:23:14 2022 -0400
+
+    cmd/go: fix TestScript/build_trimpath_goroot when built with a mismatched GOROOT_FINAL
+    
+    Fixes #52236.
+    Updates #51461.
+    
+    Change-Id: Ie91e0256afd45e9bbd60fd8cdc696363027ab696
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399156
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/go_test.go                              |  4 +++
+ src/cmd/go/script_test.go                          |  4 ++-
+ src/cmd/go/testdata/script/README                  |  2 ++
+ .../go/testdata/script/build_trimpath_goroot.txt   | 38 +++++++++++++++++++---
+ 4 files changed, 42 insertions(+), 6 deletions(-)

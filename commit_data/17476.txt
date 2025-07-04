@@ -1,0 +1,24 @@
+commit fd7ddad160bfcfd861db00e5d4df01ceaf0a66e9
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Fri Sep 6 16:15:44 2013 +1000
+
+    cmd/dist: Plan 9 build needs an additional include path
+    cmd/cc: bv.c imports libc.h twice
+    
+    When using the Plan 9 compiler, the invocation
+    
+            #include <../ld/textflag.h>
+    
+    works for the toolchain, but not for the MACH library.
+    
+    Module cmd/cc/bv.c includes libc.h and "cc.h", which in
+    turn also includes libc.h.  In the Plan 9 context, this
+    causes a number of duplicate definitions.
+    
+    R=golang-dev, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/13303047
+
+ src/cmd/cc/bv.c      | 1 -
+ src/cmd/dist/build.c | 2 ++
+ 2 files changed, 2 insertions(+), 1 deletion(-)

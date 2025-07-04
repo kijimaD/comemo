@@ -1,0 +1,20 @@
+commit 2ceeb7b090464a8da421f72e19267869b86b0901
+Author: Remi Gillig <remigillig@gmail.com>
+Date:   Sat Feb 11 17:34:48 2017 +0000
+
+    path/filepath: fix TestWinSplitListTestsAreValid on some systems
+    
+    The environment variables used in those tests override the default
+    OS ones. However, one of them (SystemRoot) seems to be required on
+    some Windows systems for invoking cmd.exe properly.
+    
+    This fixes #4930 and #6568.
+    
+    Change-Id: I23dfb67c1de86020711a3b59513f6adcbba12561
+    Reviewed-on: https://go-review.googlesource.com/36873
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/path/filepath/path_windows_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

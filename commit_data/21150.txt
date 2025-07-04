@@ -1,0 +1,14 @@
+commit a1c9e103719289b4f291fcb631ad324a0e331aed
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Jan 5 00:20:45 2015 -0500
+
+    reflect: document that Values can't be compared directly
+    
+    Fixes #9504.
+    
+    Change-Id: I148f407ace3d1b4db3f19fbb8561d1ee6c4c13b3
+    Reviewed-on: https://go-review.googlesource.com/2273
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/reflect/value.go | 4 ++++
+ 1 file changed, 4 insertions(+)

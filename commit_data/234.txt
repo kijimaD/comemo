@@ -1,0 +1,12 @@
+commit 9ff0e6288ea3ab4bb91b530e41840c1e234a274c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 25 21:31:17 2008 -0700
+
+    runtime needs runtime.c
+    6l needs to know that there is no rt_amd64.6
+    
+    SVN=124766
+
+ src/cmd/6l/obj.c     | 4 ----
+ src/runtime/Makefile | 1 +
+ 2 files changed, 1 insertion(+), 4 deletions(-)

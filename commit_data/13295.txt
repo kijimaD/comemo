@@ -1,0 +1,12 @@
+commit 3476c2312492947e1c300921c5d4f1bce0e07ef5
+Author: Markus Sonderegger <marraison@gmail.com>
+Date:   Wed Jun 6 16:05:47 2012 -0400
+
+    crypto/rand: enable rand.Reader on plan9
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6297044
+
+ src/pkg/crypto/rand/rand_unix.go | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)

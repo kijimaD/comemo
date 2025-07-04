@@ -1,0 +1,13 @@
+commit 97b13acb6704d5ae2b641d7d8343424ce9156931
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 7 08:15:47 2012 +1100
+
+    doc: update links
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5754051
+
+ doc/codewalk/markov.xml |  2 +-
+ doc/go_faq.html         | 14 ++++++--------
+ 2 files changed, 7 insertions(+), 9 deletions(-)

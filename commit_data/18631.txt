@@ -1,0 +1,19 @@
+commit 49beb23ba73eab22c470e68cac87d51a0d12d97b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 24 15:20:45 2014 -0800
+
+    net/http: use TCP Keep-Alives on DefaultTransport's connections
+    
+    Update #3362
+    
+    Also set a 30 second timeout, instead of relying on the
+    operating system's timeout, which if often but not always 3
+    minutes.
+    
+    LGTM=crawshaw
+    R=rsc, crawshaw
+    CC=golang-codereviews
+    https://golang.org/cl/68330046
+
+ src/pkg/net/http/transport.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

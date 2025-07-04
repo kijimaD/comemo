@@ -1,0 +1,17 @@
+commit 75aab1374196f454c9fa579863eaadbae2ac17c3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 25 17:23:21 2013 -0400
+
+    codereview: force hg update after hg pull -u during hg sync
+    
+    If you hg update your client to an earlier CL, then
+    hg sync will move you back to tip if it pulls anything in,
+    but it will leave you where you are if it doesn't pull anything in.
+    That's confusing: make hg sync always update to tip.
+    
+    R=golang-dev, bradfitz, r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/10456044
+
+ lib/codereview/codereview.py | 33 ++++++++++++++++++++++++++++++++-
+ 1 file changed, 32 insertions(+), 1 deletion(-)

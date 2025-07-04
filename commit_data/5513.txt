@@ -1,0 +1,19 @@
+commit 13d5a19a987092eb06f9657f9a8b1781d8ee22d6
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Fri May 21 17:30:40 2010 -0700
+
+    net: implement raw sockets
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/684041
+
+ src/pkg/net/Makefile      |   1 +
+ src/pkg/net/ipraw_test.go | 117 ++++++++++++++++
+ src/pkg/net/iprawsock.go  | 351 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/ipsock.go     |   4 +-
+ src/pkg/net/net.go        |  38 ++++-
+ src/pkg/net/parse.go      |  10 ++
+ src/pkg/net/tcpsock.go    |   4 +-
+ src/pkg/net/udpsock.go    |   4 +-
+ 8 files changed, 519 insertions(+), 10 deletions(-)

@@ -1,0 +1,34 @@
+commit 5ed90cbbb0f6d47d824b3baadb7d22c4528b7dd3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 13 10:28:57 2015 -0700
+
+    cmd/internal/gc, cmd/gc: move Reg from Val to Node
+    
+    Val is used to hold constant values.
+    Reg was the odd duck out.
+    
+    Generated using eg.
+    
+    No functional changes. Passes toolstash -cmp.
+    
+    Change-Id: Ic1de769a1f92bb02e09a4428d998b716f307e2f6
+    Reviewed-on: https://go-review.googlesource.com/8912
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/5g/cgen.go            |  6 +++---
+ src/cmd/5g/cgen64.go          | 24 ++++++++++++------------
+ src/cmd/5g/ggen.go            | 10 +++++-----
+ src/cmd/5g/gsubr.go           |  8 ++++----
+ src/cmd/6g/cgen.go            |  4 ++--
+ src/cmd/6g/ggen.go            |  6 +++---
+ src/cmd/6g/gsubr.go           |  2 +-
+ src/cmd/7g/ggen.go            |  2 +-
+ src/cmd/8g/gsubr.go           | 10 +++++-----
+ src/cmd/9g/ggen.go            |  2 +-
+ src/cmd/9g/gsubr.go           |  2 +-
+ src/cmd/internal/gc/cgen.go   | 16 ++++++++--------
+ src/cmd/internal/gc/fmt.go    |  4 ++--
+ src/cmd/internal/gc/go.go     |  1 -
+ src/cmd/internal/gc/gsubr.go  | 18 +++++++++---------
+ src/cmd/internal/gc/syntax.go |  5 ++++-
+ 16 files changed, 61 insertions(+), 59 deletions(-)

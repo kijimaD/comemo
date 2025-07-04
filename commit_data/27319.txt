@@ -1,0 +1,18 @@
+commit 670a5cda2048af8d83958af0f4b2fda8f7b4ea72
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 6 15:28:19 2016 +0000
+
+    Revert "testing/quick: generate more map and slice states"
+    
+    This reverts commit 0ccabe2e0b42a2602e0f37ce28d5368aa811f530.
+    
+    Change-Id: Ib1c230fb6801c0ee26f4a352b0c1130fa240a76a
+    Reviewed-on: https://go-review.googlesource.com/22860
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/quick/quick.go      | 47 ++++++++++++++++-------------------------
+ src/testing/quick/quick_test.go | 17 +++++++++++++++
+ 2 files changed, 35 insertions(+), 29 deletions(-)

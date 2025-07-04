@@ -1,0 +1,25 @@
+commit c5f0f881ad3066e92621339484f1183c86bd9a37
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Nov 12 14:12:48 2015 +0100
+
+    runtime/race: update race runtime
+    
+    The new revision is 389d49d4943780efbfcd2a434f4462b6d0f23c44 (Nov 13, 2015).
+    The runtimes are built using the new x/build/cmd/racebuild utility.
+    This update fixes a bug in race detection algorithm that can
+    lead to occasional false negatives (#10589). But generally just
+    brings in an up-to-date runtime.
+    
+    Update #8653
+    Fixes #10589
+    
+    Change-Id: I7ac9614d014ee89c2302ce5e096d326ef293f367
+    Reviewed-on: https://go-review.googlesource.com/16827
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/race/README                  |  11 +++--------
+ src/runtime/race/race_darwin_amd64.syso  | Bin 314000 -> 300192 bytes
+ src/runtime/race/race_freebsd_amd64.syso | Bin 316816 -> 368688 bytes
+ src/runtime/race/race_linux_amd64.syso   | Bin 330232 -> 352664 bytes
+ src/runtime/race/race_windows_amd64.syso | Bin 331489 -> 349411 bytes
+ 5 files changed, 3 insertions(+), 8 deletions(-)

@@ -1,0 +1,19 @@
+commit 1f39beb01a5ca6a9015d6a30af5a968a247f8d10
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 21 13:46:54 2015 -0400
+
+    runtime: avoid divide-by-zero in GC trigger controller
+    
+    The trigger controller computes GC CPU utilization by dividing by the
+    wall-clock time that's passed since concurrent mark began. Since this
+    delta is nanoseconds it's borderline impossible for it to be zero, but
+    if it is zero we'll currently divide by zero. Be robust to this
+    possibility by ignoring the utilization in the error term if no time
+    has elapsed.
+    
+    Change-Id: I93dfc9e84735682af3e637f6538d1e7602634f09
+    Reviewed-on: https://go-review.googlesource.com/9175
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

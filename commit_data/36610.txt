@@ -1,0 +1,79 @@
+commit 031a35ec8471a97fba4f3ab0ff9c0e9eaa54ae1e
+Author: Ben Shi <powerman1st@163.com>
+Date:   Thu Sep 6 01:13:14 2018 +0000
+
+    cmd/compile: optimize 386's comparison
+    
+    Optimization of "(CMPconst [0] (ANDL x y)) -> (TESTL x y)" only
+    get benefits if there is no further use of the result of x&y. A
+    condition of uses==1 will have slight improvements.
+    
+    1. The code size of pkg/linux_386 decreases about 300 bytes, excluding
+    cmd/compile/.
+    
+    2. The go1 benchmark shows no regression, and even a slight improvement
+    in test case FmtFprintfEmpty-4, excluding noise.
+    
+    name                     old time/op    new time/op    delta
+    BinaryTree17-4              3.34s ± 3%     3.32s ± 2%    ~     (p=0.197 n=30+30)
+    Fannkuch11-4                3.48s ± 2%     3.47s ± 1%  -0.33%  (p=0.015 n=30+30)
+    FmtFprintfEmpty-4          46.3ns ± 4%    44.8ns ± 4%  -3.33%  (p=0.000 n=30+30)
+    FmtFprintfString-4         78.8ns ± 7%    77.3ns ± 5%    ~     (p=0.098 n=30+26)
+    FmtFprintfInt-4            90.2ns ± 1%    90.0ns ± 7%  -0.23%  (p=0.027 n=18+30)
+    FmtFprintfIntInt-4          144ns ± 4%     143ns ± 5%    ~     (p=0.945 n=30+29)
+    FmtFprintfPrefixedInt-4     180ns ± 4%     180ns ± 5%    ~     (p=0.858 n=30+30)
+    FmtFprintfFloat-4           409ns ± 4%     406ns ± 3%  -0.87%  (p=0.028 n=30+30)
+    FmtManyArgs-4               611ns ± 5%     608ns ± 4%    ~     (p=0.812 n=30+30)
+    GobDecode-4                7.30ms ± 5%    7.26ms ± 5%    ~     (p=0.522 n=30+29)
+    GobEncode-4                6.90ms ± 7%    6.82ms ± 4%    ~     (p=0.086 n=29+28)
+    Gzip-4                      396ms ± 4%     400ms ± 4%  +0.99%  (p=0.026 n=30+30)
+    Gunzip-4                   41.1ms ± 3%    41.2ms ± 3%    ~     (p=0.495 n=30+30)
+    HTTPClientServer-4         63.7µs ± 3%    63.3µs ± 2%    ~     (p=0.113 n=29+29)
+    JSONEncode-4               16.1ms ± 2%    16.1ms ± 2%  -0.30%  (p=0.041 n=30+30)
+    JSONDecode-4               60.9ms ± 3%    61.2ms ± 6%    ~     (p=0.187 n=30+30)
+    Mandelbrot200-4            5.17ms ± 2%    5.19ms ± 3%    ~     (p=0.676 n=30+30)
+    GoParse-4                  3.28ms ± 3%    3.25ms ± 2%  -0.97%  (p=0.002 n=30+30)
+    RegexpMatchEasy0_32-4       103ns ± 4%     104ns ± 4%    ~     (p=0.352 n=30+30)
+    RegexpMatchEasy0_1K-4       849ns ± 2%     845ns ± 2%    ~     (p=0.381 n=30+30)
+    RegexpMatchEasy1_32-4       113ns ± 4%     113ns ± 4%    ~     (p=0.795 n=30+30)
+    RegexpMatchEasy1_1K-4      1.03µs ± 3%    1.03µs ± 4%    ~     (p=0.275 n=25+30)
+    RegexpMatchMedium_32-4      132ns ± 3%     132ns ± 3%    ~     (p=0.970 n=30+30)
+    RegexpMatchMedium_1K-4     41.4µs ± 3%    41.4µs ± 3%    ~     (p=0.212 n=30+30)
+    RegexpMatchHard_32-4       2.22µs ± 4%    2.22µs ± 4%    ~     (p=0.399 n=30+30)
+    RegexpMatchHard_1K-4       67.2µs ± 3%    67.6µs ± 4%    ~     (p=0.359 n=30+30)
+    Revcomp-4                   1.84s ± 2%     1.83s ± 2%    ~     (p=0.532 n=30+30)
+    Template-4                 69.1ms ± 4%    68.8ms ± 3%    ~     (p=0.146 n=30+30)
+    TimeParse-4                 441ns ± 3%     442ns ± 3%    ~     (p=0.154 n=30+30)
+    TimeFormat-4                413ns ± 3%     414ns ± 3%    ~     (p=0.275 n=30+30)
+    [Geo mean]                 66.2µs         66.0µs       -0.28%
+    
+    name                     old speed      new speed      delta
+    GobDecode-4               105MB/s ± 5%   106MB/s ± 5%    ~     (p=0.514 n=30+29)
+    GobEncode-4               111MB/s ± 5%   113MB/s ± 4%  +1.37%  (p=0.046 n=28+28)
+    Gzip-4                   49.1MB/s ± 4%  48.6MB/s ± 4%  -0.98%  (p=0.028 n=30+30)
+    Gunzip-4                  472MB/s ± 4%   472MB/s ± 3%    ~     (p=0.496 n=30+30)
+    JSONEncode-4              120MB/s ± 2%   121MB/s ± 2%  +0.29%  (p=0.042 n=30+30)
+    JSONDecode-4             31.9MB/s ± 3%  31.7MB/s ± 6%    ~     (p=0.186 n=30+30)
+    GoParse-4                17.6MB/s ± 3%  17.8MB/s ± 2%  +0.98%  (p=0.002 n=30+30)
+    RegexpMatchEasy0_32-4     309MB/s ± 4%   307MB/s ± 4%    ~     (p=0.501 n=30+30)
+    RegexpMatchEasy0_1K-4    1.21GB/s ± 2%  1.21GB/s ± 2%    ~     (p=0.301 n=30+30)
+    RegexpMatchEasy1_32-4     283MB/s ± 4%   282MB/s ± 3%    ~     (p=0.877 n=30+30)
+    RegexpMatchEasy1_1K-4    1.00GB/s ± 3%  0.99GB/s ± 4%    ~     (p=0.276 n=25+30)
+    RegexpMatchMedium_32-4   7.54MB/s ± 3%  7.55MB/s ± 3%    ~     (p=0.528 n=30+30)
+    RegexpMatchMedium_1K-4   24.7MB/s ± 3%  24.7MB/s ± 3%    ~     (p=0.203 n=30+30)
+    RegexpMatchHard_32-4     14.4MB/s ± 4%  14.4MB/s ± 4%    ~     (p=0.407 n=30+30)
+    RegexpMatchHard_1K-4     15.3MB/s ± 3%  15.1MB/s ± 4%    ~     (p=0.306 n=30+30)
+    Revcomp-4                 138MB/s ± 2%   139MB/s ± 2%    ~     (p=0.520 n=30+30)
+    Template-4               28.1MB/s ± 4%  28.2MB/s ± 3%    ~     (p=0.149 n=30+30)
+    [Geo mean]               81.5MB/s       81.5MB/s       +0.06%
+    
+    Change-Id: I7f75425f79eec93cdd8fdd94db13ad4f61b6a2f5
+    Reviewed-on: https://go-review.googlesource.com/133657
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/386.rules |  8 +--
+ src/cmd/compile/internal/ssa/rewrite386.go | 96 ++++++++++++++++++------------
+ test/codegen/comparisons.go                |  1 +
+ 3 files changed, 62 insertions(+), 43 deletions(-)

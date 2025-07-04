@@ -1,0 +1,23 @@
+commit d40b0a1494cc3b717207ce822d01d0f180627a3f
+Author: Steven Hartland <steven.hartland@multiplay.co.uk>
+Date:   Fri May 8 12:09:00 2020 +0000
+
+    cmd/link: fix mode parameter to fallocate on Linux
+    
+    Fix the mode parameter to fallocate on Linux which is the operation mode
+    and not the file mode as with os.OpenFile.
+    
+    Also handle syscall.EINTR.
+    
+    Fixes #38950
+    
+    Change-Id: Ieed20d9ab5c8a49be51c9f9a42b7263f394a5261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232805
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/link/internal/ld/outbuf_linux.go | 2 +-
+ src/cmd/link/internal/ld/outbuf_mmap.go  | 8 ++++++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)

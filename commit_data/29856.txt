@@ -1,0 +1,16 @@
+commit 860c9c0b8df6c0a2849fdd274a0a9f142cba3ea5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 19 19:46:54 2016 -0800
+
+    misc/cgo/testcshared: wait up to 1 second in main2.c
+    
+    Wait longer in case the system is heavily loaded.
+    
+    Fixes #18324.
+    
+    Change-Id: If9a6da1cf32d0321302d244ee24fb3f80e54489d
+    Reviewed-on: https://go-review.googlesource.com/34653
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testcshared/main2.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

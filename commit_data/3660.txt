@@ -1,0 +1,19 @@
+commit f529224039b3222c3b2c3904f197328fa223197a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 26 22:49:08 2009 -0700
+
+    Get the right sigaction struct for the 386 rt_sigaction system
+    call.  This uses the header files from a 32-bit Ubuntu Hardy
+    system.
+    
+    The use of _LOOSE_KERNEL_NAMES seems right.  The
+    -D__ARCH_SI_UID_T works around a bug which appears to be fixed
+    in later Linux versions.
+    
+    R=rsc
+    http://go/go-review/1013015
+
+ src/pkg/runtime/linux/386/defs.h   |  9 ++++-----
+ src/pkg/runtime/linux/386/signal.c |  4 ++--
+ src/pkg/runtime/linux/defs2.c      | 16 ++++++++++++++--
+ 3 files changed, 20 insertions(+), 9 deletions(-)

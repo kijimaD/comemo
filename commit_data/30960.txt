@@ -1,0 +1,29 @@
+commit 3d90378df5bb97ecadf4a4436fbbf2ca6746a99f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 31 11:10:01 2017 -0700
+
+    cmd/compile: add newnamel, use in tempAt
+    
+    newnamel is newname but with no dependency on lineno or Curfn.
+    This makes it suitable for use in a concurrent back end.
+    Use it now to make tempAt global-free.
+    
+    The decision to push the assignment to n.Name.Curfn
+    to the caller of newnamel is based on mdempsky's
+    comments in #19683 that he'd like to do that
+    for callers of newname as well.
+    
+    Passes toolstash-check. No compiler performance impact.
+    
+    Updates #19683
+    Updates #15756
+    
+    Change-Id: Idc461a1716916d268c9ff323129830d9a6e4a4d9
+    Reviewed-on: https://go-review.googlesource.com/39191
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/gen.go  | 28 +++++++++++++---------------
+ src/cmd/compile/internal/gc/subr.go | 13 ++++++++++---
+ 2 files changed, 23 insertions(+), 18 deletions(-)

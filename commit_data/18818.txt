@@ -1,0 +1,21 @@
+commit cf57cf17e785e0e1c36c522067490b9a806e9cb1
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Mar 10 22:22:51 2014 -0400
+
+    net/http: eliminate defined-but-not-used var.
+    
+    gc does not report this as an error, but go/types does.
+    (I suspect that constructing a closure counts as a reference
+    to &all in gc's implementation).
+    
+    This is not a tool bug, since the spec doesn't require
+    implementations to implement this check, but it does
+    illustrate that dialect variations are always a nuisance.
+    
+    LGTM=rsc, bradfitz
+    R=bradfitz
+    CC=golang-codereviews, gri, rsc
+    https://golang.org/cl/73850043
+
+ src/pkg/net/http/client_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

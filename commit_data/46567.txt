@@ -1,0 +1,22 @@
+commit 335e72bcb6a5f670e2b3c65170c4287ca7265934
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Sep 23 11:46:28 2021 +0100
+
+    cmd/go: fix indentation of -workfile help text
+    
+    While reading the help text for #48576,
+    I noticed that the output was misaligned.
+    
+    Turns out it's because two lines have space indentation,
+    while the rest use tab indentation. Fix that.
+    
+    Change-Id: Ie7c473d892ca13852fa2134f3cdef21e9210e02e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351750
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go             | 4 ++--
+ src/cmd/go/internal/work/build.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

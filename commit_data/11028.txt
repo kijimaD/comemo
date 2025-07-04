@@ -1,0 +1,15 @@
+commit 2469a817ba63ad812e6be21aefc796d84172777d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 5 15:18:08 2012 +1100
+
+    net: update DialIP comments to mention protocols
+    
+    Fixes #2637.
+    
+    R=golang-dev, mikioh.mikioh, iant
+    CC=golang-dev
+    https://golang.org/cl/5508043
+
+ src/pkg/net/iprawsock_plan9.go | 4 ++--
+ src/pkg/net/iprawsock_posix.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

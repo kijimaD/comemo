@@ -1,0 +1,12 @@
+commit e0e5c150b0253a28d5638dc43239f5e5bd8b0e76
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 9 15:52:42 2010 -0700
+
+    exp/eval test: fix build
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1599043
+
+ src/pkg/exp/eval/expr_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

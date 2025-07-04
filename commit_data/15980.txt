@@ -1,0 +1,14 @@
+commit ab962c8da2f970cfb62450bf63d6c9e48eaab201
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 27 16:55:16 2013 -0700
+
+    vet: add a progress message to asmdecl.go
+    Analogous to the one for .go files, it's for .s only and is protected
+    by the verbose flag.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8030046
+
+ src/cmd/vet/asmdecl.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,12 @@
+commit c8a2be8c38f252fd448d6cb957341b1590d93c7e
+Author: Michał Derkacz <ziutek@lnet.pl>
+Date:   Wed Nov 9 16:00:24 2011 -0500
+
+    6l: Fixes opcode for PSLLQ imm8, xmm_reg
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5340056
+
+ src/cmd/6l/optab.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

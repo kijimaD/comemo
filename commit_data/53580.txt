@@ -1,0 +1,17 @@
+commit 9ece9a7ac9befbb8ee8f2241063a2389b730cdaf
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Jun 16 12:20:41 2023 -0500
+
+    cmd/cgo/internal/testshared: disable gccgo tests on PPC64
+    
+    Disable PPC64 gccgo tests until issue #60798 is fixed in gcc.
+    
+    Change-Id: I4d330e3d0ab6d4174ee6d8ff2cbedf53c8c4e3d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504095
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/cgo/internal/testshared/shared_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

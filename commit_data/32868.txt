@@ -1,0 +1,20 @@
+commit 71d08324ed0f842228ee8aa966736a157b4a2422
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 26 10:50:57 2017 -0700
+
+    time: unify three readFile implementations into one
+    
+    Undoes this part of https://golang.org/cl/5447061 by using the
+    OS-specific open and close functions, and adding a read function.
+    
+    Change-Id: If37ef43eb5df8554fc03f3922bbc2f785129bb9c
+    Reviewed-on: https://go-review.googlesource.com/66271
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <joetsai@google.com>
+
+ src/time/sys_plan9.go     | 34 ++++------------------------------
+ src/time/sys_unix.go      | 34 ++++------------------------------
+ src/time/sys_windows.go   | 34 ++++------------------------------
+ src/time/zoneinfo_read.go | 30 ++++++++++++++++++++++++++++++
+ 4 files changed, 42 insertions(+), 90 deletions(-)

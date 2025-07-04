@@ -1,0 +1,17 @@
+commit 206568566473e9a91c05b8b0153d27ecbee466b7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 30 19:37:16 2017 +0000
+
+    runtime: use monotonic time on NetBSD
+    
+    Fixes #6007
+    
+    Change-Id: I239a1699122e086e907ac1f18b1c86a650e1438a
+    Reviewed-on: https://go-review.googlesource.com/81135
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/sys_netbsd_386.s   | 2 +-
+ src/runtime/sys_netbsd_amd64.s | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

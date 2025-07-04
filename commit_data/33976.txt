@@ -1,0 +1,14 @@
+commit 8c916a2f6d8b26f878d80108aaab2b22007f46bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 9 12:42:28 2018 -0800
+
+    spec: use consistent quoting style in prose
+    
+    Fixes #23389.
+    
+    Change-Id: Id6e86eebe44809db12a0e14014c474bf4fbf5108
+    Reviewed-on: https://go-review.googlesource.com/87035
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

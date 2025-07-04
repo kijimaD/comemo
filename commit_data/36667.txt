@@ -1,0 +1,22 @@
+commit 58c6afe075d74261dd67750e0aab5a1b8460839f
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Sep 12 13:58:18 2018 -0400
+
+    doc/go1.11, cmd/go: elaborate on new GOFLAGS environment variable
+    
+    In Go 1.11, cmd/go gained support for the GOFLAGS environment variable.
+    It was added and described in detail in CL 126656.
+    Mention it in the Go 1.11 release notes, link to the cmd/go documentation,
+    and add more details there.
+    
+    Fixes #27282.
+    
+    Change-Id: Ifc35bfe3e0886a145478d36dde8e80aedd8ec68e
+    Reviewed-on: https://go-review.googlesource.com/135035
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.11.html                     | 14 ++++++++++++++
+ src/cmd/go/alldocs.go               |  6 ++++++
+ src/cmd/go/internal/help/helpdoc.go |  6 ++++++
+ 3 files changed, 26 insertions(+)

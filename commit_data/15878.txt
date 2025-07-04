@@ -1,0 +1,14 @@
+commit 5bbdf40544008b78391cf2e6cfc37abe9a361b5d
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 21 14:56:42 2013 -0700
+
+    bufio.Scanner: delete obsolete TODO
+    Also fix the examples to use stderr for errors.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7716052
+
+ src/pkg/bufio/example_test.go | 4 ++--
+ src/pkg/bufio/scan.go         | 2 --
+ 2 files changed, 2 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit 7cddd39f966c4e3a755a8447c618965479431405
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 16 11:43:39 2017 -0500
+
+    cmd/go: drop flaky part of TestGoTestJSON
+    
+    Still failing on builders. I give up.
+    (For example https://build.golang.org/log/4fa5ba031c2fab5df397ac894f8b81392a93728e.)
+    
+    Change-Id: Ifa87813e27e1adfe9920c7e657b0ff129eb5bf2f
+    Reviewed-on: https://go-review.googlesource.com/78315
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go | 46 ++++++++--------------------------------------
+ 1 file changed, 8 insertions(+), 38 deletions(-)

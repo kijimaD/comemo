@@ -1,0 +1,15 @@
+commit e9025df7ad41d93c1c8943323db06bb49c8a16fe
+Author: Rob Pike <r@golang.org>
+Date:   Sat Nov 26 08:32:55 2011 -0800
+
+    text/template: rename the method Template.Template to Template.Lookup
+    Calling it Template makes it clumsy to embed the type, which html/template
+    depends on.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5432079
+
+ src/pkg/text/template/exec_test.go | 2 +-
+ src/pkg/text/template/template.go  | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

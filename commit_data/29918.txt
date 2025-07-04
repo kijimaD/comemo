@@ -1,0 +1,21 @@
+commit 116da1c64a2db0387f38f8d062378b62bf0f377e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jan 6 12:25:32 2017 -0800
+
+    net: disable RFC 6724 Rule 9 for IPv4 addresses
+    
+    Rule 9 arguably doesn't make sense for IPv4 addresses, and so far it
+    has only caused problems (#13283, #18518). Disable it until we hear
+    from users that actually want/need it.
+    
+    Fixes #18518.
+    
+    Change-Id: I7b0dd75d03819cab8e0cd4c29f0c1dc8d2e9c179
+    Reviewed-on: https://go-review.googlesource.com/34914
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/addrselect.go      | 51 +++-------------------------
+ src/net/addrselect_test.go | 85 ----------------------------------------------
+ 2 files changed, 5 insertions(+), 131 deletions(-)

@@ -1,0 +1,17 @@
+commit 14ff7cc94c4e167dbd80c96996b43f96bb9c17fb
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 8 08:33:19 2016 -0400
+
+    runtime/cgo: fix callback on big-endian MIPS64
+    
+    Use MOVW, instead of MOVV, to pass an int32 arg. Also no need to
+    restore arg registers.
+    
+    Fix big-endian MIPS64 build.
+    
+    Change-Id: Ib43c71075c988153e5e5c5c6e7297b3fee28652a
+    Reviewed-on: https://go-review.googlesource.com/28830
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/cgo/asm_mips64x.s | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

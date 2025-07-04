@@ -1,0 +1,19 @@
+commit ad7aa8302011f08c2cac5291697704b352c2b735
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Mar 30 11:18:56 2013 -0700
+
+    net/http: fix incredibly racy TestTransportReading100Continue
+    
+    Whoops. I'm surprised it even worked before. (Need two pipes,
+    not one.)
+    
+    Also, remove the whole pipe registration business, since it
+    wasn't even required in the previous version. (I'd later fixed
+    it at the end of send100Response, but forgot to delete it)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8191044
+
+ src/pkg/net/http/transport_test.go | 27 +++++----------------------
+ 1 file changed, 5 insertions(+), 22 deletions(-)

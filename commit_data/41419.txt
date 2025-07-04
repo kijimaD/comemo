@@ -1,0 +1,16 @@
+commit 17f7c12eb9ee0df304eb7a48b3f29ec165a384be
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 24 14:52:19 2020 -0800
+
+    cmd/compile: delete stray file
+    
+    This found its way in accidentally.
+    
+    Change-Id: I830f1e3ec4852a213901a679ad20094a6958cb07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220680
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/ssa/rewrite_rule_idea.txt | 17 -----------------
+ 1 file changed, 17 deletions(-)

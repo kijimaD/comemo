@@ -1,0 +1,23 @@
+commit e5a6a94aeb98fbfd2a046bd75042cbcbc2a529d4
+Author: Paul D. Weber <x0bdev@gmail.com>
+Date:   Tue May 26 07:00:30 2020 +0000
+
+    cmd/link/internal/ld/lib.go: use lld on Android
+    
+    Set linker explicitly to lld because the default does not work on NDK
+    versions r19c, r20, r20b and r21. NDK 18b (or earlier) based builds
+    will need to specify -fuse-ld=gold.
+    
+    Fixes #38838
+    
+    Change-Id: Ib75f71fb9896b843910f41bd12aa1e36868fa9b3
+    GitHub-Last-Rev: eeaa171604b59d8ad3d86944ebf21ee758e92f95
+    GitHub-Pull-Request: golang/go#39217
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235017
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 5 +++++
+ 1 file changed, 5 insertions(+)

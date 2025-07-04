@@ -1,0 +1,12 @@
+commit ccd9d9d4cef16618d84bae9cba9f1b264278c8ab
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Feb 5 16:08:35 2019 -0500
+
+    crypto/x509: improve CertificateRequest docs
+    
+    Change-Id: If3bab2dd5278ebc621235164e9d6ff710ba326ee
+    Reviewed-on: https://go-review.googlesource.com/c/160898
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/x509.go | 38 +++++++++++++++++++++-----------------
+ 1 file changed, 21 insertions(+), 17 deletions(-)

@@ -1,0 +1,16 @@
+commit d0402cb416b1e39bd6efba102c2c0c4cf0244bf6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 25 15:19:32 2014 -0700
+
+    net/http/httputil: don't leak goroutines in DumpRequestOut
+    
+    Fixes #7869
+    
+    LGTM=dsymonds
+    R=golang-codereviews
+    CC=adg, dsymonds, golang-codereviews, rsc
+    https://golang.org/cl/91770048
+
+ src/pkg/net/http/httputil/dump.go      | 1 +
+ src/pkg/net/http/httputil/dump_test.go | 5 +++++
+ 2 files changed, 6 insertions(+)

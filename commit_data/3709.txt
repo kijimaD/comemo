@@ -1,0 +1,31 @@
+commit 4d310f2434e61c99816bca57db10b18efa2d63d7
+Author: Rob Pike <r@golang.org>
+Date:   Sun Nov 1 20:59:49 2009 -0800
+
+    reverse the arguments to io.Copy so the destination is on the
+    left, like an assignment, like strcpy, etc.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1016011
+
+ src/cmd/godoc/main.go                |  2 +-
+ src/pkg/archive/tar/reader.go        |  4 ++--
+ src/pkg/archive/tar/writer.go        |  2 +-
+ src/pkg/compress/gzip/gunzip_test.go |  2 +-
+ src/pkg/compress/zlib/reader_test.go |  2 +-
+ src/pkg/crypto/block/cbc_aes_test.go |  4 ++--
+ src/pkg/crypto/block/cfb_aes_test.go |  4 ++--
+ src/pkg/crypto/block/ctr_aes_test.go |  4 ++--
+ src/pkg/crypto/block/eax_aes_test.go |  4 ++--
+ src/pkg/crypto/block/ecb_aes_test.go |  4 ++--
+ src/pkg/crypto/block/ecb_test.go     | 12 ++++++------
+ src/pkg/crypto/block/ofb_aes_test.go |  4 ++--
+ src/pkg/crypto/block/xor_test.go     |  8 ++++----
+ src/pkg/go/parser/interface.go       |  2 +-
+ src/pkg/http/fs.go                   |  2 +-
+ src/pkg/http/triv.go                 |  6 +++---
+ src/pkg/io/io.go                     |  4 ++--
+ src/pkg/io/utils.go                  |  2 +-
+ src/pkg/os/os_test.go                |  4 ++--
+ 19 files changed, 38 insertions(+), 38 deletions(-)

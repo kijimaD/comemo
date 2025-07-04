@@ -1,0 +1,21 @@
+commit 295d160e017edce29b3dccfa7bb7a9e5d9434b26
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 17 09:33:33 2016 -0400
+
+    runtime: make _TinySizeClass an int8 to prevent use as spanClass
+    
+    Currently _TinySizeClass is untyped, which means it can accidentally
+    be used as a spanClass (not that I would know this from experience or
+    anything). Make it an int8 to avoid this mix up.
+    
+    This is a cherry-pick of dev.garbage commit 81b74bf9c5.
+    
+    Change-Id: I1e69eccee436ea5aa45e9a9828a013e369e03f1a
+    Reviewed-on: https://go-review.googlesource.com/41254
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/malloc.go | 2 +-
+ src/runtime/mheap.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

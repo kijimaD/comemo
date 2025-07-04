@@ -1,0 +1,22 @@
+commit 2a1ba6ebb12994f4df15236f03eb63116b4a0c4d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed May 3 18:19:30 2023 +1000
+
+    cmd/internal/obj/arm64: simplify buildop
+    
+    This code stems from the original 7l C code, where one way to determine
+    the end of a table is to put a sentinel entry, then scan for it. This is
+    now Go code and the length of an array is readily available.
+    
+    Remove the sentinel and sentinel scan, then adjust the remaining code to
+    work accordingly.
+    
+    Change-Id: I8964c787f5149f3548fa78bf8923aa7a93f9482e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512536
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+
+ src/cmd/internal/obj/arm64/asm7.go | 34 +++++++++++++++-------------------
+ 1 file changed, 15 insertions(+), 19 deletions(-)

@@ -1,0 +1,19 @@
+commit ad97d204f02c1f9ad0433e9178d6ce0f3fdb1f9f
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Sep 9 18:41:30 2021 -0400
+
+    go/types: remove some unnecessary loading/expansion of Named types
+    
+    For Identical an u.nify, only type arguments and pointer identity is
+    needed.
+    
+    Change-Id: Id4018d2a53044fa20fd26d28890f28b37b6d6d70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349409
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/predicates.go | 3 ---
+ src/go/types/unify.go      | 3 ---
+ 2 files changed, 6 deletions(-)

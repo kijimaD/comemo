@@ -1,0 +1,13 @@
+commit afac01df48189013e62f5d2285b8e3b6d38e3f44
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 6 10:37:13 2012 -0700
+
+    spec: ignore BOMS outside of string and rune literals.
+    Happy Birthday UTF-8.
+    
+    R=golang-dev, rsc, 0xjnml
+    CC=golang-dev
+    https://golang.org/cl/6506083
+
+ doc/go_spec.html | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

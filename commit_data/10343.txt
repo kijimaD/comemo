@@ -1,0 +1,12 @@
+commit 791aef1821638824cd135a0d6828bd873c06be6b
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Nov 12 05:19:09 2011 +1100
+
+    syscall: fix zerrors for openbsd 386
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/5369076
+
+ src/pkg/syscall/zerrors_openbsd_386.go | 303 +++++++++++++++++----------------
+ 1 file changed, 153 insertions(+), 150 deletions(-)

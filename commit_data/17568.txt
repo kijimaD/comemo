@@ -1,0 +1,12 @@
+commit c0ac667531afaab0658461ea21b0d39b39aec227
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 12 10:12:26 2013 +1000
+
+    doc/go1.2.html: status of gccgo's support for 1.2
+    
+    R=iant, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/13669043
+
+ doc/go1.2.html | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)

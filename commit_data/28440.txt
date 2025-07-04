@@ -1,0 +1,22 @@
+commit fc5df089da6c02397897f11a875a593353dc0590
+Author: Trey Lawrence <lawrence.trey@gmail.com>
+Date:   Tue Aug 23 16:43:43 2016 -0400
+
+    cmd/compile: fix compiler bug for constant equality comparison
+    
+    The compiler incorrectly will error when comparing a nil pointer
+    interface to a nil pointer of any other type. Example:
+    (*int)(nil) == interface{}(nil)
+    Will error with "gc: illegal constant expression: *int == interface {}"
+    
+    Fixes #16702
+    
+    Change-Id: I1a15d651df2cfca6762b1783a28b377b2e6ff8c6
+    Reviewed-on: https://go-review.googlesource.com/27591
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go |  3 +++
+ test/const.go                        | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+)

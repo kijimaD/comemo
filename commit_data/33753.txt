@@ -1,0 +1,25 @@
+commit 7e394a23e585485d5a1e09765829c06c104a2758
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 30 23:08:22 2017 +0000
+
+    net/http: update bundled http2
+    
+    Updates http2 to x/net git rev 894f8ed58 for:
+    
+        http2: fix flake in net/http's TestCloseIdleConnections_h2
+        https://golang.org/cl/80139
+    
+        http2: fix leak in activeRes by removing activeRes
+        https://golang.org/cl/80137
+    
+    Fixes #22413
+    Fixes #21543
+    
+    Change-Id: Ic8ea20f8ddae2fde17884ed045f9fa7058a4bd23
+    Reviewed-on: https://go-review.googlesource.com/81276
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/h2_bundle.go | 42 +++++++++++++++++++-----------------------
+ 1 file changed, 19 insertions(+), 23 deletions(-)

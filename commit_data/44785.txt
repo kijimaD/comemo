@@ -1,0 +1,26 @@
+commit 4357f71ca7ecd3869e2e0805ee4d6cd275a71a7c
+Author: David Chase <drchase@google.com>
+Date:   Tue Mar 23 15:51:29 2021 -0400
+
+    cmd/compile: remove more dead code and data structures
+    
+    Remove more now-redundant code, methods, and types
+    associated with transition to register ABI.
+    Repaired some broken comments.
+    
+    Tested on link-register architectures (arm64, ppc64le)
+    
+    Updates #40724.
+    
+    Change-Id: Ie8433f6d38ec4a1d9705f22dcb596f267d81f203
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304189
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/abi/abiutils.go     | 15 ++----------
+ src/cmd/compile/internal/ssa/op.go           | 19 +--------------
+ src/cmd/compile/internal/ssa/writebarrier.go |  4 ----
+ src/cmd/compile/internal/ssagen/ssa.go       | 36 +---------------------------
+ 4 files changed, 4 insertions(+), 70 deletions(-)

@@ -1,0 +1,14 @@
+commit 83d540244337214922802776eaf5ea4b6f597be5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Dec 26 20:25:31 2011 +1100
+
+    misc/windows: add src/pkg/runtime/z* files to installation script
+    
+    Fixes #2614.
+    
+    R=golang-dev, jdpoirier
+    CC=golang-dev
+    https://golang.org/cl/5505070
+
+ misc/windows/package.bash | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

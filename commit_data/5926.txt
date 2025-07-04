@@ -1,0 +1,13 @@
+commit 6d37724c1565d5a7c977313d7988f873a88c85ad
+Author: Bill Neubauer <wcn@golang.org>
+Date:   Fri Jul 30 12:27:03 2010 -0700
+
+    websocket: fix bug involving spaces in header keys
+    
+    R=rsc, ukai
+    CC=golang-dev
+    https://golang.org/cl/1669056
+
+ src/pkg/websocket/client.go         | 17 +++++++++--------
+ src/pkg/websocket/websocket_test.go | 15 +++++++++++++++
+ 2 files changed, 24 insertions(+), 8 deletions(-)

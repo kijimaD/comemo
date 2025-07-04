@@ -1,0 +1,24 @@
+commit 24d22352d308dc4f2283ed83f4794c5b4da661ee
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jan 16 17:05:02 2025 -0500
+
+    cmd/go: add 'work' package pattern
+    
+    The 'work' package pattern will resolve to the set of packages in the
+    work (formerly called main) modules. It's essentially 'all', but without
+    the dependencies. And the implementation is similar to that of 'all',
+    except that we don't expand to the dependencies.
+    
+    Fixes #71294
+    
+    Change-Id: I3d02beb74fa4e5c6de2290e24eedc51745d13080
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643235
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/load/search.go               | 13 ++++
+ src/cmd/go/internal/modload/load.go              |  7 +++
+ src/cmd/go/internal/search/search.go             |  4 +-
+ src/cmd/go/testdata/script/build_perpkgflag.txt  | 35 +++++++++++
+ src/cmd/go/testdata/script/list_pattern_work.txt | 79 ++++++++++++++++++++++++
+ 5 files changed, 136 insertions(+), 2 deletions(-)

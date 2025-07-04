@@ -1,0 +1,18 @@
+commit 4b154e55baced13a792ebd6a3796b31f49938a71
+Author: wangjianwen <wjw1758548031@163.com>
+Date:   Tue Apr 11 02:44:55 2023 +0000
+
+    cmd/dist: check for errors from filepath.Glob
+    
+    Change-Id: Ib5bcd3d1e9618d65b4d4b0895d0e40dbd76646c6
+    GitHub-Last-Rev: 174084ca6c67ff99a4b3628d213b2de198f74dd0
+    GitHub-Pull-Request: golang/go#59516
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483435
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/build.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

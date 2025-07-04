@@ -1,0 +1,20 @@
+commit 7d6b304f123b6d11784b48179059f843493c4790
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 3 16:26:37 2020 -0400
+
+    cmd/link: support plugin on macOS/ARM64
+    
+    Updates #38485.
+    
+    Change-Id: I8295f7fad55b1f9701162f9d2902b3499137c64d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259441
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/dist/test.go               |  2 +-
+ src/cmd/internal/sys/supported.go  |  2 +-
+ src/cmd/link/internal/arm64/asm.go | 20 ++++++++++--
+ src/cmd/link/internal/ld/config.go |  8 ++++-
+ src/cmd/link/internal/ld/lib.go    |  4 ++-
+ src/cmd/link/internal/ld/macho.go  | 62 ++++++++++++++++++++------------------
+ 6 files changed, 62 insertions(+), 36 deletions(-)

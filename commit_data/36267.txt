@@ -1,0 +1,18 @@
+commit dea36a6f751783c3c511e2eb0e1de3696daec1f7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 16 09:54:11 2018 -0700
+
+    cmd/go: disable TestAccidentalGitCheckout for now
+    
+    It seems it might not have ever worked.
+    
+    Updates #22983
+    
+    Change-Id: Icc022539aa2555486a65900abf97dfa30f92a1ea
+    Reviewed-on: https://go-review.googlesource.com/129615
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/cmd/go/go_test.go | 1 +
+ 1 file changed, 1 insertion(+)

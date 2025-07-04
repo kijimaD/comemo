@@ -1,0 +1,19 @@
+commit 0e31b4ed2646b2330aad33b959a527c1bbfe6b11
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 3 20:53:40 2015 -0500
+
+    debug/dwarf: factor finding unit containing entry offset
+    
+    This factors out the code for finding which unit contains an offset in
+    the "info" section.  The new code also replaces linear search with a
+    binary search.  The line table reader will also need this
+    functionality.
+    
+    Change-Id: I2076e4fc6719b6f06fd2796cbbc7548ec1876cb3
+    Reviewed-on: https://go-review.googlesource.com/6733
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/dwarf/entry.go | 17 ++++++-----------
+ src/debug/dwarf/unit.go  | 22 +++++++++++++++++++++-
+ 2 files changed, 27 insertions(+), 12 deletions(-)

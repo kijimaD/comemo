@@ -1,0 +1,21 @@
+commit a2647f08f0c4e540540a7ae1b9ba7e668e6fed80
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Wed May 17 18:10:58 2023 +0300
+
+    compile/internal/walk: add walkGrowslice
+    
+    Move growslice generation to a separate func so that specialization
+    logic can be shared.
+    
+    Updates #49480
+    
+    Change-Id: I9ea5bb898753622d2d767546a46b4db6410dc725
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495877
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/walk/assign.go  | 13 +++----------
+ src/cmd/compile/internal/walk/builtin.go | 16 ++++++++++------
+ 2 files changed, 13 insertions(+), 16 deletions(-)

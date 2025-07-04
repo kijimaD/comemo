@@ -1,0 +1,15 @@
+commit 64cc5be4adbf3a4ee27c4ad61f12f94af4932b38
+Author: Fumitoshi Ukai <ukai@google.com>
+Date:   Wed Oct 20 22:36:06 2010 -0400
+
+    web socket: fix short Read
+    
+    Fixes #1145.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2302042
+
+ src/pkg/websocket/websocket.go      | 65 ++++++++++++++++++++------------
+ src/pkg/websocket/websocket_test.go | 75 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 116 insertions(+), 24 deletions(-)

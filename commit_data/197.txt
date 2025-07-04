@@ -1,0 +1,11 @@
+commit 74aa77fbd477ae68b487a9962d847b822e1738ee
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 18 14:17:24 2008 -0700
+
+    add new test bug055
+    
+    SVN=123431
+
+ test/bugs/bug055.go | 21 +++++++++++++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 25 insertions(+)

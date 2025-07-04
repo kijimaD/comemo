@@ -1,0 +1,19 @@
+commit 1cf6d4748c9b4b7be38d6cdf0a1e419b33c306ac
+Author: Wei Xiao <wei.xiao@arm.com>
+Date:   Thu Apr 13 14:06:43 2017 +0800
+
+    cmd/dist: fix incorrect platform string shared by all tests
+    
+    all tests currently share the same platform string and fail to
+    vet expected platforms
+    
+    Fixes #19958
+    
+    Change-Id: I2801e1e84958e31975769581e27ea5ca6a0edf5b
+    Reviewed-on: https://go-review.googlesource.com/40511
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

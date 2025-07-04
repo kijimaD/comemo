@@ -1,0 +1,12 @@
+commit d00a646e707e0014800ff2fd115f36b5cc9eb635
+Author: Alexei Sholik <alcosholik@gmail.com>
+Date:   Wed Apr 17 11:46:30 2013 -0700
+
+    go/token: fix grammar for precedence consts
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8662045
+
+ src/pkg/go/token/token.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

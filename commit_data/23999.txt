@@ -1,0 +1,14 @@
+commit 0cd2999c3b7a853f48af1146db427365a09f8b38
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Aug 7 13:40:04 2015 +1000
+
+    cmd/go: replace code.google.com examples in docs with relevant repos
+    
+    Change-Id: I625c9df161da2febdca85741c75fc32d4bef420b
+    Reviewed-on: https://go-review.googlesource.com/13344
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/alldocs.go | 9 +++++----
+ src/cmd/go/help.go    | 2 +-
+ src/cmd/go/list.go    | 7 ++++---
+ 3 files changed, 10 insertions(+), 8 deletions(-)

@@ -1,0 +1,19 @@
+commit 65f245af49995becc2d5321eb3e97a243d647e1f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Sep 7 10:29:14 2023 +0100
+
+    encoding/xml: use reflect.Value.Bytes on addressable arrays
+    
+    Since #47066 was accepted and implemented,
+    reflect.Value.Bytes can be called directly on addressable arrays,
+    so there is no longer a need to go through a slice first.
+    
+    Change-Id: I04d50ddb1b38e7a37fee3dc8be1bd03b22a06a1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526357
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/encoding/xml/marshal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

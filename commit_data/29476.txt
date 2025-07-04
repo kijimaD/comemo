@@ -1,0 +1,27 @@
+commit 35ea53dcc8d8350898250e87a0b5ffa03e14173e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 10 14:40:32 2016 -0800
+
+    cmd/gofmt: don't overwrite read-only files
+    
+    This reverts the changes from https://golang.org/cl/33018: Instead
+    of writing the result of gofmt to a tmp file and then rename that
+    to the original (which doesn't preserve the original file's perm
+    bits, uid, gid, and possibly other properties because it is hard
+    to do in a platform-independent way - see #17869), use the original
+    code that simply overwrites the processed file if gofmt was able to
+    create a backup first. Upon success, the backup is removed, otherwise
+    it remains.
+    
+    Fixes #17873.
+    For #8984.
+    
+    Change-Id: Ifcf2bf1f84f730e6060f3517d63b45eb16215ae1
+    Reviewed-on: https://go-review.googlesource.com/33098
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/gofmt/doc.go   |  5 ++++-
+ src/cmd/gofmt/gofmt.go | 50 +++++++++++++++++++++++++++++---------------------
+ 2 files changed, 33 insertions(+), 22 deletions(-)

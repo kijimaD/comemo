@@ -1,0 +1,11 @@
+commit d7402cea8c08e3e9420b1a06bc89a8c00b1c3881
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 18:34:59 2009 -0800
+
+    gotest: stop if the // gotest commands fail
+    
+    R=r
+    https://golang.org/cl/166067
+
+ src/cmd/gotest/gotest | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

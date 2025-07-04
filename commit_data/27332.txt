@@ -1,0 +1,19 @@
+commit 3696e469e5f8a5531c69ffcf091deaa692e81104
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun May 8 14:32:48 2016 -0700
+
+    test: add test for issue 15602
+    
+    The problem was fixed by the rollback in CL 22930.
+    This CL just adds a test to prevent regressions.
+    
+    Fixes #15602
+    
+    Change-Id: I37453f6e18ca43081266fe7f154c6d63fbaffd9b
+    Reviewed-on: https://go-review.googlesource.com/22931
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/fixedbugs/issue15602.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

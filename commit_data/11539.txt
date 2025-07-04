@@ -1,0 +1,12 @@
+commit 702151a2001763aa0b535304377b4b2415141c92
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Wed Feb 1 09:43:22 2012 -0500
+
+    godoc: fix redirect loop for URL "/".
+    
+    R=golang-dev, bradfitz, rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/5606045
+
+ src/cmd/godoc/godoc.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

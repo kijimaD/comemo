@@ -1,0 +1,23 @@
+commit cbff713e68a1378713f1692cbfe13499106de7eb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 30 01:29:57 2021 -0400
+
+    cmd/go: add GODEBUG tokens for debugging lazy module loading
+    
+    GODEBUG=lazymod=log causes the go command to log a stack dump whenever
+    the full module graph is loaded in a lazy module.
+    
+    GODEBUG=lazymod=strict does the same, but also terminates the command
+    with a nonzero exit code.
+    
+    For #36460
+    
+    Change-Id: Ia5a4c46069044bcc157b285f64c2392990d70bd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315411
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/buildlist.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

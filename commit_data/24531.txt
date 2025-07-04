@@ -1,0 +1,20 @@
+commit db2e73faeb97f39653180080b0cc4c05501cbf94
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Fri Oct 16 18:45:30 2015 -0700
+
+    runtime: merge stack{1,2}.go -> stack.go
+    
+    * rename stack1.go -> stack.go
+    * prepend contents of stack2.go to stack.go
+    
+    Updates #12952
+    
+    Change-Id: I60d409af37162a5a7596c678dfebc2cea89564ff
+    Reviewed-on: https://go-review.googlesource.com/16008
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/{stack1.go => stack.go} | 101 ++++++++++++++++++++++++++++++++++
+ src/runtime/stack2.go               | 106 ------------------------------------
+ 2 files changed, 101 insertions(+), 106 deletions(-)

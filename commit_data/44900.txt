@@ -1,0 +1,29 @@
+commit 27d306281c54a89ff00e3dad6f4cea790a2f2f2d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 1 15:02:11 2021 +0000
+
+    reflect,runtime: assume register ABI with GOEXPERIMENT=regabiargs
+    
+    This change causes finalizers, reflect calls, and Windows syscall
+    callbacks to assume the register ABI when GOEXPERIMENT=regabiargs is
+    set. That is, when all Go functions are using the new ABI by default,
+    these features should assume the new ABI too.
+    
+    For #40724.
+    
+    Change-Id: Ie4ee66b8085b692e1ff675f01134c9a4703ae1b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306571
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/reflect/abi.go            |  6 +++---
+ src/reflect/regabiargs_off.go | 10 ++++++++++
+ src/reflect/regabiargs_on.go  | 10 ++++++++++
+ src/runtime/regabiargs_off.go | 10 ++++++++++
+ src/runtime/regabiargs_on.go  | 10 ++++++++++
+ src/runtime/stubs.go          |  2 +-
+ 6 files changed, 44 insertions(+), 4 deletions(-)

@@ -1,0 +1,11 @@
+commit 8b2d2847a82da6539c9a0cd6b0d1290be888f411
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 28 12:52:52 2009 -0700
+
+    html-escaping of fields that may be user-generated
+    
+    R=rsc
+    http://go/go-review/1013019
+
+ lib/godoc/godoc.html | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit 27f88731eba585e1d9b5e425f61d270ff170ed68
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 9 11:58:53 2017 -0400
+
+    runtime: print pc with fp/sp in traceback
+    
+    If we're in a situation where printing the fp and sp in the traceback
+    is useful, it's almost certainly also useful to print the PC.
+    
+    Change-Id: Ie48a0d5de8a54b5b90ab1d18638a897958e48f70
+    Reviewed-on: https://go-review.googlesource.com/45210
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/traceback.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

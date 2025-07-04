@@ -1,0 +1,14 @@
+commit 014568bee123278ae51b0e6f53c909607806568e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 16 15:23:50 2012 -0500
+
+    syscall: fix bounds check in Error
+    
+    Fixes #3042.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5675067
+
+ src/pkg/syscall/syscall_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 89f890f266f0cf0d6fa8dc0935139265c0879858
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Mar 4 16:28:27 2011 +1100
+
+    doc: there's no such thing as a .cgo file
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4264043
+
+ doc/code.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

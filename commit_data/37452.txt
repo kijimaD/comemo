@@ -1,0 +1,25 @@
+commit 9ef145532420409a60542ec69ae3ed20a7d7c401
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue Nov 20 16:37:50 2018 +0100
+
+    syscall: add dummy SIGTERM constant to js/wasm
+    
+    The js/wasm architecture does not support signals at all, but there are
+    already some signal constants defined because of stdlib dependencies.
+    This change adds a dummy constant for syscall.SIGTERM as well, to make
+    js/wasm compatible with more existing Go code.
+    
+    There is the Go proverb "Syscall must always be guarded with build
+    tags.", so code should not expect syscall.SIGTERM to exist. Still,
+    adding SIGTERM should do more good than harm.
+    
+    Fixes #28719.
+    
+    Change-Id: I3554b484f96a21427491c04eb1dd57e7af5bd62f
+    Reviewed-on: https://go-review.googlesource.com/c/150477
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/syscall_js.go | 1 +
+ 1 file changed, 1 insertion(+)

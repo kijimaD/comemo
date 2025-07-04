@@ -1,0 +1,23 @@
+commit b0472e225bddf7c7ba2b61f10339106719f25b7f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 24 21:01:08 2017 -0700
+
+    internal/poll: don't use r/w lock for Pread/Pwrite
+    
+    Since Pread/Pwrite specify a file offset, using incref is sufficient.
+    This permits multiple Pread/Pwrite calls in parallel.
+    
+    Since Pread/Pwrite specify a file offset, it doesn't seem to make
+    sense to use the poller for them, so don't.
+    
+    Updates #19586
+    
+    Change-Id: I676be16bf519b9a45f8e6b1d991c44f10848bc11
+    Reviewed-on: https://go-review.googlesource.com/41670
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/poll/fd_unix.go    | 42 +++++++++++++++--------------------------
+ src/internal/poll/fd_windows.go | 12 ++++++++----
+ 2 files changed, 23 insertions(+), 31 deletions(-)

@@ -1,0 +1,14 @@
+commit a011480ff337efcc82c3be1dd05acced49889efc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 8 00:51:08 2009 -0800
+
+    TBR
+    1st step of renaming dirList.html -> dirlist.html
+    (OS X filenames are not capitalization-sensitive)
+    
+    R=rsc
+    http://go/go-review/1024021
+
+ lib/godoc/dirList.html | 23 -----------------------
+ src/cmd/godoc/godoc.go |  2 +-
+ 2 files changed, 1 insertion(+), 24 deletions(-)

@@ -1,0 +1,17 @@
+commit 1fc83690e68de1ce252975c5fd3a232629d6a3d6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 16 12:05:57 2022 -0400
+
+    testing: allow go test -run=^$ testing
+    
+    This should fix the ssacheck builder.
+    
+    Change-Id: I4b6172df33d6447f7ec8fd8e301c6380efb92588
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431336
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/testing/testing.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

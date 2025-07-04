@@ -1,0 +1,21 @@
+commit 902b1f605908cc412e418ede6821fd8122979297
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Dec 30 23:53:27 2018 -0500
+
+    runtime/pprof: add a test for gccgo bug #29448
+    
+    With gccgo, if a profiling signal arrives in certain time during
+    traceback, it may crash or hang. The fix is CL 156037 and
+    CL 156038.  This CL adds a test.
+    
+    Updates #29448.
+    
+    Change-Id: Idb36af176b4865b8fb31a85cad185ed4c07ade0c
+    Reviewed-on: https://go-review.googlesource.com/c/156018
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)

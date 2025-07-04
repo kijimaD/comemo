@@ -1,0 +1,18 @@
+commit 21481a3c52acd269366cd242c56e84a44c19b685
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 24 12:03:08 2023 +0200
+
+    net: remove unused ipv4AddrToInterface
+    
+    It's unused since CL 6497044.
+    
+    Change-Id: Iee07e7af7b80fc3f00146b64cebead844daee087
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522196
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/sockopt_posix.go | 29 -----------------------------
+ 1 file changed, 29 deletions(-)

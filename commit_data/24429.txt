@@ -1,0 +1,12 @@
+commit 788eb99b76d0817d238c3ad0952eb1fe6349f735
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 2 15:25:01 2015 -0400
+
+    doc: update release tag in source directions to go1.5.1
+    
+    Change-Id: I8da1c7a86adf6672e5e5c44cbab422706833c1da
+    Reviewed-on: https://go-review.googlesource.com/15350
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/install-source.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

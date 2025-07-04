@@ -1,0 +1,21 @@
+commit 4e28cfe970dad5b5394340f69f131d0e6d3fd678
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 26 14:15:30 2010 -0700
+
+    runtime: run all finalizers in a single goroutine.
+    eliminate second pass of mark+sweep
+    by scanning finalizer table specially.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/782041
+
+ src/pkg/runtime/extern.go  |   6 +-
+ src/pkg/runtime/malloc.cgo |   2 +-
+ src/pkg/runtime/malloc.h   |  14 +++-
+ src/pkg/runtime/mfinal.c   |  60 +++++++++------
+ src/pkg/runtime/mgc0.c     | 183 ++++++++++++++++++++++-----------------------
+ src/pkg/runtime/proc.c     |   3 +-
+ src/pkg/runtime/runtime.h  |   5 +-
+ test/mallocfin.go          |  10 ++-
+ 8 files changed, 160 insertions(+), 123 deletions(-)

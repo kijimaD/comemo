@@ -1,0 +1,24 @@
+commit af6aa0fd745d48c2db70712ebfe6833d30a9a85d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 25 11:54:24 2016 -0400
+
+    cmd/go, go/build: add support for binary-only packages
+    
+    See https://golang.org/design/2775-binary-only-packages for design.
+    
+    Fixes #2775.
+    
+    Change-Id: I33e74eebffadc14d3340bba96083af0dec5172d5
+    Reviewed-on: https://go-review.googlesource.com/22433
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go        |  8 ++++++
+ src/cmd/go/go_test.go      | 68 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/help.go         | 10 ++++++-
+ src/cmd/go/list.go         |  2 ++
+ src/cmd/go/pkg.go          | 43 ++++++++++++++++++++---------
+ src/go/build/build.go      | 40 +++++++++++++++++++++++----
+ src/go/build/build_test.go |  6 ++--
+ src/go/build/doc.go        | 22 +++++++++++++++
+ 8 files changed, 177 insertions(+), 22 deletions(-)

@@ -1,0 +1,19 @@
+commit 3a9037368e28e3c5cf587d8780af6b0b8659f91e
+Author: Bryan Heden <b.heden@gmail.com>
+Date:   Thu Feb 14 02:35:00 2019 +0000
+
+    fmt: fix an error in documentation for fmt
+    
+    Original Printf("%d", hi) obviously doesn't produce
+    %!d(string=hi) unless somewhere before this code
+    block you have hi := "hi" somewhere, also this change
+    maintains consistency with the rest of it
+    
+    Change-Id: I40d8cca623176dcad66374ba74e3a1f8f975ac9e
+    GitHub-Last-Rev: 242e9ee6afba7ab22ed2967b0ba01ef18db01ca9
+    GitHub-Pull-Request: golang/go#30223
+    Reviewed-on: https://go-review.googlesource.com/c/162541
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

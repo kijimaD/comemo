@@ -1,0 +1,16 @@
+commit 9b2561ef16307ad5f918e81db2521a78807280f5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jun 11 13:06:38 2013 +1000
+
+    os: request appropriate access rights before calling windows TerminateProcess
+    
+    Fixes #5615.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/9651047
+
+ src/pkg/os/exec_windows.go        | 13 +++++--
+ src/pkg/os/os_test.go             | 71 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/ztypes_windows.go |  1 +
+ 3 files changed, 83 insertions(+), 2 deletions(-)

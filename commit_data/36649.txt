@@ -1,0 +1,23 @@
+commit a2a3dd00c934fa15ad880ee5fe1f64308cbc73a7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 12 21:30:09 2018 +0200
+
+    os: add ModeCharDevice to ModeType
+    
+    When masking FileInfo.Mode() from a character device with the ModeType
+    mask, ModeCharDevice cannot be recovered.
+    
+    ModeCharDevice was added https://golang.org/cl/5531052, but nothing
+    indicates why it was omitted from ModeType. Add it now.
+    
+    Fixes #27640
+    
+    Change-Id: I52f56108b88b1b0a5bc6085c66c3c67e10600619
+    Reviewed-on: https://go-review.googlesource.com/135075
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ api/except.txt  | 1 +
+ src/os/types.go | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

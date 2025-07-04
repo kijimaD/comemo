@@ -1,0 +1,30 @@
+commit 25f9af666194f81741aed8ea422661bd58149d30
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Mon Mar 13 09:56:45 2023 +0100
+
+    runtime: add a benchmark of FPCallers
+    
+    This allows comparing frame pointer unwinding against the default
+    unwinder as shown below.
+    
+    goos: linux
+    goarch: amd64
+    pkg: runtime
+    cpu: Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz
+                        │ callers.txt │
+                        │   sec/op    │
+    Callers/cached-32     1.254µ ± 0%
+    FPCallers/cached-32   24.99n ± 0%
+    
+    For #16638
+    
+    Change-Id: I4dd05f82254726152ef4a5d5beceab33641e9d2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475795
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/callers_test.go | 20 ++++++++++++++++++++
+ src/runtime/export_test.go  |  6 ++++++
+ 2 files changed, 26 insertions(+)

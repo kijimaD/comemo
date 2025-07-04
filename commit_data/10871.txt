@@ -1,0 +1,12 @@
+commit 178be83e0eb465156be32c69e59aba0f815fb746
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 19 09:23:07 2011 -0800
+
+    exec: add test to verify net package's epoll fd doesn't go to child
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5490075
+
+ src/pkg/os/exec/exec_test.go | 35 ++++++++++++++++++++++++++++++++++-
+ 1 file changed, 34 insertions(+), 1 deletion(-)

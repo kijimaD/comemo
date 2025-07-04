@@ -1,0 +1,15 @@
+commit 2067b9fb9243bf42e30dd66b50e49652ca935d5a
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 4 22:12:13 2009 -0700
+
+    string slicing is efficient so remove base and bounds arguments from RuneCountInString
+    
+    R=rsc
+    DELTA=6  (1 added, 0 deleted, 5 changed)
+    OCL=28242
+    CL=28256
+
+ src/lib/strings.go   | 4 ++--
+ src/lib/utf8.go      | 5 +++--
+ src/lib/utf8_test.go | 2 +-
+ 3 files changed, 6 insertions(+), 5 deletions(-)

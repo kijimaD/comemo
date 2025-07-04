@@ -1,0 +1,20 @@
+commit 24dd83d7eb0f08ea5cf541ead3f2b36448468bfa
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 15 14:54:24 2017 -0800
+
+    runtime: buffered write barrier for amd64p32
+    
+    Updates #22460.
+    
+    Change-Id: I6656d478625e5e54aa2eaa38d99dfb0f71ea1fdd
+    Reviewed-on: https://go-review.googlesource.com/92697
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/main.go          |  2 +-
+ src/cmd/compile/internal/ssa/config.go       |  3 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  2 +-
+ src/cmd/vet/all/whitelist/nacl_amd64p32.txt  |  2 +
+ src/runtime/asm_amd64p32.s                   | 81 ++++++++++++++++++++++++++++
+ 5 files changed, 88 insertions(+), 2 deletions(-)

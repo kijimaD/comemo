@@ -1,0 +1,91 @@
+commit 12da5a90e0e51f8c74792ce52f4ec627ae0b8124
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 12 12:59:18 2010 -0700
+
+    log: new interface
+    
+    New logging interface simplifies and generalizes.
+    
+    1) Loggers now have only one output.
+    2) log.Stdout, Stderr, Crash and friends are gone.
+            Logging is now always to standard error by default.
+    3) log.Panic* replaces log.Crash*.
+    4) Exiting and panicking are not part of the logger's state; instead
+            the functions Exit* and Panic* simply call Exit or panic after
+            printing.
+    5) There is now one 'standard logger'.  Instead of calling Stderr,
+            use Print etc.  There are now triples, by analogy with fmt:
+                    Print, Println, Printf
+            What was log.Stderr is now best represented by log.Println,
+            since there are now separate Print and Println functions
+            (and methods).
+    6) New functions SetOutput, SetFlags, and SetPrefix allow global
+            editing of the standard logger's properties.   This is new
+            functionality. For instance, one can call
+                    log.SetFlags(log.Lshortfile|log.Ltime|log.Lmicroseconds)
+            to get all logging output to show file name, line number, and
+            time stamp.
+    
+    In short, for most purposes
+            log.Stderr -> log.Println or log.Print
+            log.Stderrf -> log.Printf
+            log.Crash -> log.Panicln or log.Panic
+            log.Crashf -> log.Panicf
+            log.Exit -> log.Exitln or log.Exit
+            log.Exitf -> log.Exitf (no change)
+    
+    This has a slight breakage: since loggers now write only to one
+    output, existing calls to log.New() need to delete the second argument.
+    Also, custom loggers with exit or panic properties will need to be
+    reworked.
+    
+    All package code updated to new interface.
+    
+    The test has been reworked somewhat.
+    
+    The old interface will be removed after the new release.
+    For now, its elements are marked 'deprecated' in their comments.
+    
+    Fixes #1184.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2419042
+
+ src/cmd/godoc/codewalk.go           |   6 +-
+ src/cmd/godoc/godoc.go              |  34 +++----
+ src/cmd/godoc/main.go               |  28 +++---
+ src/cmd/goinstall/parse.go          |   2 +-
+ src/pkg/crypto/tls/generate_cert.go |   6 +-
+ src/pkg/exp/draw/x11/conn.go        |   8 +-
+ src/pkg/exp/eval/bridge.go          |  10 +-
+ src/pkg/exp/eval/eval_test.go       |   2 +-
+ src/pkg/exp/eval/expr.go            |  50 +++++-----
+ src/pkg/exp/eval/expr1.go           | 104 ++++++++++-----------
+ src/pkg/exp/eval/gen.go             |  18 ++--
+ src/pkg/exp/eval/scope.go           |  12 +--
+ src/pkg/exp/eval/stmt.go            |  34 +++----
+ src/pkg/exp/eval/type.go            |   6 +-
+ src/pkg/exp/eval/typec.go           |   2 +-
+ src/pkg/exp/nacl/av/av.go           |   2 +-
+ src/pkg/exp/nacl/av/event.go        |   6 +-
+ src/pkg/exp/nacl/srpc/client.go     |   6 +-
+ src/pkg/exp/nacl/srpc/server.go     |   6 +-
+ src/pkg/exp/ogle/process.go         |   2 +-
+ src/pkg/exp/ogle/rtype.go           |   4 +-
+ src/pkg/exp/ogle/vars.go            |   4 +-
+ src/pkg/expvar/expvar.go            |   4 +-
+ src/pkg/gob/debug.go                |   2 +-
+ src/pkg/http/server.go              |   8 +-
+ src/pkg/http/triv.go                |   4 +-
+ src/pkg/log/log.go                  | 177 ++++++++++++++++++++++++------------
+ src/pkg/log/log_test.go             |  56 +++++-------
+ src/pkg/netchan/export.go           |   2 +-
+ src/pkg/netchan/import.go           |   2 +-
+ src/pkg/rpc/client.go               |   4 +-
+ src/pkg/rpc/server.go               |  28 +++---
+ src/pkg/rpc/server_test.go          |   6 +-
+ src/pkg/syslog/syslog.go            |   2 +-
+ src/pkg/testing/iotest/logger.go    |  12 +--
+ src/pkg/websocket/websocket_test.go |   2 +-
+ 36 files changed, 358 insertions(+), 303 deletions(-)

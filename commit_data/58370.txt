@@ -1,0 +1,18 @@
+commit e6de1b2debe2bc7211f6f9cac4b64d7cd90f7c4e
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Dec 9 11:53:32 2024 -0800
+
+    html/template: escape script tags in JS errors case insensitively
+    
+    Thanks to Juho Forsén of Mattermost for reporting this issue.
+    
+    Fixes #70740
+    
+    Change-Id: I1a49b199dee91cd2bb4df5b174aaa958dc040c18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634696
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/html/template/js.go      | 11 +++++++----
+ src/html/template/js_test.go |  4 ++--
+ 2 files changed, 9 insertions(+), 6 deletions(-)

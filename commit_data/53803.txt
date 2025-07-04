@@ -1,0 +1,56 @@
+commit f322d67ced53f413c4b35f41f754fa34f440b012
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Fri Jul 28 19:10:04 2023 +0000
+
+    cmd/asm: add PCALIGN support on 386/amd64
+    
+    The PCALIGN asm directive was not supported on 386/amd64,
+    causing a compile-time error when used. The same directive
+    is currently supported on arm64, loong64 and ppc64 architectures.
+    
+    This has potential for noticeable performance improvements on
+    amd64 across multiple packages, I did a quick test aligning a hot
+    loop on bytes.IndexByte:
+    
+    ```
+    IndexByte/10-16                 3.477n ± ∞ ¹   3.462n ± ∞ ¹        ~ (p=0.198 n=5)
+    IndexByte/32-16                 4.675n ± ∞ ¹   4.834n ± ∞ ¹   +3.40% (p=0.008 n=5)
+    IndexByte/4K-16                 67.47n ± ∞ ¹   44.44n ± ∞ ¹  -34.13% (p=0.008 n=5)
+    IndexByte/4M-16                 61.98µ ± ∞ ¹   45.07µ ± ∞ ¹  -27.28% (p=0.008 n=5)
+    IndexByte/64M-16               1206.6µ ± ∞ ¹   940.9µ ± ∞ ¹  -22.02% (p=0.008 n=5)
+    IndexBytePortable/10-16         4.064n ± ∞ ¹   4.044n ± ∞ ¹        ~ (p=0.325 n=5)
+    IndexBytePortable/32-16         9.999n ± ∞ ¹   9.934n ± ∞ ¹        ~ (p=0.151 n=5)
+    IndexBytePortable/4K-16         975.8n ± ∞ ¹   965.5n ± ∞ ¹        ~ (p=0.151 n=5)
+    IndexBytePortable/4M-16         973.3µ ± ∞ ¹   972.3µ ± ∞ ¹        ~ (p=0.222 n=5)
+    IndexBytePortable/64M-16        15.68m ± ∞ ¹   15.89m ± ∞ ¹        ~ (p=0.310 n=5)
+    geomean                         1.478µ         1.342µ         -9.20%
+    
+    IndexByte/10-16                2.678Gi ± ∞ ¹   2.690Gi ± ∞ ¹        ~ (p=0.151 n=5)
+    IndexByte/32-16                6.375Gi ± ∞ ¹   6.165Gi ± ∞ ¹   -3.30% (p=0.008 n=5)
+    IndexByte/4K-16                56.54Gi ± ∞ ¹   85.85Gi ± ∞ ¹  +51.83% (p=0.008 n=5)
+    IndexByte/4M-16                63.03Gi ± ∞ ¹   86.68Gi ± ∞ ¹  +37.52% (p=0.008 n=5)
+    IndexByte/64M-16               51.80Gi ± ∞ ¹   66.42Gi ± ∞ ¹  +28.23% (p=0.008 n=5)
+    IndexBytePortable/10-16        2.291Gi ± ∞ ¹   2.303Gi ± ∞ ¹        ~ (p=0.421 n=5)
+    IndexBytePortable/32-16        2.980Gi ± ∞ ¹   3.000Gi ± ∞ ¹        ~ (p=0.151 n=5)
+    IndexBytePortable/4K-16        3.909Gi ± ∞ ¹   3.951Gi ± ∞ ¹        ~ (p=0.151 n=5)
+    IndexBytePortable/4M-16        4.013Gi ± ∞ ¹   4.017Gi ± ∞ ¹        ~ (p=0.222 n=5)
+    IndexBytePortable/64M-16       3.987Gi ± ∞ ¹   3.933Gi ± ∞ ¹        ~ (p=0.310 n=5)
+    geomean                        8.183Gi         9.013Gi        +10.14%
+    ```
+    
+    Fixes #56474
+    
+    Change-Id: Idea022b1a16e6d4b8dd778723adb862c46602c4f
+    GitHub-Last-Rev: 2eb7e31dc378a02fd83faa7d41239df0f2859677
+    GitHub-Pull-Request: golang/go#61516
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511662
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go     | 38 +++++++++++++++++++++++++++
+ src/cmd/internal/obj/x86/asm_test.go | 51 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 89 insertions(+)

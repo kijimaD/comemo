@@ -1,0 +1,15 @@
+commit d40f032d1878f9ff271898e7db70a5ee9f269469
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Sep 9 15:47:31 2008 -0700
+
+    fixed bug in certain
+    evaluation of complex literals
+    
+    R=r
+    OCL=15036
+    CL=15036
+
+ src/cmd/6g/gen.c  |  9 +++++++++
+ src/cmd/gc/go.y   | 19 ++++++-------------
+ src/cmd/gc/walk.c | 54 +++++++++++++++++++++++++++++++++++++++++++-----------
+ 3 files changed, 58 insertions(+), 24 deletions(-)

@@ -1,0 +1,18 @@
+commit 07f689420a552841270c6b751b0a890f6d27cd30
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed May 1 08:32:40 2019 -0700
+
+    misc/cgo/testcarchive: skip TestExtar on self-hosted iOS
+    
+    iOS cannot (directly) run shell scripts.
+    
+    Updates #31722
+    
+    Change-Id: I69473e9339c50a77338d391c73b4e146bce3fa89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174700
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

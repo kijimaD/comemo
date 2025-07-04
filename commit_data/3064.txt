@@ -1,0 +1,21 @@
+commit 1f177cd8b2ced87bd788843603ce3f021ab0d9ed
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 24 10:19:31 2009 -0700
+
+    linker work
+      * use //ffi comments in package import data
+        to generate relocation entries and library loads.
+      * call initffi in rt0.s if present
+    
+    R=r
+    DELTA=117  (91 added, 3 deleted, 23 changed)
+    OCL=33739
+    CL=33750
+
+ src/cmd/5l/l.h                    |  3 ++
+ src/cmd/6l/asm.c                  | 76 +++++++++++++++++++++++++++------------
+ src/cmd/6l/l.h                    |  3 ++
+ src/cmd/8l/l.h                    |  4 +++
+ src/cmd/ld/go.c                   | 43 ++++++++++++++++++++--
+ src/pkg/runtime/linux/amd64/rt0.s |  7 ++++
+ 6 files changed, 112 insertions(+), 24 deletions(-)

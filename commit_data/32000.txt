@@ -1,0 +1,15 @@
+commit 58ae050055ef00b97f1119e042fe7b459b20e839
+Author: Costin Chirvasuta <ctin@google.com>
+Date:   Fri Jul 7 21:26:45 2017 +0100
+
+    runtime: simplify description of FuncForPC behavior in case of inlining
+    
+    The current description refers to the outermost "frame" which can be
+    misleading. A user reading it can think it means a stack frame.
+    
+    Change-Id: Ie2c7cb4b4db8f41572df206478ce3b46a0245a5d
+    Reviewed-on: https://go-review.googlesource.com/47850
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/symtab.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

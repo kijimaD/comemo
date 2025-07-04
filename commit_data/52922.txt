@@ -1,0 +1,20 @@
+commit f3247f6110d41793b0fc1c1a9d6541e649acd438
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 8 14:46:17 2023 -0700
+
+    cmd/compile/internal/types2: pass pos argument to Checker.overflow
+    
+    This matches the go/types version of Checker.overflow.
+    Preparation for generating this function (and others)
+    for go/types.
+    
+    Change-Id: I84117203247011bd2e96c9cf53fd5a443e528bbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493558
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/expr.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

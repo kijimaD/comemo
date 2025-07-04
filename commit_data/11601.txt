@@ -1,0 +1,22 @@
+commit 005686ff9711287ac97c294cb55a014bce6fbac0
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Feb 3 15:08:53 2012 -0500
+
+    crypto/...: changes to address some of bug 2841.
+    
+    This change addresses a subset of the issues raised in bug 2841.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5629044
+
+ src/pkg/crypto/cipher/cbc.go       |   2 +-
+ src/pkg/crypto/cipher/ocfb.go      | 138 -------------------------------------
+ src/pkg/crypto/cipher/ocfb_test.go |  44 ------------
+ src/pkg/crypto/crypto.go           |  27 +++++---
+ src/pkg/crypto/des/cipher.go       |   4 +-
+ src/pkg/crypto/rsa/pkcs1v15.go     |   2 +-
+ src/pkg/crypto/rsa/rsa.go          |   2 +-
+ src/pkg/crypto/tls/tls.go          |  28 +++-----
+ src/pkg/crypto/x509/pkix/pkix.go   |   2 +
+ 9 files changed, 34 insertions(+), 215 deletions(-)

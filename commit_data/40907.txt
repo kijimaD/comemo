@@ -1,0 +1,30 @@
+commit 22688f740dbbae281c1de09c2b4fe6520337a124
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 26 23:57:35 2019 +0000
+
+    net/http: update bundled x/net/http2
+    
+    Updates bundled http2 to x/net git rev ef20fe5d7 for:
+    
+       http2: make Transport.IdleConnTimeout consider wall (not monotonic) time
+       https://golang.org/cl/208798 (#29308)
+    
+       http2: make CipherSuites validation error more verbose
+       https://golang.org/cl/200317 (#34776)
+    
+       http2: track unread bytes when the pipe is broken
+       https://golang.org/cl/187377 (#28634)
+    
+       http2: split cookie pair into separate hpack header fields
+       https://golang.org/cl/155657 (#29386)
+    
+    Fixes #29308
+    Fixes #28634
+    
+    Change-Id: I71a03ca62ccb5ff35a5cfadd8dc705a4491ae7ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209077
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/h2_bundle.go    | 51 +++++++++++++++++++++++++++++++++++++++-----
+ src/net/http/socks_bundle.go |  2 +-
+ 2 files changed, 47 insertions(+), 6 deletions(-)

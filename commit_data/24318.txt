@@ -1,0 +1,19 @@
+commit 1536c2e0f6f2cf0b42b8f4db329f969cabc8eabb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 18 16:39:35 2015 +0000
+
+    cmd/dist: shard shootout test units
+    
+    Instead of a 10 second test unit, make it 13 sub-second ones. This
+    takes advantage of multiple builders better.
+    
+    Fixes #12623
+    
+    Change-Id: I3fb2eb02f899f25749e34b546b9d41b742a746cd
+    Reviewed-on: https://go-review.googlesource.com/14738
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 8ed9fc600c7dc6a9286a6f04bdb41694d53bac3c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jul 12 14:22:48 2011 +1000
+
+    6l: change default output name to 6.out.exe on windows
+    
+    R=golang-dev, vcc.163
+    CC=golang-dev
+    https://golang.org/cl/4670049
+
+ src/cmd/6l/obj.c | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

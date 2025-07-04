@@ -1,0 +1,14 @@
+commit 5934523e75e2aa3725c4e709be56d9e84c472bfe
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun May 8 22:31:09 2016 -0400
+
+    cmd/compile: document -l in godoc
+    
+    Fixes #15607.
+    
+    Change-Id: I3e68ad00ebe72027d064238d4e77f1ad6a52f533
+    Reviewed-on: https://go-review.googlesource.com/22940
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

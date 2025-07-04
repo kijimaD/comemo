@@ -1,0 +1,18 @@
+commit 22c70f268b30c703856143df848556515a824071
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 9 20:35:46 2016 +0000
+
+    syscall: use 32-bit setuid/setgid syscalls on linux/{386,arm}
+    
+    Fixes #17092
+    
+    Change-Id: Ib14e4db13116ebbe4d72c414fb979d27a06d6174
+    Reviewed-on: https://go-review.googlesource.com/33011
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_linux.go         |  4 ++--
+ src/syscall/setuidgid_32_linux.go | 13 +++++++++++++
+ src/syscall/setuidgid_linux.go    | 13 +++++++++++++
+ 3 files changed, 28 insertions(+), 2 deletions(-)

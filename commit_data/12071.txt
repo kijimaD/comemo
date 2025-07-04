@@ -1,0 +1,12 @@
+commit 05e80cffc344167ccbc49f5b0c416e6372a4f796
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Mon Feb 20 12:32:43 2012 +1100
+
+    godoc: fix tag mismatch validation errors
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5676099
+
+ lib/godoc/package.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

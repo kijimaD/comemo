@@ -1,0 +1,12 @@
+commit 8ebc9fbc342ad9c89b52dd730a2baa4d3580c1e4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 8 20:06:05 2018 +0000
+
+    cmd/go/internal/cache: fix wrong/old function name in comment
+    
+    Change-Id: Ia0caf2fb06097ac184f78779334460900e8c0149
+    Reviewed-on: https://go-review.googlesource.com/c/148580
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/cache/hash.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

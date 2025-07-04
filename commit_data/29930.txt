@@ -1,0 +1,16 @@
+commit 2817e77024a53aae31cc02c01a26fce0ebb11a79
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 19 22:55:53 2016 -0500
+
+    runtime: debug prints for spanBytesAlloc underflow
+    
+    Updates #18043.
+    
+    Change-Id: I24e687fdd5521c48b672987f15f0d5de9f308884
+    Reviewed-on: https://go-review.googlesource.com/34612
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgcsweep.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

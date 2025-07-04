@@ -1,0 +1,19 @@
+commit 8cb0941a85de6ddbd6f49f8e7dc2dd3caeeee61c
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon Dec 23 11:52:43 2024 -0500
+
+    net: use runtime.AddCleanup instead of runtime.SetFinalizer
+    
+    Adds TODO for replacement of runtime.SetFinalizer.
+    
+    Fixes #70907
+    
+    Change-Id: Ic009018a93ccc46a776ae34afac44635d2340cbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638557
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+
+ src/net/fd_fake.go  | 2 ++
+ src/net/fd_posix.go | 2 ++
+ 2 files changed, 4 insertions(+)

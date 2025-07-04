@@ -1,0 +1,28 @@
+commit ec18e93ecd550b10bc36b88d625533a7b7473313
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 26 12:30:30 2016 -0700
+
+    crypto/tls: add a SignatureScheme type.
+    
+    The SignatureAndHashAlgorithm from TLS 1.2[1] is being changed to
+    SignatureScheme in TLS 1.3[2]. (The actual values are compatible
+    however.)
+    
+    Since we expect to support TLS 1.3 in the future, we're already using
+    the name and style of SignatureScheme in the recently augmented
+    ClientHelloInfo. As this is public API, it seems that SignatureScheme
+    should have its own type and exported values, which is implemented in
+    this change.
+    
+    [1] https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1
+    [2] https://tools.ietf.org/html/draft-ietf-tls-tls13-18#section-4.2.3
+    
+    Change-Id: I0482755d02bb9a04eaf075c012696103eb806645
+    Reviewed-on: https://go-review.googlesource.com/32119
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/common.go           | 21 ++++++++++++++++++++-
+ src/crypto/tls/handshake_server.go |  4 ++--
+ 2 files changed, 22 insertions(+), 3 deletions(-)

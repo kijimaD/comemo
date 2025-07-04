@@ -1,0 +1,27 @@
+commit 106afda184a16195fae754ad4a066b19ebfbd4f5
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Aug 25 14:29:13 2023 +0200
+
+    make.bat: don't try to download a newer toolchain
+    
+    Calling `go env GOROOT` and `go version` will try to download a newer
+    toolchain if the current one is too old. This is not what we want when
+    building the toolchain itself. Avoid this by setting `GO111MODULE=off`.
+    
+    While here, align the unset variables with nogoenv(), present in
+    make.bash and make.rc.
+    
+    Fixes #62201
+    Fixes #62281
+    
+    Change-Id: I2d3ac817c2fb161f7a31bf83e32ba934e773b6c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523015
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/make.bat | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)

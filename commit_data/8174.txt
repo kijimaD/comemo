@@ -1,0 +1,15 @@
+commit 338b7abdfc2c44911e3025f81e39eaa496998449
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 21 10:22:53 2011 -0400
+
+    net: fix EAI_BADFLAGS error on freebsd
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4442072
+
+ src/pkg/net/Makefile     |  3 +++
+ src/pkg/net/cgo_bsd.go   | 14 ++++++++++++++
+ src/pkg/net/cgo_linux.go | 14 ++++++++++++++
+ src/pkg/net/cgo_unix.go  |  2 +-
+ 4 files changed, 32 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit dfeceddd3f5cda5a1fc9e38dacb020d5c88cd02a
+Author: Kai Backman <kaib@golang.org>
+Date:   Sun Oct 25 11:59:58 2009 -0700
+
+            make 5l ignore multiple defs, remove use of multiple
+            defs from embed1 and gotest
+    
+    R=rsc
+    http://go/go-review/1014009
+
+ src/cmd/5l/obj.c         | 9 +++++++++
+ src/cmd/gotest/gotest    | 8 +++++++-
+ test/interface/embed1.go | 2 +-
+ 3 files changed, 17 insertions(+), 2 deletions(-)

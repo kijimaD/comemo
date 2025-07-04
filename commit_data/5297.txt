@@ -1,0 +1,13 @@
+commit df3a5440854442ed28e8b9abf651a38ee36b3591
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Apr 15 12:47:49 2010 +0300
+
+    synchronize ARM runner environment variable with run-arm
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/912041
+
+ src/cmd/gotest/gotest | 2 +-
+ test/run              | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

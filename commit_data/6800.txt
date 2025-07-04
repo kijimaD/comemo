@@ -1,0 +1,13 @@
+commit 0dc24603ebe5d8d51690c6af4e2b94ff761ae9b6
+Author: Eoghan Sherry <ejsherry@gmail.com>
+Date:   Tue Nov 30 10:23:27 2010 -0800
+
+    big: fix (*Rat) SetFrac64(a, b) when b < 0.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3352041
+
+ src/pkg/big/rat.go      |  3 +--
+ src/pkg/big/rat_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 2 deletions(-)

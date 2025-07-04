@@ -1,0 +1,19 @@
+commit e6f0b746677fbca7b5dbeeb1777cc13b81a31918
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 22 17:14:42 2014 +1000
+
+    path/filepath: make Abs handle paths like c:a.txt properly
+    
+    Fixes #8145.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/126440043
+
+ src/pkg/path/filepath/path.go         |  4 ++++
+ src/pkg/path/filepath/path_plan9.go   |  4 ++++
+ src/pkg/path/filepath/path_test.go    | 15 +++++++++++++++
+ src/pkg/path/filepath/path_unix.go    |  4 ++++
+ src/pkg/path/filepath/path_windows.go |  5 +++++
+ 5 files changed, 32 insertions(+)

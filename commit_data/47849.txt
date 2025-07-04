@@ -1,0 +1,17 @@
+commit ebac50e9cef66920ecfe018252ffdc2294a0c249
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Sat Dec 18 02:54:22 2021 +0000
+
+    doc/go1.18: add net/http.MaxBytesHandler
+    
+    For #47694
+    
+    Change-Id: Ifab2c2720ec2ccef175a0e14a95f8df0437eb009
+    GitHub-Last-Rev: f3c2f12c7b6472610428cff5cad2a4497c47150e
+    GitHub-Pull-Request: golang/go#50250
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373015
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ doc/go1.18.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

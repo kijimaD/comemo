@@ -1,0 +1,21 @@
+commit 668cca6cb4fbf217b9e00f306d5e8a6f80134288
+Author: Andy Balholm <andybalholm@gmail.com>
+Date:   Mon Apr 17 11:58:30 2017 -0700
+
+    net/http: ignore extra space between response version and status code
+    
+    Reading a response with a status line like "HTTP/1.0  401 Unauthorized"
+    (with two spaces after the version) has been returning an error. Now the
+    extra space will be ignored.
+    
+    Fixes #19989
+    
+    Change-Id: I0c88a6ef7562ba80e2e2635be2070dd1b5b671a7
+    Reviewed-on: https://go-review.googlesource.com/40933
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/response.go      | 22 +++++++++++-----------
+ src/net/http/response_test.go | 25 ++++++++++++++++++++++++-
+ 2 files changed, 35 insertions(+), 12 deletions(-)

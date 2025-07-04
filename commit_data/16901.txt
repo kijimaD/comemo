@@ -1,0 +1,14 @@
+commit b8734748b6b151a7fd724fc41e2555e6cd34385f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jul 29 20:01:13 2013 +0400
+
+    net: fix memory leaks on windows
+    Close netpoll descriptor along with socket.
+    Ensure that error paths close the descriptor as well.
+    
+    R=golang-dev, mikioh.mikioh, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/11987043
+
+ src/pkg/net/fd_windows.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

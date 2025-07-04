@@ -1,0 +1,24 @@
+commit 34514bdb729f5dd47e6c62938f1d692e48d2444f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 3 23:03:31 2008 -0700
+
+    Use a single Make.conf for setting CC, etc.
+    This makes it easy to build with other flags
+    (like -ggdb) or other compilers (like cc64).
+    
+    R=r
+    DELTA=45  (6 added, 22 deleted, 17 changed)
+    OCL=13790
+    CL=13793
+
+ src/Make.conf              | 10 ++++++++++
+ src/cmd/6a/Makefile        |  7 ++-----
+ src/cmd/6c/Makefile        |  6 ++----
+ src/cmd/6g/Makefile        |  6 ++----
+ src/cmd/6l/Makefile        |  6 ++----
+ src/cmd/ar/Makefile        |  6 ++----
+ src/cmd/cc/Makefile        |  5 +----
+ src/cmd/gc/Makefile        |  5 +----
+ src/libbio/Makefile        |  3 +--
+ src/libmach_amd64/Makefile |  3 +--
+ 10 files changed, 24 insertions(+), 33 deletions(-)

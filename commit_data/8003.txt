@@ -1,0 +1,16 @@
+commit c45a08e5ba4dca55bbc4e8156092d0f8d7357ced
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Wed Apr 6 16:19:22 2011 -0400
+
+    syscall: Add DT_* and MADV_* constants on Linux.
+    
+    R=rsc, agl1
+    CC=golang-dev
+    https://golang.org/cl/4370041
+
+ src/pkg/syscall/mkerrors.sh            |  2 +-
+ src/pkg/syscall/zerrors_linux_386.go   | 20 ++++++++++++++++++++
+ src/pkg/syscall/zerrors_linux_amd64.go | 20 ++++++++++++++++++++
+ src/pkg/syscall/zsysnum_linux_386.go   |  2 +-
+ src/pkg/syscall/zsysnum_linux_amd64.go |  2 +-
+ 5 files changed, 43 insertions(+), 3 deletions(-)

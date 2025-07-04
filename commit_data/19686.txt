@@ -1,0 +1,13 @@
+commit 107b8fc9e41cbe365d574f56518ca27e7d9a919d
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Tue Jul 8 18:41:07 2014 -0400
+
+    run.bash: disable tests that don't (yet) like running off the host
+    
+    LGTM=bradfitz, minux
+    R=bradfitz, golang-codereviews, minux
+    CC=golang-codereviews
+    https://golang.org/cl/110940043
+
+ src/run.bash | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

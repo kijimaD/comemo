@@ -1,0 +1,42 @@
+commit 532c199ee56cdbc2cfd12da1c1cfb3359b122c7c
+Author: Austin Clements <austin@google.com>
+Date:   Sat Oct 17 18:42:03 2020 -0400
+
+    runtime: fix sub-uintptr-sized Windows callback arguments
+    
+    The Windows callback support accepts Go functions with arguments that
+    are uintptr-sized or smaller. However, it doesn't implement smaller
+    arguments correctly. It assumes the Windows arguments layout is
+    equivalent to the Go argument layout. This is often true, but because
+    Windows C ABIs pad arguments to word size, while Go packs arguments,
+    the layout is different if there are multiple sub-word-size arguments
+    in a row. For example, a function with two uint16 arguments will have
+    a two-word C argument frame, but only a 4 byte Go argument frame.
+    There are also subtleties surrounding floating-point register
+    arguments that it doesn't handle correctly.
+    
+    To fix this, when constructing a callback, we examine the Go
+    function's signature to construct a mapping between the C argument
+    frame and the Go argument frame. When the callback is invoked, we use
+    this mapping to build the Go argument frame and copy the result back.
+    
+    This adds several test cases to TestStdcallAndCDeclCallbacks that
+    exercise more complex function signatures. These all fail with the
+    current code, but work with this CL.
+    
+    In addition to fixing these callback types, this is also a step toward
+    the Go register ABI (#40724), which is going to make the ABI
+    translation more complex.
+    
+    Change-Id: I19fb1681b659d9fd528ffd5e88912bebb95da052
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263271
+    Trust: Austin Clements <austin@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/syscall_windows.go      | 143 +++++++++++++++++++++++++++---------
+ src/runtime/syscall_windows_test.go |  32 +++++++-
+ 2 files changed, 136 insertions(+), 39 deletions(-)

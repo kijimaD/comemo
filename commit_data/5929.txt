@@ -1,0 +1,15 @@
+commit 244b6583b730fce00b1919dfa43603da10d99d1e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Aug 3 10:57:53 2010 +1000
+
+    image: introduce Gray and Gray16 types, and remove the named colors
+    except for Black and White.
+    
+    R=rsc
+    CC=golang-dev, mpl, r
+    https://golang.org/cl/1903049
+
+ src/pkg/image/color.go | 45 +++++++++++++++++++++++++++++++
+ src/pkg/image/image.go | 72 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/image/names.go | 26 +++---------------
+ 3 files changed, 121 insertions(+), 22 deletions(-)

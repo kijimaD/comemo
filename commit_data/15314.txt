@@ -1,0 +1,28 @@
+commit a17c46169f59579788d0ffb82eab875e4f15fc00
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Feb 19 14:42:05 2013 -0500
+
+    go/types: include package import path in NamedType.String().
+    
+    This avoids ambiguity and makes the diagnostics closer to
+    those issued by gc, but it is more verbose since it qualifies
+    intra-package references.
+    
+    Without extra context---e.g. a 'from *Package' parameter to
+    Type.String()---we are forced to err on one side or the other.
+    
+    Also, cosmetic changes to exp/ssa:
+    - Remove package-qualification workaround in Function.FullName.
+    - Always set go/types.Package.Path field to the import path,
+      since we know the correct path at this point.
+    - In Function.DumpTo, show variadic '...' and result type info,
+      and delete now-redundant "# Type: " line.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/7325051
+
+ src/pkg/exp/ssa/builder.go | 12 +++++++-----
+ src/pkg/exp/ssa/func.go    | 41 ++++++++++++++++++++++++++---------------
+ src/pkg/go/types/errors.go |  6 +++++-
+ 3 files changed, 38 insertions(+), 21 deletions(-)

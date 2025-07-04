@@ -1,0 +1,65 @@
+commit f4e76d5e0222c40e9b98ba19e6628e49f14ecc12
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Sep 24 23:07:44 2012 +0200
+
+    cmd/6g, cmd/8g: add OINDREG, ODOT, ODOTPTR cases to igen.
+    
+    Apart from reducing the number of LEAL/LEAQ instructions by about
+    30%, it gives 8g easier registerization in several cases,
+    for example in strconv. Performance with 6g is not affected.
+    
+    Before (386):
+    src/pkg/strconv/decimal.go:22   TEXT  (*decimal).String+0(SB),$240-12
+    src/pkg/strconv/extfloat.go:540 TEXT  (*extFloat).ShortestDecimal+0(SB),$584-20
+    
+    After (386):
+    src/pkg/strconv/decimal.go:22   TEXT  (*decimal).String+0(SB),$196-12
+    src/pkg/strconv/extfloat.go:540 TEXT  (*extFloat).ShortestDecimal+0(SB),$420-20
+    
+    Benchmarks with GOARCH=386 (on a Core 2).
+    
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkBinaryTree17    7110191000   7079644000   -0.43%
+    BenchmarkFannkuch11      7769274000   7766514000   -0.04%
+    BenchmarkGobDecode         33454820     34755400   +3.89%
+    BenchmarkGobEncode         11675710     11007050   -5.73%
+    BenchmarkGzip            2013519000   1593855000  -20.84%
+    BenchmarkGunzip           253368200    242667600   -4.22%
+    BenchmarkJSONEncode       152443900    120763400  -20.78%
+    BenchmarkJSONDecode       304112800    247461800  -18.63%
+    BenchmarkMandelbrot200     29245520     29240490   -0.02%
+    BenchmarkParse              8484105      8088660   -4.66%
+    BenchmarkRevcomp         2695688000   2841263000   +5.40%
+    BenchmarkTemplate         363759800    277271200  -23.78%
+    
+    benchmark                       old ns/op    new ns/op    delta
+    BenchmarkAtof64Decimal                127          129   +1.57%
+    BenchmarkAtof64Float                  166          164   -1.20%
+    BenchmarkAtof64FloatExp               308          300   -2.60%
+    BenchmarkAtof64Big                    584          571   -2.23%
+    BenchmarkAppendFloatDecimal           440          430   -2.27%
+    BenchmarkAppendFloat                  995          776  -22.01%
+    BenchmarkAppendFloatExp               897          746  -16.83%
+    BenchmarkAppendFloatNegExp            900          752  -16.44%
+    BenchmarkAppendFloatBig              1528         1228  -19.63%
+    BenchmarkAppendFloat32Integer         443          453   +2.26%
+    BenchmarkAppendFloat32ExactFraction   812          661  -18.60%
+    BenchmarkAppendFloat32Point          1002          773  -22.85%
+    BenchmarkAppendFloat32Exp             858          725  -15.50%
+    BenchmarkAppendFloat32NegExp          848          728  -14.15%
+    BenchmarkAppendFloat64Fixed1          447          431   -3.58%
+    BenchmarkAppendFloat64Fixed2          480          462   -3.75%
+    BenchmarkAppendFloat64Fixed3          461          457   -0.87%
+    BenchmarkAppendFloat64Fixed4          509          484   -4.91%
+    
+    Update #1914.
+    
+    R=rsc, nigeltao
+    CC=golang-dev, remy
+    https://golang.org/cl/6494107
+
+ src/cmd/6g/cgen.c  | 35 ++++++++++++++++++++++++++++++++++-
+ src/cmd/8g/cgen.c  | 40 ++++++++++++++++++++++++++++++++++++----
+ src/cmd/8g/gsubr.c |  6 +++---
+ src/cmd/gc/go.h    |  6 +++---
+ 4 files changed, 76 insertions(+), 11 deletions(-)

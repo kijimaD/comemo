@@ -1,0 +1,14 @@
+commit 4501e18aa5cc365016f58f9f052eb3ee5940cea3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 27 17:22:45 2010 +1000
+
+    bufio: fix optimisation test
+    
+    Fixes #949.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1886046
+
+ src/pkg/bufio/bufio.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

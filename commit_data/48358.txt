@@ -1,0 +1,17 @@
+commit ef7d0413c204f69f8179b50de869acf7bd1e1731
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 10 17:21:40 2022 -0500
+
+    cmd/go: use the correct gofmt binary in TestScript/fmt_load_errors
+    
+    Otherwise, this test may fail when GOROOT/bin is not in $PATH.
+    
+    Change-Id: Id744f365f6604716207184c9ea49436ab2e3a835
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391802
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/fmt_load_errors.txt | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

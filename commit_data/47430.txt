@@ -1,0 +1,33 @@
+commit 0c6a6cd4d8c19ca8892085a38477e5ff56b7cc2b
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 9 21:39:53 2021 -0500
+
+    go/types: use Identical to verify type identity in the Context map
+    
+    We don't have guarantees that our type hash is perfect, and in fact
+    fuzzing found cases where identical types hashed to different values. In
+    case non-identical types hash to the same value, we should ensure that
+    we de-duplicate using Identical.
+    
+    Adjust the type map to keep a slice of distinct type identities, so that
+    we can guarantee that type identity is preserved by de-duplication.
+    
+    To allow look-up of instances by their identity, before they are
+    actually instantiated, add a Context.lookup method that accepts origin
+    type and type arguments. Replace the multi-function typeForHash method
+    with an update method that requires its argument be non-nil.
+    
+    Change-Id: I8fe6fb2955f508db608161b7285b02d0a2fa0e46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362798
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/context.go     | 52 +++++++++++++++++++++++++++++++++++----------
+ src/go/types/instantiate.go |  4 ++--
+ src/go/types/named.go       |  2 +-
+ src/go/types/predicates.go  | 17 +++++++++++++++
+ src/go/types/subst.go       |  2 +-
+ src/go/types/typexpr.go     | 16 +++++++-------
+ 6 files changed, 70 insertions(+), 23 deletions(-)

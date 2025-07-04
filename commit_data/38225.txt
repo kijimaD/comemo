@@ -1,0 +1,15 @@
+commit 6b04550820ac70283d856ceb8cb84d3883862c72
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Mon Mar 4 15:02:45 2019 -0800
+
+    testing: fix missing verb in StartTimer doc
+    
+    Fixes StartTimer's doc with the verb 'be'
+    that was previously missing in 'can also used'.
+    
+    Change-Id: I4b3e6103fbf62d676056d32fcce4618536b7c05c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165117
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/benchmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

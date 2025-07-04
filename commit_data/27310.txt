@@ -1,0 +1,30 @@
+commit fafadc521ede90f8abed73e8d209e130c456e983
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Fri Apr 29 16:17:14 2016 +0300
+
+    crypto/sha1: Add AVX2 version for AMD64
+    
+    name             old time/op    new time/op    delta
+    Hash8Bytes-48       271ns ± 8%     273ns ± 5%     ~     (p=0.313 n=19+19)
+    Hash320Bytes-48    1.04µs ± 7%    0.75µs ± 8%  -27.66%  (p=0.000 n=20+20)
+    Hash1K-48          2.72µs ± 6%    1.75µs ± 6%  -35.79%  (p=0.000 n=19+20)
+    Hash8K-48          19.9µs ± 7%    11.6µs ± 6%  -41.84%  (p=0.000 n=20+19)
+    
+    name             old speed      new speed      delta
+    Hash8Bytes-48    29.5MB/s ± 8%  29.3MB/s ± 5%     ~     (p=0.314 n=19+19)
+    Hash320Bytes-48   307MB/s ± 7%   424MB/s ± 8%  +38.29%  (p=0.000 n=20+20)
+    Hash1K-48         377MB/s ± 6%   587MB/s ± 6%  +55.76%  (p=0.000 n=19+20)
+    Hash8K-48         413MB/s ± 7%   709MB/s ± 6%  +71.85%  (p=0.000 n=20+19)
+    
+    Change-Id: I2963cf744eeb2e8191d4e4223fbf6f533a7fd405
+    Reviewed-on: https://go-review.googlesource.com/22607
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/sha1/sha1_test.go       |    5 +
+ src/crypto/sha1/sha1block_amd64.go |   23 +
+ src/crypto/sha1/sha1block_amd64.s  | 1301 +++++++++++++++++++++++++++++++++++-
+ src/crypto/sha1/sha1block_decl.go  |    2 +-
+ 4 files changed, 1329 insertions(+), 2 deletions(-)

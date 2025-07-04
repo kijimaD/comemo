@@ -1,0 +1,17 @@
+commit 4a378d712d4a089e2242fe49de6547d493f52bf5
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Nov 25 13:46:32 2019 -0500
+
+    doc: add section on GOPROXY protocol to module reference doc
+    
+    Based on 'go help goproxy'.
+    
+    Updates #33637
+    
+    Change-Id: I2f3477cfc8f6fb53515604a28a5bc01eb4fe8f48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208777
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/modules.md | 159 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 158 insertions(+), 1 deletion(-)

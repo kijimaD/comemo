@@ -1,0 +1,13 @@
+commit d7b4851586a912e0166bc405cf8aace5f77d96d7
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Tue Apr 20 22:18:26 2010 -0700
+
+    strings: add ReadRune to Reader
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/940041
+
+ src/pkg/strings/reader.go       | 27 +++++++++++++++++++++++++--
+ src/pkg/strings/strings_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 48 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 11788aa6e06155431c346112f7e2725b9b49347b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 9 20:49:17 2022 -0800
+
+    spec: adjust rules to use core or specific types as necessary
+    
+    Change-Id: I64280c1bb9608d7781514f237ac70c6abbfde9f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384754
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 120 +++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 72 insertions(+), 48 deletions(-)

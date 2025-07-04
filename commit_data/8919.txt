@@ -1,0 +1,14 @@
+commit 2f9fbad04332b2bd9f5805c2a99c1d4c22cf4afe
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Jun 30 09:44:23 2011 -0700
+
+    http/cgi: add Handler.Dir to specify working directory
+    
+    R=golang-dev, bradfitz, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/4635042
+
+ src/pkg/http/cgi/host.go           | 24 +++++++++---
+ src/pkg/http/cgi/host_test.go      | 76 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/cgi/testdata/test.cgi | 14 +++++++
+ 3 files changed, 108 insertions(+), 6 deletions(-)

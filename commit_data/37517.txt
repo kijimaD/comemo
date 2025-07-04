@@ -1,0 +1,22 @@
+commit 311d87dbebbb0238196d3aa13fd9a37f655e1fc3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Nov 28 19:57:13 2018 +1100
+
+    debug/pe: use ws2_32.dll in TestImportTableInUnknownSection
+    
+    Apparently (see
+    https://github.com/golang/go/issues/27904#issuecomment-442140627
+    for details) kernel32.dll file is not present on windows/arm, so
+    use ws2_32.dll instead. ws2_32.dll imports table also lives in
+    '.rdata' section, so ws2_32.dll is as good as kernel32.dll for
+    testing issue #16103.
+    
+    Updates #27904
+    
+    Change-Id: Ibc72b24eea9a4d85abd371ffdcf00442e711b745
+    Reviewed-on: https://go-review.googlesource.com/c/151480
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/debug/pe/file_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

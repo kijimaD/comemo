@@ -1,0 +1,13 @@
+commit 0bd101cecc5458a8463b8d672bf1745c3cbb7c02
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Sat Apr 13 14:31:07 2019 +0300
+
+    cmd/dist: enable cgo for freebsd/arm
+    
+    Change-Id: Icc1a54da848bf446919c0d5470d1e79fad339832
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171727
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

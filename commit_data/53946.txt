@@ -1,0 +1,21 @@
+commit f617a6c8bf1ee3e54459f60acd2ec85ff31f6d4c
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Aug 9 02:48:54 2023 +0000
+
+    cmd/dist: remove unnecessary parts of bootstrapDirs
+    
+    Change-Id: I7658f2f1716f74b4ff0b4b9f8ccd386e99dd9d51
+    
+    Change-Id: I7658f2f1716f74b4ff0b4b9f8ccd386e99dd9d51
+    GitHub-Last-Rev: f55b84dafb646fbfc0e4d0824d28d0dbf27e56c3
+    GitHub-Pull-Request: golang/go#61831
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516935
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/buildtool.go | 2 --
+ 1 file changed, 2 deletions(-)

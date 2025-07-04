@@ -1,0 +1,18 @@
+commit f96b62be2edd8acc08b79777d692937e8ed79b4a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 27 19:47:29 2020 -0400
+
+    cmd/internal/objabi, runtime: compact FUNCDATA indices
+    
+    As we deleted register maps, move FUNCDATA indices of stack
+    objects, inline trees, and open-coded defers earlier.
+    
+    Change-Id: If73797b8c11fd207655c9498802fca9f6f9ac338
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265761
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/objabi/funcdata.go | 6 +++---
+ src/runtime/funcdata.h              | 6 +++---
+ src/runtime/symtab.go               | 6 +++---
+ 3 files changed, 9 insertions(+), 9 deletions(-)

@@ -1,0 +1,19 @@
+commit 74bf90c779b3d4a4babd3e3de38e3d3e5d9dd7de
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 14 19:01:04 2022 -0700
+
+    go/types, types2: add test case for issue for coverage
+    
+    The specific error doesn't occur anymore.
+    Add a test to prevent regressions.
+    
+    For #50729.
+    
+    Change-Id: Ibf6ef6009b3d226b4f345b5a5657939915f19633
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412235
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ .../internal/types2/testdata/fixedbugs/issue50729.go  | 19 +++++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue50729.go         | 19 +++++++++++++++++++
+ 2 files changed, 38 insertions(+)

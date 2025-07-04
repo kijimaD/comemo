@@ -1,0 +1,18 @@
+commit 1f1551f17900ce992f1630f0603ceef1546dc655
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 21 16:09:17 2009 -0700
+
+    Test composite literals with undeclared types.  This crashed
+    gccgo in a few different places, and crashes 6g as of this
+    writing.  Note that the index in a composite literal must be
+    looked up in a different namespace if the composite literal
+    type turns out to be a struct.
+    
+    R=rsc
+    DELTA=36  (36 added, 0 deleted, 0 changed)
+    OCL=33681
+    CL=33685
+
+ test/bugs/bug194.go | 32 ++++++++++++++++++++++++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 36 insertions(+)

@@ -1,0 +1,28 @@
+commit a4a0f9b1481e9be4361eb9c4998eca08e2eedb0a
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Jun 7 14:11:20 2021 -0500
+
+    cmd/compile: make XER allocatable register on PPC64
+    
+    This is the first step towards decomposing aggregate operations
+    which create or consume the CA bit of the XER.
+    
+    This helps optimize the canned sequence of Add64Carry (and
+    Sub64Borrow if it were implemented similarly) by minimizing
+    extraneous operations related to loading the CA bit,
+    reloading CA in chained operations, or extracting it when
+    unused.
+    
+    Likewise, mark the operations which clobber CA.
+    
+    Change-Id: I33e6dd2654a8cc39fcdbb9690a495f03558cdc97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346869
+    Trust: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/config.go       |  1 +
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 57 +++++++++++++++-------------
+ src/cmd/compile/internal/ssa/opGen.go        | 17 ++++++---
+ 3 files changed, 42 insertions(+), 33 deletions(-)

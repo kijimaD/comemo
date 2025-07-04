@@ -1,0 +1,13 @@
+commit 41d65ac4a5c3674dca9273030226071bb1ca93ee
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 4 15:17:27 2008 -0700
+
+    - added missing language to operator section in spec
+    
+    R=r,ken
+    DELTA=100  (71 added, 9 deleted, 20 changed)
+    OCL=14827
+    CL=14832
+
+ doc/go_spec.txt | 112 +++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 87 insertions(+), 25 deletions(-)

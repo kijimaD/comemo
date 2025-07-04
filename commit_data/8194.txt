@@ -1,0 +1,12 @@
+commit 781df132f9332d30e788057fd9037627ae798d0f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 22 15:22:11 2011 -0400
+
+    runtime: stop deadlock test properly (fix arm5 build)
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/4446058
+
+ src/pkg/runtime/proc_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

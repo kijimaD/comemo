@@ -1,0 +1,13 @@
+commit 76fc2f62d3e1e6edbb0f3d3a9c31366355b10604
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 30 11:46:06 2010 -0700
+
+    contributors, authors: add Risto Saarelma
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/836043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

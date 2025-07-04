@@ -1,0 +1,30 @@
+commit 1cf05ee61267b8f98494ac1ca0b75e831c53f32e
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Sep 9 23:31:10 2015 -0400
+
+    runtime: move arch1_$GOARCH.go into arch_$GOARCH.go
+    
+    Update #12563.
+    
+    Change-Id: Id87f8e53586accd662575c31961c39787268df7a
+    Reviewed-on: https://go-review.googlesource.com/14471
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/arch1_386.go      | 15 ---------------
+ src/runtime/arch1_amd64.go    | 15 ---------------
+ src/runtime/arch1_amd64p32.go | 15 ---------------
+ src/runtime/arch1_arm.go      | 15 ---------------
+ src/runtime/arch1_arm64.go    | 15 ---------------
+ src/runtime/arch1_ppc64.go    | 15 ---------------
+ src/runtime/arch1_ppc64le.go  | 15 ---------------
+ src/runtime/arch_386.go       | 10 ++++++++++
+ src/runtime/arch_amd64.go     | 10 ++++++++++
+ src/runtime/arch_amd64p32.go  | 10 ++++++++++
+ src/runtime/arch_arm.go       | 10 ++++++++++
+ src/runtime/arch_arm64.go     | 10 ++++++++++
+ src/runtime/arch_ppc64.go     | 10 ++++++++++
+ src/runtime/arch_ppc64le.go   | 10 ++++++++++
+ 14 files changed, 70 insertions(+), 105 deletions(-)

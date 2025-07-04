@@ -1,0 +1,18 @@
+commit bae3fd66279cf679b686ae68c35980334d9ff315
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Feb 3 15:36:38 2018 +0000
+
+    cmd/vet: use type info to detect the atomic funcs
+    
+    Simply checking if a name is "atomic" isn't enough, as that might be a
+    var or another imported package. Now that vet requires type information,
+    we can do better. And add a simple regression test.
+    
+    Change-Id: Ibd2004428374e3628cd3cd0ffb5f37cedaf448ea
+    Reviewed-on: https://go-review.googlesource.com/91795
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/vet/atomic.go          |  6 ++++--
+ src/cmd/vet/testdata/atomic.go | 10 ++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)

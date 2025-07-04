@@ -1,0 +1,23 @@
+commit cab416f3394ee0211f221f5df0a145ddbfd16e5f
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Aug 31 09:13:06 2023 +0200
+
+    runtime: remove unnecessary timeout in TestCallbackInAnotherThread
+    
+    Waiting only for 100ms might be not enough for the callback to be
+    called. It is more reliable to wait infinitely and rely on the
+    test timeout to fail the test if the callback is not called.
+    
+    Fixes #62206
+    
+    Change-Id: I06b5eadae1dd334a2afc41af31a44b42cb5e596d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524695
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/syscall_windows_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

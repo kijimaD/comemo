@@ -1,0 +1,34 @@
+commit 20f276e237c4b312d4b62a1a83db84ce64229752
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 3 19:47:07 2015 -0500
+
+    runtime: don't start idle mark workers when barriers are cleared
+    
+    Currently, we don't start dedicated or fractional mark workers unless
+    the mark 1 or mark 2 barriers have been cleared. One intended
+    consequence of this is that no background workers run between the
+    forEachP that disposes all gcWork caches and the beginning of mark 2.
+    
+    However, we (unintentionally) did not apply this restriction to idle
+    mark workers. As a result, these can start in the interim between mark
+    1 completion and mark 2 starting. This explains why it was necessary
+    to reset the root marking jobs using carefully ordered atomic writes
+    when setting up mark 2. It also means that, even though we definitely
+    enqueue work before starting mark 2, it may be drained by the time we
+    reset the mark 2 barrier. If this happens, currently the only thing
+    preventing the runtime from deadlocking is that the scheduler itself
+    also checks for mark completion and will signal mark 2 completion.
+    Were it not for the odd behavior of idle workers, this check in the
+    scheduler would not be necessary.
+    
+    Clean all of this up and prepare to remove this check in the scheduler
+    by applying the same restriction to starting idle mark workers.
+    
+    Change-Id: Ic1b479e1591bd7773dc27b320ca399a215603b5a
+    Reviewed-on: https://go-review.googlesource.com/16631
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

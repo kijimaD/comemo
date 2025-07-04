@@ -1,0 +1,15 @@
+commit eeeaf6b931eb1f9a98619dadff3c92e84e972c67
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 25 16:32:39 2008 -0700
+
+    6g misparses negative constants in imports
+    
+    R=r
+    DELTA=8  (8 added, 0 deleted, 0 changed)
+    OCL=15893
+    CL=15898
+
+ test/bugs/bug106.dir/bug0.go | 6 ++++++
+ test/bugs/bug106.dir/bug1.go | 7 +++++++
+ test/bugs/bug106.go          | 7 +++++++
+ 3 files changed, 20 insertions(+)

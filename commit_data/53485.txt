@@ -1,0 +1,17 @@
+commit 1aaf1b219a44feaeaa1d737b5ea82202e9dbd5de
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 2 09:29:07 2023 -0700
+
+    spec: clarify min/max rules for numeric arguments (exclude NaNs)
+    
+    Fixes #60570.
+    
+    Change-Id: I7ef834731ea26ceee5ec9b7438fdd8323aaf828e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500416
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 48cc88d0635fc998a56354d667998c1af2be330a
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Nov 12 14:27:55 2010 -0800
+
+    arm is not little-endian
+    
+    R=rob
+    CC=golang-dev
+    https://golang.org/cl/3075041
+
+ src/pkg/syscall/mkall.sh              |  2 +-
+ src/pkg/syscall/zsyscall_linux_arm.go | 12 ++++++------
+ 2 files changed, 7 insertions(+), 7 deletions(-)

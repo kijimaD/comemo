@@ -1,0 +1,14 @@
+commit a3c2d62a9ab518ed6098375d4df91e0521c86026
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Mar 24 08:55:08 2013 +0100
+
+    cmd/5l, cmd/6l, cmd/8l: remove declaration on non-existent variables.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7985043
+
+ src/cmd/5l/l.h | 1 -
+ src/cmd/6l/l.h | 1 -
+ src/cmd/8l/l.h | 3 ---
+ 3 files changed, 5 deletions(-)

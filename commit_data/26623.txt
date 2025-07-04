@@ -1,0 +1,22 @@
+commit e6066711a0f92824ded94849e4f1085c2ba612c3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 31 02:04:12 2016 -0700
+
+    cmd/compile, runtime: fix pedantic int->string conversions
+    
+    Previously, cmd/compile rejected constant int->string conversions if
+    the integer value did not fit into an "int" value. Also, runtime
+    incorrectly truncated 64-bit values to 32-bit before checking if
+    they're a valid Unicode code point. According to the Go spec, both of
+    these cases should instead yield "\uFFFD".
+    
+    Fixes #15039.
+    
+    Change-Id: I3c8a3ad9a0780c0a8dc1911386a523800fec9764
+    Reviewed-on: https://go-review.googlesource.com/21344
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/const.go |  8 ++++----
+ src/runtime/string.go                |  3 +++
+ test/fixedbugs/issue15039.go         | 25 +++++++++++++++++++++++++
+ 3 files changed, 32 insertions(+), 4 deletions(-)

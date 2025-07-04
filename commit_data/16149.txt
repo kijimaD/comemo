@@ -1,0 +1,12 @@
+commit 8691f90cc53f1ebcd27d82c71432ca873a3744ca
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 9 10:17:35 2013 -0700
+
+    io: document non-guarantees of io.Closer
+    
+    R=r, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/8575043
+
+ src/pkg/io/io.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,17 @@
+commit 72b6daa3ba7a5842c07724cb49f41f178e1af778
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 23 15:08:36 2013 -0800
+
+    cmd/vet: check argument types in printf formats
+    Fixes #4404.
+    
+    R=gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/7378061
+
+ src/cmd/vet/Makefile        |   2 +-
+ src/cmd/vet/atomic.go       |   2 +-
+ src/cmd/vet/main.go         |   7 +-
+ src/cmd/vet/print.go        | 266 +++++++++++++++++++++++++++++++++-----------
+ src/cmd/vet/print_unsafe.go |  19 ++++
+ 5 files changed, 231 insertions(+), 65 deletions(-)

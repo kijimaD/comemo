@@ -1,0 +1,14 @@
+commit 035265975fbf93fa67aa6a6e7611ba640691d693
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 13 22:30:41 2010 -0700
+
+    os, syscall: mingw bug fixes
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/815044
+
+ src/pkg/os/file_mingw.go         |  2 +-
+ src/pkg/os/stat_mingw.go         |  3 +--
+ src/pkg/syscall/syscall_mingw.go | 20 +++++++++-----------
+ 3 files changed, 11 insertions(+), 14 deletions(-)

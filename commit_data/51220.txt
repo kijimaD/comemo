@@ -1,0 +1,24 @@
+commit 79950a41625d1a041781e6344f5ca57308c7df08
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Nov 10 18:52:22 2022 +0000
+
+    net: auto-reload the /etc/nsswitch.conf on unix systems
+    
+    This change is made to align with the current (recently changed) glibc behaviour, it will allow the hostLookupOrder method to change its decisions on runtime (based on /etc/nsswitch.conf changes).
+    
+    Fixes #56515
+    
+    Change-Id: I241d67f053b6d2111eebcd67744adee02829166e
+    GitHub-Last-Rev: 82842c127474d5d225d2e9b68568387ee6b0ba04
+    GitHub-Pull-Request: golang/go#56588
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448075
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/net/conf.go      |  7 +---
+ src/net/conf_test.go | 53 ++++++++++++++++++------------
+ src/net/nss.go       | 92 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 125 insertions(+), 27 deletions(-)

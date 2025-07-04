@@ -1,0 +1,24 @@
+commit 7575811c2b7c4a4a06a1e4b93c2473dffbb8bdcf
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 3 08:00:55 2022 -0400
+
+    go/doc/comment: add low-level parsing helpers
+    
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
+    
+    Implement helpers to recognize old-style headings,
+    plain text (not marked up) URLs, and Go identifiers.
+    
+    For #51082.
+    
+    Change-Id: Ibabce72ef3ffd79a9d33366091f8c76ef27d0182
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397277
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/doc/comment/old_test.go |  80 +++++++++++
+ src/go/doc/comment/parse.go    | 294 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 374 insertions(+)

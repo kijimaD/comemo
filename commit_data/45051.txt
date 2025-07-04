@@ -1,0 +1,20 @@
+commit 554d2c4f060ec42e30970dacff1e782250169323
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 9 11:20:35 2021 -0700
+
+    reflect: panic on New of go:notinheap type
+    
+    For #42076
+    Fixes #45451
+    
+    Change-Id: I69646226d3480d5403205412ddd13c0cfc2c8a53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308970
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ misc/cgo/test/cgo_test.go |  1 +
+ misc/cgo/test/test.go     | 19 +++++++++++++++++++
+ src/reflect/value.go      |  7 ++++++-
+ 3 files changed, 26 insertions(+), 1 deletion(-)

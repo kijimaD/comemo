@@ -1,0 +1,27 @@
+commit f2eea4c1dc37886939c010daff89c03d5a3825be
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Nov 14 13:33:32 2020 +0100
+
+    cmd/compile: mask SLL,SRL,SRAconst shift amount
+    
+    mips SRA/SLL/SRL shift amounts are used mod 32; this change aligns the
+    XXXconst rules to mask the shift amount by &31.
+    
+    Passes
+    
+      $ GOARCH=mips go build -toolexec 'toolstash -cmp' -a std
+      $ GOARCH=mipsle go build -toolexec 'toolstash -cmp' -a std
+    
+    Fixes #42587
+    
+    Change-Id: I6003ebd0bc500fba4cf6fb10254e1b557bf8c48f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270117
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/MIPS.rules |  7 +++----
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go |  6 +++---
+ src/cmd/compile/internal/ssa/rewriteMIPS.go | 29 ++++++-----------------------
+ test/fixedbugs/issue42587.go                | 15 +++++++++++++++
+ 4 files changed, 27 insertions(+), 30 deletions(-)

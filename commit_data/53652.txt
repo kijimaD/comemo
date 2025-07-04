@@ -1,0 +1,29 @@
+commit 3fce1115359c4ab7d67fbf4efef1341e52b354b7
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Tue Jun 27 23:22:04 2023 +0800
+
+    cmd/compile: fix FMA negative commutativity of riscv64
+    
+    According to RISCV manual 11.6:
+    
+    FMADD x,y,z computes x*y+z and
+    FNMADD x,y,z => -x*y-z
+    FMSUB x,y,z => x*y-z
+    FNMSUB x,y,z => -x*y+z respectively
+    
+    However our implement of SSA convert FMADD -x,y,z to FNMADD x,y,z which
+    is wrong and should be convert to FNMSUB according to manual.
+    
+    Change-Id: Ib297bc83824e121fd7dda171ed56ea9694a4e575
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506575
+    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 10 +++++-----
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 16 ++++++++--------
+ test/codegen/math.go                            |  8 ++++----
+ 3 files changed, 17 insertions(+), 17 deletions(-)

@@ -1,0 +1,16 @@
+commit c2e26fad3ba0d6cd83366c15b9969272eb3004f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 10 14:50:03 2017 -0500
+
+    cmd/go: more refined handling of cmd/compile magic environment variables
+    
+    Per discussion with David Chase, need to check GOSSAHASH$n
+    for increasing n until one is missing. Also if GSHS_LOGFILE is set,
+    the compiler writes to that file, so arrange never to cache in that case.
+    
+    Change-Id: I3931b4e296251b99abab9bbbbbdcf94ae8c1e2a6
+    Reviewed-on: https://go-review.googlesource.com/77111
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/go/internal/work/exec.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 3611553c3b08d615a34581274b553da6c94f193c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 1 14:57:05 2013 -0500
+
+    runtime: add atomics to fix arm
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7429046
+
+ src/pkg/runtime/proc.c    | 34 +++++++++++++++++-----------------
+ src/pkg/runtime/runtime.h |  2 +-
+ 2 files changed, 18 insertions(+), 18 deletions(-)

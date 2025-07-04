@@ -1,0 +1,20 @@
+commit fb451490ec646dba0d8fe9c6d0291c40e7631533
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Wed Jan 30 09:41:16 2013 -0800
+
+    os: don't hold ForkLock across opens on Plan 9
+    
+    If os.OpenFile holds ForkLock on files that block opens,
+    then threads that simultaneously try to do fork-exec will
+    get hung up (until the open succeeds). Blocked opens are
+    common enough on Plan 9 that protecting against fd leaks
+    into fork-execs means not being able to do fork-execs
+    properly in the general case. Thus, we forgo taking the
+    lock.
+    
+    R=rsc, ality
+    CC=golang-dev
+    https://golang.org/cl/7235066
+
+ src/pkg/os/file_plan9.go | 2 --
+ 1 file changed, 2 deletions(-)

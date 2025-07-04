@@ -1,0 +1,19 @@
+commit d6bf2d7b83b91e88625f838515885003c570ac83
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Dec 27 12:02:50 2019 -0500
+
+    runtime: test memmove writes pointers atomically
+    
+    In the previous CL we ensures that memmove writes pointers
+    atomically, so the concurrent GC won't observe a partially
+    updated pointer. This CL adds a test.
+    
+    Change-Id: Icd1124bf3a15ef25bac20c7fb8933f1a642d897c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212627
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/export_test.go  |  3 ++
+ src/runtime/memmove_test.go | 67 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+)

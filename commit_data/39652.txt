@@ -1,0 +1,26 @@
+commit b9bf2f5d2bb117f806aef84d99ad60adbcb0cc21
+Author: Dong-hee Na <donghee.na92@gmail.com>
+Date:   Wed May 15 02:40:12 2019 +0900
+
+    html/template: micro optimization for isJSType
+    
+    There is an unnecessary lower operation in isJSType.
+    Simple logic fix can improve tiny performance.
+    
+    name        old time/op    new time/op    delta
+    isJSType-8     152ns ± 0%      58ns ± 7%   -61.82%  (p=0.001 n=6+8)
+    
+    name        old alloc/op   new alloc/op   delta
+    isJSType-8     32.0B ± 0%      0.0B       -100.00%  (p=0.000 n=8+8)
+    
+    name        old allocs/op  new allocs/op  delta
+    isJSType-8      1.00 ± 0%      0.00       -100.00%  (p=0.000 n=8+8)
+    
+    Change-Id: I281aadf1677d4377920c9649af206381189a27e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177118
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/html/template/js.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

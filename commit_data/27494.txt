@@ -1,0 +1,20 @@
+commit 85e3c9e6b863792135c8cd49bebfd1028e87cee5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 24 02:52:31 2016 -0400
+
+    cmd/compile, go/types: omit needless word in error message
+    
+    CL 21462 and CL 21463 made this message say explicitly that the problem
+    was a struct field in a map, but the word "directly" is unnecessary,
+    sounds wrong, and makes the error long.
+    
+    Change-Id: I2fb68cdaeb8bd94776b8022cf3eae751919ccf6f
+    Reviewed-on: https://go-review.googlesource.com/23373
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ src/go/types/assignments.go              | 2 +-
+ src/go/types/testdata/stmt0.src          | 2 +-
+ test/fixedbugs/issue13779.go             | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

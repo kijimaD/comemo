@@ -1,0 +1,22 @@
+commit d508d86cf12a3c4ee139d31f5f5c9e5e53566ecc
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Nov 3 13:12:19 2020 -0500
+
+    cmd/go: account for flags when parsing regexps in TestScript
+    
+    Test script expects the regexp argument for stdout, stderr, and cmp
+    to be the first argument after the command, but that might not be the
+    case if the -q or -count flags are provided. Treat the first argument
+    after a flag as a regexp instead.
+    
+    For #39958
+    
+    Change-Id: I369926109ec10cca8b2c3baca27e7a3f7baf364b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267877
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/script_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

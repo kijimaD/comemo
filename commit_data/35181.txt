@@ -1,0 +1,111 @@
+commit f49369b67ce8858f5f7ac4e41580e62a289d73df
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Mon Apr 2 01:27:01 2018 +0200
+
+    cmd/compile: remove loopbce pass
+    
+    prove now is able to do what loopbce used to do.
+    
+    Passes toolstash -cmp.
+    
+    Compilebench of the whole serie (master 9967582f770f6):
+    
+    name       old time/op     new time/op     delta
+    Template       208ms ±18%      198ms ± 4%    ~     (p=0.690 n=5+5)
+    Unicode       99.1ms ±19%     96.5ms ± 4%    ~     (p=0.548 n=5+5)
+    GoTypes        623ms ± 1%      633ms ± 1%    ~     (p=0.056 n=5+5)
+    Compiler       2.94s ± 2%      3.02s ± 4%    ~     (p=0.095 n=5+5)
+    SSA            6.77s ± 1%      7.11s ± 2%  +4.94%  (p=0.008 n=5+5)
+    Flate          129ms ± 1%      136ms ± 0%  +4.87%  (p=0.016 n=5+4)
+    GoParser       152ms ± 3%      156ms ± 1%    ~     (p=0.095 n=5+5)
+    Reflect        380ms ± 2%      392ms ± 1%  +3.30%  (p=0.008 n=5+5)
+    Tar            185ms ± 6%      184ms ± 2%    ~     (p=0.690 n=5+5)
+    XML            223ms ± 2%      228ms ± 3%    ~     (p=0.095 n=5+5)
+    StdCmd         26.8s ± 2%      28.0s ± 5%  +4.46%  (p=0.032 n=5+5)
+    
+    name       old user-ns/op  new user-ns/op  delta
+    Template        252M ± 5%       248M ± 3%    ~     (p=1.000 n=5+5)
+    Unicode         118M ± 7%       121M ± 4%    ~     (p=0.548 n=5+5)
+    GoTypes         790M ± 2%       793M ± 2%    ~     (p=0.690 n=5+5)
+    Compiler       3.78G ± 3%      3.91G ± 4%    ~     (p=0.056 n=5+5)
+    SSA            8.98G ± 2%      9.52G ± 3%  +6.08%  (p=0.008 n=5+5)
+    Flate           155M ± 1%       160M ± 0%  +3.47%  (p=0.016 n=5+4)
+    GoParser        185M ± 4%       187M ± 2%    ~     (p=0.310 n=5+5)
+    Reflect         469M ± 1%       481M ± 1%  +2.52%  (p=0.016 n=5+5)
+    Tar             222M ± 4%       222M ± 2%    ~     (p=0.841 n=5+5)
+    XML             269M ± 1%       274M ± 2%  +1.88%  (p=0.032 n=5+5)
+    
+    name       old text-bytes  new text-bytes  delta
+    HelloSize       664k ± 0%       664k ± 0%    ~     (all equal)
+    CmdGoSize      7.23M ± 0%      7.22M ± 0%  -0.06%  (p=0.008 n=5+5)
+    
+    name       old data-bytes  new data-bytes  delta
+    HelloSize       134k ± 0%       134k ± 0%    ~     (all equal)
+    CmdGoSize       390k ± 0%       390k ± 0%    ~     (all equal)
+    
+    name       old exe-bytes   new exe-bytes   delta
+    HelloSize      1.39M ± 0%      1.39M ± 0%    ~     (all equal)
+    CmdGoSize      14.4M ± 0%      14.4M ± 0%  -0.06%  (p=0.008 n=5+5)
+    
+    Go1 of the whole serie:
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-16              5.40s ± 6%     5.38s ± 4%     ~     (p=1.000 n=12+10)
+    Fannkuch11-16                4.04s ± 3%     3.81s ± 3%   -5.70%  (p=0.000 n=11+11)
+    FmtFprintfEmpty-16          60.7ns ± 2%    60.2ns ± 3%     ~     (p=0.136 n=11+10)
+    FmtFprintfString-16          115ns ± 2%     114ns ± 4%     ~     (p=0.175 n=11+10)
+    FmtFprintfInt-16             118ns ± 2%     125ns ± 2%   +5.76%  (p=0.000 n=11+10)
+    FmtFprintfIntInt-16          196ns ± 2%     204ns ± 3%   +4.42%  (p=0.000 n=10+11)
+    FmtFprintfPrefixedInt-16     207ns ± 2%     214ns ± 2%   +3.23%  (p=0.000 n=10+11)
+    FmtFprintfFloat-16           364ns ± 3%     357ns ± 2%   -1.88%  (p=0.002 n=11+11)
+    FmtManyArgs-16               773ns ± 2%     775ns ± 1%     ~     (p=0.457 n=11+10)
+    GobDecode-16                11.2ms ± 4%    11.0ms ± 3%   -1.51%  (p=0.022 n=10+9)
+    GobEncode-16                9.91ms ± 6%    9.81ms ± 5%     ~     (p=0.699 n=11+11)
+    Gzip-16                      339ms ± 1%     338ms ± 1%     ~     (p=0.438 n=11+11)
+    Gunzip-16                   64.4ms ± 1%    65.2ms ± 1%   +1.28%  (p=0.001 n=10+11)
+    HTTPClientServer-16          157µs ± 7%     160µs ± 5%     ~     (p=0.133 n=11+11)
+    JSONEncode-16               22.3ms ± 4%    23.2ms ± 4%   +3.79%  (p=0.000 n=11+11)
+    JSONDecode-16               96.7ms ± 3%    96.6ms ± 1%     ~     (p=0.562 n=11+11)
+    Mandelbrot200-16            6.42ms ± 1%    6.40ms ± 1%     ~     (p=0.365 n=11+11)
+    GoParse-16                  5.59ms ± 7%    5.42ms ± 5%   -3.07%  (p=0.020 n=11+10)
+    RegexpMatchEasy0_32-16       113ns ± 2%     113ns ± 3%     ~     (p=0.968 n=11+10)
+    RegexpMatchEasy0_1K-16       417ns ± 1%     416ns ± 3%     ~     (p=0.742 n=11+10)
+    RegexpMatchEasy1_32-16       106ns ± 1%     107ns ± 3%     ~     (p=0.223 n=11+11)
+    RegexpMatchEasy1_1K-16       654ns ± 2%     657ns ± 1%     ~     (p=0.672 n=11+8)
+    RegexpMatchMedium_32-16      176ns ± 3%     177ns ± 1%     ~     (p=0.664 n=11+9)
+    RegexpMatchMedium_1K-16     56.3µs ± 3%    56.7µs ± 3%     ~     (p=0.171 n=11+11)
+    RegexpMatchHard_32-16       2.83µs ± 5%    2.83µs ± 4%     ~     (p=0.735 n=11+11)
+    RegexpMatchHard_1K-16       82.7µs ± 2%    82.7µs ± 2%     ~     (p=0.853 n=10+10)
+    Revcomp-16                   679ms ± 9%     782ms ±29%  +15.16%  (p=0.031 n=9+11)
+    Template-16                  118ms ± 1%     109ms ± 2%   -7.49%  (p=0.000 n=11+11)
+    TimeParse-16                 474ns ± 1%     462ns ± 1%   -2.59%  (p=0.000 n=11+11)
+    TimeFormat-16                482ns ± 1%     494ns ± 1%   +2.49%  (p=0.000 n=10+11)
+    
+    name                      old speed      new speed      delta
+    GobDecode-16              68.7MB/s ± 4%  69.8MB/s ± 3%   +1.52%  (p=0.022 n=10+9)
+    GobEncode-16              77.6MB/s ± 6%  78.3MB/s ± 5%     ~     (p=0.699 n=11+11)
+    Gzip-16                   57.2MB/s ± 1%  57.3MB/s ± 1%     ~     (p=0.428 n=11+11)
+    Gunzip-16                  301MB/s ± 2%   298MB/s ± 1%   -1.07%  (p=0.007 n=11+11)
+    JSONEncode-16             86.9MB/s ± 4%  83.7MB/s ± 4%   -3.63%  (p=0.000 n=11+11)
+    JSONDecode-16             20.1MB/s ± 3%  20.1MB/s ± 1%     ~     (p=0.529 n=11+11)
+    GoParse-16                10.4MB/s ± 6%  10.7MB/s ± 4%   +3.12%  (p=0.020 n=11+10)
+    RegexpMatchEasy0_32-16     282MB/s ± 2%   282MB/s ± 3%     ~     (p=0.756 n=11+10)
+    RegexpMatchEasy0_1K-16    2.45GB/s ± 1%  2.46GB/s ± 2%     ~     (p=0.705 n=11+10)
+    RegexpMatchEasy1_32-16     299MB/s ± 1%   297MB/s ± 2%     ~     (p=0.151 n=11+11)
+    RegexpMatchEasy1_1K-16    1.56GB/s ± 2%  1.56GB/s ± 1%     ~     (p=0.717 n=11+8)
+    RegexpMatchMedium_32-16   5.67MB/s ± 4%  5.63MB/s ± 1%     ~     (p=0.538 n=11+9)
+    RegexpMatchMedium_1K-16   18.2MB/s ± 3%  18.1MB/s ± 3%     ~     (p=0.156 n=11+11)
+    RegexpMatchHard_32-16     11.3MB/s ± 5%  11.3MB/s ± 4%     ~     (p=0.711 n=11+11)
+    RegexpMatchHard_1K-16     12.4MB/s ± 1%  12.4MB/s ± 2%     ~     (p=0.535 n=9+10)
+    Revcomp-16                 370MB/s ± 5%   332MB/s ±24%     ~     (p=0.062 n=8+11)
+    Template-16               16.5MB/s ± 1%  17.8MB/s ± 2%   +8.11%  (p=0.000 n=11+11)
+    
+    Change-Id: I41e46f375ee127785c6491f7ef5bd35581261ae6
+    Reviewed-on: https://go-review.googlesource.com/104039
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/compile.go |   1 -
+ src/cmd/compile/internal/ssa/loopbce.go | 131 --------------------------------
+ 2 files changed, 132 deletions(-)

@@ -1,0 +1,23 @@
+commit 254f8ea9eafd1678e178b3292a00b8aca517a864
+Author: Wei Congrui <crvv.mail@gmail.com>
+Date:   Sat Jul 29 18:23:00 2017 +0800
+
+    crypto/{aes,cipher,rc4}: fix out of bounds write in stream ciphers
+    
+    Functions XORKeyStream should panic if len(dst) < len(src), but it
+    write to dst before bounds checking. In asm routines and fastXORBytes,
+    this is an out of bounds write.
+    
+    Fixes #21104
+    
+    Change-Id: I354346cda8d63910f3bb619416ffd54cd0a04a0b
+    Reviewed-on: https://go-review.googlesource.com/52050
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/aes/ctr_s390x.go   |  4 +++
+ src/crypto/cipher/xor.go      |  9 +++++--
+ src/crypto/issue21104_test.go | 61 +++++++++++++++++++++++++++++++++++++++++++
+ src/crypto/rc4/rc4_asm.go     |  2 ++
+ 4 files changed, 74 insertions(+), 2 deletions(-)

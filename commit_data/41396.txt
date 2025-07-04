@@ -1,0 +1,24 @@
+commit 7802b551769c9f39e2b08a13f7ba2b4e5c521f9e
+Author: Milan Patel <bicelot3@gmail.com>
+Date:   Sun Feb 23 15:27:05 2020 -0500
+
+    reflect: update Select to panic early on excessive input cases
+    
+    The runtime implementation of select has an upper limit on the number of
+    select cases that are supported in order to maintain low stack memory
+    usage. Rather than support an arbitrary number of select cases, we've
+    opted to panic early with a useful message pointing the user directly
+    at the problem.
+    
+    Fixes #37350
+    
+    Change-Id: Id129ba281ae120387e681ef96be8adcf89725840
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220583
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/all_test.go | 29 +++++++++++++++++++++++++++++
+ src/reflect/value.go    |  4 ++++
+ src/runtime/select.go   |  7 +++++--
+ 3 files changed, 38 insertions(+), 2 deletions(-)

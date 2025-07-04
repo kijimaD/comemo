@@ -1,0 +1,17 @@
+commit f0a8101d34b396c4dc9ea6581c03ce16419192ab
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Apr 20 23:10:09 2021 -0400
+
+    go/types: combine two loops (cleanup of TODO)
+    
+    This is an exact port of CL 307949 to go/types.
+    
+    Change-Id: I796f3030a86d76deb80e58bb547460b586480911
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312096
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/infer.go | 32 +++++++++++---------------------
+ 1 file changed, 11 insertions(+), 21 deletions(-)

@@ -1,0 +1,15 @@
+commit 50f66fbb66c2f3cdfc9f942c5e11cc1b9ec17a73
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 27 12:53:25 2016 -0700
+
+    cmd/compile: disallow "init" as alias
+    
+    Fixes #17637.
+    
+    Change-Id: I5af63b8277c0a0f9fef4880992bcb925ca088687
+    Reviewed-on: https://go-review.googlesource.com/32106
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/noder.go | 8 ++++++--
+ test/alias2.go                       | 7 +++++++
+ 2 files changed, 13 insertions(+), 2 deletions(-)

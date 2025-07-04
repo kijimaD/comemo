@@ -1,0 +1,13 @@
+commit 77b1378c3e8b2669ae560c3a11c30e07f0a8cf8f
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue Jun 19 11:34:56 2012 -0700
+
+    exp/locale/collate: added regression test for collate package
+    based on UCA test files.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6216056
+
+ src/pkg/exp/locale/collate/regtest.go | 180 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 180 insertions(+)

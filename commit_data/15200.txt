@@ -1,0 +1,14 @@
+commit 02e05817ada2bd3d0492387a032b1aa879c2cd3f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 11 08:05:46 2013 -0500
+
+    sync: add caution about where to call (*WaitGroup).Add
+    
+    Fixes #4762.
+    
+    R=daniel.morsing, adg
+    CC=golang-dev
+    https://golang.org/cl/7308045
+
+ src/pkg/sync/waitgroup.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

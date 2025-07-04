@@ -1,0 +1,16 @@
+commit 8cd2e76404a59060f7a2e94a0b0d1b557c41f979
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 17:02:55 2009 -0800
+
+    - gofmt'ing of some stragglers, now with correct comment indentation
+    in special cases
+    - re-gofmt'ing of some files that are now improved
+    
+    R=r, rsc
+    http://go/go-review/1023003
+
+ src/pkg/debug/gosym/symtab.go | 108 +++++++++++------------
+ src/pkg/ebnf/ebnf.go          |   4 +-
+ src/pkg/gob/decoder.go        |   2 +-
+ src/pkg/template/template.go  | 194 +++++++++++++++++++++---------------------
+ 4 files changed, 155 insertions(+), 153 deletions(-)

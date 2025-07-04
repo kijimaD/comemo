@@ -1,0 +1,14 @@
+commit b73b43ea3165a52bb9c3d4263954800f4055f426
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 7 22:01:59 2009 -0800
+
+    6l, 8l: make string buffer big enough for 8 chars (and then some)
+    
+    Fixes #221.
+    
+    R=ken2
+    https://golang.org/cl/165086
+
+ src/cmd/6l/list.c | 2 +-
+ src/cmd/8l/list.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

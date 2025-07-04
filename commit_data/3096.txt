@@ -1,0 +1,15 @@
+commit 3cf330f089a8979facffe3e676678f9a0a4c05ec
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Aug 26 18:30:13 2009 -0700
+
+    template: Support iterables for repeated fields.
+    
+    R=r,rsc
+    APPROVED=rsc
+    DELTA=194  (97 added, 32 deleted, 65 changed)
+    OCL=33861
+    CL=33933
+
+ src/pkg/template/template.go      |  83 +++++++++++++++++++++-------
+ src/pkg/template/template_test.go | 112 +++++++++++++++++++++++---------------
+ 2 files changed, 130 insertions(+), 65 deletions(-)

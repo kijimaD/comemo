@@ -1,0 +1,18 @@
+commit 32b822f29a7e0ceaee9d393da8fa85e6d2e9c9f1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 13 12:54:51 2011 -0700
+
+    go spec: fix error in production syntax
+    
+    Fix analoguous error in ebnf.go which already
+    correctly accepted an empty production.
+    
+    Fixes #1821.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4526056
+
+ doc/go_spec.html     | 4 ++--
+ src/pkg/ebnf/ebnf.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

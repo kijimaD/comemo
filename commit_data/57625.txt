@@ -1,0 +1,24 @@
+commit 311372c53c21740c3427f08470ed1acd1c89f81b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Aug 26 19:57:43 2024 +0200
+
+    runtime: use arc4random_buf() for readRandom
+    
+    readRandom doesn't matter on Linux because of startupRand, but it does
+    on Windows and macOS. Windows already uses the same API as crypto/rand.
+    Switch macOS away from the /dev/urandom read.
+    
+    Updates #68278
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_14
+    Change-Id: Ie8f105e35658a6f10ff68798d14883e3b212eb3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608436
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/os_darwin.go       |  8 ++------
+ src/runtime/sys_darwin.go      | 10 ++++++++++
+ src/runtime/sys_darwin_amd64.s |  6 ++++++
+ src/runtime/sys_darwin_arm64.s |  6 ++++++
+ 4 files changed, 24 insertions(+), 6 deletions(-)

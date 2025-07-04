@@ -1,0 +1,12 @@
+commit 1ab60c2930a0b3f95589a89883cf863becb1e56e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 29 14:54:31 2015 -0700
+
+    cmd/doc: show the true import path rather than "."
+    
+    Change-Id: I7b15c027c15eefc2a004eb61491e828a7fbefc54
+    Reviewed-on: https://go-review.googlesource.com/9513
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/doc/main.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

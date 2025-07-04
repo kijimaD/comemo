@@ -1,0 +1,28 @@
+commit 4c7a18d74ae4d574313c01e95de66be06e3a3e82
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 19 07:46:09 2020 -0400
+
+    go/build: recognize and report //go:embed lines
+    
+    The code in this CL does the work of looking for the "embed" import
+    and then finding and recording the arguments to //go:embed lines
+    in Go source files. The go command will use this information to prepare
+    information about embedded files to pass to the compiler.
+    
+    The tests of the Package fields end up being end-to-end via the
+    go command (added in the CL with the go command changes),
+    like all the other Package fields.
+    
+    For #41191.
+    
+    Change-Id: I0c87b71ca809c0031603cc403c030d3088299e6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243941
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/go/build/build.go     |  53 +++++++++++--
+ src/go/build/read.go      | 189 +++++++++++++++++++++++++++++++++++++++++++++-
+ src/go/build/read_test.go |  56 ++++++++++++++
+ 3 files changed, 290 insertions(+), 8 deletions(-)

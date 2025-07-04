@@ -1,0 +1,16 @@
+commit 09ed0f68059552abeeae78867ffc2956205df22a
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Aug 12 22:15:43 2017 +0200
+
+    strconv: avoid truncation of output in parse int tests
+    
+    If needed cast the test table values to a higher bit size
+    integer type instead of casting the result values of the
+    tested function to a lower bit size integer type.
+    
+    Change-Id: Iaa79742b2b1d90c7c7eac324f54032ebea0b1b41
+    Reviewed-on: https://go-review.googlesource.com/55137
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/strconv/atoi_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

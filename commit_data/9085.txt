@@ -1,0 +1,14 @@
+commit e1b2e202179ae380616f81e2355b55dc33169d23
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 15 01:01:49 2011 -0400
+
+    http: sniffing placeholder
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4746041
+
+ src/pkg/http/Makefile  |  1 +
+ src/pkg/http/server.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/http/sniff.go  | 18 ++++++++++++++++
+ 3 files changed, 72 insertions(+), 4 deletions(-)

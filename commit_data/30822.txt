@@ -1,0 +1,15 @@
+commit 25a1d5d0f472f0da82aa8b4a1f3322463df5bbe6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 23 15:26:10 2017 -0700
+
+    cmd/compile/internal/gc: remove a Curfn dependency from nod
+    
+    Change-Id: I5daeb8f00044c86bb10510afbc6886898e61ba15
+    Reviewed-on: https://go-review.googlesource.com/38570
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/closure.go | 2 ++
+ src/cmd/compile/internal/gc/subr.go    | 1 -
+ 2 files changed, 2 insertions(+), 1 deletion(-)

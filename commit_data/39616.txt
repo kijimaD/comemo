@@ -1,0 +1,16 @@
+commit e68412984e644256ca3cdd6d6687ed0ce71ab2a6
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Aug 23 15:24:26 2019 -0400
+
+    all: update 'go get' command in standard library README.vendor
+    
+    The -m flag is removed in Go 1.13. -d should be used instead.
+    
+    Change-Id: Ia53764748309f16cb231e5ac6770400a73804484
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191621
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/README.vendor | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

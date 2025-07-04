@@ -1,0 +1,23 @@
+commit c3cb1ecc36512a00492f27fa3ba19e5dad6194f1
+Author: Amelia Downs <adowns@vmware.com>
+Date:   Mon Sep 27 16:54:39 2021 -0400
+
+    internal/fuzz: minimize bytes to be human readable
+    
+    Try to replace every byte with one of the following printable
+    characters: "012789ABCXYZabcxyz !\"#$%&'()*+,.".
+    
+    Fixes #48129
+    
+    Change-Id: Ie58f6bbc3431d50d9f0a3f608ba63e854ac6ce79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352614
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Amelia Downs <adowns@vmware.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Julie Qiu <julie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/internal/fuzz/minimize.go      | 19 ++++++++++++++++++
+ src/internal/fuzz/minimize_test.go | 41 +++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 59 insertions(+), 1 deletion(-)

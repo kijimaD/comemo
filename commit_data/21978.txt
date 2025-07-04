@@ -1,0 +1,14 @@
+commit b2843becab6f4571be1c117da870393198edf01f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 10 19:47:13 2015 -0700
+
+    cmd/yacc/testdata/expr: fix handling of negative numbers
+    
+    Fixes #10129.
+    
+    Change-Id: I9f56c483726f14b6c1909740549de236d5bf9cfb
+    Reviewed-on: https://go-review.googlesource.com/7340
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/yacc/testdata/expr/expr.y | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

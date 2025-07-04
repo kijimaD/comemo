@@ -1,0 +1,13 @@
+commit 9d3db4b62ef1ac60070853abf1ae5d3f759c04ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 3 14:54:01 2011 -0500
+
+    gotest: enable unit tests for cmd directories
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4001056
+
+ src/Make.cmd          | 19 +++++++++++++++++++
+ src/cmd/gotest/gotest | 46 ++++++++++++++++++++++++++++++----------------
+ 2 files changed, 49 insertions(+), 16 deletions(-)

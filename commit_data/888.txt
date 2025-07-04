@@ -1,0 +1,17 @@
+commit c4f9f369a6686665e6f43f41ec26ccd446306b56
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 16 19:24:33 2008 -0700
+
+    - added test script
+    - fixed a couple of printing bugs
+    status: parses, reproduces, and idempotently reproduces all correct .go files
+    
+    R=r
+    OCL=17332
+    CL=17332
+
+ usr/gri/pretty/Makefile   | 49 +-----------------------
+ usr/gri/pretty/parser.go  | 12 ++++--
+ usr/gri/pretty/printer.go | 16 ++++----
+ usr/gri/pretty/test.sh    | 95 +++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 114 insertions(+), 58 deletions(-)

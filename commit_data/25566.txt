@@ -1,0 +1,16 @@
+commit 166cfd2c878a806897526ba7bfecda060323cba5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 12:45:52 2016 -0500
+
+    runtime: arrange to show a few local variables when cgoCheckUnknownPointer panics
+    
+    For #13934.
+    
+    Change-Id: Id399e35598def96f8bb89b9fcd1bf14ee06e2e62
+    Reviewed-on: https://go-review.googlesource.com/18612
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/cgocall.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

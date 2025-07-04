@@ -1,0 +1,26 @@
+commit 42866e566a4586d7a39758c7186fbcc4678ec97d
+Author: David Chase <drchase@google.com>
+Date:   Thu Apr 6 10:09:51 2023 -0400
+
+    cmd/compile: minor cleanup to HashDebugPos
+    
+    HashDebugPos function/method included a parameter that was always
+    the same, and a variable in the same package as the hashdebug code.
+    So remove it.
+    
+    (I wrote that code, there was no reason for it to be that way).
+    
+    Also corrects a stale comment in the loopvar code.
+    
+    Change-Id: Id3da69cfe6dadeb31d5de62fb76d15103a5d6152
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482816
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/base/flag.go       | 4 ++--
+ src/cmd/compile/internal/base/hashdebug.go  | 8 ++++++--
+ src/cmd/compile/internal/loopvar/loopvar.go | 4 ++--
+ src/cmd/compile/internal/ssa/func.go        | 3 +--
+ 4 files changed, 11 insertions(+), 8 deletions(-)

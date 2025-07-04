@@ -1,0 +1,12 @@
+commit 104257252822fe311837808c7a7113327dbf7b02
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Mon May 30 12:35:55 2011 +1000
+
+    src: Make.pkg don't create $(TARGDIR) with goinstall.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4548071
+
+ src/Make.pkg | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

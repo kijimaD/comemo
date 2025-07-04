@@ -1,0 +1,33 @@
+commit cfb116d4538dcf2455ca59e786396c779019c065
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Oct 1 02:59:49 2015 -0700
+
+    archive/tar: expand abilities of TestReader
+    
+    Motivation:
+    * There are an increasing number of "one-off" corrupt files added
+    to make sure that package does not succeed or crash on them.
+    Instead, allow for the test to specify the error that is expected
+    to occur (if any).
+    * Also, fold in the logic to check the MD5 checksum into this
+    function.
+    
+    The following tests are being removed:
+    * TestIncrementalRead: Done by TestReader by using io.CopyBuffer
+    with a buffer of 8. This achieves the same behavior as this test.
+    * TestSparseEndToEnd: Since TestReader checks the MD5 checksums
+    if the input corpus provides them, then this is redundant.
+    * TestSparseIncrementalRead: Redundant for the same reasons that
+    TestIncrementalRead is now redundant
+    * TestNegativeHdrSize: Added to TestReader corpus
+    * TestIssue10968: Added to TestReader corpus
+    * TestIssue11169: Added to TestReader corpus
+    
+    With this change, code coverage did not change: 85.3%
+    
+    Change-Id: I8550d48657d4dbb8f47dfc3dc280758ef73b47ec
+    Reviewed-on: https://go-review.googlesource.com/15176
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/archive/tar/reader_test.go | 296 +++++++++++------------------------------
+ 1 file changed, 81 insertions(+), 215 deletions(-)

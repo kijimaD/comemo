@@ -1,0 +1,39 @@
+commit 8e7072ca83f06a0b4afeef6538a4696e1572c5d0
+Author: Wedson Almeida Filho <wedsonaf@google.com>
+Date:   Sun Jan 24 19:23:48 2016 +0100
+
+    sync: new Cond implementation
+    
+    Change Cond implementation to use a notification list such that waiters
+    can first register for a notification, release the lock, then actually
+    wait. Signalers never have to park anymore.
+    
+    This is intended to address an issue in the previous implementation
+    where Broadcast could fail to signal all waiters.
+    
+    Results of the existing benchmark are below.
+    
+                                              Original          New  Diff
+    BenchmarkCond1-48        2000000               745 ns/op    755 +1.3%
+    BenchmarkCond2-48        1000000              1545 ns/op   1532 -0.8%
+    BenchmarkCond4-48         300000              3833 ns/op   3896 +1.6%
+    BenchmarkCond8-48         200000             10049 ns/op  10257 +2.1%
+    BenchmarkCond16-48        100000             21123 ns/op  21236 +0.5%
+    BenchmarkCond32-48         30000             40393 ns/op  41097 +1.7%
+    
+    Fixes #14064
+    
+    Change-Id: I083466d61593a791a034df61f5305adfb8f1c7f9
+    Reviewed-on: https://go-review.googlesource.com/18892
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/select.go |   2 +-
+ src/runtime/runtime2.go               |   5 +-
+ src/runtime/sema.go                   | 233 +++++++++++++++++++++-------------
+ src/sync/cond.go                      |  45 +------
+ src/sync/cond_test.go                 |  59 +++++++++
+ src/sync/runtime.go                   |  35 +++--
+ 6 files changed, 238 insertions(+), 141 deletions(-)

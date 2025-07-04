@@ -1,0 +1,19 @@
+commit 731a015ab8c8f44c7196123fd65b184a63d6835a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon May 3 18:17:38 2021 -0400
+
+    internal/syscall/unix: use internal/abi.FuncPC for syscall wrapper
+    
+    Following CL 313230, this is for internal/syscall/unix package.
+    
+    Updates #45702.
+    
+    Change-Id: Ie6d8c1923dfeae56896212393c5c2a6e257648d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316649
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/internal/syscall/unix/getentropy_darwin.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

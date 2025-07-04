@@ -1,0 +1,12 @@
+commit be5782c330f2c743f81942f5bc1b9c1e04296d44
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri May 13 09:25:25 2016 +0200
+
+    doc/go1.7.txt: add cmd/trace changes
+    
+    Change-Id: Iaf455d1a2863ff752e0c398e1c364373b4d36614
+    Reviewed-on: https://go-review.googlesource.com/23084
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ doc/go1.7.txt | 3 +++
+ 1 file changed, 3 insertions(+)

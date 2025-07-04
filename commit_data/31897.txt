@@ -1,0 +1,14 @@
+commit b88efc7e7ac15f9e0b5d8d9c82f870294f6a3839
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 6 11:12:34 2017 +0900
+
+    net: update documentation on IP.IsUnspecified
+    
+    Fixes #19344.
+    
+    Change-Id: Ic6fc7485cb50bfae99fda69d0cd9c4ae434af4c3
+    Reviewed-on: https://go-review.googlesource.com/44910
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/ip.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

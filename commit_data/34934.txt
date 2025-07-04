@@ -1,0 +1,21 @@
+commit 02328153520b10d6252064ef18d5eeb214f55824
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Wed Apr 11 12:38:04 2018 +0200
+
+    net/http: skip a test on netbsd-arm
+    
+    TestServerDuplicateBackgroundRead has been causing crashes on the
+    netbsd-arm-bsiegert builder, with the system becoming completely
+    unresponsive (probably deadlocked). Skip this test while the crash
+    is under investigation.
+    
+    Upstream bug report is http://gnats.netbsd.org/53173.
+    
+    Change-Id: Ib48f19005cf2cbba8a27e75e689c2acb025d8870
+    Reviewed-on: https://go-review.googlesource.com/106295
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/net/http/serve_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

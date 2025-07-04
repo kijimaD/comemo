@@ -1,0 +1,25 @@
+commit 59b2f516e8ec66b76789142fbba4787a0e80d09a
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Mar 29 16:15:50 2021 -0500
+
+    cmd/internal/obj/ppc64: remove unused REG_DCR types
+    
+    The assembler does not support parsing DCRx registers,
+    nor does the compiler generate opcodes with these.
+    
+    Likewise, these registers are only available on ISA
+    2.07 embedded processors which are not supported in
+    golang.
+    
+    Change-Id: Iea258e5958a2022bda0eee8348de1b06437148df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352790
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/internal/obj/ppc64/a.out.go |  1 -
+ src/cmd/internal/obj/ppc64/asm9.go  | 18 +++---------------
+ src/cmd/internal/obj/ppc64/list9.go |  5 +----
+ 3 files changed, 4 insertions(+), 20 deletions(-)

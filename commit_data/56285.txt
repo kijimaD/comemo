@@ -1,0 +1,18 @@
+commit 4792ca7b93d5745647a95ac73a93f9c9b97db499
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Tue Apr 23 05:27:54 2024 +0000
+
+    doc: fix typos in docs
+    
+    Change-Id: Ib51283b35d6d35acd7a90cd531ff6897a23d9894
+    GitHub-Last-Rev: dd485f332e58c9467d68ed571317dfd56eea9d16
+    GitHub-Pull-Request: golang/go#66985
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580797
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+
+ doc/next/6-stdlib/2-unique.md           | 2 +-
+ doc/next/6-stdlib/99-minor/net/63116.md | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

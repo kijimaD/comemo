@@ -1,0 +1,12 @@
+commit abe70aff0e06ec5bbd12aa53a3ce991a7e884eb6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Aug 7 04:16:43 2015 +0000
+
+    doc: tweak phrasing in Go 1.5 release notes
+    
+    Change-Id: I6bea045bb1cef15e6d9d3b4e6e6b4ae91f7bb941
+    Reviewed-on: https://go-review.googlesource.com/13345
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

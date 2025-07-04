@@ -1,0 +1,13 @@
+commit 52943bfe4d1a85e64e35a5c1173ce04ae2b98bb6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 22 18:23:29 2011 -0500
+
+    gc: require if condition
+    
+    R=ken2, r2
+    CC=golang-dev
+    https://golang.org/cl/4195045
+
+ src/cmd/gc/go.y   |  9 +++++++--
+ test/syntax/if.go | 15 +++++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

@@ -1,0 +1,26 @@
+commit cacab6455503e04b276542baffc19f5113ef133d
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Mar 26 12:02:36 2019 -0400
+
+    cmd/link: change -strictdups checking to handle mix of flags
+    
+    Update the recently-added '-strictdups' sanity checking to avoid
+    failing the link in cases where we have objects feeding into the link
+    with a mix of command line flags (and in particular some with "-N" and
+    some without). This scenario will trigger errors/warnings due to
+    inlinable functions and wrapper functions that have different sizes
+    due to presence or lack of optimization.
+    
+    Update #31034.
+    
+    Change-Id: I1dd9e37c2f9bea5da0ab82e32e6fc210aebf6a65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169160
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/link/internal/ld/dwarf.go        | 12 ++++++++++++
+ src/cmd/link/internal/ld/lib.go          | 10 +++++++++-
+ src/cmd/link/internal/ld/main.go         |  1 +
+ src/cmd/link/internal/objfile/objfile.go |  9 +++++----
+ 4 files changed, 27 insertions(+), 5 deletions(-)

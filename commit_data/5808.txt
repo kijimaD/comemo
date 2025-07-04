@@ -1,0 +1,12 @@
+commit e8fcf600939997d0d77f404ad082728e921a15c3
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Wed Jul 14 17:17:04 2010 -0700
+
+    codereview: Fix for Mercurial >= 1.6
+    
+    R=rsc, adg, rsc1
+    CC=golang-dev
+    https://golang.org/cl/1804041
+
+ lib/codereview/codereview.py | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

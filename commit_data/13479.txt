@@ -1,0 +1,18 @@
+commit dfd7f18130e538c53a2974988caecacd53d473f1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 18 13:48:39 2012 -0700
+
+    net/http: revert back to (and test) Go 1 CheckRedirect behavior
+    
+    If a Client's CheckRedirect function returns an error, we
+    again return both a non-nil *Response and a non-nil error.
+    
+    Fixes #3795
+    
+    R=golang-dev, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/6429044
+
+ src/pkg/net/http/client.go      | 29 ++++++++++++++++++++---------
+ src/pkg/net/http/client_test.go |  6 ++++++
+ 2 files changed, 26 insertions(+), 9 deletions(-)

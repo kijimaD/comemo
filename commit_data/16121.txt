@@ -1,0 +1,15 @@
+commit dc7daa550af74277b10e8025d836fd5da48513f6
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Sun Apr 7 11:16:15 2013 -0700
+
+    lib9: handle empty TMPDIR more gracefully.
+    
+    Before, an empty TMPDIR would lead to:
+    cannot create <nil>/go.o: No such file or directory
+    
+    R=golang-dev, iant, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8355045
+
+ src/lib9/tempdir_unix.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

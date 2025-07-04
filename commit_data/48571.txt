@@ -1,0 +1,22 @@
+commit 8fefeabb358395fb3e592e9403339552880e0872
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Wed Nov 3 15:04:13 2021 +0800
+
+    runtime: add runtime changes for register ABI on riscv64
+    
+    This CL adds
+    - spill functions used by runtime
+    - ABIInternal to functions
+    
+    Adding new stubs_riscv64 file to eliminate vet issues while compiling.
+    
+    Change-Id: I2a9f6088a1cd2d9708f26b2d97895b4e5f9f87e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360296
+    Trust: mzh <mzh@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/asm_riscv64.s    | 274 +++++++++++++++++++++++++++++++++++--------
+ src/runtime/duff_riscv64.s   |   4 +-
+ src/runtime/mkduff.go        |   4 +-
+ src/runtime/stubs_riscv64.go |  16 +++
+ 4 files changed, 246 insertions(+), 52 deletions(-)

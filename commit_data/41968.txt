@@ -1,0 +1,23 @@
+commit aa3413cd98b6e11fe0d37d3d2a489a9cd83b47ad
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 15 10:56:22 2020 -0400
+
+    os/signal: special-case test settle time on the solaris-amd64-oraclerel builder
+    
+    This is an attempt to distinguish between a dropped signal and
+    general builder slowness.
+    
+    The previous attempt (increasing the settle time to 250ms) still
+    resulted in a timeout:
+    https://build.golang.org/log/dd62939f6d3b512fe3e6147074a9c6db1144113f
+    
+    For #33174
+    
+    Change-Id: I79027e91ba651f9f889985975f38c7b01d82f634
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228266
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/signal/signal_test.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

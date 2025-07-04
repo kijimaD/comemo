@@ -1,0 +1,15 @@
+commit a806c213e7dd32520d204890fb953c8e9d1142f2
+Author: Alex Gaynor <alex.gaynor@gmail.com>
+Date:   Sun Sep 1 13:57:21 2019 +0000
+
+    doc: make the draft 1.13 release notes expected release date accurate
+    
+    Change-Id: I17148bb2b8021ed305ed0d230675d51c41736a11
+    GitHub-Last-Rev: 2998d46d10587a850fb36f5784df23b371244479
+    GitHub-Pull-Request: golang/go#34004
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192797
+    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.13.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

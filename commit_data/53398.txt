@@ -1,0 +1,17 @@
+commit 30f8d5b69d5bca46f5348ea29dc898ed472bd204
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 30 15:31:39 2023 -0700
+
+    doc/go1.21: mention that embedded files implement ReadAt
+    
+    For #57803
+    
+    Change-Id: I8e33f4dd3fc3071bfbf4d2848faefbe8488f5742
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499418
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.21.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

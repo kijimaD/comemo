@@ -1,0 +1,17 @@
+commit b6f6259f2d46afaaffe62f6e42b3577cb03a44f4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 22:22:00 2020 -0700
+
+    cmd/compile: convert floating point optimizations to typed aux
+    
+    Passes toolstash-check.
+    
+    Change-Id: I1318ede351da4cf769f7b9d87b275720fc278159
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229685
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules | 16 ++++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 54 +++++++++++++-------------
+ 2 files changed, 35 insertions(+), 35 deletions(-)

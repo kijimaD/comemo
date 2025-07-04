@@ -1,0 +1,35 @@
+commit 810bbfe6f8bcd6ac00238d477e1f0138c9d311b9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 16 12:03:10 2015 -0700
+
+    go/build: deps check all std packages
+    
+    Instead of only checking packages that are already listed in pkgDeps,
+    apply deps checks to all standard library packages.
+    
+    To avoid slowing testing down too much, instead of running "go list
+    std" in a subprocess like cmd/api or cmd/dist, this test manually
+    walks the GOROOT src directory to enumerate packages.
+    
+    Timings on an HP Z620 using linux/amd64:
+    
+            short   full
+    before  0.092s  4.880s
+    after   0.137s  5.104s
+    
+    Additionally, a handful of packages that were previously unchecked are
+    now listed, along with their current dependencies.  These should
+    probably eventually be moved elsewhere and assigned appropriate
+    allowable-dependency sets.  For now, they've been grandfathered in by
+    simply assigning them their current dependencies, so that followup CLs
+    can review them individually as appropriate.
+    
+    Fixes #10475.
+    
+    Change-Id: I83ffd8ff329092f664bf3e3f2c9e3dad8e77ac02
+    Reviewed-on: https://go-review.googlesource.com/9001
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/go/build/deps_test.go | 70 ++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 63 insertions(+), 7 deletions(-)

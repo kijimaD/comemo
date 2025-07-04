@@ -1,0 +1,24 @@
+commit 07b6add0ca1f1dc38270cddf3d30f9b06503c9e3
+Author: Keith Randall <khr@golang.org>
+Date:   Fri May 31 20:58:31 2013 -0700
+
+    runtime: do hashmap grow work during reads.
+    
+    Before this change, grow work was done only
+    during map writes to ensure multithreaded safety.
+    This can lead to maps remaining in a partially
+    grown state for a long time, potentially forever.
+    This change allows grow work to happen during reads,
+    which will lead to grow work finishing sooner, making
+    the resulting map smaller and faster.
+    
+    Grow work is not done in parallel.  Reads can
+    happen in parallel while grow work is happening.
+    
+    R=golang-dev, dvyukov, khr, iant
+    CC=golang-dev
+    https://golang.org/cl/8852047
+
+ src/pkg/runtime/hashmap.c      | 273 ++++++++++++++++++++++-------------------
+ src/pkg/runtime/hashmap_fast.c |  34 ++---
+ 2 files changed, 164 insertions(+), 143 deletions(-)

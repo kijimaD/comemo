@@ -1,0 +1,28 @@
+commit ce6e0b089f14131889b8e0960f958d07e7bb9108
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 11 15:57:58 2017 -0400
+
+    cmd/link: remove silly sym.R[:0] truncation
+    
+    The DWARF code currently clears all section relocations every time it
+    creates a section. This is unnecessary and confusing, so don't do it.
+    
+    This dates back to
+    https://codereview.appspot.com/7891044/diff/26001/src/cmd/ld/dwarf.c.
+    At the time, this was only done for one symbol and that symbol was
+    used solely for collecting relocations (which is why it made sense to
+    clear the relocations but not the actual data). Furthermore, DWARF
+    generation potentially required two passes, so it was important to
+    clear the state from the first pass. None of this is true now, but
+    this pattern had been cargo-culted all over the dwarf.go.
+    
+    Change-Id: I87d4ff8ccd5c807796241559be46168ce3ccb49a
+    Reviewed-on: https://go-review.googlesource.com/70312
+    Run-TryBot: Austin Clements <austin@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 5 -----
+ 1 file changed, 5 deletions(-)

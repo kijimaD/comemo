@@ -1,0 +1,30 @@
+commit 467109bf56fb560d1fd8a27c6184dbfe4f64ffef
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Jan 13 22:08:27 2017 -0500
+
+    all: test adjustments for the iOS builder
+    
+    The working directory is now adjusted to match the typical Go test
+    working directory in main, as the old trick for adjusting earlier
+    stopped working with the latest version of LLDB bugs.
+    
+    That means the small number of places where testdata files are
+    read before main is called no longer work. This CL adjusts those
+    reads to happen after main is called. (This has the bonus effect of
+    not reading some benchmark testdata files in all.bash.)
+    
+    Fixes compress/bzip2, go/doc, go/parser, os, and time package
+    tests on the iOS builder.
+    
+    Change-Id: If60f026aa7848b37511c36ac5e3985469ec25209
+    Reviewed-on: https://go-review.googlesource.com/35255
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go    |  6 ++----
+ src/compress/bzip2/bzip2_test.go  | 24 +++++++++++++++---------
+ src/go/doc/doc_test.go            |  5 ++++-
+ src/go/parser/performance_test.go | 13 ++++---------
+ src/os/os_test.go                 |  5 ++++-
+ 5 files changed, 29 insertions(+), 24 deletions(-)

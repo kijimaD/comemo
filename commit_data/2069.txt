@@ -1,0 +1,13 @@
+commit 9c456283f3f75da76556bb73cd629d76813af1f9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 21 15:30:17 2009 -0700
+
+    minor adjustment to comment formatting for better godoc output
+    
+    R=r
+    DELTA=5  (0 added, 0 deleted, 5 changed)
+    OCL=27687
+    CL=27689
+
+ src/lib/fmt/format.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

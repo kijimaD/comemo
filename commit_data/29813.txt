@@ -1,0 +1,20 @@
+commit 96414ca39f4a63d04ddc5cea6d4c63237f2a5fd4
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Dec 10 13:30:13 2016 -0500
+
+    cmd/link: do not export plugin C symbols
+    
+    Explicitly filter any C-only cgo functions out of pclntable,
+    which allows them to be duplicated with the host binary.
+    
+    Updates #18190.
+    
+    Change-Id: I50d8706777a6133b3e95f696bc0bc586b84faa9e
+    Reviewed-on: https://go-review.googlesource.com/34199
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/src/plugin2/plugin2.go | 13 ++++++++++--
+ src/cmd/link/internal/ld/macho.go          | 19 ++++++++++++++++--
+ src/cmd/link/internal/ld/pcln.go           | 18 ++++++++++++++++-
+ src/runtime/plugin.go                      | 32 ++++++++++++++++++++++++++++++
+ 4 files changed, 77 insertions(+), 5 deletions(-)

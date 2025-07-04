@@ -1,0 +1,32 @@
+commit bc276c585b24a5e3adb9c6cdfebc4d69d910cc2e
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Thu May 17 19:47:52 2018 +0300
+
+    cmd/link/internal/ld: avoid Reloc copies in range loops
+    
+    Copying sym.Reloc in loops hurts performance as
+    it has 48 byte size (on 64-bit platforms).
+    
+    There are quite many symbols and each of them has more than 1
+    relocation (so, it's possible to have more than 1kk relocs).
+    The're also traversed more than once in some code paths.
+    
+    By using pointers to them, copies are avoided.
+    
+    For linking "hello world" example from net/http:
+    
+            name      old time/op  new time/op  delta
+            Linker-4   530ms ± 2%   521ms ± 3%  -1.80%  (p=0.000 n=17+20)
+    
+    Change-Id: I6518aec69d6adcd137f84b5c089ceab4cb4ea2dd
+    Reviewed-on: https://go-review.googlesource.com/113636
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/ar.go       | 3 ++-
+ src/cmd/link/internal/ld/data.go     | 3 ++-
+ src/cmd/link/internal/ld/deadcode.go | 4 ++--
+ src/cmd/link/internal/ld/dwarf.go    | 9 ++++++---
+ src/cmd/link/internal/ld/lib.go      | 3 ++-
+ 5 files changed, 14 insertions(+), 8 deletions(-)

@@ -1,0 +1,20 @@
+commit d20a4c2403edf07f05eb024e3af568782303ce97
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Oct 10 11:56:56 2024 +0200
+
+    syscall: support more flags when opening directories on Windows
+    
+    syscall.Open was artificially limiting the flags that were eligible
+    to open directories on Windows. This change extend the cases where we
+    pass FILE_FLAG_BACKUP_SEMANTICS to all flag combinations allowed by
+    Unix.
+    
+    Change-Id: Ia7c083bcba070f92ea61c6d67487bdefd0d99546
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619295
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/syscall/syscall_windows.go      | 6 ++++--
+ src/syscall/syscall_windows_test.go | 4 ++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit 510f1dbad7cea17ca1154df862b7750eb9eeebb9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 20 09:15:46 2015 -0700
+
+    cmd/go: build errors rather than fmt in a couple of tests
+    
+    The errors package is smaller and builds faster.
+    
+    Update #11779.
+    
+    Change-Id: Iaf2d43734ec4b0aa325590eb5d38522306b608cb
+    Reviewed-on: https://go-review.googlesource.com/12366
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

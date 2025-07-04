@@ -1,0 +1,14 @@
+commit 57c81ef2570ac896fa5d830effbf2494d5cde3e5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 15 13:13:38 2015 -0800
+
+    spec: be clearer about which parameter section can be variadic
+    
+    Fixes #13595.
+    
+    Change-Id: I870ddc97ea25b7f6f7a1bb1a78e5e4874fba1ddc
+    Reviewed-on: https://go-review.googlesource.com/17871
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

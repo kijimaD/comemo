@@ -1,0 +1,28 @@
+commit 6ca51f78978de7e6206d38b99eef8172fc8540d0
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Nov 7 09:33:12 2018 +0100
+
+    runtime: replace division by span element size by multiply and shifts
+    
+    Divisions are generally slow. The compiler can optimize a division
+    to use a sequence of faster multiplies and shifts (magic constants)
+    if the divisor is not know at compile time.
+    
+    The value of the span element size in mcentral.grow is not known at
+    compile time but magic constants to compute n / span.elementsize
+    are already stored in class_to_divmagic and mspan.
+    They however need to be adjusted to work for
+    (0 <= n <= span.npages * pagesize) instead of
+    (0 <= n <  span.npages * pagesize).
+    
+    Change-Id: Ieea59f1c94525a88d012f2557d43691967900deb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/148057
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mcentral.go      | 8 ++++----
+ src/runtime/mksizeclasses.go | 4 ++--
+ src/runtime/sizeclasses.go   | 2 +-
+ 3 files changed, 7 insertions(+), 7 deletions(-)

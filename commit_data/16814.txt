@@ -1,0 +1,16 @@
+commit bc31bcccd3b94ec8dd324e523c4c7ae9180b937f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jul 19 01:22:26 2013 +0400
+
+    runtime: preempt long-running goroutines
+    If a goroutine runs for more than 10ms, preempt it.
+    Update #543.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/10796043
+
+ src/pkg/runtime/proc.c       | 55 +++++++++++++++++++++++++++++---------------
+ src/pkg/runtime/proc_test.go | 21 +++++++++++++++++
+ src/pkg/runtime/stack.c      |  4 ++--
+ 3 files changed, 60 insertions(+), 20 deletions(-)

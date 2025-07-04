@@ -1,0 +1,14 @@
+commit a22389ec38dd57df86236feee47404c5b01ce191
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 29 21:48:25 2012 -0500
+
+    runtime: say 'fatal error' instead of 'throw'
+    
+    Fixes #4597.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7032043
+
+ src/pkg/runtime/panic.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

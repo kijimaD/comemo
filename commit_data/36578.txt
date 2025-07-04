@@ -1,0 +1,18 @@
+commit 24e51bbe64b4a534b096a3b0c6bfae6a732eea59
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jun 16 06:54:23 2018 -0700
+
+    cmd/compile: prefer rematerializeable arg0 for HMUL
+    
+    This prevents accidental regalloc regressions
+    that otherwise can occur from unrelated changes.
+    
+    Change-Id: Iea356fb1a24766361fce13748dc1b46e57b21cea
+    Reviewed-on: https://go-review.googlesource.com/129375
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  7 +++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 80 ++++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+)

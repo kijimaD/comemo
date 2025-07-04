@@ -1,0 +1,20 @@
+commit 3a14b42edfc5626ef805578e462df838359e7130
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Mar 30 09:31:49 2013 -0700
+
+    cmd/6g: fix warnings on Plan 9
+    
+    src/cmd/6g/peep.c:471 set and not used: r
+    src/cmd/6g/peep.c:560 overspecified class: regconsttyp GLOBL STATIC
+    src/cmd/6g/peep.c:761 more arguments than format IND STRUCT Prog
+    src/cmd/6g/reg.c:185 set and not used: r1
+    src/cmd/6g/reg.c:786 format mismatch d VLONG, arg 3
+    src/cmd/6g/reg.c:1064 format mismatch d VLONG, arg 5
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8197044
+
+ src/cmd/6g/peep.c | 5 +++--
+ src/cmd/6g/reg.c  | 5 ++---
+ 2 files changed, 5 insertions(+), 5 deletions(-)

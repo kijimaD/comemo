@@ -1,0 +1,25 @@
+commit cea7a71d40115333d5943162e5764162b767389d
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Sep 13 18:50:19 2021 -0700
+
+    cmd/compile: fix generic type handling in crawler
+    
+    There are a bunch of nodes beside ONAME and OTYPE, (such as OSTRUCTLIT
+    and OCOMPLIT) which can introduce a generic type that we need to mark.
+    So, just mark any generic type on any node in markInlBody. In this
+    particular issue, the type is introduced by an OSTRUCTLIT node.
+    
+    Updates #48337
+    
+    Change-Id: I271932518f0c1fb54d91a603e01a855c69df631d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349909
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/typecheck/crawler.go | 45 +++++++++++++--------------
+ test/typeparam/issue48337a.dir/a.go           | 32 +++++++++++++++++++
+ test/typeparam/issue48337a.dir/main.go        | 12 +++++++
+ test/typeparam/issue48337a.go                 |  7 +++++
+ test/typeparam/issue48337a.out                |  1 +
+ 5 files changed, 73 insertions(+), 24 deletions(-)

@@ -1,0 +1,20 @@
+commit 51d8d351c1bb2cac74e1bbf8545245cdbc8914c3
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Mar 4 20:56:01 2021 +0700
+
+    cmd/compile: do not set type for OTYPESW
+    
+    Same as CL 294031, but for OTYPESW.
+    
+    Updates #43311
+    
+    Change-Id: I996f5938835baff1d830c17ed75652315106bdfd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298712
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
+ test/fixedbugs/issue24470.go                    | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

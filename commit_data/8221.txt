@@ -1,0 +1,15 @@
+commit 4684df520f787f6209b25d32511412f0d955b03e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 25 17:16:44 2011 -0400
+
+    gc: explain why invalid receiver types are invalid
+    
+    Fixes #1680.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4446061
+
+ src/cmd/gc/dcl.c | 26 ++++++++++++++++++++++++++
+ test/method2.go  | 10 ++++++++--
+ 2 files changed, 34 insertions(+), 2 deletions(-)

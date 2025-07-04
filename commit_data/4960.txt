@@ -1,0 +1,13 @@
+commit ba50599e4601f77507b63cf5e6ed365d5ef8eb77
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 26 13:15:29 2010 -0800
+
+    8g: make a[byte(x)] truncate x
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/223069
+
+ src/cmd/8g/cgen.c        |  9 ++++++++-
+ test/fixedbugs/bug259.go | 16 ++++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

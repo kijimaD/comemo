@@ -1,0 +1,22 @@
+commit db185e543fe471c522790b7d93291e786dc54a84
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jul 7 17:55:40 2020 -0400
+
+    runtime: drop redundant gcBlackenEnabled reset
+    
+    This reset of gcBlackenEnabled is a no-op because it was already reset
+    almost immediately before in gcMarkDone, which is the only caller of
+    gcMarkTermination.
+    
+    Adjust the comment to clarify setGCPhase a bit more. We are coming from
+    _GCmark, so write barriers are already enabled.
+    
+    Change-Id: Ieac2dadf33c3c5a44e8a25a499dea8cfe03b8d73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241357
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

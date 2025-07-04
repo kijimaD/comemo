@@ -1,0 +1,18 @@
+commit ce2e450c6bb6c7fcdb9fcce3054aee661906a698
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 11:02:44 2009 -0700
+
+    install new reflect:
+    rename ntype.go and nvalue.go to type.go and value.go
+    
+    R=r
+    DELTA=4295  (761 added, 2819 deleted, 715 changed)
+    OCL=31238
+    CL=31276
+
+ src/pkg/Make.deps         |    2 +-
+ src/pkg/reflect/ntype.go  |  551 ------------------
+ src/pkg/reflect/nvalue.go |  960 ------------------------------
+ src/pkg/reflect/type.go   | 1294 +++++++++++++----------------------------
+ src/pkg/reflect/value.go  | 1413 ++++++++++++++++++++++-----------------------
+ 5 files changed, 1080 insertions(+), 3140 deletions(-)

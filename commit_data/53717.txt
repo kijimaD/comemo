@@ -1,0 +1,18 @@
+commit 1136dea7891a44590dcebd8a813060eb806a2d34
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Jul 14 04:07:45 2023 +0000
+
+    cmp.bash: fix comment grammar
+    
+    Change-Id: I290806279983b528e35a3b81641c78a4e3424a74
+    GitHub-Last-Rev: d6f888e7de9d8eb205a1111f37ee1e2f71e04c5c
+    GitHub-Pull-Request: golang/go#61351
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509655
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmp.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit b6e913806ec85f18614ab825fce4e99aae94f899
+Author: Emil Hessman <emil@hessman.se>
+Date:   Sun Dec 28 06:12:19 2014 +0100
+
+    cmd/pack: address go vet reports
+    
+    Use log.Fatalf for formatting directives instead of log.Fatal
+    
+    Change-Id: Ia207b320f5795c63cdfa71f92c19ca6d05cc833f
+    Reviewed-on: https://go-review.googlesource.com/2160
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/pack/pack.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

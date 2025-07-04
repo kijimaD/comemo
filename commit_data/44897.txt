@@ -1,0 +1,17 @@
+commit e6ac2df2b198f583780277a7cf96e3b0b61fe0a1
+Author: Cluas <Cluas@live.cn>
+Date:   Thu Apr 1 05:25:23 2021 +0000
+
+    net/url: use camelCase names
+    
+    Change-Id: I191b98b846c9de58b1892e695058c727402b5400
+    GitHub-Last-Rev: f241ddd96b4e847ee3608133a41e1b2bb553982d
+    GitHub-Pull-Request: golang/go#45291
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305770
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/url/url.go | 58 +++++++++++++++++++++++++++---------------------------
+ 1 file changed, 29 insertions(+), 29 deletions(-)

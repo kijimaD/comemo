@@ -1,0 +1,14 @@
+commit 84ded32817e368dc3dd3a2527ecbf94bdd853d14
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Jul 2 22:05:06 2009 -0700
+
+    sys.cas for mutex
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=28  (28 added, 0 deleted, 0 changed)
+    OCL=31128
+    CL=31130
+
+ src/pkg/sync/asm_arm.s | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

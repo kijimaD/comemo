@@ -1,0 +1,17 @@
+commit 9462bcedc612eb8b735ad7f3417c88be37f387b4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 29 18:10:43 2015 -0700
+
+    net/http: harden, document func SetCookie and type Cookie
+    
+    Fixes #9758
+    
+    Change-Id: I3089ec06cddd74b547d8b10834d7478a04b02069
+    Reviewed-on: https://go-review.googlesource.com/11701
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/cookie.go      | 32 +++++++++++++++++++++-----------
+ src/net/http/cookie_test.go | 12 ++++++++++++
+ 2 files changed, 33 insertions(+), 11 deletions(-)

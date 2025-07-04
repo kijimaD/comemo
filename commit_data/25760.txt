@@ -1,0 +1,14 @@
+commit c51f9173ad2711f5b1a5af9d95dae9e711e13ebb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 18 09:42:28 2016 -0800
+
+    go/constant: fix doc strings
+    
+    Fixes #14357.
+    
+    Change-Id: I91acff0b0cc7be2bcbad68925a19a437dbd4c83d
+    Reviewed-on: https://go-review.googlesource.com/19620
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/constant/value.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

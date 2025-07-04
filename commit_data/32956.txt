@@ -1,0 +1,28 @@
+commit 66c03d39f3aa65ec522c41e56c569391786539a7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Aug 9 11:33:40 2017 +1000
+
+    path/filepath: re-implement windows EvalSymlinks
+    
+    CL 41834 used approach suggested by Raymond Chen in
+    https://blogs.msdn.microsoft.com/oldnewthing/20100212-00/?p=14963/
+    to implement os.Stat by getting Windows I/O manager
+    follow symbolic links.
+    
+    Do the same for filepath.EvalSymlinks, when existing
+    strategy fails.
+    
+    Updates #19922
+    Fixes #20506
+    
+    Change-Id: I15f3d3a80256bae86ac4fb321fd8877e84d8834f
+    Reviewed-on: https://go-review.googlesource.com/55612
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/deps_test.go                        |  2 +-
+ src/internal/syscall/windows/syscall_windows.go  | 16 ++++
+ src/internal/syscall/windows/zsyscall_windows.go | 44 +++++++----
+ src/os/os_windows_test.go                        |  9 ++-
+ src/path/filepath/path_windows_test.go           | 34 +++++++++
+ src/path/filepath/symlink_windows.go             | 97 +++++++++++++++++++++++-
+ 6 files changed, 183 insertions(+), 19 deletions(-)

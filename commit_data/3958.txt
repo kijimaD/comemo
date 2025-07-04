@@ -1,0 +1,11 @@
+commit 44fb865a484b8e12adfa0a1413eacc807cec085b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 15:18:40 2009 -0800
+
+    default to codereview.appspot.com
+    
+    R=r
+    http://codereview.prom.corp.google.com/1026040
+
+ lib/codereview/codereview.py | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

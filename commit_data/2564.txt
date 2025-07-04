@@ -1,0 +1,15 @@
+commit c701af8c80b2b0236db5855b530d4f05e684df58
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 1 18:25:13 2009 -0700
+
+    Encode and decode engines for gobs.
+    
+    R=rsc
+    DELTA=468  (292 added, 18 deleted, 158 changed)
+    OCL=31008
+    CL=31012
+
+ src/pkg/gob/codec_test.go | 144 +++++++++++++++++++++++++++++----------------
+ src/pkg/gob/decode.go     | 114 ++++++++++++++++++++++++++++++++++++
+ src/pkg/gob/encode.go     | 146 +++++++++++++++++++++++++++++++++++++++++-----
+ 3 files changed, 339 insertions(+), 65 deletions(-)

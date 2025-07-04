@@ -1,0 +1,27 @@
+commit 8af8fa910329242caa7402561ed011d2de3f00e9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Feb 20 21:22:03 2020 +0000
+
+    runtime: add spanSet data structure
+    
+    This change copies the gcSweepBuf data structure into a new file and
+    renames it spanSet. It will serve as the basis for a heavily modified
+    version of the gcSweepBuf data structure for the new mcentral
+    implementation.
+    
+    We move it into a separate file now for two reasons:
+    1. We will need both implementations as they will coexist simultaneously
+       for a time.
+    2. By creating it now in a new change it'll make future changes which
+       modify it easier to review (rather than introducing the new file then).
+    
+    Updates #37487.
+    
+    Change-Id: If80603cab6e813a1ee2e5ecd49dcde5d8045a6c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221179
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mspanset.go | 176 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 176 insertions(+)

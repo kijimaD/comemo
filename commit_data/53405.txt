@@ -1,0 +1,16 @@
+commit f07901dc4ea6f579a982a0465f608c3ab42c4b74
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 31 18:56:47 2023 +0200
+
+    doc/go1.21: fix link in WTF-8 section
+    
+    Change-Id: I8fbba7ca5a148ff6523be412991af0c089e7f7ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499516
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.21.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

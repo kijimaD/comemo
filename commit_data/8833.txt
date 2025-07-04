@@ -1,0 +1,19 @@
+commit d847467041ab93c108b932c25f6ccaa37bfccc47
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Jun 23 09:32:29 2011 -0400
+
+    libmach: fix disassembly of FCMOVcc and FCOMI
+    
+    The optable for 0xDB is handled specially.
+    
+    This was the cause of a really weird bug
+    when using cov (386!) on the math package.
+    
+    A real head-scratcher.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4639066
+
+ src/libmach/8db.c | 54 ++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 48 insertions(+), 6 deletions(-)

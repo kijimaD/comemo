@@ -1,0 +1,28 @@
+commit e76b9e8908bdcdb4363d6bd23aa7ff3120237426
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 26 11:00:13 2019 -0700
+
+    cmd/compile: remove pointer temporaries in walkcompare
+    
+    When comparing two T-typed values t1 and t2 using the T_eq function,
+    we used to generate:
+    
+        pl := &t1
+        pr := &t2
+        return T_eq(pl, pr, unsafe.Sizeof(T{}))
+    
+    This CL changes it to simply generate:
+    
+        return T_eq(&t1, &t2, unsafe.Sizeof(T{}))
+    
+    Surprisingly, this does not pass toolstash. For some reason, it seems
+    like SSA wasn't able to SSA-ify the pl and pr variables in all cases.
+    
+    Change-Id: I111fbb068a1741fa169c9922cb8cdb6e21579aa4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197601
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 14 ++------------
+ 1 file changed, 2 insertions(+), 12 deletions(-)

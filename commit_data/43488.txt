@@ -1,0 +1,17 @@
+commit d03437a7c228c6842ad81b4d6e7dabea913cdc5f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Oct 24 20:21:48 2020 +0200
+
+    cmd/dist: document why test fails on incomplete ports
+    
+    It might not be obvious from reading the code why we consider the test
+    as failed on incomplete ports even though it passed. Add a comment
+    documenting this behavior, as suggested by Dmitri in CL 155839.
+    
+    Change-Id: I3eb7db27d01d63db277172381e5fa51577dad941
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264682
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/test.go | 3 +++
+ 1 file changed, 3 insertions(+)

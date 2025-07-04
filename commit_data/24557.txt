@@ -1,0 +1,19 @@
+commit 4dc49d23a7b70038890df6c3862f33822da29b48
+Author: Burcu Dogan <jbd@google.com>
+Date:   Mon Oct 19 15:27:19 2015 -0700
+
+    cmd/go: don't override GIT_TERMINAL_PROMPT
+    
+    This CL keeps disallowing `go get` from falling to the prompt unless
+    user has set GIT_TERMINAL_PROMPT env variable. If GIT_TERMINAL_PROMPT
+    is set, go-get will not override its value and will prompt for
+    username/password in the case of GIT_TERMINAL_PROMPT=1.
+    
+    Fixes #12706.
+    
+    Change-Id: Ibd6b1100af6b04fb8114279cdcf608943e7765be
+    Reviewed-on: https://go-review.googlesource.com/16091
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/get.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

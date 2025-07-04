@@ -1,0 +1,13 @@
+commit e223eedc8b83bf6199a82b621db80ec3620b48db
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 1 20:57:17 2011 -0700
+
+    spec: delete spurious article
+    A profound change to christen the new tag.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5327062
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

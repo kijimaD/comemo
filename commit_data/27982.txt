@@ -1,0 +1,15 @@
+commit 550caa1c87ea11aa54c6482ff66f98b4036c474f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Aug 22 18:53:01 2016 -0400
+
+    cmd/link/internal/mips64: fix use of -s flags
+    
+    My flags change reversed the meaning of -s within mips64's
+    linker code. This should fix that.
+    
+    Change-Id: Ia24002469e557fb29badfd830134e61c1dd7e16e
+    Reviewed-on: https://go-review.googlesource.com/27555
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/link/internal/mips64/asm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

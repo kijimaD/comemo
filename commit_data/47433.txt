@@ -1,0 +1,26 @@
+commit 8b66b3d49f931715c52b4ed71bc1dc935132c30f
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Nov 11 19:07:28 2021 -0500
+
+    cmd/compile/internal/types2: unexport Context.TypeHash
+    
+    Context.TypeHash is not being used outside of the type checker, so
+    unexport it.
+    
+    The TypeHash method is meant to hash instances, not arbitrary types, and
+    will soon be modified to differentiate origin types by pointer identity
+    (even if they are *Signature types).
+    
+    Change-Id: Ia8d4a7c6350ce7f278b70630585efb0009fef63a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363516
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/context.go     | 4 ++--
+ src/cmd/compile/internal/types2/instantiate.go | 2 +-
+ src/cmd/compile/internal/types2/named.go       | 2 +-
+ src/cmd/compile/internal/types2/subst.go       | 2 +-
+ src/cmd/compile/internal/types2/typexpr.go     | 2 +-
+ 5 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,13 @@
+commit 5777e9700f023f1b464dc112b4e28be70da94253
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Dec 18 12:46:06 2018 +0100
+
+    doc/go1.12: add release notes for GODEBUG internal/cpu options
+    
+    Change-Id: Id68b62138e14d13bb352b14c7f42bcef5601eee3
+    Reviewed-on: https://go-review.googlesource.com/c/154717
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

@@ -1,0 +1,13 @@
+commit 3857747dce065b3cfae3e9df38ea90dd84661f19
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 24 15:00:42 2011 -0700
+
+    go/scanner: remove some code
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4550077
+
+ src/pkg/go/scanner/scanner.go      | 33 ++-------------------------------
+ src/pkg/go/scanner/scanner_test.go |  3 ++-
+ 2 files changed, 4 insertions(+), 32 deletions(-)

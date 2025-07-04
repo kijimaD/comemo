@@ -1,0 +1,17 @@
+commit 18563f8ab4096c415172a590b414c429584acbf0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 28 11:31:53 2015 -0700
+
+    math/big: clean up *Int encoding tests
+    
+    - more uniform naming
+    - test sign more deliberately
+    - remove superfluous test (JSON encoder always uses the JSON marshaler if present)
+    
+    Change-Id: I37b1e367c01fc8bae1e06adbdb72dd366c08d5ce
+    Reviewed-on: https://go-review.googlesource.com/15110
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/intmarsh.go      |   4 ++
+ src/math/big/intmarsh_test.go | 136 +++++++++++++++++-------------------------
+ 2 files changed, 58 insertions(+), 82 deletions(-)

@@ -1,0 +1,16 @@
+commit 7c793826d44a6abb76f7846c51503f574eafe9e4
+Author: Carlos Castillo <cookieo9@gmail.com>
+Date:   Fri Mar 1 16:48:21 2013 -0800
+
+    cmd/go: pass -intgosize to SWIG
+    
+    swig >= 2.0.9 requires the size of int values to be passed via a command line flag. Should swig complain about the -intgosize not being supported, then alert the user to their outdated version of swig.
+    
+    Fixes #4756.
+    
+    R=golang-dev, minux.ma, iant
+    CC=golang-dev
+    https://golang.org/cl/7331048
+
+ src/cmd/go/build.go | 104 +++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 78 insertions(+), 26 deletions(-)

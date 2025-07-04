@@ -1,0 +1,12 @@
+commit 881907730f42ca72c475db5e007b1a50943f116d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 13 13:43:41 2012 +1100
+
+    doc: update reference gopher
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5754094
+
+ doc/gopher/ref.png | Bin 10536 -> 5895 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

@@ -1,0 +1,18 @@
+commit 3d61f24835e477250c98da846206d573a907099c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Aug 8 09:51:22 2023 +0700
+
+    reflect: handle String kind in Value.{Pointer,UnsafePointer}
+    
+    Updates #61308
+    
+    Change-Id: I92d459383c520d137787ce5c8f135d205af74e5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516596
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/reflect/all_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    | 14 +++++++++++---
+ 2 files changed, 47 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit 33cb46903e0878dc6e7c12ff7091c5c6e1b13934
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Thu Aug 26 13:32:23 2010 -0400
+
+    net/textproto: Handle multi-line responses
+    
+    This is required for FTP and SMTP; maybe others.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1892052
+
+ src/pkg/net/textproto/reader.go | 72 ++++++++++++++++++++++++++++++++---------
+ 1 file changed, 57 insertions(+), 15 deletions(-)

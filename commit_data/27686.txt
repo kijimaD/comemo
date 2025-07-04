@@ -1,0 +1,17 @@
+commit 0ec62565f911575beaf7d047dfe1eae2ae02bf67
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 15 10:52:42 2016 +1000
+
+    net/http: pass through server side Transfer-Encoding headers
+    
+    Fixes #16063
+    
+    Change-Id: I2e8695beb657b0aef067e83f086828d8857787ed
+    Reviewed-on: https://go-review.googlesource.com/24130
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 19 +++++++++++++++++++
+ src/net/http/server.go     |  5 ++++-
+ 2 files changed, 23 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 4e8aaf6b22557a485cd3af874bf5be2722b07835
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Jan 13 22:11:44 2019 +0100
+
+    net: skip TestLookupGmailTXT on Plan 9
+    
+    CL 157638 updated TestLookupGmailTXT. However, this
+    test is failing on Plan 9, because the DNS resolver
+    (ndb/dns) only returns a single TXT record.
+    
+    Updates #29722.
+    
+    Change-Id: I01cd94e6167902361c3f5d615868f6f763a31fb1
+    Reviewed-on: https://go-review.googlesource.com/c/157737
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/lookup_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

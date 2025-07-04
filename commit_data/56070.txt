@@ -1,0 +1,27 @@
+commit 0c5612092deb0a50c5a3d67babc1249049595558
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Mar 5 11:04:26 2024 -0500
+
+    cmd/compile: rename cmd/compile/internal/pgo to cmd/compile/internal/pgoir
+    
+    This helps reduce confusion with cmd/internal/pgo, which performs
+    compilation-independent analysis. pgoir associates that data with the
+    IR from the current package compilation.
+    
+    For #58102.
+    
+    Change-Id: I9ef1c8bc41db466d3340f41f6d071b95c09566de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569338
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/devirtualize/pgo.go       | 36 +++++++++++-----------
+ src/cmd/compile/internal/devirtualize/pgo_test.go  |  2 +-
+ src/cmd/compile/internal/gc/main.go                |  6 ++--
+ src/cmd/compile/internal/inline/inl.go             |  2 +-
+ .../inline/inlheur/analyze_func_callsites.go       |  4 +--
+ src/cmd/compile/internal/inline/inlheur/scoring.go |  4 +--
+ .../internal/inline/interleaved/interleaved.go     |  8 ++---
+ src/cmd/compile/internal/noder/unified.go          |  4 +--
+ src/cmd/compile/internal/{pgo => pgoir}/irgraph.go |  4 ++-
+ 9 files changed, 36 insertions(+), 34 deletions(-)

@@ -1,0 +1,28 @@
+commit 20e08fe68cc13102046d8c4500a7f5257a9d2881
+Author: Monis Khan <i@monis.app>
+Date:   Fri Jan 13 00:37:56 2023 +0000
+
+    crypto/tls: advertise correct ciphers in TLS 1.3 only mode
+    
+    This change updates the makeClientHello logic to only advertise TLS
+    1.3 ciphers when tls.Config.MinVersion is set to tls.VersionTLS13
+    (i.e the client only supports TLS 1.3).  Previously, TLS 1.2 ciphers
+    would be included in the client hello message.
+    
+    Fixes #57771
+    
+    Change-Id: Ife4123037b0a4609578ffffb1cdf1e1d4e0a8df6
+    GitHub-Last-Rev: 45f4275aa9b9550e519e1be5c337b53ab8882007
+    GitHub-Pull-Request: golang/go#49293
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360794
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/tls/handshake_client.go      |  4 +++
+ src/crypto/tls/handshake_client_test.go | 63 +++++++++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+)

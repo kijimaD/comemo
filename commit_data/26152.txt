@@ -1,0 +1,50 @@
+commit 8df733bd2210e086c179ffb898d4e960f8d62df7
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Feb 23 11:31:13 2016 -0500
+
+    cmd/compile: remove slices from rtype.funcType
+    
+    Alternative to golang.org/cl/19852. This memory layout doesn't have
+    an easy type representation, but it is noticeably smaller than the
+    current funcType, and saves significant extra space.
+    
+    Some notes on the layout are in reflect/type.go:
+    
+    // A *rtype for each in and out parameter is stored in an array that
+    // directly follows the funcType (and possibly its uncommonType). So
+    // a function type with one method, one input, and one output is:
+    //
+    //      struct {
+    //              funcType
+    //              uncommonType
+    //              [2]*rtype    // [0] is in, [1] is out
+    //              uncommonTypeSliceContents
+    //      }
+    
+    There are three arbitrary limits introduced by this CL:
+    
+    1. No more than 65535 function input parameters.
+    2. No more than 32767 function output parameters.
+    3. reflect.FuncOf is limited to 128 parameters.
+    
+    I don't think these are limits in practice, but are worth noting.
+    
+    Reduces godoc binary size by 2.4%, 330KB.
+    
+    For #6853.
+    
+    Change-Id: I225c0a0516ebdbe92d41dfdf43f716da42dfe347
+    Reviewed-on: https://go-review.googlesource.com/19916
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go |  37 +++-----
+ src/cmd/link/internal/ld/decodesym.go  |  27 +++---
+ src/cmd/link/internal/ld/dwarf.go      |   2 +-
+ src/reflect/type.go                    | 149 ++++++++++++++++++++++++++-------
+ src/reflect/value.go                   |  13 ++-
+ src/runtime/mfinal.go                  |  11 ++-
+ src/runtime/syscall_windows.go         |   6 +-
+ src/runtime/type.go                    |  30 ++++++-
+ 8 files changed, 187 insertions(+), 88 deletions(-)

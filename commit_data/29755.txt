@@ -1,0 +1,17 @@
+commit 26aa7422e506bc79965de9bb6e03b5cc09787dbb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 6 22:05:41 2016 +0000
+
+    net: use baked-in port numbers as fallback if cgo port lookup fails
+    
+    Fixes TestLookupPort_Minimal on android.
+    
+    Fixes #18213
+    
+    Change-Id: I1b65e790525d339a4cb7f17afe7e3a02c4587302
+    Reviewed-on: https://go-review.googlesource.com/34014
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/lookup_unix.go | 12 +++++++-----
+ src/net/port_unix.go   |  5 ++---
+ 2 files changed, 9 insertions(+), 8 deletions(-)

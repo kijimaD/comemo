@@ -1,0 +1,18 @@
+commit 5fea39d0b4091a75d76909334f532d341ce47b75
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 29 13:23:07 2012 +1100
+
+    doc: remove Go for C++ Programmers
+    
+    Now available at the Go Wiki:
+    http://code.google.com/p/go-wiki/wiki/GoForCPPProgrammers
+    
+    Fixes #2913.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5705049
+
+ doc/docs.html                   |   1 -
+ doc/go_for_cpp_programmers.html | 807 ----------------------------------------
+ 2 files changed, 808 deletions(-)

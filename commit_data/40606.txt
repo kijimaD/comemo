@@ -1,0 +1,17 @@
+commit 81559af51a69d9f2c1c45d78efbe3cd7a4b9e3cb
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Nov 5 15:45:22 2019 -0500
+
+    doc: mention the anti-spam bypass in security.html
+    
+    We had some issues with reports being marked as spam, so I added a
+    filter to never mark as spam something that mentions the word
+    "vulnerability". We get too much spam at that address to disable the
+    filter entirely, so instead meantion the bypass in the docs.
+    
+    Change-Id: Idb4dabcf51a9dd8234a2d571cd020c970b0a582c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205538
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ doc/security.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

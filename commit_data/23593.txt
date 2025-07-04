@@ -1,0 +1,15 @@
+commit 1b96091a050d605b900f83e1a28b660729400799
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Jul 2 14:35:23 2015 +0200
+
+    internal/trace: add comment for stable sort
+    
+    As per comments in cl/11834.
+    
+    Change-Id: I285536b882fa9496e15d77d0d4c16ee913aca581
+    Reviewed-on: https://go-review.googlesource.com/11861
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/trace/parser.go | 2 ++
+ 1 file changed, 2 insertions(+)

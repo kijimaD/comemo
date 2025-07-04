@@ -1,0 +1,14 @@
+commit 99695bd90b70ae562349a15b3a0b00d78c51e23f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 29 09:08:42 2018 +0200
+
+    runtime: fix typo in comment for cpuinit
+    
+    Change-Id: Ie19e0354f813b042c995c0221072568eaa473bea
+    Reviewed-on: https://go-review.googlesource.com/114995
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

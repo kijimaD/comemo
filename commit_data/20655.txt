@@ -1,0 +1,16 @@
+commit 7b2b8edee60788358938dc7d7e04aabeae357b85
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 7 11:07:04 2014 -0400
+
+    encoding/json: fix handling of null with ,string fields
+    
+    Fixes #8587.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/152270044
+
+ src/encoding/json/decode.go      | 40 ++++++++++++++++++++++++++++++++++++----
+ src/encoding/json/decode_test.go | 21 ++++++++++++++-------
+ 2 files changed, 50 insertions(+), 11 deletions(-)

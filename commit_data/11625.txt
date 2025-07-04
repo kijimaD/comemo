@@ -1,0 +1,12 @@
+commit 8f0602fb077f44b310567330fa5cc463a9b91ac7
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Sun Feb 5 00:36:20 2012 -0200
+
+    .hgignore: add VERSION.cache
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5627051
+
+ .hgignore | 1 +
+ 1 file changed, 1 insertion(+)

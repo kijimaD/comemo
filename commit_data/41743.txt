@@ -1,0 +1,20 @@
+commit 97585092f590072209110bce336f57506984c02b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Mar 10 03:31:22 2020 +1100
+
+    cmd/compile: fold constants into immediate instructions on riscv64
+    
+    Where possible, fold constants into versions of instructions that take
+    an immediate. This avoids the need to allocate a register and load the
+    immediate into it.
+    
+    Change-Id: If911ca41235e218490679aed2ce5f48bf807a2b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222639
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  41 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  12 +-
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 514 ++++++++++++++++++++++++-
+ 3 files changed, 549 insertions(+), 18 deletions(-)

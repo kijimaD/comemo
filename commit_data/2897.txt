@@ -1,0 +1,17 @@
+commit ae3939cb785a66b16190c6091568b471ca5c5297
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 6 13:00:26 2009 -0700
+
+    k-nucleotide
+    
+    R=rsc
+    DELTA=367  (366 added, 0 deleted, 1 changed)
+    OCL=32832
+    CL=32836
+
+ test/bench/k-nucleotide.c   | 228 ++++++++++++++++++++++++++++++++++++++++++++
+ test/bench/k-nucleotide.go  | 151 +++++++++++++++++++++++++++++
+ test/bench/k-nucleotide.txt |  27 ++++++
+ test/bench/timing.log       |   7 ++
+ test/bench/timing.sh        |  12 ++-
+ 5 files changed, 424 insertions(+), 1 deletion(-)

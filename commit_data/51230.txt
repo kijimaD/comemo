@@ -1,0 +1,37 @@
+commit bed2b7cf41471e1521af5a83ae28bd643eb3e038
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Nov 9 10:44:36 2022 -0500
+
+    runtime: delay incrementing freeindex in malloc
+    
+    When the GC is scanning some memory (possibly conservatively),
+    finding a pointer, while concurrently another goroutine is
+    allocating an object at the same address as the found pointer, the
+    GC may see the pointer before the object and/or the heap bits are
+    initialized. This may cause the GC to see bad pointers and
+    possibly crash.
+    
+    To prevent this, we make it that the scanner can only see the
+    object as allocated after the object and the heap bits are
+    initialized. As the scanner uses the freeindex to determine if an
+    object is allocated, we delay the increment of freeindex after the
+    initialization.
+    
+    As currently in some code path finding the next free index and
+    updating the free index to a new slot past it is coupled, this
+    needs a small refactoring. In the new code mspan.nextFreeIndex
+    return the next free index but not update it (although allocCache
+    is updated). mallocgc will update it at a later time.
+    
+    Fixes #54596.
+    
+    Change-Id: I6dd5ccf743f2d2c46a1ed67c6a8237fe09a71260
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427619
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/malloc.go   | 40 +++++++++++++++++++++++-----------------
+ src/runtime/mbitmap.go  | 17 +++++++++++++----
+ src/runtime/mcentral.go |  1 -
+ 3 files changed, 36 insertions(+), 22 deletions(-)

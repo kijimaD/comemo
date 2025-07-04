@@ -1,0 +1,26 @@
+commit 9bc544a1580a67166060aabc5af91227092f6a39
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 19 10:26:53 2022 -0400
+
+    misc/cgo: invoke "go" from $GOROOT/bin instead of $PATH
+    
+    If PATH doesn't contain GOROOT/bin as the first element, this could
+    otherwise end up running entirely the wrong command (and from the
+    wrong GOROOT, even).
+    
+    I pre-tested this change on release-branch.go1.17 using a gomote.
+    I believe that it will fix the test failure on that branch,
+    but will need to be backported.
+    
+    For #52995.
+    
+    Change-Id: Ib0c43289a1e0ccf9409f0f0ef8046501a955ce65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407294
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/cgo/testplugin/plugin_test.go |  9 ++++++++-
+ misc/cgo/testshared/shared_test.go | 14 ++++++++------
+ 2 files changed, 16 insertions(+), 7 deletions(-)

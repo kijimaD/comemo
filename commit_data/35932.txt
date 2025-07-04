@@ -1,0 +1,15 @@
+commit 34619d5d13ac79c605e0941f62730f5c8dfea4c1
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Jul 10 10:02:02 2018 +0200
+
+    runtime/trace: comment newlines to restore correct doc summary
+    
+    Fixes #26309
+    
+    Change-Id: I0e0b61b885817e514aa46e299b00833f16e98b2a
+    Reviewed-on: https://go-review.googlesource.com/122898
+    Reviewed-by: Айнар Гарипов <gugl.zadolbal@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/trace/trace.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

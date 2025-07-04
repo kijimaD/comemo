@@ -1,0 +1,29 @@
+commit fc45eb388d3693e35b1aa97cb553d2a5083c8b2f
+Author: miller <millerresearch@gmail.com>
+Date:   Tue Mar 7 15:15:10 2023 +0000
+
+    syscall: avoid race in plan9 while syncing Chdir across goroutines
+    
+    Because each M in Plan 9 runs in a separate OS process with its
+    own current working directory, a Chdir call in one goroutine needs
+    to be propagated to other goroutines before a subsequent syscall
+    with a local pathname (see #9428). This is done by function
+    syscall.Fixwd, but there is still a race if a goroutine is
+    preempted and rescheduled on a different M between calling Fixwd
+    and executing the syscall which it protects. By locking the
+    goroutine to its OS thread from the start of Fixwd to the end of
+    the protected syscall, this race can be prevented.
+    
+    Fixes #58802.
+    
+    Change-Id: I89c0e43ef4544b5bfb5db7d2158f13f24b42e1f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474055
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/pwd_plan9.go     | 26 ++++++++++++++++++++++----
+ src/syscall/syscall_plan9.go | 33 +++++++++++++++++++++++++--------
+ 2 files changed, 47 insertions(+), 12 deletions(-)

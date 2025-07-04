@@ -1,0 +1,17 @@
+commit 4042194f2d9fd605bd8b6553043e8b195767c446
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 18 18:04:30 2022 -0800
+
+    spec: add another example for an invalid shift case
+    
+    Fixes #45114.
+    
+    Change-Id: I969e5f1037254fc0ffbba2fc07a81a3987e6b05f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379275
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

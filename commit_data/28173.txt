@@ -1,0 +1,21 @@
+commit 88ccb3c945daeba7c08dfe9b39be18ec78941a45
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Thu Sep 1 16:30:15 2016 -0400
+
+    net/http: omit Content-Length in Response.Write for 1xx or 204 status
+    
+    Per RFC 7230, Section 3.3.2: "A server MUST NOT send a Content-Length
+    header field in any response with a status code of 1xx (Informational)
+    or 204 (No Content).".
+    
+    Fixes #16942
+    
+    Change-Id: I8006c76c126304e13618966e6eafb08a3885d3cd
+    Reviewed-on: https://go-review.googlesource.com/28351
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/response.go           |  2 +-
+ src/net/http/responsewrite_test.go | 21 +++++++++++++++++++--
+ 2 files changed, 20 insertions(+), 3 deletions(-)

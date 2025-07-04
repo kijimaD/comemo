@@ -1,0 +1,27 @@
+commit e63be91667aeaafe2ce32c4da69f89097e074bbc
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 24 15:14:44 2023 -0400
+
+    cmd/go: clarify promotion of C warnings to errors
+    
+    CL 23005 (back in 2016!) added logic to promote C compiler warnings to
+    errors when running on the Go builders.
+    
+    CL 437298 kept the logic to promote warnings to errors on the
+    builders, but dropped the explanatory message, I believe
+    unintentionally. Indeed, now there isn't even a comment in the code
+    explaining what's going on.
+    
+    This CL adds back an explanatory message to the printed output, which
+    also serves as a explanation in the code as to why we're checking
+    $GO_BUILDER_NAME.
+    
+    Change-Id: I769c55d213f96f73d20a41ab926fb91e71a5a22c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522775
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/work/exec.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

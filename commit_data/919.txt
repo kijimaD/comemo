@@ -1,0 +1,21 @@
+commit a570eaabcd4a7b0c5cbabdefb1b4aba3b0c25171
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 20 17:33:51 2008 -0700
+
+    6l:
+            use libbio instead of maintaining own buffer
+    
+    libbio:
+            always use vlong offsets; die if off_t is too small
+    
+    R=r
+    DELTA=163  (23 added, 63 deleted, 77 changed)
+    OCL=17508
+    CL=17512
+
+ include/bio.h        |   9 +--
+ src/cmd/6l/l.h       |   2 +-
+ src/cmd/6l/obj.c     | 207 ++++++++++++++++++++-------------------------------
+ src/libbio/boffset.c |   7 +-
+ src/libbio/bseek.c   |  12 ++-
+ 5 files changed, 99 insertions(+), 138 deletions(-)

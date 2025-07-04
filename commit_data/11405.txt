@@ -1,0 +1,13 @@
+commit 75e9d24213992ea2077283383cb8705fefc2973a
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Jan 25 23:42:36 2012 -0200
+
+    doc/go1: fix urls
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5577051
+
+ doc/go1.html | 20 ++++++++++----------
+ doc/go1.tmpl | 20 ++++++++++----------
+ 2 files changed, 20 insertions(+), 20 deletions(-)

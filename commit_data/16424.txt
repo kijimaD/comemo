@@ -1,0 +1,43 @@
+commit 4e0a51c210ededa82809756ca1cc72b1fb1def8d
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Tue May 28 17:59:10 2013 -0700
+
+    cmd/5l, cmd/6l, cmd/8l, cmd/gc, runtime: generate and use bitmaps of argument pointer locations
+    
+    With this change the compiler emits a bitmap for each function
+    covering its stack frame arguments area.  If an argument word
+    is known to contain a pointer, a bit is set.  The garbage
+    collector reads this information when scanning the stack by
+    frames and uses it to ignores locations known to not contain a
+    pointer.
+    
+    R=golang-dev, bradfitz, daniel.morsing, dvyukov, khr, khr, iant, cshapiro
+    CC=golang-dev
+    https://golang.org/cl/9223046
+
+ src/cmd/5g/peep.c         |   4 ++
+ src/cmd/5g/reg.c          |   2 +
+ src/cmd/5l/5.out.h        |   2 +
+ src/cmd/5l/l.h            |   2 +
+ src/cmd/5l/obj.c          |  33 +++++++++++
+ src/cmd/6g/peep.c         |   2 +
+ src/cmd/6g/reg.c          |   2 +
+ src/cmd/6l/6.out.h        |   2 +
+ src/cmd/6l/l.h            |   2 +
+ src/cmd/6l/obj.c          |  33 +++++++++++
+ src/cmd/6l/optab.c        |   2 +
+ src/cmd/8g/peep.c         |   2 +
+ src/cmd/8g/reg.c          |   2 +
+ src/cmd/8l/8.out.h        |   2 +
+ src/cmd/8l/l.h            |   2 +
+ src/cmd/8l/obj.c          |  33 +++++++++++
+ src/cmd/8l/optab.c        |   2 +
+ src/cmd/gc/bv.c           |  95 ++++++++++++++++++++++++++++++
+ src/cmd/gc/go.h           |  17 ++++++
+ src/cmd/gc/pgen.c         | 146 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/lib.c          |   8 ++-
+ src/pkg/runtime/extern.go |   7 ++-
+ src/pkg/runtime/mgc0.c    |  42 ++++++++++---
+ src/pkg/runtime/runtime.h |   2 +
+ src/pkg/runtime/symtab.c  |  21 ++++++-
+ 25 files changed, 454 insertions(+), 13 deletions(-)

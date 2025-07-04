@@ -1,0 +1,16 @@
+commit 1a5d0f83c99dbc88c276310313576627295c7f03
+Author: Alexander Döring <email@alexd.ch>
+Date:   Thu May 24 00:25:12 2018 +0200
+
+    math/big: reduce allocations in Karatsuba case of sqr
+    
+    For #23221.
+    
+    Change-Id: If55dcf2e0706d6658f4a0863e3740437e008706c
+    Reviewed-on: https://go-review.googlesource.com/114335
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/nat.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

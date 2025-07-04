@@ -1,0 +1,22 @@
+commit 7b33b6274f36ecc5dd5c24c99c2f72d3edf79b3d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 29 16:02:05 2019 +0000
+
+    runtime: introduce treapForSpan to reduce code duplication
+    
+    Currently which treap a span should be inserted into/removed from is
+    checked by looking at the span's properties. This logic is repeated in
+    four places. As this logic gets more complex, it makes sense to
+    de-duplicate this, so introduce treapForSpan instead which captures this
+    logic by returning the appropriate treap for the span.
+    
+    For #30333.
+    
+    Change-Id: I4bd933d93dc50c5fc7c7c7f56ceb95194dcbfbcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170857
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mheap.go | 34 ++++++++++++++--------------------
+ 1 file changed, 14 insertions(+), 20 deletions(-)

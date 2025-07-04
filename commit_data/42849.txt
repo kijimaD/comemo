@@ -1,0 +1,26 @@
+commit c00b7081699d3b3ced2970fdae2de6febf638c05
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 26 23:17:53 2020 -0400
+
+    cmd/go/internal/modfetch: do not use mangled version strings to construct module.VersionErrors
+    
+    Better still would be to avoid passing around module.Version instances
+    with invalid Version strings in the first place, so that any time we
+    see a module.Version we know that it is actually a version of a module
+    (and not a structurally-similar datum with something else tacked on to
+    one of the fields). But that's a bigger cleanup for which I don't
+    currently have enough bandwidth.
+    
+    Fixes #41060
+    
+    Change-Id: I32fba5619105cbf67dd03691064c82b8ebb3ce18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250951
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modfetch/fetch.go            | 14 ++++++++++++--
+ src/cmd/go/testdata/script/mod_download_json.txt |  2 +-
+ src/cmd/go/testdata/script/mod_sumdb.txt         |  6 ++++++
+ 3 files changed, 19 insertions(+), 3 deletions(-)

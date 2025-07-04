@@ -1,0 +1,22 @@
+commit 1aec7c7f34ff88a09a3fa7c9ff131598360f8751
+Author: Berengar Lehr <Berengar.Lehr@gmx.de>
+Date:   Tue Jan 11 20:51:35 2011 -0500
+
+    crypto: add twofish package
+    
+    The code was (as annotated in the source code) adopted from Tom's
+    LibCrypt (public domain code, [1]). It was neither optimised for speed
+    nor were any security features added.
+    
+    [1] http://libtom.org/?page=features&newsitems=5&whatfile=crypt
+    
+    R=rsc, berengarlehr, albert.strasheim, agl1
+    CC=golang-dev, schulze
+    https://golang.org/cl/2687042
+
+ CONTRIBUTORS                           |   1 +
+ src/pkg/Makefile                       |   1 +
+ src/pkg/crypto/twofish/Makefile        |  11 +
+ src/pkg/crypto/twofish/twofish.go      | 358 +++++++++++++++++++++++++++++++++
+ src/pkg/crypto/twofish/twofish_test.go | 129 ++++++++++++
+ 5 files changed, 500 insertions(+)

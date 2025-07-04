@@ -1,0 +1,14 @@
+commit 81a89606ef7e1334a0a23dab2eaa295b381caebc
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue May 10 11:48:48 2016 -0700
+
+    doc: remove mention of %HOME% from installation instructions
+    
+    Fixes #15598
+    
+    Change-Id: I4cfb8799dab0e9e34cae2e61839911fd65e4cfa3
+    Reviewed-on: https://go-review.googlesource.com/23004
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/install.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

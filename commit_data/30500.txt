@@ -1,0 +1,28 @@
+commit 4775b7feb10014751da2669da973fb852f09aebe
+Author: Will Storey <will@summercat.com>
+Date:   Sun Feb 19 21:24:17 2017 -0800
+
+    image/gif: handle an extra data sub-block byte.
+    
+    This changes the decoder's behaviour when there is stray/extra data
+    found after an image is decompressed (e.g., data sub-blocks after an LZW
+    End of Information Code). Instead of raising an error, we silently skip
+    over such data until we find the end of the image data marked by a Block
+    Terminator. We skip at most one byte as sample problem GIFs exhibit this
+    property.
+    
+    GIFs should not have and do not need such stray data (though the
+    specification is arguably ambiguous). However GIFs with such properties
+    have been seen in the wild.
+    
+    Fixes #16146
+    
+    Change-Id: Ie7e69052bab5256b4834992304e6ca58e93c1879
+    Reviewed-on: https://go-review.googlesource.com/37258
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/image/gif/reader.go      | 18 ++++++++++---
+ src/image/gif/reader_test.go | 63 +++++++++++++++++++++++++++++++++-----------
+ 2 files changed, 62 insertions(+), 19 deletions(-)

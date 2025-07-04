@@ -1,0 +1,19 @@
+commit 32c0dce00ea2b641a6b2731aa2a149f4270ba663
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 25 21:50:42 2014 -0700
+
+    net/http: fix data race in test
+    
+    I can't reproduce the race, but this should fix it.
+    
+    Fixes #8483
+    
+    LGTM=dvyukov
+    R=dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/126610043
+
+ src/pkg/net/http/export_test.go    |  6 ++++++
+ src/pkg/net/http/transport.go      | 19 +++++++++++++++----
+ src/pkg/net/http/transport_test.go | 24 +++++++++++-------------
+ 3 files changed, 32 insertions(+), 17 deletions(-)

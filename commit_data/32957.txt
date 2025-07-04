@@ -1,0 +1,19 @@
+commit be272ec0712734fd7d03fcad8a9b8a546b08d6fc
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Aug 19 00:13:25 2017 -0400
+
+    cmd/go/internal/cache: add support definitions
+    
+    There is no cache here yet. This CL defines ActionID, Hash, and HashFile,
+    which the new content-based staleness code can use. Eventually we'll
+    put a real cache implementation here, but it's not necessary yet.
+    
+    Change-Id: Ide433cb449f4dbe658694453f348c947642df79b
+    Reviewed-on: https://go-review.googlesource.com/67311
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/internal/cache/cache.go     | 13 ++++++
+ src/cmd/go/internal/cache/hash.go      | 73 ++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/cache/hash_test.go | 46 +++++++++++++++++++++
+ 3 files changed, 132 insertions(+)

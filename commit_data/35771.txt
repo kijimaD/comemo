@@ -1,0 +1,37 @@
+commit 1988b3ed0ed72995f566630558e5bb0531aeac60
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Mon May 21 12:57:53 2018 -0700
+
+    net/http: avoid deferred unlock in ServeMux.shouldRedirect
+    
+    CL 96575 introduced concurrency protection for
+    ServeMux.shouldRedirect with a read lock and deferred unlock.
+    However, the change produced a noticeable regression.
+    Instead add the suffix "RLocked" to the function name to
+    declare that we should hold the read lock as a pre-requisite
+    before calling it, hence avoiding the defer altogether.
+    
+    Benchmarks:
+    name                  old time/op    new time/op    delta
+    ServeMux-8              63.3µs ± 0%    54.6µs ± 0%  -13.74%  (p=0.000 n=9+9)
+    ServeMux_SkipServe-8    41.4µs ± 2%    32.7µs ± 1%  -21.05%  (p=0.000 n=10+10)
+    
+    name                  old alloc/op   new alloc/op   delta
+    ServeMux-8              17.3kB ± 0%    17.3kB ± 0%     ~     (all equal)
+    ServeMux_SkipServe-8     0.00B          0.00B          ~     (all equal)
+    
+    name                  old allocs/op  new allocs/op  delta
+    ServeMux-8                 360 ± 0%       360 ± 0%     ~     (all equal)
+    ServeMux_SkipServe-8      0.00           0.00          ~     (all equal)
+    
+    Updates #25383
+    Updates #25482
+    
+    Change-Id: I2ffa4eafe165faa961ce23bd29b5653a89facbc2
+    Reviewed-on: https://go-review.googlesource.com/113996
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

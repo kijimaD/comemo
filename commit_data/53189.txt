@@ -1,0 +1,16 @@
+commit 96a773d61bc60022af0097f4a08495880a5ea33e
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 22 12:32:05 2023 -0400
+
+    cmd/cgo/internal/testcshared: drop bespoke host test support
+    
+    Updates #59999.
+    
+    Change-Id: If0b80713a6bb5d8c59d9dd0b219f2f47173090e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497077
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/cmd/cgo/internal/testcshared/cshared_test.go | 85 +-----------------------
+ 1 file changed, 1 insertion(+), 84 deletions(-)

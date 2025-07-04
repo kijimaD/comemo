@@ -1,0 +1,57 @@
+commit 1a7fc2357b1c26dcdf4fa57dee67a1172696801f
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Wed May 4 01:42:13 2016 -0600
+
+    runtime: print signal name in panic, if name is known
+    
+    Adds a small function signame that infers a signal name
+    from the signal table, otherwise will fallback to using
+    hex(sig) as previously. No signal table is present for
+    Windows hence it will always print the hex value.
+    
+    Sample code and new result:
+    ```go
+    package main
+    
+    import (
+      "fmt"
+      "time"
+    )
+    
+    func main() {
+      defer func() {
+        if err := recover(); err != nil {
+          fmt.Printf("err=%v\n", err)
+        }
+      }()
+    
+      ticker := time.Tick(1e9)
+      for {
+        <-ticker
+      }
+    }
+    ```
+    
+    ```shell
+    $ go run main.go &
+    $ kill -11 <pid>
+    fatal error: unexpected signal during runtime execution
+    [signal SIGSEGV: segmentation violation code=0x1 addr=0xb01dfacedebac1e
+    pc=0xc71db]
+    ...
+    ```
+    
+    Fixes #13969
+    
+    Change-Id: Ie6be312eb766661f1cea9afec352b73270f27f9d
+    Reviewed-on: https://go-review.googlesource.com/22753
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os1_nacl.go       | 7 +++++++
+ src/runtime/os1_plan9.go      | 7 +++++++
+ src/runtime/panic.go          | 8 +++++++-
+ src/runtime/signal_unix.go    | 7 +++++++
+ src/runtime/signal_windows.go | 4 ++++
+ 5 files changed, 32 insertions(+), 1 deletion(-)

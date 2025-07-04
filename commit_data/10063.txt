@@ -1,0 +1,20 @@
+commit 64306c9fd076c78b4e443f641561124f103854d5
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Oct 20 11:45:30 2011 +1100
+
+    html: parse and render comment nodes.
+    
+    The first additional test case in parse_test.go is:
+    <!--><div>--<!-->
+    
+    The second one is unrelated to the comment change, but also passes:
+    <p><hr></p>
+    
+    R=andybalholm
+    CC=golang-dev
+    https://golang.org/cl/5299047
+
+ src/pkg/html/parse.go      | 84 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/html/parse_test.go |  4 +--
+ src/pkg/html/render.go     | 12 +++++--
+ 3 files changed, 92 insertions(+), 8 deletions(-)

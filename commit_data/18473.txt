@@ -1,0 +1,15 @@
+commit 3cac829ff403e229729434a33cb59ae6dfc23209
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Feb 13 00:03:27 2014 +0400
+
+    runtime: temporary disable concurrent GC sweep
+    We see failures on builders, e.g.:
+    http://build.golang.org/log/70bb28cd6bcf8c4f49810a011bb4337a61977bf4
+    
+    LGTM=rsc, dave
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/62360043
+
+ src/pkg/runtime/mgc0.c | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)

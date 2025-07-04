@@ -1,0 +1,29 @@
+commit 877387e38a734db8a2a151ddd4af7ba53bcf6460
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 27 13:48:08 2017 -0400
+
+    runtime: use buffered write barrier for bulkBarrierPreWrite
+    
+    This modifies bulkBarrierPreWrite to use the buffered write barrier
+    instead of the eager write barrier. This reduces the number of system
+    stack switches and sanity checks by a factor of the buffer size
+    (currently 256). This affects both typedmemmove and typedmemclr.
+    
+    Since this is purely a runtime change, it applies to all arches
+    (unlike the pointer write barrier).
+    
+    name                 old time/op  new time/op  delta
+    BulkWriteBarrier-12  7.33ns ± 6%  4.46ns ± 9%  -39.10%  (p=0.000 n=20+19)
+    
+    Updates #22460.
+    
+    Change-Id: I6a686a63bbf08be02b9b97250e37163c5a90cdd8
+    Reviewed-on: https://go-review.googlesource.com/73832
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mbarrier.go |  4 ++++
+ src/runtime/mbitmap.go  | 21 ++++++++++++++++-----
+ src/runtime/mwbbuf.go   | 34 +++++++++++++++++++++++++++++++++-
+ 3 files changed, 53 insertions(+), 6 deletions(-)

@@ -1,0 +1,22 @@
+commit 73abea300a89f0a9b801a4662e3688a5747f1859
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Apr 5 10:33:43 2019 -0700
+
+    database/sql/driver: document Valuer must not panic
+    
+    While it is possible for the connection pool to guard against panics
+    on every valuer read, this seems like a high cost to be added,
+    in both code complexity and possible runtime performance.
+    
+    Most uses of the Valuer will be trivial, like returning
+    a struct field. Optimize for that case. If sometime may panic the
+    valuer should itself use recover and return an error.
+    
+    Fixes #26332
+    
+    Change-Id: Iad18780b8028f669f5a7841b74a5384d62fb6a7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170700
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/database/sql/driver/types.go | 1 +
+ 1 file changed, 1 insertion(+)

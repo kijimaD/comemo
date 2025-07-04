@@ -1,0 +1,12 @@
+commit 519090729961e4ea27db6a81ca248de3da33c41d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 25 13:20:50 2011 -0400
+
+    quietgcc: fix typo, respect $TMPDIR
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4529087
+
+ src/quietgcc.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

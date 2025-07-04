@@ -1,0 +1,14 @@
+commit 0f897f916aa6734bb8d089400ea996ee461ae41f
+Author: Maxim Eryomenko <moeryomenko@gmail.com>
+Date:   Tue May 28 02:45:21 2019 +0000
+
+    bytes: remove obsolete comment
+    
+    Change-Id: Iec4348eb674c8c64497c82e5d7cd656736cfcebd
+    GitHub-Last-Rev: 462c323960be0ca1c126c051ab97f72949bdc2b6
+    GitHub-Pull-Request: golang/go#32225
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178797
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/buffer.go | 3 ---
+ 1 file changed, 3 deletions(-)

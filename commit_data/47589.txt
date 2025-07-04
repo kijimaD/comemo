@@ -1,0 +1,24 @@
+commit b90c6b99b3fbe60f4782c3e3b85f0ba9bbcf5f50
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 23 10:54:49 2021 -0500
+
+    misc/reboot: skip TestRepeatBootstrap on short builders
+    
+    This test is slow and resource-intensive, and will rarely catch
+    failures. It is important to run sometimes, but probably a waste of
+    time on smaller (and especially reverse) builders.
+    Rather than hard-coding a list of small builders, only run it on the
+    longtest builders.
+    
+    Fixes #35233
+    Fixes #30892
+    Fixes #49753
+    
+    Change-Id: I25a9702e1f541246ea200fd7c79414ca5f69edae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366538
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/reboot/reboot_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

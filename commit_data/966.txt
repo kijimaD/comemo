@@ -1,0 +1,12 @@
+commit 24eb30b5d67bcda9032a223a993f0a7e10caf9e6
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Oct 25 15:26:35 2008 -0700
+
+    test
+    
+    R=r
+    OCL=17855
+    CL=17855
+
+ test/ken/embed.go | 236 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 236 insertions(+)

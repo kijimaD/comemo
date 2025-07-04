@@ -1,0 +1,18 @@
+commit 1f62a784f49d2c0d62b4c0dfcab5fcfdeeb493a4
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Thu Feb 28 06:39:02 2013 +0100
+
+    syscall: Plan 9: keep a consistent environment array
+    
+    Map order is non-deterministic. Introduce a new
+    environment string array that tracks the env map.
+    This allows us to produce identical results for
+    Environ() upon successive calls, as expected by the
+    TestConsistentEnviron test in package os.
+    
+    R=rsc, ality, rminnich, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/7411047
+
+ src/pkg/syscall/env_plan9.go | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

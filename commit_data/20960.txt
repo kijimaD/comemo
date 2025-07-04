@@ -1,0 +1,13 @@
+commit 8ea28028e8e7bdb4f0c54903e4dfec483330e5ed
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 11 09:11:08 2014 +1100
+
+    doc: remove TODO from go1.4 release notes
+    
+    LGTM=bradfitz
+    R=iant, rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/191750043
+
+ doc/go1.4.html | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

@@ -1,0 +1,26 @@
+commit 6bbd12f1767b2b606c2a25981a1e74c21d8c67ef
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Mon Feb 18 11:27:41 2013 +1100
+
+    exp/cookiejar: make cookie sorting deterministic.
+    
+    Re-enable TestUpdateAndDelete, TestExpiration, TestChromiumDomain and
+    TestChromiumDeletion on Windows.
+    
+    Sorting of cookies with same path length and same creation
+    time is done by an additional seqNum field.
+    This makes the order in which cookies are returned in Cookies
+    deterministic, even if the system clock is manipulated or on
+    systems with a low-resolution clock.
+    
+    The tests now use a synthetic time: This makes cookie testing
+    reliable in case of bogus system clocks and speeds up the
+    expiration tests.
+    
+    R=nigeltao, alex.brainman, dave
+    CC=golang-dev
+    https://golang.org/cl/7323063
+
+ src/pkg/exp/cookiejar/jar.go      | 42 +++++++++++++++++++++++--------
+ src/pkg/exp/cookiejar/jar_test.go | 53 +++++++++++++++++++++------------------
+ 2 files changed, 59 insertions(+), 36 deletions(-)

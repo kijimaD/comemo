@@ -1,0 +1,22 @@
+commit 52f9c6fdb0e5748406134e093e9fb791af14d300
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Mon Sep 26 22:49:08 2022 +0800
+
+    syscall: check if to is nil to prevent panic from WSASendto
+    
+    to is an optional pointer to sockaddr, as written in the doc:
+    https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsasendto
+    
+    For #55845
+    
+    Change-Id: Ia685cec8d9bc9ff313f598db9d2213a1f409757a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/434535
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/syscall_windows.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

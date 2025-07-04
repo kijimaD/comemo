@@ -1,0 +1,20 @@
+commit 450472989b318b7242d2c3d0db4c09d84727c065
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 9 17:08:27 2017 -0500
+
+    cmd/compile: disallow combining nosplit and systemstack
+    
+    go:systemstack works by tweaking the stack check prologue to check
+    against a different bound, while go:nosplit removes the stack check
+    prologue entirely. Hence, they can't be used together. Make the build
+    fail if they are.
+    
+    Change-Id: I2d180c4b1d31ff49ec193291ecdd42921d253359
+    Reviewed-on: https://go-review.googlesource.com/36710
+    Run-TryBot: Austin Clements <austin@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go | 3 +++
+ 1 file changed, 3 insertions(+)

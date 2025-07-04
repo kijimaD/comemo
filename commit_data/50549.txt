@@ -1,0 +1,15 @@
+commit 7db923fe565465f292d3e62d6c7ded86e724062d
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Tue Sep 6 22:07:08 2022 +0800
+
+    net/http: convert Server.disableKeepAlives to atomic type
+    
+    Change-Id: I87526520b519554ea344288cc0f0940d7b182e21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428815
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/server.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

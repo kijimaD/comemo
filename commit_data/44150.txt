@@ -1,0 +1,41 @@
+commit d2d155d1ae8c704a37f42fd3ebb1f3846f78e4d4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 19 21:30:36 2021 -0800
+
+    runtime: don't adjust timer pp field in timerWaiting status
+    
+    Before this CL, the following sequence was possible:
+    
+    * GC scavenger starts and sets up scavenge.timer
+    * GC calls readyForScavenger, but sysmon is sleeping
+    * program calls runtime.GOMAXPROCS to shrink number of processors
+    * procresize destroys a P, the one that scavenge.timer is on
+    * (*pp).destroy calls moveTimers, which gets to the scavenger timer
+    * scavenger timer is timerWaiting, and moveTimers clears t.pp
+    * sysmon wakes up and calls wakeScavenger
+    * wakeScavengers calls stopTimer on scavenger.timer, still timerWaiting
+    * stopTimer calls deltimer which loads t.pp, which is still nil
+    * stopTimer tries to increment deletedTimers on nil t.pp, and crashes
+    
+    The point of vulnerability is the time that t.pp is set to nil by
+    moveTimers and the time that t.pp is set to non-nil by moveTimers,
+    which is a few instructions at most. So it's not likely and in
+    particular is quite unlikely on x86. But with a more relaxed memory
+    model the area of vulnerability can be somewhat larger. This appears
+    to tbe the cause of two builder failures in a few months on linux-mips.
+    
+    This CL fixes the problem by making moveTimers change the status from
+    timerWaiting to timerMoving while t.pp is clear. That will cause
+    deltimer to wait until the status is back to timerWaiting, at which
+    point t.pp has been set again.
+    
+    Fixes #43712
+    
+    Change-Id: I66838319ecfbf15be66c1fac88d9bd40e2295852
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284775
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/time.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

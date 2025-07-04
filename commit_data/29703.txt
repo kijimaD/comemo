@@ -1,0 +1,15 @@
+commit ea1b90f855fe2891ff0f39d3a3f4b0a5f72a04ed
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 30 15:48:33 2016 -0500
+
+    runtime: fix incorrect comment about bitvector layout
+    
+    Commit 303b69fe packed bitvectors more tightly, but missed a comment
+    describing their old layout. Update that comment.
+    
+    Change-Id: I095ccb01f245197054252545f37b40605a550dec
+    Reviewed-on: https://go-review.googlesource.com/33718
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/symtab.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 585be4639b927430189fa8197985816aec3e88cd
+Author: Justin Nuß <nuss.justin@gmail.com>
+Date:   Fri Apr 28 12:04:45 2017 +0200
+
+    os/exec: document that non-comparable writers may race
+    
+    The comment for Cmd.Stdout and Cmd.Stderr says that it's safe to
+    set both to the same writer, but it doesn't say that this only
+    works when both writers are comparable.
+    
+    This change updates the comment to explain that using a
+    non-comparable writer may still lead to a race.
+    
+    Fixes #19804
+    
+    Change-Id: I63b420034666209a2b6fab48b9047c9d07b825e2
+    Reviewed-on: https://go-review.googlesource.com/42052
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/exec/exec.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

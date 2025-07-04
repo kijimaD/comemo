@@ -1,0 +1,19 @@
+commit 33b76920ec3bde98e58e0a6cb0816eb7be28bb4e
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 22 12:35:30 2018 -0500
+
+    runtime: rename "arena index" to "arena map"
+    
+    There are too many places where I want to talk about "indexing into
+    the arena index". Make this less awkward and ambiguous by calling it
+    the "arena map" instead.
+    
+    Change-Id: I726b0667bb2139dbc006175a0ec09a871cdf73f9
+    Reviewed-on: https://go-review.googlesource.com/96777
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/malloc.go  | 14 +++++++-------
+ src/runtime/mbitmap.go |  2 +-
+ src/runtime/mheap.go   |  4 ++--
+ 3 files changed, 10 insertions(+), 10 deletions(-)

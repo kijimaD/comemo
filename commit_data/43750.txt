@@ -1,0 +1,26 @@
+commit a444458112e4059e73c9a5a2bc5867f53bf9faa2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Nov 6 22:46:18 2020 -0500
+
+    cmd/compile: make sure linkname'd symbol is non-package
+    
+    When a variable symbol is both imported (possibly through
+    inlining) and linkname'd, make sure its LSym is marked as
+    non-package for symbol indexing in the object file, so it is
+    resolved by name and dedup'd with the original definition.
+    
+    Fixes #42401.
+    
+    Change-Id: I8e90c0418c6f46a048945c5fdc06c022b77ed68d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268178
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/gc/gsubr.go |  6 ++++++
+ test/fixedbugs/issue42401.dir/a.go   | 11 +++++++++++
+ test/fixedbugs/issue42401.dir/b.go   | 24 ++++++++++++++++++++++++
+ test/fixedbugs/issue42401.go         | 10 ++++++++++
+ 4 files changed, 51 insertions(+)

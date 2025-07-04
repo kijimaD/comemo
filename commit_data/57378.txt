@@ -1,0 +1,22 @@
+commit 0fb35efe5bb4d557e2f80171ede59f945646354e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 4 16:01:32 2024 -0700
+
+    go/types, types2: factor out code for type checking composite literals
+    
+    Move code into separate function in separate file.
+    Replace "goto Error" statements with "x.mode = invalid; return".
+    No other semantic changes.
+    
+    Change-Id: I2d5e858e8df3dc1011fa79cdac3db9d3e7b1dfe5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610556
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/expr.go     | 228 +------------------------
+ src/cmd/compile/internal/types2/literals.go | 249 +++++++++++++++++++++++++++
+ src/go/types/expr.go                        | 232 +------------------------
+ src/go/types/literals.go                    | 253 ++++++++++++++++++++++++++++
+ 4 files changed, 506 insertions(+), 456 deletions(-)

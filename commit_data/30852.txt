@@ -1,0 +1,26 @@
+commit d1f5e5f48249c120c9eed301ed07d546c5c65698
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 24 16:23:21 2017 -0700
+
+    cmd/compile/internal/syntax: always construct a correct syntax tree
+    
+    - parser creates sensible nodes in case of syntax errors instead of nil
+    - a new BadExpr node is used in places where we can't do better
+    - fixed error message for incorrect type switch guard
+    - minor cleanups
+    
+    Fixes #19663.
+    
+    Change-Id: I028394c6db9cba7371f0e417ebf93f594659786a
+    Reviewed-on: https://go-review.googlesource.com/38653
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/fmt_test.go                |   1 -
+ src/cmd/compile/internal/gc/noder.go       |   2 +-
+ src/cmd/compile/internal/syntax/nodes.go   |   6 +
+ src/cmd/compile/internal/syntax/parser.go  | 199 +++++++++++++++++------------
+ src/cmd/compile/internal/syntax/printer.go |   3 +
+ src/cmd/compile/internal/syntax/syntax.go  |   2 +-
+ 6 files changed, 130 insertions(+), 83 deletions(-)

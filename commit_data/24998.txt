@@ -1,0 +1,16 @@
+commit 2fa64c41828f746d917cf7b7b6c3a39f33bd1161
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Nov 20 12:03:07 2015 -0500
+
+    runtime/pprof: check if test can fork
+    
+    (TestStackBarrierProfiling is failing on darwin/arm.)
+    
+    Change-Id: I8006d6222ccafc213821e02105896440079caa37
+    Reviewed-on: https://go-review.googlesource.com/17091
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 1 +
+ 1 file changed, 1 insertion(+)

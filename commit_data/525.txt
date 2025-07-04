@@ -1,0 +1,12 @@
+commit 7293dab5a9e4d0fb4b66fd76bab2572bbebc050d
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 11 21:37:46 2008 -0700
+
+    fix two print statements
+    
+    R=gri
+    OCL=14105
+    CL=14105
+
+ src/lib/fmt.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

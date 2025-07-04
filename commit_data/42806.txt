@@ -1,0 +1,27 @@
+commit c777863f77bb77be2e6c336b78dee2089647ff0e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 4 23:53:01 2020 -0400
+
+    cmd/go/internal/mvs: indicate the actual version when printing a mismatched ModuleError
+    
+    Previously, we suppressed the module version annotation if the last
+    error in the stack was a *module.ModuleError, regardless of its path.
+    However, if the error is for a replacement module, that produces a
+    confusing error message: the error is attributed to the last module in
+    the error path, but actually originates in the replacement (which is
+    not otherwise indicated).
+    
+    Now, we print both the original and the replacement modules when they
+    differ, which may add some unfortunate redundancy in the output but at
+    least doesn't drop the very relevant information about replacements.
+    
+    Fixes #35039
+    
+    Change-Id: I631a7398033602b1bd5656150a4fad4945a87ade
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247765
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/mvs/errors.go                       | 17 +++++++++++------
+ .../go/testdata/script/mod_load_replace_mismatch.txt    |  2 +-
+ src/cmd/go/testdata/script/mod_replace_gopkgin.txt      |  2 +-
+ 3 files changed, 13 insertions(+), 8 deletions(-)

@@ -1,0 +1,33 @@
+commit 040fe32119580cbb480d38dec8cfffd06d2dbf3a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 3 11:43:24 2012 -0800
+
+    test: don't use package main for files without a main function
+    
+    Part of issue 2833, but works fine with current test runner.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5606056
+
+ test/eof1.go                | 2 +-
+ test/fixedbugs/bug063.go    | 2 +-
+ test/fixedbugs/bug066.go    | 2 +-
+ test/fixedbugs/bug071.go    | 2 +-
+ test/fixedbugs/bug109.go    | 2 +-
+ test/fixedbugs/bug118.go    | 2 +-
+ test/fixedbugs/bug150.go    | 2 +-
+ test/fixedbugs/bug151.go    | 2 +-
+ test/fixedbugs/bug219.go    | 2 +-
+ test/fixedbugs/bug232.go    | 2 +-
+ test/fixedbugs/bug233.go    | 2 +-
+ test/fixedbugs/bug235.go    | 2 +-
+ test/fixedbugs/bug250.go    | 2 +-
+ test/fixedbugs/bug267.go    | 2 +-
+ test/fixedbugs/bug283.go    | 2 +-
+ test/fixedbugs/bug309.go    | 2 +-
+ test/fixedbugs/bug354.go    | 2 +-
+ test/fixedbugs/bug393.go    | 2 +-
+ test/interface/recursive.go | 2 +-
+ test/rune.go                | 2 +-
+ 20 files changed, 20 insertions(+), 20 deletions(-)

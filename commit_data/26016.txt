@@ -1,0 +1,20 @@
+commit 03f3bfc4600321ff5bd15cfc555dbe322ae85b9f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Mar 2 16:58:40 2016 +1100
+
+    misc/cgo/test: rewrite windows version of mysleep
+    
+    Latest version of gcc (tdm-1) 5.1.0 refuses to compile our code
+    on windows/386 (see issue for details). Rewrite the code.
+    
+    Fixes #14328
+    
+    Change-Id: I70f4f063282bd2958cd2175f3974369dd49dd8dc
+    Reviewed-on: https://go-review.googlesource.com/20008
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/callback_c.c         |  2 +-
+ misc/cgo/test/sleep_windows_386.go | 20 --------------------
+ 2 files changed, 1 insertion(+), 21 deletions(-)

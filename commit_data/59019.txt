@@ -1,0 +1,23 @@
+commit ca19f987ca74605ef977c7a8619a344504c72272
+Author: Than McIntosh <thanm@golang.org>
+Date:   Thu Dec 19 12:58:40 2024 -0500
+
+    internal/buildcfg: enable DWARF version 5 by default
+    
+    This patch enables the DWARF version 5 experiment by default for most
+    platforms that support DWARF. Note that MacOS is kept at version 4,
+    due to problems with CGO builds; the "dsymutil" tool from older
+    versions of Xcode (prior to V16) can't handle DWARF5. Similar we keep
+    DWARF 4 for GOOS=aix, where XCOFF doesn't appear to support the new
+    section subtypes in DWARF 5.
+    
+    Updates #26379.
+    
+    Change-Id: I5edd600c611f03ce8e11be3ca18c1e6686ac74ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637895
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/buildcfg/exp.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

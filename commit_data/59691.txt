@@ -1,0 +1,34 @@
+commit b1f259b1b42f055863a67492e7815ec752eae56b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Apr 25 19:13:52 2025 +0700
+
+    cmd/compile: fix ICE with recursive alias type parameter
+    
+    CL 585399 fixed an initialization loop during IR contruction that
+    involving alias type, by avoiding publishing alias declarations until
+    the RHS type expression has been constructed.
+    
+    There's an assertion to ensure that the alias's type must be the same
+    during the initialization. However, that assertion is too strict, since
+    we may construct different instances of the same type, if the type is an
+    instantination of generic type.
+    
+    To fix this, we could use types.IdenticalStrict to ensure that these
+    types matching exactly.
+    
+    Updates #66873.
+    Updates #73309.
+    
+    Change-Id: I2559bed37e21615854333fb1057d7349406e6a1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668175
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/noder/reader.go       |  2 +-
+ src/cmd/compile/internal/types2/stdlib_test.go |  1 +
+ src/go/types/stdlib_test.go                    |  1 +
+ test/fixedbugs/issue73309.go                   | 18 ++++++++++++++++++
+ 4 files changed, 21 insertions(+), 1 deletion(-)

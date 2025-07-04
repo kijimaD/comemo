@@ -1,0 +1,24 @@
+commit 95864504d2d2690c428c6349d4cad3d61bddff7e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jan 20 09:12:24 2015 +1100
+
+    misc/dashboard/codereview: delete
+    
+    This dashboard is no longer in use, and doesn't work with Gerrit.
+    
+    Change-Id: Ib7c367dcad97322566610157b15e23db5bec58ff
+    Reviewed-on: https://go-review.googlesource.com/3028
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ misc/dashboard/codereview/app.yaml               |  24 --
+ misc/dashboard/codereview/cron.yaml              |   4 -
+ misc/dashboard/codereview/dashboard/cl.go        | 493 -----------------------
+ misc/dashboard/codereview/dashboard/front.go     | 299 --------------
+ misc/dashboard/codereview/dashboard/gc.go        |  47 ---
+ misc/dashboard/codereview/dashboard/mail.go      |  68 ----
+ misc/dashboard/codereview/dashboard/people.go    |  65 ---
+ misc/dashboard/codereview/index.yaml             |  25 --
+ misc/dashboard/codereview/queue.yaml             |   4 -
+ misc/dashboard/codereview/static/gopherstamp.jpg | Bin 16996 -> 0 bytes
+ misc/dashboard/codereview/static/icon.png        | Bin 412 -> 0 bytes
+ 11 files changed, 1029 deletions(-)

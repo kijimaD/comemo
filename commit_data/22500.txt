@@ -1,0 +1,24 @@
+commit 9402e49450d57eb608f03980e7541602a346e5ae
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 14 10:48:05 2015 +1000
+
+    runtime: really pass return value to Windows in externalthreadhandler
+    
+    When Windows calls externalthreadhandler it expects to receive
+    return value in AX. We don't set AX anywhere. Change that.
+    Store ctrlhandler1 and profileloop1 return values into AX before
+    returning from externalthreadhandler.
+    
+    Fixes #10215.
+    
+    Change-Id: Ied04542cc3ebe7d4a26660e970f9f78098143591
+    Reviewed-on: https://go-review.googlesource.com/8901
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/signal/signal_windows_test.go | 4 ----
+ src/runtime/os1_windows.go           | 2 +-
+ src/runtime/sys_windows_386.s        | 2 ++
+ src/runtime/sys_windows_amd64.s      | 2 ++
+ 4 files changed, 5 insertions(+), 5 deletions(-)

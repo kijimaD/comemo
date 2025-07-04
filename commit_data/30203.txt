@@ -1,0 +1,20 @@
+commit 066ac428cdcb0b220a8a58f31c884d054cecd118
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Feb 10 13:08:13 2017 +1300
+
+    reflect: clear ptrToThis in Ptr when allocating result on heap
+    
+    Otherwise, calling PtrTo on the result will fail.
+    
+    Fixes #19003
+    
+    Change-Id: I8d7d1981a5d0417d5aee52740469d71e90734963
+    Reviewed-on: https://go-review.googlesource.com/36731
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/reflect/all_test.go | 15 ++++++++++-----
+ src/reflect/type.go     |  1 +
+ 2 files changed, 11 insertions(+), 5 deletions(-)

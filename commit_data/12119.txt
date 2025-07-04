@@ -1,0 +1,20 @@
+commit 31e94293fc3f57f58bd0dae0698f0914b3e9a9e7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 22 11:13:59 2012 +1100
+
+    net/textproto: accept bad MIME headers as browsers do
+    
+    Accept certain non-compliant response headers
+    (in particular, when spaces preceed the colon).
+    All major browser and curl seem to support this,
+    and at least one webserver seems to send these.
+    
+    *shrug*
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5690059
+
+ src/pkg/net/textproto/reader.go      | 13 +++++++++++--
+ src/pkg/net/textproto/reader_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 2 deletions(-)

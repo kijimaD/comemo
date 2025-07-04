@@ -1,0 +1,26 @@
+commit 645d07819b2224ba4d759829443f7c6442162c69
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 13 10:44:47 2021 -0400
+
+    sync: add Mutex.TryLock, RWMutex.TryLock, RWMutex.TryRLock
+    
+    Use of these functions is almost (but not) always a bad idea.
+    
+    Very rarely they are necessary, and third-party implementations
+    (using a mutex and an atomic word, say) cannot integrate as well
+    with the race detector as implmentations in package sync itself.
+    
+    Fixes #45435.
+    
+    Change-Id: I0128ca48ef5e0a3b09c913f0f3a7ee5c56388000
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319769
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/sync/mutex.go        | 15 ++++++++++++
+ src/sync/mutex_test.go   | 18 +++++++++++++++
+ src/sync/rwmutex.go      | 59 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/sync/rwmutex_test.go | 28 +++++++++++++++++++++++
+ 4 files changed, 120 insertions(+)

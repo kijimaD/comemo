@@ -1,0 +1,19 @@
+commit 4cffe2b604d0980e6fb9b994b31f69c53045a460
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sun Jan 29 23:57:14 2017 +0100
+
+    cmd/dist: use the target GOOS to skip the test for issue 18153
+    
+    Fixes (skips) the test on Android, where stdout/stderr are not
+    terminals.
+    
+    Updates #18153
+    
+    Change-Id: Ieca65150362a5c423747ad751e00f76f0b890746
+    Reviewed-on: https://go-review.googlesource.com/35957
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit a850dbdef2f1875d81ad09024480f648ce3eac32
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 25 15:49:00 2016 -0400
+
+    cmd/vet: accept space-separated tag lists for compatibility with cmd/go
+    
+    Fixes #17148.
+    
+    Change-Id: I4c66aa0733c249ee6019d1c4e802a7e30457d4b6
+    Reviewed-on: https://go-review.googlesource.com/32030
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/main.go     |  7 +++++--
+ src/cmd/vet/vet_test.go | 35 +++++++++++++++++++----------------
+ 2 files changed, 24 insertions(+), 18 deletions(-)

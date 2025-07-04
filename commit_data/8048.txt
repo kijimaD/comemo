@@ -1,0 +1,18 @@
+commit 0cc055e8f78d3e7c790fdcf4fb44f2d2c4eea396
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Apr 11 16:38:37 2011 -0400
+
+    ld: fix dwarf decoding of strings for struct's fieldnames
+    
+    Moved Sym printing to Yconv.
+    Fixed warning in data.c
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4378052
+
+ src/cmd/ld/data.c  |  2 +-
+ src/cmd/ld/dwarf.c | 29 ++++++++---------------------
+ src/cmd/ld/lib.c   | 42 +++++++++++++++++++++++++++++++++++++++---
+ src/cmd/ld/lib.h   |  3 +++
+ 4 files changed, 51 insertions(+), 25 deletions(-)

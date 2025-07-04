@@ -1,0 +1,13 @@
+commit 1a821b32da9f411945e71c20ed36a957d1dafa4b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 9 17:09:33 2009 -0800
+
+    noted by kaib: explicit assignment initialization
+    didn't match the composite literal initialization.
+    
+    R=r
+    CC=kaib
+    http://go/go-review/1024039
+
+ doc/effective_go.html | 1 -
+ 1 file changed, 1 deletion(-)

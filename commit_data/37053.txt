@@ -1,0 +1,24 @@
+commit e9b39417e4448d6001b2707d9cf42bba4673e9ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 22 10:54:38 2018 -0700
+
+    go/types: copy embedded methods unchanged when completing interfaces
+    
+    The existing code adjusted the receivers of embedded interface methods
+    to match the embedding interface type. That required cloning (shallow
+    copying) the embedded methods and destroyed their object identity in
+    the process. Don't do this anymore. The consequence to clients is that
+    they might see different methods of an interface having different
+    receiver types; they are always the type of the interface that explicitly
+    declared the method (which is what one usually would want, anyway).
+    
+    Fixes #28282.
+    
+    Change-Id: I2e6f1497f46affdf7510547a64601de3787367db
+    Reviewed-on: https://go-review.googlesource.com/c/143757
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/issues_test.go | 22 ++++++++++++++++++++++
+ src/go/types/stdlib_test.go | 28 +++++++++++-----------------
+ src/go/types/type.go        | 11 +++--------
+ 3 files changed, 36 insertions(+), 25 deletions(-)

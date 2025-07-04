@@ -1,0 +1,15 @@
+commit 5573fa3bc57754847e3b9a5c9493cdbf29af32b9
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 28 08:55:25 2012 +1100
+
+    cmd/go: mention examples in docs for -test.run
+    Missed in my last round. These things sure appear
+    in a lot of places.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5699096
+
+ src/cmd/go/doc.go  | 3 ++-
+ src/cmd/go/test.go | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

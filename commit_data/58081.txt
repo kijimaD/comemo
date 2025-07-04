@@ -1,0 +1,22 @@
+commit 0b4cde34ac39c02586697787be83230f2ff06d90
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 15 12:52:10 2024 -0500
+
+    cmd/go/internal/fsys: move glob, walk code into new files
+    
+    The Glob and Walk code does not depend on any of the fsys internals;
+    it simply uses ReadDir as an opaque abstraction.
+    Move it to separate files so that when working on the
+    actual overlay abstraction, it is out of sight, out of mind.
+    
+    Change-Id: Ifa98feaaaafe5c1d8d8edce82de4fd0c78f599c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628696
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/fsys/fsys.go | 203 ---------------------------------------
+ src/cmd/go/internal/fsys/glob.go | 178 ++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/fsys/walk.go |  49 ++++++++++
+ 3 files changed, 227 insertions(+), 203 deletions(-)

@@ -1,0 +1,24 @@
+commit 593c51cff13339c10e9e767209b699eb4ba56c44
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 2 17:05:51 2012 -0700
+
+    go/ast: ast.Print must not crash with unexported fields
+    
+    Don't print unexported struct fields; their values are
+    not accessible via reflection.
+    
+    Fixes #3898.
+    
+    Also:
+    - added support for arrays
+    - print empty maps, arrays, slices, structs on one line
+      for a denser output
+    - added respective test cases
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6454089
+
+ src/pkg/go/ast/print.go      | 73 +++++++++++++++++++++++++++++++-------------
+ src/pkg/go/ast/print_test.go | 21 +++++++++++++
+ 2 files changed, 72 insertions(+), 22 deletions(-)

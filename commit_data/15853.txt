@@ -1,0 +1,15 @@
+commit 7c3694c4de2504eb39196d3c4b0da0f2f4e45ffc
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed Mar 20 22:18:20 2013 +0100
+
+    cmd/gc: reject methods on non-locals, even if symbol exists
+    
+    Fixes #5089.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7767044
+
+ src/cmd/gc/dcl.c            | 12 ++++++------
+ test/fixedbugs/issue5089.go | 15 +++++++++++++++
+ 2 files changed, 21 insertions(+), 6 deletions(-)

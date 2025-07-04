@@ -1,0 +1,20 @@
+commit 6ceb60444d7647fc62d692743ad98202c3669b8e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Dec 18 13:22:53 2014 -0800
+
+    sort: deduplicate inner loop of Stable
+    
+    benchmark                   old ns/op      new ns/op      delta
+    BenchmarkStableInt1K        117212         116287         -0.79%
+    BenchmarkStableInt64K       9632002        9587872        -0.46%
+    BenchmarkStable1e4          40044309       39865644       -0.45%
+    BenchmarkStable1e2          126985         126456         -0.42%
+    BenchmarkStableString1K     389774         391052         +0.33%
+    BenchmarkStable1e6          8183202516     8157693442     -0.31%
+    
+    Change-Id: I14e518ad49ecce3d1fc2b056e1acd5e5a2de8144
+    Reviewed-on: https://go-review.googlesource.com/1821
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/sort/sort.go | 31 +++++++++++++------------------
+ 1 file changed, 13 insertions(+), 18 deletions(-)

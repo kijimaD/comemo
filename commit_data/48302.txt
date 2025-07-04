@@ -1,0 +1,24 @@
+commit 63bd6f68e6cbb237b46a99775103758afaee370a
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Sat Mar 5 08:47:33 2022 -0800
+
+    internal/fuzz: fix TestUnmarshalMarshal on MIPS
+    
+    Previous value used in the float32 roundtrip used float32(math.NaN())-1
+    which caused the quiet/signal bit to flip, which seemed to break the
+    test on MIPS platforms. Instead switch to using float32(math.NaN())+1,
+    which preserves the bit and makes the test happy.
+    
+    Possibly related to #37455
+    Fixes #51258
+    
+    Change-Id: Ia85c649e89a5d02027c0ec197f0ff318aa819c19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390214
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/fuzz/encoding_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

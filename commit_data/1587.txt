@@ -1,0 +1,27 @@
+commit 391425ae558e850783e78806a528bb8b2ccec578
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 29 17:38:58 2009 -0800
+
+    if take address of local, move to heap.
+    heuristic to not print bogus strings.
+    fix one error message format.
+    
+    R=ken
+    OCL=23849
+    CL=23851
+
+ src/cmd/6g/cgen.c    |  17 ++++
+ src/cmd/6g/gen.c     |  32 +++++++
+ src/cmd/6g/gg.h      |   1 +
+ src/cmd/6g/gsubr.c   |  12 +++
+ src/cmd/gc/dcl.c     |   3 +-
+ src/cmd/gc/go.h      |  22 ++++-
+ src/cmd/gc/go.y      |   3 +
+ src/cmd/gc/subr.c    |  19 +++-
+ src/cmd/gc/walk.c    | 249 +++++++++++++++++++++++++++++++++++++++------------
+ src/runtime/print.c  |  10 ++-
+ src/runtime/string.c |  31 ++++---
+ test/escape.go       | 175 ++++++++++++++++++++++++++++++++++++
+ test/escape1.go      |  17 ++++
+ test/golden.out      |   2 +-
+ 14 files changed, 515 insertions(+), 78 deletions(-)

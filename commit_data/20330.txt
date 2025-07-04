@@ -1,0 +1,21 @@
+commit c0951701cf72270e441904186d5f6714a296d1f3
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 7 07:23:49 2014 -0400
+
+    cmd/dist: remove goc2c
+    
+    After the three pending CLs listed below, there will be no more .goc files.
+    
+    134580043       runtime: move stubs.goc code into runtime.c
+    133670043       runtime: fix windows syscalls for copying stacks
+    141180043       runtime: eliminate Go -> C -> block paths for Solaris
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, dave
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/132680043
+
+ src/cmd/dist/a.h     |   3 -
+ src/cmd/dist/build.c |  18 --
+ src/cmd/dist/goc2c.c | 839 ---------------------------------------------------
+ 3 files changed, 860 deletions(-)

@@ -1,0 +1,19 @@
+commit fd58320f32a1b8f329e741ab10f1a552a06ede4a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 22 10:33:37 2013 +0900
+
+    net: add minimal internet protocol number information base
+    
+    This CL adds minimal information for supporting platforms that don't
+    have a complete list of internet protocol numbers.
+    
+    Fixes #5344.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12898045
+
+ src/pkg/net/lookup.go         | 13 +++++++++++++
+ src/pkg/net/lookup_unix.go    | 14 +++++++-------
+ src/pkg/net/lookup_windows.go |  5 +++++
+ 3 files changed, 25 insertions(+), 7 deletions(-)

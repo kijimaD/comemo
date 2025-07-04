@@ -1,0 +1,19 @@
+commit 4731832342f6430d6eb4cb13a00b97c3db5da993
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu May 22 18:00:02 2025 +0200
+
+    crypto/hmac: wrap ErrUnsupported returned by Clone
+    
+    Updates #69521
+    
+    Change-Id: I6a6a4656403b9d35d5e4641b5c5c4975f3fa0e43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675555
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/hmac/hmac_test.go             | 13 +++++++++++++
+ src/crypto/internal/fips140/hmac/hmac.go | 20 +++++++++++++++-----
+ src/hash/hash.go                         |  7 ++++---
+ 3 files changed, 32 insertions(+), 8 deletions(-)

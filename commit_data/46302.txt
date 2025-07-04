@@ -1,0 +1,17 @@
+commit 52aef05498a9e84ede16fb7ce46a2a252af05479
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 3 11:18:16 2021 +0700
+
+    go/ast: clarify when Ident.Obj is nil
+    
+    Fixes #48141
+    
+    Change-Id: Id20b7801d31456ffd74301ed0fd84788b8982fb1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347530
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/ast/ast.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

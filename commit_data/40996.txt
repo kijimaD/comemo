@@ -1,0 +1,18 @@
+commit f7f9866f34111b1e5d6c67e7af4de64ecb685f9e
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Dec 13 11:23:09 2019 -0500
+
+    doc: remove Go Security Policy page (moved to x/website)
+    
+    This page has moved to the x/website repo in CL 211300 (commit
+    golang/website@3c8b7f99cadaa000e642595d0fabcd9ac496f335).
+    Remove the old copy in this repo since it's no longer used.
+    
+    Updates #29206
+    
+    Change-Id: I8b3396d9e42d1e7262a8cde9577962d33b215836
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211301
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ doc/security.html | 183 ------------------------------------------------------
+ 1 file changed, 183 deletions(-)

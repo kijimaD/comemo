@@ -1,0 +1,15 @@
+commit eff32f573b19b83283785c1df4539232c39fdba0
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sun Jul 29 16:29:49 2012 +1000
+
+    exp/html: replace NUL with U+FFFD in text in foreign content
+    
+    Pass 5 additional tests.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6452055
+
+ src/pkg/exp/html/parse.go                           |  6 ++++--
+ src/pkg/exp/html/testlogs/plain-text-unsafe.dat.log | 10 +++++-----
+ 2 files changed, 9 insertions(+), 7 deletions(-)

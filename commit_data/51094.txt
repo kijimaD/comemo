@@ -1,0 +1,24 @@
+commit 5c0d314adcc605e0198b2bb45a34db701c9e072c
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Sun Oct 2 13:24:34 2022 +0200
+
+    runtime: support control flow guard on windows/amd64
+    
+    The stack pointer must lie within system stack limits
+    when Control Flow Guard (CFG) is enabled on Windows.
+    
+    This CL updates runtime.sigtramp to honor this restriction by
+    porting some code from the windows/arm64 version, which
+    already supports CFG.
+    
+    Fixes #53560
+    
+    Change-Id: I7f88f9ae788b2bac38aac898b2567f1bea62f8f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437559
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/sys_windows_amd64.s | 49 +++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 47 insertions(+), 2 deletions(-)

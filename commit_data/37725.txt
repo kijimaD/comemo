@@ -1,0 +1,23 @@
+commit db1e8a9e1f1b019dd7928ea239d5b0e4af66d9a6
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 17 14:23:56 2018 -0500
+
+    runtime: make traceback indicate whether _defer was just allocated
+    
+    Many of the crashes observed in #27993 involve committing the new
+    _defer object at the end of newdefer. It would be helpful to know if
+    the _defer was just allocated or was retrieved from the defer pool. In
+    order to indicate this in the traceback, this CL duplicates the tail
+    of newdefer so that the PC/line number will tell us whether d is new
+    or not.
+    
+    For #27993.
+    
+    Change-Id: Icd3e23dbcf00461877bb082b6f18df701149a607
+    Reviewed-on: https://go-review.googlesource.com/c/154598
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/panic.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

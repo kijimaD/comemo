@@ -1,0 +1,27 @@
+commit 2e9ed44d3943164636271f3242b21f0072b6caa7
+Author: Alfonso Subiotto Marques <alfonsojssm@gmail.com>
+Date:   Mon Jun 3 12:02:40 2024 +0000
+
+    runtime: remove linkname from memhash{32,64} functions
+    
+    Remove linkname directives that are no longer necessary given
+    parquet-go/parquet-go#142 removes the dependency on the `memhash{32,64}`
+    functions.
+    
+    This change also removes references to segmentio/parquet-go since that
+    repository was archived in favor of parquet-go/parquet-go.
+    
+    Updates #67401
+    
+    Change-Id: Ibafb0c41b39cdb86dac5531f62787fb5cb8d3f01
+    GitHub-Last-Rev: e14c4e4dfe1023df83339da73eb5dd632d52851b
+    GitHub-Pull-Request: golang/go#67784
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589795
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/alg.go | 22 ----------------------
+ 1 file changed, 22 deletions(-)

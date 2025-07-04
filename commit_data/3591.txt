@@ -1,0 +1,21 @@
+commit 4c3a85d73a23eade387a5859f7d072aa1ef81dfb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 19 19:27:40 2009 -0700
+
+    6g bug fixes:
+     * bug211
+     * embedded interfaces with lowercase methods
+     * var _ = f() at top level
+    
+    R=ken
+    OCL=35898
+    CL=35898
+
+ src/cmd/gc/dcl.c                   | 18 ++++++++++-----
+ src/cmd/gc/sinit.c                 |  2 ++
+ test/blank.go                      |  4 ++++
+ test/{bugs => fixedbugs}/bug211.go |  0
+ test/golden.out                    |  3 ---
+ test/interface/embed.go            | 42 +++++++++++++++++------------------
+ test/interface/embed1.go           | 45 ++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 85 insertions(+), 29 deletions(-)

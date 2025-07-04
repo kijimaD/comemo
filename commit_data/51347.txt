@@ -1,0 +1,27 @@
+commit 249e51e5d9aac5124628d524499ea9c067bc37d5
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Nov 17 19:21:45 2022 +0700
+
+    cmd/compile: fix static init for inlined calls
+    
+    CL 450136 made the compiler to be able to handle simple inlined calls in
+    staticinit. However, it's missed a condition when checking substituting
+    arg for param. If there's any non-trivial closures, it has captured one
+    of the param, so the substitution could not happen.
+    
+    Fixes #56778
+    
+    Change-Id: I427c9134e333e2f9af136c1a124da4d37d326f10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451555
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/staticinit/sched.go | 12 ++++++++++++
+ test/fixedbugs/issue56778.dir/a.go           | 18 ++++++++++++++++++
+ test/fixedbugs/issue56778.dir/b.go           |  9 +++++++++
+ test/fixedbugs/issue56778.go                 |  7 +++++++
+ 4 files changed, 46 insertions(+)

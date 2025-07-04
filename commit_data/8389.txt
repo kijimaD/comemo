@@ -1,0 +1,14 @@
+commit 36cec789cd2c3631419cc2a46693590965952bf7
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Sat May 14 00:35:10 2011 +0200
+
+    gc: generalize dst = append(src,...) inlining to arbitrary src and dst arguments.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4517057
+
+ src/cmd/gc/builtin.c.boot |   1 -
+ src/cmd/gc/walk.c         | 100 ++++++++++++++--------------------------------
+ src/pkg/runtime/slice.c   |  14 -------
+ 3 files changed, 31 insertions(+), 84 deletions(-)

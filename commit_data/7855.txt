@@ -1,0 +1,23 @@
+commit 913c8d73978795e4f2cdd1f87de3af5239ebdc84
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Mar 24 11:20:28 2011 +1100
+
+    syscall: StartProcess fixes for windows
+    
+    - StartProcess will work with relative (to attr.Dir, not
+      current directory) executable filenames
+    - StartProcess will only work if executable filename points
+      to the real file, it will not search for executable in the
+      $PATH list and others (see CreateProcess manual for details)
+    - StartProcess argv strings can contain any characters
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4306041
+
+ src/pkg/exec/exec_test.go               |  52 +++++
+ src/pkg/os/os_test.go                   |  44 +++--
+ src/pkg/syscall/exec_windows.go         | 328 ++++++++++++++++++++------------
+ src/pkg/syscall/syscall_windows.go      |   3 +-
+ src/pkg/syscall/zsyscall_windows_386.go |  20 +-
+ 5 files changed, 308 insertions(+), 139 deletions(-)

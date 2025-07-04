@@ -1,0 +1,14 @@
+commit 33f3ed771025a9edb512c6ff0747955e27496bdc
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 15 16:22:57 2009 -0800
+
+    casify fixup for bufio
+    
+    R=rsc
+    DELTA=88  (0 added, 12 deleted, 76 changed)
+    OCL=22884
+    CL=22890
+
+ src/lib/bufio.go      |  30 ++++++------
+ src/lib/bufio_test.go | 126 +++++++++++++++++++++++---------------------------
+ 2 files changed, 72 insertions(+), 84 deletions(-)

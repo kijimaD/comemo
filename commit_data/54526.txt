@@ -1,0 +1,27 @@
+commit d73a33f1c34f3cfdc136ac553e887b96614b9ee8
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Sep 7 12:41:37 2023 +0200
+
+    runtime: implement osyield in Go instead of assembly on Windows
+    
+    Windows APIs are normally not arch-specific, so it's better to
+    implement them in Go instead of assembly.
+    
+    It was previously implemented in assembly because it was the only way
+    to support calls without a valid g. This CL defines a new function,
+    stdcall_no_g, that can be used in such cases.
+    
+    Change-Id: I26a223b918c6c462b06ac256bdacf9ddb78752bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526476
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/os_windows.go       | 23 ++++++++++++++++++++---
+ src/runtime/sys_windows_386.s   | 11 +++--------
+ src/runtime/sys_windows_amd64.s | 16 ++++------------
+ src/runtime/sys_windows_arm.s   | 13 +++----------
+ src/runtime/sys_windows_arm64.s | 11 +++--------
+ 5 files changed, 33 insertions(+), 41 deletions(-)

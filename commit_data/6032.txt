@@ -1,0 +1,15 @@
+commit 316961c1724deeb6e79f700f24bde345e0d5d992
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 17 08:34:40 2010 +1000
+
+    fmt/print: remove a TODO regarding printing renamed byte slices.
+    the solution must work around a weakness in the reflection library:
+    there is no way to do type-safe conversions under reflection.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2000041
+
+ src/pkg/fmt/fmt_test.go |  3 +--
+ src/pkg/fmt/print.go    | 18 +++++++++++++++++-
+ 2 files changed, 18 insertions(+), 3 deletions(-)

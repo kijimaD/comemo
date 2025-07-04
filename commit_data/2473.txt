@@ -1,0 +1,13 @@
+commit f39fcd7e42f7e3035d8cf086dfada99e2e60a456
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 17 16:34:13 2009 -0700
+
+    fix 386 build.
+    some day...
+    
+    TBR=r
+    OCL=30453
+    CL=30453
+
+ src/pkg/runtime/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

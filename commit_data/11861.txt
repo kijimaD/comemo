@@ -1,0 +1,18 @@
+commit 04868b28ac5b3ff608a58b4dbb7daa87f75fd660
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 14 10:47:48 2012 +1100
+
+    archive/zip: hide Write method from *Writer type
+    
+    This was an implementation detail that snuck into the public interface.
+    *Writer.Create gives you an io.Writer, the *Writer itself was never
+    meant to be written to.
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/5654076
+
+ doc/go1.html                  | 12 +++++++
+ doc/go1.tmpl                  | 12 +++++++
+ src/pkg/archive/zip/writer.go | 74 +++++++++++++++++++++----------------------
+ 3 files changed, 61 insertions(+), 37 deletions(-)

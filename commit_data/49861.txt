@@ -1,0 +1,18 @@
+commit 98e16488237b7f091ec35cbec12030a95b9f8f1b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jul 19 14:19:09 2022 -0400
+
+    runtime: print irrelevant IDs as nil in schedtrace
+    
+    We currently print these as -1, but some are technically uint64. We can
+    be more explicit about their irrelevance by printing 'nil' rather than
+    -1.
+    
+    Change-Id: I267fd8830564c75032bfe9176af59047f5a90202
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419441
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go | 54 ++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 31 insertions(+), 23 deletions(-)

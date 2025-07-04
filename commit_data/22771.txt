@@ -1,0 +1,28 @@
+commit 06946aad1973c42e26ddb0890c57ef37fecbb48a
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 28 20:55:01 2015 -0700
+
+    cmd/go: better UI for go doc
+    
+    Print it out much like godoc so there isn't a single block of text.
+    Print the symbol before its comment and indent the comment so
+    individual symbols separate visually.
+    
+    Buffer the output.
+    
+    Add a -c option to force case-sensitive matching.
+    
+    Allow two arguments, like godoc, to help disambiguate cases
+    where path and symbol may be confused.
+    
+    Improve the documentation printed by go help doc.
+    
+    Change-Id: If687aad04bbacdf7dbe4bf7636de9fe96f756fd0
+    Reviewed-on: https://go-review.googlesource.com/9471
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/doc/main.go   |  66 ++++++++++++++++-----------
+ src/cmd/doc/pkg.go    | 124 ++++++++++++++++++++++++++++++++++----------------
+ src/cmd/go/alldocs.go |  66 +++++++++++++++++----------
+ src/cmd/go/doc.go     |  67 +++++++++++++++++----------
+ 4 files changed, 213 insertions(+), 110 deletions(-)

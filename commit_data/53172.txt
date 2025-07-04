@@ -1,0 +1,27 @@
+commit 4859392cc29a35a0126e249ecdedbd022c755b20
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu May 18 14:46:20 2023 +0200
+
+    runtime: fix TestSehUnwind
+    
+    This CL fixes two problems:
+    
+    - NewContextStub initialize a context with the wrong FP. That
+    function should dereference the FP returned by getcallerfp, as it
+    returns the callers's FP instead of the caller's caller FP.
+    CL 494857 will rename getcallerfp to getfp to make this fact clearer.
+    
+    - sehCallers skips the bottom frame when it should.
+    
+    Fixes #60053
+    
+    Change-Id: I7d59b0175fc95281fcc7dd565ced9293064df3a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496140
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/export_windows_test.go      | 11 ++++++++---
+ src/runtime/runtime-seh_windows_test.go |  4 ++--
+ 2 files changed, 10 insertions(+), 5 deletions(-)

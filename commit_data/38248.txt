@@ -1,0 +1,21 @@
+commit 4a7d5aa30bab454f546d8f3b6d4b4a27585f1433
+Author: Austin Clements <austin@google.com>
+Date:   Mon Sep 25 15:17:28 2017 -0400
+
+    runtime: don't use GOGC in minimum sweep distance
+    
+    Currently, the minimum sweep distance is 1MB * GOGC/100. It's been
+    this way since it was introduced in CL 13043 with no justification.
+    
+    Since there seems to be no good reason to scale the minimum sweep
+    distance by GOGC, make the minimum sweep distance just 1MB.
+    
+    Change-Id: I5320574a23c0eec641e346282aab08a3bbb057da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/66091
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

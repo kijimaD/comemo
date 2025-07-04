@@ -1,0 +1,13 @@
+commit 4fc82c2e1eb4c6d2503567eac2ed1df983842c20
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 28 09:56:33 2009 -0700
+
+    fix for broken build
+    
+    TBR=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=27969
+    CL=27969
+
+ src/lib/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

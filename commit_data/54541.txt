@@ -1,0 +1,30 @@
+commit c8caad423cafcca7c39dbaf64b428aaf0e8ac80c
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Sep 18 11:29:20 2023 -0500
+
+    cmd/compile/internal/ssa: optimize (AND (MOVDconst [-1] x)) on PPC64
+    
+    This sequence can show up in the lowering pass on PPC64. If it
+    makes it to the latelower pass, it will cause an error because
+    it looks like it can be turned into RLDICL, but -1 isn't an
+    accepted mask.
+    
+    Also, print more debug info if panic is called from
+    encodePPC64RotateMask.
+    
+    Fixes #62698
+    
+    Change-Id: I0f3322e2205357abe7fc28f96e05e3f7ad65567c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529195
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules |  1 +
+ src/cmd/compile/internal/ssa/rewrite.go       |  2 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 13 +++++++++++++
+ test/codegen/copy.go                          |  6 ++++++
+ 4 files changed, 21 insertions(+), 1 deletion(-)

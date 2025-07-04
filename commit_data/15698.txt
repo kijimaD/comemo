@@ -1,0 +1,17 @@
+commit d2be8f29485f80d41d84970aa32329b3621c9dab
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 11 18:12:07 2013 -0400
+
+    cmd/addr2line: exit 0 for --help
+    
+    This is what pprof expects, or else it won't use the program.
+    And if it doesn't use the program, it gets very bad results.
+    
+    Fixes #4818.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7728043
+
+ src/cmd/addr2line/main.c | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

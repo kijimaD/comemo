@@ -1,0 +1,17 @@
+commit f3c3130685e3b457c356156b8b7de2b41e496f10
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Feb 16 09:44:01 2012 +1100
+
+    godoc: support for package examples, display example suffixes
+    
+    Fixes #2896.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5677047
+
+ lib/godoc/example.html                 |  4 ++--
+ lib/godoc/package.html                 |  3 ++-
+ src/cmd/godoc/godoc.go                 | 38 ++++++++++++++++++++++++++++++++--
+ src/pkg/container/heap/example_test.go |  5 +----
+ 4 files changed, 41 insertions(+), 9 deletions(-)

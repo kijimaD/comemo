@@ -1,0 +1,18 @@
+commit c3a087a08837837d51c6f4df9680715a906eaba0
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Wed Jun 24 11:09:43 2009 -0700
+
+    Base64 encoder/decoder package.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=722  (722 added, 0 deleted, 0 changed)
+    OCL=30660
+    CL=30691
+
+ src/pkg/Make.deps             |   1 +
+ src/pkg/Makefile              |   2 +
+ src/pkg/base64/Makefile       |  61 +++++
+ src/pkg/base64/base64.go      | 501 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/base64/base64_test.go | 169 ++++++++++++++
+ 5 files changed, 734 insertions(+)

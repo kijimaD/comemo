@@ -1,0 +1,17 @@
+commit d0006e78681351aae94f9d757232203f43d8b7ee
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 26 17:47:51 2017 -0700
+
+    net: use newLocalListener in TestClosingListener.
+    
+    Updates #21856
+    
+    Change-Id: I9baa51fe23e6dd2fcf9dd14f7acfaf7457571e1d
+    Reviewed-on: https://go-review.googlesource.com/66334
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/net/listen_test.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

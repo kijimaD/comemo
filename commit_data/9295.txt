@@ -1,0 +1,18 @@
+commit 5da14d1697d16efea832ce5756e20c76ed160f0a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 5 10:27:51 2011 +1000
+
+    net: implement windows LookupMX and LookupAddr
+    
+    Also sort SRV records before returning from LookupSRV.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4817049
+
+ src/pkg/net/dnsclient.go                    | 27 +++++++++++++++++--
+ src/pkg/net/{srv_test.go => lookup_test.go} | 28 ++++++++++++++++++++
+ src/pkg/net/lookup_unix.go                  | 19 ++-----------
+ src/pkg/net/lookup_windows.go               | 41 ++++++++++++++++++++++-------
+ src/pkg/syscall/ztypes_windows.go           |  6 +++++
+ 5 files changed, 93 insertions(+), 28 deletions(-)

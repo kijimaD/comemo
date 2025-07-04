@@ -1,0 +1,16 @@
+commit eddddf042dcdc211658589dd294040ac5b585794
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 11 23:36:06 2010 -0400
+
+    arm: make libcgo build during OS X cross-compile
+    
+    The gcc on OS X seems pickier about noticing
+    symbols that are referred to but not found during
+    the link of a .so file.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2098047
+
+ src/libcgo/linux_arm.c | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

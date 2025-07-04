@@ -1,0 +1,12 @@
+commit c184940d3fb1090eba5c3747a21cfa50771e12fd
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Dec 15 21:03:12 2013 -0500
+
+    doc/install-source.html: mention make.bash to skip tests
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/42590043
+
+ doc/install-source.html | 4 ++++
+ 1 file changed, 4 insertions(+)

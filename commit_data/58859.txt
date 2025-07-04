@@ -1,0 +1,25 @@
+commit 61641c11455af9571e6e01449c7ea774b0069594
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Jan 24 12:23:42 2025 +0100
+
+    cmd/link: put .got section in __DATA_CONST segment
+    
+    On Darwin, the .got section can be placed in a read-only segment. Only the dynamic linker should modify it at start-up time.
+    
+    Other read-only sections, like .typelink and .itablink, are already placed in the __DATA_CONST segment. Do the same for the .got section.
+    
+    Fixes #71416.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64-longtest
+    Change-Id: I9cd9c20da63b655fabb61d742feb086c3ef3bea7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644055
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/ld/data.go            |   5 +-
+ src/cmd/link/internal/ld/macho.go           |   6 +-
+ src/cmd/link/internal/ld/macho_test.go      | 156 ++++++++++++++++++++++++++++
+ src/cmd/link/internal/sym/symkind.go        |   1 +
+ src/cmd/link/internal/sym/symkind_string.go | 109 +++++++++----------
+ 5 files changed, 221 insertions(+), 56 deletions(-)

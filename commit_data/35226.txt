@@ -1,0 +1,24 @@
+commit d29ec40e19fa0548292bb0bf2a4fb88920838877
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue May 1 11:39:17 2018 +0200
+
+    strconv: use bounded bits.TrailingZeros instead of shifts table
+    
+    The strconv shifts table is 320 bytes (amd64) and is present in
+    many binaries since integer formatting is very common.
+    
+    Instead of using a precalculated table with shift amounts
+    use a bounded bits.TrailingZeros to determine the shift amount
+    to format numbers in a base that is a power of 2.
+    
+    amd64:
+    name        old time/op  new time/op  delta
+    AppendUint   379ns ± 1%   286ns ± 2%  -24.62%  (p=0.000 n=20+19)
+    
+    Change-Id: Ib94d9b033321b41e975868943c7fcd9428c5111e
+    Reviewed-on: https://go-review.googlesource.com/110478
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/deps_test.go |  2 +-
+ src/strconv/itoa.go       | 25 +++++++++++++------------
+ 2 files changed, 14 insertions(+), 13 deletions(-)

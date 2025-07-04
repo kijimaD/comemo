@@ -1,0 +1,25 @@
+commit 0f86d1edfb87fddb2c7f50d177b67f48219151f3
+Author: Shinji Tanaka <shinji.tanaka@gmail.com>
+Date:   Sat Mar 26 07:14:15 2016 -0400
+
+    runtime: use set_thread_area instead of modify_ldt on linux/386
+    
+    linux/386 depends on modify_ldt system call, but recent Linux kernels
+    can disable this system call. Any Go programs built as linux/386
+    crash with the message 'Trace/breakpoint trap'.
+    
+    The kernel config CONFIG_MODIFY_LDT_SYSCALL, which control
+    enable/disable modify_ldt, is disabled on Amazon Linux 2016.03.
+    
+    This fixes this problem by using set_thread_area instead of modify_ldt
+    on linux/386.
+    
+    Fixes #14795.
+    
+    Change-Id: I0cc5139e40e9e5591945164156a77b6bdff2c7f1
+    Reviewed-on: https://go-review.googlesource.com/21190
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/sys_linux_386.s | 42 ++++++++++++++++++++++++++++++------------
+ 1 file changed, 30 insertions(+), 12 deletions(-)

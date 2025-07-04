@@ -1,0 +1,15 @@
+commit 093493c6a54458e79ddc1d18441a427747d1fafa
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 18 15:00:02 2009 -0800
+
+    bugs in memmove:
+            - has arguments (no stack split)
+            - MOVL does not set condition
+    
+    R=ken2, rsc
+    https://golang.org/cl/156086
+
+ src/pkg/runtime/386/memmove.s   | 5 +++--
+ src/pkg/runtime/amd64/memmove.s | 5 +++--
+ src/pkg/runtime/arm/memmove.s   | 3 +--
+ 3 files changed, 7 insertions(+), 6 deletions(-)

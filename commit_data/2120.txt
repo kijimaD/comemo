@@ -1,0 +1,13 @@
+commit bd8e25ca57ba8c6e506a00bee9d33934c646d5b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 30 13:41:36 2009 -0700
+
+    auto-detect whether to use IPv6 or IPv4 kernel interface
+    
+    R=r
+    DELTA=12  (9 added, 0 deleted, 3 changed)
+    OCL=28096
+    CL=28118
+
+ src/lib/net/net.go | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit f1f37f93d08ca24dc9769dc448b6f96bc3667aaf
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jun 20 20:20:56 2014 -0400
+
+    runtime/race: support freebsd
+    All tests pass except one test in regexp package.
+    
+    LGTM=iant
+    R=golang-codereviews, iant, dave
+    CC=golang-codereviews
+    https://golang.org/cl/107270043
+
+ src/cmd/go/build.go                          |   6 +++---
+ src/cmd/go/doc.go                            |   2 +-
+ src/pkg/runtime/race/race.go                 |   2 +-
+ src/pkg/runtime/race/race_freebsd_amd64.syso | Bin 0 -> 261096 bytes
+ 4 files changed, 5 insertions(+), 5 deletions(-)

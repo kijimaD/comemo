@@ -1,0 +1,12 @@
+commit 30ba286c6140ceec7793cfac0eb47a8c939b5044
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Jan 4 09:58:04 2014 +1100
+
+    os: add tests for operations on nil *File methods
+    
+    R=shawn.p.smith, gobot, r
+    CC=golang-codereviews
+    https://golang.org/cl/46820043
+
+ src/pkg/os/os_test.go | 46 ++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 32 insertions(+), 14 deletions(-)

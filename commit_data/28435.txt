@@ -1,0 +1,14 @@
+commit 192548a5470d013f8782c7f1c8553338f7234fc7
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Sep 16 18:25:52 2016 -0400
+
+    cmd/dist: unify internal linking checks
+    
+    I missed one in CL 29360.
+    
+    Change-Id: I29fc6dcd920829a918c70734d646119133a0a9df
+    Reviewed-on: https://go-review.googlesource.com/29361
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/dist/test.go | 41 +++++++++++++++++++++++++++--------------
+ 1 file changed, 27 insertions(+), 14 deletions(-)

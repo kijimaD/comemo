@@ -1,0 +1,24 @@
+commit b4f3533c92dc59f22bbddbc5b73a1575ce6f7f8b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 19 15:45:42 2013 -0400
+
+    cmd/ld: replace -hostobj with -linkmode
+    
+    Still disabled. Need to fix TLS.
+    
+    R=golang-dev, minux.ma, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7783044
+
+ src/cmd/5l/asm.c  |  2 +-
+ src/cmd/5l/obj.c  |  6 ++++++
+ src/cmd/6l/asm.c  |  4 ++--
+ src/cmd/6l/obj.c  | 30 ++++++++++++++----------------
+ src/cmd/8l/asm.c  |  4 ++--
+ src/cmd/8l/obj.c  | 30 ++++++++++++++----------------
+ src/cmd/ld/data.c |  8 ++++----
+ src/cmd/ld/elf.c  | 18 +++++++++---------
+ src/cmd/ld/go.c   | 25 +++++++++++++++++++------
+ src/cmd/ld/lib.h  |  1 +
+ src/run.bash      |  5 +++--
+ 11 files changed, 75 insertions(+), 58 deletions(-)

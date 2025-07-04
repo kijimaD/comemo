@@ -1,0 +1,89 @@
+commit 07b4abd62e450f19c47266b3a526df49c01ba425
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 9 16:22:47 2019 +0000
+
+    all: remove the nacl port (part 2, amd64p32 + toolchain)
+    
+    This is part two if the nacl removal. Part 1 was CL 199499.
+    
+    This CL removes amd64p32 support, which might be useful in the future
+    if we implement the x32 ABI. It also removes the nacl bits in the
+    toolchain, and some remaining nacl bits.
+    
+    Updates #30439
+    
+    Change-Id: I2475d5bb066d1b474e00e40d95b520e7c2e286e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200077
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/amd64/ggen.go            |   2 +-
+ src/cmd/compile/internal/arm/ggen.go              |   2 +-
+ src/cmd/compile/internal/gc/go.go                 |   2 -
+ src/cmd/compile/internal/gc/main.go               |   1 -
+ src/cmd/compile/internal/ssa/config.go            |  13 -
+ src/cmd/compile/internal/ssa/gen/AMD64.rules      |  82 +--
+ src/cmd/compile/internal/ssa/gen/ARM.rules        |  28 +-
+ src/cmd/compile/internal/ssa/regalloc.go          |   9 -
+ src/cmd/compile/internal/ssa/rewriteAMD64.go      | 625 ++++++++----------
+ src/cmd/compile/internal/ssa/rewriteARM.go        |  68 +-
+ src/cmd/compile/internal/x86/ggen.go              |   2 +-
+ src/cmd/go/internal/lockedfile/lockedfile_test.go |   2 +-
+ src/cmd/go/internal/work/gc.go                    |   3 +-
+ src/cmd/internal/obj/arm/asm5.go                  | 334 +---------
+ src/cmd/internal/obj/x86/asm6.go                  | 219 +------
+ src/cmd/internal/obj/x86/obj6.go                  |  76 +--
+ src/cmd/internal/objabi/head.go                   |   5 -
+ src/cmd/internal/objabi/util.go                   |   2 +-
+ src/cmd/link/internal/amd64/asm.go                |   9 +-
+ src/cmd/link/internal/amd64/obj.go                |  12 -
+ src/cmd/link/internal/arm/asm.go                  |   3 +-
+ src/cmd/link/internal/arm/obj.go                  |  11 -
+ src/cmd/link/internal/arm64/asm.go                |   3 +-
+ src/cmd/link/internal/arm64/obj.go                |  11 -
+ src/cmd/link/internal/ld/data.go                  |   3 -
+ src/cmd/link/internal/ld/elf.go                   |   3 +-
+ src/cmd/link/internal/ld/sym.go                   |  27 +-
+ src/cmd/link/internal/mips64/asm.go               |   3 +-
+ src/cmd/link/internal/mips64/obj.go               |  11 -
+ src/cmd/link/internal/ppc64/asm.go                |   3 +-
+ src/cmd/link/internal/ppc64/obj.go                |  11 -
+ src/cmd/link/internal/x86/asm.go                  |   3 +-
+ src/cmd/link/internal/x86/obj.go                  |  11 -
+ src/crypto/md5/md5block_amd64p32.s                | 184 ------
+ src/crypto/sha1/sha1block_amd64p32.s              | 216 ------
+ src/hash/crc32/crc32_amd64p32.go                  |  37 --
+ src/hash/crc32/crc32_amd64p32.s                   |  53 --
+ src/internal/bytealg/compare_amd64p32.s           | 142 ----
+ src/internal/bytealg/equal_amd64p32.s             | 132 ----
+ src/internal/bytealg/indexbyte_amd64p32.s         | 113 ----
+ src/internal/cpu/cpu_amd64p32.go                  |   7 -
+ src/math/big/arith_amd64p32.s                     |  40 --
+ src/math/dim_amd64p32.s                           |   5 -
+ src/math/exp_amd64p32.s                           |   5 -
+ src/math/floor_amd64p32.s                         |   5 -
+ src/math/hypot_amd64p32.s                         |   5 -
+ src/math/log_amd64p32.s                           |   5 -
+ src/math/sqrt_amd64p32.s                          |   5 -
+ src/math/stubs_amd64p32.s                         |   5 -
+ src/reflect/asm_amd64p32.s                        |  36 -
+ src/reflect/type.go                               |   5 -
+ src/runtime/asm_amd64p32.s                        | 759 ----------------------
+ src/runtime/cgo/asm_nacl_amd64p32.s               |  13 -
+ src/runtime/defs_nacl_amd64p32.go                 |  71 --
+ src/runtime/internal/atomic/asm_amd64p32.s        | 159 -----
+ src/runtime/internal/sys/arch_amd64p32.go         |  16 -
+ src/runtime/internal/sys/zgoarch_amd64p32.go      |  31 -
+ src/runtime/memclr_amd64p32.s                     |  24 -
+ src/runtime/memmove_amd64p32.s                    |  53 --
+ src/runtime/netpoll_fake.go                       |   2 +-
+ src/runtime/rt0_nacl_amd64p32.s                   |  30 -
+ src/runtime/signal_nacl_amd64p32.go               |  53 --
+ src/runtime/sys_nacl_amd64p32.s                   | 482 --------------
+ src/syscall/asm_nacl_amd64p32.s                   |  42 --
+ src/syscall/mkall.sh                              |   6 -
+ src/syscall/mksyscall.pl                          |   8 -
+ src/syscall/syscall_nacl_amd64p32.go              |  23 -
+ src/syscall/tables_js.go                          |   6 +-
+ src/syscall/time_nacl_amd64p32.s                  |  11 -
+ src/syscall/zsyscall_nacl_amd64p32.go             |  71 --
+ 70 files changed, 387 insertions(+), 4072 deletions(-)

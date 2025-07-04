@@ -1,0 +1,22 @@
+commit 645e984f39a6cf0ffdf965dc04130d9c7f57e8a4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 26 15:37:15 2016 +1100
+
+    doc: s/race/ethnicity/ in the Code of Conduct
+    
+    As agreed upon by the Code of Conduct working group, "race" may refer to
+    an attempt to classify people based on "defining characteristics",
+    regardless of how this people view themselves, while "ethnicity" refers
+    to how people identify themselves.
+    
+    The Code of Conduct working group believes that the term "ethnicity"
+    will be more comprehensive and inclusive, and will better serve the Go
+    community.
+    
+    Change-Id: I724b72cadb8cf29b4bac8f83017b0303feae3c94
+    Reviewed-on: https://go-review.googlesource.com/32133
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/conduct.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,23 @@
+commit 413f1ef4de98f2e98853c3753f785871bfc32e5d
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Sep 27 10:29:43 2016 -0400
+
+    cmd/asm: fix parsing of the s390x VLE{G,F,H,B} instructions
+    
+    This commit makes the assembler frontend reorder the operands so that
+    they are in the order the backend expects. The index should be first
+    for consistency with the other vector instructions.
+    
+    Before this commit no operand order would have been accepted so this
+    isn't a breaking change.
+    
+    Change-Id: I188d57eeb338d27fa1fa6845de0d6d1521b7a6c3
+    Reviewed-on: https://go-review.googlesource.com/29855
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/asm/internal/arch/s390x.go        | 2 ++
+ src/cmd/asm/internal/asm/testdata/s390x.s | 5 +++++
+ 2 files changed, 7 insertions(+)

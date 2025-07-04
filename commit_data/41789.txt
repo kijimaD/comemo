@@ -1,0 +1,28 @@
+commit 33b648c0e9428c8775043db75fdff5864a64219a
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 27 22:03:33 2020 -0700
+
+    cmd/compile: fix ephemeral pointer problem on amd64
+    
+    Make sure we don't use the rewrite ptr + (c + x) -> c + (ptr + x), as
+    that may create an ephemeral out-of-bounds pointer.
+    
+    I have not seen an actual bug caused by this yet, but we've seen
+    them in the 386 port so I'm fixing this issue for amd64 as well.
+    
+    The load-combining rules needed to be reworked somewhat to still
+    work without the above broken rule.
+    
+    Update #37881
+    
+    Change-Id: I8046d170e89e2035195f261535e34ca7d8aca68a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226437
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  420 ++--
+ src/cmd/compile/internal/ssa/rewrite.go      |   45 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 2760 +++++++++++++++-----------
+ test/codegen/memcombine.go                   |    8 +-
+ 4 files changed, 1835 insertions(+), 1398 deletions(-)

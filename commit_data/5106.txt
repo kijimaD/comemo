@@ -1,0 +1,13 @@
+commit a65a56ec1f610a2a6388d8612aea00ffd7048af9
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Tue Mar 23 13:20:16 2010 -0700
+
+    xml: add line numbers to syntax errors.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/699041
+
+ src/pkg/xml/xml.go      | 55 ++++++++++++++++++++++++++++---------------------
+ src/pkg/xml/xml_test.go | 19 +++++++++++++++--
+ 2 files changed, 49 insertions(+), 25 deletions(-)

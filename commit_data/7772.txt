@@ -1,0 +1,14 @@
+commit 0463bd6cd73d72537e819b0fec9867fe915a8e02
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 15 17:14:02 2011 -0700
+
+    gob: move benchmarks to a new timing_test.go file.
+    Add malloc counts for encode and decode.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4290048
+
+ src/pkg/gob/encoder_test.go |  36 --------------
+ src/pkg/gob/timing_test.go  | 116 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 116 insertions(+), 36 deletions(-)

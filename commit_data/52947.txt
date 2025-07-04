@@ -1,0 +1,26 @@
+commit d9dce0cd26a1e5df0aa2dbbecde4515807be929e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 9 14:02:07 2023 -0700
+
+    go/types, types2: explicitly look for nil type arguments in infer
+    
+    Don't assume we have all type arguments if the number of type arguments
+    matches the number of type parameters. Instead, look explicitly for nil
+    type arguments in the provided targs.
+    
+    Preparation for type inference with type arguments provided for type
+    parameters of generic function arguments passed to other functions.
+    
+    For #59338.
+    
+    Change-Id: I00918cd5ed06ae3277b4e41a3641063e0f53fef0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494115
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/infer.go | 20 +++++++++++++-------
+ src/go/types/infer.go                    | 20 +++++++++++++-------
+ 2 files changed, 26 insertions(+), 14 deletions(-)

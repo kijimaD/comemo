@@ -1,0 +1,23 @@
+commit c10679009ad8a072a45d64a1da57de5e17da9c02
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 6 11:27:36 2011 -0700
+
+    gofmt: indent multi-line signatures
+    
+    There may be more fine-tuning down the line,
+    but this CL fixes the most pressing issue at
+    hand.
+    
+    Also: gofmt -w src misc
+    
+    Fixes #1524.
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4975053
+
+ misc/cgo/test/helpers.go                        |   2 +-
+ src/pkg/go/printer/nodes.go                     |  16 +++-
+ src/pkg/go/printer/testdata/declarations.golden | 111 +++++++++++++++++++-----
+ src/pkg/go/printer/testdata/declarations.input  |  76 ++++++++++++++++
+ 4 files changed, 178 insertions(+), 27 deletions(-)

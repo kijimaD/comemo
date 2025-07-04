@@ -1,0 +1,23 @@
+commit f95db21332118134973ba046c4f5d0e890e36066
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Apr 12 15:17:18 2022 -0400
+
+    cmd/go: add a better error message when in a module outside workspace
+    
+    When the user is trying to list or build a package in a module that's
+    outside of the workspace provide a more clear message hinting to the
+    user that they can add the module to the workspace using go work use.
+    
+    Fixes #51604
+    
+    Change-Id: I1202ecb2f22fd6351bfdec88ed613b8167687fb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400014
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/load.go                       | 8 +++++---
+ src/cmd/go/testdata/script/work_module_not_in_go_work.txt | 6 ++++--
+ 2 files changed, 9 insertions(+), 5 deletions(-)

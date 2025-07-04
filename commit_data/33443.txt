@@ -1,0 +1,13 @@
+commit ef0e2af7b0296c61c17877b84f09221335a962f7
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Sun Nov 5 14:33:21 2017 -0500
+
+    math/big: add security warning to (*Int).Rand
+    
+    Change-Id: I22a67733aa2d07298e124077654c9b1473802100
+    Reviewed-on: https://go-review.googlesource.com/76012
+    Reviewed-by: Aliaksandr Valialkin <valyala@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/big/int.go | 3 +++
+ 1 file changed, 3 insertions(+)

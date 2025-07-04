@@ -1,0 +1,23 @@
+commit 54fa10a98e7e18063a8e3d36637e9921b8b9aabc
+Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
+Date:   Thu Oct 12 22:03:13 2017 +0300
+
+    image/gif: avoid setting defers in the decode loop
+    
+    decoder.decode() was defering close of lzw.decoders created for each
+    frame in a loop, thus increasing heap usage (referenced object + defered
+    function) until decode() returns. Memory increased proportionally to the
+    number of frames. Fix this by moving the sImageDescriptor case block
+    into its own method.
+    
+    Fixes #22237
+    
+    Change-Id: I819617ea7e539e13c04bc11112f339645391ddb9
+    Reviewed-on: https://go-review.googlesource.com/70370
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/image/gif/reader.go      | 209 ++++++++++++++++++++++---------------------
+ src/image/gif/reader_test.go |  33 +++++++
+ 2 files changed, 141 insertions(+), 101 deletions(-)

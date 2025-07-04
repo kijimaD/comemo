@@ -1,0 +1,14 @@
+commit afa64240780505451cc1265948f048c231725bf3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 4 14:59:38 2008 -0800
+
+    don't warn anymore about missing imports
+    (happens legitimately in c and assembly objects).
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=20497
+    CL=20499
+
+ src/cmd/ar/ar.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

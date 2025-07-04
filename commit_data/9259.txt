@@ -1,0 +1,16 @@
+commit 9bc58accce0ab83dab6ca08f0cc319e75f7dd889
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Fri Jul 29 17:39:02 2011 -0400
+
+    runtime: fix scheduling race
+    
+    Affects programs using cgo or runtime.LockOSThread.
+    
+    Fixes #2100.
+    
+    R=rsc, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/4810059
+
+ src/pkg/runtime/proc.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 68b0a87966e64d8f851257e89571d676d5c6e0cd
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 30 11:32:55 2010 -0700
+
+    runtime: do not fall through in SIGBUS/SIGSEGV
+    
+    Faults beyond the first page are not expected
+    and should fail loudly.  They are not subject to recover.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1915042
+
+ src/pkg/runtime/darwin/thread.c  | 6 ++++--
+ src/pkg/runtime/freebsd/thread.c | 6 ++++--
+ src/pkg/runtime/linux/thread.c   | 6 ++++--
+ 3 files changed, 12 insertions(+), 6 deletions(-)

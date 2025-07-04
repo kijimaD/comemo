@@ -1,0 +1,18 @@
+commit 59f6549d1c7e0e074472c46f55716267225f4fd6
+Author: Eric Lagergren <ericscottlagergren@gmail.com>
+Date:   Mon Apr 3 16:08:13 2017 -0700
+
+    bytes, strings: declare variables inside loop they're used in
+    
+    The recently updated Count functions declare variables before
+    special-cased returns.
+    
+    Change-Id: I8f726118336b7b0ff72117d12adc48b6e37e60ea
+    Reviewed-on: https://go-review.googlesource.com/39357
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/bytes.go     | 2 +-
+ src/strings/strings.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

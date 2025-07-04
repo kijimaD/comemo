@@ -1,0 +1,18 @@
+commit c5058652fd724cb1ed8ea91a4e76b202d6910482
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Mar 20 19:13:07 2020 +0100
+
+    math/big: document that Sqrt doesn't set Accuracy
+    
+    Document that the Float.Sqrt method does not set the receiver's
+    Accuracy field.
+    
+    Updates #37915
+    
+    Change-Id: Ief1dcac07eacc0ef02f86bfac9044501477bca1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224497
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/float.go | 4 +++-
+ src/math/big/sqrt.go  | 3 ++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

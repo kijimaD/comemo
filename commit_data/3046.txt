@@ -1,0 +1,12 @@
+commit 83cbca56577e1c8a961fb7bd88a10769ad6d57fd
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 21 14:18:08 2009 -0700
+
+    rewrite type rules for expressions and add shift examples
+    
+    DELTA=48  (22 added, 0 deleted, 26 changed)
+    OCL=33657
+    CL=33668
+
+ doc/go_spec.html | 62 ++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 42 insertions(+), 20 deletions(-)

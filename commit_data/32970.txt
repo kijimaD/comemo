@@ -1,0 +1,52 @@
+commit 555c16d8cbd8372c1f57beb059a23b56bf1e909f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 5 10:07:19 2017 -0400
+
+    cmd/dist, cmd/go: treat cmd/cgo like other build tools
+    
+    The primary build tools cmd/asm, cmd/compile, and cmd/link are
+    built during cmd/dist bootstrap and then assumed by cmd/go to
+    be available for any future builds.
+    
+    The only tool invoked by cmd/go during a build and not in this list
+    is cmd/cgo; instead of being built during cmd/dist and assumed by
+    cmd/go, cmd/go arranges to build cmd/cgo if needed as part of
+    the regular build. We got here because at the time cmd/go was written,
+    cmd/cgo was the only build tool written in Go (the others were in C),
+    and so it made some sense to put cmd/dist in charge of building
+    the C tools and to have custom code in cmd/go to build cmd/cgo
+    just in time for it to be used by a particular build.
+    
+    This custom code has historically been quite subtle, though, because
+    the build of cmd/cgo inherits whatever build flags apply to the
+    build that wants to use cmd/cgo. If you're not careful,
+    "go install -race strings" might under the wrong circumstances
+    also install a race-enabled cmd/cgo binary, which is unexpected
+    at the least.
+    
+    The custom code is only going to get more problematic as we
+    move toward more precise analysis of whether dependencies are
+    up-to-date. In that case, "go build -race strings" will check to
+    see if there is not just a cmd/cgo already but a race-enabled
+    cmd/cgo, which makes no sense.
+    
+    Instead of perpetuating the special case, treat cgo like all the
+    other build tools: build it first in cmd/dist, and then assume it is present.
+    This simplifies cmd/go.
+    
+    Building cmd/cgo during bootstrap also allows the default
+    build of cmd/cgo to be built using cgo, which may be necessary
+    on future essentially-cgo-only systems.
+    
+    Change-Id: I414e22c10c9920f4e98f97fa35ff22058c0f143d
+    Reviewed-on: https://go-review.googlesource.com/68338
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/build.go             |  2 ++
+ src/cmd/dist/buildgo.go           | 27 +++++++++++++--------------
+ src/cmd/dist/buildtool.go         |  9 +++++++++
+ src/cmd/go/internal/load/pkg.go   |  9 +++++++++
+ src/cmd/go/internal/test/test.go  |  4 ----
+ src/cmd/go/internal/work/build.go | 34 ++++++----------------------------
+ 6 files changed, 39 insertions(+), 46 deletions(-)

@@ -1,0 +1,34 @@
+commit e0fae78e1deeaae5bc3c6a8426ece37c62445bf4
+Author: Youfu Zhang <zhangyoufu@gmail.com>
+Date:   Tue Feb 23 03:52:43 2021 +0000
+
+    runtime: fix stack alignment for Windows amd64 lib entry
+    
+    Windows amd64 calling convention requires 16-bytes aligned
+    stack pointer. Before this patch, the real frame size is
+    0x48 (frame size) + 0x10 (frame pointer & return address),
+    which does not satisfy the alignment requirement.
+    
+    _cgo_sys_thread_create eventually calls NtCreateThread,
+    which receives a pointer to a ThreadContext structure
+    allocated from (mis-aligned) stack, and may fail with
+    STATUS_DATATYPE_MISALIGNMENT on some implementations.
+    
+    BP is saved/restored by prolog/epilog.
+    AX, CX, DX are volatile, no need to save and restore.
+    
+    Fixes #41075
+    
+    Change-Id: I01c0a22b4bf3b4cfdebf4df587445aa46c667973
+    GitHub-Last-Rev: 15d2bd740e3e61c9753b3e1b574fdb5da538459c
+    GitHub-Pull-Request: golang/go#44524
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295329
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Christopher Nelson <nadiasvertex@gmail.com>
+
+ src/runtime/rt0_windows_amd64.s | 14 +-------------
+ 1 file changed, 1 insertion(+), 13 deletions(-)

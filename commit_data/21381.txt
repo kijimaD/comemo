@@ -1,0 +1,68 @@
+commit e6fac08146df323eb95f46508bef937cdfb802fd
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Jan 21 17:37:59 2015 +0300
+
+    cmd/gc: allocate buffers for non-escaped strings on stack
+    
+    Currently we always allocate string buffers in heap.
+    For example, in the following code we allocate a temp string
+    just for comparison:
+    
+            if string(byteSlice) == "abc" { ... }
+    
+    This change extends escape analysis to cover []byte->string
+    conversions and string concatenation. If the result of operations
+    does not escape, compiler allocates a small buffer
+    on stack and passes it to slicebytetostring and concatstrings.
+    Then runtime uses the buffer if the result fits into it.
+    
+    Size of the buffer is 32 bytes. There is no fundamental theory
+    behind this number. Just an observation that on std lib
+    tests/benchmarks frequency of string allocation is inversely
+    proportional to string length; and there is significant number
+    of allocations up to length 32.
+    
+    benchmark                                    old allocs     new allocs     delta
+    BenchmarkFprintfBytes                        2              1              -50.00%
+    BenchmarkDecodeComplex128Slice               318            316            -0.63%
+    BenchmarkDecodeFloat64Slice                  318            316            -0.63%
+    BenchmarkDecodeInt32Slice                    318            316            -0.63%
+    BenchmarkDecodeStringSlice                   2318           2316           -0.09%
+    BenchmarkStripTags                           11             5              -54.55%
+    BenchmarkDecodeGray                          111            102            -8.11%
+    BenchmarkDecodeNRGBAGradient                 200            188            -6.00%
+    BenchmarkDecodeNRGBAOpaque                   165            152            -7.88%
+    BenchmarkDecodePaletted                      319            309            -3.13%
+    BenchmarkDecodeRGB                           166            157            -5.42%
+    BenchmarkDecodeInterlacing                   279            268            -3.94%
+    BenchmarkGoLookupIP                          153            135            -11.76%
+    BenchmarkGoLookupIPNoSuchHost                508            466            -8.27%
+    BenchmarkGoLookupIPWithBrokenNameServer      245            226            -7.76%
+    BenchmarkClientServerParallel4               62             61             -1.61%
+    BenchmarkClientServerParallel64              62             61             -1.61%
+    BenchmarkClientServerParallelTLS4            79             78             -1.27%
+    BenchmarkClientServerParallelTLS64           112            111            -0.89%
+    
+    benchmark                                    old ns/op      new ns/op      delta
+    BenchmarkFprintfBytes                        381            311            -18.37%
+    BenchmarkStripTags                           2615           2351           -10.10%
+    BenchmarkDecodeNRGBAGradient                 3715887        3635096        -2.17%
+    BenchmarkDecodeNRGBAOpaque                   3047645        2928644        -3.90%
+    BenchmarkGoLookupIP                          153            135            -11.76%
+    BenchmarkGoLookupIPNoSuchHost                508            466            -8.27%
+    
+    Change-Id: I9ec01da816945c3329d7be3c7794b520418c3f99
+    Reviewed-on: https://go-review.googlesource.com/3120
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/builtin.c       | 12 ++++----
+ src/cmd/gc/esc.c           | 19 ++++++++++++
+ src/cmd/gc/runtime.go      | 12 ++++----
+ src/cmd/gc/walk.c          | 41 +++++++++++++++++++++----
+ src/fmt/fmt_test.go        |  9 ++++++
+ src/runtime/string.go      | 72 ++++++++++++++++++++++++++++++++++----------
+ src/runtime/string_test.go | 11 +++++++
+ test/escape2.go            | 74 ++++++++++++++++++++++++++++++++++++++++++++++
+ test/escape2n.go           | 74 ++++++++++++++++++++++++++++++++++++++++++++++
+ 9 files changed, 291 insertions(+), 33 deletions(-)

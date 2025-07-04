@@ -1,0 +1,18 @@
+commit 8e54729b5a9fdbc6cd351d532d5205ab97bcf4dd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 30 17:09:28 2009 -0700
+
+    move alignment calculations into gc
+    
+    R=ken
+    OCL=26914
+    CL=26914
+
+ src/cmd/6g/align.c  | 285 ++----------------------------------------
+ src/cmd/6g/gg.h     |  17 ---
+ src/cmd/gc/Makefile |   1 +
+ src/cmd/gc/align.c  | 351 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/go.h     |  43 ++++++-
+ src/cmd/gc/lex.c    | 100 ++-------------
+ src/cmd/gc/walk.c   |   4 +-
+ 7 files changed, 410 insertions(+), 391 deletions(-)

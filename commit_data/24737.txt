@@ -1,0 +1,20 @@
+commit d986bf27414161f4a4fc41c4c564bad26ebc57e7
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 26 16:48:36 2015 -0400
+
+    runtime: account mark worker time before gcMarkDone
+    
+    Currently gcMarkDone takes basically no time, so it's okay to account
+    the worker time after calling it. However, gcMarkDone is about to take
+    potentially *much* longer because it may perform all of mark
+    termination. Prepare for this by swapping the order so we account the
+    time before calling gcMarkDone.
+    
+    Change-Id: I90c7df68192acfc4fd02a7254dae739dda4e2fcb
+    Reviewed-on: https://go-review.googlesource.com/16390
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgc.go | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)

@@ -1,0 +1,12 @@
+commit 9b54af20204128a655ccea895bf668a5ef4e0309
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Jan 17 00:55:35 2012 -0200
+
+    exp/proxy: fix build after URL changes
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5540062
+
+ src/pkg/exp/proxy/proxy.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

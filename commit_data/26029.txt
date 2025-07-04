@@ -1,0 +1,23 @@
+commit 71d13a8c01706c0196a843116d403fe8eb446130
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 2 20:54:41 2016 -0800
+
+    cmd/compile: fix fieldtrack experiment
+    
+    The ODOTPTRs introduced in CL #19814 don't have field names,
+    just offsets.  The fieldtrack experiment crashes when
+    examining them.  Instead, just ignore them.  We'll never track
+    these fields anyway.
+    
+    It would be nice to have the runtime type struct build in the
+    compiler (like we do sudog, for example) so we could use its
+    fieldnames.  Doesn't seem worth it just for this CL.
+    
+    Change-Id: I5e75024f5a8333eb7439543b3f466ea40213a1b9
+    Reviewed-on: https://go-review.googlesource.com/20157
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 5 +++++
+ 1 file changed, 5 insertions(+)

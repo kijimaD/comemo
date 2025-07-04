@@ -1,0 +1,23 @@
+commit afab7716962181de2171f2b45959604a44a63759
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Nov 4 11:21:55 2015 -0500
+
+    misc/ios: keep whole buffer in go_darwin_arm_exec
+    
+    The existing go_darwin_arm_exec.go script does not work with Xcode 7,
+    not due to any significant changes, but just ordering and timing of
+    statements from lldb. Unfortunately the current design of
+    go_darwin_arm_exec.go makes it not obvious what gets stuck where, so
+    this moves from a moving buffer window to a complete buffer of the
+    lldb output.
+    
+    The result is easier code to follow, and it works with Xcode 7.
+    
+    Updates #12660.
+    
+    Change-Id: I3b8b890b0bf4474119482e95d84e821a86d1eaed
+    Reviewed-on: https://go-review.googlesource.com/16634
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 366 +++++++++++++++++------------------------
+ 1 file changed, 149 insertions(+), 217 deletions(-)

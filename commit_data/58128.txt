@@ -1,0 +1,19 @@
+commit e33f7c42b084182a3a88ef79857e33c11627159a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 17 16:54:11 2024 -0500
+
+    cmd/go/internal/modfetch: export new func Unzip
+    
+    Add new func Unzip, which is Download (= download+unzip)
+    without the download. This will be used for unpacking the
+    FIPS module zips, which are part of the Go distribution,
+    not downloaded.
+    
+    Change-Id: Ia04f8c376db8cb1cf27acb5567dd256afb10f410
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629200
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/modfetch/fetch.go | 32 ++++++++++++++++++++++++++++++--
+ 1 file changed, 30 insertions(+), 2 deletions(-)

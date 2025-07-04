@@ -1,0 +1,13 @@
+commit edc3126e98d5624d6f2a7d47991db0ba5b2b07d3
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Feb 21 20:06:26 2013 -0800
+
+    exp/ssa/interp: fix build for Plan 9
+    
+    R=adonovan, minux.ma, alex.brainman, akumar, rminnich
+    CC=golang-dev, lucio.dere
+    https://golang.org/cl/7300078
+
+ src/pkg/exp/ssa/interp/external_plan9.go | 26 ++++++++++++++++++++++++++
+ src/pkg/exp/ssa/interp/external_unix.go  |  1 -
+ 2 files changed, 26 insertions(+), 1 deletion(-)

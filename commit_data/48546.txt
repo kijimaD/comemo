@@ -1,0 +1,29 @@
+commit a208aa7f339db75f4b79a61be12616b846477a18
+Author: Jeff Widman <jeff@jeffwidman.com>
+Date:   Mon Mar 28 04:13:24 2022 +0000
+
+    io/ioutil: add deprecation markers to ioutil
+    
+    All the code in ioutil just forwards functionality to code
+    in either the io or os packages, per issue 42026.
+    
+    This change adds the "Deprecated" marker to all the
+    functions in this package.
+    
+    For #42026
+    
+    Fixes #51927
+    
+    Change-Id: Ia807bc5c0edb06cc80ec7e35917dcfe2ad50f0ea
+    GitHub-Last-Rev: 3c3603f368e2be517cdd946ae6a666d4e1eda67a
+    GitHub-Pull-Request: golang/go#51961
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395918
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/io/ioutil/ioutil.go   | 14 +++++++-------
+ src/io/ioutil/tempfile.go |  4 ++--
+ 2 files changed, 9 insertions(+), 9 deletions(-)

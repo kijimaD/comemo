@@ -1,0 +1,21 @@
+commit cb13c4d5525a0f924dec80229e023620a2eb8796
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 7 16:54:03 2009 -0800
+
+    - more steps towards tracking idents in scopes
+    - snapshot of today
+    
+    R=r
+    OCL=22247
+    CL=22247
+
+ usr/gri/pretty/Makefile       |  6 +++---
+ usr/gri/pretty/ast.go         | 36 +++++++-----------------------------
+ usr/gri/pretty/compilation.go |  2 +-
+ usr/gri/pretty/globals.go     |  5 +++++
+ usr/gri/pretty/object.go      |  2 ++
+ usr/gri/pretty/parser.go      | 27 ++++++++++++++++++---------
+ usr/gri/pretty/pretty.go      | 15 +++++++++------
+ usr/gri/pretty/printer.go     | 14 ++++++++------
+ usr/gri/pretty/typechecker.go |  6 +++---
+ 9 files changed, 56 insertions(+), 57 deletions(-)

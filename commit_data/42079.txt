@@ -1,0 +1,17 @@
+commit 7f0c479ffffc6267f482fbc48c0ca5f43017b40c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Apr 23 05:30:01 2020 +0700
+
+    cmd/compile: rewrite dec64 rules to use typed aux field
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: If9dd6c2155374eb9ef47639201ec90109a9e314c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229518
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/cmd/compile/internal/ssa/gen/dec64.rules | 236 ++++++++++---------------
+ src/cmd/compile/internal/ssa/rewritedec64.go | 254 +++++++++++++--------------
+ 2 files changed, 222 insertions(+), 268 deletions(-)

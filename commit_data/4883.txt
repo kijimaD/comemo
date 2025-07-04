@@ -1,0 +1,18 @@
+commit 713e3e154158b39f775183bad8ec615e10371b13
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Feb 18 14:46:28 2010 -0800
+
+    more complex - constants
+    import and export
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/214050
+
+ src/cmd/gc/const.c      | 20 ++++++++++++++++++++
+ src/cmd/gc/export.c     |  3 +++
+ src/cmd/gc/go.h         |  1 +
+ src/cmd/gc/go.y         | 12 ++++++++++--
+ src/cmd/gc/walk.c       |  6 ++++++
+ src/pkg/runtime/type.go |  2 +-
+ 6 files changed, 41 insertions(+), 3 deletions(-)

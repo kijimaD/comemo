@@ -1,0 +1,20 @@
+commit 758b5b3284b1e04131ad55ecd7da284bac463e38
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 17 09:10:57 2017 -0700
+
+    cmd/compile: make Stksize local
+    
+    Passes toolstash -cmp. No compiler performance impact.
+    
+    Updates #15756
+    
+    Change-Id: I85b45244453ae28d4da76be4313badddcbf3f5dc
+    Reviewed-on: https://go-review.googlesource.com/38330
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/dcl.go  |  3 ---
+ src/cmd/compile/internal/gc/go.go   |  2 --
+ src/cmd/compile/internal/gc/pgen.go | 16 ++++++++--------
+ src/cmd/compile/internal/gc/ssa.go  |  7 ++++---
+ 4 files changed, 12 insertions(+), 16 deletions(-)

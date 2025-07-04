@@ -1,0 +1,14 @@
+commit dfb895ad9770fedf6eb80d3ac1ed87ff669604b6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 13 15:41:47 2010 -0400
+
+    A+C: Kai Backman (individual CLA)
+    
+    Just AUTHORS; already in CONTRIBUTORS from work at Google.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/2098048
+
+ AUTHORS | 1 +
+ 1 file changed, 1 insertion(+)

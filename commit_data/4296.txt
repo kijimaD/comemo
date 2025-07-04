@@ -1,0 +1,11 @@
+commit d984f989962b7d66625fb7f14f5606ac18727b50
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 3 00:04:40 2009 -0800
+
+    minor improvement to formatting: don't allocate padding strings every time.
+    
+    R=rsc
+    https://golang.org/cl/164090
+
+ src/pkg/fmt/format.go | 31 +++++++++++++++++++------------
+ 1 file changed, 19 insertions(+), 12 deletions(-)

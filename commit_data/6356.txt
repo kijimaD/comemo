@@ -1,0 +1,16 @@
+commit 0716d95092a0057322753a0b78848261f43eae9a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 23 14:20:13 2010 -0700
+
+    gofmt: don't remove syntactically relevant blank in f(42 ...)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2246046
+
+ src/pkg/go/printer/nodes.go                    |  8 ++++++++
+ src/pkg/go/printer/printer.go                  | 14 +++++++++-----
+ src/pkg/go/printer/testdata/expressions.golden | 11 +++++++++++
+ src/pkg/go/printer/testdata/expressions.input  | 11 +++++++++++
+ src/pkg/go/printer/testdata/expressions.raw    | 11 +++++++++++
+ 5 files changed, 50 insertions(+), 5 deletions(-)

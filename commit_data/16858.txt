@@ -1,0 +1,28 @@
+commit f01128257858e98be7354aa887a5142cc756d7a8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 24 09:01:57 2013 -0400
+
+    runtime: more cgocallback_gofunc work
+    
+    Debugging the Windows breakage I noticed that SEH
+    only exists on 386, so we can balance the two stacks
+    a little more on amd64 and reclaim another word.
+    
+    Now we're down to just one word consumed by
+    cgocallback_gofunc, having reclaimed 25% of the
+    overall budget (4 words out of 16).
+    
+    Separately, fix windows/386 - the SEH must be on the
+    m0 stack, as must the saved SP, so we are forced to have
+    a three-word frame for 386. It matters much less for
+    386, because there 128 bytes gives 32 words to use.
+    
+    R=dvyukov, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/11551044
+
+ src/pkg/runtime/asm_386.s   | 22 +++++++++++++---------
+ src/pkg/runtime/asm_amd64.s | 20 +++++++++++---------
+ src/pkg/runtime/cgocall.c   | 19 ++++++++++++++++++-
+ src/pkg/runtime/proc.c      | 15 ++++++++++++++-
+ 4 files changed, 56 insertions(+), 20 deletions(-)

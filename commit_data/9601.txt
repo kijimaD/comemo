@@ -1,0 +1,35 @@
+commit 5ddf6255a13c5a23663ca49db2d038c6530cb7a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 6 10:24:21 2011 -0400
+
+    gc: unify stack frame layout
+    
+    allocparams + tempname + compactframe
+    all knew about how to place stack variables.
+    
+    Now only compactframe, renamed to allocauto,
+    does the work.  Until the last minute, each PAUTO
+    variable is in its own space and has xoffset == 0.
+    
+    This might break 5g.  I get failures in concurrent
+    code running under qemu and I can't tell whether
+    it's 5g's fault or qemu's.  We'll see what the real
+    ARM builders say.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4973057
+
+ src/cmd/5g/gsubr.c |  1 -
+ src/cmd/5g/reg.c   | 28 ++++++++++----------
+ src/cmd/6g/gsubr.c |  1 -
+ src/cmd/6g/reg.c   | 35 +++++++++++-------------
+ src/cmd/8g/gsubr.c |  1 -
+ src/cmd/8g/reg.c   | 30 ++++++++++-----------
+ src/cmd/gc/bits.c  |  4 +--
+ src/cmd/gc/dcl.c   |  2 +-
+ src/cmd/gc/gen.c   | 78 +++++++-----------------------------------------------
+ src/cmd/gc/go.h    |  3 ---
+ src/cmd/gc/pgen.c  | 13 +++++----
+ src/cmd/gc/subr.c  |  3 ---
+ 12 files changed, 62 insertions(+), 137 deletions(-)

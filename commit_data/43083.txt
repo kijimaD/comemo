@@ -1,0 +1,128 @@
+commit a413908dd064de6e3ea5b8d95d707a532bd3f4c8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Sep 16 16:59:58 2020 -0400
+
+    all: add GOOS=ios
+    
+    Introduce GOOS=ios for iOS systems. GOOS=ios matches "darwin"
+    build tag, like GOOS=android matches "linux" and GOOS=illumos
+    matches "solaris". Only ios/arm64 is supported (ios/amd64 is
+    not).
+    
+    GOOS=ios and GOOS=darwin remain essentially the same at this
+    point. They will diverge at later time, to differentiate macOS
+    and iOS.
+    
+    Uses of GOOS=="darwin" are changed to (GOOS=="darwin" || GOOS=="ios"),
+    except if it clearly means macOS (e.g. GOOS=="darwin" && GOARCH=="amd64"),
+    it remains GOOS=="darwin".
+    
+    Updates #38485.
+    
+    Change-Id: I4faacdc1008f42434599efb3c3ad90763a83b67c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254740
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/install-source.html                            |  7 ++++--
+ misc/cgo/test/issue18146.go                        |  2 +-
+ misc/cgo/test/pkg_test.go                          |  2 +-
+ misc/cgo/test/sigaltstack.go                       |  2 +-
+ misc/cgo/test/test.go                              |  2 +-
+ misc/cgo/test/testx.go                             |  2 +-
+ misc/cgo/testcarchive/carchive_test.go             | 20 ++++++++---------
+ misc/cgo/testcshared/cshared_test.go               |  8 +++----
+ misc/cgo/testso/so_test.go                         |  6 +++---
+ misc/cgo/testsovar/so_test.go                      |  6 +++---
+ src/archive/tar/stat_unix.go                       |  2 +-
+ src/cmd/cgo/gcc.go                                 |  4 ++--
+ src/cmd/compile/internal/arm64/ggen.go             |  2 +-
+ src/cmd/compile/internal/ssa/config.go             |  2 +-
+ src/cmd/dist/build.go                              | 11 +++++++---
+ src/cmd/dist/test.go                               |  9 +++++---
+ src/cmd/doc/doc_test.go                            |  4 ++--
+ src/cmd/go/alldocs.go                              |  3 +++
+ src/cmd/go/go_test.go                              |  2 +-
+ src/cmd/go/internal/bug/bug.go                     |  2 +-
+ src/cmd/go/internal/help/helpdoc.go                |  3 +++
+ src/cmd/go/internal/imports/build.go               |  5 +++++
+ src/cmd/go/internal/load/pkg.go                    |  2 +-
+ src/cmd/go/internal/work/build_test.go             |  2 +-
+ src/cmd/go/internal/work/exec.go                   |  2 +-
+ src/cmd/go/internal/work/init.go                   |  4 ++--
+ src/cmd/internal/archive/archive_test.go           |  4 ++--
+ src/cmd/internal/dwarf/dwarf.go                    |  2 +-
+ src/cmd/internal/objabi/head.go                    |  2 +-
+ src/cmd/internal/objabi/util.go                    |  2 +-
+ src/cmd/internal/sys/supported.go                  |  2 +-
+ src/cmd/link/internal/ld/ar.go                     |  2 +-
+ src/cmd/link/internal/ld/config.go                 |  2 +-
+ src/cmd/link/internal/ld/outbuf_test.go            |  2 +-
+ src/cmd/nm/nm_test.go                              |  2 +-
+ src/crypto/x509/root_darwin_ios_gen.go             |  7 ++++--
+ .../{root_darwin_ios.go => root_darwin_iosx.go}    |  0
+ src/debug/elf/file_test.go                         |  2 +-
+ src/go/build/build.go                              |  8 ++++++-
+ src/go/build/build_test.go                         |  4 ++--
+ src/go/build/syslist.go                            |  2 +-
+ src/go/build/syslist_test.go                       |  2 +-
+ src/internal/poll/read_test.go                     |  2 +-
+ src/internal/testenv/testenv.go                    |  6 +++---
+ src/log/syslog/syslog_test.go                      |  2 +-
+ src/net/conf.go                                    |  2 +-
+ src/net/dial_test.go                               |  4 ++--
+ src/net/http/cgi/host.go                           |  2 +-
+ src/net/interface_unix_test.go                     |  2 +-
+ src/net/lookup_test.go                             |  4 ++--
+ src/net/main_test.go                               |  2 +-
+ src/net/platform_test.go                           |  4 ++--
+ src/net/sock_bsd.go                                |  2 +-
+ src/net/tcpsock_test.go                            |  2 +-
+ src/net/udpsock_test.go                            |  2 +-
+ src/net/writev_test.go                             |  2 +-
+ src/os/file_unix.go                                |  4 ++--
+ src/os/os_test.go                                  |  8 +++----
+ src/os/path_test.go                                |  2 +-
+ src/os/removeall_test.go                           |  2 +-
+ src/path/filepath/path_test.go                     |  4 ++--
+ src/runtime/debug/panic_test.go                    |  2 +-
+ src/runtime/internal/sys/gengoos.go                |  9 ++++++++
+ src/runtime/internal/sys/zgoos_aix.go              |  1 +
+ src/runtime/internal/sys/zgoos_android.go          |  1 +
+ src/runtime/internal/sys/zgoos_darwin.go           |  2 ++
+ src/runtime/internal/sys/zgoos_dragonfly.go        |  1 +
+ src/runtime/internal/sys/zgoos_freebsd.go          |  1 +
+ src/runtime/internal/sys/zgoos_hurd.go             |  1 +
+ src/runtime/internal/sys/zgoos_illumos.go          |  1 +
+ src/runtime/internal/sys/zgoos_ios.go              | 25 ++++++++++++++++++++++
+ src/runtime/internal/sys/zgoos_js.go               |  1 +
+ src/runtime/internal/sys/zgoos_linux.go            |  1 +
+ src/runtime/internal/sys/zgoos_netbsd.go           |  1 +
+ src/runtime/internal/sys/zgoos_openbsd.go          |  1 +
+ src/runtime/internal/sys/zgoos_plan9.go            |  1 +
+ src/runtime/internal/sys/zgoos_solaris.go          |  1 +
+ src/runtime/internal/sys/zgoos_windows.go          |  1 +
+ src/runtime/internal/sys/zgoos_zos.go              |  1 +
+ src/runtime/malloc.go                              |  4 ++--
+ src/runtime/mgcscavenge.go                         |  2 +-
+ src/runtime/mkpreempt.go                           |  3 +++
+ src/runtime/pprof/pprof_rusage.go                  |  2 +-
+ src/runtime/pprof/pprof_test.go                    |  4 ++--
+ src/runtime/preempt_arm64.s                        |  3 +++
+ src/runtime/proc.go                                |  8 +++----
+ src/runtime/runtime2.go                            |  2 +-
+ src/runtime/signal_unix.go                         |  4 ++--
+ src/runtime/sigqueue.go                            |  6 +++---
+ src/runtime/stack.go                               |  2 +-
+ src/runtime/tls_arm64.h                            |  6 ++++++
+ src/runtime/tls_arm64.s                            |  4 ++--
+ src/syscall/exec_unix.go                           |  2 +-
+ src/syscall/sockcmsg_unix_other.go                 |  2 +-
+ src/syscall/syscall_bsd.go                         |  2 +-
+ src/syscall/syscall_unix.go                        |  2 +-
+ src/syscall/syscall_unix_test.go                   |  6 +++---
+ src/time/tick_test.go                              |  2 +-
+ .../{zoneinfo_ios.go => zoneinfo_darwin_arm64.go}  |  3 ---
+ 99 files changed, 215 insertions(+), 125 deletions(-)

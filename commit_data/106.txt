@@ -1,0 +1,20 @@
+commit e92b7538102ed9ea1402fb8ce4d948da27ffd456
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 6 15:53:14 2008 -0700
+
+    - fixed a few tests and added 3 incorrectly succeeding tests
+    - updated go_lang.txt to be more uniform and match the implementation
+    - made makehtml work on Mac
+    - fixed a couple of bugs in go.atg
+    
+    SVN=121520
+
+ doc/go_lang.txt | 14 ++++++++------
+ test/func.go    |  4 ++--
+ test/func1.go   | 16 ++++++++++++++++
+ test/golden.out |  9 +++++++++
+ test/if.go      |  2 +-
+ test/if1.go     | 14 ++++++++++++++
+ test/switch.go  |  2 +-
+ test/switch1.go | 16 ++++++++++++++++
+ 8 files changed, 67 insertions(+), 10 deletions(-)

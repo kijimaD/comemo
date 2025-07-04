@@ -1,0 +1,19 @@
+commit ecdbcaf4495a002bf26c562c4c601d38e5b9f004
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Mon Jun 24 14:19:00 2013 +1000
+
+    misc/notepadplus: add missing operator keyword
+    
+    In general the description should describe what is added or fixed,
+    not how it was done (the code does this), but in this
+    case the cause were "/ /= ;" was missing,
+    so the fix is to add it.
+    
+    Fixes #5761.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/10479043
+
+ misc/notepadplus/userDefineLang.xml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

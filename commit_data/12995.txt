@@ -1,0 +1,15 @@
+commit 1bdb788b2ea5147ff7847f7a401a9da994a5e360
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Apr 30 22:47:51 2012 +1000
+
+    misc/dashboard/codereview: record Message-ID of code review thread mails.
+    
+    This will allow us to properly thread "R=..." mails at a later time.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6135053
+
+ misc/dashboard/codereview/dashboard/cl.go   | 10 +++++++---
+ misc/dashboard/codereview/dashboard/mail.go | 18 ++++++++++++++++++
+ 2 files changed, 25 insertions(+), 3 deletions(-)

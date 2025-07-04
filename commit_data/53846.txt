@@ -1,0 +1,25 @@
+commit 64c2072a94281fe5b19f9349b522881751347726
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 31 15:24:18 2023 -0700
+
+    text/template, html/template: use reflect.TypeFor for known types
+    
+    For #60088
+    
+    Change-Id: Ibc3983ca5cfe396087ddfa96c43cfe32ca47129a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514640
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/html/template/content.go   | 4 ++--
+ src/html/template/exec_test.go | 4 ++--
+ src/html/template/js.go        | 2 +-
+ src/text/template/exec.go      | 8 ++++----
+ src/text/template/exec_test.go | 4 ++--
+ 5 files changed, 11 insertions(+), 11 deletions(-)

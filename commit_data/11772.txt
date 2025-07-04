@@ -1,0 +1,15 @@
+commit 13443ccc2aa102cb57cdefd8a44d03257ae1777b
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 10 15:56:51 2012 +1100
+
+    math: fix gamma doc, link to OEIS
+    
+    Fixes #2940.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5645078
+
+ src/pkg/math/const.go | 2 +-
+ src/pkg/math/gamma.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

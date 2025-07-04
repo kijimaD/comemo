@@ -1,0 +1,41 @@
+commit 98aa97806b94495847f7f7151d4453f5830f0d38
+Author: Ruixin Bao <ruixin.bao@ibm.com>
+Date:   Sun Sep 8 18:50:24 2019 -0400
+
+    cmd/compile: add math/bits.Mul64 intrinsic on s390x
+    
+    This change adds an intrinsic for Mul64 on s390x. To achieve that,
+    a new assembly instruction, MLGR, is introduced in s390x/asmz.go. This assembly
+    instruction directly uses an existing instruction on Z and supports multiplication
+    of two 64 bit unsigned integer and stores the result in two separate registers.
+    
+    In this case, we require the multiplcand to be stored in register R3 and
+    the output result (the high and low 64 bit of the product) to be stored in
+    R2 and R3 respectively.
+    
+    A test case is also added.
+    
+    Benchmark:
+    name      old time/op  new time/op  delta
+    Mul-18    11.1ns ± 0%   1.4ns ± 0%  -87.39%  (p=0.002 n=8+10)
+    Mul32-18  2.07ns ± 0%  2.07ns ± 0%     ~     (all equal)
+    Mul64-18  11.1ns ± 1%   1.4ns ± 0%  -87.42%  (p=0.000 n=10+10)
+    
+    Change-Id: Ieca6ad1f61fff9a48a31d50bbd3f3c6d9e6675c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194572
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/s390x.s    |  1 +
+ src/cmd/compile/internal/gc/ssa.go           |  4 ++--
+ src/cmd/compile/internal/s390x/ssa.go        | 13 +++++++++++++
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  1 +
+ src/cmd/compile/internal/ssa/gen/S390XOps.go | 13 +++++++++++++
+ src/cmd/compile/internal/ssa/opGen.go        | 16 ++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 15 +++++++++++++++
+ src/cmd/internal/obj/s390x/a.out.go          |  1 +
+ src/cmd/internal/obj/s390x/anames.go         |  1 +
+ src/cmd/internal/obj/s390x/asmz.go           |  4 ++++
+ test/codegen/mathbits.go                     |  2 ++
+ 11 files changed, 69 insertions(+), 2 deletions(-)

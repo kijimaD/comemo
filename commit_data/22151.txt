@@ -1,0 +1,16 @@
+commit 398f56fe22dff8463c7833088d05d6c3968a3051
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Mar 23 20:41:35 2015 -0400
+
+    os/signal: skip TestCtrlBreak on windows/386 temporarily
+    
+    Update #10215.
+    
+    Change-Id: Ib588f90279a4ef5461492553d50ad77c742b3560
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7971
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/os/signal/signal_windows_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

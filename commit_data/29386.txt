@@ -1,0 +1,40 @@
+commit 23416315060bf7601e5779c3a6a2529d4d604584
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 4 05:28:01 2016 +0000
+
+    all: sprinkle t.Parallel on some slow tests
+    
+    I used the slowtests.go tool as described in
+    https://golang.org/cl/32684 on packages that stood out.
+    
+    go test -short std drops from ~56 to ~52 seconds.
+    
+    This isn't a huge win, but it was mostly an exercise.
+    
+    Updates #17751
+    
+    Change-Id: I9f3402e36a038d71e662d06ce2c1d52f6c4b674d
+    Reviewed-on: https://go-review.googlesource.com/32751
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/compress/flate/deflate_test.go      |  7 +++++
+ src/compress/flate/flate_test.go        |  1 +
+ src/compress/flate/writer_test.go       |  3 ++
+ src/crypto/tls/handshake_client_test.go | 21 +++++++++++++
+ src/crypto/tls/handshake_server_test.go |  2 ++
+ src/crypto/tls/tls_test.go              |  1 +
+ src/encoding/json/encode_test.go        |  2 ++
+ src/encoding/json/scanner_test.go       |  1 +
+ src/go/printer/printer_test.go          | 55 ++++++++++++++++++++-------------
+ src/log/syslog/syslog_test.go           |  2 ++
+ src/mime/multipart/multipart_test.go    |  2 ++
+ src/runtime/crash_cgo_test.go           | 16 ++++++++++
+ src/runtime/crash_test.go               |  2 ++
+ src/runtime/crash_unix_test.go          |  2 ++
+ src/runtime/map_test.go                 |  1 +
+ src/runtime/memmove_linux_amd64_test.go |  1 +
+ src/runtime/memmove_test.go             |  4 +++
+ src/runtime/runtime-gdb_test.go         |  2 ++
+ 18 files changed, 103 insertions(+), 22 deletions(-)

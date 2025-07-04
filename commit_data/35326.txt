@@ -1,0 +1,21 @@
+commit cf4e5597b72965dd330ecaf2b2e828387fdb3998
+Author: Chotepud Teo <AlexRouSg@users.noreply.github.com>
+Date:   Tue May 8 17:00:35 2018 +0000
+
+    cmd/go: added missing space to pkg-config errors
+    
+    pkg-config errors were missing a space between pkg-config flags and packages
+    e.g.  pkg-config --cflags --staticsdl2
+    
+    Fixes #25260
+    
+    Change-Id: Iacecb697c5782c4822db9eefa1a2e4c4daf91a69
+    GitHub-Last-Rev: 2adf8576be66e31160c109a79f3853feac293f1b
+    GitHub-Pull-Request: golang/go#25261
+    Reviewed-on: https://go-review.googlesource.com/111638
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/exec.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

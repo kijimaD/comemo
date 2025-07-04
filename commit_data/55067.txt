@@ -1,0 +1,23 @@
+commit 195c88b202695e90b2ff41b3f1a03bc19685baa6
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Wed Nov 8 16:08:26 2023 +0100
+
+    net/http: use pointers to array for copyBufPool
+    
+    This is inspired by CL 539915, I'm only submitting now that
+    CL 456435 has been merged.
+    
+    This divide the number of objects kept alive by the heap by two
+    and remove the slice header allocation in New and in the put back.
+    
+    Change-Id: Ibcd5166bac5a37f365a533e09a28f3b79f81ad58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543515
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/net/http/server.go   | 22 ++++++++++++++--------
+ src/net/http/transfer.go |  5 ++---
+ 2 files changed, 16 insertions(+), 11 deletions(-)

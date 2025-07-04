@@ -1,0 +1,16 @@
+commit 980146bfde2b4e2d62c537023c19670666fc0604
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Apr 14 13:29:37 2016 -0400
+
+    crypto/cipher: enable fastXORBytes on s390x
+    
+    s390x can handle unaligned loads and stores of 64-bit values.
+    
+    Change-Id: Iae5621781e3ba56e27b4a1f4788772c86e4f6475
+    Reviewed-on: https://go-review.googlesource.com/22086
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/cipher/xor.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

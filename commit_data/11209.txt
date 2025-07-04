@@ -1,0 +1,13 @@
+commit 4c40558c749744c7c914902b83b58ee55c9ca0c5
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 17 13:07:47 2012 -0800
+
+    container/heap: better package documentation
+    Fixes #1820.
+    
+    R=golang-dev, bradfitz, gri
+    CC=golang-dev
+    https://golang.org/cl/5540073
+
+ src/pkg/container/heap/heap.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

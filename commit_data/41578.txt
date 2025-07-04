@@ -1,0 +1,17 @@
+commit 1d90e1a0ac46274e6c0bfe36c410768263b79eaf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 6 14:32:26 2020 -0500
+
+    cmd/dist: forward stderr if 'go env CGO_ENABLED' fails
+    
+    The default error string for a command failure is just its status code,
+    and "exit status 1" is not at all helpful for debugging.
+    
+    Change-Id: I822c89bcc9e73283b33e01792bf9c40b1add3c35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222308
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/cmd/dist/test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

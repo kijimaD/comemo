@@ -1,0 +1,20 @@
+commit 131267f1476d35c8daab4368aebd274b2f180fe4
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Tue May 23 12:35:48 2023 +0200
+
+    runtime/metrics: add /gc/scan/heap:bytes
+    
+    For #56857
+    
+    Change-Id: If3b962f575c33b2cc29f89e33c7aafb476d98ce9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497575
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/metrics.go             | 6 ++++++
+ src/runtime/metrics/description.go | 5 +++++
+ src/runtime/metrics/doc.go         | 3 +++
+ 3 files changed, 14 insertions(+)

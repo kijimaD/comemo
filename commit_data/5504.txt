@@ -1,0 +1,16 @@
+commit 709c5b248115ed8763d876737a6a6104be661211
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 20 22:57:08 2010 -0700
+
+    gc: handle use of builtin function outside function call
+    tweaks & tests of last bug fix too.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1207044
+
+ src/cmd/gc/typecheck.c   |  4 ++++
+ src/cmd/gc/walk.c        |  4 +++-
+ test/fixedbugs/bug208.go |  4 ++--
+ test/varerr.go           | 14 ++++++++++++++
+ 4 files changed, 23 insertions(+), 3 deletions(-)

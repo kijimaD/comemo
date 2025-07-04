@@ -1,0 +1,24 @@
+commit 93b7eb973f4f6812a6b9c093b4b6d5c80409eb92
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Jul 17 07:07:28 2017 -0400
+
+    cmd/compile: fix unaligned loads/stores to global variables on s390x
+    
+    Load/store-merging and move optimizations can result in unaligned
+    memory accesses. This is fine so long as the load/store instruction
+    used does not take a relative offset. In the SSA rules this means we
+    must not merge (MOVDaddr (SB)) ops into loads/stores unless we can
+    guarantee the alignment of the target.
+    
+    Fixes #21048.
+    
+    Change-Id: I70f13a62a148d5f0a56e704e8f76e36b4a4226d9
+    Reviewed-on: https://go-review.googlesource.com/49250
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/S390X.rules | 26 +++++-----
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 56 ++++++++++++----------
+ test/fixedbugs/issue21048.go                 | 72 ++++++++++++++++++++++++++++
+ 3 files changed, 118 insertions(+), 36 deletions(-)

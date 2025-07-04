@@ -1,0 +1,16 @@
+commit 97590aea672d2fccffc28162eddda19ec04fa328
+Author: Jean-Francois Cantin <jfcantin@gmail.com>
+Date:   Tue Sep 26 16:07:27 2017 -0600
+
+    path/filepath: add example for Walk
+    
+    Fixes: #22052
+    
+    Change-Id: Ia056871b35ecc1a8c5ac891402fc1c5702731623
+    Reviewed-on: https://go-review.googlesource.com/66330
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/path/filepath/example_unix_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

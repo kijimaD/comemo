@@ -1,0 +1,16 @@
+commit 4230044bb867f80469076e3407ef368a93ca8d56
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 9 19:35:07 2013 -0500
+
+    runtime: remove non-extern decls of runtime.goarm
+    
+    The linker is in charge of providing the one true declaration.
+    
+    R=golang-dev, dave, r
+    CC=golang-dev
+    https://golang.org/cl/39560043
+
+ src/cmd/5l/obj.c               | 2 +-
+ src/pkg/runtime/asm_arm.s      | 2 --
+ src/pkg/runtime/os_linux_arm.c | 2 +-
+ 3 files changed, 2 insertions(+), 4 deletions(-)

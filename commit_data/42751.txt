@@ -1,0 +1,26 @@
+commit d36bc7d78ad226b20056c08fb8bca041e25b3d1d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 27 15:20:18 2020 -0700
+
+    runtime: split PCs out of scase
+    
+    Per-case PCs are only needed for race detector builds, so this allows
+    skipping allocating stack space for them for non-race builds.
+    
+    It's possible to arrange the PCs and order arrays consecutively in
+    memory so that we could just reuse the order0 pointer to identify
+    both. However, there's more risk of that silently going wrong, so this
+    commit passes them as separate arguments for now. We can revisit this
+    in the future.
+    
+    Updates #40410.
+    
+    Change-Id: I8468bc25749e559891cb0cb007d1cc4a40fdd0f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245124
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go         | 199 +++++++++++++------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   4 +-
+ src/cmd/compile/internal/gc/select.go          |  18 ++-
+ src/runtime/select.go                          |  50 +++++--
+ 4 files changed, 153 insertions(+), 118 deletions(-)

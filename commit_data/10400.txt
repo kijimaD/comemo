@@ -1,0 +1,12 @@
+commit 94c2536e3f286f06dc7d8acfdbccac115a15437a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 15 12:05:25 2011 -0500
+
+    runtime: avoid allocation for make([]T, 0)
+    
+    R=gri, iant, iant
+    CC=golang-dev
+    https://golang.org/cl/5375093
+
+ src/pkg/runtime/slice.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

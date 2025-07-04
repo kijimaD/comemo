@@ -1,0 +1,14 @@
+commit 9a258f308689d2f1cb13f286baf745aad5fa991b
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Nov 14 23:13:28 2018 +0100
+
+    doc: document GODEBUG options to disable use of instruction set extensions
+    
+    Fixes #27218
+    
+    Change-Id: I4eb8e8f2486b20fe0ed6e3e2c6ec521c9e8c0032
+    Reviewed-on: https://go-review.googlesource.com/c/149579
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/diagnostics.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

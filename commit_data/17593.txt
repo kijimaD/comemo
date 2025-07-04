@@ -1,0 +1,14 @@
+commit 7fb3d8e45e523ceffd6eb748a3b9b0bf11a65ffd
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 13 13:56:39 2013 -0400
+
+    reflect: document FieldByName shortcoming
+    
+    Fixes #4876.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13701044
+
+ src/pkg/reflect/type.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

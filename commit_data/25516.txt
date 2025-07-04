@@ -1,0 +1,22 @@
+commit 39ad0fd0789872f9469167be7fe9578625ff246e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 8 18:30:04 2016 +0000
+
+    net/http: fix validHeaderValue yet again, excluding the DEL CTL byte
+    
+    Third time's a charm.
+    
+    Thanks to Ralph Corderoy for noticing the DEL omission.
+    
+    Update #11207
+    
+    Change-Id: I174fd01eaecceae1eb220f2c9136e12d40fbe943
+    Reviewed-on: https://go-review.googlesource.com/18375
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/lex.go        | 14 ++++++++++++++
+ src/net/http/request.go    | 18 +++++++++++++++++-
+ src/net/http/serve_test.go |  5 ++++-
+ 3 files changed, 35 insertions(+), 2 deletions(-)

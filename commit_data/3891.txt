@@ -1,0 +1,15 @@
+commit 4fe4192ac904bb5b7e842028037e9dae229bb51e
+Author: Rob Pike <r@golang.org>
+Date:   Sat Nov 7 22:00:59 2009 -0800
+
+    fixes to spec.  mostly minor but several of significance.
+    - carriage return is white space
+    - "" strings cannot span newlines
+    - f(g()) is ok if g is multivalue and matches f's args
+    
+    R=rsc, gri
+    CC=go-dev
+    http://go/go-review/1024017
+
+ doc/go_spec.html | 95 ++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 64 insertions(+), 31 deletions(-)

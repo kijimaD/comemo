@@ -1,0 +1,16 @@
+commit 54abb5ff868bf20239bd7960038a28c3f31ba25e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 11 15:55:24 2019 -0700
+
+    net/mail: fix new test for systems with different zoneinfo data
+    
+    Fixes #34854
+    
+    Change-Id: I7d6819c439e2fdfb19e181b202797fd5851eb002
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200839
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/mail/message_test.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

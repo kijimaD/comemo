@@ -1,0 +1,21 @@
+commit e01be84149b8189a58815ab75a86984e58d203e2
+Author: Austin Clements <austin@google.com>
+Date:   Wed Aug 5 11:35:28 2015 -0400
+
+    runtime: test that periodic GC works
+    
+    We've broken periodic GC a few times without noticing because there's
+    no test for it, partly because you have to wait two minutes to see if
+    it happens. This exposes control of the periodic GC timeout to runtime
+    tests and adds a test that cranks it down to zero and sleeps for a bit
+    to make sure periodic GCs happen.
+    
+    Change-Id: I3ec44e967e99f4eda752f85c329eebd18b87709e
+    Reviewed-on: https://go-review.googlesource.com/13169
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/export_test.go |  2 ++
+ src/runtime/gc_test.go     | 31 +++++++++++++++++++++++++++++++
+ src/runtime/proc1.go       | 22 +++++++++++++---------
+ 3 files changed, 46 insertions(+), 9 deletions(-)

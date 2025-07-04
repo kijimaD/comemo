@@ -1,0 +1,13 @@
+commit 2721da26083f253c46c2fd0c1dadee14ae4202f5
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Thu Jun 10 15:05:07 2021 -0700
+
+    doc/go1.17: fix formatting near httptest
+    
+    Change-Id: Ic1a0add3a1e137ca5cd0f3e9ce3266191b0b55cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326777
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

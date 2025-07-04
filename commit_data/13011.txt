@@ -1,0 +1,16 @@
+commit 81d9621534ac726ff613e54e98844ee43398250c
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed May 2 16:56:26 2012 +0200
+
+    cmd/gc: test for issue 3552
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6128051
+
+ test/bugs/bug434.dir/one.go      | 28 ++++++++++++++++++++++++++++
+ test/bugs/bug434.dir/two.go      | 22 ++++++++++++++++++++++
+ test/bugs/bug434.go              |  7 +++++++
+ test/fixedbugs/bug396.dir/one.go |  1 +
+ test/golden.out                  |  4 ++++
+ 5 files changed, 62 insertions(+)

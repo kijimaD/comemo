@@ -1,0 +1,21 @@
+commit 4f4e562cba963c0be5e57d970b811c702f92fa59
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 24 08:18:06 2017 -0700
+
+    .github: add SUPPORT file
+    
+    GitHub recently added support for a SUPPORT file:
+    
+    https://github.com/blog/2400-support-file-support
+    
+    This SUPPORT file is a very lightly edited copy
+    of the wiki entry on asking questions:
+    
+    https://github.com/golang/go/wiki/Questions
+    
+    Change-Id: Ic1eb74d985ea30862defb99750fb42da84e492de
+    Reviewed-on: https://go-review.googlesource.com/50930
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .github/SUPPORT | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

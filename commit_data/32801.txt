@@ -1,0 +1,15 @@
+commit 7a5d76fa62d05a97d088a1278508d3c868cab4a2
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Sep 21 17:35:32 2017 +0200
+
+    math/big: delete solved TODO
+    
+    The TODO is no longer needed as it was solved by a previous CL.
+    See https://go-review.googlesource.com/14995.
+    
+    Change-Id: If62d1b296f35758ad3d18d28c8fbb95e797f4464
+    Reviewed-on: https://go-review.googlesource.com/65232
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/intconv.go | 6 ------
+ 1 file changed, 6 deletions(-)

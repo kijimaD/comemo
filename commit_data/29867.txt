@@ -1,0 +1,16 @@
+commit 8599c0da1f7ffc1f230ee49ddb9838a5caff358a
+Author: Takuya Ueda <uedatakuya@gmail.com>
+Date:   Wed Dec 21 12:43:05 2016 +0900
+
+    go/parser: fix reference in ParseExprFrom docs
+    
+    The ParseExprFrom docs refer to Parse. It meant ParseFile.
+    
+    Fixes #18398
+    
+    Change-Id: I06fb3b5178c6319e86199823fe4769a8eb9dc49c
+    Reviewed-on: https://go-review.googlesource.com/34671
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/parser/interface.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

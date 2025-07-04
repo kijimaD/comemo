@@ -1,0 +1,20 @@
+commit 77cd3a46a86dca22348a313912093503f3cded66
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 20 14:40:09 2023 -0500
+
+    cmd/go/internal/str: fix PathPrefix functions for root directories
+    
+    For #51506.
+    For #50807.
+    
+    Change-Id: I4c0ae85a2103ac4f07351a4f01ce24fa02f03104
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463176
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/search/search.go |  82 +++++++------------------
+ src/cmd/go/internal/str/path.go      |  54 ++++++++++++++---
+ src/cmd/go/internal/str/str_test.go  | 113 ++++++++++++++++++++++++++++++-----
+ 3 files changed, 167 insertions(+), 82 deletions(-)

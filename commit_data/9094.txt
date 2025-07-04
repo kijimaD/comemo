@@ -1,0 +1,17 @@
+commit 607520690491ae510f3f0c5a5482d393e6d6efe7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jul 17 15:46:00 2011 -0700
+
+    log: more locking
+    
+    This didn't actually cause a bug, but looks wrong.
+    
+    There was a lock but there was more shared mutable state not
+    guarded by it.
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/4760047
+
+ src/pkg/log/log.go | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

@@ -1,0 +1,21 @@
+commit 908cd8f8576a0ad1464c8b09fd80099f3545dfd8
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Jul 6 23:04:56 2009 -0700
+
+    cleaned up data generation in 5g, reverted 5l handling of D_ADDR.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=46  (0 added, 5 deleted, 41 changed)
+    OCL=31241
+    CL=31243
+
+ src/cmd/5g/cgen.c   | 30 +++++++++++++++---------------
+ src/cmd/5g/galign.c |  1 -
+ src/cmd/5g/gg.h     |  8 +++-----
+ src/cmd/5g/ggen.c   | 18 +++++++++---------
+ src/cmd/5g/gobj.c   | 25 ++++++++++++-------------
+ src/cmd/5g/gsubr.c  |  3 +--
+ src/cmd/5g/list.c   |  2 +-
+ src/cmd/5l/obj.c    |  1 -
+ 8 files changed, 41 insertions(+), 47 deletions(-)

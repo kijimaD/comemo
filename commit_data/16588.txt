@@ -1,0 +1,13 @@
+commit 83db738786704e6e93434f4c73e285383df2342b
+Author: Alex Jin <toalexjin@gmail.com>
+Date:   Mon Jun 17 16:53:27 2013 -0700
+
+    net/smtp: close conn in SendMail; add Client.Close method
+    
+    R=rsc, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10082044
+
+ src/pkg/net/smtp/smtp.go      | 11 +++++++++--
+ src/pkg/net/smtp/smtp_test.go |  3 +++
+ 2 files changed, 12 insertions(+), 2 deletions(-)

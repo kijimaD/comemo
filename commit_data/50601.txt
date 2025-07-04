@@ -1,0 +1,31 @@
+commit 84f95aa811ed4fdb316f787fe2af80b30d531abf
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Sep 29 16:42:55 2021 -0400
+
+    internal/coverage: add coverage meta-data decoder
+    
+    Add a coverage meta-data decoder, which provides APIs for reading
+    encoded coverage meta-data and expanding it usable form. This package
+    is intended to be used in the coverage tooling that reads data files
+    emitted from coverage runs. Along with the new decoding package is a
+    unit test that runs the encode/decode paths together to check to make
+    sure that "decode(encode(X)) == X".
+    
+    Updates #51430.
+    
+    Change-Id: I81d27d8da0b2fcfa5039114a6e35a4b463d19b3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353454
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/build/deps_test.go                        |  12 +-
+ src/internal/coverage/decodemeta/decode.go       | 130 +++++++++++
+ src/internal/coverage/decodemeta/decodefile.go   | 223 ++++++++++++++++++
+ src/internal/coverage/slicereader/slicereader.go | 105 +++++++++
+ src/internal/coverage/slicereader/slr_test.go    |  92 ++++++++
+ src/internal/coverage/slicewriter/slicewriter.go |  80 +++++++
+ src/internal/coverage/slicewriter/slw_test.go    | 131 +++++++++++
+ src/internal/coverage/stringtab/stringtab.go     |  37 ++-
+ src/internal/coverage/test/roundtrip_test.go     | 275 +++++++++++++++++++++++
+ 9 files changed, 1082 insertions(+), 3 deletions(-)

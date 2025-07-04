@@ -1,0 +1,23 @@
+commit f24eac47710b0170fd45611ab1867e87701e0a95
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Apr 26 14:32:23 2021 -0700
+
+    cmd/compile:  improving the documentation of various fields and functions
+    
+    This is only changes to comments, so should be fine to go into 1.17.
+    
+    Change-Id: I01e28dc76b03fb3ca846d976f8ac84bc2acb2ea2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318009
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/inline/inl.go          |  8 ++++----
+ src/cmd/compile/internal/ir/func.go             |  5 ++++-
+ src/cmd/compile/internal/typecheck/func.go      |  7 ++++---
+ src/cmd/compile/internal/typecheck/iimport.go   |  5 +++++
+ src/cmd/compile/internal/typecheck/typecheck.go |  2 ++
+ src/cmd/compile/internal/types/sym.go           |  8 ++++++--
+ src/cmd/compile/internal/types/type.go          | 27 ++++++++++++++++---------
+ 7 files changed, 42 insertions(+), 20 deletions(-)

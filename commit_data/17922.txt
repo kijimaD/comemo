@@ -1,0 +1,23 @@
+commit 7c17982f72704464f74766b9ef957e3d69db92d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 8 22:52:08 2013 -0500
+
+    runtime: remove cross-function jump in vlop_arm.s
+    
+    The new linker will disallow this on arm
+    (it is already disallowed on amd64 and 386)
+    in order to be able to lay out each function
+    separately.
+    
+    The restriction is only for jumps into the middle
+    of a function; jumps to the beginning of a function
+    remain fine.
+    
+    Prereq for linker cleanup (golang.org/s/go13linker).
+    
+    R=iant, r, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/35800043
+
+ src/pkg/runtime/vlop_arm.s | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

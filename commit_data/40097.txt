@@ -1,0 +1,17 @@
+commit 93a79bbcc0de229679ddeb2ad662ec8cea5b3de6
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Tue Oct 1 21:12:59 2019 +0300
+
+    text/template/parse: remove duplication in peekNonSpace
+    
+    nextNonSpace has an identical code except the call to
+    backup at the end.
+    
+    Change-Id: Iefa5b13950007da38323a800fb6b0ce3d436254b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198277
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/parse/parse.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

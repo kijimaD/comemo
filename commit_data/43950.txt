@@ -1,0 +1,42 @@
+commit 478bde3a4388997924a02ee9296864866d8ba3ba
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 2 12:49:20 2020 -0500
+
+    io/fs: add Sub
+    
+    Sub provides a convenient way to refer to a subdirectory
+    automatically in future operations, like Unix's chdir(2).
+    
+    The CL also includes updates to fstest to check Sub implementations.
+    
+    As part of updating fstest, I changed the meaning of TestFS's
+    expected list to introduce a special case: if you list no expected files,
+    that means the FS must be empty. In general it's OK not to list all
+    the expected files, but if you list none, that's almost certainly a
+    mistake - if your FS were broken and empty, you wouldn't find out.
+    Making no expected files mean "must be empty" makes the mistake
+    less likely - if your file system ever worked, then your test will keep
+    it working.
+    
+    That change found a testing bug: embedtest was making exactly
+    that mistake.
+    
+    Fixes #42322.
+    
+    Change-Id: I63fd4aa866b30061a0e51ca9a1927e576d6ec41e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274856
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.16.html                            |   2 +-
+ src/embed/internal/embedtest/embed_test.go |   2 +-
+ src/io/fs/readdir_test.go                  |  12 ++-
+ src/io/fs/readfile_test.go                 |  16 ++++
+ src/io/fs/sub.go                           | 127 +++++++++++++++++++++++++++++
+ src/io/fs/sub_test.go                      |  57 +++++++++++++
+ src/os/file.go                             |   7 ++
+ src/testing/fstest/mapfs.go                |  10 +++
+ src/testing/fstest/testfs.go               |  42 ++++++++++
+ 9 files changed, 271 insertions(+), 4 deletions(-)

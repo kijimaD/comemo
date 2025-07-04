@@ -1,0 +1,42 @@
+commit 39e08c6cd75da72059a58f05eb500b48124d563e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Sep 10 10:47:03 2021 -0400
+
+    io: relax documented Seeker invariants that do not hold in practice
+    
+    Use “or” instead of “and” to describe error behavior.
+    On error, nearly all Seeker implementations in the Go repo return
+    0 instead of “the new offset”. (Arguably on error “the new offset”
+    is the same as the previous offset, but some Seeker implementations
+    don't have that offset readily available.)
+    
+    Don't claim that “any positive offsite is legal”.
+    In practice, most of the Seeker implementations within the Go standard
+    library do not allow “[s]eeking to any [arbitrary] positive offset”:
+    some reject all out-of-bounds offsets, and some reject only a subset
+    that happen to overflow some underlying representation. Since some
+    positive offsets may be rejected, we cannot claim that seeking to
+    those offsets “is legal”. However, to avoid invalidating existing
+    Seeker implemetations we must not require an implementation to reject
+    invalid positive offsets either.
+    
+    This is technically a breaking change, since callers of Seek are no
+    longer allowed to assume that a Seek resulting in an arbitrary
+    positive offset will succeed. However, since basically none of the
+    existing implementations actually conformed to the documented behavior
+    I believe this falls under the “specification errors” exception to the
+    Go 1 compatibility policy.
+    
+    Fixes #48316
+    
+    Change-Id: Ib1b478599b20ad5361bcc97fe8ceb84f74e6d971
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349054
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/io/io.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

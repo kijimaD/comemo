@@ -1,0 +1,21 @@
+commit f97bb12bb02b1a5dd0e36032c8079e019fef9d54
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Nov 25 15:23:20 2012 -0800
+
+    net/http/httptest: protect against port reuse
+    
+    Should make BSDs more reliable. (they seem to reuse ports
+    quicker than Linux)
+    
+    Tested by hand with local modifications to force reuse on
+    Linux. (net/http tests failed before, pass now) Details in the
+    issue.
+    
+    Fixes #4436
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6847101
+
+ src/pkg/net/http/httptest/server.go | 4 ++++
+ 1 file changed, 4 insertions(+)

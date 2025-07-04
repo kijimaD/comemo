@@ -1,0 +1,18 @@
+commit 2653386ce8dfd497fb9b8f65bc75ef9adf8e7b58
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 21 15:54:51 2014 -0700
+
+    math/big: fix Int.Exp
+    
+    Fixes #7814.
+    
+    LGTM=agl, adonovan
+    R=agl, adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/90080043
+
+ src/pkg/math/big/int.go      | 13 +++++++------
+ src/pkg/math/big/int_test.go | 13 +++++++++++++
+ src/pkg/math/big/nat.go      | 11 ++++++++---
+ src/pkg/math/big/nat_test.go |  8 +++++++-
+ 4 files changed, 35 insertions(+), 10 deletions(-)

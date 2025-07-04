@@ -1,0 +1,24 @@
+commit e9eb2beeb22d73d348920b8d68e019195c3ead81
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 4 15:13:13 2023 -0500
+
+    runtime/pprof: document block and mutex profiles
+    
+    Amazingly, we seem to have nearly no in-tree documentation on the
+    semantics of block and mutex profiles. Add brief summaries, including
+    the new behavior from CL 506415 and CL 544195.
+    
+    For #14689.
+    For #44920.
+    For #57071.
+    For #61015.
+    
+    Change-Id: I1a6edce7c434fcb43f17c83eb362b1f9d1a32df1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547057
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/pprof/pprof.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

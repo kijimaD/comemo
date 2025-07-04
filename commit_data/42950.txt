@@ -1,0 +1,68 @@
+commit 03a686069191e3515c7f27f6d90b66d272e0e3a2
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Sep 9 15:58:05 2020 -0400
+
+    cmd/go: update tests to work with -mod=readonly on by default
+    
+    For #40728
+    
+    Change-Id: Ic2b025ff75c6e73c0cb58c1737e44e2a41c71571
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253837
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ .../mod/example.com_retract_missingmod_v1.0.0.txt   |  2 ++
+ src/cmd/go/testdata/script/mod_auth.txt             |  2 +-
+ src/cmd/go/testdata/script/mod_case.txt             |  7 ++++++-
+ src/cmd/go/testdata/script/mod_concurrent.txt       |  1 +
+ src/cmd/go/testdata/script/mod_doc.txt              |  2 ++
+ src/cmd/go/testdata/script/mod_domain_root.txt      |  2 +-
+ src/cmd/go/testdata/script/mod_download.txt         |  2 +-
+ src/cmd/go/testdata/script/mod_download_partial.txt |  9 +++++++--
+ src/cmd/go/testdata/script/mod_get_incompatible.txt |  2 +-
+ src/cmd/go/testdata/script/mod_get_indirect.txt     |  2 +-
+ .../go/testdata/script/mod_get_latest_pseudo.txt    |  2 +-
+ .../go/testdata/script/mod_get_trailing_slash.txt   |  3 +++
+ src/cmd/go/testdata/script/mod_import.txt           |  2 +-
+ src/cmd/go/testdata/script/mod_in_testdata_dir.txt  |  6 +++---
+ src/cmd/go/testdata/script/mod_init_dep.txt         | 21 ++++-----------------
+ .../go/testdata/script/mod_install_versioned.txt    |  2 ++
+ src/cmd/go/testdata/script/mod_internal.txt         | 14 ++++++++++----
+ src/cmd/go/testdata/script/mod_invalid_version.txt  |  1 +
+ src/cmd/go/testdata/script/mod_list.txt             |  8 ++++----
+ src/cmd/go/testdata/script/mod_list_dir.txt         |  5 +++++
+ src/cmd/go/testdata/script/mod_list_direct.txt      |  2 +-
+ src/cmd/go/testdata/script/mod_list_replace_dir.txt | 12 ++++++++++--
+ src/cmd/go/testdata/script/mod_list_upgrade.txt     |  4 ++++
+ src/cmd/go/testdata/script/mod_load_badchain.txt    |  4 ++--
+ src/cmd/go/testdata/script/mod_load_badmod.txt      |  7 +++----
+ src/cmd/go/testdata/script/mod_load_badzip.txt      |  4 +---
+ .../testdata/script/mod_missingpkg_prerelease.txt   |  2 +-
+ src/cmd/go/testdata/script/mod_modinfo.txt          |  1 +
+ src/cmd/go/testdata/script/mod_multirepo.txt        |  1 +
+ src/cmd/go/testdata/script/mod_notall.txt           |  1 +
+ src/cmd/go/testdata/script/mod_permissions.txt      |  2 +-
+ src/cmd/go/testdata/script/mod_query.txt            | 10 ++++++++++
+ src/cmd/go/testdata/script/mod_replace.txt          |  4 ++--
+ src/cmd/go/testdata/script/mod_replace_gopkgin.txt  |  1 +
+ src/cmd/go/testdata/script/mod_replace_import.txt   |  1 +
+ src/cmd/go/testdata/script/mod_require_exclude.txt  |  8 ++++----
+ src/cmd/go/testdata/script/mod_retention.txt        |  6 +++---
+ src/cmd/go/testdata/script/mod_retract.txt          |  5 ++++-
+ src/cmd/go/testdata/script/mod_retract_replace.txt  | 14 ++++++++++++--
+ src/cmd/go/testdata/script/mod_sum_lookup.txt       |  5 +++--
+ src/cmd/go/testdata/script/mod_sumdb_golang.txt     |  4 ++--
+ src/cmd/go/testdata/script/mod_symlink.txt          |  5 ++++-
+ src/cmd/go/testdata/script/mod_test.txt             |  1 +
+ src/cmd/go/testdata/script/mod_tidy_replace.txt     |  1 +
+ src/cmd/go/testdata/script/mod_upgrade_patch.txt    |  1 +
+ src/cmd/go/testdata/script/mod_vcs_missing.txt      |  4 ++--
+ src/cmd/go/testdata/script/mod_vendor_build.txt     |  3 +++
+ src/cmd/go/testdata/script/mod_verify.txt           |  2 +-
+ src/cmd/go/testdata/script/mod_why.txt              |  3 +++
+ src/cmd/go/testdata/script/modfile_flag.txt         |  6 +++---
+ src/cmd/go/testdata/script/version.txt              |  1 +
+ src/cmd/go/testdata/script/version_replace.txt      |  2 +-
+ 52 files changed, 146 insertions(+), 76 deletions(-)

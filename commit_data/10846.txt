@@ -1,0 +1,166 @@
+commit 851f30136d79c9bb752ab56d3991bb3180a5aa5b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 16 15:33:58 2011 -0500
+
+    runtime: make more build-friendly
+    
+    Collapse the arch,os-specific directories into the main directory
+    by renaming xxx/foo.c to foo_xxx.c, and so on.
+    
+    There are no substantial edits here, except to the Makefile.
+    The assumption is that the Go tool will #define GOOS_darwin
+    and GOARCH_amd64 and will make any file named something
+    like signals_darwin.h available as signals_GOOS.h during the
+    build.  This replaces what used to be done with -I$(GOOS).
+    
+    There is still work to be done to make runtime build with
+    standard tools, but this is a big step.  After this we will have
+    to write a script to generate all the generated files so they
+    can be checked in (instead of generated during the build).
+    
+    R=r, iant, r, lucio.dere
+    CC=golang-dev
+    https://golang.org/cl/5490053
+
+ src/pkg/runtime/Makefile                           | 94 +++++++++++-----------
+ src/pkg/runtime/{386/arch.h => arch_386.h}         |  0
+ src/pkg/runtime/{amd64/arch.h => arch_amd64.h}     |  0
+ src/pkg/runtime/{arm/arch.h => arch_arm.h}         |  0
+ src/pkg/runtime/{386/asm.s => asm_386.s}           |  2 +-
+ src/pkg/runtime/{amd64/asm.s => asm_amd64.s}       |  2 +-
+ src/pkg/runtime/{arm/asm.s => asm_arm.s}           |  2 +-
+ src/pkg/runtime/{386/atomic.c => atomic_386.c}     |  0
+ src/pkg/runtime/{amd64/atomic.c => atomic_amd64.c} |  0
+ src/pkg/runtime/{arm/atomic.c => atomic_arm.c}     |  0
+ .../386/callback.c => callback_windows_386.c}      |  4 +-
+ .../amd64/callback.c => callback_windows_amd64.c}  |  4 +-
+ src/pkg/runtime/cgocall.c                          |  2 +-
+ src/pkg/runtime/{386/closure.c => closure_386.c}   |  0
+ .../runtime/{amd64/closure.c => closure_amd64.c}   |  0
+ src/pkg/runtime/{arm/closure.c => closure_arm.c}   |  0
+ src/pkg/runtime/cpuprof.c                          |  2 +-
+ src/pkg/runtime/{linux/defs1.go => defs1_linux.go} |  0
+ src/pkg/runtime/{linux/defs2.go => defs2_linux.go} |  0
+ .../{linux/defs_arm.go => defs_arm_linux.go}       |  0
+ src/pkg/runtime/{darwin/defs.go => defs_darwin.go} |  0
+ .../{darwin/386/defs.h => defs_darwin_386.h}       |  0
+ .../{darwin/amd64/defs.h => defs_darwin_amd64.h}   |  0
+ .../runtime/{freebsd/defs.go => defs_freebsd.go}   |  0
+ .../{freebsd/386/defs.h => defs_freebsd_386.h}     |  0
+ .../{freebsd/amd64/defs.h => defs_freebsd_amd64.h} |  0
+ src/pkg/runtime/{linux/defs.go => defs_linux.go}   |  0
+ .../runtime/{linux/386/defs.h => defs_linux_386.h} |  0
+ .../{linux/amd64/defs.h => defs_linux_amd64.h}     |  0
+ .../runtime/{linux/arm/defs.h => defs_linux_arm.h} |  0
+ src/pkg/runtime/{netbsd/defs.go => defs_netbsd.go} |  0
+ .../{netbsd/386/defs.h => defs_netbsd_386.h}       |  0
+ .../{netbsd/amd64/defs.h => defs_netbsd_amd64.h}   |  0
+ .../runtime/{openbsd/defs.go => defs_openbsd.go}   |  0
+ .../{openbsd/386/defs.h => defs_openbsd_386.h}     |  0
+ .../{openbsd/amd64/defs.h => defs_openbsd_amd64.h} |  0
+ .../runtime/{plan9/386/defs.h => defs_plan9_386.h} |  0
+ .../runtime/{windows/defs.go => defs_windows.go}   |  0
+ .../{windows/386/defs.h => defs_windows_386.h}     |  0
+ .../{windows/amd64/defs.h => defs_windows_amd64.h} |  0
+ src/pkg/runtime/iface.c                            |  2 +-
+ src/pkg/runtime/malloc.goc                         |  4 +-
+ src/pkg/runtime/mcache.c                           |  2 +-
+ src/pkg/runtime/mcentral.c                         |  2 +-
+ src/pkg/runtime/{darwin/mem.c => mem_darwin.c}     |  6 +-
+ src/pkg/runtime/{freebsd/mem.c => mem_freebsd.c}   |  6 +-
+ src/pkg/runtime/{linux/mem.c => mem_linux.c}       |  6 +-
+ src/pkg/runtime/{openbsd/mem.c => mem_netbsd.c}    |  6 +-
+ src/pkg/runtime/{netbsd/mem.c => mem_openbsd.c}    |  6 +-
+ src/pkg/runtime/{plan9/mem.c => mem_plan9.c}       |  4 +-
+ src/pkg/runtime/{windows/mem.c => mem_windows.c}   |  6 +-
+ src/pkg/runtime/{386/memmove.s => memmove_386.s}   |  0
+ .../runtime/{amd64/memmove.s => memmove_amd64.s}   |  0
+ src/pkg/runtime/{arm/memmove.s => memmove_arm.s}   |  0
+ src/pkg/runtime/{arm/memset.s => memset_arm.s}     |  0
+ src/pkg/runtime/mfinal.c                           |  2 +-
+ src/pkg/runtime/mfixalloc.c                        |  2 +-
+ src/pkg/runtime/mgc0.c                             |  2 +-
+ src/pkg/runtime/mheap.c                            |  2 +-
+ src/pkg/runtime/mprof.goc                          |  4 +-
+ src/pkg/runtime/msize.c                            |  2 +-
+ src/pkg/runtime/{darwin/os.h => os_darwin.h}       |  0
+ src/pkg/runtime/{freebsd/os.h => os_freebsd.h}     |  0
+ src/pkg/runtime/{linux/os.h => os_linux.h}         |  0
+ src/pkg/runtime/{netbsd/os.h => os_netbsd.h}       |  0
+ src/pkg/runtime/{openbsd/os.h => os_openbsd.h}     |  0
+ src/pkg/runtime/{plan9/os.h => os_plan9.h}         |  0
+ src/pkg/runtime/{windows/os.h => os_windows.h}     |  0
+ src/pkg/runtime/proc.c                             |  6 +-
+ .../runtime/{darwin/386/rt0.s => rt0_darwin_386.s} |  0
+ .../{darwin/amd64/rt0.s => rt0_darwin_amd64.s}     |  0
+ .../{freebsd/386/rt0.s => rt0_freebsd_386.s}       |  0
+ .../{freebsd/amd64/rt0.s => rt0_freebsd_amd64.s}   |  0
+ .../runtime/{linux/386/rt0.s => rt0_linux_386.s}   |  0
+ .../{linux/amd64/rt0.s => rt0_linux_amd64.s}       |  0
+ .../runtime/{linux/arm/rt0.s => rt0_linux_arm.s}   |  0
+ .../runtime/{netbsd/386/rt0.s => rt0_netbsd_386.s} |  0
+ .../{netbsd/amd64/rt0.s => rt0_netbsd_amd64.s}     |  0
+ .../{openbsd/386/rt0.s => rt0_openbsd_386.s}       |  0
+ .../{openbsd/amd64/rt0.s => rt0_openbsd_amd64.s}   |  0
+ .../runtime/{plan9/386/rt0.s => rt0_plan9_386.s}   |  0
+ .../{windows/386/rt0.s => rt0_windows_386.s}       |  0
+ .../{windows/amd64/rt0.s => rt0_windows_amd64.s}   |  2 +-
+ src/pkg/runtime/runtime.h                          |  4 +-
+ src/pkg/runtime/sema.goc                           |  2 +-
+ .../{darwin/386/signal.c => signal_darwin_386.c}   |  6 +-
+ .../amd64/signal.c => signal_darwin_amd64.c}       |  6 +-
+ .../{freebsd/386/signal.c => signal_freebsd_386.c} |  6 +-
+ .../amd64/signal.c => signal_freebsd_amd64.c}      |  6 +-
+ .../{linux/386/signal.c => signal_linux_386.c}     |  6 +-
+ .../{linux/amd64/signal.c => signal_linux_amd64.c} |  6 +-
+ .../{linux/arm/signal.c => signal_linux_arm.c}     |  6 +-
+ .../{openbsd/386/signal.c => signal_netbsd_386.c}  |  6 +-
+ .../amd64/signal.c => signal_netbsd_amd64.c}       |  6 +-
+ .../{netbsd/386/signal.c => signal_openbsd_386.c}  |  6 +-
+ .../amd64/signal.c => signal_openbsd_amd64.c}      |  6 +-
+ .../{plan9/386/signal.c => signal_plan9_386.c}     |  0
+ .../{windows/386/signal.c => signal_windows_386.c} |  4 +-
+ .../amd64/signal.c => signal_windows_amd64.c}      |  4 +-
+ .../runtime/{darwin/signals.h => signals_darwin.h} |  0
+ .../{freebsd/signals.h => signals_freebsd.h}       |  0
+ .../runtime/{linux/signals.h => signals_linux.h}   |  0
+ .../runtime/{netbsd/signals.h => signals_netbsd.h} |  0
+ .../{openbsd/signals.h => signals_openbsd.h}       |  0
+ .../runtime/{plan9/signals.h => signals_plan9.h}   |  0
+ .../{windows/signals.h => signals_windows.h}       |  0
+ src/pkg/runtime/sigqueue.goc                       |  2 +-
+ src/pkg/runtime/slice.c                            |  2 +-
+ .../runtime/{arm/softfloat.c => softfloat_arm.c}   |  0
+ src/pkg/runtime/stack.h                            |  2 +-
+ src/pkg/runtime/string.goc                         |  2 +-
+ src/pkg/runtime/symtab.c                           |  6 +-
+ .../runtime/{darwin/386/sys.s => sys_darwin_386.s} |  2 +-
+ .../{darwin/amd64/sys.s => sys_darwin_amd64.s}     |  2 +-
+ .../{freebsd/386/sys.s => sys_freebsd_386.s}       |  2 +-
+ .../{freebsd/amd64/sys.s => sys_freebsd_amd64.s}   |  2 +-
+ .../runtime/{linux/386/sys.s => sys_linux_386.s}   |  2 +-
+ .../{linux/amd64/sys.s => sys_linux_amd64.s}       |  2 +-
+ .../runtime/{linux/arm/sys.s => sys_linux_arm.s}   |  2 +-
+ .../runtime/{netbsd/386/sys.s => sys_netbsd_386.s} |  2 +-
+ .../{netbsd/amd64/sys.s => sys_netbsd_amd64.s}     |  2 +-
+ .../{openbsd/386/sys.s => sys_openbsd_386.s}       |  2 +-
+ .../{openbsd/amd64/sys.s => sys_openbsd_amd64.s}   |  2 +-
+ .../runtime/{plan9/386/sys.s => sys_plan9_386.s}   |  4 +-
+ .../{windows/386/sys.s => sys_windows_386.s}       |  2 +-
+ .../{windows/amd64/sys.s => sys_windows_amd64.s}   |  2 +-
+ .../{windows/syscall.goc => syscall_windows.goc}   |  2 +-
+ .../runtime/{darwin/thread.c => thread_darwin.c}   |  4 +-
+ .../runtime/{freebsd/thread.c => thread_freebsd.c} |  4 +-
+ src/pkg/runtime/{linux/thread.c => thread_linux.c} |  4 +-
+ .../runtime/{netbsd/thread.c => thread_netbsd.c}   |  4 +-
+ .../runtime/{openbsd/thread.c => thread_openbsd.c} |  4 +-
+ src/pkg/runtime/{plan9/thread.c => thread_plan9.c} |  4 +-
+ .../runtime/{windows/thread.c => thread_windows.c} |  4 +-
+ src/pkg/runtime/time.goc                           |  6 +-
+ .../{amd64/traceback.c => traceback_amd64.c}       |  2 +-
+ .../runtime/{arm/traceback.c => traceback_arm.c}   |  2 +-
+ src/pkg/runtime/{386/vlop.s => vlop_386.s}         |  0
+ src/pkg/runtime/{arm/vlop.s => vlop_arm.s}         |  0
+ src/pkg/runtime/{386/vlrt.c => vlrt_386.c}         |  0
+ src/pkg/runtime/{arm/vlrt.c => vlrt_arm.c}         |  0
+ 141 files changed, 172 insertions(+), 176 deletions(-)

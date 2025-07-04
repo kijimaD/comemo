@@ -1,0 +1,19 @@
+commit 0eb2a79ff3694020cb1f6946cd9fd04e3d260df0
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Nov 6 16:51:49 2009 -0800
+
+    8g optimizer
+    
+    R=rsc
+    http://go/go-review/1025011
+
+ src/cmd/6g/reg.c    |    2 +-
+ src/cmd/8g/Makefile |    6 +-
+ src/cmd/8g/gg.h     |    3 +-
+ src/cmd/8g/ggen.c   |    7 +-
+ src/cmd/8g/gsubr.c  |    3 +
+ src/cmd/8g/opt.h    |  166 ++++++
+ src/cmd/8g/peep.c   |  865 ++++++++++++++++++++++++++++++
+ src/cmd/8g/reg.c    | 1449 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/go.h     |   12 +-
+ 9 files changed, 2499 insertions(+), 14 deletions(-)

@@ -1,0 +1,19 @@
+commit 8b766e5d09bc4bf2e4fc365111b60a400b144f83
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 8 02:20:26 2018 -0800
+
+    cmd/compile: remove state.exitCode
+    
+    We're holding onto the function's complete AST anyway, so might as
+    well grab the exit code from there.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I851b5dfdb53f991e9cd9488d25d0d2abc2a8379f
+    Reviewed-on: https://go-review.googlesource.com/99417
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

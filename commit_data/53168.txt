@@ -1,0 +1,25 @@
+commit b950cc8f11dc31cc9f6cfbed883818a7aa3abe94
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 19 15:09:58 2023 -0700
+
+    net, os: net.Conn.File.Fd should return a blocking descriptor
+    
+    Historically net.Conn.File.Fd has returned a descriptor in blocking mode.
+    That was broken by CL 495079, which changed the behavior for os.OpenFile
+    and os.NewFile without intending to affect net.Conn.File.Fd.
+    Use a hidden os entry point to preserve the historical behavior,
+    to ensure backward compatibility.
+    
+    Change-Id: I8d14b9296070ddd52bb8940cb88c6a8b2dc28c27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496080
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/fd_unix.go        |  5 ++-
+ src/net/file_unix_test.go | 97 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/os/file_unix.go       | 17 +++++++++
+ 3 files changed, 118 insertions(+), 1 deletion(-)

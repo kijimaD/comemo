@@ -1,0 +1,24 @@
+commit cf3d0655f8ca2de555549f6e8a91bf8654da7e6c
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Mar 1 08:39:04 2023 -0800
+
+    crypto/x509: fix broken tests
+    
+    Convert TestUnknownAuthorityError to use subtests, avoiding continuing
+    the test after an unrecoverable failure.
+    
+    Skip TestIssue51759 on pre-macOS 11 builders, which don't enforce the
+    behavior we were testing for.
+    
+    Updates #58791
+    Fixes #58812
+    
+    Change-Id: I4e3e5bc371aa139d38052184c8232f8cb564138f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472496
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/x509/verify_test.go | 54 +++++++++++++++++++++++-------------------
+ 1 file changed, 30 insertions(+), 24 deletions(-)

@@ -1,0 +1,17 @@
+commit 433be563b6246eb132aed6e9e58f46a0d46f7010
+Author: Andrew Pogrebnoy <absourd.noise@gmail.com>
+Date:   Tue Oct 4 02:39:33 2016 +0300
+
+    cmd/compile: fix choice of phi building algorithm
+    
+    The algorithm for placing a phi nodes in small functions now
+    unreachable. This patch fix that.
+    
+    Change-Id: I253d745b414fa12ee0719459c28e78a69c6861ae
+    Reviewed-on: https://go-review.googlesource.com/30106
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/phi.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

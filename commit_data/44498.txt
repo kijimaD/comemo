@@ -1,0 +1,28 @@
+commit 1d0256a9890b9179746551910a20cee97e653101
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Feb 20 02:40:35 2021 +0700
+
+    cmd/compile: do not add invalid key to constSet
+    
+    After CL 272654, the compiler now use go/constant.Value to represent
+    constant nodes. That makes ir.ConstantValue requires node type to
+    correctly return value for untyped int node. But untyped int node can
+    have nil type after typechecked, e.g: using int value as key for
+    map[string]int, that makes the compiler crashes.
+    
+    To fix it, just don't add the invalid key to constSet, since when
+    it's not important to report duplicated keys when they aren't valid.
+    
+    For #43311
+    Fixes #44432
+    
+    Change-Id: I44d8f2b95f5cb339e77e8a705a94bcb16e62beb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294034
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/const.go |  2 +-
+ test/fixedbugs/issue44432.go                | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

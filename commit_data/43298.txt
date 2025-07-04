@@ -1,0 +1,22 @@
+commit 9c56300e62d126875dcd6508c0ca7dce3985ad50
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Oct 13 13:02:45 2020 -0700
+
+    net/http: return 505 status for rejected protocol version
+    
+    When rejecting a request with an unsupported HTTP protocol version,
+    return a 505 error ("HTTP Version Not Supported") instead of 400.
+    
+    Fixes #40454.
+    
+    Change-Id: I0269f0f5755d90d1b772ba0094a6bb24b5eb4701
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261977
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Urban Ishimwe <urbainishimwe@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go |  8 ++++----
+ src/net/http/server.go     | 21 ++++++++++++++-------
+ 2 files changed, 18 insertions(+), 11 deletions(-)

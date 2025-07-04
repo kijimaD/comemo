@@ -1,0 +1,18 @@
+commit 40fc4bbfb86ea82ecb16794cd093a36a87d38197
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jun 11 09:40:45 2018 +0200
+
+    net: skip TestSendfileParts on dragonfly and solaris
+    
+    Skip it like on freebsd until there is proper a fix for #25809
+    
+    Updates #25809
+    
+    Change-Id: Id53c433aee75f2a992ab6a8d58d98fd1f8a6c1c6
+    Reviewed-on: https://go-review.googlesource.com/117698
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/net/sendfile_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 7fcd4a7007979e4aaa9e8893bd0088f5f28627e7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 19 14:15:04 2024 -0700
+
+    internal/pkgbits: s/errorf/panicf/ because that's what it is
+    
+    Make it obvious that this function panics.
+    
+    Change-Id: I272142d2cf7132aa8915f8f4b5945834376db062
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606935
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/pkgbits/decoder.go | 6 +++---
+ src/internal/pkgbits/encoder.go | 4 ++--
+ src/internal/pkgbits/support.go | 2 +-
+ 3 files changed, 6 insertions(+), 6 deletions(-)

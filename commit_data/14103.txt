@@ -1,0 +1,26 @@
+commit af79568fde745795491a6c9f6c918de91a5580eb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 9 17:01:28 2012 -0700
+
+    gofmt: apply gofmt -w -s src misc
+    
+    Preparation for forthcoming CL 6624051: Will make it
+    easier to see if/what changes are incurred by it.
+    
+    The alignment changes in this CL are due to CL 6610051
+    (fix to alignment heuristic) where it appears that an
+    old version of gofmt was run (and thus the correct
+    alignment updates were not done).
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6639044
+
+ src/cmd/cgo/gcc.go               |    4 +-
+ src/cmd/go/build.go              |    8 +-
+ src/pkg/crypto/x509/x509_test.go |    4 +-
+ src/pkg/exp/html/entity.go       | 4154 +++++++++++++++++++-------------------
+ src/pkg/exp/html/token_test.go   |   28 +-
+ src/pkg/html/entity.go           | 4154 +++++++++++++++++++-------------------
+ src/pkg/time/time_test.go        |    2 +-
+ 7 files changed, 4177 insertions(+), 4177 deletions(-)

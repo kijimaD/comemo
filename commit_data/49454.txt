@@ -1,0 +1,17 @@
+commit d27128b065010ac6bae8dd648f85302240417294
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Jun 10 13:21:14 2022 -0700
+
+    doc/go1.19: fix crypto tags
+    
+    Closes an unclosed <code> tag, and tags a type that was untagged.
+    
+    Change-Id: I9a1efda07f783f0ca7a93ffefbda4e29f5fc8d41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411694
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+
+ doc/go1.19.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

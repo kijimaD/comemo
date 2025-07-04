@@ -1,0 +1,12 @@
+commit c4303aa59ff4c6ddb350a7d670e455426c16962b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 27 16:11:17 2012 -0500
+
+    reflect: add comment about Type.Field allocation
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/5586044
+
+ src/pkg/reflect/type.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

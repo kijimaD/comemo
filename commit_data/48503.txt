@@ -1,0 +1,25 @@
+commit c10fb508946bccbd015634c0bdb1cbd18e206c8f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Mar 22 20:55:38 2022 +0700
+
+    cmd/compile: remove ir.Node.SetDiag
+    
+    And use base.Fatalf in code that use n.SetDiag(true) instead.
+    
+    Updates #51691
+    
+    Change-Id: Ib3c0b9c89b8d95717391cbe7d424240e288ada1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394575
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ir/mini.go             |  3 ---
+ src/cmd/compile/internal/ir/node.go             |  1 -
+ src/cmd/compile/internal/typecheck/const.go     | 12 ++++--------
+ src/cmd/compile/internal/typecheck/expr.go      |  6 +-----
+ src/cmd/compile/internal/typecheck/func.go      |  3 +--
+ src/cmd/compile/internal/typecheck/stmt.go      |  3 +--
+ src/cmd/compile/internal/typecheck/typecheck.go | 19 +++++--------------
+ 7 files changed, 12 insertions(+), 35 deletions(-)

@@ -1,0 +1,20 @@
+commit 65ec16b637b5d37dece0395c485cf82c175917ff
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 29 15:46:03 2009 -0700
+
+    Automated g4 rollback of changelist 29478.
+    
+    *** Reason for rollback ***
+    
+      these semicolons are necessary only because of a bug in 6g
+    
+    *** Original change description ***
+    
+    add missing semicolons in example
+    
+    TBR=gri
+    OCL=29624
+    CL=29624
+
+ doc/go_spec.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,14 @@
+commit 4d38d3ae33ed808f9430ff5a205faed4bc3f19c5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 13 14:49:00 2018 -0700
+
+    runtime: fix typo in gdb script
+    
+    Change-Id: I9d4b3e25b00724f0e4870c6082671b4f14cc18fc
+    Reviewed-on: https://go-review.googlesource.com/100463
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime-gdb.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

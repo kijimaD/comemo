@@ -1,0 +1,19 @@
+commit ee2d5128d6d3f1a791bed044087adf989263ecb9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 2 09:09:32 2009 -0700
+
+    the last bug involving type hashes
+    
+    R=ken
+    OCL=34244
+    CL=34249
+
+ src/cmd/gc/Makefile      |   2 +
+ src/cmd/gc/go.h          |   2 +-
+ src/cmd/gc/md5.c         | 290 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/md5.h         |  16 +++
+ src/cmd/gc/reflect.c     |   6 +-
+ src/cmd/gc/subr.c        |  98 ++++++++--------
+ src/cmd/gc/swt.c         |   2 +-
+ test/fixedbugs/bug201.go |  36 ++++++
+ 8 files changed, 394 insertions(+), 58 deletions(-)

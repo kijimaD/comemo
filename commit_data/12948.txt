@@ -1,0 +1,14 @@
+commit 76490cffaf8c54f4e014cc8d74f77abde8cba416
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 24 10:17:26 2012 -0700
+
+    test: add test for order of evaluation of map index on left of =
+    
+    Gccgo used to get this wrong.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6121044
+
+ test/reorder.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

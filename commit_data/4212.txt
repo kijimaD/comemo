@@ -1,0 +1,40 @@
+commit 001a8b11ff2746de14648d702120120b4f98e688
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 24 13:43:18 2009 -0800
+
+    Change to container/vector interface:
+    - removed New(len int) in favor of new(Vector).Resize(len, cap)
+    - removed Init(len int) in favor of Resize(len, cap)
+    - runs all.bash
+    
+    Fixes #294.
+    
+    R=rsc, r, r1
+    https://golang.org/cl/157143
+
+ src/cmd/godoc/index.go                   |   2 +-
+ src/pkg/container/heap/heap_test.go      |  11 +--
+ src/pkg/container/vector/intvector.go    |  20 +++---
+ src/pkg/container/vector/stringvector.go |  20 +++---
+ src/pkg/container/vector/vector.go       |  65 ++++++++----------
+ src/pkg/container/vector/vector_test.go  | 113 +++++++++++++++++++++++--------
+ src/pkg/crypto/x509/x509.go              |   2 +-
+ src/pkg/debug/proc/proc_linux.go         |   4 +-
+ src/pkg/ebnf/ebnf.go                     |   4 +-
+ src/pkg/ebnf/parser.go                   |   4 +-
+ src/pkg/exp/datafmt/parser.go            |   5 +-
+ src/pkg/exp/eval/world.go                |   4 +-
+ src/pkg/exp/iterable/iterable.go         |   2 +-
+ src/pkg/exp/ogle/cmd.go                  |   1 -
+ src/pkg/go/doc/doc.go                    |   6 +-
+ src/pkg/go/parser/parser.go              |  37 +++++-----
+ src/pkg/go/scanner/errors.go             |  18 ++---
+ src/pkg/go/scanner/scanner_test.go       |   2 +-
+ src/pkg/http/request.go                  |   2 +-
+ src/pkg/json/generic.go                  |   2 +-
+ src/pkg/regexp/regexp.go                 |   4 +-
+ src/pkg/tabwriter/tabwriter.go           |   6 +-
+ src/pkg/template/template.go             |   2 +-
+ src/pkg/template/template_test.go        |   2 +-
+ test/vectors.go                          |  22 +++---
+ 25 files changed, 195 insertions(+), 165 deletions(-)

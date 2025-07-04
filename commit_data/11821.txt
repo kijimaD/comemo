@@ -1,0 +1,14 @@
+commit 6fa2296e839d7cea090fd9bddc9831ea6186c30e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Feb 13 12:45:59 2012 +0900
+
+    net: disable wild use of SO_REUSEPORT on BSD variants
+    
+    Fixes #2830 (again).
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5651083
+
+ src/pkg/net/sockopt_bsd.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

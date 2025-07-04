@@ -1,0 +1,18 @@
+commit d4b0bd28eef0a212930fb196230171a9f11e5ec4
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 8 17:17:15 2024 -0800
+
+    internal/runtime/maps: don't copy indirect key/elem when growing maps
+    
+    We can reuse the same indirect storage when growing, so we don't
+    need an additional allocation.
+    
+    Change-Id: I57adb406becfbec648188ec66f4bb2e94d4b9cab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625902
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/internal/runtime/maps/map.go   |  8 +------
+ src/internal/runtime/maps/table.go | 49 ++++++++++++++++----------------------
+ 2 files changed, 21 insertions(+), 36 deletions(-)

@@ -1,0 +1,13 @@
+commit eece85c9a72aa48d5522c07630abb07d2a0f0f16
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 27 17:32:02 2009 -0700
+
+    move bug148, already fixed, to fixedbugs
+    
+    R=ken
+    OCL=32257
+    CL=32257
+
+ test/{bugs => fixedbugs}/bug148.go |  0
+ test/golden.out                    | 14 +++++++-------
+ 2 files changed, 7 insertions(+), 7 deletions(-)

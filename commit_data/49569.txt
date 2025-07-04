@@ -1,0 +1,25 @@
+commit 17083a2fdf4475c3f11a3e6a0ef8cb595a5fc4d6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 22 11:58:06 2022 -0700
+
+    spec: retitle section on "Assignments" to "Assignment statements"
+    
+    This permits a clear distinction between an individual assignment
+    and an assignment statement which may assign more than one value.
+    It also makes this section title consistent with all other section
+    titles about statements. Adjust internal links and prose where
+    appropriate. (Note that the spec already referred to assignment
+    statements in a couple of places, even before this change.)
+    
+    Add an introductory paragraph to the section on assignment statements.
+    
+    Preparation for adding a section on value vs reference types
+    (issue #5083).
+    
+    Change-Id: Ie140ac296e653c67da2a5a203b63352b3dc4f9f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413615
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go_spec.html | 37 ++++++++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)

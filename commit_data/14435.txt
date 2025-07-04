@@ -1,0 +1,15 @@
+commit 8f3b703323df5831d13a2492019ebe932559ae4f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 19 09:09:04 2012 -0800
+
+    cmd/gc: complain about invalid whitespace chars
+    
+    Fixes #4405.
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6855060
+
+ src/cmd/gc/lex.c            |  8 ++------
+ test/fixedbugs/issue4405.go | 15 +++++++++++++++
+ 2 files changed, 17 insertions(+), 6 deletions(-)

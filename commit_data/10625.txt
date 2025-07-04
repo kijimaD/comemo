@@ -1,0 +1,12 @@
+commit 972b98c135e271065b5938464d3b1bfe216d1c84
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Tue Dec 6 08:16:39 2011 -0800
+
+    cgo: fix typo in the documentation
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5448115
+
+ src/cmd/cgo/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

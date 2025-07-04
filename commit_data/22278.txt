@@ -1,0 +1,29 @@
+commit 5bb89eb009a3c395990259cbca0e917ea025c6d5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 20 16:59:08 2015 -0700
+
+    cmd/internal/gc: use big.Float to represent Mpflt bits
+    
+    All multi-precision arithmetic is now based on math/big.
+    
+    - passes all.bash
+    - added test cases for fixed bugs
+    
+    Fixes #7740.
+    Fixes #6866.
+    
+    Change-Id: I67268b91766970ced3b928260053ccdce8753d58
+    Reviewed-on: https://go-review.googlesource.com/7912
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/align.go    |   4 +-
+ src/cmd/internal/gc/const.go    |  12 +-
+ src/cmd/internal/gc/go.go       |  22 +-
+ src/cmd/internal/gc/lex.go      |   6 +-
+ src/cmd/internal/gc/mparith1.go | 595 +++-------------------------------------
+ src/cmd/internal/gc/mparith2.go | 489 +--------------------------------
+ src/cmd/internal/gc/mparith3.go | 327 +++-------------------
+ src/cmd/internal/gc/subr.go     |   2 +-
+ test/fixedbugs/issue6866.go     |  80 ++++++
+ test/fixedbugs/issue7740.go     |  35 +++
+ 10 files changed, 215 insertions(+), 1357 deletions(-)

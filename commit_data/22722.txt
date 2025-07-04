@@ -1,0 +1,18 @@
+commit 42da27002428ed27f9aeee5800120e2222c226a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 27 16:08:11 2015 -0400
+
+    runtime: fix race in BenchmarkPingPongHog
+    
+    The master goroutine was returning before
+    the child goroutine had done its final i < b.N
+    (the one that fails and causes it to exit the loop)
+    and then the benchmark harness was updating
+    b.N, causing a read+write race on b.N.
+    
+    Change-Id: I2504270a0de30544736f6c32161337a25b505c3e
+    Reviewed-on: https://go-review.googlesource.com/9368
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/proc_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

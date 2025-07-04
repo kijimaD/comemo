@@ -1,0 +1,37 @@
+commit 744ccbb852f18241c637b2c6314b35fce7359916
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Mon Feb 5 17:11:27 2018 +0200
+
+    runtime: fast clock_gettime call on FreeBSD
+    
+    Use AT_TIMEKEEP ELF aux entry to access a kernel mapped ring of timehands structs.
+    The timehands are updated by the kernel periodically, but for accurate measure the
+    timecounter still needs to be queried.
+    Currently the fast path is used only when kern.timecounter.hardware==TSC-low
+    or kern.timecounter.hardware=='ARM MPCore Timecounter',
+    other timecounters revert back to regular system call.
+    
+    TODO: add support for HPET timecounter on 386/amd64.
+    
+    Change-Id: I321ca4e92be63ba21a2574b758ef5c1e729086ad
+    Reviewed-on: https://go-review.googlesource.com/93156
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/defs_freebsd.go       |  13 +++++
+ src/runtime/defs_freebsd_386.go   |  32 +++++++++++
+ src/runtime/defs_freebsd_amd64.go |  33 ++++++++++++
+ src/runtime/defs_freebsd_arm.go   |  32 +++++++++++
+ src/runtime/os_freebsd.go         |   9 ++--
+ src/runtime/stubs2.go             |   1 -
+ src/runtime/stubs3.go             |  13 +++++
+ src/runtime/sys_freebsd_386.s     |  11 ++--
+ src/runtime/sys_freebsd_amd64.s   |  10 ++--
+ src/runtime/sys_freebsd_arm.s     |  34 +++++++++---
+ src/runtime/timestub.go           |   2 -
+ src/runtime/timestub2.go          |  11 ++++
+ src/runtime/vdso_freebsd.go       | 111 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/vdso_freebsd_arm.go   |  21 ++++++++
+ src/runtime/vdso_freebsd_x86.go   |  31 +++++++++++
+ 15 files changed, 338 insertions(+), 26 deletions(-)

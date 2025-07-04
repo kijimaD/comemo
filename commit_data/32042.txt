@@ -1,0 +1,14 @@
+commit ced46c628877d9277a70c986467c1aff5f0b412c
+Author: Tony Walker <walkert.uk@gmail.com>
+Date:   Sat Jul 15 22:27:29 2017 +0000
+
+    sort: add example for Strings
+    
+    Change-Id: I33f0e2362e85287b493d9279d43b760733e2abcb
+    Reviewed-on: https://go-review.googlesource.com/48831
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/sort/example_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,25 @@
+commit 4061d3463bb02def972e24aff173b0e5f98c0c3d
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Tue Jun 15 01:55:50 2021 +0200
+
+    syscall: rewrite handle inheritance test to use C rather than Powershell
+    
+    In CL 327210, we disabled this test on arm platforms, because the
+    powershell shipped with those systems isn't native, which means it'd
+    refuse to load native DLLs. This commit rewrites the test to simply not
+    use Powershell, and instead compiles a trivial C program that tests for
+    the same thing. Reverting CL 316269 makes this test fail, as desired,
+    while applying it makes this test succeed.
+    
+    Fixes #46701
+    
+    Change-Id: If39612c57bf74c63adf58e2c49b5cb739b461fe5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327969
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/syscall/syscall_windows_test.go | 38 +++++++++++++++++++++----------------
+ 1 file changed, 22 insertions(+), 16 deletions(-)

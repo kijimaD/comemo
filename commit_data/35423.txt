@@ -1,0 +1,26 @@
+commit 64a832debe1b6bd4002430d65d9447e6e410366e
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun May 20 16:02:35 2018 +0100
+
+    cmd/trace: fix a few bugs found by staticcheck
+    
+    First, the regions sort was buggy, as its last comparison was
+    ineffective.
+    
+    Second, the insyscall and insyscallRuntime fields were unsigned, so the
+    check for them being negative was pointless. Make them signed instead,
+    to also prevent the possibility of underflows when decreasing numbers
+    that might realistically be 0.
+    
+    Third, the color constants were all untyped strings except the first
+    one. Be consistent with their typing.
+    
+    Change-Id: I4eb8d08028ed92589493c2a4b9cc5a88d83f769b
+    Reviewed-on: https://go-review.googlesource.com/113895
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/trace/annotations.go |  2 +-
+ src/cmd/trace/trace.go       | 74 ++++++++++++++++++++++----------------------
+ 2 files changed, 38 insertions(+), 38 deletions(-)

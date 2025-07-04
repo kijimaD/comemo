@@ -1,0 +1,24 @@
+commit cab90c84d12c630d3cf86caee6f686857485d483
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Nov 3 21:49:19 2023 +0800
+
+    sync: add available godoc link
+    
+    Change-Id: I9bc5fd29b0eec8ceadcfee2116de5e7524ef92c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539617
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/sync/atomic/value.go |  8 ++++----
+ src/sync/cond.go         | 10 +++++-----
+ src/sync/map.go          | 13 +++++++------
+ src/sync/mutex.go        |  8 ++++----
+ src/sync/once.go         |  2 +-
+ src/sync/pool.go         |  6 +++---
+ src/sync/rwmutex.go      | 24 ++++++++++++------------
+ src/sync/waitgroup.go    | 16 ++++++++--------
+ 8 files changed, 44 insertions(+), 43 deletions(-)

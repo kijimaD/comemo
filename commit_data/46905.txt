@@ -1,0 +1,32 @@
+commit a80e53ec43d6ab925bb34d62dd8597a4227af363
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Sep 19 09:13:47 2021 -0700
+
+    cmd/compile: support new fully-inst types referenced during inlining
+    
+    Modify the phase for creating needed function/method instantiations and
+    modifying functions to use those instantiations, so that the phase is
+    self-contained and can be called again after inlining. This is to deal
+    with the issue that inlining may reveal new fully-instantiated types
+    whose methods must be instantiated.
+    
+    With this change, we have an extra phase for instantiation after
+    inlining, to take care of the new fully-instantiated types that have
+    shown up during inlining. We call inline.InlineCalls() for any new
+    instantiated functions that are created.
+    
+    Change-Id: I4ddf0b1907e5f1f7d45891db7876455a99381133
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352870
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
+
+ src/cmd/compile/internal/gc/main.go        |   5 +
+ src/cmd/compile/internal/noder/irgen.go    |  32 +-
+ src/cmd/compile/internal/noder/stencil.go  | 454 ++++++++++++++++-------------
+ src/cmd/compile/internal/typecheck/subr.go |  11 +-
+ test/typeparam/geninline.dir/a.go          |  56 ++++
+ test/typeparam/geninline.dir/main.go       |  16 +
+ test/typeparam/geninline.go                |   7 +
+ 7 files changed, 356 insertions(+), 225 deletions(-)

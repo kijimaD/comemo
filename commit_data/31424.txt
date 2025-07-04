@@ -1,0 +1,49 @@
+commit 07a22bbc11de6c8cdac599f59ef00f019d22ff67
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 28 16:46:18 2017 +0000
+
+    net/http: re-simplify HTTP/1.x status line writing
+    
+    It used to be simple, and then it got complicated for speed (to reduce
+    allocations, mostly), but that involved a mutex and hurt multi-core
+    performance, contending on the mutex.
+    
+    A change was sent to try to improve that mutex contention in
+    https://go-review.googlesource.com/c/42110/2/src/net/http/server.go
+    but that introduced its own allocations (the string->interface{}
+    boxing for the sync.Map key), which runs counter to the whole point of
+    that statusLine function: to remove allocations.
+    
+    Instead, make the code simple again and not have a mutex. It's a bit
+    slower for the single-core case, but nobody with a single-user HTTP
+    server cares about 50 nanoseconds:
+    
+    name                  old time/op    new time/op    delta
+    ResponseStatusLine      37.5ns ± 2%    87.1ns ± 2%  +132.42%          (p=0.029 n=4+4)
+    ResponseStatusLine-2    63.1ns ± 1%    43.1ns ±12%   -31.67%          (p=0.029 n=4+4)
+    ResponseStatusLine-4    53.8ns ± 8%    40.2ns ± 2%   -25.29%          (p=0.029 n=4+4)
+    
+    name                  old alloc/op   new alloc/op   delta
+    ResponseStatusLine      0.00B ±NaN%    0.00B ±NaN%      ~     (all samples are equal)
+    ResponseStatusLine-2    0.00B ±NaN%    0.00B ±NaN%      ~     (all samples are equal)
+    ResponseStatusLine-4    0.00B ±NaN%    0.00B ±NaN%      ~     (all samples are equal)
+    
+    name                  old allocs/op  new allocs/op  delta
+    ResponseStatusLine       0.00 ±NaN%     0.00 ±NaN%      ~     (all samples are equal)
+    ResponseStatusLine-2     0.00 ±NaN%     0.00 ±NaN%      ~     (all samples are equal)
+    ResponseStatusLine-4     0.00 ±NaN%     0.00 ±NaN%      ~     (all samples are equal)
+    
+    (Note the code could be even simpler with fmt.Fprintf, but that is
+     relatively slow and involves a bunch of allocations getting arguments
+     into interface{} for the call)
+    
+    Change-Id: I1fa119132dbbf97a8e7204ce3e0707d433060da2
+    Reviewed-on: https://go-review.googlesource.com/42133
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/net/http/export_test.go | 26 +++++++++---------
+ src/net/http/serve_test.go  | 11 ++++++++
+ src/net/http/server.go      | 67 +++++++++++++++------------------------------
+ 3 files changed, 46 insertions(+), 58 deletions(-)

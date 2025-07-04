@@ -1,0 +1,20 @@
+commit 76236ef13684fd63555ae4be90ca31e94eda670f
+Author: David Covert <davidhcovert@gmail.com>
+Date:   Fri Mar 7 15:30:02 2014 -0500
+
+    regexp: add one-pass optimization from RE2
+    
+    This produces about a 2.3x speedup for patterns
+    that can be handled this way.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/13345046
+
+ src/pkg/regexp/all_test.go         |  55 ++++
+ src/pkg/regexp/exec.go             | 121 +++++++-
+ src/pkg/regexp/regexp.go           |  11 +-
+ src/pkg/regexp/syntax/prog.go      | 587 ++++++++++++++++++++++++++++++++++++-
+ src/pkg/regexp/syntax/prog_test.go | 198 +++++++++++++
+ 5 files changed, 952 insertions(+), 20 deletions(-)

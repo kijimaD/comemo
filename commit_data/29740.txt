@@ -1,0 +1,14 @@
+commit 14f18e5b6f5abd9819981fdee92fffe62f4d4c1c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Dec 1 23:07:53 2016 -0500
+
+    doc/go1.8: document mips port requirements
+    
+    Fixes #18140.
+    
+    Change-Id: I527719576bc7198c79bb8bc51d258a71b2d5b296
+    Reviewed-on: https://go-review.googlesource.com/33853
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

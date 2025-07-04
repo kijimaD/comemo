@@ -1,0 +1,12 @@
+commit dabf3db7153faac5e2b59429990f9f1bf6e39399
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 15 14:24:24 2012 +1100
+
+    os/exec: add some examples
+    
+    R=golang-dev, adg, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5675054
+
+ src/pkg/os/exec/example_test.go | 75 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 75 insertions(+)

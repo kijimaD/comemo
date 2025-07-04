@@ -1,0 +1,24 @@
+commit b559a173f9f187e1185f8de00a9cc1f5b05aceef
+Author: Neven Sajko <nsajko@gmail.com>
+Date:   Sat Mar 7 17:23:20 2020 +0000
+
+    internal/xcoff: fix wrong bit masking comparisons
+    
+    I do not know much about xcoff, but this was probably the intended
+    behavior. (The comparison is tautologically false, as is.)
+    
+    Also note: does any other code even depend on the changed code existing?
+    Maybe it should just be removed, as I did not find any uses of fields
+    that are written to if the branch condition tests true.
+    
+    Change-Id: I1f23d33764df40e87f3e64460d63f6efc51a2a78
+    GitHub-Last-Rev: 268909130fd7fb3993fcf7004143ec48dbfe5e2a
+    GitHub-Pull-Request: golang/go#37733
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222478
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Clément Chigot <clement.chigot%atos.net@gtempaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/xcoff/file.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

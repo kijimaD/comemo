@@ -1,0 +1,18 @@
+commit 9289c120025be6fef3a27732229a38df3ebf47c7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 12 15:45:18 2021 +0000
+
+    Revert "testing/fstest: test that ReadDirFile on a non-dir fails"
+    
+    This reverts commit 1853411d8376570295711f9084d494d458822578.
+    
+    Reason for revert: broke plan 9 builder. fixes #44967
+    
+    Change-Id: Ib89448d37f7ab8bb05dbd89ce744431d807eb4da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301190
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/testing/fstest/testfs.go | 9 ---------
+ 1 file changed, 9 deletions(-)

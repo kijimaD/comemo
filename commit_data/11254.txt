@@ -1,0 +1,12 @@
+commit e3e93b0f4398e57aae02a9eb05b1226731fc05e1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jan 19 14:52:28 2012 +0900
+
+    syscall: fix plan9 build
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5532097
+
+ src/pkg/syscall/syscall_plan9.go | 5 +++++
+ 1 file changed, 5 insertions(+)

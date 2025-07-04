@@ -1,0 +1,23 @@
+commit 73a4bbb0df36d85d1ab8cb12d220d1d56e4049ec
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Nov 11 15:29:38 2021 +0700
+
+    cmd/compile: fix missing ddd when building call for function instantiation closure
+    
+    When building a call expression for function instantiation closure, if
+    it's a variadic function, the CallExpr.IsDDD must be set for typecheck
+    to work properly. Otherwise, there will be a mismatch between the
+    arguments type and the function signature.
+    
+    Fixes #49516
+    
+    Change-Id: I0af90ee3fcc3e6c8bba8b20e331e044cbce17985
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363314
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/stencil.go |  1 +
+ test/typeparam/issue49516.go              | 26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+)

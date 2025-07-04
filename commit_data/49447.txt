@@ -1,0 +1,37 @@
+commit 91019cc13d9de72d5e43a0068311dc9e6012777a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jun 3 16:03:55 2022 -0400
+
+    runtime/cgo: merge bodies of cgo_sys_thread_start on windows
+    
+    The bodies of cgo_sys_thread_start (and x_cgo_sys_thread_create) are
+    nearly identical on all of the windows ports.
+    
+    Create a single _cgo_beginthread implementation that contains the body
+    and is used on all ports. This will reduce churn in an upcoming CL to
+    add retry logic.
+    
+    We could theoretically have a single implementation of
+    _cgo_sys_thread_start shared by all ports, but I keep them separate for
+    ease of searching. Right now every single port implements this function
+    in their gcc_GOOS_GOARCH.c file, so it is nice to keep this symmetry.
+    
+    _cgo_dummy_export must move out of libcgo_windows.h because it is a
+    definition and the inclusion of libcgo_windows.h in multiple files
+    creates duplicate definitions.
+    
+    For #52572.
+    
+    Change-Id: I9fa22009389349c754210274c7db2631b061f9c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410354
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/cgo/gcc_libinit_windows.c | 28 +++++++++++++++++++++-------
+ src/runtime/cgo/gcc_windows_386.c     | 10 ++--------
+ src/runtime/cgo/gcc_windows_amd64.c   |  8 +-------
+ src/runtime/cgo/gcc_windows_arm64.c   |  8 +-------
+ src/runtime/cgo/libcgo_windows.h      | 10 ++--------
+ 5 files changed, 27 insertions(+), 37 deletions(-)

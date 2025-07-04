@@ -1,0 +1,17 @@
+commit 4ffa5eb8764b9c811bff329e7d2e392dc1e8972c
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Sat Mar 26 14:23:56 2016 +0100
+
+    cmd/vet: don't treat fields like variables in rangeloop check
+    
+    Fixes #13236
+    
+    Change-Id: If902ac66718e0a0790fab9835921ce4ef980965b
+    Reviewed-on: https://go-review.googlesource.com/21183
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/rangeloop.go          | 4 ++++
+ src/cmd/vet/testdata/rangeloop.go | 9 +++++++++
+ 2 files changed, 13 insertions(+)

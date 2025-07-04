@@ -1,0 +1,22 @@
+commit 58768ae15b3f892b9b1902220ba3564375e5c6de
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 2 18:13:14 2020 -0800
+
+    test: match gccgo error messages
+    
+    assign.go:59:28: error: ‘x’ repeated on left side of :=
+    assign.go:65:20: error: ‘a’ repeated on left side of :=
+    
+    method2.go:36:11: error: reference to method ‘val’ in type that is pointer to interface, not interface
+    method2.go:37:11: error: reference to method ‘val’ in type that is pointer to interface, not interface
+    
+    Change-Id: I8f385c75a82fae4eacf4618df8f9f65932826494
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274447
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ test/assign.go  | 4 ++--
+ test/method2.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,34 @@
+commit cf99535e218c542d01f252492789ff88acc4bfb9
+Author: sergey <sngasuan@gmail.com>
+Date:   Sun Feb 17 21:29:39 2019 +0300
+
+    net/http: reduce allocs on write cookie
+    
+    Pregrow buffer to reduce allocs on building cookie string.
+    We calc cookie name value and domain size (most distributed by value) and
+    add 110 extra characters allows to write most cookie attributes
+    without additional allocations in most cases.
+    
+    name              old time/op    new time/op    delta
+    CookieString-4      1.65µs ± 3%    1.27µs ± 2%  -23.01%  (p=0.008 n=5+5)
+    ReadSetCookies-4    5.78µs ± 4%    5.67µs ± 3%     ~     (p=0.310 n=5+5)
+    ReadCookies-4       7.12µs ± 4%    7.04µs ± 3%     ~     (p=0.690 n=5+5)
+    
+    name              old alloc/op   new alloc/op   delta
+    CookieString-4        360B ± 0%      144B ± 0%  -60.00%  (p=0.008 n=5+5)
+    ReadSetCookies-4      976B ± 0%      976B ± 0%     ~     (all equal)
+    ReadCookies-4       2.17kB ± 0%    2.17kB ± 0%     ~     (all equal)
+    
+    name              old allocs/op  new allocs/op  delta
+    CookieString-4        5.00 ± 0%      1.00 ± 0%  -80.00%  (p=0.008 n=5+5)
+    ReadSetCookies-4      15.0 ± 0%      15.0 ± 0%     ~     (all equal)
+    ReadCookies-4         16.0 ± 0%      16.0 ± 0%     ~     (all equal)
+    
+    Change-Id: I50defac954a135b785b3551342b00878429b3d7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163017
+    Reviewed-by: Volker Dobler <dr.volker.dobler@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/cookie.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,19 @@
+commit 33995fe59eddb3f84e537a8d44e39ef93bc764e8
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Tue Feb 5 09:54:01 2013 -0800
+
+    log/syslog: retry once if write fails
+    
+    Implements deferred connections + single-attempt automatic
+    retry. Based on CL 5078042 from kuroneko.
+    
+    Fixes #2264.
+    
+    R=mikioh.mikioh, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6782140
+
+ src/pkg/log/syslog/syslog.go      | 142 ++++++++++++++--------
+ src/pkg/log/syslog/syslog_test.go | 245 ++++++++++++++++++++++++++++++++------
+ src/pkg/log/syslog/syslog_unix.go |   8 +-
+ 3 files changed, 306 insertions(+), 89 deletions(-)

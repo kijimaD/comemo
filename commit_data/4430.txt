@@ -1,0 +1,13 @@
+commit 8e2608eca8960819791eb4d89b3028e26a29498d
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Tue Dec 15 16:27:45 2009 -0800
+
+    Add basic http authentication support.
+    Fixes #407.
+    
+    R=rsc, ajstarks
+    CC=ushakov
+    https://golang.org/cl/176076
+
+ src/pkg/http/client.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,0 +1,16 @@
+commit 8b836fa87234c5809891eceaeb87f63223217999
+Author: Peter Collingbourne <pcc@google.com>
+Date:   Mon Jul 14 09:51:20 2014 -0400
+
+    cmd/go: introduce support for $GCCGO env var
+    
+    This variable allows users to select the compiler when using the
+    gccgo toolchain.
+    
+    LGTM=rsc
+    R=rsc, iant, minux, aram
+    CC=axwalk, golang-codereviews
+    https://golang.org/cl/106700044
+
+ src/cmd/go/build.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

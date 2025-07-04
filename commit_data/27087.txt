@@ -1,0 +1,21 @@
+commit 3411d6321979b33291e3b4c6fe79d4dd41bd5fba
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 15 19:19:58 2016 -0700
+
+    net: keep waiting for valid DNS response until timeout
+    
+    Prevents denial of service attacks from bogus UDP packets.
+    
+    Fixes #13281.
+    
+    Change-Id: Ifb51b17a1b0807bfd27b144d6037431701184e7b
+    Reviewed-on: https://go-review.googlesource.com/22126
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/dnsclient_unix.go      |  99 ++++++++++++++++++----------------
+ src/net/dnsclient_unix_test.go |  83 ++++++++++++++++++++++++-----
+ src/net/dnsmsg.go              |  20 +++++++
+ src/net/dnsmsg_test.go         | 118 +++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 260 insertions(+), 60 deletions(-)

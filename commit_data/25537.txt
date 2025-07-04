@@ -1,0 +1,16 @@
+commit 918edf433b363d26d176d4cd6bc4c3928cc2520e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 8 17:56:50 2016 -0800
+
+    go/importer: use correct path for path->package map
+    
+    In the presence of vendored packages, the path found in a package
+    declaration may not be the path at which the package imported from
+    srcDir was found. Use the correct package path.
+    
+    Change-Id: I74496c3cdf82a5dbd6a5bd189bb3cd0ca103fd52
+    Reviewed-on: https://go-review.googlesource.com/18460
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/internal/gcimporter/gcimporter.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

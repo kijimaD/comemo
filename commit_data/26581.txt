@@ -1,0 +1,17 @@
+commit aec8e14589edecfd9752255e742b88e15ee651f2
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sun Mar 20 18:12:32 2016 +0100
+
+    fmt: fix padding for 0 precision 0 integer value formatting
+    
+    Fixes #14924
+    
+    Change-Id: I098ef973e2cad76a121704492758c2971a9b55f3
+    Reviewed-on: https://go-review.googlesource.com/20920
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 1 +
+ src/fmt/format.go   | 5 ++++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

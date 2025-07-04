@@ -1,0 +1,23 @@
+commit 0f1227c507c62b635a3b4b85f5b7a967df72b59f
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Sep 7 09:27:50 2023 -0700
+
+    context: avoid key collisions in test afterfunc map
+    
+    The afterFuncContext type, used only in tests, contains a
+    set of registered afterfuncs indexed by an arbitrary unique key.
+    
+    That key is currently a *struct{}. Unfortunately, all
+    *struct{} pointers are equal to each other, so all registered
+    funcs share the same key. Fortunately, the tests using this
+    type never register more than one afterfunc.
+    
+    Change the key to a *byte.
+    
+    Change-Id: Icadf7d6f258e328f6e3375846d29ce0f98b60924
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526655
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/context/afterfunc_test.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

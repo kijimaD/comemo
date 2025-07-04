@@ -1,0 +1,24 @@
+commit 0a5be12f5c1288a090329d9f540d6a0aad90b6e6
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Fri Feb 16 15:54:55 2018 +0200
+
+    cmd/internal/obj/arm: add DMB instruction
+    
+    Change-Id: Ib67a61d5b37af210ff15d60d72bd5238b9c2d0ca
+    Reviewed-on: https://go-review.googlesource.com/94815
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/arch/arch.go     | 10 +++++++
+ src/cmd/internal/obj/arm/a.out.go     | 20 +++++++++++++-
+ src/cmd/internal/obj/arm/anames.go    |  1 +
+ src/cmd/internal/obj/arm/anames5.go   |  1 +
+ src/cmd/internal/obj/arm/asm5.go      | 50 +++++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/arm/list5.go     | 17 ++++++++++++
+ src/runtime/asm_arm.s                 |  2 +-
+ src/runtime/internal/atomic/asm_arm.s |  4 +--
+ src/sync/atomic/asm_arm.s             |  4 +--
+ src/sync/atomic/asm_darwin_arm.s      | 14 +++-------
+ src/sync/atomic/asm_plan9_arm.s       |  2 +-
+ 11 files changed, 108 insertions(+), 17 deletions(-)

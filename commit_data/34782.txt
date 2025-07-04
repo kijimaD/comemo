@@ -1,0 +1,14 @@
+commit 55732ad839164e65af3088bffcf569fab07ae4b3
+Author: Samuel Tan <samueltan@google.com>
+Date:   Thu Mar 29 17:50:46 2018 -0700
+
+    html/template: fix one more lint naming error
+    
+    Change-Id: I629d89d5065271f3b92dde8b12f0e743c9bde8f0
+    Reviewed-on: https://go-review.googlesource.com/103595
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/html/template/url.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

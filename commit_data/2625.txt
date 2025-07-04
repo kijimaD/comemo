@@ -1,0 +1,13 @@
+commit b9b32cab5880d77edb8cf6e05cf41b50bd6fd9b6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 11:03:50 2009 -0700
+
+    datafmt: use new reflect interface (CL 31107)
+    
+    R=gri
+    DELTA=70  (7 added, 17 deleted, 46 changed)
+    OCL=31113
+    CL=31283
+
+ src/pkg/datafmt/datafmt.go | 106 ++++++++++++++++++++-------------------------
+ 1 file changed, 48 insertions(+), 58 deletions(-)

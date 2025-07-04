@@ -1,0 +1,22 @@
+commit 02d7eab52796574b44717d45d5def42c9068b56a
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Oct 31 11:33:00 2021 -0400
+
+    go/parser: allow parsing aliases with type parameters
+    
+    We already guard against this in the type checker, and it will
+    eventually be allowed per the accepted proposal.
+    
+    Add a placeholder error code for the corresponding type checker error.
+    
+    Change-Id: I5cc2f1413ecc89ec2094f7178fdb156fb8cc2e43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360235
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/parser/parser.go     | 6 ++++--
+ src/go/parser/short_test.go | 2 +-
+ src/go/types/decl.go        | 2 +-
+ 3 files changed, 6 insertions(+), 4 deletions(-)

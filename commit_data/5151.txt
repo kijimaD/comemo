@@ -1,0 +1,12 @@
+commit baf538406bb89f43c96e71ffcda0a8b4fcf68820
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 26 15:32:53 2010 -0700
+
+    pprof: dump extra heap information at end of heap profile
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/786041
+
+ src/pkg/runtime/pprof/pprof.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

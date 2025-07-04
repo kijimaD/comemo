@@ -1,0 +1,25 @@
+commit 615d44c287a9c8a5f1062dd24ba341d806abc944
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 31 17:34:22 2018 -0500
+
+    runtime: refactor test for pushing sigpanic frame
+    
+    This logic is duplicated in all of the preparePanic functions. Pull it
+    out into one architecture-independent function.
+    
+    Change-Id: I7ef4e78e3eda0b7be1a480fb5245fc7424fb2b4e
+    Reviewed-on: https://go-review.googlesource.com/91255
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/panic.go              | 33 +++++++++++++++++++++++++++++++++
+ src/runtime/signal_386.go         | 17 ++---------------
+ src/runtime/signal_amd64x.go      | 17 ++---------------
+ src/runtime/signal_arm.go         | 14 ++------------
+ src/runtime/signal_arm64.go       | 14 ++------------
+ src/runtime/signal_linux_s390x.go | 14 ++------------
+ src/runtime/signal_mips64x.go     | 14 ++------------
+ src/runtime/signal_mipsx.go       | 14 ++------------
+ src/runtime/signal_ppc64x.go      | 14 ++------------
+ 9 files changed, 49 insertions(+), 102 deletions(-)

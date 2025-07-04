@@ -1,0 +1,12 @@
+commit 68f1609eb43d61decf45a6da5fcea3659695f659
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 1 10:40:50 2010 +1000
+
+    spec: fix a couple of tiny glitches
+    
+    R=gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/2078041
+
+ doc/go_spec.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

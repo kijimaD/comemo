@@ -1,0 +1,18 @@
+commit 8ebd7f716785c5d6c0cf7543aa12ccac7548884b
+Author: Chris Lennert <calennert@gmail.com>
+Date:   Mon Nov 23 17:44:44 2009 -0800
+
+    Provides implementation of MD4 hashing algorithm.
+    
+    See IETF RFC 1320, http://tools.ietf.org/html/rfc1320.
+    Fixes #279.
+    
+    R=rsc
+    https://golang.org/cl/159051
+
+ src/pkg/Makefile               |   1 +
+ src/pkg/crypto/md4/Makefile    |  12 +++++
+ src/pkg/crypto/md4/md4.go      | 115 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/md4/md4_test.go |  66 +++++++++++++++++++++++
+ src/pkg/crypto/md4/md4block.go |  85 ++++++++++++++++++++++++++++++
+ 5 files changed, 279 insertions(+)

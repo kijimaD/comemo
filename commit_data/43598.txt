@@ -1,0 +1,21 @@
+commit 308ec220a2e55e0948505881b051cbefa05cf696
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Fri Oct 16 18:35:30 2020 +0800
+
+    cmd/asm: refactor some encoding functions for load/store with immediate offset on arm64
+    
+    Some of the current functions for encoding load/store with
+    immediate offset instructions, like opstr12(), opstr9(),
+    opldr12(), opldr9() and opldrpp(), etc., they have the same
+    code, so this patch refactors them and merges them into two
+    functions opstr() and opldr().
+    
+    Change-Id: I60367f8b720b77c7ebe6d66905a950dcf7701836
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263479
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+
+ src/cmd/internal/obj/arm64/asm7.go | 153 +++++++++++--------------------------
+ 1 file changed, 44 insertions(+), 109 deletions(-)

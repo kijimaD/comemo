@@ -1,0 +1,17 @@
+commit 9f1ccd647fcdb1b703c1042c90434e15aff75013
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Fri Apr 22 00:47:04 2016 +0530
+
+    net/url: validate ports in IPv4 addresses
+    
+    Fixes #14860
+    
+    Change-Id: Id55ad942d45a104d560a879d6e8e1aa09671789b
+    Reviewed-on: https://go-review.googlesource.com/22351
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/url/url.go      | 6 +++++-
+ src/net/url/url_test.go | 6 ++++--
+ 2 files changed, 9 insertions(+), 3 deletions(-)

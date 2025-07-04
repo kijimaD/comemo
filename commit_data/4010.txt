@@ -1,0 +1,18 @@
+commit 6634e3432d7e8311013dc96c1e78a11d4a2e2a3c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 12 00:22:45 2009 -0800
+
+    cc, ld: fix more gcc 4.3 -O2 compile bugs
+    
+    same as https://golang.org/cl/152088
+    in more files.
+    
+    Fixes #83.
+    
+    R=r, r1
+    https://golang.org/cl/152091
+
+ src/cmd/cc/lex.c | 3 +--
+ src/cmd/ld/go.c  | 4 ++--
+ src/cmd/ld/lib.c | 4 ++--
+ 3 files changed, 5 insertions(+), 6 deletions(-)

@@ -1,0 +1,24 @@
+commit 17fc373af770bd886502ded95da0d68fcc7adebd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 24 14:14:26 2011 -0500
+
+    codereview: handle file patterns better
+    
+    If a file pattern is given and matches files that look
+    like they need to be hg added or hg removed, offer to do so.
+    
+    If a file pattern is given and matches files in another CL, warn.
+    
+    If a file pattern doesn't match anything, point that out.
+    
+    Vet first line of CL description.
+    
+    Fixes #972.
+    
+    R=adg, niemeyer
+    CC=bradfitzgo, golang-dev
+    https://golang.org/cl/4099042
+
+ .hgignore                    |   1 +
+ lib/codereview/codereview.py | 156 +++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 138 insertions(+), 19 deletions(-)

@@ -1,0 +1,15 @@
+commit 81d26e3817524c98e24c5a2a01bc87fbceb9c61b
+Author: Julien Schmidt <google@julienschmidt.com>
+Date:   Fri Mar 22 12:19:21 2013 -0700
+
+    database/sql: add missing []byte and RawBytes conversions
+    
+    E.g conversions from numeric types to RawBytes are missing, what makes RawBytes unusable in some cases.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7783046
+
+ src/pkg/database/sql/convert.go      | 32 ++++++++++++++++++++++++++++++++
+ src/pkg/database/sql/convert_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 62 insertions(+)

@@ -1,0 +1,18 @@
+commit dabc361847f1daa8dee430fc6cf29c52e6f644cc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 7 11:42:36 2017 -0700
+
+    runtime: use constants for map string key size
+    
+    It appears that this was just missed
+    by accident in the original implementation.
+    
+    Change-Id: Id87147bcb7a685d624eac7034342a305ad644e7a
+    Reviewed-on: https://go-review.googlesource.com/53891
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
+
+ src/runtime/hashmap_fast.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

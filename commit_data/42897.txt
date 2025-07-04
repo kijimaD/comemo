@@ -1,0 +1,28 @@
+commit ef20f76b8bc4e082d5f81fd818890d707751475b
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Wed Sep 2 01:08:02 2020 -0700
+
+    net/http: reject negative suffix-length Range:bytes=--N with 416 status code
+    
+    Fixes the file server to reject requests of the form:
+        "Range": "bytes=--N"
+    where "-N" is a negative suffix-length as designated by the
+    grammar in RFC 7233 Section 2.1, "Byte-Ranges", which specifies
+    that suffix-length MUST be of the form 1*DIGIT aka a non-negative digit.
+    
+    Thus requests such as:
+        "Range": "bytes=--2"
+    will be rejected with a "416 Range Not Satisfiable" response.
+    
+    Fixes #40940
+    
+    Change-Id: I3e89f8326c14af30d8bdb126998a50e02ba002d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252497
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.16.html         |  6 +++++
+ src/net/http/fs.go      | 10 +++++++--
+ src/net/http/fs_test.go | 58 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 72 insertions(+), 2 deletions(-)

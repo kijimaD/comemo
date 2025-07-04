@@ -1,0 +1,38 @@
+commit 8e121b1587bd921ea84c7da49cab3f48dc6b8f36
+Author: Xiangdong Ji <xiangdong.ji@arm.com>
+Date:   Fri Mar 27 11:04:21 2020 +0000
+
+    runtime: fix infinite callstack of cgo on arm64
+    
+    This change adds CFA information to the assembly function 'crosscall1'
+    and reorgnizes its code to establish well-formed prologue and epilogue.
+    It will fix an infinite callstack issue when debugging cgo program with
+    GDB on arm64.
+    
+    Brief root cause analysis:
+    
+    GDB's aarch64 unwinder parses prologue to determine current frame's size
+    and previous PC&SP if CFA information is not available.
+    
+    The unwinder parses the prologue of 'crosscall1' to determine a frame size
+    of 0x10, then turns to its next frame trying to compute its previous PC&SP
+    as they are not saved on current frame's stack as per its 'traditional frame
+    unwind' rules, which ends up getting an endless frame chain like:
+        [callee]  : pc:<pc0>, sp:<sp0>
+        crosscall1: pc:<pc1>, sp:<sp0>+0x10
+        [caller]  : pc:<pc1>, sp:<sp0>+0x10+0x10
+        [caller]  : pc:<pc1>, sp:<sp0>+0x10+0x10+0x10
+        ...
+    GDB fails to detect the 'caller' frame is same as 'crosscall1' and terminate
+    unwinding since SP increases everytime.
+    
+    Fixes #37238
+    Change-Id: Ia6bd8555828541a3a61f7dc9b94dfa00775ec52a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226999
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/gcc_arm64.S     | 53 ++++++++++++++++++++-------
+ src/runtime/runtime-gdb_test.go | 80 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 121 insertions(+), 12 deletions(-)

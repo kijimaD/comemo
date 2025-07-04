@@ -1,0 +1,14 @@
+commit 708d7160fa84ee79924fc7cf0bc29acb03406e6f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 14 13:29:12 2010 -0700
+
+    tutorial: show how to compile helloworld3, which depends on ./file
+    make shell prompts consistent
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1824042
+
+ doc/go_tutorial.html | 26 ++++++++++++++------------
+ doc/go_tutorial.txt  | 20 +++++++++++++-------
+ 2 files changed, 27 insertions(+), 19 deletions(-)

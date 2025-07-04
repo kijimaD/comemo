@@ -1,0 +1,20 @@
+commit 1734cb02e7c333ccffb7b318b71c195ce6ee3a61
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 18 11:15:36 2010 -0800
+
+    gc: recursive interface embedding
+    
+    Fixes #287.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/215048
+
+ src/cmd/gc/dcl.c                   | 44 ++++++++++++++++++++--------------
+ src/cmd/gc/go.h                    |  2 ++
+ src/cmd/gc/typecheck.c             |  2 +-
+ src/cmd/gc/walk.c                  | 48 ++++++++++++++++++++++++++++++++++----
+ test/{bugs => fixedbugs}/bug250.go |  0
+ test/{bugs => fixedbugs}/bug251.go |  6 ++---
+ test/golden.out                    | 14 -----------
+ 7 files changed, 76 insertions(+), 40 deletions(-)

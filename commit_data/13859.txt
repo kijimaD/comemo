@@ -1,0 +1,22 @@
+commit 8c058b32d1838e67d67277564b6cb9b0bccd1e75
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 18 11:25:53 2012 -0700
+
+    spec: clarify expression statements
+    
+    Function and method calls are valid expression statements,
+    but calling certain built-in functions is not permitted.
+    Enumerate the built-ins.
+    
+    Also: unsafe.Offsetof permits parenthesized selectors as
+    arguments.
+    
+    This is simply documenting existing compiler behavior
+    (both gc and gccgo agree).
+    
+    R=r, rsc, iant, ken
+    CC=golang-dev
+    https://golang.org/cl/6498138
+
+ doc/go_spec.html | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

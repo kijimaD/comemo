@@ -1,0 +1,55 @@
+commit 2a7355902302f9eac676a09f535e10723e77ad7a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 17 11:07:38 2015 -0400
+
+    cmd/internal/gc: emit typedmemmove write barrier from sgen
+    
+    Emitting it here instead of rewriting the tree earlier sets us up
+    to generate an inline check, like we do for single pointers.
+    But even without the inline check, generating at this level lets
+    us generate significantly more efficient code, probably due to
+    having fewer temporaries and less complex high-level code
+    for the compiler to churn through.
+    
+    Revcomp is worse, almost certainly due to register pressure.
+    
+    name                                       old                     new          delta
+    BenchmarkBinaryTree17              18.0s × (0.99,1.01)     18.0s × (0.99,1.01)  ~
+    BenchmarkFannkuch11                4.43s × (1.00,1.00)     4.36s × (1.00,1.00)  -1.44%
+    BenchmarkFmtFprintfEmpty           114ns × (0.95,1.05)      86ns × (0.97,1.06)  -24.12%
+    BenchmarkFmtFprintfString          468ns × (0.99,1.01)     420ns × (0.99,1.02)  -10.16%
+    BenchmarkFmtFprintfInt             433ns × (1.00,1.01)     386ns × (0.99,1.02)  -10.74%
+    BenchmarkFmtFprintfIntInt          748ns × (0.99,1.01)     647ns × (0.99,1.01)  -13.56%
+    BenchmarkFmtFprintfPrefixedInt     547ns × (0.99,1.01)     499ns × (0.99,1.02)  -8.78%
+    BenchmarkFmtFprintfFloat           756ns × (1.00,1.01)     689ns × (1.00,1.00)  -8.86%
+    BenchmarkFmtManyArgs              2.79µs × (1.00,1.01)    2.53µs × (1.00,1.00)  -9.30%
+    BenchmarkGobDecode                39.6ms × (0.99,1.00)    39.2ms × (0.98,1.01)  -1.07%
+    BenchmarkGobEncode                37.6ms × (1.00,1.01)    37.5ms × (0.99,1.01)  ~
+    BenchmarkGzip                      663ms × (0.99,1.02)     660ms × (0.98,1.01)  ~
+    BenchmarkGunzip                    142ms × (1.00,1.00)     143ms × (1.00,1.00)  ~
+    BenchmarkHTTPClientServer          132µs × (0.99,1.01)     133µs × (0.99,1.02)  ~
+    BenchmarkJSONEncode               56.2ms × (0.99,1.01)    54.0ms × (0.98,1.01)  -3.97%
+    BenchmarkJSONDecode                138ms × (1.00,1.00)     134ms × (0.99,1.02)  -2.70%
+    BenchmarkMandelbrot200            6.03ms × (1.00,1.01)    6.00ms × (1.00,1.01)  ~
+    BenchmarkGoParse                  9.82ms × (0.93,1.10)   10.35ms × (0.88,1.11)  ~
+    BenchmarkRegexpMatchEasy0_32       207ns × (1.00,1.00)     163ns × (0.99,1.01)  -21.26%
+    BenchmarkRegexpMatchEasy0_1K       581ns × (1.00,1.01)     566ns × (0.99,1.00)  -2.50%
+    BenchmarkRegexpMatchEasy1_32       185ns × (0.99,1.01)     138ns × (1.00,1.01)  -25.41%
+    BenchmarkRegexpMatchEasy1_1K       975ns × (1.00,1.01)     892ns × (1.00,1.00)  -8.51%
+    BenchmarkRegexpMatchMedium_32      328ns × (0.99,1.00)     252ns × (1.00,1.00)  -23.17%
+    BenchmarkRegexpMatchMedium_1K     88.6µs × (1.00,1.01)    73.0µs × (1.00,1.01)  -17.66%
+    BenchmarkRegexpMatchHard_32       4.69µs × (0.95,1.03)    3.85µs × (1.00,1.01)  -17.91%
+    BenchmarkRegexpMatchHard_1K        133µs × (1.00,1.01)     117µs × (1.00,1.00)  -12.34%
+    BenchmarkRevcomp                   902ms × (0.99,1.05)    1001ms × (0.94,1.01)  +11.04%
+    BenchmarkTemplate                  174ms × (0.99,1.01)     160ms × (0.99,1.01)  -7.70%
+    BenchmarkTimeParse                 639ns × (1.00,1.00)     622ns × (1.00,1.00)  -2.66%
+    BenchmarkTimeFormat                736ns × (1.00,1.01)     736ns × (1.00,1.02)  ~
+    
+    Change-Id: Ib3bbeb379f5f4819e6f5dcf69bc88a2b7ed41460
+    Reviewed-on: https://go-review.googlesource.com/9225
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/cgen.go | 9 +++++----
+ src/cmd/internal/gc/walk.go | 8 ++++++--
+ 2 files changed, 11 insertions(+), 6 deletions(-)

@@ -1,0 +1,17 @@
+commit de1f856d660e38c42c82f382209085bb65980fa9
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 16 07:51:44 2011 +1000
+
+    builtin: add documentation for builtins
+    Do this by adding a fake package called builtin. At the moment, godoc will
+    not present this documentation because the function names are all lower case,
+    but there are plans to address this.
+    The print and println functions are undocumented here. I could be talked
+    into doing them but I'd rather not promote their use.
+    
+    R=dsymonds, n13m3y3r, r, gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/4907041
+
+ src/pkg/builtin/builtin.go | 133 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 133 insertions(+)

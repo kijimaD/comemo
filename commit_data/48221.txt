@@ -1,0 +1,28 @@
+commit f9285818b6890b896f43a38449e35744d97c817a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Feb 27 18:13:23 2022 -0800
+
+    go/types, types2: fix string to type parameter conversions
+    
+    Converting an untyped constant to a type parameter results
+    in a non-constant value; but the constant must still be
+    representable by all specific types of the type parameter.
+    
+    Adjust the special handling for constant-to-type parameter
+    conversions to also include string-to-[]byte and []rune
+    conversions, which are handled separately for conversions
+    to types that are not type parameters because those are not
+    constant conversions in non-generic code.
+    
+    Fixes #51386.
+    
+    Change-Id: I15e5a0fd281efd15af387280cd3dee320a1ac5e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388254
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/conversions.go          |  5 ++++-
+ .../internal/types2/testdata/fixedbugs/issue51386.go2   | 17 +++++++++++++++++
+ src/go/types/conversions.go                             |  5 ++++-
+ src/go/types/testdata/fixedbugs/issue51386.go2          | 17 +++++++++++++++++
+ 4 files changed, 42 insertions(+), 2 deletions(-)

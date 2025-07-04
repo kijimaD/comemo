@@ -1,0 +1,13 @@
+commit 64f064cac6e3e89f75873b7fa05af16537d28ccf
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 19 15:12:49 2017 +1000
+
+    net: make syscall name consistent with others
+    
+    Change-Id: Ic6d2de92e1f533a9f9a0cd6d7dab463bdafb0e11
+    Reviewed-on: https://go-review.googlesource.com/43691
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+
+ src/net/fd_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

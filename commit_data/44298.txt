@@ -1,0 +1,21 @@
+commit 427bd7599d1aa2bc89faecff09777a5a662e5bf8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 15:16:13 2021 -0500
+
+    runtime: generate windows/arm64 callback asm
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    
+    Change-Id: I5e2b589797808626bcca771cdf860d5cb85586cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288826
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/runtime/syscall_windows.go        |    4 +-
+ src/runtime/wincallback.go            |   29 +
+ src/runtime/zcallback_windows_arm64.s | 4012 +++++++++++++++++++++++++++++++++
+ 3 files changed, 4043 insertions(+), 2 deletions(-)

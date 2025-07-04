@@ -1,0 +1,30 @@
+commit 21ac258e07a3b265ab09695576ffa2f1a92befe9
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Aug 8 09:56:38 2011 -0400
+
+    runtime: openbsd amd64 runtime support
+    
+    Add support for the go runtime on openbsd/amd64. This is based on
+    the existing freebsd runtime.
+    
+    Threads are implemented using OpenBSD's rthreads, which are currently
+    disabled by default, however can be enabled via the kern.rthreads
+    sysctl.
+    
+    For now, cgo is disabled.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4815067
+
+ src/pkg/runtime/cgo/Makefile           |   3 +
+ src/pkg/runtime/openbsd/amd64/defs.h   | 149 ++++++++++++++++++++++
+ src/pkg/runtime/openbsd/amd64/rt0.s    |   8 ++
+ src/pkg/runtime/openbsd/amd64/signal.c | 199 +++++++++++++++++++++++++++++
+ src/pkg/runtime/openbsd/amd64/sys.s    | 221 +++++++++++++++++++++++++++++++++
+ src/pkg/runtime/openbsd/defs.c         | 103 +++++++++++++++
+ src/pkg/runtime/openbsd/mem.c          |  74 +++++++++++
+ src/pkg/runtime/openbsd/os.h           |  12 ++
+ src/pkg/runtime/openbsd/signals.h      |  52 ++++++++
+ src/pkg/runtime/openbsd/thread.c       | 156 +++++++++++++++++++++++
+ 10 files changed, 977 insertions(+)

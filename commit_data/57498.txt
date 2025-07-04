@@ -1,0 +1,26 @@
+commit 0081f17f146140f5c02344bed16c530472fcdb0f
+Author: Song Gao <song@gao.io>
+Date:   Fri Apr 12 01:18:29 2024 -0700
+
+    archive/{zip,tar}: fix Writer.AddFS to include empty directories
+    
+    This change modifies the `(*Writer).AddFS` implementation in both `archive/zip`
+    and `archive/tar` to always write a directory header. This fixes a bug where
+    any empty directories in the fs were omitted when a zip or tar archive was
+    created from `AddFS` method.
+    
+    Fixes #66831
+    
+    Change-Id: Id32c9c747f9f65ec7db4aeefeaffa83567215bfc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578415
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/6-stdlib/99-minor/archive/66831.md |  2 +
+ src/archive/tar/writer.go                   |  8 +++-
+ src/archive/tar/writer_test.go              | 57 ++++++++++++++++++++---------
+ src/archive/zip/writer.go                   |  7 +++-
+ src/archive/zip/writer_test.go              | 23 +++++-------
+ 5 files changed, 63 insertions(+), 34 deletions(-)

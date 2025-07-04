@@ -1,0 +1,17 @@
+commit e54662dc859f65f90eefede76a6134f8d892cc77
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 17 13:35:59 2016 -0800
+
+    go/types: look at underlying type of element type of composite literals with elided types
+    
+    Match behavior of gc and gccgo.
+    
+    For #17954.
+    
+    Change-Id: I3f065e56d0a623bd7642c1438d0cab94d23fa2ae
+    Reviewed-on: https://go-review.googlesource.com/33358
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/types/expr.go            | 30 ++++++++++++++++++------------
+ src/go/types/testdata/expr3.src | 24 ++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 12 deletions(-)

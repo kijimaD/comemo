@@ -1,0 +1,20 @@
+commit 4335bee42e5c45b3d6cb9919af9867d94c251486
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 22 09:30:30 2011 -0700
+
+    os/user: new package to look up users
+    
+    Only for Unix presently. Other operating systems
+    are stubbed out, as well as arm (lacks cgo).
+    
+    R=rsc, r, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4440057
+
+ src/pkg/Makefile                |   1 +
+ src/pkg/os/user/Makefile        |  26 ++++++++++
+ src/pkg/os/user/lookup_stubs.go |  19 ++++++++
+ src/pkg/os/user/lookup_unix.go  | 104 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/os/user/user.go         |  35 ++++++++++++++
+ src/pkg/os/user/user_test.go    |  61 +++++++++++++++++++++++
+ 6 files changed, 246 insertions(+)

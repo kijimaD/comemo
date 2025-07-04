@@ -1,0 +1,14 @@
+commit db9348b866775974b5e04eed04c03de47f1c2d46
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Mar 20 21:41:07 2016 -0400
+
+    reflect: add s390x support
+    
+    Change-Id: I1f975130179cf26af67e82664310b93d43e87a75
+    Reviewed-on: https://go-review.googlesource.com/20944
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/reflect/asm_s390x.s | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

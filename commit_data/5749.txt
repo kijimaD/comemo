@@ -1,0 +1,26 @@
+commit 489494cac33868cc207fc2f6d43444e0a99e67cd
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 30 23:31:27 2010 -0700
+
+    cgo: use slash-free relative paths for .so references
+    
+    The Makefile and cgo now rewrite / to _ when creating the path.
+    The .so for gosqlite.googlecode.com/hg/sqlite is named
+    cgo_gosqlite.googlecode.com_hg_sqlite.so, and then 6l and 8l
+    both include a default rpath of $GOROOT/pkg/$GOOS_$GOARCH.
+    This should make it easier to move binaries from one system
+    to another.
+    
+    Fixes #857.
+    
+    R=iant, r
+    CC=golang-dev
+    https://golang.org/cl/1700048
+
+ src/Make.pkg       |  5 +++--
+ src/cmd/5l/obj.c   |  2 ++
+ src/cmd/6l/obj.c   |  2 ++
+ src/cmd/8l/obj.c   |  2 ++
+ src/cmd/cgo/out.go | 32 ++++++++++++++++++++++++--------
+ src/cmd/ld/macho.c |  7 +++++++
+ 6 files changed, 40 insertions(+), 10 deletions(-)

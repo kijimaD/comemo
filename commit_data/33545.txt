@@ -1,0 +1,21 @@
+commit 66bfbd9ad7a93ea85175bf1db663ca5f440666e3
+Author: Fangming.Fang <fangming.fang@arm.com>
+Date:   Wed Nov 8 02:17:51 2017 +0000
+
+    internal/cpu: detect cpu features in internal/cpu package
+    
+    change hash/crc32 package to use cpu package instead of using
+    runtime internal variables to check crc32 instruction
+    
+    Change-Id: I8f88d2351bde8ed4e256f9adf822a08b9a00f532
+    Reviewed-on: https://go-review.googlesource.com/76490
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/hash/crc32/crc32_arm64.go  |  5 +++--
+ src/hash/crc32/crc32_arm64.s   |  6 ------
+ src/internal/cpu/cpu.go        | 18 ++++++++++++++++++
+ src/internal/cpu/cpu_arm64.go  | 41 ++++++++++++++++++++++++++++++++++++-----
+ src/runtime/os_darwin_arm64.go |  2 --
+ src/runtime/os_linux_arm64.go  | 20 +++++++++++++++-----
+ 6 files changed, 72 insertions(+), 20 deletions(-)

@@ -1,0 +1,24 @@
+commit f620a430f270abe794d0dcfb7597a28ec649f51c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 14 14:57:12 2010 -0500
+
+    compress/flate: implement Flush
+    
+    This Flush is equivalent to zlib's Z_SYNC_FLUSH.
+    The addition of the explicit Writer type opens the
+    door to adding a PartialFlush if needed for SSH
+    and maybe even FullFlush.  It also opens the door
+    for a SetDictionary method to be added.
+    
+    http://www.bolet.org/~pornin/deflate-flush.html
+    documents the various intricacies of flushing a
+    DEFLATE stream.
+    
+    R=agl1, r
+    CC=golang-dev
+    https://golang.org/cl/3637041
+
+ src/pkg/compress/flate/deflate.go      | 128 ++++++++++++++++++++++++------
+ src/pkg/compress/flate/deflate_test.go | 139 +++++++++++++++++++++++++++++++--
+ src/pkg/compress/flate/inflate.go      |  28 ++++---
+ 3 files changed, 255 insertions(+), 40 deletions(-)

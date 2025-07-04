@@ -1,0 +1,25 @@
+commit bb59a1360a9e6c2d32a59461da56e9bc3a5703ef
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Mon May 18 09:34:17 2020 +0100
+
+    runtime: don't enable notes (=signals) too early in Plan 9
+    
+    The Plan 9 runtime startup was enabling notes (like Unix signals)
+    before the gsignal stack was allocated. This left a small window
+    of time where an interrupt (eg by the parent killing a subprocess
+    quickly after exec) would cause a null pointer dereference in
+    sigtramp. This would leave the interrupted process suspended in
+    'broken' state instead of exiting. We've observed this on the
+    builders, where it can make a test time out waiting for the broken
+    process to terminate.
+    
+    Updates #38772
+    
+    Change-Id: I54584069fd3109595f06c78724c1f6419e028aab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234397
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/runtime/os_plan9.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

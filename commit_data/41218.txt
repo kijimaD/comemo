@@ -1,0 +1,18 @@
+commit 753d56d3642eb83848aa39e65982a9fc77e722d7
+Author: Hajime Hoshi <hajimehoshi@gmail.com>
+Date:   Sun Feb 2 14:55:29 2020 +0900
+
+    syscall: release a js.Func object in fsCall
+    
+    A js.Func object in fsCall was created for each call but never
+    released. This CL fixes this.
+    
+    Change-Id: I2e2b504cbf4fb130b8cfe890a66d3a66aadf56a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217417
+    Run-TryBot: Hajime Hoshi <hajimehoshi@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ src/syscall/fs_js.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

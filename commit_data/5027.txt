@@ -1,0 +1,12 @@
+commit 529369e452b90a37ee696df102b865f164432f4d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 9 15:09:37 2010 -0800
+
+    gc: remove duplicate errors, give better error for I.(T)
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/370041
+
+ src/cmd/gc/subr.c | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)

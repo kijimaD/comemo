@@ -1,0 +1,15 @@
+commit 8acaacb665afcdbb6fb98584f963ff4471f0a8fc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 27 09:56:26 2015 -0700
+
+    compress/gzip: clarify Latin-1 restrictions on gzip.Header
+    
+    Fixes #12361.
+    
+    Change-Id: Ifd62e8d93b2d733e67e0186c7185cd6291d3bbc1
+    Reviewed-on: https://go-review.googlesource.com/13939
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/compress/gzip/gunzip.go | 3 +++
+ src/compress/gzip/gzip.go   | 5 +----
+ 2 files changed, 4 insertions(+), 4 deletions(-)

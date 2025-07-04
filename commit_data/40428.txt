@@ -1,0 +1,29 @@
+commit 8c5861576a983684faac98c612c9c7e569974ffa
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 27 14:13:22 2019 -0400
+
+    runtime: remove g.gcscanvalid
+    
+    Currently, gcscanvalid is used to resolve a race between attempts to
+    scan a stack. Now that there's a clear owner of the stack scan
+    operation, there's no longer any danger of racing or attempting to
+    scan a stack more than once, so this CL eliminates gcscanvalid.
+    
+    I double-checked my reasoning by first adding a throw if gcscanvalid
+    was set in scanstack and verifying that all.bash still passed.
+    
+    For #10958, #24543.
+    Fixes #24363.
+    
+    Change-Id: I76794a5fcda325ed7cfc2b545e2a839b8b3bc713
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201139
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/mgc.go         |  3 +--
+ src/runtime/mgcmark.go     |  9 +--------
+ src/runtime/proc.go        | 31 -------------------------------
+ src/runtime/runtime2.go    |  1 -
+ src/runtime/sizeof_test.go |  2 +-
+ 5 files changed, 3 insertions(+), 43 deletions(-)

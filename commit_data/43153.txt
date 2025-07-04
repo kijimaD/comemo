@@ -1,0 +1,20 @@
+commit 069aef4067480ab29f5788b31171054954577661
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Oct 1 10:25:20 2020 +0200
+
+    syscall: use correct cmsg alignment for netbsd/arm64
+    
+    netbsd/arm64 requires 128-bit alignment for cmsgs.
+    
+    Re-submit of CL 258437 which was dropped due to #41718.
+    
+    Change-Id: I898043d79f513bebe1a5eb931e7ebd8e291a5aec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258677
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ src/syscall/sockcmsg_unix_other.go | 4 ++++
+ 1 file changed, 4 insertions(+)

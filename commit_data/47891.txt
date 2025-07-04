@@ -1,0 +1,19 @@
+commit 2bb7f6b4f1e5ffd90d7ea00a653d7407f496d639
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 17 17:17:41 2021 -0800
+
+    doc/go1.18: point to spec in same directory for release notes
+    
+    The release notes explicitly refer to sections updated
+    for generics in the spec but then point to the old spec
+    which is very confusing for beta users.
+    
+    For #47694
+    
+    Change-Id: I5b555db3543cc32f088a8b267ec3f1195a52a812
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373174
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

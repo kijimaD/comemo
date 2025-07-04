@@ -1,0 +1,17 @@
+commit e121de2f016df84f635c6bfb8b32e3b781e9f51f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 7 10:43:28 2013 -0700
+
+    spec: unsafe.Pointers are pointers
+    
+    But they cannot be dereferenced.
+    See also issue 6116.
+    
+    Fixes #6358.
+    
+    R=r, rsc, iant, ken
+    CC=golang-dev
+    https://golang.org/cl/14374046
+
+ doc/go_spec.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

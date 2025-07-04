@@ -1,0 +1,42 @@
+commit 0047353c53cd5c5524f8978c855e982cb4ca4533
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 11 19:22:49 2019 -0700
+
+    cmd/compile: add countRule rewrite rule helper
+    
+    noteRule is useful when you're trying to debug
+    a particular rule, or get a general sense for
+    how often a rule fires overall.
+    
+    It is less useful if you're trying to figure
+    out which functions might be useful to benchmark
+    to ascertain the impact of a newly added rule.
+    
+    Enter countRule. You use it like noteRule,
+    except that you get per-function summaries.
+    
+    Sample output:
+    
+     # runtime
+    (*mspan).sweep: idx1=1
+    evacuate_faststr: idx1=1
+    evacuate_fast32: idx1=1
+    evacuate: idx1=2
+    evacuate_fast64: idx1=1
+    sweepone: idx1=1
+    purgecachedstats: idx1=1
+    mProf_Free: idx1=1
+    
+    This suggests that the map benchmarks
+    might be good to run for this added rule.
+    
+    Change-Id: Id471c3231f1736165f2020f6979ff01c29677808
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167088
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/compile.go | 17 +++++++++++++++++
+ src/cmd/compile/internal/ssa/func.go    |  7 ++++---
+ src/cmd/compile/internal/ssa/rewrite.go | 14 ++++++++++++++
+ 3 files changed, 35 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit 2632d758515e76acca1e49a5b1c9d082bb398497
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 7 14:07:22 2012 +1100
+
+    .hgignore: delete references to Make.inc and syslist.go
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5752066
+
+ .hgignore | 2 --
+ 1 file changed, 2 deletions(-)

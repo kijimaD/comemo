@@ -1,0 +1,12 @@
+commit cdfd5b2bede93497f4c74fa0959c3d6c8445fd57
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sun Feb 5 14:50:38 2012 +1100
+
+    build: fix sudo.bash.
+    
+    R=rsc, balasanjay, rsc
+    CC=golang-dev
+    https://golang.org/cl/5630051
+
+ src/sudo.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

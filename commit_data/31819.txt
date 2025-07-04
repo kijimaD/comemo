@@ -1,0 +1,12 @@
+commit 04ab75e2469a2d865c0d58319e97e090abfa3349
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Jun 14 13:58:27 2017 -0400
+
+    doc: list cmd/compile's DWARF changes in 1.9 relnotes
+    
+    Change-Id: I956873854724e8afed460f7ff3a657d68ec20fa1
+    Reviewed-on: https://go-review.googlesource.com/45755
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.9.html | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

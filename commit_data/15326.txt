@@ -1,0 +1,13 @@
+commit 1e063eea38fe3ecc8bea4e35bc0482fa8100ea80
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Feb 20 21:17:56 2013 +0400
+
+    runtime: prepare for M's running w/o mcache
+    Can not happen ATM. In preparation for the new scheduler.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7388043
+
+ src/pkg/runtime/panic.c | 2 ++
+ 1 file changed, 2 insertions(+)

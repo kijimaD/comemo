@@ -1,0 +1,131 @@
+commit 9fd359a29a8cc55ed665542d2a3fe9fef8baaa7d
+Author: David Lazar <lazard@golang.org>
+Date:   Mon Feb 20 09:55:54 2017 -0500
+
+    cmd/compile: include position info in exported function bodies
+    
+    This gives accurate line numbers to inlined functions from another
+    package. Previously AST nodes from another package would get the line
+    number of the import statement for that package.
+    
+    The following benchmark results show how the size of package export data
+    is impacted by this change. These benchmarks were created by compiling
+    the go1 benchmark and running `go tool pack x` to extract the export
+    data from the resulting .a files.
+    
+    name                                          old bytes   new bytes    delta
+    bufio                                         3.59k ± 0%   4.17k ± 0%  +16.25%
+    bytes                                         5.51k ± 0%   6.40k ± 0%  +16.21%
+    compress/bzip2                                2.69k ± 0%   3.21k ± 0%  +19.74%
+    compress/flate                                5.14k ± 0%   5.57k ± 0%   +8.43%
+    compress/gzip                                 8.91k ± 0%  10.46k ± 0%  +17.32%
+    container/list                                1.76k ± 0%   2.13k ± 0%  +21.51%
+    context                                       4.51k ± 0%   5.47k ± 0%  +21.43%
+    crypto                                        1.11k ± 0%   1.13k ± 0%   +1.90%
+    crypto/aes                                      475 ± 0%     475 ± 0%   +0.00%
+    crypto/cipher                                 1.18k ± 0%   1.18k ± 0%   +0.00%
+    crypto/des                                      502 ± 0%     502 ± 0%   +0.00%
+    crypto/dsa                                    5.96k ± 0%   6.54k ± 0%   +9.82%
+    crypto/ecdsa                                  6.93k ± 0%   7.69k ± 0%  +10.91%
+    crypto/elliptic                               6.53k ± 0%   7.17k ± 0%   +9.72%
+    crypto/hmac                                     464 ± 0%     464 ± 0%   +0.00%
+    crypto/internal/cipherhw                        313 ± 0%     313 ± 0%   +0.00%
+    crypto/md5                                      695 ± 0%     711 ± 0%   +2.30%
+    crypto/rand                                   5.62k ± 0%   6.21k ± 0%  +10.44%
+    crypto/rc4                                      512 ± 0%     512 ± 0%   +0.00%
+    crypto/rsa                                    7.31k ± 0%   8.10k ± 0%  +10.86%
+    crypto/sha1                                     760 ± 0%     777 ± 0%   +2.24%
+    crypto/sha256                                   523 ± 0%     523 ± 0%   +0.00%
+    crypto/sha512                                   663 ± 0%     663 ± 0%   +0.00%
+    crypto/subtle                                   873 ± 0%    1007 ± 0%  +15.35%
+    crypto/tls                                    29.6k ± 0%   33.8k ± 0%  +14.03%
+    crypto/x509                                   18.7k ± 0%   21.0k ± 0%  +12.56%
+    crypto/x509/pkix                              10.6k ± 0%   12.2k ± 0%  +15.22%
+    encoding                                        473 ± 0%     473 ± 0%   +0.00%
+    encoding/asn1                                 1.42k ± 0%   1.50k ± 0%   +5.99%
+    encoding/base64                               1.69k ± 0%   1.80k ± 0%   +6.88%
+    encoding/binary                               2.76k ± 0%   3.51k ± 0%  +27.09%
+    encoding/gob                                  13.5k ± 0%   15.2k ± 0%  +12.98%
+    encoding/hex                                    857 ± 0%     881 ± 0%   +2.80%
+    encoding/json                                 12.5k ± 0%   14.9k ± 0%  +19.37%
+    encoding/pem                                    484 ± 0%     484 ± 0%   +0.00%
+    errors                                          361 ± 0%     370 ± 0%   +2.49%
+    flag                                          10.5k ± 0%   12.1k ± 0%  +14.92%
+    fmt                                           1.42k ± 0%   1.42k ± 0%   +0.00%
+    go/ast                                        15.8k ± 0%   17.5k ± 0%  +10.31%
+    go/parser                                     8.13k ± 0%   9.86k ± 0%  +21.28%
+    go/scanner                                    3.94k ± 0%   4.53k ± 0%  +14.73%
+    go/token                                      3.53k ± 0%   3.75k ± 0%   +6.11%
+    hash                                            507 ± 0%     507 ± 0%   +0.00%
+    hash/crc32                                      685 ± 0%     685 ± 0%   +0.00%
+    internal/nettrace                               474 ± 0%     474 ± 0%   +0.00%
+    internal/poll                                 7.23k ± 0%   8.38k ± 0%  +15.90%
+    internal/race                                   511 ± 0%     515 ± 0%   +0.78%
+    internal/singleflight                           969 ± 0%    1075 ± 0%  +10.94%
+    internal/syscall/unix                           427 ± 0%     427 ± 0%   +0.00%
+    io                                            3.52k ± 0%   3.69k ± 0%   +4.82%
+    io/ioutil                                     8.48k ± 0%   9.90k ± 0%  +16.72%
+    log                                           5.06k ± 0%   5.98k ± 0%  +18.15%
+    math                                          4.02k ± 0%   4.35k ± 0%   +8.26%
+    math/big                                      9.28k ± 0%   9.94k ± 0%   +7.13%
+    math/bits                                     3.47k ± 0%   4.33k ± 0%  +24.83%
+    math/rand                                     1.30k ± 0%   1.32k ± 0%   +2.00%
+    mime                                          2.98k ± 0%   3.70k ± 0%  +24.21%
+    mime/multipart                                3.68k ± 0%   4.22k ± 0%  +14.65%
+    mime/quotedprintable                          2.26k ± 0%   2.65k ± 0%  +17.60%
+    net                                           23.0k ± 0%   25.7k ± 0%  +11.74%
+    net/http                                      59.1k ± 0%   66.7k ± 0%  +13.00%
+    net/http/httptest                             35.3k ± 0%   40.9k ± 0%  +15.80%
+    net/http/httptrace                            15.3k ± 0%   17.6k ± 0%  +15.26%
+    net/http/internal                             2.77k ± 0%   3.27k ± 0%  +17.89%
+    net/textproto                                 4.60k ± 0%   5.25k ± 0%  +14.22%
+    net/url                                       1.73k ± 0%   1.84k ± 0%   +6.59%
+    os                                            14.3k ± 0%   16.4k ± 0%  +14.86%
+    path                                            589 ± 0%     606 ± 0%   +2.89%
+    path/filepath                                 5.07k ± 0%   6.17k ± 0%  +21.79%
+    reflect                                       6.43k ± 0%   6.81k ± 0%   +5.90%
+    regexp                                        5.88k ± 0%   6.46k ± 0%   +9.77%
+    regexp/syntax                                 3.24k ± 0%   3.29k ± 0%   +1.73%
+    runtime                                       13.1k ± 0%   14.9k ± 0%  +13.73%
+    runtime/cgo                                     229 ± 0%     229 ± 0%   +0.00%
+    runtime/debug                                 4.23k ± 0%   5.15k ± 0%  +21.79%
+    runtime/internal/atomic                         905 ± 0%     905 ± 0%   +0.00%
+    runtime/internal/sys                          2.04k ± 0%   2.20k ± 0%   +7.64%
+    runtime/pprof                                 4.73k ± 0%   5.65k ± 0%  +19.41%
+    runtime/trace                                   354 ± 0%     354 ± 0%   +0.00%
+    sort                                          1.68k ± 0%   1.85k ± 0%  +10.17%
+    strconv                                       1.85k ± 0%   1.95k ± 0%   +5.51%
+    strings                                       3.98k ± 0%   4.53k ± 0%  +13.91%
+    sync                                          1.52k ± 0%   1.58k ± 0%   +4.28%
+    sync/atomic                                   1.60k ± 0%   1.74k ± 0%   +8.50%
+    syscall                                       53.3k ± 0%   54.3k ± 0%   +1.84%
+    testing                                       8.77k ± 0%  10.09k ± 0%  +14.96%
+    testing/internal/testdeps                       598 ± 0%     600 ± 0%   +0.33%
+    text/tabwriter                                3.63k ± 0%   4.41k ± 0%  +21.64%
+    text/template                                 15.7k ± 0%   18.1k ± 0%  +15.67%
+    text/template/parse                           9.12k ± 0%  10.35k ± 0%  +13.48%
+    time                                          6.38k ± 0%   7.14k ± 0%  +11.81%
+    unicode                                       4.62k ± 0%   4.66k ± 0%   +0.98%
+    unicode/utf16                                   707 ± 0%     791 ± 0%  +11.88%
+    unicode/utf8                                  1.06k ± 0%   1.20k ± 0%  +12.63%
+    vendor/golang_org/x/crypto/chacha20poly1305   1.26k ± 0%   1.43k ± 0%  +13.54%
+    vendor/golang_org/x/crypto/curve25519           392 ± 0%     392 ± 0%   +0.00%
+    vendor/golang_org/x/crypto/poly1305             426 ± 0%     426 ± 0%   +0.00%
+    vendor/golang_org/x/net/http2/hpack           4.75k ± 0%   5.77k ± 0%  +21.42%
+    vendor/golang_org/x/net/idna                    355 ± 0%     355 ± 0%   +0.00%
+    vendor/golang_org/x/net/lex/httplex             616 ± 0%     644 ± 0%   +4.55%
+    vendor/golang_org/x/net/proxy                 7.76k ± 0%   9.58k ± 0%  +23.37%
+    vendor/golang_org/x/text/transform            1.31k ± 0%   1.32k ± 0%   +0.46%
+    vendor/golang_org/x/text/unicode/norm         5.89k ± 0%   6.84k ± 0%  +16.06%
+    vendor/golang_org/x/text/width                1.24k ± 0%   1.27k ± 0%   +2.66%
+    [Geo mean]                                    2.51k        2.74k        +9.14%
+    
+    Change-Id: I9ded911bb0ff63c530795fc85253d76b56d8abbc
+    Reviewed-on: https://go-review.googlesource.com/37239
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 39 ++++++++++++++
+ src/cmd/compile/internal/gc/bimport.go | 92 ++++++++++++++++++++--------------
+ 2 files changed, 93 insertions(+), 38 deletions(-)

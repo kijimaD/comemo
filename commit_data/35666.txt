@@ -1,0 +1,12 @@
+commit 33d058308f036ff02c76ace5c08860149e80775f
+Author: Suriyaa Sundararuban <suriyaasundararuban@gmail.com>
+Date:   Tue Jun 12 12:17:51 2018 +0000
+
+    doc: use HTTPS for clang.llvm.org link in go1.6.html
+    
+    Change-Id: I67aac387359378cf7aa8f7cafa6557ebf1338baf
+    Reviewed-on: https://go-review.googlesource.com/118176
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.6.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 23ffbe611d770e9f4e4d6af57eba3c9a4f72f383
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Nov 9 16:01:55 2011 -0500
+
+    cgo: print error instead of panic on undeclared enums/structs
+    
+    Types are left as nil if no DWARF information is found and
+    checking in the rewriting pass so that appropriate errors
+    with line numbers can be printed.
+    Fixes #2408.
+    
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5336041
+
+ src/cmd/cgo/gcc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

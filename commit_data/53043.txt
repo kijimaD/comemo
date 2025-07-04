@@ -1,0 +1,22 @@
+commit 7213f2e72003325df2cebb731de838ac01f20fb6
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 15 21:19:08 2023 +0000
+
+    Revert "net/http: do not force the Content-Length header if nilled"
+    
+    This reverts CL 469095.
+    
+    The newly added TestDisableContentLength is failing on all longtest
+    builders.
+    
+    Change-Id: Id307df61c7bf80691d9c276e8d200eebf6d4a59c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495017
+    Auto-Submit: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 34 ----------------------------------
+ src/net/http/server.go     |  2 +-
+ 2 files changed, 1 insertion(+), 35 deletions(-)

@@ -1,0 +1,15 @@
+commit aa1aaee7fd96a76e595add58b9889b4cd6703d3a
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Mar 5 16:40:27 2012 -0500
+
+    runtime: wait for main goroutine before setting GOMAXPROCS.
+    
+    Fixes #3182.
+    
+    R=golang-dev, dvyukov, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5732057
+
+ src/pkg/runtime/proc.c | 6 +++++-
+ src/run.bash           | 4 ++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)

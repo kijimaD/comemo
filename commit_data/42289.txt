@@ -1,0 +1,21 @@
+commit 21898524f66c075d7cfb64a38f17684140e57675
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri May 1 01:14:04 2020 -0400
+
+    net/http: use ASCII space trimming throughout
+    
+    Security hardening against HTTP request smuggling. Thank you to ZeddYu
+    for reporting this issue.
+    
+    Change-Id: I98bd9f8ffe58360fc3bca9dc5d9a106773e55373
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231419
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/cgi/host.go              |  5 +++--
+ src/net/http/cookie.go                | 11 ++++++-----
+ src/net/http/fs.go                    |  4 ++--
+ src/net/http/httptest/recorder.go     |  3 ++-
+ src/net/http/httputil/reverseproxy.go |  3 ++-
+ src/net/http/transfer.go              |  8 ++++----
+ 6 files changed, 19 insertions(+), 15 deletions(-)

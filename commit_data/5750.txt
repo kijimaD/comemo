@@ -1,0 +1,13 @@
+commit 88744a973350491c9b6a05d0bb8ad13df3135cf7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 30 23:31:41 2010 -0700
+
+    A+C: add Gustavo Niemeyer (individual CLA)
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/1693046
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

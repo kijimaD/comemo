@@ -1,0 +1,16 @@
+commit b6ff3c69d5fdf933f5265f95ae4bb12eaecc792f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 22 13:45:19 2021 -0400
+
+    cmd/link: support more load commands on Mach-O
+    
+    Change-Id: I74dd9170a51cc93ce3ec5e5860c2eb2912f081f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312729
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/macho.go               |  4 ++++
+ src/cmd/link/internal/ld/macho_combine_dwarf.go | 12 ++++++++++--
+ 2 files changed, 14 insertions(+), 2 deletions(-)

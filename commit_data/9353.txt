@@ -1,0 +1,12 @@
+commit df3df7b70a680b1c908374f4e96b08fd9b641ecf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Aug 14 08:56:47 2011 +1000
+
+    godoc: fix godoc.html template bug: correctly display package roots
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4898042
+
+ lib/godoc/godoc.html | 2 --
+ 1 file changed, 2 deletions(-)

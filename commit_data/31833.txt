@@ -1,0 +1,19 @@
+commit 82abd4152da01cf2fc62ac7ce0988e7925043061
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 14 20:29:42 2017 -0400
+
+    unicode: move scripts from FoldCategories to FoldScripts
+    
+    Copy-and-paste bug was putting scripts in the categories map.
+    
+    Fixes #18186.
+    
+    Change-Id: Ife9d9bdd346fe24e578dbb2a0aac7ef6e889ae68
+    Reviewed-on: https://go-review.googlesource.com/45830
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/unicode/maketables.go |  2 +-
+ src/unicode/tables.go     | 59 ++++++++++++++++++++++++-----------------------
+ 2 files changed, 31 insertions(+), 30 deletions(-)

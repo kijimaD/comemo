@@ -1,0 +1,46 @@
+commit 53859e575ba0f0b84914e7dc5c2a09b6b0c5d96f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jul 29 09:26:24 2018 -0400
+
+    cmd/go: change list -compiled to populate new CompiledGoFiles list
+    
+    CL 108156 added -cgo during the Go 1.11 cycle.
+    To avoid adding a new field to Package, it redefined the
+    meaning of the CgoFiles list to be the cgo output instead
+    of the cgo input.
+    
+    This was awkward in the go command itself, since the meaning
+    of the list changed midway through the build.
+    
+    But, worse, it is awkward to users of go list.
+    When gathering information about a tree of packages,
+    we may want the names of both the cgo inputs and the cgo outputs
+    (golang.org/x/tools/go/packages does, it turns out),
+    or when combined with -deps (CL 107776),
+    we may only care about one list or the other depending
+    on whether the package was requested explicitly or is
+    being returned as a dependency.
+    
+    Also, it's not general enough. SWIGFiles turn into cgo files
+    and then end up in the list too. And maybe there will be others
+    in the future. What clients really want is the list of files that
+    are presented to the go compiler, so that they can parse
+    and type-check them as if they were the compiler instead.
+    
+    Eliminate all this awkwardness by dropping -cgo and adding
+    a new -compiled that populates a new CompiledGoFiles list.
+    
+    Change-Id: I5f152da17cfb2692eedde61721d01ec13067c57d
+    Reviewed-on: https://go-review.googlesource.com/126695
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/cgo/ast.go                 |  2 +-
+ src/cmd/cgo/util.go                |  2 ++
+ src/cmd/go/go_test.go              | 18 +++++++++----
+ src/cmd/go/internal/list/list.go   | 54 ++++++++++++++++++++------------------
+ src/cmd/go/internal/load/pkg.go    | 26 +++++++++---------
+ src/cmd/go/internal/work/action.go |  8 +++---
+ src/cmd/go/internal/work/exec.go   | 35 ++++++++++++------------
+ 7 files changed, 79 insertions(+), 66 deletions(-)

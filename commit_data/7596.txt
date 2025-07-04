@@ -1,0 +1,14 @@
+commit a77744f488e863878c5ccff4ff4d94854921939f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 1 13:39:44 2011 -0800
+
+    fmt: delete debugging print that crept in to test.
+    (you'd never see it, but ouch.)
+    Spotted by Florian Weimer.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4259044
+
+ src/pkg/fmt/fmt_test.go | 1 -
+ 1 file changed, 1 deletion(-)

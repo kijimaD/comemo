@@ -1,0 +1,15 @@
+commit 3b38626f7d5c9b85e3acb2601e34324879438fae
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue May 12 23:11:28 2015 +0900
+
+    net: don't run IP stack required tests on IP stack unimplemented kernels
+    
+    Fixes #10787.
+    
+    Change-Id: I35c96808a713dafb1f0fea301fa3f3528fe6a5bf
+    Reviewed-on: https://go-review.googlesource.com/9948
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/net/main_test.go     |  4 ++--
+ src/net/platform_test.go | 13 ++++++++++++-
+ 2 files changed, 14 insertions(+), 3 deletions(-)

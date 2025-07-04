@@ -1,0 +1,14 @@
+commit d16c7f8004bd1c9f896367af7ea86f5530596b39
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 2 12:42:55 2015 +1000
+
+    crypto: fix non-sentence in documentation for Decrypter
+    
+    Comment change only.
+    
+    Change-Id: I2e32c2b34d5a5659ead6d6082b06e1b039bf1147
+    Reviewed-on: https://go-review.googlesource.com/11852
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/crypto.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

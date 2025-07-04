@@ -1,0 +1,38 @@
+commit a11244e95e1298ae6cd66a64d944dbcbbce3ca49
+Author: Martin Sucha <anty.sk+git@gmail.com>
+Date:   Sun Apr 4 19:20:47 2021 +0200
+
+    time: use offset and isDST when caching zone from extend string
+    
+    If the current time is computed from extend string
+    and the zone file contains multiple zones with the
+    same name, the lookup by name might find incorrect
+    zone.
+    
+    This happens for example with the slim Europe/Dublin
+    time zone file in the embedded zip. This zone file
+    has last transition in 1996 and rest is covered by
+    extend string.
+    tzset returns IST as the zone name to use, but there
+    are two records with IST name. Lookup by name finds
+    the wrong one. We need to check offset and isDST too.
+    
+    In case we can't find an existing zone, we allocate
+    a new zone so that we use correct offset and isDST.
+    
+    I have renamed zone variable to zones as it shadowed
+    the zone type that we need to allocate the cached zone.
+    
+    Fixes #45370
+    
+    Change-Id: I79102e4873b6de20d8a65f8a3057519ff5fae608
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307190
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/time/zoneinfo_read.go | 44 +++++++++++++++++++++++++++-----------------
+ src/time/zoneinfo_test.go | 14 +++++++++++++-
+ 2 files changed, 40 insertions(+), 18 deletions(-)

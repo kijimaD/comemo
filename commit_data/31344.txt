@@ -1,0 +1,18 @@
+commit b692e7490aca3864ebf82cfe809e52ee35c52c5b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 25 10:47:13 2017 -0700
+
+    go/internal/gcimporter: add test object files for go1.8 versions 4 and 5
+    
+    Version 4 generated with toolchain at commit 51012314251a8b1f1dfe9737091a37c0e1f6b9d5.
+    Version 5 generated with toolchain at commit a6b16e00240ca5ca0161f88819ef32f91f6af52c.
+    
+    Change-Id: If11ec8b3357f0f71776c15665e4d5228b3842ff7
+    Reviewed-on: https://go-review.googlesource.com/41710
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .../internal/gcimporter/testdata/versions/test_go1.8_4.a | Bin 0 -> 1658 bytes
+ .../internal/gcimporter/testdata/versions/test_go1.8_5.a | Bin 0 -> 1658 bytes
+ 2 files changed, 0 insertions(+), 0 deletions(-)

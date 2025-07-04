@@ -1,0 +1,18 @@
+commit 50c4dbced991a01d4d707c00dc40c1a6366e9458
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 22 15:50:03 2016 -0800
+
+    reflect: fix size of StructOf ending in zero-sized field
+    
+    Update #9401.
+    Fixes #18016.
+    
+    Change-Id: Icc24dd10dab1ad8e5cf295e0727d437afa5025c0
+    Reviewed-on: https://go-review.googlesource.com/33475
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/reflect/all_test.go | 32 ++++++++++++++++++++++++++++++++
+ src/reflect/type.go     | 14 ++++++++++++++
+ 2 files changed, 46 insertions(+)

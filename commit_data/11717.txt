@@ -1,0 +1,14 @@
+commit 596840a905bf0dfd79ce4ce7583a3f22f7b38d13
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 8 15:26:47 2012 -0500
+
+    cmd/dist: make 'make' quieter for developers
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5646055
+
+ src/Make.dist        |  4 ++++
+ src/cmd/dist/build.c | 12 +++++-------
+ src/cmd/dist/unix.c  |  6 +++---
+ 3 files changed, 12 insertions(+), 10 deletions(-)

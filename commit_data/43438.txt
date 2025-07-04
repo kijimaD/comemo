@@ -1,0 +1,33 @@
+commit 431d58da69e8c36d654876e7808f971c5667649c
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Oct 20 11:01:46 2020 +0200
+
+    all: add GOOS=ios GOARCH=amd64 target for the ios simulator
+    
+    The Go toolchain has supported the simulator for years, but always in
+    buildmode=c-archive which is intrinsically externally linked and PIE.
+    
+    This CL moves that support from GOOS=darwin GOARCH=amd64 -tags=ios to
+    just GOOS=ios GOARCH=amd64 to match the change for iOS devices.
+    
+    This change also forces external linking and defaults to buildmode=pie
+    to support Go binaries in the default buildmode to run on the simulator.
+    
+    CL 255257 added the necessary support to the exec wrapper.
+    
+    Updates #38485
+    Fixes #42100
+    
+    Change-Id: I6e6ee0e8d421be53b31e3d403880e5b9b880d031
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263798
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Elias Naur <mail@eliasnaur.com>
+
+ src/cmd/dist/build.go              |  1 +
+ src/cmd/go/internal/load/pkg.go    |  4 +++-
+ src/cmd/go/internal/work/init.go   |  5 ++++-
+ src/cmd/internal/sys/supported.go  |  1 +
+ src/cmd/link/internal/ld/config.go |  8 +-------
+ src/runtime/rt0_ios_amd64.s        | 14 ++++++++++++++
+ 6 files changed, 24 insertions(+), 9 deletions(-)

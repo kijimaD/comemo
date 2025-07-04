@@ -1,0 +1,15 @@
+commit e803e1cfa61d6677025440b7336e20854f619755
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Aug 8 13:16:21 2012 +1000
+
+    misc/dashboard/codereview: fixes for non-reviewers.
+    
+    Also rename the testing CGI argument from "email" to "user".
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6454117
+
+ misc/dashboard/codereview/dashboard/front.go | 29 +++++++++++++++++-----------
+ misc/dashboard/codereview/index.yaml         |  6 ++++++
+ 2 files changed, 24 insertions(+), 11 deletions(-)

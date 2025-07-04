@@ -1,0 +1,20 @@
+commit 4873bb217c18b838feb12c58200b6a02e49c906c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 10 13:51:19 2008 -0800
+
+    Snapshot:
+    - fixed html tag generation
+    - simplified html escaping machinery
+      (not 100% correct for strings yet)
+    - can now produce the first mostly correct formatted html pages from source
+      with (fake) links: e.g. pretty -html srcfile.go > srcfile.html
+      R=r
+    
+    OCL=20915
+    CL=20915
+
+ usr/gri/pretty/Makefile      |  2 +-
+ usr/gri/pretty/htmlwriter.go | 69 --------------------------------------------
+ usr/gri/pretty/printer.go    | 67 +++++++++++++++++++++++++-----------------
+ usr/gri/pretty/test.sh       |  2 +-
+ 4 files changed, 43 insertions(+), 97 deletions(-)

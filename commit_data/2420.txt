@@ -1,0 +1,17 @@
+commit f52c02641ebe494240d6d396246a7a794dc11890
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 6 21:56:04 2009 -0700
+
+    gzip package
+    
+    R=dsymonds
+    DELTA=559  (559 added, 0 deleted, 0 changed)
+    OCL=29993
+    CL=30005
+
+ src/lib/Make.deps                    |   2 +
+ src/lib/Makefile                     |   2 +
+ src/lib/compress/gzip/Makefile       |  60 ++++++++
+ src/lib/compress/gzip/gunzip.go      | 236 ++++++++++++++++++++++++++++++
+ src/lib/compress/gzip/gunzip_test.go | 268 +++++++++++++++++++++++++++++++++++
+ 5 files changed, 568 insertions(+)

@@ -1,0 +1,25 @@
+commit a475a38a3dcd48541f60e40b1dac3c84ab72d0e5
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 25 13:56:37 2016 -0400
+
+    runtime: parallelize STW mcache flushing
+    
+    Currently all mcaches are flushed in a single STW root job. This takes
+    about 5 µs per P, but since it's done sequentially it adds about
+    5*GOMAXPROCS µs to the STW.
+    
+    Fix this by parallelizing the job. Since there are exactly GOMAXPROCS
+    mcaches to flush, this parallelizes quite nicely and brings the STW
+    latency cost down to a constant 5 µs (assuming GOMAXPROCS actually
+    reflects the number of CPUs).
+    
+    Updates #17503.
+    
+    Change-Id: Ibefeb1c2229975d5137c6e67fac3b6c92103742d
+    Reviewed-on: https://go-review.googlesource.com/32033
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go     |  1 +
+ src/runtime/mgcmark.go | 20 ++++++++++++--------
+ src/runtime/mstats.go  | 35 ++++++++++++++++++++++++-----------
+ 3 files changed, 37 insertions(+), 19 deletions(-)

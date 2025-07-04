@@ -1,0 +1,12 @@
+commit efdbf0811c86f32eb029ff3f2affdf63337ed2fa
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Aug 21 14:02:58 2013 +1000
+
+    C: add Todd Wang (Google CLA).
+    
+    R=r, adg
+    CC=golang-dev, toddwang
+    https://golang.org/cl/13149043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

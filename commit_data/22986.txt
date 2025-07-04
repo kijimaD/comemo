@@ -1,0 +1,87 @@
+commit 8552047a32cccccc1c376e49048c5a22494b7611
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 6 12:34:30 2015 -0400
+
+    cmd/internal/gc: optimize append + write barrier
+    
+    The code generated for x = append(x, v) is roughly:
+    
+            t := x
+            if len(t)+1 > cap(t) {
+                    t = grow(t)
+            }
+            t[len(t)] = v
+            len(t)++
+            x = t
+    
+    We used to generate this code as Go pseudocode during walk.
+    Generate it instead as actual instructions during gen.
+    
+    Doing so lets us apply a few optimizations. The most important
+    is that when, as in the above example, the source slice and the
+    destination slice are the same, the code can instead do:
+    
+            t := x
+            if len(t)+1 > cap(t) {
+                    t = grow(t)
+                    x = {base(t), len(t)+1, cap(t)}
+            } else {
+                    len(x)++
+            }
+            t[len(t)] = v
+    
+    That is, in the fast path that does not reallocate the array,
+    only the updated length needs to be written back to x,
+    not the array pointer and not the capacity. This is more like
+    what you'd write by hand in C. It's faster in general, since
+    the fast path elides two of the three stores, but it's especially
+    faster when the form of x is such that the base pointer write
+    would turn into a write barrier. No write, no barrier.
+    
+    name                   old mean              new mean              delta
+    BinaryTree17            5.68s × (0.97,1.04)   5.81s × (0.98,1.03)   +2.35% (p=0.023)
+    Fannkuch11              4.41s × (0.98,1.03)   4.35s × (1.00,1.00)     ~    (p=0.090)
+    FmtFprintfEmpty        92.7ns × (0.91,1.16)  86.0ns × (0.94,1.11)   -7.31% (p=0.038)
+    FmtFprintfString        281ns × (0.96,1.08)   276ns × (0.98,1.04)     ~    (p=0.219)
+    FmtFprintfInt           288ns × (0.97,1.06)   274ns × (0.98,1.06)   -4.94% (p=0.002)
+    FmtFprintfIntInt        493ns × (0.97,1.04)   506ns × (0.99,1.01)   +2.65% (p=0.009)
+    FmtFprintfPrefixedInt   423ns × (0.97,1.04)   391ns × (0.99,1.01)   -7.52% (p=0.000)
+    FmtFprintfFloat         598ns × (0.99,1.01)   566ns × (0.99,1.01)   -5.27% (p=0.000)
+    FmtManyArgs            1.89µs × (0.98,1.05)  1.91µs × (0.99,1.01)     ~    (p=0.231)
+    GobDecode              14.8ms × (0.98,1.03)  15.3ms × (0.99,1.02)   +3.01% (p=0.000)
+    GobEncode              12.3ms × (0.98,1.01)  11.5ms × (0.97,1.03)   -5.93% (p=0.000)
+    Gzip                    656ms × (0.99,1.05)   645ms × (0.99,1.01)     ~    (p=0.055)
+    Gunzip                  142ms × (1.00,1.00)   142ms × (1.00,1.00)   -0.32% (p=0.034)
+    HTTPClientServer       91.2µs × (0.97,1.04)  90.5µs × (0.97,1.04)     ~    (p=0.468)
+    JSONEncode             32.6ms × (0.97,1.08)  32.0ms × (0.98,1.03)     ~    (p=0.190)
+    JSONDecode              114ms × (0.97,1.05)   114ms × (0.99,1.01)     ~    (p=0.887)
+    Mandelbrot200          6.11ms × (0.98,1.04)  6.04ms × (1.00,1.01)     ~    (p=0.167)
+    GoParse                6.66ms × (0.97,1.04)  6.47ms × (0.97,1.05)   -2.81% (p=0.014)
+    RegexpMatchEasy0_32     159ns × (0.99,1.00)   171ns × (0.93,1.07)   +7.19% (p=0.002)
+    RegexpMatchEasy0_1K     538ns × (1.00,1.01)   550ns × (0.98,1.01)   +2.30% (p=0.000)
+    RegexpMatchEasy1_32     138ns × (1.00,1.00)   135ns × (0.99,1.02)   -1.60% (p=0.000)
+    RegexpMatchEasy1_1K     869ns × (0.99,1.01)   879ns × (1.00,1.01)   +1.08% (p=0.000)
+    RegexpMatchMedium_32    252ns × (0.99,1.01)   243ns × (1.00,1.00)   -3.71% (p=0.000)
+    RegexpMatchMedium_1K   72.7µs × (1.00,1.00)  70.3µs × (1.00,1.00)   -3.34% (p=0.000)
+    RegexpMatchHard_32     3.85µs × (1.00,1.00)  3.82µs × (1.00,1.01)   -0.81% (p=0.000)
+    RegexpMatchHard_1K      118µs × (1.00,1.00)   117µs × (1.00,1.00)   -0.56% (p=0.000)
+    Revcomp                 920ms × (0.97,1.07)   917ms × (0.97,1.04)     ~    (p=0.808)
+    Template                129ms × (0.98,1.03)   114ms × (0.99,1.01)  -12.06% (p=0.000)
+    TimeParse               619ns × (0.99,1.01)   622ns × (0.99,1.01)     ~    (p=0.062)
+    TimeFormat              661ns × (0.98,1.04)   665ns × (0.99,1.01)     ~    (p=0.524)
+    
+    See next CL for combination with a similar optimization for slice.
+    The benchmarks that are slower in this CL are still faster overall
+    with the combination of the two.
+    
+    Change-Id: I2a7421658091b2488c64741b4db15ab6c3b4cb7e
+    Reviewed-on: https://go-review.googlesource.com/9812
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/gc/cgen.go  | 183 +++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/gc/lex.go   |   6 +-
+ src/cmd/internal/gc/order.go |  10 ++-
+ src/cmd/internal/gc/walk.go  |  56 ++++++++++---
+ test/sliceopt.go             |  22 ++++++
+ test/writebarrier.go         |  26 +++++-
+ 6 files changed, 284 insertions(+), 19 deletions(-)

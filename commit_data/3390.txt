@@ -1,0 +1,18 @@
+commit 8ccf8240f4e670b5916fe7f510625cae953a2396
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Sep 29 07:27:49 2009 -0700
+
+    fixed alignment issue resulting from confusion around the
+    meaning of out args.
+    
+    go/test: passes 68% (231/339)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=13  (7 added, 0 deleted, 6 changed)
+    OCL=35072
+    CL=35080
+
+ src/cmd/5g/gsubr.c | 9 +++++----
+ test/arm-pass.txt  | 6 ++++++
+ 2 files changed, 11 insertions(+), 4 deletions(-)

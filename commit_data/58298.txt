@@ -1,0 +1,29 @@
+commit bcb934ad11060b4ed45663cf6e25bd7b7e92c1bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 27 11:36:53 2024 -0800
+
+    go/types, types2: fix printing of error message with variadic calls
+    
+    Distinguish between variadic signatures and argument lists to
+    (possibly variadic) functions and place `...` before or after
+    the last type in the list of types.
+    
+    Fixes a panic.
+    
+    Fixes #70526.
+    
+    Change-Id: I77aba8f50984a21ebcdb62582030f2d0fe0eb097
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632275
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/assignments.go     | 30 ++++++++++++++++------
+ src/cmd/compile/internal/types2/call.go            |  4 +--
+ src/go/types/assignments.go                        | 30 ++++++++++++++++------
+ src/go/types/call.go                               |  4 +--
+ .../types/testdata/fixedbugs/issue70150.go         |  4 +--
+ .../types/testdata/fixedbugs/issue70526.go         | 13 ++++++++++
+ 6 files changed, 63 insertions(+), 22 deletions(-)

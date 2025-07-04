@@ -1,0 +1,23 @@
+commit 598f3e284e1f875d20b3517c7c3fa2f4bb7a6f42
+Author: Tor Andersson <tor.andersson@gmail.com>
+Date:   Mon Nov 30 14:25:50 2009 -0800
+
+    A first stab at porting the XCB X11 protocol bindings to go.
+    
+    The python script needs a checkout of xcb/proto to generate
+    an xproto.go file, which together with xgb.go provide functions
+    to access all of the core X11 protocol requests. I have included the
+    generated file.
+    
+    Extensions and authentication methods are not implemented.
+    
+    R=r, rsc, nigeltao_golang
+    https://golang.org/cl/162053
+
+ src/pkg/Makefile         |    2 +
+ src/pkg/xgb/Makefile     |   20 +
+ src/pkg/xgb/example.go   |   67 +
+ src/pkg/xgb/go_client.py |  704 ++++++++
+ src/pkg/xgb/xgb.go       |  398 +++++
+ src/pkg/xgb/xproto.go    | 4153 ++++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 5344 insertions(+)

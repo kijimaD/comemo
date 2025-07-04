@@ -1,0 +1,30 @@
+commit a829114b21b5a4238dea13dc97b030d650935ed8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Mar 5 15:12:37 2021 -0500
+
+    cmd/compile: match Aux and AuxInt explicitly in store combining rule
+    
+    CL 280456 introduced a new store combining rule. On the LHS some
+    of the Aux and AuxInt of the stores are not specified, therefore
+    ignored during the matching. The rule is only correct if they
+    match. This CL adds explict match.
+    
+    TODO: maybe we want the rule matcher require Aux/AuxInt to be
+    always specified on the LHS (using _ to explicitly ignore)? Or
+    maybe we want it to match the zero value if not specified? The
+    current approach is error-prone.
+    
+    Fixes #44823.
+    
+    Change-Id: Ic12b4a0de63117f2f070039737f0c905f28561bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299289
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 10 +++++-----
+ src/cmd/compile/internal/ssa/gen/S390X.rules | 10 +++++-----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 12 +++++++-----
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 12 +++++++-----
+ test/fixedbugs/issue44823.go                 | 26 ++++++++++++++++++++++++++
+ 5 files changed, 50 insertions(+), 20 deletions(-)

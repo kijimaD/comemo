@@ -1,0 +1,13 @@
+commit 50368e9a6c2754875ebd783bfdb987f635cff518
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Thu Apr 10 22:15:55 2014 -0700
+
+    flag: remove extra space in error message
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/86420046
+
+ src/pkg/flag/flag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

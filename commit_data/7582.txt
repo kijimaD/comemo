@@ -1,0 +1,15 @@
+commit 5b1d47d105fd90bc54e1deec21d8529ca3afb596
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Feb 26 09:25:29 2011 +1100
+
+    compress/lzw: fix the stupidity of allocating and zeroing a new buffer
+    on each loop iteration, yielding a 20x performance improvement.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/4240044
+
+ src/pkg/compress/lzw/reader.go      |  6 +++---
+ src/pkg/compress/lzw/reader_test.go | 21 +++++++++++++++++++++
+ src/pkg/compress/lzw/writer_test.go | 11 +++++++++++
+ 3 files changed, 35 insertions(+), 3 deletions(-)

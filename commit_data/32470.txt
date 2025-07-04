@@ -1,0 +1,25 @@
+commit 38bd725bf1d20c32487ae7e12e37c0060a46ac0f
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Aug 25 12:27:15 2017 -0400
+
+    cmd/compile: bug fixes for DWARF location lists
+    
+    Fix two small but serious bugs in the DWARF location list code that
+    should have been caught by the automated tests I didn't write.
+    
+    After emitting debug information for a user variable, mark it as done
+    so that it doesn't get emitted again. Otherwise it would be written once
+    per slot it was decomposed into.
+    
+    Correct a merge error in CL 44350: the location list abbreviations need
+    to have DW_AT_decl_line too, otherwise the resulting DWARF is gibberish.
+    
+    Change-Id: I6ab4b8b32b7870981dac80eadf0ebfc4015ccb01
+    Reviewed-on: https://go-review.googlesource.com/59070
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/pgen.go | 2 ++
+ src/cmd/internal/dwarf/dwarf.go     | 2 ++
+ 2 files changed, 4 insertions(+)

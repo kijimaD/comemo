@@ -1,0 +1,21 @@
+commit bd859439e72a0c48c64259f7de9f175aae3b9c37
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 15 11:55:30 2018 -0700
+
+    net: don't let cancelation of a DNS lookup affect another lookup
+    
+    Updates #8602
+    Updates #20703
+    Fixes #22724
+    
+    Change-Id: I27b72311b2c66148c59977361bd3f5101e47b51d
+    Reviewed-on: https://go-review.googlesource.com/100840
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/singleflight/singleflight.go | 22 +++++++++++++++------
+ src/net/lookup.go                         | 32 ++++++++++++++++++++++---------
+ src/net/lookup_test.go                    | 25 ++++++++++++++++++++++++
+ src/net/tcpsock_unix_test.go              |  1 +
+ 4 files changed, 65 insertions(+), 15 deletions(-)

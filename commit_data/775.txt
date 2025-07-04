@@ -1,0 +1,29 @@
+commit 4d571c90931e87009bbcfb002dbf09b76032dce6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 30 12:53:11 2008 -0700
+
+    fix up arg list parsing to handle any names:
+    
+    type t1 int;
+    type t2 int;
+    type t3 int;
+    func f1(t1, t2, t3);
+    func f2(t1, t2, t3 bool);
+    func f3(t1, t2, x t3);
+    func f4(*t2, x t3);     // error: cannot mix
+    func f5(t1, *t3);
+    func (x *t1) f6(y *[]t2) (t1, *t3);
+    func f7() (int, *string);
+    func f8(t1, *t2, x t3); // error: cannot mix
+    func f9() (x int, *string);
+    func f10(*t2, t3);
+    
+    R=ken
+    OCL=16202
+    CL=16210
+
+ src/cmd/gc/dcl.c  |  86 +++++++++++++++++++++++++++++++++++++++-
+ src/cmd/gc/go.h   |   4 ++
+ src/cmd/gc/go.y   | 114 +++++++++++++++++++++++++++++++++++-------------------
+ src/cmd/gc/subr.c |  92 ++++++++++++++++---------------------------
+ 4 files changed, 197 insertions(+), 99 deletions(-)

@@ -1,0 +1,19 @@
+commit 280c735b07af9ea313d73049b0031f466e8d1000
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 4 23:12:22 2021 -0500
+
+    cmd/go: require a module root in 'go list -m' with an unversioned path
+    
+    Fixes #44803
+    
+    Change-Id: Ie6ee2e3bca1809c91ecedec75d2c6620da914b29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298752
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/list.go                 | 9 +++++++--
+ src/cmd/go/testdata/script/mod_outside.txt          | 5 +++++
+ src/cmd/go/testdata/script/mod_retract_versions.txt | 5 +++++
+ 3 files changed, 17 insertions(+), 2 deletions(-)

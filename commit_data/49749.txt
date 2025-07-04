@@ -1,0 +1,21 @@
+commit e76155614af824f9e8be88292884799c8d4b1f3d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Jul 14 17:15:44 2022 -0400
+
+    runtime: convert gcController.dedicatedMarkWorkersNeeded to atomic type
+    
+    In gcController.startCycle we just compute the initial value in a
+    local variable before assigning to the atomic field to avoid noisy
+    churn.
+    
+    For #53821.
+    
+    Change-Id: Ibde0ac8fd49aa6bbee3bd02fe3ffb17429abd5a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417784
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/align_runtime_test.go |  1 -
+ src/runtime/mgcpacer.go           | 44 ++++++++++++++++++---------------------
+ 2 files changed, 20 insertions(+), 25 deletions(-)

@@ -1,0 +1,15 @@
+commit 0dd26f276d3091eb78d2e0be1780656c85af7501
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 21 13:46:14 2014 -0500
+
+    cmd/gc: fix build
+    
+    The AKILL stuff is not ready yet and
+    was not meant to be in the last CL.
+    
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/55170043
+
+ src/cmd/gc/plive.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,31 @@
+commit b9ec0024fbc18dd94eff7240afd82fac6b4d8fdc
+Author: Seth Vargo <sethvargo@gmail.com>
+Date:   Thu May 12 16:26:27 2016 -0400
+
+    net/http: add missing HTTP status codes
+    
+    This commit adds missing status codes:
+    
+    * 102 - Processing
+    * 207 - Multi-Status
+    * 208 - Already Reported
+    * 226 - IM Used
+    * 308 - Permanent Redirect
+    * 422 - Unprocessable Entity
+    * 423 - Locked
+    * 424 - Failed Dependency
+    * 426 - Upgrade Required
+    * 506 - Variant Also Negotiates
+    * 507 - Insufficient Storage
+    * 508 - Loop Detected
+    * 510 - Not Extended
+    * 511 - Network Authentication Required
+    
+    Change-Id: Ife0e5b064f4b1e3542d2fd41abc9e7b1e410b644
+    Reviewed-on: https://go-review.googlesource.com/23090
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/status.go | 122 ++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 75 insertions(+), 47 deletions(-)

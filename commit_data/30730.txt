@@ -1,0 +1,13 @@
+commit d80166ebbef1e57457dc383959af83ea2286726e
+Author: Martin Lindhe <martin.j.lindhe@gmail.com>
+Date:   Mon Mar 20 12:14:47 2017 +0100
+
+    crypto/*: fix spelling of 'below'
+    
+    Change-Id: Ic9d65206ec27f6d54bb71395802929e9c769e80a
+    Reviewed-on: https://go-review.googlesource.com/38355
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/aes/asm_ppc64le.s          | 2 +-
+ src/crypto/sha512/sha512block_amd64.s | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

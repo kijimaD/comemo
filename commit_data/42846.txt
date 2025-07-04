@@ -1,0 +1,18 @@
+commit 73a5c372410adb272b6a63484c9a9de5e93e986c
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Aug 24 10:43:43 2020 -0400
+
+    go/types: add untyped test cases for AssignableTo API
+    
+    The AssignableTo API is specifically for non-constant values, but is
+    currently called by gopls for constant completions. Add a test to ensure
+    that we handle this edge case correctly.
+    
+    Change-Id: I83115cbca2443a783df1c3090b5741260dffb78e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250258
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/api_test.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

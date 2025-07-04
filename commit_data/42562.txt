@@ -1,0 +1,19 @@
+commit 1bb247a469e306c57a5e0eaba788efb8b3b1acef
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 18 22:43:36 2020 -0700
+
+    doc/go1.15: mention consequence of os.File.ReadFrom
+    
+    Now that we've added a os.File.ReadFrom method, io.CopyBuffer to a
+    os.File will no longer use the provided buffer.
+    
+    For #16474
+    For #36817
+    For #37419
+    
+    Change-Id: I79a3bf778ff93eab88e88dd9ecbb8c7ea101e868
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238864
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

@@ -1,0 +1,16 @@
+commit 452d6b46a390290a350593b3756f6511b8441e74
+Author: Andreas Jellinghaus <andreas@ionisiert.de>
+Date:   Wed Sep 12 06:38:21 2012 -0700
+
+    syscall: add linux specific Getsockopt for Ucred struct
+    
+    SO_PEERCRED on unix domain socket will fill a Ucred struct,
+    thus linux needs a custom Getsockopt variant.
+    Fixes #3836.
+    
+    R=golang-dev, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/6445104
+
+ src/pkg/syscall/syscall_linux.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

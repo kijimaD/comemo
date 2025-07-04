@@ -1,0 +1,31 @@
+commit 247799ce8a0867351b4570b2f62947ff10334ea8
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Jan 19 08:39:03 2012 -0500
+
+    crypto/elliptic: add constant-time P224.
+    
+    (Sending to r because of the API change.)
+    
+    This change alters the API for crypto/elliptic to permit different
+    implementations in the future. This will allow us to add faster,
+    constant-time implementations of the standard curves without any more
+    API changes.
+    
+    As a demonstration, it also adds a constant-time implementation of
+    P224. Since it's only 32-bit, it's actually only about 40% the speed
+    of the generic code on a 64-bit system.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5528088
+
+ doc/go1.tmpl                             |  19 +
+ src/pkg/crypto/ecdsa/ecdsa.go            |  29 +-
+ src/pkg/crypto/ecdsa/ecdsa_test.go       |   4 +-
+ src/pkg/crypto/elliptic/Makefile         |   1 +
+ src/pkg/crypto/elliptic/elliptic.go      | 107 +++--
+ src/pkg/crypto/elliptic/elliptic_test.go |  28 +-
+ src/pkg/crypto/elliptic/p224.go          | 685 +++++++++++++++++++++++++++++++
+ src/pkg/crypto/elliptic/p224_test.go     |  47 +++
+ src/pkg/crypto/tls/key_agreement.go      |  18 +-
+ 9 files changed, 854 insertions(+), 84 deletions(-)

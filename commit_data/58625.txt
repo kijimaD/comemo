@@ -1,0 +1,25 @@
+commit 372f2d802201583b0af2db2fa023d355812db2b1
+Author: Luka Krmpotic <luka.krmpotic@gmail.com>
+Date:   Thu Feb 6 21:33:18 2025 +0000
+
+    unicode/utf8: remove init from utf8_test
+    
+    TestConstants and init test the same thing, remove init,
+    it does not exist in utf16_test.go either.
+    
+    Fixes #71579
+    
+    Change-Id: Ie0afd640bebde822733b6eac0bf98a17872f4e5f
+    GitHub-Last-Rev: d7224c18376e00038261279abdfa954abc3a8303
+    GitHub-Pull-Request: golang/go#71582
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647335
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/unicode/utf8/utf8_test.go | 10 ----------
+ 1 file changed, 10 deletions(-)

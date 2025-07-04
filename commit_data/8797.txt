@@ -1,0 +1,14 @@
+commit 028f74f8273204ac47170c471bf8ed0b85cdacba
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Jun 20 14:49:29 2011 -0400
+
+    5g, 6g, 8g: fix comments in method call generation
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/4652042
+
+ src/cmd/5g/ggen.c | 6 +++---
+ src/cmd/6g/ggen.c | 6 +++---
+ src/cmd/8g/ggen.c | 6 +++---
+ 3 files changed, 9 insertions(+), 9 deletions(-)

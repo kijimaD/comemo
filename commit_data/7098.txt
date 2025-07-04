@@ -1,0 +1,14 @@
+commit 6f62e407733cb8b340e75bc91bc2633976675d9d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 11 21:42:24 2011 -0800
+
+    C&A for Eric Eisner
+    there is something funny in the database; trying to recreate the change.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3900044
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

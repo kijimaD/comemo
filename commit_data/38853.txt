@@ -1,0 +1,14 @@
+commit e40dffe55ac0ec40fc325bf9ef03dde297fcc2c0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 22 14:22:25 2019 -0700
+
+    cmd/compile: refactor visitBottomUp to use inspectList
+    
+    Passes toolstash-check.
+    
+    Change-Id: I02efba7bab3ea49d87c8472bbb99116565bf8423
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173321
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/scc.go | 59 ++++++++++++--------------------------
+ 1 file changed, 18 insertions(+), 41 deletions(-)

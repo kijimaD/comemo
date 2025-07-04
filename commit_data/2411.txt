@@ -1,0 +1,13 @@
+commit 0d2c63a0b924daa37c8b4ee1de833687be5e8b84
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 6 17:01:14 2009 -0700
+
+    update golden.out with new compiler errors
+    
+    R=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=29986
+    CL=29988
+
+ test/golden.out | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

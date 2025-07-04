@@ -1,0 +1,40 @@
+commit 5351bcf8225747f0ef39afc44c0499822992ed11
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Sep 27 11:53:30 2023 +0200
+
+    syscall: simplify and optimize environment block creation on Windows
+    
+    createEnvBlock currently allocates multiple times: at least one to
+    convert the slice of strings into a NULL separated slice of bytes, and
+    then again to encode it as UTF-16. The logic to do so is also quite
+    complex.
+    
+    This CL simplifies the logic by allocating only once by encoding the
+    slice of strings into UTF-16 directly using utf16.AppendRune.
+    
+    goos: windows
+    goarch: amd64
+    pkg: syscall
+    cpu: Intel(R) Core(TM) i7-10850H CPU @ 2.70GHz
+                      │   old.txt    │               new.txt               │
+                      │    sec/op    │   sec/op     vs base                │
+    CreateEnvBlock-12   37.92µ ± 24%   21.36µ ± 8%  -43.66% (p=0.000 n=10)
+    
+                      │    old.txt    │               new.txt                │
+                      │     B/op      │     B/op      vs base                │
+    CreateEnvBlock-12   109.12Ki ± 0%   26.62Ki ± 0%  -75.60% (p=0.000 n=10)
+    
+                      │  old.txt   │              new.txt               │
+                      │ allocs/op  │ allocs/op   vs base                │
+    CreateEnvBlock-12   4.000 ± 0%   1.000 ± 0%  -75.00% (p=0.000 n=10)
+    
+    Change-Id: If35f62c3926b486d5253a9ae23a33b979b2f02c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531355
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/syscall/exec_windows.go | 26 ++++++++++++--------------
+ 1 file changed, 12 insertions(+), 14 deletions(-)

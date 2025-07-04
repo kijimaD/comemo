@@ -1,0 +1,13 @@
+commit 78f7063d9da264f98ccd4c4f4d1ae28b26c510bd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 31 18:46:21 2009 -0700
+
+    - also associate factory methods to a type in documentation
+    
+    R=r
+    OCL=26974
+    CL=26976
+
+ usr/gri/pretty/docprinter.go | 99 ++++++++++++++++++++++++++++++--------------
+ usr/gri/pretty/template.html |  8 ----
+ 2 files changed, 69 insertions(+), 38 deletions(-)

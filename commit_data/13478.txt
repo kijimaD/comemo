@@ -1,0 +1,14 @@
+commit dd78f745c44f426578fbb8cddcc05c8227fb0ad5
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jul 17 07:56:25 2012 +0200
+
+    testing: fix memory blowup when formatting many lines.
+    
+    Fixes #3830.
+    
+    R=golang-dev, r
+    CC=golang-dev, remy
+    https://golang.org/cl/6373047
+
+ src/pkg/testing/testing.go | 60 +++++++++++++++++++++++++---------------------
+ 1 file changed, 33 insertions(+), 27 deletions(-)

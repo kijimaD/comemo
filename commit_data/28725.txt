@@ -1,0 +1,15 @@
+commit 56d35d42e188b8767665a368384e084da50ef634
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Oct 7 21:27:32 2016 -0700
+
+    compress/gzip: document Reader.Read
+    
+    Fixes #17374.
+    
+    Change-Id: Ic89c35aaa31f35a8a4e3ffa09f49b68f08127625
+    Reviewed-on: https://go-review.googlesource.com/30718
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/compress/gzip/gunzip.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,13 @@
+commit 2758101b9d336a892538da38a11fe66ede2aa0cb
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Aug 11 13:05:51 2013 +0400
+
+    runtime/pprof: add block profile test
+    Fixes #5993.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12665046
+
+ src/pkg/runtime/pprof/pprof_test.go | 55 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 55 insertions(+)

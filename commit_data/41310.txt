@@ -1,0 +1,20 @@
+commit 3791594e36e497e54bbf9262465742c6316d88f7
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 10 17:53:05 2020 -0500
+
+    cmd/go: convert TestBuildIDContainsArchModeEnv to the script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I69c69809fb1698c8198ef3ea00103a9acb7b6ce7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214387
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                              | 39 ----------------------
+ .../go/testdata/script/build_cache_arch_mode.txt   | 27 +++++++++++++++
+ 2 files changed, 27 insertions(+), 39 deletions(-)

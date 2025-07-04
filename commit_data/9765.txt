@@ -1,0 +1,22 @@
+commit d16ceca5c59c79c63f4847244d784ac49c944ff4
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Sep 21 12:36:17 2011 -0300
+
+    bytes: fix Replace so it actually copies
+    
+    The documentation for bytes.Replace says it copies
+    the slice but it won't necessarily copy them.  Since
+    the data is mutable, breaking the contract is an issue.
+    
+    We either have to fix this by making the copy at all
+    times, as suggested in this CL, or we should change the
+    documentation and perhaps make better use of the fact
+    it's fine to mutate the slice in place otherwise.
+    
+    R=golang-dev, bradfitz, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/5081043
+
+ src/pkg/bytes/bytes.go      | 19 ++++++++++++-------
+ src/pkg/bytes/bytes_test.go |  8 +++++++-
+ 2 files changed, 19 insertions(+), 8 deletions(-)

@@ -1,0 +1,15 @@
+commit d011f0aa8945d2c72dc89e8229baf929efeaf8e3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 4 13:26:49 2013 -0700
+
+    cmd/ld: don't allocate unused garbage space in pclntab file table
+    
+    Fixes #6319.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13539043
+
+ src/cmd/ld/data.c | 6 ++++++
+ src/cmd/ld/lib.c  | 1 -
+ 2 files changed, 6 insertions(+), 1 deletion(-)

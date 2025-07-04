@@ -1,0 +1,30 @@
+commit 4dbad795100bc0f5f9419bbb44b1ff0beb60a88c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 6 12:24:20 2021 -0400
+
+    runtime: call unlockOSThread directly in Windows syscall functions
+    
+    Windows syscall functions (e.g. syscall.Syscall9) are defined as
+    cgo_unsafe_args (because it takes the address of one argument and
+    use that to access all arguments) which makes them ABI0. In some
+    case we may need ABI wrappers for them. Because those functions
+    have a large number of arguments, the wrapper can take a
+    non-trivial amount of stack frame, causing nosplit overflow when
+    inlining is disabled. The overflow call chain involves
+    deferreturn.
+    
+    This CL changes a deferred call to unlockOSThread to a direct
+    call. If the syscall functions panics, it is likely a fatal error
+    anyway.
+    
+    Fixes #45698.
+    
+    Change-Id: I280be826644de1205f9c8f5efaa4ec5e1b4eebc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316650
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/syscall_windows.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,31 @@
+commit 441fd1338633c2aafa5b30121142ab24ee9dddcb
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Mon Jun 26 14:32:55 2017 -0400
+
+    crypto/x509: fix panic in TestEnvVars, improve style
+    
+    This panic happens when the test fails due to the returned number of
+    certificates (r.certs) being less than expected by test case (tc.cns).
+    When i == len(r.certs) in the for loop, r.certs[i] will cause an index
+    out of range panic.
+    
+    Also improve readability, consistency and style of the code. Use the
+    more common "got x, want y" pattern. See https://golang.org/s/style#useful-test-failures
+    for reference (and grep codebase for most common occurrences). Add a
+    comment, and remove blank line separating two blocks that are both
+    related to verifying that len(r.certs) == len(tc.cns). This should
+    help with readability.
+    
+    Remove space after colon in call to t.Fatal, since it adds spaces
+    between its arguments.
+    
+    Fixes #20801.
+    
+    Change-Id: I40476103f1b5a0fa74b05637c250926b571c92fd
+    Reviewed-on: https://go-review.googlesource.com/46715
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/root_unix_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

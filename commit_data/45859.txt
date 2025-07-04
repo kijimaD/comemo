@@ -1,0 +1,20 @@
+commit 222ed1b38af0fb6f83f80062092a267dcbd354df
+Author: siddharth <s@ricketyspace.net>
+Date:   Mon Jun 21 21:50:09 2021 -0400
+
+    os: enable TestFifoEOF on openbsd
+    
+    The test successfully runs on currently supported versions (6.8 and
+    6.9) of openbsd.
+    
+    Fixes #25877
+    
+    Change-Id: I2694f08c5596b486453c2ac829f17b8bc455f828
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329732
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/fifo_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

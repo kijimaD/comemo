@@ -1,0 +1,21 @@
+commit 3c25d832afe52982e1423023076e3caa6705d41f
+Author: cui fliter <imcusg@gmail.com>
+Date:   Wed Aug 2 14:39:11 2023 +0800
+
+    doc: fix html tags
+    
+    Change-Id: I535bec2de8f4f7dd415896a020d71c373c22be56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515155
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ doc/go1.17_spec.html | 5 ++++-
+ doc/go1.21.html      | 6 +++++-
+ doc/go_mem.html      | 1 +
+ doc/go_spec.html     | 7 ++++---
+ 4 files changed, 14 insertions(+), 5 deletions(-)

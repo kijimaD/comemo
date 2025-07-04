@@ -1,0 +1,21 @@
+commit b976859b4757eafac39988c9ba72704ff472786f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 23 13:50:47 2017 -0700
+
+    cmd/compile: fix node position for imported constants
+    
+    Discovered while debugging CL 53644.
+    
+    No test case because these are purely internal conversions that should
+    never end up resulting in compiler warnings or even generated code.
+    
+    Updates #19683.
+    
+    Change-Id: I0d9333ef2c963fa22eb9b5335bb022bcc9b25708
+    Reviewed-on: https://go-review.googlesource.com/58190
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

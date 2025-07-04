@@ -1,0 +1,21 @@
+commit 0706d00cb8af873b82a0a0878e595a4369a76e52
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Feb 27 10:01:45 2012 -0800
+
+    go/printer: fix test for new import path restrictions
+    
+    Import paths with spaces are now invalid.
+    
+    The builders would've caught this if they were running
+    the long tests.  I've removed the check for short tests
+    in this package since the current tests are fast enough
+    already.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5694082
+
+ src/pkg/go/printer/printer_test.go              | 5 +----
+ src/pkg/go/printer/testdata/declarations.golden | 6 +++---
+ src/pkg/go/printer/testdata/declarations.input  | 6 +++---
+ 3 files changed, 7 insertions(+), 10 deletions(-)

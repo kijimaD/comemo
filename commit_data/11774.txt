@@ -1,0 +1,14 @@
+commit 08e11187e6dd06c2a9a478c6138685683f935c47
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 10 16:03:24 2012 +1100
+
+    debug/macho: dropped monstrous URL from package comment
+    
+    Relax. It's still in macho.go.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5653054
+
+ src/pkg/debug/macho/file.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

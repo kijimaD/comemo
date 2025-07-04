@@ -1,0 +1,19 @@
+commit bd7249766617fda12d112c3ad3ae2857ff97c71e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Apr 10 15:45:34 2016 +0000
+
+    context: document that WithValue's key must be comparable
+    
+    Also, check it and explode earlier, rather than cryptic failures later.
+    
+    Change-Id: I319a425f60e2bc9d005a187fbdbd153faa96411c
+    Reviewed-on: https://go-review.googlesource.com/21799
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/context/context.go      |  8 +++++++-
+ src/context/context_test.go | 13 +++++++++++++
+ src/go/build/deps_test.go   |  2 +-
+ 3 files changed, 21 insertions(+), 2 deletions(-)

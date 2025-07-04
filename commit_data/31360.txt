@@ -1,0 +1,16 @@
+commit af7da9a53bcc33d521c374ff32a260e92c42a569
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 25 17:44:40 2017 -0700
+
+    cmd/compile: convert Node.Embedded into a flag
+    
+    Change-Id: I30c59ba84dcacc3de39c42f94484b47bb7c36eba
+    Reviewed-on: https://go-review.googlesource.com/41792
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go    | 10 +++++++---
+ src/cmd/compile/internal/gc/fmt.go    |  4 ++--
+ src/cmd/compile/internal/gc/syntax.go |  4 +++-
+ 3 files changed, 12 insertions(+), 6 deletions(-)

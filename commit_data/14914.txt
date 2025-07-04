@@ -1,0 +1,12 @@
+commit 0c026c45b4f26ffe88340a86e748d2ed8b1705f9
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Jan 18 15:19:51 2013 -0500
+
+    cmd/dist: update for new flag parsing on Plan 9
+    
+    R=golang-dev, seed, rsc
+    CC=golang-dev
+    https://golang.org/cl/7069053
+
+ src/cmd/dist/build.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit ae382129f1f32b91115ef7d60ce9ec4108253e5d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 10 22:34:31 2012 +0800
+
+    syscall: support Getpid() on Windows
+            Fixes #3379.
+    
+    R=golang-dev, alex.brainman, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5909043
+
+ src/pkg/syscall/syscall_windows.go        | 5 +++--
+ src/pkg/syscall/zsyscall_windows_386.go   | 7 +++++++
+ src/pkg/syscall/zsyscall_windows_amd64.go | 7 +++++++
+ 3 files changed, 17 insertions(+), 2 deletions(-)

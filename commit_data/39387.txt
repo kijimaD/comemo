@@ -1,0 +1,16 @@
+commit 2f387ac1f3d171357be97034826c93d1bd2e0fdc
+Author: Keith Randall <khr@google.com>
+Date:   Mon Jun 10 12:51:51 2019 -0700
+
+    doc: update 1.13 release notes
+    
+    Write release notes for a few reflect, runtime, and syscall changes.
+    
+    The init randomization has been reverted.
+    
+    Change-Id: Idae481ca015e325eb7302abaa15b2792312f4c32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181577
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.13.html | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

@@ -1,0 +1,20 @@
+commit 179909f20556262422a8b99c059eacdfcebc48ee
+Author: Kyle Wood <kyle@kylewood.cc>
+Date:   Fri Nov 16 10:46:14 2018 -0600
+
+    cmd/go: disallow version string in go mod init module path
+    
+    To prevent confusion, go mod init should not allow version strings in
+    the module path when provided as an argument. Instead, fail with a
+    useful error message.
+    
+    Fixes #28803
+    
+    Change-Id: I59272a91b042e32cef33c2e2116f760ca1def218
+    Reviewed-on: https://go-review.googlesource.com/c/150018
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/init.go | 4 ++++
+ 1 file changed, 4 insertions(+)

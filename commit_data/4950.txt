@@ -1,0 +1,12 @@
+commit b86c0b0c4a69aaca1bd748fb2969f90cb2a28310
+Author: Stephen Weinberg <stephen@q5comm.com>
+Date:   Thu Feb 25 14:49:14 2010 -0800
+
+    Fix small typo in net package.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/224061
+
+ src/pkg/net/unixsock.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

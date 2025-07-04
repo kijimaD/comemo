@@ -1,0 +1,18 @@
+commit 7e9f420ddfb1ce8882bb715158cdb8b977b93955
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 24 15:56:48 2016 -0700
+
+    test: delete bugs directory
+    
+    It appears to be a vestigial holding ground for bugs.
+    But we have an issue tracker, and #1909 is there and open.
+    
+    Change-Id: I912ff222a24c51fab483be0c67dad534f5a84488
+    Reviewed-on: https://go-review.googlesource.com/31859
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/path/filepath/path_test.go |  4 ++--
+ test/bugs/bug395.go            | 24 ------------------------
+ test/bugs/placeholder          |  2 --
+ test/run.go                    |  2 +-
+ 4 files changed, 3 insertions(+), 29 deletions(-)

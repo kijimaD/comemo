@@ -1,0 +1,19 @@
+commit 2cf85b1fb8b3b6629b834016735ddeaaf7b96fda
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 3 12:39:43 2021 -0700
+
+    cmd/compile/internal/types2: implement compiler helper functions without using under
+    
+    These functions are exported for the compiler and are used after
+    type checking is finished. There is no need to call under() in
+    their implementations; they can rely entirely on the public API.
+    This opens the door to moving them into the compiler eventually.
+    They may also be slightly more efficient.
+    
+    Change-Id: Ib4f83d2dcf82e3c319c3147e01ecaea684553ea5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361214
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/type.go | 34 +++++++++++++++++++++++++++------
+ 1 file changed, 28 insertions(+), 6 deletions(-)

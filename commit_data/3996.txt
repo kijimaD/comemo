@@ -1,0 +1,13 @@
+commit ae39a1d8ec1d476ea116c45210a507dca2192d19
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 11 14:52:21 2009 -0800
+
+    cc: correct handling of allocn(0, 1, d)
+    
+    Fixes #29.
+    
+    R=r
+    https://golang.org/cl/152076
+
+ src/cmd/cc/lex.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit 73652af80d9f33de946fc3a91c6900a81247df18
+Author: hkhere <33268704+hkhere@users.noreply.github.com>
+Date:   Wed Oct 20 17:26:41 2021 +0000
+
+    cmd/compile: use `else if` for mutually exclusive `if` statements
+    
+    Change-Id: I43e5bb778fbba1398c8006b1644524a9885157db
+    GitHub-Last-Rev: fa76473ab8b207b8cfc350ca8a26de37dfe57f82
+    GitHub-Pull-Request: golang/go#47155
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334169
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/typecheck/dcl.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

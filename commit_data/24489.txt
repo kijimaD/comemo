@@ -1,0 +1,28 @@
+commit 2d5601d85cff9b11acc622833ccefa808e1cdf08
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Sep 22 01:33:11 2015 -0700
+
+    compress/flate: deprecate ReadError and WriteError
+    
+    A vast majority of the time, ReadError isn't even returned during
+    IO operations. Instead, an unwrapped error will be returned because
+    of the ReadByte call on L705. Because DEFLATE streams are primarily
+    compressed and require byte for byte Huffman decoding, most of the
+    data read from a data stream will go through ReadByte.
+    
+    Although this is technically an API change, any user reliant on
+    this error would not have worked properly anyways due to the fact
+    that most IO error are not wrapped. We might as well deprecate
+    ReadError. It is useless and actually makes clients that do
+    depend on catching IO errors more difficult.
+    
+    Fixes #11856
+    Fixes #12724
+    
+    Change-Id: Ib5fec5ae215e977c4e85de5701ce6a473d400af8
+    Reviewed-on: https://go-review.googlesource.com/14834
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/compress/flate/flate_test.go | 3 ---
+ src/compress/flate/inflate.go    | 8 ++++++--
+ 2 files changed, 6 insertions(+), 5 deletions(-)

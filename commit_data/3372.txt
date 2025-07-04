@@ -1,0 +1,14 @@
+commit 60098a41fb9c6781c4f17067187ba42d848d41c5
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Sep 25 09:38:10 2009 -0700
+
+    Fix unused imports
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=3  (0 added, 3 deleted, 0 changed)
+    OCL=34970
+    CL=35007
+
+ usr/austin/eval/eval_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

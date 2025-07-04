@@ -1,0 +1,24 @@
+commit 7722d0f90383750784377bb395a8c799868bbab8
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Aug 19 09:37:19 2016 +0900
+
+    path/filepath: handle ".." in normalizing a path on Windows
+    
+    Current code assumes there are not ".." in the Clean(path).
+    That's not true. Clean doesn't handle leading "..", so we need to stop
+    normalization if we see "..".
+    
+    Fixes #16793
+    
+    Change-Id: I0a7901bedac17f1210b134d593ebd9f5e8483775
+    Reviewed-on: https://go-review.googlesource.com/27410
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/path/filepath/export_windows_test.go |   5 +-
+ src/path/filepath/path_test.go           |  32 +++++++++-
+ src/path/filepath/path_windows_test.go   | 101 ++++++++++++++++++++++++++++++-
+ src/path/filepath/symlink_windows.go     |  29 ++++++++-
+ 4 files changed, 159 insertions(+), 8 deletions(-)

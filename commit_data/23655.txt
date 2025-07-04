@@ -1,0 +1,20 @@
+commit a74d030557ed952d8740440d88c412d597d485cc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 13 22:13:32 2015 -0700
+
+    os/exec: fix plan9 build
+    
+    Fixes build from https://golang.org/cl/12152
+    
+    Plan 9 lacks syscall.EPIPE. I was misled by api/go1.txt and also
+    forgot to use the trybots. :(
+    
+    Change-Id: I4982fe969ad4a8724090cb03009bfb21780d8aa7
+    Reviewed-on: https://go-review.googlesource.com/12153
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/exec/exec.go       | 14 ++++++--------
+ src/os/exec/exec_posix.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 8 deletions(-)

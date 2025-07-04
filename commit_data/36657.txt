@@ -1,0 +1,12 @@
+commit 8eb36ae9c76d3111afa1bee19b18c0f6cfcfe982
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 12 17:11:33 2018 -0700
+
+    go/types: be more precise in API comment
+    
+    Change-Id: I24c4b08091bf3b8734f5dcdb9eac1a3582a4daa8
+    Reviewed-on: https://go-review.googlesource.com/135116
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/api.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

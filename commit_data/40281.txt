@@ -1,0 +1,18 @@
+commit 728a876ae291a2229047f2d112e0dffc71950dee
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 16 21:55:40 2019 +0000
+
+    net: skip some interface tests on Dragonfly for now
+    
+    Skipping tests isn't great, but neither is a wall of red masking other
+    potential regressions.
+    
+    Updates #34368
+    
+    Change-Id: I5fdfa54846dd8d648001594c74f059af8af52247
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201482
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/net/interface_test.go | 29 +++++++++++++++++------------
+ 1 file changed, 17 insertions(+), 12 deletions(-)

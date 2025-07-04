@@ -1,0 +1,19 @@
+commit 626188dd314c26746ad5525721875ac72ee49c9e
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Thu Jun 18 14:28:54 2015 +0200
+
+    net/textproto: skip zero-length keys
+    
+    A header of ": value" results in an empty key. Do not add
+    it to the headers, because RFC7230 (section 3.2) says that
+    field-names are tokens, which are one or more characters.
+    
+    Fixes #11205.
+    
+    Change-Id: I883be89da1489dc84f98523786b019d1d0169d46
+    Reviewed-on: https://go-review.googlesource.com/11242
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/textproto/reader.go      | 7 +++++++
+ src/net/textproto/reader_test.go | 9 +++++++++
+ 2 files changed, 16 insertions(+)

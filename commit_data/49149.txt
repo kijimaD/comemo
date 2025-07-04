@@ -1,0 +1,27 @@
+commit b89a1948893d2c6c04497030eb78addd6fd7daf3
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 5 17:22:17 2022 -0400
+
+    cmd/internal/obj: add a flag to not write referenced symbol names in object file
+    
+    The Go object file references (some of) symbols from other
+    packages by indices, not by names. The linker doesn't need the
+    symbol names to do the linking. The names are included in the
+    object file so it is self-contained and tools (objdump, nm) can
+    read the referenced symbol names. Including the names increases
+    object file size. Add a flag to disable it on demand (off by
+    default).
+    
+    Change-Id: I143a0eb656997497c750b8eb1541341b2aee8f30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404297
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/base/debug.go |  1 +
+ src/cmd/compile/internal/base/flag.go  |  1 +
+ src/cmd/internal/goobj/objfile.go      |  1 +
+ src/cmd/internal/obj/link.go           |  1 +
+ src/cmd/internal/obj/objfile.go        | 17 ++++++++++++-----
+ src/cmd/internal/obj/objfile_test.go   | 22 ++++++++++++++++++++++
+ 6 files changed, 38 insertions(+), 5 deletions(-)

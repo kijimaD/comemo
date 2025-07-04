@@ -1,0 +1,15 @@
+commit 9449a125e8b25d21c0d522435be44a4a6e7af2d3
+Author: hk <hk@tinyclouds.cn>
+Date:   Sun Oct 11 03:44:09 2020 +0000
+
+    cmd/compile/internal/gc: fix wrong function name in the comment
+    
+    Change-Id: I2fc5cff7495b5db4eb8f286a5335787241f1a850
+    GitHub-Last-Rev: 1d226f14c8edbcb189fd1a37b11a82b9642f19ab
+    GitHub-Pull-Request: golang/go#41917
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261317
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/export.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

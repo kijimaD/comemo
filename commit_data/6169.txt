@@ -1,0 +1,17 @@
+commit e5cf760e8a128aa56a2be0752b8cbf30e804408b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 3 10:52:45 2010 -0700
+
+    solitaire: an exercise in backtracking and string conversions
+    
+    Solves the (English) peg solitaire game. The board is represented
+    by a 1-dimensional array for easy representation of directions
+    with a single integer. The board's contents are chosen such that
+    it can be printed with a direct string() conversion.
+    
+    R=r
+    CC=adg, golang-dev
+    https://golang.org/cl/2066042
+
+ test/solitaire.go | 119 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 119 insertions(+)

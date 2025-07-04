@@ -1,0 +1,13 @@
+commit d844aae690edfc3c411e95ed9fdf583c45f63a3c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 29 14:03:08 2011 -0700
+
+    prints: fix a couple of formatting errors caught by govet
+    
+    R=rsc, agl, agl1
+    CC=golang-dev
+    https://golang.org/cl/4337041
+
+ src/cmd/gofix/fix.go               | 2 +-
+ src/pkg/crypto/ecdsa/ecdsa_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

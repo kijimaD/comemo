@@ -1,0 +1,18 @@
+commit 29c85739d5492011ead7042ea3a6c2e35e252a36
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Jan 1 02:23:55 2015 -0500
+
+    include: remove unnecessary stuff on windows
+    
+    Our definition of struct timespec used to cause problems with
+    certain versions of mingw-rt. However, as it turns out, we don't
+    actually need those definitions and prototypes, so remove them.
+    
+    Fixes #9472.
+    
+    Change-Id: Ie0880f0d58be112625140f73d0bed71f98b7cf05
+    Reviewed-on: https://go-review.googlesource.com/2236
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ include/libc.h | 9 ---------
+ 1 file changed, 9 deletions(-)

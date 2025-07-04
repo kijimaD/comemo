@@ -1,0 +1,18 @@
+commit b16a1e3a03cd8a13c06291bbb39aff0a49137bc6
+Author: Rulin Tang <smiletrl@outlook.com>
+Date:   Tue Jan 9 02:39:36 2024 +0000
+
+    cmd/compile: fix typo in comment
+    
+    Change-Id: Ie3f1f194489dd4cfd995bfaf292e1c311b37597b
+    GitHub-Last-Rev: 6a363297785187188923a76456b468ef1bc1a656
+    GitHub-Pull-Request: golang/go#65008
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554136
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/ir/node.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

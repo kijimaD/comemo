@@ -1,0 +1,13 @@
+commit 840333009c7a1ac5ad43b6889a2993f9c3fe521c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 1 16:58:17 2009 -0700
+
+    replace "ideal" with "untyped"
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=35242
+    CL=35258
+
+ doc/go_tutorial.txt | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

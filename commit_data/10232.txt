@@ -1,0 +1,68 @@
+commit 37d82c85201351d8df424b8043d91c1dc32a0531
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 3 14:18:06 2011 -0700
+
+    os,text,unicode: renamings
+    This is Go 1 package renaming CL #4.
+    This one merely moves the source; the import strings will be
+    changed after the next weekly release.
+    This one moves pieces into os, text, and unicode.
+    
+    exec -> os/exec
+    scanner -> text/scanner
+    tabwriter -> text/tabwriter
+    template -> text/template
+    template/parse -> text/template/parse
+    utf16 -> unicode/utf16
+    utf8 -> unicode/utf8
+    
+    This should be the last of the source-rearranging CLs.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5331066
+
+ src/pkg/Makefile                                | 14 +++++++-------
+ src/pkg/deps.bash                               | 14 ++++++++++++++
+ src/pkg/{ => os}/exec/Makefile                  |  4 ++--
+ src/pkg/{ => os}/exec/exec.go                   |  0
+ src/pkg/{ => os}/exec/exec_test.go              |  0
+ src/pkg/{ => os}/exec/lp_plan9.go               |  0
+ src/pkg/{ => os}/exec/lp_test.go                |  0
+ src/pkg/{ => os}/exec/lp_unix.go                |  0
+ src/pkg/{ => os}/exec/lp_windows.go             |  0
+ src/pkg/{ => text}/scanner/Makefile             |  4 ++--
+ src/pkg/{ => text}/scanner/scanner.go           |  0
+ src/pkg/{ => text}/scanner/scanner_test.go      |  0
+ src/pkg/{ => text}/tabwriter/Makefile           |  4 ++--
+ src/pkg/{ => text}/tabwriter/tabwriter.go       |  0
+ src/pkg/{ => text}/tabwriter/tabwriter_test.go  |  0
+ src/pkg/{ => text}/template/Makefile            |  4 ++--
+ src/pkg/{ => text}/template/doc.go              |  0
+ src/pkg/{ => text}/template/exec.go             |  0
+ src/pkg/{ => text}/template/exec_test.go        |  0
+ src/pkg/{ => text}/template/funcs.go            |  0
+ src/pkg/{ => text}/template/helper.go           |  0
+ src/pkg/{ => text}/template/parse.go            |  0
+ src/pkg/{ => text}/template/parse/Makefile      |  4 ++--
+ src/pkg/{ => text}/template/parse/lex.go        |  0
+ src/pkg/{ => text}/template/parse/lex_test.go   |  0
+ src/pkg/{ => text}/template/parse/node.go       |  0
+ src/pkg/{ => text}/template/parse/parse.go      |  0
+ src/pkg/{ => text}/template/parse/parse_test.go |  0
+ src/pkg/{ => text}/template/parse/set.go        |  0
+ src/pkg/{ => text}/template/set.go              |  0
+ src/pkg/{ => text}/template/set_test.go         |  0
+ src/pkg/{ => text}/template/testdata/file1.tmpl |  0
+ src/pkg/{ => text}/template/testdata/file2.tmpl |  0
+ src/pkg/{ => text}/template/testdata/tmpl1.tmpl |  0
+ src/pkg/{ => text}/template/testdata/tmpl2.tmpl |  0
+ src/pkg/{ => unicode}/utf16/Makefile            |  4 ++--
+ src/pkg/{ => unicode}/utf16/utf16.go            |  0
+ src/pkg/{ => unicode}/utf16/utf16_test.go       |  0
+ src/pkg/{ => unicode}/utf8/Makefile             |  4 ++--
+ src/pkg/{ => unicode}/utf8/string.go            |  0
+ src/pkg/{ => unicode}/utf8/string_test.go       |  0
+ src/pkg/{ => unicode}/utf8/utf8.go              |  0
+ src/pkg/{ => unicode}/utf8/utf8_test.go         |  0
+ 43 files changed, 35 insertions(+), 21 deletions(-)

@@ -1,0 +1,16 @@
+commit fd0419b34425c2743b24c8d7c2cfe28f8df9cc26
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sun Apr 12 02:31:28 2015 +0200
+
+    cmd/internal/ld: allow -r to override rpath when -linkshared
+    
+    Including having -r "" preventing rpath from being set at all.
+    
+    Change-Id: Ib40d7bf93a6e9ef21985c4a05b5703e4fbd1cd1b
+    Reviewed-on: https://go-review.googlesource.com/8806
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/elf.go  |  4 ++--
+ src/cmd/internal/ld/lib.go  | 25 +++++++++++++++++++++----
+ src/cmd/internal/ld/pobj.go |  2 +-
+ 3 files changed, 24 insertions(+), 7 deletions(-)

@@ -1,0 +1,23 @@
+commit d1f0552892b555ed6edeb58d4793396dd2b7ce62
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 28 14:51:18 2023 -0400
+
+    misc/android: rename to misc/go_android_exec, make go build work
+    
+    This makes it reasonable to "go build" from this directory by changing
+    the name of the directory to a more reasonable name for the binary and
+    dropping the unnecessary "ignore" build tag. The resulting binary
+    doesn't *quite* have the necessary name for a Go exec wrapper because
+    that needs to have the form, go_android_$GOARCH_exec, but it's close.
+    
+    Change-Id: I036cb1af9c034462a952b176a794526fa3ffd1ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490495
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/{android => go_android_exec}/README                     | 0
+ misc/{android/go_android_exec.go => go_android_exec/main.go} | 3 ---
+ src/cmd/dist/build.go                                        | 2 +-
+ 3 files changed, 1 insertion(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit 8869086d8f0a31033ccdc103106c768dc17216b1
+Author: Ikko Ashimine <eltociear@gmail.com>
+Date:   Thu Feb 4 02:47:37 2021 +0000
+
+    runtime: fix typo in histogram.go
+    
+    indicies -> indices
+    
+    Change-Id: Ia50ae5918fc7a53c23590a94a18087a99bfd9bb7
+    GitHub-Last-Rev: 98eb724275fd61d5f5ce5dad6b1010c10f76906d
+    GitHub-Pull-Request: golang/go#44095
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289529
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Keith Randall <khr@golang.org>
+
+ src/runtime/histogram.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit a60ffed9e73a5956b6400ae8863856967982c779
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 4 22:59:30 2013 -0500
+
+    path/filepath: document that Walk does not follow symlinks
+    
+    Fixes #4759.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7304043
+
+ src/pkg/path/filepath/path.go | 1 +
+ 1 file changed, 1 insertion(+)

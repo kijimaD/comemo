@@ -1,0 +1,27 @@
+commit a73d8f5a86185aeb39e398d0226d56be7d9247ca
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 25 20:59:52 2018 +0000
+
+    net/http: make Transport send WebSocket upgrade requests over HTTP/1
+    
+    WebSockets requires HTTP/1 in practice (no spec or implementations
+    work over HTTP/2), so if we get an HTTP request that looks like it's
+    trying to initiate WebSockets, use HTTP/1, like browsers do.
+    
+    This is part of a series of commits to make WebSockets work over
+    httputil.ReverseProxy. See #26937.
+    
+    Updates #26937
+    
+    Change-Id: I6ad3df9b0a21fddf62fa7d9cacef48e7d5d9585b
+    Reviewed-on: https://go-review.googlesource.com/c/137437
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/http/clientserver_test.go | 24 ++++++++++++++++++++++-
+ src/net/http/export_test.go       |  6 +++---
+ src/net/http/proxy_test.go        |  2 +-
+ src/net/http/request.go           |  7 +++++++
+ src/net/http/transport.go         | 41 ++++++++++++++++++++++++++++++++-------
+ 5 files changed, 68 insertions(+), 12 deletions(-)

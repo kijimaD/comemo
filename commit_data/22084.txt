@@ -1,0 +1,21 @@
+commit fcb895feef1c9214f9cb633b5a0fa4dc8f46af9e
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Mar 13 13:37:57 2015 +0300
+
+    runtime: add a select test
+    
+    One of my earlier versions of finer-grained select locking
+    failed on this test. If you just naively lock and check channels
+    one-by-one, it is possible that you skip over ready channels.
+    Consider that initially c1 is ready and c2 is not. Select checks c2.
+    Then another goroutine makes c1 not ready and c2 ready (in that order).
+    Then select checks c1, concludes that no channels are ready and
+    executes the default case. But there was no point in time when
+    no channel is ready and so default case must not be executed.
+    
+    Change-Id: I3594bf1f36cfb120be65e2474794f0562aebcbbd
+    Reviewed-on: https://go-review.googlesource.com/7550
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/chan_test.go | 75 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 75 insertions(+)

@@ -1,0 +1,17 @@
+commit cbef450df797c473c9ca01f8d0c81ea26d106c24
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Dec 8 16:54:07 2016 -0500
+
+    runtime/pprof: symbolize proto profiles
+    
+    When generating pprof profiles in proto format, symbolize the profiles.
+    
+    Change-Id: I2471ed7f919483e5828868306418a63e41aff5c5
+    Reviewed-on: https://go-review.googlesource.com/34192
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ .../pprof/internal/protopprof/protopprof.go        | 72 ++++++++++++++++
+ .../pprof/internal/protopprof/protopprof_test.go   | 97 ++++++++++++++++++++++
+ 2 files changed, 169 insertions(+)

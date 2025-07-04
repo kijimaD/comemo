@@ -1,0 +1,15 @@
+commit ec9e3e62a1282fb7c9afc0dfd2339511e384b277
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 23 15:07:42 2013 +1000
+
+    net: wait longer before failing TestVariousDeadlines4Proc on windows
+    
+    This is an attempt to make our slow
+    windows-386 builder more reliable.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/12798045
+
+ src/pkg/net/timeout_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

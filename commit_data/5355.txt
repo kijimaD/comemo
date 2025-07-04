@@ -1,0 +1,14 @@
+commit 461314b6e743939ed7e2265d966d4281fe19650f
+Author: Giles Lean <giles.lean@pobox.com>
+Date:   Mon Apr 26 23:01:31 2010 -0700
+
+    os: create sys_bsd.go
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/897042
+
+ src/pkg/os/Makefile                      |  6 +++++-
+ src/pkg/os/{sys_darwin.go => sys_bsd.go} |  3 ++-
+ src/pkg/os/sys_freebsd.go                | 16 ----------------
+ 3 files changed, 7 insertions(+), 18 deletions(-)

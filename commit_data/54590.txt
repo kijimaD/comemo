@@ -1,0 +1,21 @@
+commit 595deec3dda8e81d514389efdbb4ee2bc38dcabe
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Sep 29 19:16:38 2023 +0000
+
+    runtime: don't eagerly collapse hugepages
+    
+    This has caused performance issues in production environments.
+    
+    Disable it until further notice.
+    
+    Fixes #63334.
+    Related to #61718 and #59960.
+    
+    Change-Id: If84c5a8685825d43c912a71418f2597e44e867e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531816
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgcscavenge.go | 20 +++++---------------
+ 1 file changed, 5 insertions(+), 15 deletions(-)

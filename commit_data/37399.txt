@@ -1,0 +1,22 @@
+commit bfd9b94069e74b0c6516a045cbb83bf1024a1269
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 5 16:26:45 2018 +0000
+
+    net/http: make Transport respect {X-,}Idempotency-Key header
+    
+    Fixes #19943
+    
+    Change-Id: I5e0fefe44791d7b3556095d726c2a753ec551ef2
+    Reviewed-on: https://go-review.googlesource.com/c/147457
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/http/export_test.go       |  2 ++
+ src/net/http/header.go            |  7 ++++++
+ src/net/http/request.go           |  8 +++++-
+ src/net/http/requestwrite_test.go | 32 +++++++++++++++++++++++
+ src/net/http/server.go            |  2 +-
+ src/net/http/transport.go         |  9 +++++++
+ src/net/http/transport_test.go    | 53 +++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 111 insertions(+), 2 deletions(-)

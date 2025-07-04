@@ -1,0 +1,13 @@
+commit 44fd7573aacd4780a3a70cec43e7ad8dea542c7f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 3 13:17:54 2011 -0500
+
+    gc, ld: reflect support for PtrTo
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4245055
+
+ src/cmd/gc/reflect.c | 30 +++++++++++++++++++++++++++++-
+ src/cmd/ld/go.c      |  4 +++-
+ 2 files changed, 32 insertions(+), 2 deletions(-)

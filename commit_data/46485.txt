@@ -1,0 +1,25 @@
+commit ac7c34767dd710643f5f5fea1720a18cc392b7f8
+Author: HowJMay <vulxj0j8j8@gmail.com>
+Date:   Thu Sep 16 18:22:06 2021 +0000
+
+    time: support fractional timezone minutes in MarshalBinary
+    
+    If the time is in 'LMT' and has fractional minute, then
+    `MarshalBinary()` and `UnmarshalBinary()` will encode/decode the time
+    in `timeBinaryVersionV2` in which the fractional minute is at
+    bit 15 and 16, and presented in seconds.
+    
+    Fixes #39616
+    
+    Change-Id: Ib762fb5fa26f54b1a8377a5dde0b994dd5a1236a
+    GitHub-Last-Rev: 455d7a2496ba67d4a82890b14d57000e1a8a1415
+    GitHub-Pull-Request: golang/go#40293
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243402
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Carlos Amedee <carlos@golang.org>
+
+ src/time/time.go      | 30 ++++++++++++++++++++++++------
+ src/time/time_test.go | 32 +++++++++++++++++++++++++++++++-
+ 2 files changed, 55 insertions(+), 7 deletions(-)

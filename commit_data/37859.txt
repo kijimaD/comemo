@@ -1,0 +1,12 @@
+commit dd7d6c261f586bdffdda78cff23aeda8b3dba6cc
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Wed Jan 9 09:27:54 2019 +0700
+
+    debug/gosym: remove outdated comment
+    
+    Change-Id: I2bba13064c8d21ded41499c6ec225ef83d1a533e
+    Reviewed-on: https://go-review.googlesource.com/c/156997
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/gosym/symtab.go | 5 -----
+ 1 file changed, 5 deletions(-)

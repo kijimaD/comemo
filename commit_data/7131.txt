@@ -1,0 +1,15 @@
+commit fa9befd777e6f2f96f69280392725533caef509c
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Jan 17 20:39:26 2011 -0800
+
+    arm reg bug with SP adjust
+    after call to deferproc
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4059041
+
+ src/cmd/5g/opt.h  |  3 ++-
+ src/cmd/5g/peep.c |  2 +-
+ src/cmd/5g/reg.c  | 40 ++++++++++++++++++++++++++++++++++------
+ 3 files changed, 37 insertions(+), 8 deletions(-)

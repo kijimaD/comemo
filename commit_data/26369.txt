@@ -1,0 +1,22 @@
+commit 2cc42cf2a8a9a3f0fdd2d6169ca2fa3b9cffe48e
+Author: Todd Neal <todd@tneal.org>
+Date:   Wed Mar 16 21:22:41 2016 -0500
+
+    cmd/compile/test: replace switch{} with go:noinline
+    
+    Change-Id: Ic40449b2e4b4f18cbe5b5d4c3d51ea7b05ac674d
+    Reviewed-on: https://go-review.googlesource.com/20823
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .../compile/internal/gc/testdata/addressed_ssa.go  |  27 +--
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go  |   4 +-
+ .../compile/internal/gc/testdata/compound_ssa.go   |   6 +-
+ src/cmd/compile/internal/gc/testdata/copy_ssa.go   |  93 ++++------
+ src/cmd/compile/internal/gc/testdata/ctl_ssa.go    |   3 +-
+ src/cmd/compile/internal/gc/testdata/fp_ssa.go     | 193 ++++++++-------------
+ .../compile/internal/gc/testdata/loadstore_ssa.go  |  14 +-
+ src/cmd/compile/internal/gc/testdata/string_ssa.go |   3 +-
+ src/cmd/compile/internal/gc/testdata/zero_ssa.go   |  75 +++-----
+ 9 files changed, 154 insertions(+), 264 deletions(-)

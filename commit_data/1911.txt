@@ -1,0 +1,17 @@
+commit 531f242f5dfce8fb592533c872b8e0452789040a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 30 16:13:11 2009 -0700
+
+    move bits.c from 6g to gc
+    
+    R=ken
+    OCL=26909
+    CL=26909
+
+ src/cmd/6g/Makefile       |  1 -
+ src/cmd/6g/opt.h          | 37 +------------------------------------
+ src/cmd/gc/Makefile       |  1 +
+ src/cmd/{6g => gc}/bits.c |  3 +--
+ src/cmd/gc/go.h           | 39 ++++++++++++++++++++++++++++++++++++++-
+ src/cmd/make8.bash        | 22 ++++++++++++++++++++++
+ 6 files changed, 63 insertions(+), 40 deletions(-)

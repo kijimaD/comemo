@@ -1,0 +1,33 @@
+commit 5b904a3bdee22529d4f6c42aa83c98c5d895eadb
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 7 14:07:46 2008 -0700
+
+    update to Unicode 5
+    
+    SVN=126184
+
+ src/lib/math/asin.go      |    4 +-
+ src/lib/math/exp.go       |    2 +-
+ src/lib/math/log.go       |    4 +-
+ src/lib/math/main.go      |   20 +-
+ src/lib/math/pow.go       |    4 +-
+ src/lib/math/sinh.go      |    4 +-
+ src/lib/math/sqrt.go      |    3 +-
+ src/lib/math/tan.go       |    2 +-
+ src/lib9/utf/mkrunetype.c |  733 +++++++++++++++++++++++++++++
+ src/lib9/utf/rune.c       |  230 +++++++--
+ src/lib9/utf/runetype.c   | 1139 ++-------------------------------------------
+ src/lib9/utf/utf.h        |  248 ++++++++++
+ src/lib9/utf/utfdef.h     |   35 +-
+ src/lib9/utf/utfecpy.c    |    9 +-
+ src/lib9/utf/utflen.c     |    9 +-
+ src/lib9/utf/utfnlen.c    |   10 +-
+ src/lib9/utf/utfrrune.c   |   12 +-
+ src/lib9/utf/utfrune.c    |   10 +-
+ src/lib9/utf/utfutf.c     |   13 +-
+ src/runtime/Makefile      |    1 +
+ src/runtime/rune.c        |  224 +++++++++
+ src/runtime/runtime.h     |    2 +
+ src/runtime/string.c      |   49 --
+ test/string_lit.go        |    9 +
+ 24 files changed, 1520 insertions(+), 1256 deletions(-)

@@ -1,0 +1,11 @@
+commit 9a86cc679a5a017af16d2021433754cf5c4495e9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 17:23:11 2009 -0800
+
+    codereview: do not gofmt deleted files
+    
+    R=r
+    https://golang.org/cl/164083
+
+ lib/codereview/codereview.py | 1 +
+ 1 file changed, 1 insertion(+)

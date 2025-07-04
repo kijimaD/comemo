@@ -1,0 +1,24 @@
+commit d31c805535f3fde95646ee4d87636aaaea66847b
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Feb 26 13:40:00 2025 -0800
+
+    net/http: reject newlines in chunk-size lines
+    
+    Unlike request headers, where we are allowed to leniently accept
+    a bare LF in place of a CRLF, chunked bodies must always use CRLF
+    line terminators. We were already enforcing this for chunk-data lines;
+    do so for chunk-size lines as well. Also reject bare CRs anywhere
+    other than as part of the CRLF terminator.
+    
+    Fixes CVE-2025-22871
+    Fixes #71988
+    
+    Change-Id: Ib0e21af5a8ba28c2a1ca52b72af8e2265ec79e4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652998
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/internal/chunked.go      | 19 +++++++++++---
+ src/net/http/internal/chunked_test.go | 27 +++++++++++++++++++
+ src/net/http/serve_test.go            | 49 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 92 insertions(+), 3 deletions(-)

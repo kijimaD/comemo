@@ -1,0 +1,71 @@
+commit 854e892ce17e2555c59fce5b92f64bc505ba5d8c
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon May 11 09:44:48 2020 -0700
+
+    cmd/compile: optimize shift pairs and masks on s390x
+    
+    Optimize combinations of left and right shifts by a constant value
+    into a 'rotate then insert selected bits [into zero]' instruction.
+    Use the same instruction for contiguous masks since it has some
+    benefits over 'and immediate' (not restricted to 32-bits, does not
+    overwrite source register).
+    
+    To keep the complexity of this change under control I've only
+    implemented 64 bit operations for now.
+    
+    There are a lot more optimizations that can be done with this
+    instruction family. However, since their function overlaps with other
+    instructions we need to be somewhat careful not to break existing
+    optimization rules by creating optimization dead ends. This is
+    particularly true of the load/store merging rules which contain lots
+    of zero extensions and shifts.
+    
+    This CL does interfere with the store merging rules when an operand
+    is shifted left before it is stored:
+    
+      binary.BigEndian.PutUint64(b, x << 1)
+    
+    This is unfortunate but it's not critical and somewhat complex so
+    I plan to fix that in a follow up CL.
+    
+    file      before    after     Δ       %
+    addr2line 4117446   4117282   -164    -0.004%
+    api       4945184   4942752   -2432   -0.049%
+    asm       4998079   4991891   -6188   -0.124%
+    buildid   2685158   2684074   -1084   -0.040%
+    cgo       4553732   4553394   -338    -0.007%
+    compile   19294446  19245070  -49376  -0.256%
+    cover     4897105   4891319   -5786   -0.118%
+    dist      3544389   3542785   -1604   -0.045%
+    doc       3926795   3927617   +822    +0.021%
+    fix       3302958   3293868   -9090   -0.275%
+    link      6546274   6543456   -2818   -0.043%
+    nm        4102021   4100825   -1196   -0.029%
+    objdump   4542431   4548483   +6052   +0.133%
+    pack      2482465   2416389   -66076  -2.662%
+    pprof     13366541  13363915  -2626   -0.020%
+    test2json 2829007   2761515   -67492  -2.386%
+    trace     10216164  10219684  +3520   +0.034%
+    vet       6773956   6773572   -384    -0.006%
+    total     107124151 106917891 -206260 -0.193%
+    
+    Change-Id: I7591cce41e06867ba10a745daae9333513062746
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233317
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Michael Munday <mike.munday@ibm.com>
+
+ src/cmd/compile/internal/s390x/ssa.go        |  14 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules | 162 ++++-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  20 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  25 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 844 +++++++++++++++++++--------
+ src/cmd/internal/obj/s390x/rotate.go         |  82 ++-
+ src/cmd/internal/obj/s390x/rotate_test.go    | 122 ++++
+ test/codegen/bitfield.go                     |  18 +-
+ test/codegen/bits.go                         |  12 +
+ test/codegen/mathbits.go                     |   2 +-
+ test/codegen/rotate.go                       |   6 +-
+ test/codegen/shift.go                        |  33 +-
+ 12 files changed, 1007 insertions(+), 333 deletions(-)

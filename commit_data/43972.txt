@@ -1,0 +1,26 @@
+commit 854a2f8e01a554d8052445563863775406a04b71
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Wed Dec 2 17:07:27 2020 -0700
+
+    net/http: add connections back that haven't been canceled
+    
+    Issue #41600 fixed the issue when a second request canceled a connection
+    while the first request was still in roundTrip.
+    This uncovered a second issue where a request was being canceled (in
+    roundtrip) but the connection was put back into the idle pool for a
+    subsequent request.
+    The fix is the similar except its now in readLoop instead of roundTrip.
+    A persistent connection is only added back if it successfully removed
+    the cancel function; otherwise we know the roundTrip has started
+    cancelRequest.
+    
+    Fixes #42942
+    
+    Change-Id: Ia56add20880ccd0c1ab812d380d8628e45f6f44c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274973
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/transport.go | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)

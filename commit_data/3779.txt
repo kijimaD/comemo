@@ -1,0 +1,12 @@
+commit b6d0a22dc5545923bef9d807c728838484abc081
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 17:05:01 2009 -0800
+
+    gofmt-ify ebnf
+    
+    R=r
+    http://go/go-review/1018050
+
+ src/pkg/ebnf/ebnf.go      | 52 +++++++++++++++++++++++------------------------
+ src/pkg/ebnf/ebnf_test.go |  6 +++---
+ 2 files changed, 29 insertions(+), 29 deletions(-)

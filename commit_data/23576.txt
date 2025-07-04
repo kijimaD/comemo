@@ -1,0 +1,27 @@
+commit 8e6dc76e1f14088546ef99d00d884ac5057b349f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 30 11:28:29 2015 -0400
+
+    net/url: only record RawPath when it is needed
+    
+    RawPath is a hint to the desired encoding of Path.
+    It is ignored when it is not a valid encoding of Path,
+    such as when Path has been changed but RawPath has not.
+    It is not ignored but also not useful when it matches
+    the url package's natural choice of encoding.
+    In this latter case, set it to the empty string.
+    This should help drive home the point that clients
+    cannot in general depend on it being present and
+    that they should use the EncodedPath method instead.
+    
+    This also reduces the impact of the change on tests,
+    especially tests that use reflect.DeepEqual on parsed URLs.
+    
+    Change-Id: I437c51a33b85439a31c307caf1436118508ea196
+    Reviewed-on: https://go-review.googlesource.com/11760
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/readrequest_test.go | 22 ++++++++--------------
+ src/net/url/url.go               | 10 ++++++++--
+ src/net/url/url_test.go          |  8 ++------
+ 3 files changed, 18 insertions(+), 22 deletions(-)

@@ -1,0 +1,40 @@
+commit 0ce94d79bc7dda4c6f86c6ac13bf0bdd20d0ffdf
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 24 13:57:35 2023 -0400
+
+    cmd/compile: modify -memprofile flag for multiple profiles in a directory
+    
+    This permits collection of multiple profiles in a build
+    (instead of just the last compilation).  If a -memprofile
+    specifies an existing directory instead of a file, it will
+    create "<url.PathEscape(pkgpath)>.mprof" in that directory.
+    
+    The PathEscaped package names are ugly, but this puts all
+    the files in a single directory with no risk of name clashs,
+    which simplies the usual case for using these files, which
+    is something like
+    ```
+    go tool pprof profiles/*.mprof
+    ```
+    
+    Creating a directory tree mimicking the package structure
+    requires something along the lines of
+    ```
+    go tool pprof `find profiles -name "*.mprof" -print`
+    ```
+    
+    In addition, this turns off "legacy format" because that
+    is only useful for a benchcompile, which does not use this
+    new feature (and people actually interested in memory
+    profiles probably prefer the new ones).
+    
+    Change-Id: Ic1d9da53af22ecdda17663e0d4bce7cdbcb54527
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539316
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/gc/util.go | 26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)

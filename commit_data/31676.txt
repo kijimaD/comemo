@@ -1,0 +1,24 @@
+commit 0a3f3e166d702f477863a5260779fa0357c72302
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Apr 5 17:32:09 2017 +0900
+
+    archive/zip: set utf-8 flag
+    
+    See: https://pkware.cachefly.net/webdocs/APPNOTE/APPNOTE-6.3.0.TXT
+    
+    Document says:
+    > If general purpose bit 11 is set, the filename and comment must support The
+    > Unicode Standard, Version 4.1.0 or greater using the character encoding form
+    > defined by the UTF-8 storage specification.
+    
+    Since Go encode the filename to UTF-8, general purpose bit 11 should be set.
+    
+    Change-Id: Ica4af02b4dc695e9a5c015ae360e70171efb6ee3
+    Reviewed-on: https://go-review.googlesource.com/39570
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/zip/writer.go      | 19 +++++++++++++
+ src/archive/zip/writer_test.go | 63 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+)

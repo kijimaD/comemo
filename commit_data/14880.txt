@@ -1,0 +1,16 @@
+commit 406ca3c2f19a0742a05e5837ca9cae77fb4cadd8
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Jan 14 08:44:16 2013 +0100
+
+    encoding/json: fix panics on type mismatches.
+    
+    Fixes #4222.
+    Fixes #4628.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7100049
+
+ src/pkg/encoding/json/decode.go      | 34 ++++++++++++++++++++++++----------
+ src/pkg/encoding/json/decode_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 10 deletions(-)

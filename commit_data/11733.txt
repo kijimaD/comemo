@@ -1,0 +1,16 @@
+commit 1c1ecd7473770521b8e9e599220c038819736d7b
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 9 14:40:56 2012 +1100
+
+    log/syslog: fix documentation for NewLogger
+    Fixes #2798.
+    
+    R=golang-dev, bradfitz, r, rsc, rsc
+    CC=golang-dev
+    https://golang.org/cl/5642071
+
+ doc/go1.html                      | 18 ++++++++++++++++--
+ doc/go1.tmpl                      | 12 ++++++++++++
+ src/pkg/log/syslog/syslog.go      | 14 +++++++-------
+ src/pkg/log/syslog/syslog_test.go |  4 ++--
+ 4 files changed, 37 insertions(+), 11 deletions(-)

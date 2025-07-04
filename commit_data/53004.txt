@@ -1,0 +1,25 @@
+commit b6c75c5fb114fd951a7e3d9aa569b9bcd06d6bc3
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 8 10:47:45 2023 -0400
+
+    test,internal/testdir: don't set GOOS/GOARCH
+    
+    The test directory driver currently sets the GOOS/GOARCH environment
+    variables if they aren't set. This appears to be in service of a
+    single test, test/env.go, which was introduced in September 2008 along
+    with os.Getenv. It's not entirely clear what that test is even trying
+    to check, since runtime.GOOS isn't necessarily the same as $GOOS. We
+    keep the test around because golang.org/x/tools/go/ssa/interp uses it
+    as a test case, but we simplify the test and eliminate the need for
+    the driver to set GOOS/GOARCH.
+    
+    Change-Id: I5acc0093b557c95d1f0a526d031210256a68222d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493601
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/internal/testdir/testdir_test.go |  8 --------
+ test/env.go                          | 13 ++++++++-----
+ 2 files changed, 8 insertions(+), 13 deletions(-)

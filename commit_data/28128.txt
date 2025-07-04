@@ -1,0 +1,12 @@
+commit 1319a0ffc79e6a3f278ce39bee90bf6823c647be
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 30 12:46:36 2016 -0700
+
+    cmd/compile: remove unused FmtWidth flag
+    
+    Change-Id: I6c48683b620b0f119d7f0ae4a88502773202756b
+    Reviewed-on: https://go-review.googlesource.com/28170
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

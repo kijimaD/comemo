@@ -1,0 +1,14 @@
+commit 1e88d91eb26fbbf17a1ac4d8b0967d17905a2aba
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Dec 19 09:36:11 2018 +0100
+
+    doc/go1.12: fix typos and code formatting
+    
+    Fix two typos and don't indent the go vet example.
+    
+    Change-Id: Iccec56ca5decfbae45547a00115500ed13b703e1
+    Reviewed-on: https://go-review.googlesource.com/c/154721
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.12.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

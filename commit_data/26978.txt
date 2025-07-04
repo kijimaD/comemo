@@ -1,0 +1,20 @@
+commit a85a224e8e835fc9544f5e9e7b28d7bbc732045b
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Apr 16 09:24:43 2016 +0200
+
+    fmt: fix padding when precision is set for integer formatting
+    
+    Ignore the f.zero flag and use spaces for padding instead
+    when precision is set.
+    
+    Fixes #15331
+    
+    Change-Id: I3ac485df24b7bdf4fddf69e3cc17c213c737b5ff
+    Reviewed-on: https://go-review.googlesource.com/22131
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go |  6 +++++-
+ src/fmt/format.go   | 31 +++++++++++++++----------------
+ 2 files changed, 20 insertions(+), 17 deletions(-)

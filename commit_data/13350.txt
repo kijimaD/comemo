@@ -1,0 +1,12 @@
+commit 00e8a3ae915eab33982cdf7e2c0aa91102384d16
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 14 11:44:00 2012 +1000
+
+    doc: document go1.0.2
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6298079
+
+ doc/devel/release.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

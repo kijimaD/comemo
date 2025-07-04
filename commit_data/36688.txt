@@ -1,0 +1,17 @@
+commit c381ba86572f568a6d6dccd1b8a6bd583955dc69
+Author: Ivy Evans <ivy@ivyevans.net>
+Date:   Thu Sep 13 02:16:27 2018 +0000
+
+    net/http: fix minor typos in Request godoc
+    
+    Fixes missing commas where it wasn't immediately apparent whether
+    "requests" was being used as a verb or a noun.
+    
+    Change-Id: Ic8c99b4f46475f40a6160d26a3cd11c215940dd5
+    GitHub-Last-Rev: 1becf6fabeb6f928e37526e96297dd60397ccf9b
+    GitHub-Pull-Request: golang/go#27649
+    Reviewed-on: https://go-review.googlesource.com/135135
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/request.go | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

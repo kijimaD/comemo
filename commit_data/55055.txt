@@ -1,0 +1,22 @@
+commit 752379113b7c3e2170f790ec8b26d590defc71d1
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Sun Nov 19 10:24:22 2023 -0500
+
+    runtime/race: update race syso for PPC64LE
+    
+    Following CL 543035, this CL updates race syso for Linux/PPC64LE.
+    Now we have update all of them (except OpenBSD).
+    
+    For #61395.
+    Fixes #62624.
+    
+    Change-Id: I9e1d758355114a50ff206e5d78dc4ea8a06367d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543397
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/race/README                  |   2 +-
+ src/runtime/race/race_linux_ppc64le.syso | Bin 669736 -> 727720 bytes
+ 2 files changed, 1 insertion(+), 1 deletion(-)

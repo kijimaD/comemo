@@ -1,0 +1,15 @@
+commit 33311a7945ecb70fbf7785465664a61528ae2673
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 29 07:41:53 2009 +1100
+
+    fix dumb bug: must write out default values inside arrays and slices
+    
+    Fixes #459.
+    
+    R=rsc, imkrasin, sonia
+    CC=golang-dev
+    https://golang.org/cl/181073
+
+ src/pkg/gob/encode.go       | 44 +++++++++++++++++++++++++-------------------
+ src/pkg/gob/encoder_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 19 deletions(-)

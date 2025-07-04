@@ -1,0 +1,23 @@
+commit 077573018027c30e5f422d50f0b96e1733ac6001
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 30 13:23:37 2022 -0700
+
+    cmd/compile/internal/syntax: better errors for syntax errors in lists
+    
+    For syntax errors in various (syntactic) lists, instead of reporting
+    a set of "expected" tokens (which may be incomplete), provide context
+    and mention "possibly missing" tokens. The result is a friendlier and
+    more accurate error message.
+    
+    Fixes #49205.
+    
+    Change-Id: I38ae7bf62febfe790075e62deb33ec8c17d64476
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396914
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/syntax/parser.go          | 16 ++++++-------
+ .../compile/internal/syntax/testdata/issue49205.go | 27 ++++++++++++++++++++++
+ test/fixedbugs/issue13319.go                       |  4 ++--
+ test/syntax/composite.go                           |  2 +-
+ 4 files changed, 38 insertions(+), 11 deletions(-)

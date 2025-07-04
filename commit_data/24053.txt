@@ -1,0 +1,16 @@
+commit b3a508c03e2c31135dcb39fa288a6482b3607249
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Aug 22 20:29:33 2015 +0900
+
+    cmd/compile: in usage messages, name the binary "compile" instead of "Xg"
+    
+    Fixes #12227
+    
+    Change-Id: I7c1b93e50736185a641fb637000aae2f15bc04ed
+    Reviewed-on: https://go-review.googlesource.com/13820
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/lex.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 955aa159adc41ee2ee60563fab6dad676f332526
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 20 10:43:55 2011 -0800
+
+    godoc: show line numbers for non-go files (bug fix)
+    
+    Also: Give line numbers a style and make them less intrusive.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4060043
+
+ doc/all.css             | 4 ++++
+ src/cmd/godoc/format.go | 4 ++--
+ 2 files changed, 6 insertions(+), 2 deletions(-)

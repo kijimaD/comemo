@@ -1,0 +1,12 @@
+commit a3b9797baa487224c5d5e1878057ec31e1f0df88
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 15 13:35:56 2015 -0400
+
+    runtime: gofmt
+    
+    Change-Id: I539bdc438f694610a7cd373f7e1451171737cfb3
+    Reviewed-on: https://go-review.googlesource.com/11084
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/malloc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

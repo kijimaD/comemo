@@ -1,0 +1,20 @@
+commit 265b59aefdd383fc60fcfc7a2838018b16d1d29a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 15 16:11:37 2021 -0700
+
+    cmd/cgo: for godefs, don't let field prefix removal cause duplicates
+    
+    Fixes #48396
+    
+    Change-Id: Idd7cb66536ef513806c472d394a929bc271fc26b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350159
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+
+ misc/cgo/testgodefs/testdata/issue48396.go | 18 ++++++++++++++++++
+ misc/cgo/testgodefs/testdata/main.go       |  3 +++
+ misc/cgo/testgodefs/testgodefs_test.go     |  1 +
+ src/cmd/cgo/gcc.go                         | 25 +++++++++++++++++++++++++
+ 4 files changed, 47 insertions(+)

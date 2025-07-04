@@ -1,0 +1,12 @@
+commit 678a70e3b6f9b8bc29c5c2633055cc2eb7990acf
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Thu Dec 16 12:35:38 2010 -0800
+
+    govet: fix comment
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/3712041
+
+ src/cmd/govet/govet.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

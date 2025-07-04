@@ -1,0 +1,14 @@
+commit 502e29f485c2a3ed5691601a689911199fd5aef0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 6 17:44:47 2012 -0800
+
+    database/sql: add docs about connection state, pooling
+    
+    Fixes #3223
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5755063
+
+ src/pkg/database/sql/sql.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

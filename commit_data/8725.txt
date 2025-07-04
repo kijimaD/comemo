@@ -1,0 +1,24 @@
+commit 340251e43d980be7166c9d08bde22bda1cfa05d5
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Tue Jun 14 14:14:11 2011 -0400
+
+    build: fix header files for Plan 9
+    
+    The "elf.h" header changes involve only comments, the released
+    Plan 9 C preprocessing function does not cope with multiline
+    comments following the #define keyword.  All multiline comments
+    have been moved to the line above the associated definition.
+    Sigh!  Fixing the Plan 9 compiler is not an option.
+    
+    <time.h> does not exist in the Plan 9 Native library.  I have
+    moved it from src/cmd/ld/pe.h to include/u.h. RSC correctly points
+    out that this copy of <u.h> is not the one used to compile the
+    Go release on Plan 9 platforms.
+    
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/4574042
+
+ include/u.h      |  1 +
+ src/cmd/ld/elf.h | 73 ++++++++++++++++++++++++++++----------------------------
+ 2 files changed, 37 insertions(+), 37 deletions(-)

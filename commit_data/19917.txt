@@ -1,0 +1,14 @@
+commit 2185dbcd8554ef728df06c30ef83e4c61e8c17d8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 6 16:12:24 2014 -0400
+
+    codereview: do not hit upload_complete on first patch
+    
+    Causes server 500 error, so don't do it.
+    
+    TBR=minux
+    CC=golang-codereviews
+    https://golang.org/cl/125770043
+
+ lib/codereview/codereview.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

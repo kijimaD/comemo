@@ -1,0 +1,14 @@
+commit 122a4fb7b038af1407a8b1c5ffe370bae70a5c69
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 24 10:02:41 2019 -0700
+
+    doc/go1.13: mention {NetBSD,OpenBSD}/arm64 ports
+    
+    Also alphabetize port listing.
+    
+    Change-Id: I4cc552a74856c9955571d721deb6223438c7d856
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183637
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.13.html | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)

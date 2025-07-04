@@ -1,0 +1,15 @@
+commit 71f0fb77602701bf3e3f6efd3aa1be5d42a64458
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 21 10:49:35 2011 -0800
+
+    crypto/x509: don't crash with nil receiver in accessor method
+    
+    Fixes #2600
+    
+    R=golang-dev, agl, rsc
+    CC=golang-dev
+    https://golang.org/cl/5500064
+
+ src/pkg/crypto/x509/cert_pool.go   |  3 +++
+ src/pkg/crypto/x509/verify_test.go | 12 ++++++++++++
+ 2 files changed, 15 insertions(+)

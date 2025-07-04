@@ -1,0 +1,30 @@
+commit b6b144bf97744ead3ac51fd1b5648d2e31a8de0e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 4 15:01:29 2015 -0700
+
+    cmd/compile: don't generate algs for ... args
+    
+    Note that this is only safe because
+    the compiler generates multiple distinct
+    gc.Types. If we switch to having canonical
+    gc.Types, then this will need to be updated
+    to handle the case in which the user uses both
+    map[[n]T]S and also calls a function f(...T) with n arguments.
+    In that case, the runtime needs algs for [n]T, but this could
+    mark the sole [n]T type as Noalg. This is a general
+    problem with having a single bool to represent
+    whether alg generation is needed for a type.
+    
+    Cuts 17k off cmd/go and 13k off golang.org/x/tools/cmd/godoc,
+    approx 0.14% and 0.07% respectively.
+    
+    For #6853 and #9930
+    
+    Change-Id: Iccb6b9fd88ade5497d7090528a903816d340bf0a
+    Reviewed-on: https://go-review.googlesource.com/19770
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 1 +
+ 1 file changed, 1 insertion(+)

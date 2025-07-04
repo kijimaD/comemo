@@ -1,0 +1,33 @@
+commit e924ea03cc7651cffdec9636a0d79d54eb6e7e0d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Sep 11 15:53:49 2023 -0400
+
+    cmd/link: disable DWARF by default in c-shared mode on darwin
+    
+    Currently, linking a Go c-shared object with C code using Apple's
+    new linker, it fails with
+    
+    % cc a.c go.so
+    ld: segment '__DWARF' filesize exceeds vmsize in 'go.so'
+    
+    Apple's new linker has more checks for unmapped segments. It is
+    very hard to make it accept a Mach-O shared object with an
+    additional DWARF segment.
+    
+    We may want to stop combinding DWARF into the shared object (see
+    also #62577). For now, disable DWARF by default in c-shared mode
+    on darwin. (One can still enable it with -ldflags=-w=0, which will
+    contain DWARF, but it will need the old C linker to link against
+    with.)
+    
+    For #61229.
+    
+    Change-Id: I4cc77da54fac10e2c2cbcffa92779cba82706d75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527415
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/main.go | 3 +++
+ 1 file changed, 3 insertions(+)

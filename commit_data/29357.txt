@@ -1,0 +1,21 @@
+commit 4141054d19f6d5bcdc448be00a6ce4a4c864d488
+Author: David Chase <drchase@google.com>
+Date:   Thu Nov 3 11:50:14 2016 -0400
+
+    runtime/cgo: correct type declaration for Windows
+    
+    Newer versions of gcc notice a type mismatch and complain.
+    Fix code to match documented signature in MSDN.
+    Trybots say this still compiles with the older (5.1) version
+    of gcc.
+    
+    Fixes #17771.
+    
+    Change-Id: Ib3fe6f71b40751e1146249e31232da5ac69b9e00
+    Reviewed-on: https://go-review.googlesource.com/32646
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/gcc_libinit_windows.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

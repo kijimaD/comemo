@@ -1,0 +1,19 @@
+commit 2bc63f2367245ffd1deaa466a734426f0aafc1b3
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 3 16:05:47 2009 -0800
+
+    First steps at command documentation: C compilers and linkers.
+    Each command gets a doc.go file for godoc to analyze. Its main
+    element is a package comment.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1018029
+
+ src/cmd/5c/doc.go | 14 ++++++++++++++
+ src/cmd/5l/doc.go | 26 ++++++++++++++++++++++++++
+ src/cmd/6c/doc.go | 14 ++++++++++++++
+ src/cmd/6l/doc.go | 32 ++++++++++++++++++++++++++++++++
+ src/cmd/8c/doc.go | 14 ++++++++++++++
+ src/cmd/8l/doc.go | 32 ++++++++++++++++++++++++++++++++
+ 6 files changed, 132 insertions(+)

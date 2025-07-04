@@ -1,0 +1,14 @@
+commit 86b7721ce3203ae002294f2c6027dfe48a968744
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 1 13:38:05 2017 -0700
+
+    os: rearrange OpenFile Flags doc
+    
+    Updates #21322
+    
+    Change-Id: Ib03ee9dbe1b44c2fecd51f2f2c23a88482158e7e
+    Reviewed-on: https://go-review.googlesource.com/75250
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/os/file.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 5539ef02b69318974f4e0b6816bd6a32660cf49a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 10 14:34:48 2014 -0400
+
+    runtime: make times in GODEBUG=gctrace=1 output clearer
+    
+    TBR=0intro
+    CC=golang-codereviews
+    https://golang.org/cl/86620043
+
+ src/pkg/runtime/mgc0.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

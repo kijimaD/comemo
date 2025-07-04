@@ -1,0 +1,18 @@
+commit 5fd0a749874a2784dbef57d4ec9c07429bcc0896
+Author: Matt Jones <mrjones@google.com>
+Date:   Mon Apr 4 15:49:49 2011 -0400
+
+    http: use upper case hex in URL escaping
+    
+    According to RFC 3986: "For consistency, URI producers
+    and normalizers should use uppercase hexadecimal digits
+    for all percent-encodings."  Using lower case characters
+    makes it incompatible with Google APIs when signing OAuth requests.
+    
+    R=golang-dev, rsc1, rsc
+    CC=golang-dev
+    https://golang.org/cl/4352044
+
+ src/pkg/http/url.go      | 4 ++--
+ src/pkg/http/url_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit 953cc7490a58fa6b6e5086cc7ca2945b041c30ab
+Author: Keith Randall <khr@google.com>
+Date:   Mon Oct 21 15:03:48 2019 -0700
+
+    doc: document new math.Fma function
+    
+    This accidentally got committed - please review the whole paragraph
+    as if it was new.
+    
+    Change-Id: I98e1db4670634c6e792d26201ce0cd329a6928b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202579
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.14.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

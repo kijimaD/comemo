@@ -1,0 +1,16 @@
+commit b3cae37464b6acb7a6676da667d292f353143954
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Sep 28 10:56:05 2017 +0530
+
+    doc: fix minor capitalization typo
+    
+    Updated page to Page to match with the sample code
+    
+    Fixes #21773
+    
+    Change-Id: Ia884a22fd587860c7a6148103b2b474425e45284
+    Reviewed-on: https://go-review.googlesource.com/66790
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/articles/wiki/index.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

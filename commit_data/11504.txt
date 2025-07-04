@@ -1,0 +1,33 @@
+commit 28397befabea2bb984b8eda963d9e7c16ffafd45
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 1 00:36:45 2012 +0900
+
+    net: replace error variable name e, errno with err
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5593046
+
+ src/pkg/net/fd.go                | 33 ++++++++---------
+ src/pkg/net/fd_darwin.go         | 12 +++----
+ src/pkg/net/fd_freebsd.go        | 20 +++++------
+ src/pkg/net/fd_linux.go          | 32 ++++++++---------
+ src/pkg/net/fd_netbsd.go         | 20 +++++------
+ src/pkg/net/fd_openbsd.go        | 20 +++++------
+ src/pkg/net/fd_windows.go        | 78 ++++++++++++++++++++--------------------
+ src/pkg/net/file.go              | 21 +++++------
+ src/pkg/net/interface_darwin.go  | 31 ++++++----------
+ src/pkg/net/interface_freebsd.go | 31 ++++++----------
+ src/pkg/net/interface_linux.go   | 24 ++++---------
+ src/pkg/net/interface_windows.go | 40 ++++++++++-----------
+ src/pkg/net/ipsock.go            | 27 +++++---------
+ src/pkg/net/ipsock_plan9.go      | 21 +++--------
+ src/pkg/net/lookup_windows.go    | 18 +++++-----
+ src/pkg/net/multicast_test.go    |  6 ++--
+ src/pkg/net/net_test.go          | 18 +++++-----
+ src/pkg/net/sendfile_linux.go    | 10 +++---
+ src/pkg/net/sockopt.go           |  4 +--
+ src/pkg/net/tcpsock_posix.go     | 12 +++----
+ src/pkg/net/udpsock_posix.go     |  8 ++---
+ src/pkg/net/unixsock_posix.go    | 26 +++++++-------
+ 22 files changed, 230 insertions(+), 282 deletions(-)

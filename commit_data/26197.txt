@@ -1,0 +1,14 @@
+commit e6ea01685fe8e97af5763753bbd3189c9544ecad
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 10 11:49:20 2016 -0800
+
+    cmd/compile: remove global variables in inl.go
+    
+    Change-Id: I06dedf4ebfa32b598f5545dc9354c8e4a95610b1
+    Reviewed-on: https://go-review.googlesource.com/20525
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go | 89 ++++++++++++++++++++------------------
+ 1 file changed, 46 insertions(+), 43 deletions(-)

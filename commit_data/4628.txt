@@ -1,0 +1,14 @@
+commit 07fc1457441110648abf4f01eced1741d509154e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 18 16:00:13 2010 -0800
+
+    gc: be more specific about copy type errors
+    
+    Fixes #539.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/190043
+
+ src/cmd/gc/typecheck.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

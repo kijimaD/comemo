@@ -1,0 +1,127 @@
+commit 90093f0634d0143c6294e827e5c83fc0818ff8aa
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 15 13:45:39 2014 -0400
+
+    liblink: introduce TLS register on 386 and amd64
+    
+    When I did the original 386 ports on Linux and OS X, I chose to
+    define GS-relative expressions like 4(GS) as relative to the actual
+    thread-local storage base, which was usually GS but might not be
+    (it might be FS, or it might be a different constant offset from GS or FS).
+    
+    The original scope was limited but since then the rewrites have
+    gotten out of control. Sometimes GS is rewritten, sometimes FS.
+    Some ports do other rewrites to enable shared libraries and
+    other linking. At no point in the code is it clear whether you are
+    looking at the real GS/FS or some synthesized thing that will be
+    rewritten. The code manipulating all these is duplicated in many
+    places.
+    
+    The first step to fixing issue 7719 is to make the code intelligible
+    again.
+    
+    This CL adds an explicit TLS pseudo-register to the 386 and amd64.
+    As a register, TLS refers to the thread-local storage base, and it
+    can only be loaded into another register:
+    
+            MOVQ TLS, AX
+    
+    An offset from the thread-local storage base is written off(reg)(TLS*1).
+    Semantically it is off(reg), but the (TLS*1) annotation marks this as
+    indexing from the loaded TLS base. This emits a relocation so that
+    if the linker needs to adjust the offset, it can. For example:
+    
+            MOVQ TLS, AX
+            MOVQ 8(AX)(TLS*1), CX // load m into CX
+    
+    On systems that support direct access to the TLS memory, this
+    pair of instructions can be reduced to a direct TLS memory reference:
+    
+            MOVQ 8(TLS), CX // load m into CX
+    
+    The 2-instruction and 1-instruction forms correspond roughly to
+    ELF TLS initial exec mode and ELF TLS local exec mode, respectively.
+    
+    Liblink applies this rewrite on systems that support the 1-instruction form.
+    The decision is made using only the operating system (and probably
+    the -shared flag, eventually), not the link mode. If some link modes
+    on a particular operating system require the 2-instruction form,
+    then all builds for that operating system will use the 2-instruction
+    form, so that the link mode decision can be delayed to link time.
+    
+    Obviously it is late to be making changes like this, but I despair
+    of correcting issue 7719 and issue 7164 without it. To make sure
+    I am not changing existing behavior, I built a "hello world" program
+    for every GOOS/GOARCH combination we have and then worked
+    to make sure that the rewrite generates exactly the same binaries,
+    byte for byte. There are a handful of TODOs in the code marking
+    kludges to get the byte-for-byte property, but at least now I can
+    explain exactly how each binary is handled.
+    
+    The targets I tested this way are:
+    
+            darwin-386
+            darwin-amd64
+            dragonfly-386
+            dragonfly-amd64
+            freebsd-386
+            freebsd-amd64
+            freebsd-arm
+            linux-386
+            linux-amd64
+            linux-arm
+            nacl-386
+            nacl-amd64p32
+            netbsd-386
+            netbsd-amd64
+            openbsd-386
+            openbsd-amd64
+            plan9-386
+            plan9-amd64
+            solaris-amd64
+            windows-386
+            windows-amd64
+    
+    There were four exceptions to the byte-for-byte goal:
+    
+    windows-386 and windows-amd64 have a time stamp
+    at bytes 137 and 138 of the header.
+    
+    darwin-386 and plan9-386 have five or six modified
+    bytes in the middle of the Go symbol table, caused by
+    editing comments in runtime/sys_{darwin,plan9}_386.s.
+    
+    Fixes #7164.
+    
+    LGTM=iant
+    R=iant, aram, minux.ma, dave
+    CC=golang-codereviews
+    https://golang.org/cl/87920043
+
+ include/link.h                      |   3 +-
+ src/cmd/6a/lex.c                    |   1 +
+ src/cmd/6c/txt.c                    |   2 +-
+ src/cmd/6l/6.out.h                  |  26 ++--
+ src/cmd/6l/obj.c                    |   1 -
+ src/cmd/8a/lex.c                    |   1 +
+ src/cmd/8c/txt.c                    |   2 +-
+ src/cmd/8l/8.out.h                  |  28 ++---
+ src/cmd/8l/obj.c                    |   1 -
+ src/cmd/dist/buildruntime.c         |  99 ++-------------
+ src/cmd/ld/data.c                   |  17 +++
+ src/cmd/ld/pobj.c                   |   1 -
+ src/liblink/asm6.c                  | 114 +++++++++++++++--
+ src/liblink/asm8.c                  | 126 +++++++++++++++++--
+ src/liblink/list6.c                 |   1 +
+ src/liblink/list8.c                 |   1 +
+ src/liblink/obj6.c                  | 236 +++++++++++++++++-------------------
+ src/liblink/obj8.c                  | 183 +++++++++++-----------------
+ src/liblink/objfile.c               |   6 +-
+ src/liblink/sym.c                   |   1 +
+ src/pkg/runtime/runtime.h           |   4 +-
+ src/pkg/runtime/sys_darwin_386.s    |   3 +-
+ src/pkg/runtime/sys_linux_386.s     |   2 +-
+ src/pkg/runtime/sys_nacl_amd64p32.s |  10 +-
+ src/pkg/runtime/sys_plan9_386.s     |   5 +-
+ src/pkg/runtime/sys_plan9_amd64.s   |   2 +-
+ 26 files changed, 485 insertions(+), 391 deletions(-)

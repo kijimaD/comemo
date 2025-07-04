@@ -1,0 +1,14 @@
+commit 17c32ad712fb724299008587f9fe977c4b381529
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 19 23:29:25 2010 -0400
+
+    http: do not close connection after sending HTTP/1.0 request
+    
+    Fixes #671.
+    
+    R=adg, cw
+    CC=golang-dev
+    https://golang.org/cl/2431042
+
+ src/pkg/http/transfer.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

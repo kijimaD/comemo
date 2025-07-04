@@ -1,0 +1,23 @@
+commit e8eb1d82690c5c70df770df41ca237e5756f21d5
+Author: Colin Arnott <colin@urandom.co.uk>
+Date:   Thu Aug 6 02:57:15 2020 +0000
+
+    math: add MaxUint, MinInt, MaxInt
+    
+    Since we have int8 to int64 min max and uint8 to uint64 max constants,
+    we should probably have some for the word size types too. This change
+    also adds tests to validate the correctness of all integer limit
+    values.
+    
+    Fixes #28538
+    
+    Change-Id: Idd25782e98d16c2abedf39959b7b66e9c4c0c98b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247058
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+
+ src/math/const.go      |  5 +++++
+ src/math/const_test.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+)

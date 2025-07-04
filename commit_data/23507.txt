@@ -1,0 +1,19 @@
+commit 37469a7bcbd833317175d6f6e82051812b7ac892
+Author: Todd Neal <todd@tneal.org>
+Date:   Wed Jun 17 09:31:08 2015 -0500
+
+    net/http: Fix test that occasionally fails
+    
+    The consecutive calls to Head would sometimes get different
+    connections depending on if the readLoop had finished executing
+    and placed its connection on the idle list or not.  This change
+    ensures that readLoop completes before we make our second connection.
+    
+    Fixes #11250
+    
+    Change-Id: Ibdbc4d3d0aba0162452f6dec5928355a37dda70a
+    Reviewed-on: https://go-review.googlesource.com/11170
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/transport_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

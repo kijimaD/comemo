@@ -1,0 +1,22 @@
+commit 8e56eb8b57220579e95e87c1370b7bb770c2fc11
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 7 10:22:13 2014 +0900
+
+    runtime: fix build on freebsd/arm
+    
+    This CL is in preparation to make cgo work on freebsd/arm.
+    
+    How to generate defs-files on freebsd/arm in the bootstrapping phase:
+    1. run freebsd on appropriate arm-eabi platforms
+    2. both syscall z-files and runtime def-files in the current tree are
+       broken about EABI padding, fix them by hand
+    3. run make.bash again to build $GOTOOLDIR/cgo
+    4. use $GOTOOLDIR/cgo directly
+    
+    LGTM=minux.ma, iant
+    R=iant, minux.ma, dave
+    CC=golang-codereviews
+    https://golang.org/cl/59580045
+
+ src/pkg/runtime/defs_freebsd_arm.h | 30 ++++++++++++++++--------------
+ 1 file changed, 16 insertions(+), 14 deletions(-)

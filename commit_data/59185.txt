@@ -1,0 +1,24 @@
+commit a645bc5eb9b9fabc024c076140013a8ad87dded5
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 21 16:07:20 2025 -0700
+
+    maps: implement faster clone
+    
+                │     base     │             experiment              │
+                │    sec/op    │   sec/op     vs base                │
+    MapClone-24   66.802m ± 7%   3.348m ± 2%  -94.99% (p=0.000 n=10)
+    
+    Fixes #70836
+    
+    Change-Id: I9e192b1ee82e18f5580ff18918307042a337fdcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660175
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/internal/runtime/maps/group.go | 29 +++++++++++++++++++++++++++++
+ src/internal/runtime/maps/map.go   | 37 +++++++++++++++++++++++++++++++++++++
+ src/internal/runtime/maps/table.go | 19 +++++++++++++++++++
+ src/runtime/map_swiss.go           | 17 ++++-------------
+ 4 files changed, 89 insertions(+), 13 deletions(-)

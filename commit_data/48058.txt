@@ -1,0 +1,20 @@
+commit 77eff30ec0bc63df61ea742bb8278f92e2c133dc
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Feb 2 13:47:31 2022 -0500
+
+    go/types, types2: add a const to control recursion panics in unification
+    
+    Add a panicAtUnificationDepthLimit const to replace the use of the debug
+    const to control whether to panic when the unification recursion depth
+    is reached. Our tests should pass when debug==true.
+    
+    Change-Id: I58847f49d66010bd4ca01c0408ec10acac95cba6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382534
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/unify.go | 14 ++++++++++----
+ src/go/types/unify.go                    | 14 ++++++++++----
+ 2 files changed, 20 insertions(+), 8 deletions(-)

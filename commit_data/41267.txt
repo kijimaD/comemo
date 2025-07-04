@@ -1,0 +1,18 @@
+commit e237df5b53eb91d7a8d7247e7996f5edee6515b7
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 13 07:37:28 2020 -0800
+
+    runtime: fix fallback logic for aeshash on 32/64 bit
+    
+    We were using the fallback hash unconditionally.  Oops.
+    
+    Fixes #37212
+    
+    Change-Id: Id37d4f5c08806fdda12a3148ba4dbc46676eeb54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219337
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/asm_amd64.s | 2 --
+ 1 file changed, 2 deletions(-)

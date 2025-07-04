@@ -1,0 +1,16 @@
+commit d30f80bad2f79e4b7e122cd091fc66d421d91468
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 4 15:40:28 2009 -0700
+
+    rename -chatty to more conventional -v.
+    add -match flag to select tests.
+    
+    gotest -match 'TestDeepEqual$'
+    
+    R=r
+    DELTA=13  (12 added, 0 deleted, 1 changed)
+    OCL=29900
+    CL=29900
+
+ src/lib/testing/testing.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

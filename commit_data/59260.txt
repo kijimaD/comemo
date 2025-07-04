@@ -1,0 +1,21 @@
+commit 0909bcd9e4acb01089d588d608d669d69710e50a
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 8 15:16:50 2025 -0700
+
+    syscall: remove unused windows function
+    
+    It's causing the dependency test to fail.
+    
+    Fixes #73274
+    
+    Change-Id: I7d80ea4872e360c16ac3b77acf15fa2660d117b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663975
+    Auto-Submit: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+
+ src/syscall/zsyscall_windows.go | 9 ---------
+ 1 file changed, 9 deletions(-)

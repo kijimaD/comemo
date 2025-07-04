@@ -1,0 +1,12 @@
+commit d70cb46f0fde56ec0147c5cc679714fd63cb10bb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Apr 6 16:11:22 2016 +1000
+
+    runtime: use windows.NewLazySystemDLL in mksyscall_windows.go
+    
+    Change-Id: Ie4c4ff4167ee45ae93a8b764fb6197f402e7994d
+    Reviewed-on: https://go-review.googlesource.com/21593
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/mksyscall_windows.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

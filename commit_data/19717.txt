@@ -1,0 +1,15 @@
+commit 0e694298e9e5d6565b285f48860f73626d6705ff
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Thu Jul 10 14:35:04 2014 -0700
+
+    cmd/go: do not fail if libgcc does not exist
+    
+    (This is a patch from the pkgsrc Go package.)
+    
+    LGTM=iant
+    R=golang-codereviews, iant, joerg.sonnenberger, dave
+    CC=golang-codereviews, joerg
+    https://golang.org/cl/108340043
+
+ src/cmd/go/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

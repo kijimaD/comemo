@@ -1,0 +1,19 @@
+commit b655fa8d1df43cd2a6e96566195597b2efbe4bc6
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Thu Feb 4 13:08:54 2010 -0800
+
+    FreeBSD: Kill only takes pid & signal
+    
+    Cosmetic fix.  The FreeBSD system call only takes two
+    arguments.
+    
+    http://fxr.watson.org/fxr/source/kern/kern_sig.c?im=bigexcerpts#L1678
+    
+    R=dho, rsc
+    CC=golang-dev
+    https://golang.org/cl/202051
+
+ src/pkg/syscall/syscall_freebsd.go        | 5 +----
+ src/pkg/syscall/zsyscall_freebsd_386.go   | 4 ++--
+ src/pkg/syscall/zsyscall_freebsd_amd64.go | 4 ++--
+ 3 files changed, 5 insertions(+), 8 deletions(-)

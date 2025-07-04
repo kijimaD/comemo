@@ -1,0 +1,25 @@
+commit b02d5d325a4e93c88ecfc83a094c252148caa748
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Feb 9 14:24:46 2023 -0800
+
+    Revert "io: allocate copy buffers from a pool"
+    
+    This reverts CL 456555.
+    
+    Reason for revert: This seems too likely to exercise race conditions
+    in code where a Write call continues to access its buffer after
+    returning. The HTTP/2 ResponseWriter is one such example.
+    
+    Reverting this change while we think about this some more.
+    
+    For #57202
+    
+    Change-Id: Ic86823f81d7da410ea6b3f17fb5b3f9a979e3340
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467095
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/io/io.go           | 30 ++++++++++++++++++------------
+ src/net/http/server.go | 17 ++++++++++++++---
+ 2 files changed, 32 insertions(+), 15 deletions(-)

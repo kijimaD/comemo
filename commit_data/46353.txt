@@ -1,0 +1,35 @@
+commit 9581d891ab8c88bbf9e5b5142926fbca653551e6
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Sep 8 10:51:06 2021 -0400
+
+    cmd/pprof: update vendored github.com/google/pprof
+    
+    Pull in the latest published version of github.com/google/pprof
+    that is available at this time in the Go 1.18 development cycle.
+    
+    Done with:
+    
+            go get -d github.com/google/pprof@latest
+            go mod tidy
+            go mod vendor
+    
+    For #36905.
+    
+    Change-Id: Ib25aa38365ec70a0bed2a8a6527e5823ab9f9ded
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348410
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +-
+ .../pprof/internal/binutils/addr2liner_llvm.go     |  2 +-
+ .../google/pprof/internal/binutils/binutils.go     | 97 ++++++++++------------
+ .../google/pprof/internal/driver/webhtml.go        | 10 +++
+ .../google/pprof/internal/driver/webui.go          |  5 ++
+ .../google/pprof/internal/elfexec/elfexec.go       | 96 +++++++++++----------
+ .../google/pprof/internal/report/report.go         |  9 ++
+ .../google/pprof/internal/report/source.go         |  9 +-
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 10 files changed, 134 insertions(+), 102 deletions(-)

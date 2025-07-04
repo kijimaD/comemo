@@ -1,0 +1,21 @@
+commit 467eca607697b30ba4f0b58bceae002f87ce5097
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Apr 11 17:03:14 2018 +0200
+
+    test/codegen: port last stack and memcombining tests
+    
+    And delete them from asm_test.
+    
+    Also delete an arm64 cmov test has been already ported to the new test
+    harness.
+    
+    Change-Id: I4458721e1f512bc9ecbbe1c22a2c9c7109ad68fe
+    Reviewed-on: https://go-review.googlesource.com/106335
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+
+ src/cmd/compile/internal/gc/asm_test.go | 80 ---------------------------------
+ test/codegen/memcombine.go              | 19 +++++++-
+ test/codegen/stack.go                   | 12 +++++
+ 3 files changed, 30 insertions(+), 81 deletions(-)

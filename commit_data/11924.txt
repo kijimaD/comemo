@@ -1,0 +1,17 @@
+commit da8f037b57241b0b84fab9d4c9e69b53e7118850
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Feb 15 14:41:47 2012 +1100
+
+    fix: add fix for bufio, gzip, zlib NewWriterXxx changes.
+    
+    Fixes #2979.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5664046
+
+ doc/go1.html                  | 22 ++++++-----
+ doc/go1.tmpl                  | 22 ++++++-----
+ src/cmd/fix/newwriter.go      | 90 +++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/fix/newwriter_test.go | 83 +++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 199 insertions(+), 18 deletions(-)

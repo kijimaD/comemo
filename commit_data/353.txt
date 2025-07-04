@@ -1,0 +1,15 @@
+commit 230230c880a5d73466aa7e7e32323b9b45badb52
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 14 18:06:41 2008 -0700
+
+    - no column info in error messages for Rob
+    - fixed parsing of function literals
+    - added first round of scope handling
+    
+    SVN=127124
+
+ usr/gri/gosrc/globals.go     |  2 +-
+ usr/gri/gosrc/parser.go      | 90 ++++++++++++++++++++++++++++++++++++++++----
+ usr/gri/gosrc/scanner.go     | 20 +++++++++-
+ usr/gri/gosrc/test_parser.go |  1 +
+ 4 files changed, 104 insertions(+), 9 deletions(-)

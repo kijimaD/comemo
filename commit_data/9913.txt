@@ -1,0 +1,12 @@
+commit e63fcd613fd1770dc73fedb11dca616ce59e961c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Oct 9 17:57:31 2011 -0700
+
+    http: cancel test timers; don't t.Fatalf in other goroutines
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5228041
+
+ src/pkg/http/serve_test.go | 93 +++++++++++++++++++++++++++-------------------
+ 1 file changed, 55 insertions(+), 38 deletions(-)

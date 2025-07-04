@@ -1,0 +1,15 @@
+commit ef454fd586ee30d8b35b5895320619ebde2beb98
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 15 23:42:32 2019 +0000
+
+    doc/go1.12: document net/url.Parse now rejecting ASCII CTLs
+    
+    Updates #27302
+    Updates #22907
+    
+    Change-Id: Iac6957f3517265dfb9c662efb7af31192e3bfd6c
+    Reviewed-on: https://go-review.googlesource.com/c/162960
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.12.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

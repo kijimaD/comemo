@@ -1,0 +1,12 @@
+commit 87a04c0bcf52c02598a4f20f1190fd89d591c824
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Tue Feb 14 16:27:35 2012 -0500
+
+    gc: fix comment in mkbuiltin
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5669046
+
+ src/cmd/gc/mkbuiltin | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

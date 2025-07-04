@@ -1,0 +1,14 @@
+commit 82540ebdf05ddf83ad48aba8a5f450ce6ab29aa0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 10 10:30:36 2009 -0700
+
+    bug206
+    
+    R=rsc
+    DELTA=51  (51 added, 0 deleted, 0 changed)
+    OCL=34516
+    CL=34516
+
+ test/bugs/bug206.go | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ test/golden.out     |  7 +++++++
+ 2 files changed, 55 insertions(+)

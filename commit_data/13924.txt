@@ -1,0 +1,14 @@
+commit 44336459c833ca728133d0769c71691d43a1cf20
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 12:57:05 2012 -0400
+
+    lib9/fmt: do not put a main symbol into lib9.a
+    
+    Fixes #4143.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6541064
+
+ src/lib9/fmt/test.c | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,22 @@
+commit f5fcc9b8e08aa94c1f8ad2b91f447e32940a5435
+Author: David Chase <drchase@google.com>
+Date:   Thu Apr 23 19:52:31 2020 -0400
+
+    cmd/internal/obj: add IsAsm flag
+    
+    This allows more exciting changes to compiler-generated assembly
+    language that might not be correct for tricky hand-crafted
+    assembly (e.g., nop padding breaking tables of call or branch
+    instructions).
+    
+    Updates #35881
+    
+    Change-Id: I842b811796076c160180a364564f2844604df3fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229708
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/main.go          | 1 +
+ src/cmd/internal/obj/link.go | 3 ++-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

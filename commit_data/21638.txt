@@ -1,0 +1,12 @@
+commit 38be309dcfebb07dd7ca286509c1ee1f4abd9592
+Author: mattn <mattn.jp@gmail.com>
+Date:   Tue Feb 17 09:16:06 2015 +0900
+
+    os: fix typo in doc
+    
+    Change-Id: I9797b44dfa7c2c853b7a656f4f722df2c862824b
+    Reviewed-on: https://go-review.googlesource.com/4991
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/os/env.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

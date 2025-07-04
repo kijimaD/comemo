@@ -1,0 +1,29 @@
+commit d34548e0b6acc14a99bc6ffc225eedbb56e03d60
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Mar 18 18:35:44 2019 -0400
+
+    cmd/go: avoid link error when -coverpkg covers main packages (more)
+    
+    This fixes two problems missed in CL 164877.
+    
+    First, p.Internal.BuildInfo is now part of the cache key. This is
+    important since p.Internal.BuildInfo causes the build action to
+    synthesize a new source file, which affects the output.
+    
+    Second, recompileForTest is always called for test
+    packages. Previously, it was only called when there were internal test
+    sources, so the fix in CL 164877 did not apply to packages that only
+    had external tests.
+    
+    Fixes #30374
+    
+    Change-Id: Iac2d7e8914f0313f9ab4222299a866f67889eb2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168200
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/load/test.go                   | 23 +++++++++---------
+ src/cmd/go/internal/work/exec.go                   |  1 +
+ .../script/cover_pkgall_multiple_mains.txt         | 28 +++++++++++++---------
+ 3 files changed, 29 insertions(+), 23 deletions(-)

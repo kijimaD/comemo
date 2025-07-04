@@ -1,0 +1,18 @@
+commit 4cfcb4a04bc140da0ad196b1b9cab32bde8f2a62
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Sep 7 13:32:40 2012 +1000
+
+    cgo: use debug data section for ELF
+    
+    When generating enums use the debug data section instead of the
+    DWARF debug info, if it is available in the ELF file. This allows
+    mkerrors.sh to work correctly on OpenBSD/386 and NetBSD/386.
+    
+    Fixes #2470.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6495090
+
+ src/cmd/cgo/gcc.go | 33 ++++++++++++++++++++++++++-------
+ 1 file changed, 26 insertions(+), 7 deletions(-)

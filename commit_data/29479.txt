@@ -1,0 +1,15 @@
+commit ebc0b625a07ccce6ade7a0082f4ab49c2817e965
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 10 16:38:22 2016 -0800
+
+    doc/go1.8.txt: mention that struct conversions ignore tags
+    
+    Also:
+    - update performance improvements for CL 31275.
+    
+    Change-Id: I2f2ec0a42b248643e76df8654e11bf0b01a5d030
+    Reviewed-on: https://go-review.googlesource.com/33114
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go1.8.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit c217c16a06e192e2a5c42dfd276fb97853051f33
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 15:39:05 2009 -0700
+
+    bug136 unfixed
+    
+    R=austin
+    DELTA=35  (21 added, 14 deleted, 0 changed)
+    OCL=32469
+    CL=32474
+
+ test/{fixedbugs => bugs}/bug136.go | 9 ++++++++-
+ test/golden.out                    | 6 +++---
+ 2 files changed, 11 insertions(+), 4 deletions(-)

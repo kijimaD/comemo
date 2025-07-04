@@ -1,0 +1,12 @@
+commit b2127a6c9980d322ee67147c1c71f3d17e6cbd2f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 29 10:26:16 2011 -0400
+
+    testing: make ResetTimer not start/stop the timer
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4626085
+
+ src/pkg/testing/benchmark.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

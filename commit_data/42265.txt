@@ -1,0 +1,26 @@
+commit 1dcbd8dc58abf7319a8f557536e3b5158cba8ed7
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri May 1 15:30:58 2020 -0400
+
+    cmd/go/internal/modload: make QueryPattern consider current versions
+    
+    QueryPattern will now look up the current version of a module (if any)
+    before invoking queryProxy. This changes the interpretation of some
+    patterns (like "upgrade") and avoids the need to download earlier
+    versions for earlier versions when the current version is
+    +incompatible.
+    
+    Fixes #37574
+    
+    Change-Id: I4089d6099236493df13a7f88a252b5e5e556d383
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231599
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/query.go               | 12 ++++++++-
+ .../mod/example.com_incompatiblewithsub_v1.0.0.txt |  8 ++++++
+ ...com_incompatiblewithsub_v2.0.0+incompatible.txt |  8 ++++++
+ .../script/mod_get_prefer_incompatible.txt         | 29 ++++++++++++++++++++++
+ 4 files changed, 56 insertions(+), 1 deletion(-)

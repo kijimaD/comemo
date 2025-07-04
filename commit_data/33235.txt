@@ -1,0 +1,24 @@
+commit ff4ee8816226b6c84690a56fb3b16c9210e68431
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Oct 25 11:01:46 2017 -0700
+
+    database/sql: scan into *time.Time without reflection
+    
+    Previously scanning time.Time into a *time.Time required reflection.
+    Now it does not. Scanning already checked if the source value was of
+    type time.Time. The only addition was checking the destination was
+    of type *time.Time.
+    
+    Existing tests already scan time.Time into *time.Time, so no new
+    tests were added. Linked issue has performance justification.
+    
+    Fixes #22300
+    
+    Change-Id: I4eea461c78fad71ce76e7677c8503a1919666931
+    Reviewed-on: https://go-review.googlesource.com/73232
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/convert.go | 3 +++
+ 1 file changed, 3 insertions(+)

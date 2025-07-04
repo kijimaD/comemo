@@ -1,0 +1,17 @@
+commit cb3e2bf0baba3f056322d31e0edd0432eb34ea10
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jun 21 05:10:05 2015 +1000
+
+    cmd/doc: fix copy/paste error in test
+    
+    Some of those consts were supposed to be vars.
+    
+    Caught by Ingo Oeser.
+    
+    Change-Id: Ifc12e4a8ee61ebf5174e4ad923956c546dc096e2
+    Reviewed-on: https://go-review.googlesource.com/11296
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/doc/doc_test.go     | 12 ++++++------
+ src/cmd/doc/testdata/pkg.go |  6 +++---
+ 2 files changed, 9 insertions(+), 9 deletions(-)

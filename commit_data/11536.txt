@@ -1,0 +1,17 @@
+commit 804f1882c582f05d55db812964ebe41a986b5eb1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 1 14:14:04 2012 +0900
+
+    net, syscall: add IPv4 multicast helpers for windows
+    
+    Also re-enable simple IPv4 multicast testing on windows.
+    
+    R=alex.brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/5605048
+
+ src/pkg/net/multicast_test.go      |  2 +-
+ src/pkg/net/sockoptip_windows.go   | 36 ++++++++++++++++++++++++++++++------
+ src/pkg/syscall/syscall_windows.go |  3 +++
+ src/pkg/syscall/ztypes_windows.go  |  5 +++++
+ 4 files changed, 39 insertions(+), 7 deletions(-)

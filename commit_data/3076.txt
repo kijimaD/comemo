@@ -1,0 +1,24 @@
+commit 165a99038fb0bf02941aae847deca0b1da0bab29
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 24 17:27:55 2009 -0700
+
+    ffi -> dynld.
+    move out of export data into its own section
+    
+    R=r
+    DELTA=222  (71 added, 99 deleted, 52 changed)
+    OCL=33801
+    CL=33808
+
+ src/cmd/5l/l.h     |   5 +-
+ src/cmd/6c/swt.c   |  18 ++++----
+ src/cmd/6l/asm.c   |  19 +++-----
+ src/cmd/6l/l.h     |   5 +-
+ src/cmd/8l/l.h     |   6 +--
+ src/cmd/ar/ar.c    |  13 ++----
+ src/cmd/cc/cc.h    |  13 ++----
+ src/cmd/cc/dpchk.c |  40 +++-------------
+ src/cmd/cc/lexbody |   9 +---
+ src/cmd/cc/macbody |   8 +---
+ src/cmd/ld/go.c    | 132 ++++++++++++++++++++++++++++++++---------------------
+ 11 files changed, 120 insertions(+), 148 deletions(-)

@@ -1,0 +1,63 @@
+commit 31457cef6d6550fff53dd5a80cb276ffa58093c5
+Merge: 09d92b6bbf db40624110
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 5 20:34:45 2014 -0500
+
+    all: merge dev.garbage (d1238958d4ae) into default branch
+    
+    When we start work on Gerrit, ppc64 and garbage collection
+    work will continue in the master branch, not the dev branches.
+    
+    (We may still use dev branches for other things later, but
+    these are ready to be merged, and doing it now, before moving
+    to Git means we don't have to have dev branches working
+    in the Gerrit workflow on day one.)
+    
+    TBR=rlh
+    CC=golang-codereviews
+    https://golang.org/cl/183140043
+
+ lib/codereview/codereview.py   |    4 +-
+ src/cmd/gc/builtin.c           |   31 +-
+ src/cmd/gc/go.h                |    1 +
+ src/cmd/gc/runtime.go          |   33 +-
+ src/cmd/gc/typecheck.c         |    6 +-
+ src/cmd/gc/walk.c              |   63 +-
+ src/runtime/asm_386.s          |   20 +
+ src/runtime/asm_amd64.s        |   20 +
+ src/runtime/asm_amd64p32.s     |   21 +
+ src/runtime/asm_arm.s          |   12 +
+ src/runtime/asm_ppc64x.s       |   12 +
+ src/runtime/export_test.go     |    2 +-
+ src/runtime/heapdump.go        |    4 +-
+ src/runtime/lfstack.go         |   10 +-
+ src/runtime/lfstack_test.go    |    2 +-
+ src/runtime/malloc.go          |   83 ++-
+ src/runtime/malloc2.go         |   41 +-
+ src/runtime/mcache.go          |   11 +-
+ src/runtime/mcentral.go        |   30 +-
+ src/runtime/mgc.go             | 1261 ++++++++++++++++++++++++++++++----------
+ src/runtime/mgc0.go            |  145 ++++-
+ src/runtime/mgc0.h             |    4 +-
+ src/runtime/mgc1.go            |   11 +-
+ src/runtime/mheap.go           |    6 +-
+ src/runtime/os_linux_386.go    |    3 +-
+ src/runtime/print1.go          |   30 +-
+ src/runtime/proc.go            |    3 +
+ src/runtime/proc1.go           |   56 +-
+ src/runtime/rt0_linux_386.s    |    1 -
+ src/runtime/runtime1.go        |    5 +-
+ src/runtime/runtime2.go        |   17 +-
+ src/runtime/select.go          |    7 +-
+ src/runtime/stack.h            |    2 +-
+ src/runtime/stack1.go          |   78 +--
+ src/runtime/stack2.go          |    2 +-
+ src/runtime/stubs.go           |    5 +
+ src/runtime/vdso_none.go       |    1 +
+ src/runtime/wbfat.go           |  190 ++++++
+ src/runtime/wbfat_gen.go       |   41 ++
+ src/sync/atomic/atomic_test.go |    8 +-
+ test/live.go                   |  152 ++---
+ test/live2.go                  |    6 +-
+ test/nosplit.go                |    4 +-
+ 43 files changed, 1890 insertions(+), 554 deletions(-)

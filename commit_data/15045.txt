@@ -1,0 +1,12 @@
+commit 6d2d2ae4d9af028ff13819497baeecfd984dc3e6
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Jan 30 15:09:34 2013 -0800
+
+    cmd/go: fix build -n for cgo enabled packages
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/7095067
+
+ src/cmd/go/build.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

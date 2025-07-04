@@ -1,0 +1,12 @@
+commit 3a52338608f9e34843007441bdceceedd888a640
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 27 09:57:48 2015 -0800
+
+    unsafe: fix doc strings
+    
+    Change-Id: I73a416291a2374dbb8ce8586f24059f8dce56529
+    Reviewed-on: https://go-review.googlesource.com/3360
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/unsafe/unsafe.go | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)

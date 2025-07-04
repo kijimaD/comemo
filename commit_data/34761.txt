@@ -1,0 +1,22 @@
+commit 5d8d3d52b0075de122d1536dff1a9fab942ab700
+Author: Paul Jolly <paul@myitcv.io>
+Date:   Thu Mar 29 15:29:23 2018 +0100
+
+    cmd/go: make generate pass correct GOPACKAGE to XTest files
+    
+    The existing behaviour of go generate is to pass GOPACKAGE=p
+    to all package files, including XTest files. This however is
+    incorrect as the package name for the XTest files is p_test.
+    
+    Fixes #24594
+    
+    Change-Id: I96b6e5777ec511cdcf1a6267a43f4d8c544c4af3
+    Reviewed-on: https://go-review.googlesource.com/103415
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go                    | 16 ++++++++++++++++
+ src/cmd/go/internal/generate/generate.go | 12 +++++++++++-
+ src/cmd/go/internal/load/pkg.go          |  8 +++++++-
+ 3 files changed, 34 insertions(+), 2 deletions(-)

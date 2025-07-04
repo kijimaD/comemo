@@ -1,0 +1,14 @@
+commit 866317af5e28e397ca8fd6f6fb6fddeb17e82817
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 5 22:47:35 2012 -0500
+
+    cmd/godoc: fixes
+    
+    These appear to have been left out of the CL I submitted earlier.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5759043
+
+ src/cmd/godoc/main.go | 26 +++++++++++++++++---------
+ 1 file changed, 17 insertions(+), 9 deletions(-)

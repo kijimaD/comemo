@@ -1,0 +1,14 @@
+commit 8b1b1e159d0ff464062b5325edf29c52000fd1f4
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Mar 3 02:16:15 2014 -0500
+
+    test/run: add /usr/pkg/bin to PATH.
+    perl is installed by pkgsrc to /usr/pkg/bin.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/70630043
+
+ test/run | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

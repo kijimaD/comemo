@@ -1,0 +1,19 @@
+commit c99687f87aed84342cfe92ae78924f791237c6f6
+Author: Rebecca Stambler <rstambler@golang.org>
+Date:   Thu Aug 30 11:33:19 2018 -0400
+
+    go/types: handle nil pointer when panic is written outside of a function
+    
+    The current implementation crashes when someone writes a panic outside of
+    a function, which makes sense since that is broken code. This fix allows
+    one to type-check broken code.
+    
+    Updates #22467
+    
+    Change-Id: I81b90dbd918162a20c60a821340898eaf02e648d
+    Reviewed-on: https://go-review.googlesource.com/132235
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/api_test.go | 2 ++
+ src/go/types/builtins.go | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

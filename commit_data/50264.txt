@@ -1,0 +1,18 @@
+commit ccab2fbc30b0553fce54646a4da0a8645eda40a3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 1 18:47:57 2022 -0700
+
+    internal/types: add a test for empty string import path
+    
+    Follow-up on comment in CL 427154.
+    
+    Change-Id: Ib44a8e9b9129d68b794f91788c9b8c971d6c5436
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427774
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/internal/types/testdata/fixedbugs/issue43190.go | 1 +
+ 1 file changed, 1 insertion(+)

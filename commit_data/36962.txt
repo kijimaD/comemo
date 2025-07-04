@@ -1,0 +1,14 @@
+commit bf68744a122b83f44cc454417d5723be04215091
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 28 15:17:24 2018 -0400
+
+    regexp: add partial Deprecation comment to Copy
+    
+    Change-Id: I21b7817e604a48330f1ee250f7b1b2adc1f16067
+    Reviewed-on: https://go-review.googlesource.com/c/139784
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/regexp/regexp.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

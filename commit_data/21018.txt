@@ -1,0 +1,22 @@
+commit 15c67e21daee0a5055c8fc0144e7efe0345d1929
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 18 16:06:57 2014 -0500
+
+    cmd/ld: set ELF ABI version for ppc64x
+    
+    On ppc64, there are three ELF ABI versions an ELF file can request.
+    Previously, we used 0, which means "unspecified".  On our test
+    machines, this meant to use the default (v1 for big endian and v2 for
+    little endian), but apparently some systems can pick the wrong ABI if
+    neither is requested.  Leaving this as 0 also confuses libbfd, which
+    confuses gdb, objdump, etc.
+    
+    Fix these problems by specifying ABI v1 for big endian and v2 for
+    little endian.
+    
+    Change-Id: I4d3d5478f37f11baab3681a07daff3da55802322
+    Reviewed-on: https://go-review.googlesource.com/1800
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/ld/elf.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

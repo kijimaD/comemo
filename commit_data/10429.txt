@@ -1,0 +1,12 @@
+commit 3ec82f6e0960ffd082a6b63b3c784e8901bd3c4d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Nov 17 11:20:42 2011 +1100
+
+    exp/ssh: change test listen address, also exit test if fails
+    
+    R=golang-dev, rsc
+    CC=dave, golang-dev
+    https://golang.org/cl/5364061
+
+ src/pkg/exp/ssh/client_auth_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

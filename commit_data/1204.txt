@@ -1,0 +1,13 @@
+commit 5014da7cb0aeb8727b72331b627adfde410c2d3c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 20 10:54:11 2008 -0800
+
+    add math to tests; clean a bit
+    
+    R=r
+    DELTA=33  (12 added, 9 deleted, 12 changed)
+    OCL=19688
+    CL=19696
+
+ src/run.bash | 39 +++++++++++++++++++++------------------
+ 1 file changed, 21 insertions(+), 18 deletions(-)

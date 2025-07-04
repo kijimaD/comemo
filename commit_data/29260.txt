@@ -1,0 +1,16 @@
+commit 4de3df8c954e2b3368550b652c5ee861df6717d0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 31 11:41:24 2016 -0700
+
+    cmd/compile: remove unreachable code
+    
+    Makes vet happy.
+    
+    Change-Id: I00de44a844afa57901b31991acf9e7ac834a9572
+    Reviewed-on: https://go-review.googlesource.com/32425
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,0 +1,14 @@
+commit 22e17d0ac7db5321a0f6e073bd0afb949f44dd70
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 14 16:46:57 2018 +1000
+
+    doc: update Design and Types sections of the FAQ
+    
+    Update #26107.
+    
+    Change-Id: I8bfa5b01ce953c53f7fd7a866d0ece61ba04c618
+    Reviewed-on: https://go-review.googlesource.com/123919
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_faq.html | 137 +++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 100 insertions(+), 37 deletions(-)

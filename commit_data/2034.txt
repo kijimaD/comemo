@@ -1,0 +1,16 @@
+commit 57bff962d97b712fbbd2c81af46b770684114fbd
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 15 21:57:55 2009 -0700
+
+    fix gotest by fixing nm -s to print in file order by storing a sequence number
+    as the .6 file is read.   now tests will be run in file order.
+    
+    R=rsc
+    DELTA=9  (6 added, 1 deleted, 2 changed)
+    OCL=27542
+    CL=27544
+
+ include/mach_amd64.h    | 1 +
+ src/cmd/nm/nm.c         | 7 ++++---
+ src/libmach_amd64/obj.c | 3 +++
+ 3 files changed, 8 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit aa9c213e564d58026fd6f822d43c8f3f6e66c68b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 10 08:51:13 2010 +1100
+
+    http: ServeFile to handle Range header for partial requests
+    and send Content-Length.
+    
+    Also includes some testing of the server code.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2831041
+
+ src/pkg/http/fs.go         |  95 +++++++++++++++++++++++--
+ src/pkg/http/fs_test.go    | 172 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/testdata/file |   1 +
+ 3 files changed, 264 insertions(+), 4 deletions(-)

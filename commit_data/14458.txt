@@ -1,0 +1,12 @@
+commit d4775a7814317b20aedab0d79c7892c89a93a622
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Nov 24 15:50:43 2012 +1100
+
+    net/http/httptest: fix possible race on historyListener.history
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6845077
+
+ src/pkg/net/http/httptest/server.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

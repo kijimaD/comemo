@@ -1,0 +1,23 @@
+commit 140266fe7521bf75bf0037f12265190213cc8e7d
+Author: xuri <xuri.me@gmail.com>
+Date:   Wed Aug 23 22:31:34 2023 +0000
+
+    encoding/xml: overriding by empty namespace when no new name declaration
+    
+    The unmarshal and marshal XML text should be consistent if not modified deserialize variable.
+    
+    Fixes #61881
+    
+    Change-Id: I475f7b05211b618685597d3ff20b97e3bbeaf8f8
+    GitHub-Last-Rev: 6831c770c384831798cb1c6dc4674e5d4caa5e3c
+    GitHub-Pull-Request: golang/go#58401
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466295
+    Reviewed-by: ri xu <xuri.me@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/encoding/xml/marshal.go  | 3 ++-
+ src/encoding/xml/xml_test.go | 7 ++++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

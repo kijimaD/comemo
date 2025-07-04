@@ -1,0 +1,26 @@
+commit 45f759500ec80a1362deecd3693cbe44a354bf98
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 28 16:19:03 2016 -0800
+
+    cmd/link: handle STT_COMMON symbols
+    
+    Tested by running
+    
+    GOTRACEBACK=2 CGO_CFLAGS="-Wa,--elf-stt-common=yes" go test -ldflags=-linkmode=internal
+    
+    in misc/cgo/test. That failed before this CL, succeeded after.
+    
+    I don't think it's worth doing that as a regular test, though,
+    especially since only recent versions of the GNU binutils support the
+    --elf-stt-common option.
+    
+    Fixes #18088.
+    
+    Change-Id: I893d86181faee217b1504c054b0ed3f7c8d977d3
+    Reviewed-on: https://go-review.googlesource.com/33653
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/ldelf.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

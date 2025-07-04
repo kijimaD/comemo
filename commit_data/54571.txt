@@ -1,0 +1,21 @@
+commit 1176052bb40378272cfbe83d873b65fcc2ed8502
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 27 09:03:11 2023 +0200
+
+    internal/syscall/unix: implement Eaccess on freebsd
+    
+    Like on linux, use faccessat(AT_FDCWD, path, mode, AT_EACCESS)
+    
+    Change-Id: I98c8af5008bfa7940abffa6fcb3766254955cb08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531155
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/syscall/unix/at_sysnum_freebsd.go |  2 ++
+ src/internal/syscall/unix/eaccess_freebsd.go   | 26 ++++++++++++++++++++++++++
+ src/internal/syscall/unix/eaccess_other.go     |  2 +-
+ 3 files changed, 29 insertions(+), 1 deletion(-)

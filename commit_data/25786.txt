@@ -1,0 +1,22 @@
+commit 1402e522c6e372d055748d8437bd2a127acacdca
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 1 12:02:42 2015 -0800
+
+    cmd/compile: load builtin export data only once
+    
+    Previously, the builtin runtime export data was reparsed before every
+    Go source file, and the unsafe export data was reparsed for every
+    import of package unsafe.  Now, we parse both of them just once ahead
+    of time.
+    
+    This does mean package unsafe's export data will be loaded even when
+    compiling packages that don't import it, but it's tiny anyway.
+    
+    Change-Id: Ic6931bc58f6d62f664348bfa932f92d4ccacc3ef
+    Reviewed-on: https://go-review.googlesource.com/19626
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go    | 30 ++++++++++++++++++++++++++++--
+ src/cmd/compile/internal/gc/parser.go | 23 -----------------------
+ 2 files changed, 28 insertions(+), 25 deletions(-)

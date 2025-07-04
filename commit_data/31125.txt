@@ -1,0 +1,19 @@
+commit 7b5f94e76c2d2adc0bc380aa50dfd7b5227cb958
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 13 08:00:09 2017 -0700
+
+    cmd/internal/obj: cache dwarfSym
+    
+    Follow-up to review feedback from
+    mdempsky on CL 40507.
+    
+    Reduces mutex contention by about 1%.
+    
+    Change-Id: I540ea6772925f4a59e58f55a3458eff15880c328
+    Reviewed-on: https://go-review.googlesource.com/40575
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/link.go    | 11 ++++++-----
+ src/cmd/internal/obj/objfile.go |  5 ++++-
+ 2 files changed, 10 insertions(+), 6 deletions(-)

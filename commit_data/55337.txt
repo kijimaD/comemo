@@ -1,0 +1,21 @@
+commit 3233542e8514f641883119e6afa3ae1256b7642b
+Author: RenJiangdu <38402095+renjiangdu@users.noreply.github.com>
+Date:   Thu Dec 28 09:49:45 2023 +0000
+
+    reflect: fix typo in type.go
+    
+    There is no 'of' relationships between float and string. This points to those interfaces with internal type float or string.
+    
+    Change-Id: I14449f00c192e0d3f8270b433ff508978b7fdf17
+    GitHub-Last-Rev: f301a8aa5294e7669361627c82b2978652cfc14b
+    GitHub-Pull-Request: golang/go#64885
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/552957
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Run-TryBot: qiulaidongfeng <2645477756@qq.com>
+    Run-TryBot: Jorropo <jorropo.pgm@gmail.com>
+
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

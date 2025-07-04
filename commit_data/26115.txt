@@ -1,0 +1,18 @@
+commit 399f0f5fe8029e31e742e0341c7ddfd2097f3926
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 7 23:11:37 2016 +0000
+
+    go/build: introduce go1.7 build tag
+    
+    This is needed now for subrepos to be able to conditionally use
+    API symbols found only after Go 1.6.
+    
+    Change-Id: Ie7d9301332aa1739b585d93f8025424ae72a2430
+    Reviewed-on: https://go-review.googlesource.com/20344
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/build.go | 2 +-
+ src/go/build/doc.go   | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

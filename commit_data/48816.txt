@@ -1,0 +1,19 @@
+commit 0670afa1b3aaed740816c5ffc9825d154c47d188
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 18 10:56:19 2022 -0400
+
+    doc/go1.19: move the description of the runtime.GOROOT change from 'cmd/go' to 'runtime'
+    
+    Even though the change in the behavior of 'runtime.GOROOT' was
+    not actually due to a change in the runtime package proper, I
+    suspect that users who notice it will look for the release note
+    in that section, not the 'cmd/go' section.
+    
+    Fixes #51461.
+    
+    Change-Id: I271752968d4152a7fdf3e170537e3072bf87ce86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400814
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.19.html | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

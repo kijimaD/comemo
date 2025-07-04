@@ -1,0 +1,35 @@
+commit 388fbf287c29c73fb8cd12f8c24e101d9e790dd2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 6 18:09:23 2022 -0700
+
+    go/types, types2: use zero error code to indicate unset error code
+    
+    Use InvalidSyntaxError where the zero error code was used before.
+    Fix a couple of places that didn't set an error code.
+    Panic in error reporting if no error code is provided.
+    
+    Change-Id: I3a537d42b720deb5c351bf38871e04919325e231
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439566
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go |  3 ++-
+ src/cmd/compile/internal/types2/call.go        |  2 +-
+ src/cmd/compile/internal/types2/decl.go        |  2 +-
+ src/cmd/compile/internal/types2/errors.go      |  4 ++++
+ src/cmd/compile/internal/types2/expr.go        | 12 ++++++------
+ src/cmd/compile/internal/types2/index.go       |  6 +++---
+ src/cmd/compile/internal/types2/interface.go   |  2 +-
+ src/cmd/compile/internal/types2/labels.go      |  2 +-
+ src/cmd/compile/internal/types2/resolver.go    |  4 ++--
+ src/cmd/compile/internal/types2/signature.go   |  4 ++--
+ src/cmd/compile/internal/types2/stmt.go        | 16 ++++++++--------
+ src/cmd/compile/internal/types2/struct.go      |  4 ++--
+ src/cmd/compile/internal/types2/typexpr.go     |  2 +-
+ src/go/types/assignments.go                    |  3 ++-
+ src/go/types/call.go                           |  2 +-
+ src/go/types/errors.go                         |  6 +++++-
+ 16 files changed, 42 insertions(+), 32 deletions(-)

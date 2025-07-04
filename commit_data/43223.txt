@@ -1,0 +1,46 @@
+commit 5012e806b5e50a463609643d5ab04f509e55c3be
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Fri Aug 14 12:27:26 2020 -0400
+
+    cmd/vendor,cmd/pprof: sync pprof@1a94d8640e99
+    
+    Updated cmd/pprof.objTool.Disasm to accept
+    an additional bool param introduced in
+    https://github.com/google/pprof/pull/520 to support
+    intel syntax in the assembly report.
+    
+    Returns an error if the intelSyntax param is set. We use
+    src/cmd/internal/objfile to disassemble and print assembly
+    so I am not sure if it is relevant, and if so, how.
+    
+    Fixes #38802
+    Updates #36905
+    
+    Change-Id: Iae2b4322404f232196705f05210f00e2495588d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248499
+    Trust: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/pprof/pprof.go                             |   5 +-
+ .../github.com/google/pprof/driver/driver.go       |   6 +-
+ .../google/pprof/internal/binutils/binutils.go     | 132 +++++++-
+ .../google/pprof/internal/binutils/disasm.go       |  14 +-
+ .../github.com/google/pprof/internal/driver/cli.go | 129 ++++----
+ .../google/pprof/internal/driver/commands.go       | 281 +++++-----------
+ .../google/pprof/internal/driver/config.go         | 367 +++++++++++++++++++++
+ .../google/pprof/internal/driver/driver.go         | 110 +++---
+ .../google/pprof/internal/driver/driver_focus.go   |  22 +-
+ .../google/pprof/internal/driver/flamegraph.go     |   7 +-
+ .../google/pprof/internal/driver/interactive.go    | 177 ++++------
+ .../google/pprof/internal/driver/settings.go       | 157 +++++++++
+ .../google/pprof/internal/driver/webhtml.go        | 238 +++++++++++++
+ .../google/pprof/internal/driver/webui.go          | 143 ++++----
+ .../google/pprof/internal/plugin/plugin.go         |   2 +-
+ .../google/pprof/internal/report/report.go         |  11 +-
+ .../google/pprof/internal/report/source.go         |   6 +-
+ .../github.com/google/pprof/profile/profile.go     |  10 +-
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 21 files changed, 1300 insertions(+), 525 deletions(-)

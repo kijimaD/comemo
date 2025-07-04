@@ -1,0 +1,12 @@
+commit e03a50dd113badd53037540599b65b359af86596
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 12 06:34:36 2010 -0700
+
+    Test case that gccgo fails (crashes rather than printing error).
+    
+    R=rsc
+    CC=Raj_, golang-dev
+    https://golang.org/cl/1740044
+
+ test/fixedbugs/bug289.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

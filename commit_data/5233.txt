@@ -1,0 +1,13 @@
+commit 29c6c09f71eca92e96c87d909ef0c09535b76a0e
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Apr 6 22:17:24 2010 +0300
+
+    replace original float instruction with jump to make branches
+    to float instructions work correctly.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/870044
+
+ src/cmd/5l/softfloat.c | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)

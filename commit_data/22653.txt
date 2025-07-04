@@ -1,0 +1,30 @@
+commit ca9128f18fe75878ba2d5e0df09ae755c085f72a
+Author: Srdjan Petrovic <spetrovic@google.com>
+Date:   Fri Apr 17 17:27:07 2015 -0700
+
+    runtime: merge clone0 and clone
+    
+    We initially added clone0 to handle the case when G or M don't exist, but
+    it turns out that we could have just modified clone.  (It also helps that
+    the function we're invoking in clone0 no longer needs arguments.)
+    
+    As a side-effect, newosproc0 is now supported on all linux archs.
+    
+    Change-Id: Ie603af75d8f164310fc16446052d83743961f3ca
+    Reviewed-on: https://go-review.googlesource.com/9164
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/export_linux_test.go |  9 +++++++
+ src/runtime/export_test.go       |  2 ++
+ src/runtime/norace_linux_test.go | 37 +++++++++++++++++++++++++++++
+ src/runtime/os1_linux.go         |  6 ++---
+ src/runtime/os_linux.go          |  3 ---
+ src/runtime/rt0_linux_386.s      |  1 -
+ src/runtime/rt0_linux_amd64.s    | 27 ++++++++++-----------
+ src/runtime/rt0_linux_arm.s      | 28 ++++++++++------------
+ src/runtime/sys_linux_386.s      | 31 ++++++++++++------------
+ src/runtime/sys_linux_amd64.s    | 47 +++++++++++-------------------------
+ src/runtime/sys_linux_arm.s      | 51 ++++++++--------------------------------
+ src/runtime/sys_linux_arm64.s    | 21 ++++++++---------
+ src/runtime/sys_linux_ppc64x.s   | 19 +++++++--------
+ 13 files changed, 135 insertions(+), 147 deletions(-)

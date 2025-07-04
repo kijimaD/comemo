@@ -1,0 +1,15 @@
+commit ae68090d000c0a4a6cda0ef44a59809f914e2358
+Merge: c628d83ec5 2da5633eb9
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Tue Aug 2 14:05:48 2016 -0700
+
+    all: merge master into release-branch.go1.7
+    
+    Change-Id: I177856ea2bc9943cbde28ca9afa145b6ea5b0942
+
+ src/cmd/doc/doc_test.go        | 16 +++++++++++++---
+ src/cmd/doc/pkg.go             | 28 +++++++++++++++++++++++-----
+ src/cmd/doc/testdata/pkg.go    |  7 +++++++
+ src/runtime/sys_darwin_386.s   |  7 ++++---
+ src/runtime/sys_darwin_amd64.s |  1 +
+ 5 files changed, 48 insertions(+), 11 deletions(-)

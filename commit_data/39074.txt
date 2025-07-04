@@ -1,0 +1,17 @@
+commit 5a2da5624a9403a61cdd8df529e2b71129ef7898
+Author: JT Olio <hello@jtolio.com>
+Date:   Mon May 6 17:38:23 2019 -0600
+
+    math/big: stack allocate scaleDenom return value
+    
+    benchmark             old ns/op     new ns/op     delta
+    BenchmarkRatCmp-4     154           77.9          -49.42%
+    
+    Change-Id: I932710ad8b6905879e232168b1777927f86ba22a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175460
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/rat.go      | 35 ++++++++++++++++++++---------------
+ src/math/big/rat_test.go |  7 +++++++
+ 2 files changed, 27 insertions(+), 15 deletions(-)

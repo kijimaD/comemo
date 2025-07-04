@@ -1,0 +1,19 @@
+commit 2013f70256e55f5f6f826757333aae42b4667561
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Aug 25 10:39:02 2020 -0400
+
+    runtime: add lock partial order edge (fin -> wbufSpans)
+    
+    runfinq may have write barriers, thus it may need to take wbufSpans on
+    any write.
+    
+    Fixes #41021
+    
+    Change-Id: Ib69e20994b5d7d1526ad53d6ddb5e2e83bf2ed00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250464
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/runtime/lockrank.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

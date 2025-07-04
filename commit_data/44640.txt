@@ -1,0 +1,18 @@
+commit a8a85281caf21831ee51ea8c879cbba94bcce256
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 12 16:58:10 2021 -0800
+
+    runtime: fix documented alignment of 32KiB and 64KiB size classes
+    
+    As Cherry pointed out on golang.org/cl/299909, the page allocator
+    doesn't guarantee any alignment for multi-page allocations, so object
+    alignments are thus implicitly capped at page alignment.
+    
+    Change-Id: I6f5df27f269b095cde54056f876fe4240f69c5c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301292
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/mksizeclasses.go | 6 +++++-
+ src/runtime/sizeclasses.go   | 6 +++---
+ 2 files changed, 8 insertions(+), 4 deletions(-)

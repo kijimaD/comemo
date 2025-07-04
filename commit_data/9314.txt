@@ -1,0 +1,33 @@
+commit c66917d2b6578b1ceedf6629d43096ebaf71d75a
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 9 15:42:53 2011 +1000
+
+    exp/template: split the parse tree into a separate package exp/template/parse
+    
+    Mostly a mechanical change, with a few cleanups to make the split easier.
+    The external interface to exp/template is unaffected.
+    
+    In another round I will play with the function map setup to see if I can
+    avoid exposing reflect across the boundary, but that will require some
+    structural changes I did not want to mix into this CL.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4849049
+
+ src/pkg/Makefile                               |   1 +
+ src/pkg/exp/template/Makefile                  |   1 -
+ src/pkg/exp/template/exec.go                   | 248 +++----
+ src/pkg/exp/template/exec_test.go              |   3 +
+ src/pkg/exp/template/funcs.go                  |   4 +-
+ src/pkg/exp/template/parse.go                  | 862 +------------------------
+ src/pkg/exp/template/parse/Makefile            |  14 +
+ src/pkg/exp/template/{ => parse}/lex.go        |   2 +-
+ src/pkg/exp/template/{ => parse}/lex_test.go   |   2 +-
+ src/pkg/exp/template/parse/node.go             | 468 ++++++++++++++
+ src/pkg/exp/template/parse/parse.go            | 437 +++++++++++++
+ src/pkg/exp/template/{ => parse}/parse_test.go |  47 +-
+ src/pkg/exp/template/parse/set.go              |  51 ++
+ src/pkg/exp/template/set.go                    |  62 +-
+ src/pkg/exp/template/set_test.go               |   7 +-
+ 15 files changed, 1174 insertions(+), 1035 deletions(-)

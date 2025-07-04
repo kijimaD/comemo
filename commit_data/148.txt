@@ -1,0 +1,10 @@
+commit 2bba3a610d7d4cb42391b724408c694ff9ebb791
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jun 11 12:25:44 2008 -0700
+
+    reorder1 - function first instead of last
+    
+    SVN=122160
+
+ src/cmd/gc/walk.c | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

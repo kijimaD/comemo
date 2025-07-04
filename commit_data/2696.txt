@@ -1,0 +1,15 @@
+commit a010d45caa31e0e2f91b80f00f23412de6da2519
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 14 10:45:22 2009 -0700
+
+    - adjust to new scanner interface (pass filename to Init)
+    - delete error handling code which is not needed anymore
+    
+    R=rsc
+    DELTA=83  (0 added, 65 deleted, 18 changed)
+    OCL=31572
+    CL=31602
+
+ src/pkg/go/parser/parser.go      | 93 ++++++----------------------------------
+ src/pkg/go/parser/parser_test.go |  6 +--
+ 2 files changed, 17 insertions(+), 82 deletions(-)

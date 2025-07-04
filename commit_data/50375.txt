@@ -1,0 +1,18 @@
+commit ba1ef54c1ee0e5ed8fd572dbb4ec67548cd5a55e
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Sep 3 18:18:30 2022 +0800
+
+    syscall: simplify code using unsafe.Slice
+    
+    Updates #54854
+    
+    Change-Id: Ibaf4eea14a6259cdbca79e9e95db1602966f18e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428176
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/syscall/syscall_darwin.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

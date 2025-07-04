@@ -1,0 +1,19 @@
+commit 8e8abf368d5b8050f40408b23a4027824351f674
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 21 11:27:41 2019 +0100
+
+    archive/tar, syscall: add statUnix for aix/ppc64
+    
+    This commit add statUnix function for aix/ppc64. It also adds Unix
+    and Nano methods for AIX time structure.
+    
+    Change-Id: I9fd62d34a47e87cd46f2f936cb736da0bdff7959
+    Reviewed-on: https://go-review.googlesource.com/c/163957
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/tar/stat_actime1.go | 2 +-
+ src/archive/tar/stat_unix.go    | 7 ++++++-
+ src/syscall/syscall_aix.go      | 8 ++++++++
+ 3 files changed, 15 insertions(+), 2 deletions(-)

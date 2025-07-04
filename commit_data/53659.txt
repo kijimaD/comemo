@@ -1,0 +1,44 @@
+commit d3d78b4bcc7c4021c4a3a8a3ecdb85ec59bdd58b
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Thu Jul 6 12:30:39 2023 -0400
+
+    log/slog: handle recursively empty groups
+    
+    Handlers should not display empty groups.
+    
+    A group with no attributes is certainly empty. But we also want to
+    consider a group to be empty if all its attributes are empty groups.
+    The built-in handlers did not handle this second case properly.
+    This CL fixes that.
+    
+    There are two places in the implementation that we need to consider.
+    
+    For Values of KindGroup, we change the GroupValue constructor to omit
+    Attrs that are empty groups. A Group is then empty if and only if it
+    has no Attrs. This avoids a recursive check for emptiness.
+    It does require allocation, but that doesn't worry us because Group
+    values should be relatively rare.
+    
+    For groups established by WithGroup, we avoid opening such groups
+    unless the Record contains non-empty groups. As we did for values, we
+    avoid adding empty groups to records in the first place, so we only
+    need to check that the record has at least one Attr.
+    
+    We are doing extra work, so we need to make sure we aren't slowing
+    things down unduly. Benchmarks before and after this change show
+    minimal differences.
+    
+    Fixes #61067.
+    
+    Change-Id: I684c7ca834bbf69210516faecae04ee548846fb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508436
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/log/slog/handler.go      | 24 ++++++++++++++-------
+ src/log/slog/handler_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++
+ src/log/slog/record.go       | 24 ++++++++++++++++++---
+ src/log/slog/value.go        | 34 ++++++++++++++++++++++++++++++
+ src/log/slog/value_test.go   | 12 +++++++++++
+ 5 files changed, 134 insertions(+), 10 deletions(-)

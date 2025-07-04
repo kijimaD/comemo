@@ -1,0 +1,47 @@
+commit 61336b78c18e90d90d68c5c2ce61d8d530669ed1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 5 15:22:59 2017 -0700
+
+    cmd/compile: don't update outer variables after capturevars is complete
+    
+    When compiling concurrently, we walk all functions before compiling
+    any of them. Walking functions can cause variables to switch from
+    being non-addrtaken to addrtaken, e.g. to prepare for a runtime call.
+    Typechecking propagates addrtaken-ness of closure variables to
+    their outer variables, so that capturevars can decide whether to
+    pass the variable's value or a pointer to it.
+    
+    When all functions are compiled immediately, as long as the containing
+    function is compiled prior to the closure, this propagation has no effect.
+    When compilation is deferred, though, in rare cases, this results in
+    a change in the addrtaken-ness of a variable in the outer function,
+    which in turn changes the compiler's output.
+    (This is rare because in a great many cases, a temporary has been
+    introduced, insulating the outer variable from modification.)
+    But concurrent compilation must generate identical results.
+    
+    To fix this, track whether capturevars has run.
+    If it has, there is no need to update outer variables
+    when closure variables change.
+    Capturevars always runs before any functions are walked or compiled.
+    
+    The remainder of the changes in this CL are to support the test.
+    In particular, -d=compilelater forces the compiler to walk all
+    functions before compiling any of them, despite being non-concurrent.
+    This is useful because -live is fundamentally incompatible with
+    concurrent compilation, but we want -c=1 to have no behavior changes.
+    
+    Fixes #20250
+    
+    Change-Id: I89bcb54268a41e8588af1ac8cc37fbef856a90c2
+    Reviewed-on: https://go-review.googlesource.com/42853
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go   |  3 +++
+ src/cmd/compile/internal/gc/main.go      | 21 ++++++++++++---------
+ src/cmd/compile/internal/gc/pgen.go      |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  9 +++++++--
+ test/fixedbugs/issue20250.go             | 24 ++++++++++++++++++++++++
+ 5 files changed, 47 insertions(+), 12 deletions(-)

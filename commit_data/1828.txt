@@ -1,0 +1,12 @@
+commit 4523ee9ac8873552d6c64472c19d68760955d4a8
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Mar 13 16:47:54 2009 -0700
+
+    close/closed on chans
+    
+    R=r
+    OCL=26281
+    CL=26285
+
+ src/runtime/chan.c | 150 +++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 117 insertions(+), 33 deletions(-)

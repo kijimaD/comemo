@@ -1,0 +1,19 @@
+commit e6ec2a34dc1e1c319588fb0cb449abf55291977f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jul 5 16:03:55 2023 -0400
+
+    runtime: print output on failure in TestMemPprof
+    
+    If running testprog fails, print the output.
+    
+    For #60901.
+    
+    Change-Id: Iee80fb09412ce13bae6ac3589779a8cdf7761765
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507978
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/crash_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

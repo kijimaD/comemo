@@ -1,0 +1,12 @@
+commit f8e9bbe475f014aab614000bde498961149539c5
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Tue Jan 31 10:32:24 2012 -0500
+
+    cmd/ld: fix gdbscript
+    
+    R=golang-dev, lvd
+    CC=golang-dev
+    https://golang.org/cl/5601058
+
+ src/cmd/ld/dwarf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

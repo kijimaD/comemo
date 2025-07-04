@@ -1,0 +1,15 @@
+commit 55715c1738adc0a9b6a7037390a700763365e284
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Jan 15 18:29:15 2019 +0000
+
+    cmd/go: fix wording issue in comment
+    
+    golang.org/cl/157097 modified this comment, but left a trailing comma.
+    While at it, make the sentence a bit clearer.
+    
+    Change-Id: I376dda4fd18ddbcae4485dd660a79b9f66ad6da4
+    Reviewed-on: https://go-review.googlesource.com/c/158037
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/modload/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

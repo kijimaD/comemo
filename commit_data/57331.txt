@@ -1,0 +1,21 @@
+commit 1b5ae45181ef5274045b9b93ae0603ebb34fa811
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Aug 19 15:14:23 2024 +0200
+
+    os/user: User.GroupIds shouldn't error on users with no groups
+    
+    On Windows, the User.GroupIds currently errors out if the user has no
+    groups. This is incorrect, as the user may not be a member of any groups
+    as demonstrated by the new TestGroupIdsTestUser test.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-windows-arm64
+    Change-Id: I436aa6214f2b98ef98dfb6064caec3d682b3f3d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606675
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/os/user/lookup_windows.go    |  6 +-----
+ src/os/user/user_windows_test.go | 42 +++++++++++++++++++++++++++++++---------
+ 2 files changed, 34 insertions(+), 14 deletions(-)

@@ -1,0 +1,18 @@
+commit 727e8d3863f45789e559d4a9d20286026cb5bb07
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Fri Feb 23 01:06:40 2024 +0000
+
+    runtime: add crash stack support for arm
+    
+    Change-Id: Ide4002d1cf82f2daaf7261b367c391dedbbf7719
+    GitHub-Last-Rev: 80ee248c3e34529e7a522acc97db9fb69c82dffb
+    GitHub-Pull-Request: golang/go#65308
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558699
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/asm.s     |  2 ++
+ src/runtime/asm_arm.s | 39 ++++++++++++++++++++++++++++++++-------
+ src/runtime/proc.go   |  2 +-
+ 3 files changed, 35 insertions(+), 8 deletions(-)

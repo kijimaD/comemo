@@ -1,0 +1,18 @@
+commit 8677cad1992af3ba4ce7cdfdaca8bcdbf320eaa8
+Author: Christopher Nelson <nadiasvertex@gmail.com>
+Date:   Thu Mar 31 16:22:54 2016 -0400
+
+    cmd/link: Replace fmt.Sprintf with filepath.Join
+    
+    In a number of places the code was joining filepaths explicitly with
+    "/", instead of using filepath.Join. This may cause problems on Windows
+    (or other) platforms.
+    
+    This is in support of https://go-review.googlesource.com/#/c/18057
+    
+    Change-Id: Ieb1334f35ddb2e125be690afcdadff8d7b0ace10
+    Reviewed-on: https://go-review.googlesource.com/21369
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

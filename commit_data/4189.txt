@@ -1,0 +1,13 @@
+commit b050a1b2233474e549bb15ba55c5f1b020c4d988
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 23 13:51:10 2009 -0800
+
+    Fix doc striing for NewReadLogger.
+    
+    Fixes #315.
+    
+    R=rsc
+    https://golang.org/cl/157140
+
+ src/pkg/testing/iotest/logger.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

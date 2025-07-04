@@ -1,0 +1,19 @@
+commit f315fb3d56746ddd14dbfeeea106564349bb5ce9
+Author: Steve Newman <devnull@localhost>
+Date:   Tue Jun 9 10:58:58 2009 -0700
+
+    Basic HTTP client.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=392  (386 added, 2 deleted, 4 changed)
+    OCL=29963
+    CL=30107
+
+ src/pkg/http/Makefile           |   3 +-
+ src/pkg/http/client.go          | 227 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/client_test.go     |  40 +++++++
+ src/pkg/http/request.go         |  58 +++++++++-
+ src/pkg/strings/strings.go      |  15 +++
+ src/pkg/strings/strings_test.go |  55 ++++++++++
+ 6 files changed, 392 insertions(+), 6 deletions(-)

@@ -1,0 +1,21 @@
+commit f6fc14094a476d2e23722f124cfcd8204c2659b0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Sep 28 08:27:05 2014 -0700
+
+    cmd/ld: don't automatically mark symbols created by -X as reachable
+    
+    This fixes the bug in which the linker reports "missing Go
+    type information" when a -X option refers to a symbol that is
+    not used.
+    
+    Fixes #8821.
+    
+    LGTM=rsc
+    R=rsc, r
+    CC=golang-codereviews
+    https://golang.org/cl/151000043
+
+ src/cmd/ld/data.c | 9 +++++++--
+ src/cmd/ld/lib.c  | 4 +++-
+ test/linkx.go     | 2 +-
+ 3 files changed, 11 insertions(+), 4 deletions(-)

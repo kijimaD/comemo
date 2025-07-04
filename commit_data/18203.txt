@@ -1,0 +1,13 @@
+commit 9847c065f493be193231c0482dca200247732ca9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Jan 9 15:21:24 2014 -0500
+
+    testing: document that ResetTimer also zeros the allocation counters.
+    Fixes #6998.
+    
+    R=golang-codereviews, gobot, r
+    CC=golang-codereviews
+    https://golang.org/cl/44880044
+
+ src/pkg/testing/benchmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

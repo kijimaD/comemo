@@ -1,0 +1,19 @@
+commit d8ab19b2f2d754e374af7fc643dac5224667310b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 9 09:00:02 2023 -0400
+
+    net/http: regenerate h2_bundle.go
+    
+    The x/net version was updated in CL 493596; cmd/internal/moddeps
+    catches the skew, but only runs on the -longtest builders (because it
+    requires network access for the bundle tool and x/net dependency).
+    
+    Change-Id: I48891d51aab23b2ca6f4484215438c60bd8c8c21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493875
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/net/http/h2_bundle.go | 30 ++++++++++++++++++++++++------
+ 1 file changed, 24 insertions(+), 6 deletions(-)

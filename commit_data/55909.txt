@@ -1,0 +1,20 @@
+commit f83102cf7183c0aae2ffd91f80acd3f7b11fed02
+Author: apocelipes <seve3r@outlook.com>
+Date:   Tue Mar 12 10:18:00 2024 +0000
+
+    strconv: use generics to reduce redundant helper functions
+    
+    Benchstat shows there are no noticeable performance changes here.
+    
+    Change-Id: If2250334fe6664986f044cbaabfa1bfc84f871f7
+    GitHub-Last-Rev: d41a498d54483759b9c85c3d8efa848c0cc1bbd9
+    GitHub-Pull-Request: golang/go#66266
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570935
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/strconv/quote.go | 45 +++++++++++++++------------------------------
+ 1 file changed, 15 insertions(+), 30 deletions(-)

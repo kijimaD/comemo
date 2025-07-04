@@ -1,0 +1,28 @@
+commit d32b4798f844882d20920b7e75e9a889d3d0036c
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Jun 9 22:59:48 2023 +0800
+
+    runtime: improve performance of empty map with interface key type
+    
+    name                            old time/op    new time/op    delta
+    MegEmptyMapWithInterfaceKey-10    15.5µs ± 0%     0.0µs ± 0%  -99.97%  (p=0.000 n=20+16)
+    
+    name                            old alloc/op   new alloc/op   delta
+    MegEmptyMapWithInterfaceKey-10     0.00B          0.00B          ~     (all equal)
+    
+    name                            old allocs/op  new allocs/op  delta
+    MegEmptyMapWithInterfaceKey-10      0.00           0.00          ~     (all equal)
+    
+    Change-Id: I46248223100e98b7877464da640075d272c14802
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502075
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/alg.go                |  68 ++++++++++++++++
+ src/runtime/map.go                |  12 +--
+ src/runtime/map_benchmark_test.go |   9 +++
+ src/runtime/map_test.go           | 163 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 246 insertions(+), 6 deletions(-)

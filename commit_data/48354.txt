@@ -1,0 +1,28 @@
+commit 914195c132cbec651aa43c409e8aac2614b53b38
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 10 12:43:10 2022 -0800
+
+    go/types, types2: remove incorrect assertion (don't crash)
+    
+    The removed assertion was never incorrect, as signatures may
+    be from methods in interfaces, and (some) interfaces set the
+    receivers of their methods (so we have a position for error
+    reporting).
+    
+    This CL changes the issue below from a release blocker to an
+    issue for Go 1.19.
+    
+    For #51593.
+    
+    Change-Id: I0c5f2913b397b9ab557ed74a80cc7a715e840412
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391615
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/infer.go                    |  2 --
+ .../internal/types2/testdata/fixedbugs/issue51593.go2       | 13 +++++++++++++
+ src/go/types/infer.go                                       |  2 --
+ src/go/types/testdata/fixedbugs/issue51593.go2              | 13 +++++++++++++
+ 4 files changed, 26 insertions(+), 4 deletions(-)

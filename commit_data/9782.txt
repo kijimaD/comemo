@@ -1,0 +1,12 @@
+commit 17410d75d0a74c487a81ebde712ee69919bccb52
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Sep 23 23:39:19 2011 +0900
+
+    syscall: add GetsockoptByte, SetsockoptByte for openbsd
+    
+    R=golang-dev, fullung, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/5081044
+
+ src/pkg/syscall/syscall_bsd.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

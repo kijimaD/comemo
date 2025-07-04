@@ -1,0 +1,36 @@
+commit 2620ac3aeafe75a62fa81bd5094a8e1e4ef1ca8b
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Oct 2 11:16:53 2017 -0700
+
+    database/sql: add driver.ResetSessioner and add pool support
+    
+    A single database connection ususally maps to a single session.
+    A connection pool is logically also a session pool. Most
+    sessions have a way to reset the session state which is desirable
+    to prevent one bad query from poisoning another later query with
+    temp table name conflicts or other persistent session resources.
+    
+    It also lets drivers provide users with better error messages from
+    queryies when the underlying transport or query method fails.
+    Internally the driver connection should now be marked as bad, but
+    return the actual connection. When ResetSession is called on the
+    connection it should return driver.ErrBadConn to remove it from
+    the connection pool. Previously drivers had to choose between
+    meaningful error messages or poisoning the connection pool.
+    
+    Lastly update TestPoolExhaustOnCancel from relying on a
+    WAIT query fixing a flaky timeout issue exposed by this
+    change.
+    
+    Fixes #22049
+    Fixes #20807
+    
+    Change-Id: Idffa1a7ca9ccfe633257c4a3ae299b864f46c5b6
+    Reviewed-on: https://go-review.googlesource.com/67630
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/database/sql/driver/driver.go |  12 +++++
+ src/database/sql/fakedb_test.go   |  62 ++++++++++++++++++++++
+ src/database/sql/sql.go           | 105 ++++++++++++++++++++++++++++++++++----
+ src/database/sql/sql_test.go      |  60 ++++++++++++++++------
+ 4 files changed, 214 insertions(+), 25 deletions(-)

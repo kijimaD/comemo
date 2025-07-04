@@ -1,0 +1,20 @@
+commit 0f72e79856d246af85c449f9e5a357ba751cd234
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Sep 7 09:54:38 2018 -0400
+
+    go/token: add (*File).LineStart, which returns Pos for a given line
+    
+    LineStart returns the position of the start of a given line.
+    Like MergeLine, it panics if the 1-based line number is invalid.
+    
+    This function is especially useful in programs that occasionally
+    handle non-Go files such as assembly but wish to use the token.Pos
+    mechanism to identify file positions.
+    
+    Change-Id: I5f774c0690074059553cdb38c0f681f5aafc8da1
+    Reviewed-on: https://go-review.googlesource.com/134075
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/token/position.go      | 17 ++++++++++++++++-
+ src/go/token/position_test.go | 15 +++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

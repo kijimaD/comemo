@@ -1,0 +1,22 @@
+commit 2882786bf4cd779f166e9ced82a4da2ea0f8b1f9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jun 7 07:25:10 2022 +0200
+
+    runtime: remove unused pipe and setNonblock on linux/loong64
+    
+    CL 389354 removed the fallback to pipe on all platforms with pipe2. This
+    is the case for linux. Thus, pipe and setNonblock are no longer needed
+    on linux/loong64 too.
+    
+    Change-Id: I089adf918d0fd8de5d4d61a893707a2660f89183
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410736
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/defs_linux_loong64.go |  1 -
+ src/runtime/sys_linux_loong64.s   | 24 ------------------------
+ 2 files changed, 25 deletions(-)

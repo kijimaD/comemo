@@ -1,0 +1,14 @@
+commit 14bb806cb4791f0c7ceff100e34b8539b0eb4c3c
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Jul 14 15:09:39 2009 -0700
+
+    Support ptracing of fork'd children.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=26  (22 added, 1 deleted, 3 changed)
+    OCL=31613
+    CL=31629
+
+ src/pkg/syscall/exec.go | 29 +++++++++++++++++++++++++----
+ 1 file changed, 25 insertions(+), 4 deletions(-)

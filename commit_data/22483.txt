@@ -1,0 +1,12 @@
+commit ce43e1fec875ed92bf3d4ee7b7f81aed30a617f7
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Apr 13 15:50:56 2015 -0400
+
+    cmd/dist: detect sse2 even with gccgo
+    
+    Change-Id: Idfb20bfe130d9a54d9f5aae8eab8a34655d30610
+    Reviewed-on: https://go-review.googlesource.com/8865
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/util_gccgo.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

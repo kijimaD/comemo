@@ -1,0 +1,16 @@
+commit 0f9b3059bc969053b68cf135c4c8266da53a6405
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Mar 29 11:46:47 2013 +0900
+
+    net: enable IPv6 tests on Windows
+    
+    Also removes redundant tests that run Go 1.0 non-IPv6 support
+    Windows code on IPv6 enabled Windows kernels.
+    
+    R=alex.brainman, golang-dev, bradfitz, dave
+    CC=golang-dev
+    https://golang.org/cl/7812052
+
+ src/pkg/net/multicast_test.go     |  2 +-
+ src/pkg/net/unicast_posix_test.go | 65 +++------------------------------------
+ 2 files changed, 5 insertions(+), 62 deletions(-)

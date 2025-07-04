@@ -1,0 +1,10 @@
+commit e95481a9388e0f69a5dba44260fb60a6f66a57a0
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 27 14:25:50 2008 -0700
+
+    test wasn't being run. it works fine.
+    
+    SVN=125179
+
+ test/fixedbugs/bug028.go | 1 +
+ 1 file changed, 1 insertion(+)

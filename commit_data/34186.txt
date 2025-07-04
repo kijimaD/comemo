@@ -1,0 +1,21 @@
+commit 1566bf90253097dfec83f621a48e761ded4d2144
+Author: Keith Randall <khr@google.com>
+Date:   Wed Feb 14 14:21:31 2018 -0800
+
+    cmd/compile: fix constant folding of right shifts on s390x
+    
+    Repeat previous fix on amd64 for s390x.
+    Sub-word right shifts should sign extend before shifting.
+    
+    Update #23812
+    
+    Change-Id: I2d770190c7d8a22310b0dbd9facb3fb05afa362a
+    Reviewed-on: https://go-review.googlesource.com/94028
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/S390X.rules | 2 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go | 8 ++++----
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 4 ++--
+ 3 files changed, 7 insertions(+), 7 deletions(-)

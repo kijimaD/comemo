@@ -1,0 +1,15 @@
+commit 3aa755b8fb82c28e55938e040bdead6b7f45ae5a
+Author: Tamir Duberstein <tamird@gmail.com>
+Date:   Tue Oct 20 11:21:21 2015 -0400
+
+    regexp/syntax: correctly print `^` BOL and `$` EOL
+    
+    Fixes #12980.
+    
+    Change-Id: I936db2f57f7c4dc80bb8ec32715c4c6b7bf0d708
+    Reviewed-on: https://go-review.googlesource.com/16112
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/regexp/syntax/regexp.go        | 4 ++--
+ src/regexp/syntax/simplify_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

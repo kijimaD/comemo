@@ -1,0 +1,14 @@
+commit 9c37a23bcb178351d70c2d90e8915b9e413d59b8
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon May 25 07:20:07 2015 -0400
+
+    misc/android: cleaner to remove stale GOROOT files
+    
+    Updates #10806
+    
+    Change-Id: I734d6db026cc7c2e3099a76dc8db8e42b2b90aa7
+    Reviewed-on: https://go-review.googlesource.com/10390
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/android/cleaner.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

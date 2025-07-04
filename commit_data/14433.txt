@@ -1,0 +1,16 @@
+commit c9856e7d2244670a9c8cd8a4e8aa361b7667575d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Nov 19 06:53:58 2012 +1100
+
+    net: fix data race on fd.sysfd
+    
+    Fixes #4369.
+    
+    Remove the check for fd.sysfd < 0, the first line of fd.accept() tests if the fd is open correctly and will handle the fd being closed during accept.
+    
+    R=dvyukov, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6843076
+
+ src/pkg/net/tcpsock_posix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

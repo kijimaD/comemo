@@ -1,0 +1,16 @@
+commit 77e1227a021c1a7a651fe5fd4965a800d48f8c1b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Apr 5 20:35:54 2012 +0400
+
+    test/bench/garbage: fix parser benchmark
+    +add standard bench output to tree2
+    +print GOMAXPROCS as go test does
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5992044
+
+ test/bench/garbage/parser.go |  2 --
+ test/bench/garbage/stats.go  | 15 ++++++++++-----
+ test/bench/garbage/tree2.go  |  8 +++++++-
+ 3 files changed, 17 insertions(+), 8 deletions(-)

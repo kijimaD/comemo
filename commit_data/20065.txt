@@ -1,0 +1,15 @@
+commit 1a1d43239e42184694d0207ffad9bbb77d8e8f76
+Author: Mark Theunissen <mark.theunissen@gmail.com>
+Date:   Thu Aug 21 10:16:34 2014 -0700
+
+    net/http/httputil: Pass a Logger to ReverseProxy, allowing the user to control logging.
+    
+    Fixes #8553.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, dave, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/132750043
+
+ src/pkg/net/http/httputil/reverseproxy.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

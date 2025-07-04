@@ -1,0 +1,21 @@
+commit 755b50952c9571202322bf63a42254ea8ea5655c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 17 08:32:33 2019 -0400
+
+    cmd/compile/internal/ssa: skip TestNexting/gdb-dbg-i22558
+    
+    This test fails frequently in the longtest builder, and the failures
+    on the build dashboard have masked two other regressions so far.
+    Let's skip it until it can be fixed.
+    
+    Updates #31263
+    
+    Change-Id: I82bae216ebc3c5fd395c27c72c196334a130af7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172423
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/debug_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

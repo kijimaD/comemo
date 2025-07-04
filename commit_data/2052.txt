@@ -1,0 +1,13 @@
+commit 2a1683a007e6371e605a1cfb5122a994f418138b
+Author: Rob Pike <r@golang.org>
+Date:   Sun Apr 19 20:04:15 2009 -0700
+
+    spec change for redeclaration
+    
+    R=iant,gri
+    DELTA=14  (14 added, 0 deleted, 0 changed)
+    OCL=27615
+    CL=27618
+
+ doc/go_spec.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

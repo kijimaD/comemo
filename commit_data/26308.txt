@@ -1,0 +1,23 @@
+commit 5ce0170a26fc60bfde176cb9c09d2a47fac94cd3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Mar 3 06:22:11 2016 +0900
+
+    net: deduplicate Unix socket code
+    
+    This change consolidates functions and methods related to UnixAddr,
+    UnixConn and UnixListener for maintenance purpose, especially for
+    documentation.
+    
+    The followup changes will update comments and examples.
+    
+    Updates #10624.
+    
+    Change-Id: I372d152099ac10956284e6b3863d7e4d9fe5c8e9
+    Reviewed-on: https://go-review.googlesource.com/20125
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/unixsock.go       | 271 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/unixsock_plan9.go | 136 ++++-------------------
+ src/net/unixsock_posix.go | 263 ++++++--------------------------------------
+ 3 files changed, 323 insertions(+), 347 deletions(-)

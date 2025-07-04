@@ -1,0 +1,22 @@
+commit bdfa604b2e12990784c4eac4186360b56857370b
+Author: Than McIntosh <thanm@golang.org>
+Date:   Wed Mar 12 14:08:21 2025 -0400
+
+    cmd/internal/dwarf: always use AT_ranges for scopes with DWARF 5
+    
+    This patch extends the change in CL 657175 to apply the same abbrev
+    selection strategy to single-range lexical scopes that we're now using
+    for inlined routine bodies, when DWARF 5 is in effect. Ranges are more
+    compact and use fewer relocation than explicit hi/lo PC values, so we
+    might as well always use them.
+    
+    Updates #26379.
+    
+    Change-Id: Ieeaddf50e82acc4866010e29af32bcd1fb3b4f02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657177
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/dwarf/dwarf.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

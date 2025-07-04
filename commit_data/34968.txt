@@ -1,0 +1,25 @@
+commit 5a91c83ce82509551d353b1b5ea25cd72b44fec3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 6 16:21:26 2018 -0400
+
+    cmd/compile: in escape analysis, propagate loop depth to field
+    
+    The escape analysis models "loop depth". If the address of an
+    expression is assigned to something defined at a lower (outer)
+    loop depth, the escape analysis decides it escapes. However, it
+    uses the loop depth of the address operator instead of where
+    the RHS is defined. This causes an unnecessary escape if there is
+    an assignment inside a loop but the RHS is defined outside the
+    loop. This CL propagates the loop depth.
+    
+    Fixes #24730.
+    
+    Change-Id: I5ff1530688bdfd90561a7b39c8be9bfc009a9dae
+    Reviewed-on: https://go-review.googlesource.com/105257
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/esc.go | 22 +++++++++++++++-------
+ test/escape5.go                    | 19 +++++++++++++++++++
+ 2 files changed, 34 insertions(+), 7 deletions(-)

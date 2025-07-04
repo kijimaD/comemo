@@ -1,0 +1,13 @@
+commit d5841cac4548620e4fc575963d75071189ae459d
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Feb 7 15:22:36 2010 -0500
+
+    encoding/pem: add marshalling support.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/203043
+
+ src/pkg/encoding/pem/pem.go      | 98 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/encoding/pem/pem_test.go | 72 ++++++++++++++++++++++++++++-
+ 2 files changed, 168 insertions(+), 2 deletions(-)

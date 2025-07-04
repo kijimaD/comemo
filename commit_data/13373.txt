@@ -1,0 +1,12 @@
+commit c123c6c3f628b64c227d2de6d45e780716682e27
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sun Jun 24 12:23:51 2012 -0700
+
+    flag: fix indexing doc.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6341046
+
+ src/pkg/flag/flag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

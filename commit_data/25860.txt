@@ -1,0 +1,12 @@
+commit 814978a013e0a11512b5f9fc103e522e506db113
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Feb 23 23:15:57 2016 -0500
+
+    .gitignore: ignore src/go/build/zcgo.go
+    
+    Change-Id: I6d5db2781d05d6e7e49f5059db1fd84ad6ec328e
+    Reviewed-on: https://go-review.googlesource.com/19839
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ .gitignore | 1 +
+ 1 file changed, 1 insertion(+)

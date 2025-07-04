@@ -1,0 +1,14 @@
+commit 6910756f9b8c7a97b1435ec40b8ebff9655611d7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Feb 14 15:52:44 2017 +0000
+
+    math/big: simplify bool expression
+    
+    Change-Id: I280c53be455f2fe0474ad577c0f7b7908a4eccb2
+    Reviewed-on: https://go-review.googlesource.com/36993
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/big/int.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

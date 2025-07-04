@@ -1,0 +1,20 @@
+commit 62125c9b790c9dc62ab6b638286150a16024d40e
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Aug 2 08:26:23 2022 -0500
+
+    cmd/compile: remove branch in atomicCas{32,64} sequence on ppc64x.
+    
+    This removes one of the branches in the atomicCas sequences for
+    ppc64/ppc64le.
+    
+    Change-Id: Ibb46fbfdce052889c69e3da298f28caff540d99b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422014
+    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go | 44 +++++++++++++++--------------------
+ 1 file changed, 19 insertions(+), 25 deletions(-)

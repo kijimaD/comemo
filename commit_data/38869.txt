@@ -1,0 +1,55 @@
+commit 58de7c6d4838729c6c133d9b2461dc6b1f766b76
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 5 09:26:24 2019 -0400
+
+    cmd/go/internal/web: merge internal/web2 into web
+    
+    The cmd/go/internal/web package was forked in order to support direct
+    HTTPS fetches from widely-used hosting providers,¹ but direct fetches
+    were subsequently dropped in CL 107657. The forked web2 package, with
+    its GitHub-specific diagnostics and .netrc support, remained in use
+    for module proxy support, but was not used for the initial '?go-get=1'
+    path resolution, so the .netrc file was only used to fetch from
+    already-resolved module protocol servers.
+    
+    This CL moves the .netrc support into its own (new) package,
+    cmd/go/internal/auth, and consolidates the web and web2 packages back
+    into just web. As a result, fetches via the web package now support
+    .netrc, and fetches that previously used web2 now enforce the same
+    security policies as web (such as prohibiting HTTPS-to-HTTP
+    redirects).
+    
+    ¹https://github.com/golang/vgo/commit/63138cb6ceed7d6d4e51a8cbd568c64bd3e2b132
+    
+    Fixes #29591
+    Fixes #29888
+    Fixes #30610
+    Updates #26232
+    
+    Change-Id: Ia3a13526e443679cf14a72a1f3db96f336ce5e73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170879
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/auth/auth.go                   |  23 ++
+ src/cmd/go/internal/auth/netrc.go                  | 111 +++++++
+ .../{web2/web_test.go => auth/netrc_test.go}       |   4 +-
+ src/cmd/go/internal/bug/bug.go                     |  10 +-
+ src/cmd/go/internal/get/get.go                     |   2 +-
+ src/cmd/go/internal/get/vcs.go                     | 102 +++---
+ src/cmd/go/internal/get/vcs_test.go                |   2 +-
+ src/cmd/go/internal/modfetch/noweb.go              |  24 --
+ src/cmd/go/internal/modfetch/proxy.go              |  94 ++++--
+ src/cmd/go/internal/modfetch/repo.go               |   4 +-
+ src/cmd/go/internal/modfetch/web.go                |  31 --
+ src/cmd/go/internal/web/api.go                     | 102 ++++++
+ src/cmd/go/internal/web/bootstrap.go               |  26 +-
+ src/cmd/go/internal/web/http.go                    | 136 ++++----
+ src/cmd/go/internal/web/security.go                |  16 -
+ src/cmd/go/internal/web2/web.go                    | 345 ---------------------
+ src/cmd/go/internal/webtest/test.go                | 314 -------------------
+ src/cmd/go/testdata/script/get_404_meta.txt        |  10 +
+ .../go/testdata/script/get_insecure_redirect.txt   |   1 -
+ src/cmd/go/testdata/script/mod_auth.txt            |  31 ++
+ 20 files changed, 509 insertions(+), 879 deletions(-)

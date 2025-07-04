@@ -1,0 +1,20 @@
+commit 29eb7d18ed71c057bbdb69d85953a32252f0ea73
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Jul 16 13:14:56 2015 -0400
+
+    crypto/x509: iOS build tag
+    
+    The iOS simulator compiles with GOOS=darwin GOARCH=386, and x509
+    sets the inappropriate flag -mmacosx-version-min=10.6. Condition
+    its compilation on the absence of an "ios" build tag.
+    
+    Fixes #11736.
+    
+    Change-Id: I4aa230643347320c3cb9d03b972734b2e0db930e
+    Reviewed-on: https://go-review.googlesource.com/12301
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/root_cgo_darwin.go  | 2 +-
+ src/crypto/x509/root_darwin_armx.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

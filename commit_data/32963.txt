@@ -1,0 +1,19 @@
+commit d24a36cc4caf51c88082c9b17201b6088b9bfc86
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 5 10:06:30 2017 -0400
+
+    debug/elf: make safe for Go 1.4 compilers
+    
+    We're going to start building cmd/cgo as part of the bootstrap,
+    and with it debug/elf, so the copy here needs to work with Go 1.4.
+    It does except for the use of the new io.SeekStart etc constants,
+    so remove that use.
+    
+    Change-Id: Ib7fcf46e1e9060f96d2bacaaf349c9b0df347550
+    Reviewed-on: https://go-review.googlesource.com/68337
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/debug/elf/file.go   | 19 +++++++++++++++----
+ src/debug/elf/reader.go |  6 +++---
+ 2 files changed, 18 insertions(+), 7 deletions(-)

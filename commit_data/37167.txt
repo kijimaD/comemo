@@ -1,0 +1,23 @@
+commit b46bf0240c0663222f837c78644fe90da932d852
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Oct 2 21:39:20 2018 +0000
+
+    runtime: separate scavenged spans
+    
+    This change adds a new treap to mheap which contains scavenged (i.e.
+    its physical pages were returned to the OS) spans.
+    
+    As of this change, spans may no longer be partially scavenged.
+    
+    For #14045.
+    
+    Change-Id: I0d428a255c6d3f710b9214b378f841b997df0993
+    Reviewed-on: https://go-review.googlesource.com/c/139298
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgclarge.go |  12 -----
+ src/runtime/mheap.go    | 131 +++++++++++++++++++++++++++++++++++++-----------
+ src/runtime/mstats.go   |  14 ------
+ 3 files changed, 103 insertions(+), 54 deletions(-)

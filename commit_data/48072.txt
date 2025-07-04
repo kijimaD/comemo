@@ -1,0 +1,26 @@
+commit 7f9494c277a471f6f47f4af3036285c0b1419816
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Feb 2 09:13:17 2022 -0800
+
+    crypto/elliptic: make IsOnCurve return false for invalid field elements
+    
+    Thanks to Guido Vranken for reporting this issue.
+    
+    Fixes #50974
+    Fixes CVE-2022-23806
+    
+    Change-Id: I0201c2c88f13dd82910985a495973f1683af9259
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382455
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+
+ src/crypto/elliptic/elliptic.go      |  5 ++++
+ src/crypto/elliptic/elliptic_test.go | 55 ++++++++++++++++++++++++++++++++++++
+ src/crypto/elliptic/p224.go          |  3 ++
+ src/crypto/elliptic/p384.go          |  3 ++
+ src/crypto/elliptic/p521.go          |  3 ++
+ 5 files changed, 69 insertions(+)

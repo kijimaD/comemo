@@ -1,0 +1,15 @@
+commit dec8009fe871d4bd108451306bd15fafb7cf6726
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 27 14:45:27 2011 -0400
+
+    gc: iota outside const
+    
+    Fixes #1662.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4828045
+
+ src/cmd/gc/lex.c         |  1 +
+ test/fixedbugs/bug362.go | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+)

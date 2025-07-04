@@ -1,0 +1,14 @@
+commit 1bf66f081fb34893235a02b29a8eb559e17c248e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 28 11:33:08 2013 -0800
+
+    all: fix a few more printf arg bugs found by go vet
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7413045
+
+ src/pkg/math/big/rat_test.go    | 2 +-
+ src/pkg/reflect/set_test.go     | 6 +++---
+ src/pkg/strings/strings_test.go | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,27 @@
+commit 58e77990ba20494b8a4837f3668f8f03281e5406
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 30 21:25:48 2010 -0700
+
+    big: use fast shift routines
+    
+    - fixed a couple of bugs in the process
+      (shift right was incorrect for negative numbers)
+    - added more tests and made some tests more robust
+    - changed pidigits back to using shifts to multiply
+      by 2 instead of add
+    
+      This improves pidigit -s -n 10000 by approx. 5%:
+    
+      user 0m6.496s (old)
+      user 0m6.156s (new)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/963044
+
+ src/pkg/big/int.go      | 31 +++++++++++++------------
+ src/pkg/big/int_test.go |  8 ++++++-
+ src/pkg/big/nat.go      | 62 ++++++++++++++++++++++++++++++++++++++++++-------
+ src/pkg/big/nat_test.go | 36 ++++++++++++++--------------
+ test/bench/pidigits.go  |  4 ++--
+ 5 files changed, 95 insertions(+), 46 deletions(-)

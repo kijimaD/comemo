@@ -1,0 +1,20 @@
+commit cc02ef025831bb6fbf0a662bd11f6be796e4cf33
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 9 14:22:53 2012 -0800
+
+    os: add ModeCharDevice
+    
+    This should make conversion from Unix mode
+    to os.FileMode and back not lossy.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5531052
+
+ src/pkg/os/stat_darwin.go  |  4 +++-
+ src/pkg/os/stat_freebsd.go |  4 +++-
+ src/pkg/os/stat_linux.go   |  4 +++-
+ src/pkg/os/stat_netbsd.go  |  4 +++-
+ src/pkg/os/stat_openbsd.go |  4 +++-
+ src/pkg/os/types.go        | 26 +++++++++++++++-----------
+ 6 files changed, 30 insertions(+), 16 deletions(-)

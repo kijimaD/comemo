@@ -1,0 +1,16 @@
+commit aa511b426d1c72c182cc1b797d3fa71cf47906f3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 8 19:05:02 2024 -0500
+
+    time: disable TestLongAdjustTimers on android/ios
+    
+    The simulators are too slow.
+    
+    Change-Id: I0aaf2304ad0881c74886ff3185c09614de2aae63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570236
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/time/tick_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

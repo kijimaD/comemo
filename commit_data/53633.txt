@@ -1,0 +1,19 @@
+commit a3093eca64f9efc830c153c835291d751ea167f9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 24 11:00:37 2023 -0400
+
+    cmd/go: enable slog vet check during 'go test'
+    
+    The slog check is new and no existing code uses slog (it's new too),
+    so there are no concerns about false positives in existing code.
+    Enable it by default.
+    
+    Change-Id: I4fc1480eeb5a3acc9e5e095e9d5428f5ce04b121
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505915
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/test/test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,17 @@
+commit 3caf4e05cf337fa9b395dd887aa3e8d2e26eecdf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jan 24 16:33:47 2016 +0000
+
+    net/http: check max size of HTTP chunks
+    
+    Thanks to Régis Leroy for noticing.
+    
+    Change-Id: I5ca2402efddab4e63d884a9d315fc1394e514cb7
+    Reviewed-on: https://go-review.googlesource.com/18871
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/internal/chunked.go      |  7 +++++--
+ src/net/http/internal/chunked_test.go | 38 +++++++++++++++++++++++++----------
+ 2 files changed, 32 insertions(+), 13 deletions(-)

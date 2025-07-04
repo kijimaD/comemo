@@ -1,0 +1,14 @@
+commit 132b528e711b674ad95e6a98f5725f231a693782
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 13 01:20:02 2017 +0000
+
+    doc/go1.10: note that plugin now works on darwin/amd64
+    
+    Fixes #23085
+    
+    Change-Id: I7fef281079e9e08c49ae05371506b0b881a467db
+    Reviewed-on: https://go-review.googlesource.com/83577
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.10.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 9270973a5b5ac58a090166993893a3f104615e79
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 18 09:01:48 2016 -0800
+
+    runtime: don't run TestEnsureDropM on windows or plan9
+    
+    This is testing code in asm_GOARCH.s, so it's not necessary to run the
+    test on systems where it doesn't build.
+    
+    Fixes #13991.
+    
+    Change-Id: Ia7a2d3a34b32e6987dc67428c1e09e63baf0518a
+    Reviewed-on: https://go-review.googlesource.com/18707
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/crash_cgo_test.go             | 4 ++++
+ src/runtime/testdata/testprogcgo/dropm.go | 2 ++
+ 2 files changed, 6 insertions(+)

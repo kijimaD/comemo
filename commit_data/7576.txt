@@ -1,0 +1,20 @@
+commit 22eab1f5c78bb432b951426175b01c9bf97241f3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 25 14:29:36 2011 -0500
+
+    sync/atomic: new package
+    
+    Fixes #170.
+    
+    R=gri, iant, r, r2
+    CC=golang-dev
+    https://golang.org/cl/4241041
+
+ src/pkg/Makefile                   |   1 +
+ src/pkg/sync/atomic/Makefile       |  18 ++
+ src/pkg/sync/atomic/asm_386.s      |  87 +++++++
+ src/pkg/sync/atomic/asm_amd64.s    |  59 +++++
+ src/pkg/sync/atomic/asm_arm.s      |  78 ++++++
+ src/pkg/sync/atomic/atomic_test.go | 506 +++++++++++++++++++++++++++++++++++++
+ src/pkg/sync/atomic/doc.go         |  58 +++++
+ 7 files changed, 807 insertions(+)

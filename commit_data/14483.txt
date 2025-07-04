@@ -1,0 +1,13 @@
+commit f4ed50c26054492e4a2e726d89feffb2dd535ef8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Nov 26 22:28:39 2012 +0400
+
+    net: add deadline prolongation test
+    Currently the test exposes data races on deadline vars.
+    
+    R=golang-dev, dave, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/6845091
+
+ src/pkg/net/timeout_test.go | 48 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 48 insertions(+)

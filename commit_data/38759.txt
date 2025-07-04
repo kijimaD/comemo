@@ -1,0 +1,19 @@
+commit 09b2b6e9dd2ce009c3aafdff02727f200c63c574
+Author: bronze1man <bronze1man@gmail.com>
+Date:   Mon Jan 14 15:41:02 2019 +0000
+
+    net/http: remove unnecessary string replace operation in Cookie.String
+    
+    Fixes #29135
+    
+    Change-Id: I4c10b0395047775e8488b8b0f00f74a7fa01b86c
+    GitHub-Last-Rev: 120977040506794f00c74383289f913b1e0edd4a
+    GitHub-Pull-Request: golang/go#29728
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/157777
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/cookie.go      |  2 +-
+ src/net/http/cookie_test.go | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

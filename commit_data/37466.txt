@@ -1,0 +1,77 @@
+commit 6d5caf38e37bf9aeba3291f1f0b0081f934b1187
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Mon Nov 19 12:30:56 2018 -0500
+
+    cmd/trace: revert internal/traceparser
+    
+    The performance improvement is not as big as we hoped.
+    Until the API is feature complete, we postpone the release
+    and avoid added complexity.
+    
+    This change was prepared by reverting all the changes affected
+    src/cmd/trace and src/internal/traceparser packages after
+    golang.org/cl/137635, and then bringing back MMU computation
+    APIs (originally in src/internal/traceparser) to the
+    src/internal/trace package.
+    
+    Revert "cmd/trace: use new traceparser to parse the raw trace files"
+    This reverts https://golang.org/cl/145457
+      (commit 08816cb8d7ed16b9c804587ff02c1ad1c3af6cd5).
+    
+    Revert "internal/traceparser: provide parser that uses less space and parses segments of runtime trace files"
+    This reverts https://golang.org/cl/137635
+      (commit daaf361f74c3665bcb364356c5a9dd9f536c78c3).
+    
+    Change-Id: Ic2a068a7dbaf4053cd9674ca7bde9c58e74385b4
+    Reviewed-on: https://go-review.googlesource.com/c/150517
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ misc/nacl/testzip.proto                            |   3 -
+ src/cmd/trace/annotations.go                       |   7 +-
+ src/cmd/trace/annotations_test.go                  |  14 +-
+ src/cmd/trace/goroutines.go                        |  11 +-
+ src/cmd/trace/main.go                              |  49 +-
+ src/cmd/trace/mmu.go                               |   6 +-
+ src/cmd/trace/pprof.go                             |  64 +--
+ src/cmd/trace/trace.go                             | 168 +++---
+ src/cmd/trace/trace_test.go                        |  46 +-
+ src/cmd/trace/trace_unix_test.go                   |  12 +-
+ src/go/build/deps_test.go                          |   4 +-
+ src/internal/{traceparser => trace}/gc.go          |   6 +-
+ src/internal/{traceparser => trace}/gc_test.go     |  22 +-
+ src/internal/{traceparser => trace}/mud.go         |   2 +-
+ src/internal/{traceparser => trace}/mud_test.go    |   2 +-
+ src/internal/traceparser/consistent.go             | 313 -----------
+ src/internal/traceparser/events.go                 | 312 -----------
+ src/internal/traceparser/file.go                   | 247 ---------
+ src/internal/traceparser/filebuf/filebuf.go        | 165 ------
+ src/internal/traceparser/filebuf/filebuf_test.go   | 204 -------
+ src/internal/traceparser/filebuf/fromreader.go     |  71 ---
+ src/internal/traceparser/fuzz.go                   |  49 --
+ src/internal/traceparser/goroutines.go             | 341 ------------
+ src/internal/traceparser/parser_test.go            | 111 ----
+ src/internal/traceparser/raw.go                    | 106 ----
+ src/internal/traceparser/robust.go                 | 585 ---------------------
+ .../06dfecf6e5dfb78e954e7892120b56bfca50af65-6.bad | Bin 79 -> 0 bytes
+ .../0e6dd1787a6339366dac733a2f957a05d7aa3ac7-3.bad | Bin 50 -> 0 bytes
+ ...6970d24ef6753d71953e20d10638705bdccc3ba-2.weird | Bin 62 -> 0 bytes
+ ...6492441b33e1bb93669f79cf3584755cc3ef7e8-2.weird | Bin 70 -> 0 bytes
+ .../2ccf452e473ded814ea880c602488637fc27e549.good  | Bin 1982 -> 0 bytes
+ ...4f92cd2ae08f558c494b2ef79e80b574c9f096c-8.weird | Bin 60 -> 0 bytes
+ .../4557f81f6aae617eeec8dd920997ea27b3dda12b.weird | Bin 2199 -> 0 bytes
+ ...95712b6e35ad7566869c887aa823fcbf69c0b80-1.weird | Bin 27 -> 0 bytes
+ .../63cd688ddff425bbbc220fbb7bd4fa11616a8b64-1.bad | Bin 23 -> 0 bytes
+ ...3df44bfc9d27851fb054ce03002e7e25f307e2f-5.weird | Bin 65 -> 0 bytes
+ .../6aa1a69b265c3092972a2a81e77fbcaa87061735-4.bad | Bin 41 -> 0 bytes
+ .../7b82e808a6a3471352a4197d44fedbe3f5fb6f77-1.bad | Bin 36 -> 0 bytes
+ ...4347dc6ca9c22daec04c5f2530b16ea60bb0ba2-7.weird | Bin 59 -> 0 bytes
+ ...fa93c88557e64b0714b8849aacf713d17ff928e-2.weird | Bin 1683 -> 0 bytes
+ ...bf7185aaf1cb69fb5fae50ba8546a7cdefade57-2.weird | Bin 36 -> 0 bytes
+ ...28fcef078c7dc722867d781b1fd7f37ca965372-7.weird | Bin 62 -> 0 bytes
+ ...70f178a3813df03f2aed0d47f6d9bc844b8cb57-4.weird | Bin 40 -> 0 bytes
+ ...68c3126700dda2c2ac3b8743e9f319cb313042a-1.weird | Bin 32 -> 0 bytes
+ src/internal/traceparser/tr.go                     | 498 ------------------
+ src/internal/traceparser/writer.go                 |  52 --
+ 46 files changed, 197 insertions(+), 3273 deletions(-)

@@ -1,0 +1,21 @@
+commit 72180c3b82e4972a1df119578075ba3e9679fce2
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Aug 11 14:10:03 2015 +1200
+
+    cmd/internal/obj, cmd/link, runtime: native-ish support for tls on arm64
+    
+    Fixes #10560
+    
+    Change-Id: Iedffd9c236c4fbb386c3afc52c5a1457f96ef122
+    Reviewed-on: https://go-review.googlesource.com/13991
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/internal/obj/arm64/a.out.go   |   1 +
+ src/cmd/internal/obj/arm64/anames7.go |   1 +
+ src/cmd/internal/obj/arm64/asm7.go    |  16 +
+ src/cmd/internal/obj/link.go          |  14 +
+ src/cmd/link/internal/arm64/asm.go    |  20 +-
+ src/cmd/link/internal/ld/elf.go       | 567 +++++++++++++++++-----------------
+ src/runtime/asm_arm64.s               |   2 +-
+ src/runtime/tls_arm64.s               |  12 +-
+ 8 files changed, 342 insertions(+), 291 deletions(-)

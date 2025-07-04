@@ -1,0 +1,26 @@
+commit 1e48683708876a3ef1961f382943cbd2f88238af
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 3 15:11:05 2015 -0700
+
+    src/cmd/compile/internal/gc: re-vendor math/big, manually adjust mparith3.go
+    
+    The only unreviewed change is in mparith3.go.
+    
+    Change-Id: Iec0885e7688981cbaed04c152dc9b1c7032677e6
+    Reviewed-on: https://go-review.googlesource.com/10665
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/big/arith.go             |  21 +-
+ src/cmd/compile/internal/big/bits_test.go         |  22 +-
+ src/cmd/compile/internal/big/decimal.go           |  14 +-
+ src/cmd/compile/internal/big/float.go             |  89 ++++---
+ src/cmd/compile/internal/big/float_test.go        | 101 ++++----
+ src/cmd/compile/internal/big/floatconv.go         | 248 +++++--------------
+ src/cmd/compile/internal/big/floatconv_test.go    | 212 +++++++++++++++--
+ src/cmd/compile/internal/big/floatexample_test.go |  14 +-
+ src/cmd/compile/internal/big/ftoa.go              | 277 +++++++++++++++++++---
+ src/cmd/compile/internal/big/nat.go               |   4 +-
+ src/cmd/compile/internal/big/nat_test.go          |   6 +-
+ src/cmd/compile/internal/gc/mparith3.go           |   2 +-
+ 12 files changed, 631 insertions(+), 379 deletions(-)

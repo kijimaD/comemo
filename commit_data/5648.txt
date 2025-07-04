@@ -1,0 +1,12 @@
+commit 089da369a3aa08605253184c8661edeac4b3cd27
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 11 16:17:47 2010 -0700
+
+    8l: correct test for sp == top of stack in 8l -K code
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1627042
+
+ src/cmd/8l/pass.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

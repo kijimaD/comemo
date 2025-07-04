@@ -1,0 +1,13 @@
+commit cf742322601d720b589b4b4a6a8f5dac72f14447
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 29 23:11:00 2010 -0400
+
+    build: disable archive/zip on arm
+    
+    R=adg
+    TBR=adg
+    CC=golang-dev
+    https://golang.org/cl/2326041
+
+ src/pkg/Makefile | 1 +
+ 1 file changed, 1 insertion(+)

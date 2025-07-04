@@ -1,0 +1,15 @@
+commit f076ad893b70048cb4955bf04dbbec0adeb27dd7
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Mar 13 01:52:12 2015 +1100
+
+    runtime: remove reference to openbsd kern.rthreads sysctl
+    
+    The kern.rthreads sysctl has not existed for a long time - there is no way to
+    disable rthreads and __tfork no longer returns ENOTSUP.
+    
+    Change-Id: Ia50ff01ac86ea83358e72b8f45f7818aaec1e4b1
+    Reviewed-on: https://go-review.googlesource.com/7490
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/os1_openbsd.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,0 +1,13 @@
+commit 3f7fb918fc624898a2d69cd307e94f9b45eab5ef
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 1 16:49:29 2012 -0400
+
+    A+C: add Jeff Wendling (Individual CLA)
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6596050
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

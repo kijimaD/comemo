@@ -1,0 +1,21 @@
+commit 135c9f45ecaec719bcc297ec9f9f19042bc9adf6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 29 12:14:58 2021 -0700
+
+    cmd/compile/internal/types2: review of operand.go
+    
+    The changes between (equivalent, and reviewed) go/types/operand.go
+    and operand.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker.
+    
+    The primary differences compared to go/types are:
+    - use of syntax rather than go/ast package
+    - explicit mode for untyped nil (rather than relying on the type)
+    
+    Change-Id: I0c9c1c6153c55cb0550096bd966c9f0f1c766734
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305571
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/operand.go | 1 -
+ 1 file changed, 1 deletion(-)

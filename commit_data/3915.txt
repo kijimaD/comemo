@@ -1,0 +1,14 @@
+commit d10f1547b076f428b3d6d66355d109d8baeec6bb
+Author: Rob Pike <r@golang.org>
+Date:   Sun Nov 8 22:02:15 2009 -0800
+
+    make "Go for it" link to install.html.
+    delete the unnecessary "Programming in Go. Watch Now" from the right box.
+    center the video picture in the right box.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1025027
+
+ doc/root.html | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)

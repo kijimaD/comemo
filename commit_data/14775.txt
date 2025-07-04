@@ -1,0 +1,14 @@
+commit 64a0017d6e69f3a6ba11ad5ad35c66dc489e5cbf
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 2 15:44:00 2013 -0500
+
+    sync/atomic: document that users must deal with 64-bit alignment
+    
+    Update #599.
+    
+    R=dvyukov, iant, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7001056
+
+ src/pkg/sync/atomic/doc.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

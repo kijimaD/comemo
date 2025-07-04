@@ -1,0 +1,12 @@
+commit 740d2c8c2250355d22a7c70698f55eeb6894d1ce
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Thu Sep 19 22:34:06 2019 +0200
+
+    cmd/compile: adjust top-level documentation of poset
+    
+    Change-Id: I29e24c734e5e0041008771c805a0285aac3e02e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196598
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/poset.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

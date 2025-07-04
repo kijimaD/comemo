@@ -1,0 +1,24 @@
+commit 423a09760bf90fe16dc03251792360daf8a99de0
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Jan 14 10:44:35 2012 -0500
+
+    exp/proxy: new package
+    
+    exp/proxy provides client support for tunneling connections through
+    various proxies.
+    
+    This is an initial, incomplete sketch of the code to lay down an
+    API.
+    
+    R=golang-dev, r, r, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/5490062
+
+ src/pkg/exp/proxy/Makefile         |  14 +++
+ src/pkg/exp/proxy/direct.go        |  18 ++++
+ src/pkg/exp/proxy/per_host.go      | 140 +++++++++++++++++++++++++
+ src/pkg/exp/proxy/per_host_test.go |  55 ++++++++++
+ src/pkg/exp/proxy/proxy.go         |  98 ++++++++++++++++++
+ src/pkg/exp/proxy/proxy_test.go    |  50 +++++++++
+ src/pkg/exp/proxy/socks5.go        | 207 +++++++++++++++++++++++++++++++++++++
+ 7 files changed, 582 insertions(+)

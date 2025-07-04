@@ -1,0 +1,23 @@
+commit 9f2951b5d1bd0b5be67d32725f1236436c16d217
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 22 10:22:00 2022 -0500
+
+    reflect: remove deprecation notices from SliceHeader, StringHeader
+    
+    There has been no proposal discussion about adding these notices.
+    Also, even if we did decide to add them, then since their replacements
+    are only appearing in Go 1.20, go.dev/wiki/Deprecation says that we
+    should wait until Go 1.22 to add the deprecation notice.
+    
+    Filed #56906 for the proposal discussion.
+    
+    Fixes #56905.
+    
+    Change-Id: If86cce65aa00b4b62b2b18e82503431dcbdbcfed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452761
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/reflect/value.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

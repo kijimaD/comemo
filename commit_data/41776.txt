@@ -1,0 +1,32 @@
+commit 9ceb1e5f5caca5666f9db50864c45ca1f88da1df
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Feb 27 17:14:07 2020 -0500
+
+    cmd/go: avoid needing to manipulate ImportStack when constructing error
+    
+    Simplify the printing of PackageErrors by pushing and popping packages
+    from the import stack when creating the error, rather than when printing
+    the error. In some cases, we don't have the same amount of information
+    to recreate the exact error, so we'll print the name of the package
+    the error is for, even when it's redundant. In the case of import cycle
+    errors, this change results in the addition of the position information
+    of the error.
+    
+    This change supercedes CLs 220718 and 217106. It introduces a simpler
+    way to format errors.
+    
+    Fixes #36173
+    
+    Change-Id: Ie27011eb71f82e165ed4f9567bba6890a3849fc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224660
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/go_test.go                              |   2 +-
+ src/cmd/go/internal/load/pkg.go                    | 121 ++++++++++++---------
+ src/cmd/go/internal/load/test.go                   |   1 -
+ src/cmd/go/testdata/script/mod_empty_err.txt       |   2 +-
+ .../go/testdata/script/test_import_error_stack.txt |   3 +
+ src/cmd/go/testdata/script/vet_internal.txt        |  14 +--
+ 6 files changed, 81 insertions(+), 62 deletions(-)

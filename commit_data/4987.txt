@@ -1,0 +1,12 @@
+commit 72970871016de9aadee5aa8eafcfa15fa59813ca
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 4 12:35:16 2010 -0800
+
+    Spec for complex numbers
+    
+    R=rsc, ken2, gri, iant
+    CC=cw, golang-dev
+    https://golang.org/cl/227041
+
+ doc/go_spec.html | 188 ++++++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 153 insertions(+), 35 deletions(-)

@@ -1,0 +1,14 @@
+commit 9ba551bb87892e29769b15625b5a135a402b9e8b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri May 31 10:58:50 2013 +0400
+
+    runtime: fix heap coalescing bug introduced in cl/9802043
+    mheap.map become a pointer, so nelem(h->map) returns 1 rather than the map size.
+    As the result coalescing with subsequent spans does not happen.
+    
+    R=golang-dev, khr
+    CC=golang-dev
+    https://golang.org/cl/9649046
+
+ src/pkg/runtime/mheap.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

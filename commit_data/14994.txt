@@ -1,0 +1,22 @@
+commit 31f58dce67b449e5a268714dace703a1dcd24035
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 28 08:54:15 2013 -0800
+
+    net, syscall: use accept4 and SOCK_CLOEXEC on Linux
+    
+    R=golang-dev, bradfitz, mikioh.mikioh, dave, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7227043
+
+ src/pkg/net/fd_unix.go                  | 12 +-----
+ src/pkg/net/file_unix.go                |  4 ++
+ src/pkg/net/sock_cloexec.go             | 69 +++++++++++++++++++++++++++++++++
+ src/pkg/net/sock_posix.go               |  7 +---
+ src/pkg/net/sys_cloexec.go              | 54 ++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_linux.go        | 15 +++++++
+ src/pkg/syscall/syscall_linux_386.go    | 11 ++++++
+ src/pkg/syscall/syscall_linux_amd64.go  |  1 +
+ src/pkg/syscall/syscall_linux_arm.go    |  1 +
+ src/pkg/syscall/zsyscall_linux_amd64.go | 11 ++++++
+ src/pkg/syscall/zsyscall_linux_arm.go   | 11 ++++++
+ 11 files changed, 179 insertions(+), 17 deletions(-)

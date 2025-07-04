@@ -1,0 +1,12 @@
+commit 5043f0a1ad4a3faba0ed04241b718a0cc4bb0372
+Author: Stephen Ma <stephenm@golang.org>
+Date:   Wed Oct 6 19:39:30 2010 +1100
+
+    bufio: minor documentation fix.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/2301045
+
+ src/pkg/bufio/bufio.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

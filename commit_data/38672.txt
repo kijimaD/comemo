@@ -1,0 +1,22 @@
+commit 68d89bb8e05afc2aa050b4c5ad0df4b3af03c45d
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 3 14:47:55 2019 -0400
+
+    runtime: separate stack freeing from stack shrinking
+    
+    Currently, shrinkstack will free the stack if the goroutine is dead.
+    There are only two places that call shrinkstack: scanstack, which will
+    never call it if the goroutine is dead; and markrootFreeGStacks, which
+    only calls it on dead goroutines.
+    
+    Clean this up by separating stack freeing out of shrinkstack.
+    
+    Change-Id: I7d7891e620550c32a2220833923a025704986681
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170890
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgcmark.go |  4 +++-
+ src/runtime/stack.go   | 10 ----------
+ 2 files changed, 3 insertions(+), 11 deletions(-)

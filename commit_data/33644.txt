@@ -1,0 +1,40 @@
+commit 9a14cd9e7556e68ea98255ae809b5862d574df9e
+Author: Wei Xiao <wei.xiao@arm.com>
+Date:   Fri Jun 16 06:45:14 2017 +0000
+
+    bytes: add optimized countByte for arm64
+    
+    Use SIMD instructions when counting a single byte.
+    Inspired from runtime IndexByte implementation.
+    
+    Benchmark results of bytes, where 1 byte in every 8 is the one we are looking:
+    
+    name               old time/op   new time/op    delta
+    CountSingle/10-8    96.1ns ± 1%    38.8ns ± 0%    -59.64%  (p=0.000 n=9+7)
+    CountSingle/32-8     172ns ± 2%      36ns ± 1%    -79.27%  (p=0.000 n=10+10)
+    CountSingle/4K-8    18.2µs ± 1%     0.9µs ± 0%    -95.17%  (p=0.000 n=9+10)
+    CountSingle/4M-8    18.4ms ± 0%     0.9ms ± 0%    -95.00%  (p=0.000 n=10+9)
+    CountSingle/64M-8    284ms ± 4%      19ms ± 0%    -93.40%  (p=0.000 n=10+10)
+    
+    name               old speed     new speed      delta
+    CountSingle/10-8   104MB/s ± 1%   258MB/s ± 0%   +147.99%  (p=0.000 n=9+10)
+    CountSingle/32-8   185MB/s ± 1%   897MB/s ± 1%   +385.33%  (p=0.000 n=9+10)
+    CountSingle/4K-8   225MB/s ± 1%  4658MB/s ± 0%  +1967.40%  (p=0.000 n=9+10)
+    CountSingle/4M-8   228MB/s ± 0%  4555MB/s ± 0%  +1901.71%  (p=0.000 n=10+9)
+    CountSingle/64M-8  236MB/s ± 4%  3575MB/s ± 0%  +1414.69%  (p=0.000 n=10+10)
+    
+    Change-Id: Ifccb51b3c8658c49773fe05147c3cf3aead361e5
+    Reviewed-on: https://go-review.googlesource.com/71111
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/bytes_arm64.go                  | 68 ++++++++++++++++++++++++++++
+ src/bytes/bytes_arm64.s                   | 74 +++++++++++++++++++++++++++++++
+ src/bytes/bytes_generic.go                |  2 +-
+ src/cmd/asm/internal/asm/testdata/arm64.s |  5 +++
+ src/cmd/internal/obj/arm64/a.out.go       |  2 +
+ src/cmd/internal/obj/arm64/anames.go      |  2 +
+ src/cmd/internal/obj/arm64/asm7.go        | 37 ++++++++++++++--
+ src/cmd/internal/obj/arm64/doc.go         | 14 ++++++
+ 8 files changed, 200 insertions(+), 4 deletions(-)

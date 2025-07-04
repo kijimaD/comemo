@@ -1,0 +1,21 @@
+commit f027241445f3064b41f5d5e68f86370d37bad0be
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 22 07:14:10 2016 -0700
+
+    cmd/compile: give gc.Op a String method, use it
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I915e76374fd64aa2597e6fa47e4fa95ca00ca643
+    Reviewed-on: https://go-review.googlesource.com/22380
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go |  6 +++---
+ src/cmd/compile/internal/gc/bimport.go |  2 +-
+ src/cmd/compile/internal/gc/fmt.go     |  4 ++++
+ src/cmd/compile/internal/gc/obj.go     |  6 +++---
+ src/cmd/compile/internal/gc/sinit.go   |  2 +-
+ src/cmd/compile/internal/gc/ssa.go     | 14 +++++++-------
+ 6 files changed, 19 insertions(+), 15 deletions(-)

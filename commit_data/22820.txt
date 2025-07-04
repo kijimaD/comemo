@@ -1,0 +1,88 @@
+commit 7fbb1b36c37ac49db78042adc7533fb4ab83a4bc
+Author: David Chase <drchase@google.com>
+Date:   Thu Mar 26 16:36:15 2015 -0400
+
+    cmd/internal/gc: improve flow of input params to output params
+    
+    This includes the following information in the per-function summary:
+    
+    outK = paramJ   encoded in outK bits for paramJ
+    outK = *paramJ  encoded in outK bits for paramJ
+    heap = paramJ   EscHeap
+    heap = *paramJ  EscContentEscapes
+    
+    Note that (currently) if the address of a parameter is taken and
+    returned, necessarily a heap allocation occurred to contain that
+    reference, and the heap can never refer to stack, therefore the
+    parameter and everything downstream from it escapes to the heap.
+    
+    The per-function summary information now has a tuneable number of bits
+    (2 is probably noticeably better than 1, 3 is likely overkill, but it
+    is now easy to check and the -m debugging output includes information
+    that allows you to figure out if more would be better.)
+    
+    A new test was  added to check pointer flow through struct-typed and
+    *struct-typed parameters and returns; some of these are sensitive to
+    the number of summary bits, and ought to yield better results with a
+    more competent escape analysis algorithm.  Another new test checks
+    (some) correctness with array parameters, results, and operations.
+    
+    The old analysis inferred a piece of plan9 runtime was non-escaping by
+    counteracting overconservative analysis with buggy analysis; with the
+    bug fixed, the result was too conservative (and it's not easy to fix
+    in this framework) so the source code was tweaked to get the desired
+    result.  A test was added against the discovered bug.
+    
+    The escape analysis was further improved splitting the "level" into
+    3 parts, one tracking the conventional "level" and the other two
+    computing the highest-level-suffix-from-copy, which is used to
+    generally model the cancelling effect of indirection applied to
+    address-of.
+    
+    With the improved escape analysis enabled, it was necessary to
+    modify one of the runtime tests because it now attempts to allocate
+    too much on the (small, fixed-size) G0 (system) stack and this
+    failed the test.
+    
+    Compiling src/std after touching src/runtime/*.go with -m logging
+    turned on shows 420 fewer heap allocation sites (10538 vs 10968).
+    
+    Profiling allocations in src/html/template with
+    for i in {1..5} ;
+      do go tool 6g -memprofile=mastx.${i}.prof  -memprofilerate=1 *.go;
+      go tool pprof -alloc_objects -text  mastx.${i}.prof ;
+    done
+    
+    showed a 15% reduction in allocations performed by the compiler.
+    
+    Update #3753
+    Update #4720
+    Fixes #10466
+    
+    Change-Id: I0fd97d5f5ac527b45f49e2218d158a6e89951432
+    Reviewed-on: https://go-review.googlesource.com/8202
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/esc.go    | 575 +++++++++++++++++++++++++++++++++---------
+ src/cmd/internal/gc/gen.go    |  15 +-
+ src/cmd/internal/gc/go.go     |  13 -
+ src/cmd/internal/gc/syntax.go |  22 +-
+ src/cmd/internal/gc/walk.go   |   2 +-
+ src/runtime/proc1.go          |   4 +
+ src/runtime/string1.go        |   6 +-
+ test/escape2.go               |  73 +++---
+ test/escape2n.go              |  73 +++---
+ test/escape_array.go          |  72 ++++++
+ test/escape_calls.go          |  44 ++++
+ test/escape_closure.go        |   4 +-
+ test/escape_field.go          |  39 ++-
+ test/escape_indir.go          |  13 +-
+ test/escape_level.go          |  26 +-
+ test/escape_param.go          |  87 ++++---
+ test/escape_struct_param1.go  | 298 ++++++++++++++++++++++
+ test/escape_struct_param2.go  | 298 ++++++++++++++++++++++
+ test/escape_struct_return.go  |  74 ++++++
+ test/fixedbugs/issue10353.go  |   2 +-
+ 20 files changed, 1443 insertions(+), 297 deletions(-)

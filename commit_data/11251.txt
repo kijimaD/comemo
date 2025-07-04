@@ -1,0 +1,13 @@
+commit 885cbc3be4e37d8ac36265b2b8fdf0582cff0551
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 19 14:44:21 2012 +1100
+
+    A+C: add Stefan Nilsson's gmail account
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5541064
+
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

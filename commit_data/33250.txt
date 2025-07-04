@@ -1,0 +1,22 @@
+commit bd48d37e301395d60cc00ad335ccae63a12830e2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Oct 3 10:18:00 2017 +0200
+
+    math/big: add (*Float).Sqrt
+    
+    This change adds a Square root method to the big.Float type, with
+    signature
+    
+      (z *Float) Sqrt(x *Float) *Float
+    
+    Fixes #20460
+    
+    Change-Id: I050aaed0615fe0894e11c800744600648343c223
+    Reviewed-on: https://go-review.googlesource.com/67830
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/sqrt.go      | 150 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/math/big/sqrt_test.go | 123 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 273 insertions(+)

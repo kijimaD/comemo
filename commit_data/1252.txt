@@ -1,0 +1,19 @@
+commit 732b53a1feeb95582ab038dde9a5d9081a86d1b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 26 13:23:26 2008 -0800
+
+    - snapshot of state before trying yet another, hopefully better working
+    way to integrate comments into the generated output
+    - various simplificatins and cleanups throughout
+    
+    R=r
+    OCL=20062
+    CL=20062
+
+ usr/gri/pretty/ast.go         |   6 +-
+ usr/gri/pretty/compilation.go |   2 +-
+ usr/gri/pretty/parser.go      |  11 +-
+ usr/gri/pretty/pretty.go      |   3 +-
+ usr/gri/pretty/printer.go     | 229 +++++++++++++++++++++++++-----------------
+ usr/gri/pretty/scanner.go     |  73 ++++++--------
+ 6 files changed, 174 insertions(+), 150 deletions(-)

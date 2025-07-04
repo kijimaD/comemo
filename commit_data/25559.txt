@@ -1,0 +1,15 @@
+commit 46069bed06551337bc8c9b293040d30e41917289
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Jan 10 23:20:06 2016 -0700
+
+    net/http: reject non three digit status codes in ReadResponse
+    
+    Change-Id: If4a90c4017ef4b5c9f497cf117c8ad62b7e15c62
+    Reviewed-on: https://go-review.googlesource.com/18501
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/response.go      |  8 +++++---
+ src/net/http/response_test.go | 11 ++++++++++-
+ 2 files changed, 15 insertions(+), 4 deletions(-)

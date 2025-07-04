@@ -1,0 +1,13 @@
+commit 426335f87bbcdb8390ac9730bbc96661a9e5a551
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 2 17:52:52 2009 -0800
+
+    delete paragraph about unimplemented select-on-type feature.
+    change () to {} in all composite literals
+    
+    DELTA=20  (0 added, 7 deleted, 13 changed)
+    OCL=25604
+    CL=25606
+
+ doc/go_spec.html | 33 +++++++++++++--------------------
+ 1 file changed, 13 insertions(+), 20 deletions(-)

@@ -1,0 +1,16 @@
+commit b143feb1431b58c02be6edca6bc5f6067b22a14d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 4 01:38:49 2014 -0400
+
+    runtime: fix int64 reconstruction in semasleep
+    
+    I had this right in one of my clients, but apparently not the one I submitted from.
+    
+    Fixes 386 builds.
+    
+    TBR=dfc
+    CC=golang-codereviews
+    https://golang.org/cl/138000045
+
+ src/pkg/runtime/os_darwin.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

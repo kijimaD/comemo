@@ -1,0 +1,67 @@
+commit 89ccfe496224bc92f2d2af860cae2f5d7e830f8d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Oct 20 05:26:43 2017 -0700
+
+    encoding/csv: simplify and optimize Reader
+    
+    The Reader implementation is slow because it operates on a rune-by-rune
+    basis via bufio.Reader.ReadRune. We speed this up by operating on entire
+    lines that we read from bufio.Reader.ReadSlice.
+    
+    In order to ensure that we read the full line, we augment ReadSlice
+    in our Reader.readLine method to automatically expand the slice if
+    bufio.ErrBufferFull is every hit.
+    
+    This change happens to fix #19410 because it no longer relies on
+    rune-by-rune parsing and only searches for the relevant delimiter rune.
+    
+    In order to keep column accounting simple and consistent, this change
+    reverts parts of CL 52830.
+    
+    This CL is an alternative to CL 36270 and builds on some of the ideas
+    from that change by Diogo Pinela.
+    
+    name                                     old time/op    new time/op    delta
+    Read-8                                   3.12µs ± 1%    2.54µs ± 2%  -18.76%   (p=0.000 n=10+9)
+    ReadWithFieldsPerRecord-8                3.12µs ± 1%    2.53µs ± 1%  -18.91%    (p=0.000 n=9+9)
+    ReadWithoutFieldsPerRecord-8             3.13µs ± 0%    2.57µs ± 3%  -18.07%  (p=0.000 n=10+10)
+    ReadLargeFields-8                        52.3µs ± 1%     5.3µs ± 2%  -89.93%   (p=0.000 n=10+9)
+    ReadReuseRecord-8                        2.05µs ± 1%    1.40µs ± 1%  -31.48%   (p=0.000 n=10+9)
+    ReadReuseRecordWithFieldsPerRecord-8     2.05µs ± 1%    1.41µs ± 0%  -31.03%   (p=0.000 n=10+9)
+    ReadReuseRecordWithoutFieldsPerRecord-8  2.06µs ± 1%    1.40µs ± 1%  -31.70%   (p=0.000 n=9+10)
+    ReadReuseRecordLargeFields-8             50.9µs ± 0%     4.1µs ± 3%  -92.01%  (p=0.000 n=10+10)
+    
+    name                                     old alloc/op   new alloc/op
+    Read-8                                       664B ± 0%      664B ± 0%
+    ReadWithFieldsPerRecord-8                    664B ± 0%      664B ± 0%
+    ReadWithoutFieldsPerRecord-8                 664B ± 0%      664B ± 0%
+    ReadLargeFields-8                          3.94kB ± 0%    3.94kB ± 0%
+    ReadReuseRecord-8                           24.0B ± 0%     24.0B ± 0%
+    ReadReuseRecordWithFieldsPerRecord-8        24.0B ± 0%     24.0B ± 0%
+    ReadReuseRecordWithoutFieldsPerRecord-8     24.0B ± 0%     24.0B ± 0%
+    ReadReuseRecordLargeFields-8               2.98kB ± 0%    2.98kB ± 0%
+    
+    name                                     old allocs/op  new allocs/op
+    Read-8                                       18.0 ± 0%      18.0 ± 0%
+    ReadWithFieldsPerRecord-8                    18.0 ± 0%      18.0 ± 0%
+    ReadWithoutFieldsPerRecord-8                 18.0 ± 0%      18.0 ± 0%
+    ReadLargeFields-8                            24.0 ± 0%      24.0 ± 0%
+    ReadReuseRecord-8                            8.00 ± 0%      8.00 ± 0%
+    ReadReuseRecordWithFieldsPerRecord-8         8.00 ± 0%      8.00 ± 0%
+    ReadReuseRecordWithoutFieldsPerRecord-8      8.00 ± 0%      8.00 ± 0%
+    ReadReuseRecordLargeFields-8                 12.0 ± 0%      12.0 ± 0%
+    
+    Updates #22352
+    Updates #19019
+    Fixes #16791
+    Fixes #19410
+    
+    Change-Id: I31c27cfcc56880e6abac262f36c947179b550bbf
+    Reviewed-on: https://go-review.googlesource.com/72150
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/csv/reader.go      | 387 +++++++++++++++++-----------------------
+ src/encoding/csv/reader_test.go | 135 +++++++++++---
+ 2 files changed, 270 insertions(+), 252 deletions(-)

@@ -1,0 +1,20 @@
+commit 693a34e78856980b0bb4a10ffcfd2bac1dbd6ebe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 7 14:03:55 2023 -0700
+
+    slices: add DeleteFunc
+    
+    Fixes #54768
+    
+    Change-Id: I588ae33c13e0bbd9d324c11771667b22a864047d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483175
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ api/next/54768.txt        |  1 +
+ src/slices/slices.go      | 26 ++++++++++++++++++++++++++
+ src/slices/slices_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 73 insertions(+)

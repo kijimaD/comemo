@@ -1,0 +1,25 @@
+commit 029d2c4524e729dbd913475ca4a5138bb6c5e099
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 30 10:37:07 2022 +1100
+
+    flag: recover panic when calling String on zero value in PrintDefaults
+    
+    When printing the usage message, recover panics when calling String
+    methods on reflect-constructed flag.Value zero values. Collect the panic
+    messages and include them at the end of the PrintDefaults output so that
+    the programmer knows to fix the panic.
+    
+    Fixes #28667
+    
+    Change-Id: Ic4378a5813a2e26f063d5580d678add65ece8f97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396574
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Trust: Andrew Gerrand <adg@golang.org>
+
+ src/flag/flag.go      | 31 ++++++++++++++++++++++++++++---
+ src/flag/flag_test.go | 33 ++++++++++++++++++++++++++++++++-
+ 2 files changed, 60 insertions(+), 4 deletions(-)

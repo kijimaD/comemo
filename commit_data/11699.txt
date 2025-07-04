@@ -1,0 +1,14 @@
+commit 878608bd29b936b889e130b0bb81cfbc523ae233
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 8 16:30:28 2012 +1100
+
+    cmd/go: connect os.Stdin for go run
+    
+    Fixes #2875
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5641052
+
+ src/cmd/go/run.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

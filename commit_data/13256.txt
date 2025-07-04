@@ -1,0 +1,12 @@
+commit b1cb5f5dcb93893efe5cdca45828f5d9e9f2512d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 2 23:57:38 2012 -0400
+
+    cmd/5g: fix typo
+    
+    TBR=lvd
+    CC=golang-dev
+    https://golang.org/cl/6275048
+
+ src/cmd/5g/gsubr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

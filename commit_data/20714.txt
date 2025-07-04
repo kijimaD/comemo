@@ -1,0 +1,15 @@
+commit 05c4b69f848a2de7acc604285d18e995f646adfc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 15 13:09:59 2014 -0400
+
+    os/exec: document that Stdin goroutine must finish in Wait
+    
+    Fixes #7990.
+    
+    LGTM=iant, bradfitz
+    R=bradfitz, iant, robryk
+    CC=golang-codereviews
+    https://golang.org/cl/156220043
+
+ src/os/exec/exec.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

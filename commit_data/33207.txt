@@ -1,0 +1,17 @@
+commit 89a7adf8e47c8e8f7929e68621a66000bb2703e6
+Author: rust <pruest@gmail.com>
+Date:   Mon Oct 23 15:28:08 2017 -0400
+
+    cmd/link/internal/ld: modify -pagezero_size to please iTunes Connect validation for iOS.
+    
+    This change modifies go to create iOS arm64 binaries that pass iTunes
+    upload validation. Tested with xcode 9.0.1 macOS 10.13.
+    
+    Fixes #22402.
+    
+    Change-Id: I3f14c6ac85065e2da88d06edc8682947f6f1cd47
+    Reviewed-on: https://go-review.googlesource.com/72730
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

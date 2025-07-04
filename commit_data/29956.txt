@@ -1,0 +1,14 @@
+commit 787125abab968ed681106146b68afa2c06b1cd69
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 16 01:48:42 2017 +0000
+
+    doc: 2017 is the Year of the Gopher
+    
+    Change-Id: Iac713ae1f322f893c92b3fc47fe9b5719052f9eb
+    Reviewed-on: https://go-review.googlesource.com/35240
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

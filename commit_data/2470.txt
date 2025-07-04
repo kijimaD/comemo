@@ -1,0 +1,21 @@
+commit 8522a478bb5b85dd78c361f104b82326cd71ee1b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 17 15:15:55 2009 -0700
+
+    update 386 to new runtime (CL 30381)
+    
+    R=r
+    DELTA=298  (119 added, 81 deleted, 98 changed)
+    OCL=30427
+    CL=30443
+
+ src/cmd/8l/obj.c                 |   2 +-
+ src/cmd/8l/pass.c                |  20 +----
+ src/pkg/runtime/386/asm.s        | 157 ++++++++++++++++++++++++---------------
+ src/pkg/runtime/386/traceback.c  |  21 +++---
+ src/pkg/runtime/darwin/386/sys.s |  23 +++---
+ src/pkg/runtime/darwin/thread.c  |   6 +-
+ src/pkg/runtime/linux/386/sys.s  | 130 +++++++++++++++++---------------
+ src/pkg/runtime/linux/os.h       |   4 +-
+ src/pkg/runtime/linux/thread.c   |  19 ++---
+ 9 files changed, 210 insertions(+), 172 deletions(-)

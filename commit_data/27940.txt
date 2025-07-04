@@ -1,0 +1,53 @@
+commit 2f783c3458744a95a01286eed5f4c0af0978cd46
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Aug 19 22:40:38 2016 -0400
+
+    cmd/link/internal: thread *ld.Link through calls
+    
+    Ctxt is a global defined in cmd/link/internal/ld of type *ld.Link.
+    Start threading a *ld.Link through function calls instead of
+    relying on the global variable.
+    
+    Ctxt is still used as a global by the architecture-specific packages,
+    but I plan to fix that in a subsequent CL.
+    
+    Change-Id: I77a3a58bd396fafd959fa1d8b1c83008a9f5a7fb
+    Reviewed-on: https://go-review.googlesource.com/27408
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/cmd/link/internal/amd64/asm.go    |  62 ++--
+ src/cmd/link/internal/amd64/obj.go    |   8 +-
+ src/cmd/link/internal/arm/asm.go      |  73 ++--
+ src/cmd/link/internal/arm/obj.go      |   4 +-
+ src/cmd/link/internal/arm64/asm.go    |  57 +--
+ src/cmd/link/internal/arm64/obj.go    |   4 +-
+ src/cmd/link/internal/ld/ar.go        |   8 +-
+ src/cmd/link/internal/ld/data.go      | 466 +++++++++++++------------
+ src/cmd/link/internal/ld/deadcode.go  |   4 +-
+ src/cmd/link/internal/ld/decodesym.go |  96 ++---
+ src/cmd/link/internal/ld/dwarf.go     | 636 +++++++++++++++++-----------------
+ src/cmd/link/internal/ld/elf.go       | 580 +++++++++++++++----------------
+ src/cmd/link/internal/ld/go.go        |  36 +-
+ src/cmd/link/internal/ld/ld.go        |   2 +-
+ src/cmd/link/internal/ld/ldelf.go     |  62 ++--
+ src/cmd/link/internal/ld/ldmacho.go   |  26 +-
+ src/cmd/link/internal/ld/ldpe.go      |  32 +-
+ src/cmd/link/internal/ld/lib.go       | 356 +++++++++----------
+ src/cmd/link/internal/ld/link.go      |  14 +-
+ src/cmd/link/internal/ld/macho.go     | 166 ++++-----
+ src/cmd/link/internal/ld/pcln.go      | 126 +++----
+ src/cmd/link/internal/ld/pe.go        | 158 ++++-----
+ src/cmd/link/internal/ld/pobj.go      |  66 ++--
+ src/cmd/link/internal/ld/symtab.go    | 204 +++++------
+ src/cmd/link/internal/mips64/asm.go   |  41 +--
+ src/cmd/link/internal/mips64/obj.go   |   4 +-
+ src/cmd/link/internal/ppc64/asm.go    |  66 ++--
+ src/cmd/link/internal/ppc64/obj.go    |   4 +-
+ src/cmd/link/internal/s390x/asm.go    |  61 ++--
+ src/cmd/link/internal/s390x/obj.go    |   2 +-
+ src/cmd/link/internal/x86/asm.go      |  68 ++--
+ src/cmd/link/internal/x86/obj.go      |   6 +-
+ 32 files changed, 1756 insertions(+), 1742 deletions(-)

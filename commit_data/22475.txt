@@ -1,0 +1,22 @@
+commit 67805eaa950c5318bfe02943cc175da6729919a9
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Apr 13 21:50:47 2015 +1000
+
+    cmd/dist: use gccgo as bootstrap compiler
+    
+    Fixes #10092
+    
+    This change makes it possible to use gccgo 5 as the GOROOT_BOOTSTRAP
+    compiler.
+    
+    Change-Id: Ie3a312781ac1a09ea77f95b5a78c9488d437e0aa
+    Reviewed-on: https://go-review.googlesource.com/8809
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/cpuid_amd64.s   |  2 ++
+ src/cmd/dist/cpuid_default.s |  2 +-
+ src/cmd/dist/util.go         | 12 ------------
+ src/cmd/dist/util_gc.go      | 19 +++++++++++++++++++
+ src/cmd/dist/util_gccgo.go   |  9 +++++++++
+ 5 files changed, 31 insertions(+), 13 deletions(-)

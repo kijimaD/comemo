@@ -1,0 +1,20 @@
+commit c1e46af62f2893a6beb2341ef71ffe8d3787975b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Oct 4 13:52:56 2019 +0200
+
+    test: add testcase for Issue 34520
+    
+    CL 188317 introduced a compiler crash during dwarf generation which
+    was reported as Issue #34520. After CL 188217, the issue appears to be
+    fixed. Add a testcase to avoid future regressions.
+    
+    Fixes #34520
+    
+    Change-Id: I73544a9e9baf8dbfb85c19eb6d202beea05affb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198546
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ test/fixedbugs/issue34520.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,0 +1,28 @@
+commit 1cfe1007cdf17ee381443cd0d8ae31962805f96e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 15 22:44:31 2022 -0700
+
+    cmd/compile: remove typecheckdef and Name.Walkdef
+    
+    The only remaining use for typecheckdef after CL 393256 is to
+    typecheck the ONAME node that represents function names, so we might
+    as well just move that code into tcFunc instead.
+    
+    Updates #51691.
+    
+    Change-Id: Icbca51d4b0fb33c90faa95f16254c7171b171d8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393367
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ir/mini.go             |  5 +--
+ src/cmd/compile/internal/ir/name.go             |  7 ---
+ src/cmd/compile/internal/noder/expr.go          |  1 -
+ src/cmd/compile/internal/noder/object.go        |  1 -
+ src/cmd/compile/internal/noder/reader.go        |  1 -
+ src/cmd/compile/internal/typecheck/func.go      |  8 +++-
+ src/cmd/compile/internal/typecheck/stmt.go      |  1 -
+ src/cmd/compile/internal/typecheck/typecheck.go | 60 -------------------------
+ 8 files changed, 9 insertions(+), 75 deletions(-)

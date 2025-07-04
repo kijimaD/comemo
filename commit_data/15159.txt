@@ -1,0 +1,22 @@
+commit 30a9957aacb21fef5195a43dba99669465a789e7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 7 16:00:06 2013 -0800
+
+    bytes: minor optimization to lastIndexFunc
+    
+    Before and after:
+    BenchmarkTrimSpace  20000000   81.3 ns/op
+    BenchmarkTrimSpace  50000000   58.0 ns/op
+    
+    (most whitespace trimming is ASCII whitespace)
+    
+    Same optimization appeared a handful of other places
+    in this file, but not here.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7305063
+
+ src/pkg/bytes/bytes.go      | 5 ++++-
+ src/pkg/bytes/bytes_test.go | 7 +++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

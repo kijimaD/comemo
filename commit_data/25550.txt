@@ -1,0 +1,33 @@
+commit fac8202c3ffdddf5d2b35a2c3620c1eb56018b9b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 21:16:01 2016 -0500
+
+    runtime: make NumGoroutine and Stack agree not to include system goroutines
+    
+    [Repeat of CL 18343 with build fixes.]
+    
+    Before, NumGoroutine counted system goroutines and Stack (usually) didn't show them,
+    which was inconsistent and confusing.
+    
+    To resolve which way they should be consistent, it seems like
+    
+            package main
+            import "runtime"
+            func main() { println(runtime.NumGoroutine()) }
+    
+    should print 1 regardless of internal runtime details. Make it so.
+    
+    Fixes #11706.
+    
+    Change-Id: If26749fec06aa0ff84311f7941b88d140552e81d
+    Reviewed-on: https://go-review.googlesource.com/18432
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ misc/cgo/test/issue7978.go            |  4 ++--
+ src/runtime/mprof.go                  |  5 +++++
+ src/runtime/proc.go                   |  8 +++++++-
+ src/runtime/proc_test.go              | 18 ++++++++++++++++++
+ src/runtime/runtime2.go               |  9 ++++++---
+ src/runtime/testdata/testprog/misc.go | 15 +++++++++++++++
+ 6 files changed, 53 insertions(+), 6 deletions(-)

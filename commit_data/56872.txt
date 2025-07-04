@@ -1,0 +1,19 @@
+commit 5565462a866af6d882d1f367ae5611260ad07b79
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat Jul 6 23:03:27 2024 +0000
+
+    cmd/dist: remove iter,slices,maps test on GOEXPERIMENT=rangefunc
+    
+    In go1.23, don't need use GOEXPERIMENT=rangefunc enable range-over-func.
+    
+    Change-Id: I88b799c4b38c8fbeed8d9f912a0c3c6c45c80e9d
+    GitHub-Last-Rev: 64fd4524f1d2f66049fdce1f68912742c98fb8d9
+    GitHub-Pull-Request: golang/go#68325
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596517
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/dist/test.go | 13 -------------
+ 1 file changed, 13 deletions(-)

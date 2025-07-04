@@ -1,0 +1,16 @@
+commit ebf14c625dcd4b02bb4b6575bf8312ca1d8d1cc5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 30 14:50:23 2008 -0700
+
+    - clarified section on numeric types: platform-dependent types
+      are different from platform-independent types (not just aliases),
+      except for byte, uint8
+    - added missing documentation of new(a, len, cap)
+    - updated todo/issues lists
+    
+    DELTA=70  (24 added, 21 deleted, 25 changed)
+    OCL=17920
+    CL=18174
+
+ doc/go_spec.txt | 87 +++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 45 insertions(+), 42 deletions(-)

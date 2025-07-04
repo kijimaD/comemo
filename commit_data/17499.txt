@@ -1,0 +1,16 @@
+commit 467122ce0b5f9daeb44b073362d53e772e321947
+Author: Andriy Lytvynov <lytvynov.a.v@gmail.com>
+Date:   Sun Sep 8 11:17:23 2013 +1000
+
+    sort: add a simpler sort.Interface example
+    
+    Existing example renamed to Example_sortWrapper.
+    Fixes #6335.
+    
+    R=golang-dev, rsc, taj.khattra, r
+    CC=golang-dev
+    https://golang.org/cl/13586043
+
+ src/pkg/sort/example_interface_test.go | 78 ++++++++++------------------------
+ src/pkg/sort/example_wrapper_test.go   | 77 +++++++++++++++++++++++++++++++++
+ 2 files changed, 99 insertions(+), 56 deletions(-)

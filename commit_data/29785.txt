@@ -1,0 +1,17 @@
+commit cbcc1db41c505cd8e19e27f9844276dc35d527be
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Dec 11 12:55:17 2016 +0100
+
+    fmt: undo clearflags in catchPanic after error message has been printed
+    
+    Fixes #18282
+    
+    Change-Id: I024ca4a03bbbcccd48a0a6245bc3ec22c6a90288
+    Reviewed-on: https://go-review.googlesource.com/34254
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 27 +++++++++++++++++----------
+ src/fmt/print.go    |  8 +++++++-
+ 2 files changed, 24 insertions(+), 11 deletions(-)

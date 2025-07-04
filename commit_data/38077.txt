@@ -1,0 +1,16 @@
+commit 337662f7caef76abd0122edffdc1f7f8102f19f8
+Author: Derek Phan <derekphan94@gmail.com>
+Date:   Sun Jan 13 06:07:33 2019 +0000
+
+    io: align style of test comments in multi_test.go
+    
+    Change-Id: Ic93a084311de46461ed3b30f4ac2fe11311e74d7
+    GitHub-Last-Rev: 32fbd63b10d0fa489406333ff6f8b6708974a73c
+    GitHub-Pull-Request: golang/go#29705
+    Reviewed-on: https://go-review.googlesource.com/c/157642
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+
+ src/io/multi_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

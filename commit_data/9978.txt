@@ -1,0 +1,24 @@
+commit d296fa1c9523d5c767cbf2def38c9360fae97af6
+Author: Luca Greco <luca.greco@alcacoop.it>
+Date:   Fri Oct 14 14:27:45 2011 -0400
+
+    websocket: tweak hybi ReadHandshake to supports Firefox implementation
+    
+    Firefox Websocket implementation send a "Connection: keep-alive, upgrade"
+    header during the handshake (and as descripted on the last hybi draft
+    the "Connection" header must include, but doesn't need to be equal to,
+    "upgrade":
+    
+       '4. A "Connection" header field that includes the token "Upgrade",
+        treated as an ASCII case-insensitive value.'
+    
+    From:
+    http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-17#page-23
+    
+    R=golang-dev, ukai, cw, rsc
+    CC=golang-dev
+    https://golang.org/cl/5233059
+
+ src/pkg/websocket/hybi.go      |  2 +-
+ src/pkg/websocket/hybi_test.go | 49 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 1 deletion(-)

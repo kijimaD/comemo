@@ -1,0 +1,29 @@
+commit f16729781bc7bfe561658f520dcbffa5f81790c2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Sep 1 08:04:33 2014 -0400
+
+    runtime/race: better handling of atomic operations
+    This change fixes the last known false negative of the race detector --
+    detection of races between mutating atomic operations and non-atomic operations.
+    Race runtime already has functions for precise modelling of various atomic operations,
+    so this change just forwards all atomic ops to race runtime
+    instead of poor man modeling in sync/atomic package.
+    Performance is also improved -- full sync/atomic tests run in 60s instead of 85s now.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/111310044
+
+ src/pkg/runtime/race.c                       |  35 ++--
+ src/pkg/runtime/race/README                  |   2 +-
+ src/pkg/runtime/race/race_darwin_amd64.syso  | Bin 249744 -> 278328 bytes
+ src/pkg/runtime/race/race_freebsd_amd64.syso | Bin 261096 -> 294224 bytes
+ src/pkg/runtime/race/race_linux_amd64.syso   | Bin 265024 -> 298064 bytes
+ src/pkg/runtime/race/race_windows_amd64.syso | Bin 247609 -> 292311 bytes
+ src/pkg/runtime/race/testdata/atomic_test.go |   6 +-
+ src/pkg/runtime/race_amd64.s                 | 137 ++++++++++++-
+ src/pkg/sync/atomic/doc.go                   |   2 -
+ src/pkg/sync/atomic/race.go                  | 276 ---------------------------
+ src/pkg/sync/atomic/race.s                   |   8 +
+ 11 files changed, 166 insertions(+), 300 deletions(-)

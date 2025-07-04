@@ -1,0 +1,13 @@
+commit 2aea4a063b364223d299d369a5570fb6bd193f2c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 26 15:26:09 2009 -0700
+
+    recycle G structs
+    
+    R=r
+    DELTA=1  (1 added, 0 deleted, 0 changed)
+    OCL=33887
+    CL=33904
+
+ src/pkg/runtime/proc.c | 1 +
+ 1 file changed, 1 insertion(+)

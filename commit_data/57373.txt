@@ -1,0 +1,50 @@
+commit c3f16307b3ff28578c915b8513f6369ad9f5e8f3
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Wed Sep 4 07:05:17 2024 +0000
+
+    go/printer: do not treat comments inside a ast.Decl as godoc
+    
+    This change makes sure that we do not format comments
+    as doc comments inside of a declaration and makes the
+    go doc formatter idempotent:
+    
+    Previously:
+    
+            // test comment
+            //go:directive2
+            // test comment
+    func main() {
+    }
+    
+    was formatted to:
+    
+    // test comment
+    //go:directive2
+    // test comment
+    func main() {
+    }
+    
+    after another formatting, it got formatted with doc rules into:
+    
+    // test comment
+    // test comment
+    //
+    //go:directive2
+    func main() {
+    }
+    
+    With this change it gets directly to the correct form (last one).
+    
+    Change-Id: Id7d8f03e43474357cd714e0672e886652c3fce86
+    GitHub-Last-Rev: 9833b87536c29f8be0e74c232936c5e6c5a9b78b
+    GitHub-Pull-Request: golang/go#69134
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609077
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/go/printer/nodes.go        |   7 ++
+ src/go/printer/printer.go      |   6 +-
+ src/go/printer/printer_test.go | 190 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 201 insertions(+), 2 deletions(-)

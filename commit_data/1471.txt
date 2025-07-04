@@ -1,0 +1,17 @@
+commit 5ea8ac78a8c701c3808460ffea2c0bdae8f186cb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 14 14:05:00 2009 -0800
+
+    add unicode library stub with just
+    IsUpper and IsLetter.
+    
+    R=r
+    DELTA=746  (746 added, 0 deleted, 0 changed)
+    OCL=22743
+    CL=22750
+
+ src/lib/Makefile               |   1 +
+ src/lib/unicode/Makefile       |  55 ++++
+ src/lib/unicode/letter.go      | 569 +++++++++++++++++++++++++++++++++++++++++
+ src/lib/unicode/letter_test.go | 129 ++++++++++
+ 4 files changed, 754 insertions(+)

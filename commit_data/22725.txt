@@ -1,0 +1,23 @@
+commit 00d4a6b35d519e405aa1702aba114b97f9a8ccce
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 22 17:53:32 2015 -0700
+
+    cmd/internal/gc, cmd/internal/ld: add memprofilerate flag
+    
+    Also call runtime.GC before exit to ensure
+    that the profiler picks up all allocations.
+    
+    Fixes #10537.
+    
+    Change-Id: Ibfbfc88652ac0ce30a6d1ae392f919df6c1e8126
+    Reviewed-on: https://go-review.googlesource.com/9261
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/lex.go  |  1 +
+ src/cmd/internal/gc/util.go | 20 ++++++++++----------
+ src/cmd/internal/ld/pobj.go |  1 +
+ src/cmd/internal/ld/util.go | 12 ++++++++++--
+ 4 files changed, 22 insertions(+), 12 deletions(-)

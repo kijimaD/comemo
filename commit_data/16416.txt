@@ -1,0 +1,19 @@
+commit 5166013f75a7dbab53482292f99c3b6c26cddd0b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue May 28 11:05:55 2013 +0400
+
+    runtime: inline MCache_Alloc() into mallocgc()
+    benchmark                    old ns/op    new ns/op    delta
+    BenchmarkMalloc8                    68           62   -8.63%
+    BenchmarkMalloc16                   75           69   -7.94%
+    BenchmarkMallocTypeInfo8           102           98   -3.73%
+    BenchmarkMallocTypeInfo16          108          103   -4.63%
+    
+    R=golang-dev, dave, khr
+    CC=golang-dev
+    https://golang.org/cl/9790043
+
+ src/pkg/runtime/malloc.goc | 20 ++++++++++++++++----
+ src/pkg/runtime/malloc.h   |  2 +-
+ src/pkg/runtime/mcache.c   | 33 ++++++++-------------------------
+ 3 files changed, 25 insertions(+), 30 deletions(-)

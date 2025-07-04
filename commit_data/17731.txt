@@ -1,0 +1,17 @@
+commit e0867738fc3df8fcf5ff4392e29901c87ffed115
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 2 21:42:23 2013 -0400
+
+    cmd/go: document relative imports
+    
+    Fixes #3524.
+    
+    R=golang-dev, iant, r
+    CC=golang-dev
+    https://golang.org/cl/14296043
+
+ src/cmd/go/doc.go  | 152 ++++++++++++++++++++++++++++++++---------------------
+ src/cmd/go/get.go  |   2 +-
+ src/cmd/go/help.go |  42 ++++++++++++---
+ src/cmd/go/main.go |   2 +-
+ 4 files changed, 129 insertions(+), 69 deletions(-)

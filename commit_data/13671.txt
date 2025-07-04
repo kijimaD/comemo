@@ -1,0 +1,22 @@
+commit 251199c430929d072cbe4cc8dc97659fa3d1ce6a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Aug 23 16:17:22 2012 +1000
+
+    cmd/8g: roll back the small integer constant optimizations introduced
+    in 13416:67c0b8c8fb29 "faster code, mainly for rotate" [1]. The codegen
+    can run out of registers if there are too many small-int arithmetic ops.
+    
+    An alternative approach is to copy 6g's sbop/abop codegen to 8g, but
+    this change is less risky.
+    
+    Fixes #3835.
+    
+    [1] http://code.google.com/p/go/source/diff?spec=svn67c0b8c8fb29b1b7b6221977af6b89cae787b941&name=67c0b8c8fb29&r=67c0b8c8fb29b1b7b6221977af6b89cae787b941&format=side&path=/src/cmd/8g/cgen.c
+    
+    R=rsc, remyoudompheng, r
+    CC=golang-dev
+    https://golang.org/cl/6450163
+
+ src/cmd/8g/cgen.c        |  8 +-------
+ test/fixedbugs/bug451.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 7 deletions(-)

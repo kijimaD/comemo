@@ -1,0 +1,16 @@
+commit 08fe56386ba117a44b52b28e5ab8dd4321af49f9
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Apr 18 21:01:20 2017 -0500
+
+    .gitignore: change path to zbootstrap.go
+    
+    zbootstrap.go was moved in 1e3570a. This updates .gitignore to match.
+    
+    Change-Id: I7500e0abc8e60b6c36c6ae056b2f68b9d021fc6f
+    Reviewed-on: https://go-review.googlesource.com/40993
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ .gitignore | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

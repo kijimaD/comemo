@@ -1,0 +1,16 @@
+commit 02f13e476472b52e4292e01e1a5e0f6b359a244c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 19 15:42:00 2009 -0700
+
+    build crypto/block.
+    deps.bash tweak.
+    
+    R=r
+    DELTA=95  (95 added, 0 deleted, 0 changed)
+    OCL=29046
+    CL=29059
+
+ src/lib/Make.deps             |  1 +
+ src/lib/Makefile              |  8 ++++
+ src/lib/crypto/block/Makefile | 90 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 99 insertions(+)

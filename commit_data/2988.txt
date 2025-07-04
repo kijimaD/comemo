@@ -1,0 +1,15 @@
+commit b0a0e3c439065d115de8670f7cc835a8da20b9a0
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 14 14:55:22 2009 -0700
+
+    remove compat stuff
+    
+    R=rsc
+    DELTA=70  (16 added, 52 deleted, 2 changed)
+    OCL=33295
+    CL=33299
+
+ src/cmd/5a/Makefile |  2 --
+ src/cmd/5a/a.h      |  1 -
+ src/cmd/5a/lex.c    | 20 ++++++++++++++++++--
+ 3 files changed, 18 insertions(+), 5 deletions(-)

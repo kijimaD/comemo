@@ -1,0 +1,20 @@
+commit 83feeedaecd2a367a2855d5fca5829ded5c52930
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 19 12:49:05 2019 -0400
+
+    cmd/go: change the gccgo 'package m' regression test to run in GOPATH mode
+    
+    This test is failing in the builders due to the deployed versions of
+    gccgo not supporting module mode. However, the bug reproduced in
+    GOPATH mode too, so that mode should be fine for a regression test.
+    
+    Updates #34358
+    
+    Change-Id: I954132a96849e80e8783d4de10389fcab7b14af2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196518
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/testdata/script/{mod_m.txt => gccgo_m.txt} | 4 ++++
+ 1 file changed, 4 insertions(+)

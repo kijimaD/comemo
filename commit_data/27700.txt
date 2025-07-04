@@ -1,0 +1,14 @@
+commit e1a6e71e746d511570f269d43b9abf838505a8e5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 20 15:43:21 2016 -0700
+
+    test: add missing copyright notice
+    
+    Change-Id: I2a5353203ca2958fa37fc7a5ea3f22ad4fc62b0e
+    Reviewed-on: https://go-review.googlesource.com/24282
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ test/fixedbugs/issue16008.go | 4 ++++
+ 1 file changed, 4 insertions(+)

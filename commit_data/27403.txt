@@ -1,0 +1,20 @@
+commit 6a6c1d9841a1957a2fd292df776ea920ae38ea00
+Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
+Date:   Mon May 16 15:30:28 2016 +0300
+
+    net/http/httputil: don't add User-Agent header by proxy made with NewSingleHostReverseProxy
+    
+    If client does not provided User-Agent header, do not set default one
+    used by net/http package when doing request to backend.
+    
+    Fixes #15524
+    
+    Change-Id: I9a46bb3b7ec106bc7c3071e235b872d279994d67
+    Reviewed-on: https://go-review.googlesource.com/23089
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      |  4 +++
+ src/net/http/httputil/reverseproxy_test.go | 43 ++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+)

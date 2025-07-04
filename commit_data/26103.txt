@@ -1,0 +1,16 @@
+commit 1ec4f227f45f669dfcc017b1eb1d147aca5ac620
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Mar 6 18:40:43 2016 +1100
+
+    cmd/compile/internal/ppc64: clean up table initalisation
+    
+    Move initproginfo and initvariants to ppc64.Main to avoid checking that
+    the tables are initialised every time.
+    
+    Change-Id: I95ff4146a7abc18c42a20bfad716cc80ea8367e5
+    Reviewed-on: https://go-review.googlesource.com/20286
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ppc64/galign.go |  3 +++
+ src/cmd/compile/internal/ppc64/prog.go   | 37 ++++++--------------------------
+ 2 files changed, 10 insertions(+), 30 deletions(-)

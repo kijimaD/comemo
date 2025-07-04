@@ -1,0 +1,19 @@
+commit aafc734c7807bafeb8aa69c019494f69965154b0
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 9 16:30:46 2023 +0000
+
+    Revert "cmd/internal/objabi: regenerate RelocType stringer file"
+    
+    This reverts commit 99914db5eea927c7694276169585f1fff9e614c8.
+    aka CL 473875
+    
+    Reason for revert: init order change that required this CL is causing some problems in some internal Google programs.
+    
+    Change-Id: I801e278ab58d542c05c0332a9f1977b9588b6151
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474975
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Bypass: Keith Randall <khr@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/objabi/reloctype_string.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

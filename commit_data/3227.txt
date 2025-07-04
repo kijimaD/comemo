@@ -1,0 +1,12 @@
+commit 0421cf072e275534a21790630081ff498e682016
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Sep 7 17:36:47 2009 -0700
+
+    maps in static initialization
+    
+    R=rsc
+    OCL=34434
+    CL=34434
+
+ src/cmd/gc/walk.c | 127 ++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 124 insertions(+), 3 deletions(-)

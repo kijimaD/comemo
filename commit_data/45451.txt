@@ -1,0 +1,38 @@
+commit cc02d59e84b60b3221e6c079afe04d3b7e59b872
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Apr 29 22:54:26 2021 +0100
+
+    cmd/gofmt: always format non-directory arguments again
+    
+    golang.org/cl/284138 introduced a regression: running "gofmt foo" would
+    silently ignore the file due to its lack of a ".go" extension, whereas
+    the tool is documented otherwise:
+    
+            Given a file, it operates on that file; given a directory, it
+            operates on all .go files in that directory, recursively.
+    
+    This wasn't caught as there were no tests for these edge cases. gofmt's
+    own tests are regular Go tests, so it's hard to test it properly without
+    adding an abstraction layer on top of func main.
+    
+    Luckily, this kind of test is a great fit for cmd/go's own script tests,
+    and it just takes a few straightforward lines.
+    
+    Finally, add the relevant logic back, with documentation to clarify its
+    intentional purpose.
+    
+    Fixes #45859.
+    
+    Change-Id: Ic5bf5937b8f95fcdad2b6933227c8b504ef38a82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315270
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/fmt_load_errors.txt | 13 +++++++++++++
+ src/cmd/gofmt/gofmt.go                         | 13 ++++++++++++-
+ 2 files changed, 25 insertions(+), 1 deletion(-)

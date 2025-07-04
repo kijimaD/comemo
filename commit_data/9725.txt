@@ -1,0 +1,20 @@
+commit e213a0c0fcd51f43d38b9423561989ed0b9e616c
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Sun Sep 18 11:55:14 2011 -0700
+
+    exp/template/html: recognize whitespace at start of URLs.
+    
+    HTML5 uses "Valid URL potentially surrounded by spaces" for
+    attrs: http://www.w3.org/TR/html5/index.html#attributes-1
+    
+        <a href=" {{.}}">
+    
+    should be escaped to filter out "javascript:..." as data.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5027045
+
+ src/pkg/exp/template/html/escape_test.go | 5 +++++
+ src/pkg/exp/template/html/transition.go  | 4 +++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

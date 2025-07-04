@@ -1,0 +1,25 @@
+commit cfd74f7727f6ad5a81d574c28cbee52cc13fdc52
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Sep 24 13:50:22 2021 -0700
+
+    cmd/link: move all FUNCDATA refs into go.func.*
+    
+    This change moves all symbols referred to by FUNCDATA
+    into go.func.* and go.funcrel.*.
+    
+    Surprisingly (because it inhibits some content-addressability),
+    it shrinks binaries by a little bit, about 0.1%.
+    
+    This paves the way for a subsequent change to change
+    FUNCDATA relocations to offsets.
+    
+    Change-Id: I70e487205073699f442192b0791cc92da5663057
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352189
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/objfile.go    | 16 +++++++++++++++-
+ src/cmd/link/internal/ld/symtab.go | 25 ++++++++++++++-----------
+ 2 files changed, 29 insertions(+), 12 deletions(-)

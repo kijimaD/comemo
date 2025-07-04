@@ -1,0 +1,17 @@
+commit 858c57f5bd2170abe71cbbf505966cd648935d00
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 29 16:41:08 2014 -0400
+
+    runtime: make allp a static array
+    
+    It is anyway, just an allocated one.
+    Giving it a sized type makes Go access nicer.
+    
+    LGTM=iant
+    R=dvyukov, iant
+    CC=golang-codereviews
+    https://golang.org/cl/139960043
+
+ src/pkg/runtime/proc.c    | 6 +-----
+ src/pkg/runtime/runtime.h | 8 +++++++-
+ 2 files changed, 8 insertions(+), 6 deletions(-)

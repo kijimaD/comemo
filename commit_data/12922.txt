@@ -1,0 +1,18 @@
+commit dda6d6aa7087f51a59bbe60d7b73d170c715ddd0
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Apr 20 23:45:43 2012 +0800
+
+    test: use testlib in a few more cases (part 2)
+            Introduced "runoutput" cmd for running generated program
+    
+    R=golang-dev, iant, bradfitz, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/5869049
+
+ test/64bit.go        |  4 +---
+ test/chan/select5.go |  4 +---
+ test/crlf.go         |  4 +---
+ test/run             |  2 +-
+ test/run.go          | 24 ++++++++++++++++++++++--
+ test/testlib         |  5 +++++
+ 6 files changed, 31 insertions(+), 12 deletions(-)

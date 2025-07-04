@@ -1,0 +1,25 @@
+commit 9ce28b518d9a792d2e3e741bcb38fa046891906e
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Sat Jun 4 09:43:40 2022 -0700
+
+    text/template/parse: fix data race on lexer initialization
+    
+    Before this change, `startParse` would write `lex.breakOK` and `lex.continueOK` when the lexer goroutine is already running, which is a potential race condition.
+    
+    Makes `breakOK` and `continueOK` configuration flags passed when `lexer` is created, similarly to how `emitComment` works.
+    
+    Fixes #53234
+    
+    Change-Id: Ia65f6135509a758cd4c5a453b249a174f4fb3e21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410414
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/text/template/parse/lex.go      | 4 +++-
+ src/text/template/parse/lex_test.go | 4 ++--
+ src/text/template/parse/parse.go    | 7 ++++---
+ 3 files changed, 9 insertions(+), 6 deletions(-)

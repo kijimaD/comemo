@@ -1,0 +1,16 @@
+commit 034aca1cbb4ff77c5cb9c49734ecd68d08b53888
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 2 11:16:56 2018 -0800
+
+    test: add a test that gccgo miscompiled
+    
+    Updates #20923
+    
+    Change-Id: Ia1210ea3dec39e5db2521aeafca24d6e731f0c93
+    Reviewed-on: https://go-review.googlesource.com/91657
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue20923.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

@@ -1,0 +1,26 @@
+commit 3249cb0ab465c5310e09868236405ba6c40929a4
+Author: David Lazar <lazard@golang.org>
+Date:   Thu Apr 13 09:40:49 2017 -0400
+
+    runtime/trace: iterate over frames instead of PCs
+    
+    Now the runtime/trace tests pass with -l=4.
+    
+    This also gets rid of the frames cache for multiple reasons:
+    
+    1) The frames cache was used to avoid repeated calls to funcname and
+    funcline. Now these calls happen inside the CallersFrames iterator.
+    
+    2) Maintaining a frames cache is harder: map[uintptr]traceFrame
+    doesn't work since each PC can map to multiple traceFrames.
+    
+    3) It's not clear that the cache is important.
+    
+    Change-Id: I2914ac0b3ba08e39b60149d99a98f9f532b35bbb
+    Reviewed-on: https://go-review.googlesource.com/40591
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/trace.go | 40 ++++++++++++++++++++++------------------
+ 1 file changed, 22 insertions(+), 18 deletions(-)

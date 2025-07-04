@@ -1,0 +1,11 @@
+commit 132c42ff735c708ff54c83fd553a3abf10b5d8de
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 8 18:19:48 2009 -0800
+
+    bufio: use copy - significant speedup for writers
+    
+    R=r
+    https://golang.org/cl/167047
+
+ src/pkg/bufio/bufio.go | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)

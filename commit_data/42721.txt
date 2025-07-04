@@ -1,0 +1,22 @@
+commit e30fbe3757d09a22988835835c41233df7c6cd00
+Author: Junchen Li <junchen.li@arm.com>
+Date:   Fri Jul 10 11:39:23 2020 +0800
+
+    cmd/compile: optimize unsigned comparisons to 0
+    
+    There are some architecture-independent rules in #21439, since an
+    unsigned integer >= 0 is always true and < 0 is always false. This CL
+    adds these optimizations to generic rules.
+    
+    Updates #21439
+    
+    Change-Id: Iec7e3040b761ecb1e60908f764815fdd9bc62495
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246617
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  4 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 80 ++++++++++++++++++++++++++
+ test/codegen/comparisons.go                    | 17 ++++++
+ 3 files changed, 101 insertions(+)

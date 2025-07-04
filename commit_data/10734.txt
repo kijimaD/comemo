@@ -1,0 +1,31 @@
+commit b9064fb13287c49ba978715af6da797428dcb77d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Dec 13 13:52:47 2011 +1100
+
+    html: a first step at parsing foreign content (MathML, SVG).
+    
+    Nodes now have a Namespace field.
+    
+    Pass adoption01.dat, test 12:
+    <a><svg><tr><input></a>
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <a>
+    |       <svg svg>
+    |         <svg tr>
+    |           <svg input>
+    
+    The other adoption01.dat tests already passed.
+    
+    R=andybalholm
+    CC=golang-dev
+    https://golang.org/cl/5467075
+
+ src/pkg/html/Makefile      |  1 +
+ src/pkg/html/foreign.go    | 56 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/html/node.go       | 15 ++++++------
+ src/pkg/html/parse.go      | 60 ++++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/html/parse_test.go |  7 +++++-
+ 5 files changed, 127 insertions(+), 12 deletions(-)

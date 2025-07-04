@@ -1,0 +1,20 @@
+commit 9dcc873413aa390bd9392d1ed6ae4198593e4c5d
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 21 15:43:54 2022 -0400
+
+    cmd/dist: simplify cgo_test
+    
+    Now that misc/cgo/test doesn't invoke any Go builds itself, we don't
+    need to use GOFLAGS to thread build flags down into sub-builds.
+    
+    Preparation for #37486.
+    
+    Change-Id: I9ecdd215da5c21339cbf76765f8be2190d19539c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447356
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/cmd/dist/test.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

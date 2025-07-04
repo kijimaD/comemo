@@ -1,0 +1,17 @@
+commit 22c668a810ac31b83d70e9f430000a94627215b2
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 7 13:24:14 2014 +1100
+
+    encoding/gob: document that Decode returns EOF at EOF
+    
+    Just commentary describing existing behavior, no code changes.
+    
+    Fixes #7033.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/71860043
+
+ src/pkg/encoding/gob/decoder.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

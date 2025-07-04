@@ -1,0 +1,12 @@
+commit d5dffb9f29ab9548ef1e8f03e8120f9fb611781f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 19 18:17:07 2010 -0400
+
+    8l: fix references to INITDAT in windows pe.c
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2588041
+
+ src/cmd/ld/pe.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

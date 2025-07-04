@@ -1,0 +1,14 @@
+commit 314180e7f66b6768b0db026138a6fedc52b0c08b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 24 19:46:27 2017 +0900
+
+    net/http: fix a nit
+    
+    Change-Id: I31fa5f906ad2e8dc475dbbeb91f568f91e16861b
+    Reviewed-on: https://go-review.googlesource.com/35514
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

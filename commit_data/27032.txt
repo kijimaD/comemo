@@ -1,0 +1,14 @@
+commit bc33dd7432369b3abd2a6fd75cb57d6c5c3defa7
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 20 08:56:33 2016 -0700
+
+    doc/faq: reword the link to the generics proposal
+    
+    A late response to CL 22163.
+    
+    Change-Id: I5275a22af7081875af0256da296811f4fe9832dc
+    Reviewed-on: https://go-review.googlesource.com/22296
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ doc/go_faq.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

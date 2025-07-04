@@ -1,0 +1,20 @@
+commit 418b97c67013c892d88443949ed913ff96baf25e
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 24 16:33:29 2008 -0700
+
+    add printf to fmt.
+    uses reflection to determine arguments.
+    for now, the arguments must be provided as a struct; the compiler
+    will soon do the packaging automatically for "..." parameters.
+    
+    R=rsc
+    DELTA=1436  (909 added, 520 deleted, 7 changed)
+    OCL=17823
+    CL=17831
+
+ src/lib/fmt/Makefile              |  12 +-
+ src/lib/fmt/{fmt.go => format.go} |   0
+ src/lib/fmt/print.go              | 387 ++++++++++++++++++++++++++++++++++++++
+ src/lib/reflect/tostring.go       |   2 +-
+ src/lib/reflect/value.go          |   8 +-
+ 5 files changed, 401 insertions(+), 8 deletions(-)

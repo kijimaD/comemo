@@ -1,0 +1,20 @@
+commit 2de449e7a04a571a4aefefc83601802af214ea0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 21 17:12:06 2014 -0400
+
+    test/float_lit2.go: rewrite to test values near boundaries
+    
+    Add larger comment explaining testing methodology,
+    and derive tests arithmetically.
+    
+    (These tests are checking rounding again; the derived
+    tests they replace were checking exact values.)
+    
+    LGTM=r, gri
+    R=gri, r
+    CC=golang-codereviews
+    https://golang.org/cl/100660044
+
+ test/float_lit2.go | 202 +++++++++++++++++++++++++++++++++++------------------
+ test/float_lit3.go |  52 +++++++++-----
+ 2 files changed, 170 insertions(+), 84 deletions(-)

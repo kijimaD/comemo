@@ -1,0 +1,21 @@
+commit 75bcdd59635a33e2a210ef6b02f5e3814571de4b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jan 18 12:21:18 2022 -0500
+
+    net/http: skip TestClientTimeout_Headers_h{1,2} on windows/arm and windows/arm64
+    
+    This extends the skip added in CL 375635 to the "_Headers" variant of
+    the test, since we have observed similar failures in that variant on
+    the builders.
+    
+    For #43120
+    
+    Change-Id: Ib1c97fbb776b576271629272f3194da77913a941
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379156
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/client_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

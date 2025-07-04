@@ -1,0 +1,18 @@
+commit dd491cfa544ff99e2530cd42750eaf318ec1e060
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 13 12:38:57 2023 -0700
+
+    bufio: link "too large to fit" to Scanner.Buffer
+    
+    Change-Id: Id0a4f5716da98008eec10eee05b74fc2a155ba3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535216
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/bufio/scan.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

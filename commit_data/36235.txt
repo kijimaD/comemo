@@ -1,0 +1,37 @@
+commit a1cbbe0de6eeb5995cf4cbe01f1e96b17b9fc5db
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 6 17:25:10 2018 -0400
+
+    cmd/go/internal/modload: report errors explicitly from Lookup
+    
+    Previously, we reported errors directly in (*loader).load via base.Errorf.
+    Unfortunately, (*loader).load can be called from contexts in which such errors
+    should not be considered fatal, such as by load.PackagesAndErrors.
+    
+    Instead, we save the errors in pkg.err and modify Lookup to return that error.
+    
+    This change is a bit awkward: we end up suppressing a "no Go files" error for
+    packages at the root of newly-imported modules, even if they really do contain
+    source files. I believe that that's due to a special-case lookup for modules in
+    the build list, which allows us to "validate" imports for modules in the build
+    list even though we haven't actually downloaded their sources (or verified that
+    they actually contain the requested package). The fix for that issue is in the
+    change that follows this one.
+    
+    Fixes #26602.
+    
+    Change-Id: I16f00ceb143fbb797cfc3cb07fd08aeb6154575b
+    Reviewed-on: https://go-review.googlesource.com/127936
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modget/get.go                  | 23 +++++++++--
+ src/cmd/go/internal/modload/load.go                | 26 ++++++------
+ src/cmd/go/testdata/script/mod_bad_domain.txt      | 22 ++++++----
+ src/cmd/go/testdata/script/mod_get_commit.txt      | 12 +++---
+ src/cmd/go/testdata/script/mod_get_indirect.txt    | 13 +++++-
+ src/cmd/go/testdata/script/mod_list_bad_import.txt | 47 +++++++++++++---------
+ src/cmd/go/testdata/script/mod_readonly.txt        |  5 ++-
+ src/cmd/go/testdata/script/mod_vendor.txt          |  6 +++
+ 8 files changed, 104 insertions(+), 50 deletions(-)

@@ -1,0 +1,25 @@
+commit 549162340690f77dc90a184b8f5ea260d8a16249
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Apr 26 02:59:13 2012 -0700
+
+    syscall: fix a number of exec bugs on Plan 9
+    
+    1. Readdirnames was erroneously returning an
+       empty slice on every invocation.
+    
+    2. The logic for determining which files to
+       close before exec was incorrect.  If the
+       set of files to be kept open (provided by
+       the caller) did not include the files
+       opened at startup, those files would be
+       accidentally closed.
+    
+    I also cleaned up readdupdevice while I was
+    in the vicinity.
+    
+    R=golang-dev, seed, rsc
+    CC=golang-dev
+    https://golang.org/cl/6016044
+
+ src/pkg/syscall/exec_plan9.go | 66 +++++++++++++++++--------------------------
+ 1 file changed, 26 insertions(+), 40 deletions(-)

@@ -1,0 +1,15 @@
+commit 7eb2d308830003432601f9b40ba5ccf7382b6157
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat May 1 15:37:44 2021 +0200
+
+    syscall: add //go:build lines to files generated with with mksyscall_libc.pl
+    
+    Change-Id: I2e02d02d9208fc2dbf01c0cea4a67c288967cd07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315276
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/mksyscall_libc.pl | 5 +++++
+ 1 file changed, 5 insertions(+)

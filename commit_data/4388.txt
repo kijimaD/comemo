@@ -1,0 +1,15 @@
+commit 7835b7994ee1c434e9e45d9b7b464ffbc4f77362
+Author: Yves Junqueira <yves.junqueira@gmail.com>
+Date:   Fri Dec 11 12:41:51 2009 -0800
+
+    syslog: new package
+    
+    R=golang-dev, rsc
+    https://golang.org/cl/157168
+
+ src/pkg/Makefile              |   1 +
+ src/pkg/log/log.go            |  10 ++-
+ src/pkg/syslog/Makefile       |  11 ++++
+ src/pkg/syslog/syslog.go      | 144 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/syslog/syslog_test.go |  95 ++++++++++++++++++++++++++++
+ 5 files changed, 258 insertions(+), 3 deletions(-)

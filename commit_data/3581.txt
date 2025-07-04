@@ -1,0 +1,14 @@
+commit e32883df01e5d88207cadc8fe85c73431ec23956
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 19 11:47:42 2009 -0700
+
+    bug 211: duplicate interface methods not caught by 6g
+    
+    R=gri
+    DELTA=17  (17 added, 0 deleted, 0 changed)
+    OCL=35852
+    CL=35876
+
+ test/bugs/bug211.go | 14 ++++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 17 insertions(+)

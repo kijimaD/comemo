@@ -1,0 +1,15 @@
+commit 4cbfcae3d83d6f7b07c5bf2bb42c9bc975c341f8
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 10 16:30:27 2009 -0700
+
+    add unicode data for decimal digit, preparatory to allowing them in identifiers.
+    
+    R=rsc
+    DELTA=431  (430 added, 0 deleted, 1 changed)
+    OCL=25975
+    CL=26059
+
+ src/lib/unicode/Makefile             |  10 +-
+ src/lib/unicode/decimaldigit.go      |  52 +++++
+ src/lib/unicode/decimaldigit_test.go | 375 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 436 insertions(+), 1 deletion(-)

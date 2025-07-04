@@ -1,0 +1,15 @@
+commit 5b1d52e81dd10e91d83e5bcf7986328a4ac7f69e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 27 17:25:41 2009 -0700
+
+    document rpc.
+    
+    R=rsc
+    DELTA=160  (124 added, 0 deleted, 36 changed)
+    OCL=32233
+    CL=32256
+
+ src/pkg/rpc/client.go      |  25 ++++---
+ src/pkg/rpc/server.go      | 163 +++++++++++++++++++++++++++++++++++++++------
+ src/pkg/rpc/server_test.go |   4 +-
+ 3 files changed, 158 insertions(+), 34 deletions(-)

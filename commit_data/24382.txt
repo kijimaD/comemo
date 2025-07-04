@@ -1,0 +1,35 @@
+commit 12dfc3bee482f16263ce4673a0cce399127e2a0d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Aug 28 15:31:51 2015 +1000
+
+    text/template, html/template: add block keyword and permit template redefinition
+    
+    This change adds a new "block" keyword that permits the definition
+    of templates inline inside existing templates, and loosens the
+    restriction on template redefinition. Templates may now be redefined,
+    but in the html/template package they may only be redefined before
+    the template is executed (and therefore escaped).
+    
+    The intention is that such inline templates can be redefined by
+    subsequent template definitions, permitting a kind of template
+    "inheritance" or "overlay". (See the example for details.)
+    
+    Fixes #3812
+    
+    Change-Id: I733cb5332c1c201c235f759cc64333462e70dc27
+    Reviewed-on: https://go-review.googlesource.com/14005
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/html/template/clone_test.go       | 12 ++++-
+ src/html/template/example_test.go     | 36 +++++++++++++++
+ src/html/template/template.go         |  4 +-
+ src/text/template/doc.go              |  8 ++++
+ src/text/template/example_test.go     | 36 +++++++++++++++
+ src/text/template/exec_test.go        | 33 ++++++++++++++
+ src/text/template/multi_test.go       | 22 ++--------
+ src/text/template/parse/lex.go        |  2 +
+ src/text/template/parse/lex_test.go   | 16 ++++---
+ src/text/template/parse/parse.go      | 83 +++++++++++++++++++++++++----------
+ src/text/template/parse/parse_test.go | 27 ++++++++++++
+ src/text/template/template.go         | 32 ++++----------
+ 12 files changed, 239 insertions(+), 72 deletions(-)

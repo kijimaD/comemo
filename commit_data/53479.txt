@@ -1,0 +1,23 @@
+commit e23273ddd4145d41dd6a6b90b4ca5729aa200db8
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 4 22:49:28 2023 -0400
+
+    cmd/go: move switch-only code from select.go to switch.go
+    
+    Move NewerToolchain and related code from select.go to switch.go
+    because it is only used for the Switch operation, not for Select.
+    This is a separate CL containing only the code move, separate
+    from any other changes.
+    
+    For #57001.
+    
+    Change-Id: I41cf0629b41fd55c30a1e799d857c06039ee99b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500798
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/toolchain/select.go | 120 -------------------------------
+ src/cmd/go/internal/toolchain/switch.go | 124 ++++++++++++++++++++++++++++++++
+ 2 files changed, 124 insertions(+), 120 deletions(-)

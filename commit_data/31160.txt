@@ -1,0 +1,17 @@
+commit 6bfd65631ffcf4a3dad32c661a0c155088f83131
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 16 06:42:25 2017 -0700
+
+    cmd/go: disable compiler DWARF generation on some platforms
+    
+    The linker disables DWARF for these platforms.
+    Given that, we can spare the compiler some work.
+    
+    Change-Id: Ic5a6b675150aca199bdc1dd2cdf5eeb4e215bdff
+    Reviewed-on: https://go-review.googlesource.com/40859
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/work/build.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

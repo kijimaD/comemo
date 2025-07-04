@@ -1,0 +1,22 @@
+commit c8d49cf56f2633ba2859f9ad4567bf754128824c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 31 23:38:53 2013 -0700
+
+    syscall: add Dup3 on Linux
+    
+    With dup3, we can avoid an extra system call on some machines
+    while holding syscall.ForkLock. Currently we have to
+    syscall.Dup + syscall.CloseOnExec.
+    
+    On machines with Linux and a new enough kernel, this can just
+    be dup3.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12170045
+
+ src/pkg/syscall/syscall_linux.go        |  1 +
+ src/pkg/syscall/zsyscall_linux_386.go   | 10 ++++++++++
+ src/pkg/syscall/zsyscall_linux_amd64.go | 10 ++++++++++
+ src/pkg/syscall/zsyscall_linux_arm.go   | 10 ++++++++++
+ 4 files changed, 31 insertions(+)

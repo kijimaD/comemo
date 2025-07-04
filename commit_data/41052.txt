@@ -1,0 +1,17 @@
+commit c6e84263865fa418b4d4a60f077d02c10a0fff23
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Sun Jan 5 20:16:26 2020 -0600
+
+    all: fix typo in RuneSelf, runeSelf comments
+    
+    Fixes #36396
+    
+    Change-Id: I52190f450fa9ac52fbf4ecdc814e954dc29029cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213377
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/utf8.go      | 2 +-
+ src/unicode/utf8/utf8.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

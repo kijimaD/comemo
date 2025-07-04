@@ -1,0 +1,22 @@
+commit fee51f45ab37c77ad8b7967b091ddf19d4e259a3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 29 08:53:38 2014 -0400
+
+    cmd/cgo: for gccgo add #define to cgo_export.h for expected name
+    
+    For gccgo we rename exported functions so that the compiler
+    will make them visible.  This CL adds a #define so that C
+    functions that #include "cgo_export.h" can use the expected
+    names of the function.
+    
+    The test for this is the existing issue6833 test in
+    misc/cgo/test.  Without this CL it fails when using
+    -compiler=gccgo.
+    
+    LGTM=minux.ma, rsc
+    R=golang-codereviews, gobot, rsc, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/91830046
+
+ src/cmd/cgo/out.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

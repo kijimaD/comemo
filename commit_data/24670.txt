@@ -1,0 +1,20 @@
+commit a59a27564b6d2a2fdf53eb43b3f8d6e7d0117e10
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 29 13:02:28 2015 -0700
+
+    math: fix typo and braino in my earlier commit
+    
+    The bug number was a typo, and I forgot to switch the implementation
+    back to if statements after the change from Float64bits in the first
+    patchset back to branching.
+    
+    if statements can currently be inlined, but switch cannot (#13071)
+    
+    Change-Id: I81d0cf64bda69186c3d747a07047f6a694f8fa70
+    Reviewed-on: https://go-review.googlesource.com/16446
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/abs.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

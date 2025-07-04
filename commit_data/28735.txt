@@ -1,0 +1,23 @@
+commit 68331750dac5a38c5158f57ab19e3e99d11a59e3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 3 23:01:26 2016 -0400
+
+    cmd/compile: remove some write barriers for stack writes
+    
+    This, along with CL 30140, removes ~50% of stack write barriers
+    mentioned in issue #17330. The remaining are most due to Phi and
+    FwdRef, which is not resolved when building SSA. We might be
+    able to do it at a later stage where Phi and Copy propagations
+    are done, but matching an if-(store-store-call)+ sequence seems
+    not very pleasant.
+    
+    Updates #17330.
+    
+    Change-Id: Iaa36c7b1f4c4fc3dc10a27018a3b0e261094cb21
+    Reviewed-on: https://go-review.googlesource.com/30290
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 24 +++++++++++++++++++++---
+ 1 file changed, 21 insertions(+), 3 deletions(-)

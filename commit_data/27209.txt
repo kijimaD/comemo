@@ -1,0 +1,34 @@
+commit c717675c35cb436bdab62091a6288843aa1c863c
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Apr 17 21:26:23 2016 -0400
+
+    crypto/cipher, crypto/aes: add s390x implementation of AES-CTR
+    
+    This commit adds the new 'ctrAble' interface to the crypto/cipher
+    package. The role of ctrAble is the same as gcmAble but for CTR
+    instead of GCM. It allows block ciphers to provide optimized CTR
+    implementations.
+    
+    The primary benefit of adding CTR support to the s390x AES
+    implementation is that it allows us to encrypt the counter values
+    in bulk, giving the cipher message instruction a larger chunk of
+    data to work on per invocation.
+    
+    The xorBytes assembly is necessary because xorBytes becomes a
+    bottleneck when CTR is done in this way. Hopefully it will be
+    possible to remove this once s390x has migrated to the ssa
+    backend.
+    
+    name      old speed     new speed     delta
+    AESCTR1K  160MB/s ± 6%  867MB/s ± 0%  +442.42%  (p=0.000 n=9+10)
+    
+    Change-Id: I1ae16b0ce0e2641d2bdc7d7eabc94dd35f6e9318
+    Reviewed-on: https://go-review.googlesource.com/22195
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/aes/asm_s390x.s   | 33 +++++++++++++++++++
+ src/crypto/aes/ctr_s390x.go  | 76 ++++++++++++++++++++++++++++++++++++++++++++
+ src/crypto/aes/modes.go      |  7 ++++
+ src/crypto/aes/modes_test.go | 21 ++++++++++++
+ src/crypto/cipher/ctr.go     | 10 ++++++
+ 5 files changed, 147 insertions(+)

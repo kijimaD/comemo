@@ -1,0 +1,17 @@
+commit 2294e3ebd374e18b191d0e8d8d32c46b0a1ef961
+Author: Ben Shi <powerman1st@163.com>
+Date:   Sat Oct 6 03:35:17 2018 +0000
+
+    cmd/compile: combine similar code in amd64's assembly generator
+    
+    This CL combines similar code in amd64's assembly generator. The
+    total size of pkg/linux_amd64/cmd/compile/ decreases about 4.5KB,
+    while the generated amd64 code is not affected.
+    
+    Change-Id: I4cdbdd22bde8857aafdc29b47fa100a906fa1598
+    Reviewed-on: https://go-review.googlesource.com/c/140298
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go | 94 +++++++++++------------------------
+ 1 file changed, 30 insertions(+), 64 deletions(-)

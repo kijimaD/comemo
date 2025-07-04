@@ -1,0 +1,12 @@
+commit cf994def950b374e3f8fd508b4c8cfdf416b1e49
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 16 09:41:34 2011 +1100
+
+    doc: fix release notes anchor tag
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4178055
+
+ doc/devel/release.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 9aeced650fec9114433e4c8f990046f7811c9d30
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Wed May 3 13:33:14 2017 +0200
+
+    cmd/compile/internal/ssa: mark boolean instructions commutative
+    
+    Mark AndB, OrB, EqB, and NeqB as commutative.
+    
+    Change-Id: Ife7cfcb9780cc5dd669617cb52339ab336667da4
+    Reviewed-on: https://go-review.googlesource.com/42515
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  10 +--
+ src/cmd/compile/internal/ssa/opGen.go          |  28 ++++---
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 102 +++++++++++++++++++++++++
+ 3 files changed, 123 insertions(+), 17 deletions(-)

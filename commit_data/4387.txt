@@ -1,0 +1,12 @@
+commit 8b3b1edc041833af1f3f3e2ccf8f8be7d23deeb2
+Author: Yongjian Xu <i3dmaster@gmail.com>
+Date:   Fri Dec 11 12:41:33 2009 -0800
+
+    mkbuiltin: generate builtin.c directly
+    
+    R=golang-dev, rsc
+    https://golang.org/cl/173041
+
+ src/cmd/gc/Makefile  | 2 +-
+ src/cmd/gc/mkbuiltin | 4 +---
+ 2 files changed, 2 insertions(+), 4 deletions(-)

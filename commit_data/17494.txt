@@ -1,0 +1,58 @@
+commit a33ef8d11b9db6646991bee5732015562fd4efd2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Sep 6 16:55:40 2013 -0400
+
+    runtime: account for all sys memory in MemStats
+    Currently lots of sys allocations are not accounted in any of XxxSys,
+    including GC bitmap, spans table, GC roots blocks, GC finalizer blocks,
+    iface table, netpoll descriptors and more. Up to ~20% can unaccounted.
+    This change introduces 2 new stats: GCSys and OtherSys for GC metadata
+    and all other misc allocations, respectively.
+    Also ensures that all XxxSys indeed sum up to Sys. All sys memory allocation
+    functions require the stat for accounting, so that it's impossible to miss something.
+    Also fix updating of mcache_sys/inuse, they were not updated after deallocation.
+    
+    test/bench/garbage/parser before:
+    Sys             670064344
+    HeapSys         610271232
+    StackSys        65536
+    MSpanSys        14204928
+    MCacheSys       16384
+    BuckHashSys     1439992
+    
+    after:
+    Sys             670064344
+    HeapSys         610271232
+    StackSys        65536
+    MSpanSys        14188544
+    MCacheSys       16384
+    BuckHashSys     3194304
+    GCSys           39198688
+    OtherSys        3129656
+    
+    Fixes #5799.
+    
+    R=rsc, dave, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/12946043
+
+ src/pkg/runtime/cpuprof.c      |  4 ++--
+ src/pkg/runtime/iface.c        |  2 +-
+ src/pkg/runtime/malloc.goc     | 21 ++++++++++++---------
+ src/pkg/runtime/malloc.h       | 28 +++++++++++++++-------------
+ src/pkg/runtime/malloc_test.go | 15 +++++++++++++++
+ src/pkg/runtime/mem.go         |  4 +++-
+ src/pkg/runtime/mem_darwin.c   | 12 ++++++------
+ src/pkg/runtime/mem_freebsd.c  | 12 ++++++------
+ src/pkg/runtime/mem_linux.c    | 12 ++++++------
+ src/pkg/runtime/mem_netbsd.c   | 12 ++++++------
+ src/pkg/runtime/mem_openbsd.c  | 12 ++++++------
+ src/pkg/runtime/mem_plan9.c    | 16 ++++++++--------
+ src/pkg/runtime/mem_windows.c  | 12 ++++++------
+ src/pkg/runtime/mfixalloc.c    |  7 +++----
+ src/pkg/runtime/mgc0.c         | 16 ++++++++++------
+ src/pkg/runtime/mheap.c        | 19 +++++--------------
+ src/pkg/runtime/mprof.goc      | 11 +++++------
+ src/pkg/runtime/netpoll.goc    |  2 +-
+ src/pkg/runtime/stack.c        |  3 +--
+ 19 files changed, 117 insertions(+), 103 deletions(-)

@@ -1,0 +1,12 @@
+commit eaecf357e76478d9956988423f00171887977b7c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 13 11:47:55 2012 -0800
+
+    time: delete unused buffer.WriteByte method
+    
+    R=golang-dev, bradfitz, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5539056
+
+ src/pkg/time/format.go | 4 ----
+ 1 file changed, 4 deletions(-)

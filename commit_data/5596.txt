@@ -1,0 +1,16 @@
+commit 3d4c97b82c90ee94400c40475207ff858fc88fb2
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Wed Jun 2 20:55:47 2010 -0700
+
+    math: Pow special cases (signed zero, IEEE 754-2008)
+    
+    Also added more tests for acosh, hypot, log, log10, log2
+    in all_test.go.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1417041
+
+ src/pkg/math/all_test.go | 366 ++++++++++++++++++++++++++---------------------
+ src/pkg/math/pow.go      |  69 +++++----
+ 2 files changed, 245 insertions(+), 190 deletions(-)

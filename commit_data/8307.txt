@@ -1,0 +1,12 @@
+commit e49d50e203d6d2da9c9d26c5e1dd3ea56784a44c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 3 09:56:18 2011 -0700
+
+    gofmt: update test.sh (exclude a file w/ incorrect syntax)
+    
+    R=iant, iant2
+    CC=golang-dev
+    https://golang.org/cl/4453058
+
+ src/cmd/gofmt/test.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

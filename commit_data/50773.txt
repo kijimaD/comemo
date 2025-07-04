@@ -1,0 +1,25 @@
+commit 5451ba3ac4f0a61e1fffdabac3d9b5daa5f04124
+Author: chanxuehong <chanxuehong@gmail.com>
+Date:   Sat Oct 1 11:37:36 2022 +0000
+
+    go/token: fix File.AddLineColumnInfo logic
+    
+    The offset of the line info should be smaller than the file size.
+    Otherwise, it should be ignored.
+    Before the change, such an invalid line info won't be ignored when it's
+    the first one to add.
+    
+    Change-Id: Id17492a8de97f277a49a59fae0070efeec40b2f9
+    GitHub-Last-Rev: 4d61d73c3ac248409ff9dabff558ec993cc8a25a
+    GitHub-Pull-Request: golang/go#48456
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350741
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Zeke Lu <lvzecai@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+
+ src/go/token/position.go      |  2 +-
+ src/go/token/position_test.go | 95 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 96 insertions(+), 1 deletion(-)

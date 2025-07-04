@@ -1,0 +1,12 @@
+commit 16ddb6c538e9d1343d856567bcde802454fa4c47
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 29 12:43:46 2010 +1100
+
+    move comment on StringHeader to fix godoc output.
+    
+    R=rsc, ken2
+    CC=golang-dev
+    https://golang.org/cl/196055
+
+ src/pkg/reflect/value.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

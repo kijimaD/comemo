@@ -1,0 +1,17 @@
+commit 281088b1f087aff44c4a928734871fe94f82b88b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 28 12:12:51 2014 -0800
+
+    net/http: add Server.ErrorLog; log and test TLS handshake errors
+    
+    Fixes #7291
+    
+    LGTM=agl
+    R=golang-codereviews, agl
+    CC=agl, golang-codereviews
+    https://golang.org/cl/70250044
+
+ src/pkg/net/http/client_test.go | 31 +++++++++++++++++++++++++++++++
+ src/pkg/net/http/serve_test.go  | 11 +++++++++++
+ src/pkg/net/http/server.go      | 29 ++++++++++++++++++++++-------
+ 3 files changed, 64 insertions(+), 7 deletions(-)

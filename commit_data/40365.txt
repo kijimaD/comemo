@@ -1,0 +1,21 @@
+commit 03fb1f607b54b0c14b6e4ca04b569ec47dd127f9
+Author: smasher164 <aindurti@gmail.com>
+Date:   Tue Oct 22 10:09:55 2019 -0400
+
+    cmd/compile: don't use FMA on plan9
+    
+    CL 137156 introduces an intrinsic on AMD64 that executes vfmadd231sd
+    when feature detection is successful. However, because floating-point
+    isn't allowed in note handler, the builder disables SSE instructions,
+    and fails when attempting to execute this instruction. This change
+    disables FMA on plan9 to immediately use the software fallback.
+    
+    Fixes #35063.
+    
+    Change-Id: I87d8f0995bd2f15013d203e618938f5079c9eed2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202617
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go     | 10 ++++++++++
+ src/cmd/compile/internal/ssa/config.go | 17 ++++++++++++-----
+ 2 files changed, 22 insertions(+), 5 deletions(-)

@@ -1,0 +1,15 @@
+commit a72b87efa934957245449975a940763f49026a7c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 1 11:48:27 2012 -0500
+
+    reflect: make Value.Interface return immutable data
+    
+    Fixes #3134.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5713049
+
+ src/pkg/reflect/all_test.go | 12 ++++++++++++
+ src/pkg/reflect/value.go    | 10 ++++++++++
+ 2 files changed, 22 insertions(+)

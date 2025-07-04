@@ -1,0 +1,39 @@
+commit cb65c8d58ac76abdaa6d14cc0742ca23d00ff524
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 12 10:51:34 2020 -0400
+
+    syscall: switch go:generate directives back to mksyscall_windows.go
+    
+    Adjust mksyscall_windows.go to activate module mode and set
+    -mod=readonly, and to suppress its own deprecation warning when run
+    from within GOROOT/src.
+    
+    We can't vendor the mkwinsyscall tool in to the std module directly,
+    because std-vendored dependencies (unlike the dependencies of all
+    other modules) turn into actual, distinct packages in 'std' when
+    viewed from outside the 'std' module. We don't want to introduce a
+    binary in the 'std' meta-pattern, but we also don't particularly want
+    to add more special-cases to the 'go' command right now when we have
+    an existing wrapper program that can do the job.
+    
+    I also regenerated the affected packages to ensure that they are
+    consistent with the current version of mksyscall, which produced some
+    declaration-order changes in
+    internal/syscall/windows/zsyscall_windows.go.
+    
+    Fixes #41916
+    Updates #25922
+    
+    Change-Id: If6e6f8ba3dd372a7ecd6820ee6c0ca38d55f0f35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261499
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/internal/syscall/windows/mksyscall.go          |  2 +-
+ src/internal/syscall/windows/registry/mksyscall.go |  2 +-
+ src/internal/syscall/windows/zsyscall_windows.go   | 26 +++++++-------
+ src/syscall/mksyscall_windows.go                   | 40 ++++++++++++++++++++--
+ src/syscall/syscall.go                             |  2 +-
+ 5 files changed, 53 insertions(+), 19 deletions(-)

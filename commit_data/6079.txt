@@ -1,0 +1,17 @@
+commit 2aa77c6b938a5e048da39335bdc5ff6a882f6890
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 24 21:56:32 2010 -0400
+
+    gotest: remove lingering references to $GOBIN
+    
+    (Assumed to be in $PATH.  all.bash ensures that
+    during the main build and the user must ensure it
+    when running commands like gotest or gomake
+    by hand.  This belonged in the earlier CL but I missed it.)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1967048
+
+ src/cmd/gotest/gotest | 24 +++++++++++-------------
+ 1 file changed, 11 insertions(+), 13 deletions(-)

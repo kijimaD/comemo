@@ -1,0 +1,20 @@
+commit ec4de31c5c4230dd70050c4c58def88e811b8fb5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 28 16:22:05 2018 -0500
+
+    cmd/doc: treat any non-empty GOMOD as module mode
+    
+    Previously, we were looking for the string go.mod specifically, but
+    the module-mode-outside-a-module logic added in CL 148517 sets GOMOD
+    to os.DevNull
+    
+    Updates #28992
+    
+    Change-Id: I62a4baaa911a495350294d78bae96be3fe4866cb
+    Reviewed-on: https://go-review.googlesource.com/c/151617
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/doc/dirs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

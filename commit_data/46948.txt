@@ -1,0 +1,17 @@
+commit 404f84d417ceed0f47e51d2c4f933a6dee96dca5
+Author: Benjamin Peterson <benjamin@python.org>
+Date:   Fri Oct 15 23:24:28 2021 +0000
+
+    runtime: remove reference to crypto/tls GODEBUG usage
+    
+    crypto/tls briefly used GODEBUG. That usage was removed in CL 191999.
+    
+    Change-Id: I759b6f1b02db8160075cba30d73823018e19ad9d
+    GitHub-Last-Rev: 12d2a4a82b1467e4c2214aa78eb9a0af4938a9de
+    GitHub-Pull-Request: golang/go#49012
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356313
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+
+ src/runtime/extern.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

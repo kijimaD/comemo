@@ -1,0 +1,15 @@
+commit dc4dd57594f92c67bfbf443a87e0f614cfddbf95
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 23 17:14:48 2015 -0700
+
+    cmd/cgo: document how CGO_ENABLED works today
+    
+    Fixes #9530.
+    
+    Change-Id: Iadfc027c7164e3ba35adb5c67deb42b51d3498ca
+    Reviewed-on: https://go-review.googlesource.com/12603
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/cgo/doc.go | 24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)

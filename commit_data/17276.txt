@@ -1,0 +1,12 @@
+commit b75a08d03c3d0fc659191dbc7eed174d5cb6f6c3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 15 21:05:05 2013 -0400
+
+    cmd/gc: ensure addable in checknil (fix race build)
+    
+    TBR=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/12791044
+
+ src/cmd/gc/pgen.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

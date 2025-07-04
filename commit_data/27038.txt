@@ -1,0 +1,17 @@
+commit f4f1b30749be167b7c5ecb7c775c2acd8d32ae9e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 20 16:41:43 2016 -0700
+
+    cmd/compile: accept old and new import format for builtin declarations
+    
+    Test with forceNewExport set to true (but continues to be disabled by
+    default for now).
+    
+    Fixes #15322.
+    
+    Change-Id: I3b893db2206cbb79e66339284f22f4a0b20bf137
+    Reviewed-on: https://go-review.googlesource.com/22328
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/main.go | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)

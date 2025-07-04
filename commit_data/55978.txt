@@ -1,0 +1,31 @@
+commit 1ed85ee228023d766b37db056311929c00091c9f
+Author: Joe Taber <infogulch@gmail.com>
+Date:   Mon Mar 18 05:52:30 2024 +0000
+
+    text/template: simplify unwrapping reflect.Interface value
+    
+    When text/template is evaluating a pipeline command and encounters an
+    `interface{}`, it "digs down one level to the thing inside". Currently it
+    does this with `value = reflect.ValueOf(value.Interface())`, which is
+    unnecessary since it could just use `value = value.Elem()`. This commit
+    changes it to use the latter.
+    
+    Why it was written that way is mysterious because the proposed change
+    appears to be strictly better, but given the blame date (13 years ago)
+    it may have been written while reflect was still in development before
+    `Elem()` was added.
+    
+    Change-Id: I6c4f6283e78de07732c4120ce11f26f113fa46e4
+    GitHub-Last-Rev: bdfc6973ab227f951f244fda4d803da55fb49e71
+    GitHub-Pull-Request: golang/go#66373
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572355
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/text/template/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

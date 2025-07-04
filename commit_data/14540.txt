@@ -1,0 +1,12 @@
+commit 19d793a32771ab8f9e64c67b792cd4cddacb679c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Dec 3 20:00:50 2012 +0900
+
+    net: simplify ListenTCP
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/6875044
+
+ src/pkg/net/tcpsock_posix.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

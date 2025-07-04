@@ -1,0 +1,30 @@
+commit 56ad133512b4f05c071ec79bc4cf9ccb227567c1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 2 09:09:24 2022 -0400
+
+    os/exec: allow open descriptors to be closed during TestPipeLookPathLeak
+    
+    In https://build.golang.org/log/d2eb315305bf3d513c490e7f85d56e9a016aacd2,
+    we observe a failure in TestPipeLookPathLeak due to an additional
+    descriptor (7) that was open at the start of the test being closed while
+    the test executes.
+    
+    I haven't dug much into the failure, but it seems plausible to me that the
+    descriptor may have been opened by libc for some reason, and may have been
+    closed due to some sort of idle timeout or the completion of a background
+    initialization routine.
+    
+    Since the test is looking for a leak, and closing an existing descriptor
+    does not indicate a leak, let's not fail the test if an existing descriptor
+    is unexpectedly closed.
+    
+    Updates #5071.
+    
+    Change-Id: I03973ddff6592c454cfcc790d6e56accd051dd52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447235
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/exec/exec_test.go | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)

@@ -1,0 +1,36 @@
+commit 504f0d04191943dbdbf6b8f3022585f75ca0bc83
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Jan 4 12:06:34 2023 -0600
+
+    crypto/sha512: reduce add usage on PPC64
+    
+    Similar to sha256, minimize add usage by preloading
+    constants. This results in a small performance uplift.
+    
+    Likewise, cleanup some unused macros and registers to
+    make room for constants.
+    
+    On ppc64le/power9:
+    
+    Hash8Bytes/New     22.7MB/s ± 0%  24.1MB/s ± 0%  +6.49%
+    Hash8Bytes/Sum384  23.4MB/s ± 0%  24.9MB/s ± 0%  +6.32%
+    Hash8Bytes/Sum512  23.5MB/s ± 0%  24.9MB/s ± 0%  +6.18%
+    Hash1K/New          422MB/s ± 0%   455MB/s ± 0%  +7.92%
+    Hash1K/Sum384       424MB/s ± 0%   457MB/s ± 0%  +7.78%
+    Hash1K/Sum512       424MB/s ± 0%   457MB/s ± 0%  +7.77%
+    Hash8K/New          488MB/s ± 0%   528MB/s ± 0%  +8.18%
+    Hash8K/Sum384       481MB/s ± 0%   528MB/s ± 0%  +9.76%
+    Hash8K/Sum512       488MB/s ± 0%   515MB/s ± 0%  +5.60%
+    
+    Change-Id: Ic604b482e3f6a9680b89c71399f85442f06fef3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460459
+    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
+    Run-TryBot: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/crypto/sha512/sha512block_ppc64x.s | 182 ++++++++++++++++++---------------
+ 1 file changed, 102 insertions(+), 80 deletions(-)

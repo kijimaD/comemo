@@ -1,0 +1,46 @@
+commit e6cc9d228a913b871fb20a3fa23021bd5231dbc0
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Tue Nov 5 15:30:45 2024 +0800
+
+    cmd/compile: implement FMA codegen for loong64
+    
+    Benchmark results on Loongson 3A5000 and 3A6000:
+    
+    goos: linux
+    goarch: loong64
+    pkg: math
+    cpu: Loongson-3A6000 @ 2500.00MHz
+        |  bench.old   |              bench.new              |
+        |    sec/op    |   sec/op     vs base                |
+    FMA   25.930n ± 0%   2.002n ± 0%  -92.28% (p=0.000 n=10)
+    
+    goos: linux
+    goarch: loong64
+    pkg: math
+    cpu: Loongson-3A5000 @ 2500.00MHz
+        |  bench.old   |              bench.new              |
+        |    sec/op    |   sec/op     vs base                |
+    FMA   32.840n ± 0%   2.002n ± 0%  -93.90% (p=0.000 n=10)
+    
+    Updates #59120
+    
+    This patch is a copy of CL 483355.
+    Co-authored-by: WANG Xuerui <git@xen0n.name>
+    
+    Change-Id: I88b89d23f00864f9173a182a47ee135afec7ed6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625335
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/cmd/compile/internal/loong64/ssa.go            |  28 ++-
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |  17 +-
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  14 ++
+ src/cmd/compile/internal/ssa/opGen.go              | 164 ++++++++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go     | 275 ++++++++++++++++++++-
+ src/cmd/compile/internal/ssagen/intrinsics.go      |   2 +-
+ src/cmd/compile/internal/ssagen/intrinsics_test.go |   1 +
+ test/codegen/floats.go                             |   6 +
+ test/codegen/math.go                               |   1 +
+ 9 files changed, 503 insertions(+), 5 deletions(-)

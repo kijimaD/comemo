@@ -1,0 +1,17 @@
+commit be8ee5a58f8c30e95e425779fb31b2ae4e35cb8c
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Thu Dec 30 16:46:21 2021 +0800
+
+    cmd/dist: enable msan/asan
+    
+    Supporting memory sanitizer and address sanitizer in toolchains
+    
+    Change-Id: Ie292657b78954d65bd72e64e063b1c4f18d4f0d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374974
+    Trust: mzh <mzh@golangcn.org>
+    Run-TryBot: mzh <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/dist/test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

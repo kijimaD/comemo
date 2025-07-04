@@ -1,0 +1,29 @@
+commit dfc22e29ec2f687375d32c9f7662416d0c9f97d3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 7 19:57:10 2013 -0800
+
+    runtime: change 386 startup convention
+    
+    Now the default startup is that the program begins at _rt0_386_$GOOS,
+    which behaves as if calling main(argc, argv). Main jumps to _rt0_386.
+    
+    This makes the _rt0_386 entry match the expected semantics for
+    the standard C "main" function, which we can now provide for use when
+    linking against a standard C library.
+    
+    386 analogue of https://golang.org/cl/7525043
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7551045
+
+ src/pkg/runtime/asm_386.s          |  4 ++--
+ src/pkg/runtime/rt0_darwin_386.s   | 10 ++++++++--
+ src/pkg/runtime/rt0_freebsd_386.s  | 11 ++++++++---
+ src/pkg/runtime/rt0_linux_386.s    | 14 ++++++++++----
+ src/pkg/runtime/rt0_netbsd_386.s   | 12 ++++++++++--
+ src/pkg/runtime/rt0_openbsd_386.s  | 12 ++++++++++--
+ src/pkg/runtime/rt0_plan9_386.s    |  7 +++++++
+ src/pkg/runtime/rt0_windows_386.s  | 11 ++++++++++-
+ src/pkg/runtime/signal_linux_386.c |  3 +--
+ 9 files changed, 66 insertions(+), 18 deletions(-)

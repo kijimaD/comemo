@@ -1,0 +1,31 @@
+commit 7b2b45e544140aa51d335b09f11b4baf84e3be18
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Mar 26 23:26:45 2015 +0900
+
+    net: simplify test helpers
+    
+    This change consolidates test helpers that test platform capabilities.
+    testNetwork, testAddress and testListenArgs report whether given
+    ariguments are testable on the current platform configuration to
+    mitigate to receive weird test results.
+    
+    Change-Id: Ie1ed568a1f9cc50f3155945ea01562904bc2c389
+    Reviewed-on: https://go-review.googlesource.com/8076
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/conn_test.go       |  21 +----
+ src/net/file_test.go       |  91 ++++++++-----------
+ src/net/ipraw_test.go      |  29 ++----
+ src/net/iprawsock.go       |   7 ++
+ src/net/iprawsock_posix.go |   7 --
+ src/net/net_test.go        |  10 +--
+ src/net/packetconn_test.go |  49 +++-------
+ src/net/platform_test.go   | 137 ++++++++++++++++++++++++++++
+ src/net/protoconn_test.go  |  27 +-----
+ src/net/server_test.go     | 220 ++++++++++++++++++---------------------------
+ src/net/tcpsock.go         |   7 ++
+ src/net/tcpsock_posix.go   |   7 --
+ src/net/udpsock.go         |   7 ++
+ src/net/udpsock_posix.go   |   7 --
+ src/net/unix_test.go       |  25 +++---
+ 15 files changed, 327 insertions(+), 324 deletions(-)

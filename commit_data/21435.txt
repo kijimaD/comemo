@@ -1,0 +1,18 @@
+commit 3c4be235be8dcd124fe8d536af3e422729a85785
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Jan 28 12:28:59 2015 -0600
+
+    runtime: Add memprofrate value to GODEBUG
+    
+    Add memprofrate as a value recognized in GODEBUG.  The
+    value provided is used as the new setting for
+    runtime.MemProfileRate, allowing the user to
+    adjust memory profiling.
+    
+    Change-Id: If129a247683263b11e2dd42473cf9b31280543d5
+    Reviewed-on: https://go-review.googlesource.com/3450
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/extern.go   |  4 ++++
+ src/runtime/runtime1.go | 19 +++++++++++++++----
+ 2 files changed, 19 insertions(+), 4 deletions(-)

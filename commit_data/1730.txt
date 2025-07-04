@@ -1,0 +1,114 @@
+commit be2edb57614dd5a92294b7d29a34de754998fde5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 3 08:39:12 2009 -0800
+
+    Automated g4 rollback of changelist 25024,
+    plus significant hand editing.
+    
+    Back to T{x} for composite literals.
+    
+    R=r
+    OCL=25612
+    CL=25632
+
+ doc/progs/cat_rot13.go          |    2 +-
+ doc/progs/fd.go                 |    2 +-
+ doc/progs/helloworld3.go        |    2 +-
+ doc/progs/print.go              |    4 +-
+ doc/progs/print_string.go       |    2 +-
+ doc/progs/sortmain.go           |   22 +-
+ doc/progs/sum.go                |    2 +-
+ src/cmd/gotest/gotest           |    6 +-
+ src/lib/bignum.go               |   14 +-
+ src/lib/bignum_test.go          |   40 +-
+ src/lib/bufio.go                |    2 +-
+ src/lib/bufio_test.go           |   40 +-
+ src/lib/exec_test.go            |    4 +-
+ src/lib/flag.go                 |   16 +-
+ src/lib/fmt/fmt_test.go         |  244 +++++-----
+ src/lib/hash/adler32.go         |    2 +-
+ src/lib/hash/adler32_test.go    |   66 +--
+ src/lib/hash/crc32.go           |    2 +-
+ src/lib/hash/crc32_test.go      |   66 +--
+ src/lib/hash/md5_test.go        |   66 +--
+ src/lib/hash/md5block.go        |   12 +-
+ src/lib/hash/sha1_test.go       |   66 +--
+ src/lib/http/server.go          |    4 +-
+ src/lib/http/status.go          |    4 +-
+ src/lib/io/io.go                |    2 +-
+ src/lib/io/pipe.go              |    4 +-
+ src/lib/io/pipe_test.go         |    2 +-
+ src/lib/json/generic.go         |   12 +-
+ src/lib/json/generic_test.go    |    4 +-
+ src/lib/json/struct.go          |    6 +-
+ src/lib/log.go                  |    2 +-
+ src/lib/log_test.go             |   26 +-
+ src/lib/math/all_test.go        |   48 +-
+ src/lib/net/dialgoogle_test.go  |    4 +-
+ src/lib/net/dnsclient.go        |    6 +-
+ src/lib/net/dnsmsg.go           |    4 +-
+ src/lib/net/ip_test.go          |   23 +-
+ src/lib/net/net_darwin.go       |    8 +-
+ src/lib/net/net_linux.go        |    8 +-
+ src/lib/net/parse.go            |    2 +-
+ src/lib/net/port_test.go        |   58 +--
+ src/lib/os/dir_amd64_darwin.go  |    2 +-
+ src/lib/os/dir_amd64_linux.go   |    4 +-
+ src/lib/os/error.go             |    2 +-
+ src/lib/os/file.go              |    2 +-
+ src/lib/os/os_test.go           |    8 +-
+ src/lib/reflect/all_test.go     |   14 +-
+ src/lib/reflect/type.go         |   18 +-
+ src/lib/reflect/value.go        |  140 +++---
+ src/lib/regexp/all_test.go      |   86 ++--
+ src/lib/sort_test.go            |   14 +-
+ src/lib/strconv/atof.go         |   12 +-
+ src/lib/strconv/atof_test.go    |  110 ++---
+ src/lib/strconv/atoi_test.go    |  158 +++---
+ src/lib/strconv/decimal.go      |   60 +--
+ src/lib/strconv/decimal_test.go |   76 +--
+ src/lib/strconv/ftoa.go         |    4 +-
+ src/lib/strconv/ftoa_test.go    |  148 +++---
+ src/lib/strconv/itoa_test.go    |   97 ++--
+ src/lib/strconv/quote_test.go   |   96 ++--
+ src/lib/strings_test.go         |   28 +-
+ src/lib/tabwriter/tabwriter.go  |    2 +-
+ src/lib/time/time.go            |   20 +-
+ src/lib/time/time_test.go       |   26 +-
+ src/lib/time/zoneinfo.go        |    8 +-
+ src/lib/unicode/letter.go       | 1010 +++++++++++++++++++--------------------
+ src/lib/unicode/letter_test.go  |   16 +-
+ src/lib/utf8_test.go            |   66 +--
+ src/run.bash                    |   10 +-
+ test/235.go                     |    6 +-
+ test/bigalg.go                  |    4 +-
+ test/bugs/bug117.go             |    2 +-
+ test/chan/powser1.go            |    2 +-
+ test/chan/powser2.go            |    2 +-
+ test/chan/sieve.go              |    2 +-
+ test/closure.go                 |    6 +-
+ test/cmp1.go                    |    2 +-
+ test/complit.go                 |   26 +-
+ test/convlit1.go                |    3 +-
+ test/fixedbugs/bug047.go        |    4 +-
+ test/fixedbugs/bug048.go        |    2 +-
+ test/fixedbugs/bug096.go        |    4 +-
+ test/fixedbugs/bug097.go        |    2 +-
+ test/fixedbugs/bug098.go        |    4 +-
+ test/fixedbugs/bug101.go        |    2 +-
+ test/fixedbugs/bug102.go        |    2 +-
+ test/fixedbugs/bug112.go        |    2 +-
+ test/fixedbugs/bug119.go        |    4 +-
+ test/fixedbugs/bug120.go        |   18 +-
+ test/fixedbugs/bug130.go        |    2 +-
+ test/indirect.go                |    4 +-
+ test/initcomma.go               |    8 +-
+ test/interface4.go              |    8 +-
+ test/interface6.go              |   24 +-
+ test/mallocrand.go              |    2 +-
+ test/map.go                     |   14 +-
+ test/method3.go                 |    2 +-
+ test/parentype.go               |    6 +-
+ usr/gri/pretty/parser.go        |  138 +++---
+ usr/gri/pretty/selftest2.go     |    8 +-
+ 100 files changed, 1731 insertions(+), 1730 deletions(-)

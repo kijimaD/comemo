@@ -1,0 +1,21 @@
+commit 6af27c49bc875eb0b39e4aea098da98856e31372
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 20 11:14:47 2024 -0700
+
+    cmd/compile/internal/typecheck: more selective OPAREN skipping
+    
+    Move the OPAREN skipping logic from typecheck into typecheck1, so that
+    it only applies to ParenExprs with Typecheck()==0. This should allow
+    CL 567695 to be re-landed, which uses ParenExprs as placeholders in
+    the AST.
+    
+    Fixes #66261.
+    
+    Change-Id: I606b7bad0cf1c0447e60d6da68d1d66db00863f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573095
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/typecheck/typecheck.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,16 @@
+commit f73d80809b99fba1066515c2848ce316d6976db8
+Author: Tardis Xu <xiaoxubeii@gmail.com>
+Date:   Fri Aug 31 07:16:37 2018 +0000
+
+    runtime: detail the method comment
+    
+    Change the comment to make more conformable to the function implementation.
+    
+    Change-Id: I8461e2f09824c50e16223a27d0f61070f04bd21b
+    GitHub-Last-Rev: c25a8493d3938b38e2c318f7a7b94c9f2eb11bb4
+    GitHub-Pull-Request: golang/go#27404
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/132477
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

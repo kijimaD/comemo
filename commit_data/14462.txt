@@ -1,0 +1,12 @@
+commit 7afcae6bab0c8a9b19680a48389062f094ee41e6
+Author: Caine Tighe <arctanofyourface@gmail.com>
+Date:   Sun Nov 25 05:08:17 2012 +0800
+
+    http/transport.go: trivial comment error.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6856078
+
+ src/pkg/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

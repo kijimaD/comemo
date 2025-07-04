@@ -1,0 +1,23 @@
+commit 076c3d7f077ff0f8d02675b66b9794bbff8d2147
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Jul 21 17:09:35 2022 -0400
+
+    net/http: remove accidental heading in Head documentation
+    
+    This short sentence was missing a period at the end, which caused it
+    to be interpreted as a heading. It also gained a '# ' prefix as part
+    of new gofmt formatting applied in CL 384268. This change makes it a
+    regular sentence as originally intended.
+    
+    Updates #51082.
+    
+    Change-Id: I100410cca21e4f91130f1f3432327bb6d66b12a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418959
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/http/client.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

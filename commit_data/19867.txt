@@ -1,0 +1,13 @@
+commit aa69a3c386917d961af2952074166754c65cb609
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 1 21:35:03 2014 -0700
+
+    net: fix Dial comment about IPv6 addresses
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=adg, golang-codereviews
+    https://golang.org/cl/118550043
+
+ src/pkg/net/dial.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

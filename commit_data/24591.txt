@@ -1,0 +1,19 @@
+commit c27925094640f0d151da92663d19d511d8dfdc31
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 21 10:40:39 2015 -0700
+
+    runtime: change functype's in and out fields to []*_type
+    
+    Allows removing a few gratuitous unsafe.Pointer conversions and
+    parallels the type of reflect.funcType's in and out fields ([]*rtype).
+    
+    Change-Id: Ie5ca230a94407301a854dfd8782a3180d5054bc4
+    Reviewed-on: https://go-review.googlesource.com/16163
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/mfinal.go          | 7 +++----
+ src/runtime/syscall_windows.go | 8 ++++----
+ src/runtime/type.go            | 4 ++--
+ 3 files changed, 9 insertions(+), 10 deletions(-)

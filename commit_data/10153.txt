@@ -1,0 +1,13 @@
+commit 288dacd016e549a9524b776e9a56cbab3a50fb3a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 31 13:59:04 2011 -0400
+
+    A+C: Alexander Reece (individual CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5297072
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

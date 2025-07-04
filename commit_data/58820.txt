@@ -1,0 +1,18 @@
+commit d7a1261d62f56c98614c161c289ccca85c5ba9b5
+Author: Alan Yee <alanyee@users.noreply.github.com>
+Date:   Fri Feb 21 20:37:59 2025 +0000
+
+    crypto/rand: add example for Int
+    
+    Change-Id: I401e6092b1cbbd332406ffa7f923c46de0a3ff49
+    GitHub-Last-Rev: ef2057888465be3cff7fb60bc6ffe3d7573ec348
+    GitHub-Pull-Request: golang/go#71773
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650035
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/crypto/rand/example_test.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

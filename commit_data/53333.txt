@@ -1,0 +1,24 @@
+commit e8c6003023b64b80bea6af8c4bb0b54d55f65dc0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 24 15:22:33 2023 -0400
+
+    cmd/go: expand acceptable toolchains a bit
+    
+    Allow both prefix-goVERSION and goVERSION-suffix for custom toolchains.
+    Also make sure that a tie in the toolchain and min version goes to the
+    toolchain line.
+    
+    For #57001.
+    
+    Change-Id: Ibeea5f47db7349cfdf36da188bb43e195e196f5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498076
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/gotoolchain.go                  |  2 +-
+ src/cmd/go/internal/gover/latest.go        | 13 +++----------
+ src/cmd/go/internal/gover/toolchain.go     | 14 ++++++++++++--
+ src/cmd/go/testdata/script/gotoolchain.txt | 29 +++++++++++++++++++++++++++++
+ 4 files changed, 45 insertions(+), 13 deletions(-)

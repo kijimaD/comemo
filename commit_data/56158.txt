@@ -1,0 +1,32 @@
+commit e995aa95cb5f379c1df5d5511ee09970261d877f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Mar 25 17:50:13 2024 +0000
+
+    runtime: account for _Pgcstop in GC CPU pause time in a fine-grained way
+    
+    The previous CL, CL 570257, made it so that STW time no longer
+    overlapped with other CPU time tracking. However, what we lost was
+    insight into the CPU time spent _stopping_ the world, which can be just
+    as important. There's pretty much no easy way to measure this
+    indirectly, so this CL implements a direct measurement: whenever a P
+    enters _Pgcstop, it writes down what time it did so. stopTheWorld then
+    accumulates all the time deltas between when it finished stopping the
+    world and each P's stop time into a total additional pause time. The GC
+    pause cases then accumulate this number into the metrics.
+    
+    This should cause minimal additional overhead in stopping the world. GC
+    STWs already take on the order of 10s to 100s of microseconds. Even for
+    100 Ps, the extra `nanotime` call per P is only 1500ns of additional CPU
+    time. This is likely to be much less in actual pause latency, since it
+    all happens concurrently.
+    
+    Change-Id: Icf190ffea469cd35ebaf0b2587bf6358648c8554
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574215
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgc.go      | 11 +++++++++++
+ src/runtime/proc.go     | 25 +++++++++++++++++++++++--
+ src/runtime/runtime2.go |  3 +++
+ 3 files changed, 37 insertions(+), 2 deletions(-)

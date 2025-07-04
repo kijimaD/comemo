@@ -1,0 +1,13 @@
+commit 222e2ee4d558f94f1da896fee008a5bba6940aa8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 13 23:45:49 2012 -0500
+
+    A+C: Daniel Krech (individual CLA)
+    
+    R=golang-dev, gri, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5658046
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

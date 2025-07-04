@@ -1,0 +1,23 @@
+commit e6c15945dee0661dee6111183d4951853c4c2d98
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 23 16:33:53 2018 +0200
+
+    syscall, os: use pipe2 syscall on DragonflyBSD instead of pipe
+    
+    Follow the implementation used by the other BSDs ith os.Pipe and
+    syscall.forkExecPipe consisting of a single syscall instead of three.
+    
+    Change-Id: I602187672f244cbd8faaa3397904d71d15452d9f
+    Reviewed-on: https://go-review.googlesource.com/130996
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/pipe2_bsd.go                     |  2 +-
+ src/os/pipe_bsd.go                      |  2 +-
+ src/syscall/forkpipe.go                 |  2 +-
+ src/syscall/forkpipe2.go                |  2 +-
+ src/syscall/syscall_dragonfly.go        | 10 +++++++---
+ src/syscall/zsyscall_dragonfly_amd64.go |  4 ++--
+ src/syscall/zsysnum_dragonfly_amd64.go  |  1 +
+ 7 files changed, 14 insertions(+), 9 deletions(-)

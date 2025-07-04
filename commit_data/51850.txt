@@ -1,0 +1,31 @@
+commit 4bca2b9583c3300acccc71983cec8b5d4fbbc356
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 30 12:09:33 2023 -0800
+
+    cmd/link: rename ELF struct fields to remove "elf" prefix
+    
+    While we're here rename setupplt to setupPLT.
+    
+    This is a pure naming change with no semantic change.
+    
+    Change-Id: Ib0312fb6568475b620dab7632438b4d25e4d9cc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463744
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/amd64/obj.go   |  6 +++---
+ src/cmd/link/internal/arm/obj.go     |  6 +++---
+ src/cmd/link/internal/arm64/obj.go   |  6 +++---
+ src/cmd/link/internal/ld/elf.go      | 16 ++++++++--------
+ src/cmd/link/internal/ld/lib.go      |  2 +-
+ src/cmd/link/internal/loong64/obj.go |  6 +++---
+ src/cmd/link/internal/mips/obj.go    |  6 +++---
+ src/cmd/link/internal/mips64/obj.go  |  6 +++---
+ src/cmd/link/internal/ppc64/obj.go   |  6 +++---
+ src/cmd/link/internal/riscv64/obj.go |  6 +++---
+ src/cmd/link/internal/s390x/obj.go   |  6 +++---
+ src/cmd/link/internal/x86/obj.go     |  6 +++---
+ 12 files changed, 39 insertions(+), 39 deletions(-)

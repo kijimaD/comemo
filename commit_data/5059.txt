@@ -1,0 +1,29 @@
+commit 53f3d0733cb072a725924ec53a5c38401096002c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 16 16:45:54 2010 -0700
+
+    gofmt: more consistent formatting of const/var decls
+    - gofmt -w src misc
+    - only manually modified file: src/pkg/go/printer/nodes.go
+    
+    R=rsc
+    CC=golang-dev, r
+    https://golang.org/cl/606041
+
+ src/cmd/godoc/main.go                           |  4 +--
+ src/pkg/go/ast/scope.go                         | 10 +++---
+ src/pkg/go/parser/parser.go                     |  6 ++--
+ src/pkg/go/printer/nodes.go                     | 46 ++++++++++---------------
+ src/pkg/go/printer/printer.go                   |  6 ++--
+ src/pkg/go/printer/testdata/comments.golden     | 31 ++++++++++++++++-
+ src/pkg/go/printer/testdata/comments.input      | 29 ++++++++++++++++
+ src/pkg/go/printer/testdata/declarations.golden | 16 ++++-----
+ src/pkg/go/printer/testdata/expressions.raw     |  8 ++---
+ src/pkg/go/scanner/errors.go                    |  4 +--
+ src/pkg/go/scanner/scanner.go                   |  4 +--
+ src/pkg/log/log.go                              |  8 ++---
+ src/pkg/rand/rand_test.go                       |  4 +--
+ src/pkg/regexp/regexp.go                        | 22 ++++++------
+ src/pkg/runtime/type.go                         |  6 ++--
+ src/pkg/testing/regexp.go                       | 22 ++++++------
+ 16 files changed, 138 insertions(+), 88 deletions(-)

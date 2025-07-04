@@ -1,0 +1,12 @@
+commit cd47c903e2f143d4dddc109f3eed3f85b723399d
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jan 20 13:07:14 2010 -0800
+
+    part 2 of sudoaddable optimization
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/190088
+
+ src/cmd/6g/gsubr.c | 59 ++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 42 insertions(+), 17 deletions(-)

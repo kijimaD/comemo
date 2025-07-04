@@ -1,0 +1,12 @@
+commit 75f72e7b2eb4e008c8c4eee36e248d850a5bff57
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 17 09:08:24 2009 -0700
+
+    fix build: updated Make.deps
+    
+    TBR=r
+    OCL=34729
+    CL=34729
+
+ src/pkg/Make.deps | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

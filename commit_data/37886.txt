@@ -1,0 +1,20 @@
+commit 0456036e28b718d215f49abe83d3c49101f8a4c7
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Jan 16 09:03:57 2019 +0100
+
+    net: increase TestNotTemporaryRead server sleep
+    
+    On aix/ppc64, if the server closes before the client calls Accept,
+    this test will fail.
+    
+    Increasing the time before the server closes should resolve this
+    timeout.
+    
+    Updates #29685
+    
+    Change-Id: Iebb849d694fc9c37cf216ce1f0b8741249b98016
+    Reviewed-on: https://go-review.googlesource.com/c/158038
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/net_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

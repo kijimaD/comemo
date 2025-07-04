@@ -1,0 +1,21 @@
+commit 2b8e143dc302d2f3817cb3df1c1cc0b2cde3bbc1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 11 12:19:51 2016 -0700
+
+    cmd/vet: infer asm arch from build context
+    
+    If we cannot infer the asm arch from the filename
+    or the build tags, assume that it is the
+    current build arch. Assembly files with no
+    restrictions ought to be usable on all arches.
+    
+    Updates #11041
+    
+    Change-Id: I0ae807dbbd5fb67ca21d0157fe180237a074113a
+    Reviewed-on: https://go-review.googlesource.com/27151
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/asmdecl.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

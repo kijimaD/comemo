@@ -1,0 +1,13 @@
+commit a11b748fa2e4d3244b0a3f28d4ce1647f2ef9997
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Fri Aug 31 18:09:31 2012 -0400
+
+    encoding/xml: parse comments in DOCTYPE
+    
+    R=rsc, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/6330061
+
+ src/pkg/encoding/xml/xml.go      | 31 ++++++++++++++++++++++++++++++-
+ src/pkg/encoding/xml/xml_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 1 deletion(-)

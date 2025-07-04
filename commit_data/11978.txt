@@ -1,0 +1,14 @@
+commit 3908467b1f5e4f591616081088145a833cf77655
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 16 14:13:17 2012 -0800
+
+    go spec: struct comparison only compares non-blank fields
+    
+    Fixes #3031.
+    
+    R=golang-dev, rsc, r, iant
+    CC=golang-dev
+    https://golang.org/cl/5676054
+
+ doc/go_spec.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

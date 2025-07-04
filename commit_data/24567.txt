@@ -1,0 +1,13 @@
+commit 27838f3990f345629b397f9f3902163392f08f9d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 20 10:52:41 2015 -0700
+
+    cmd/compile/internal/gc: remove atoi function (minor cleanup)
+    
+    Change-Id: I0ad7836c0e8d70ffdc458e125d97b01e85d8a608
+    Reviewed-on: https://go-review.googlesource.com/16130
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go  | 4 +++-
+ src/cmd/compile/internal/gc/util.go | 7 -------
+ 2 files changed, 3 insertions(+), 8 deletions(-)

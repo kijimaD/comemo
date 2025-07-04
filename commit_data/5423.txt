@@ -1,0 +1,14 @@
+commit 249c49ed3c3a24268600baa0fbd9680bde6de475
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 3 18:35:32 2010 +1000
+
+    dashboard: fix benchmark json output
+    
+    Fixes #722.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1065041
+
+ misc/dashboard/godashboard/gobuild.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

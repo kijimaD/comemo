@@ -1,0 +1,18 @@
+commit 0bf1f02ed921ec2f78b27f133e7a688d3e8fa82e
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sun May 5 23:20:26 2019 +0700
+
+    errors: fix Is panics if target is uncomparable
+    
+    Fixes #31841
+    
+    Change-Id: I3f068686154fd2fa5755b0df47b4eaa5c9a19107
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175260
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/errors/wrap.go      |  4 +++-
+ src/errors/wrap_test.go | 19 +++++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

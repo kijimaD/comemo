@@ -1,0 +1,23 @@
+commit be443ee8bc64e93bc56d760f3e28f4318c00a8bd
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 12 00:06:45 2010 -0400
+
+    5g: register allocation bugs
+    
+    Fixes #1099.
+    
+    R=ken2, r
+    CC=golang-dev
+    https://golang.org/cl/2147047
+
+ src/cmd/5g/cgen.c                            | 23 +++++++++++----
+ src/cmd/5g/ggen.c                            | 17 ++++++++++-
+ src/cmd/5g/gsubr.c                           | 44 ++++++++++++++++++++++++++--
+ src/cmd/gc/gen.c                             |  7 +++++
+ src/pkg/compress/flate/huffman_bit_writer.go | 10 ++-----
+ src/pkg/gob/decode.go                        | 11 ++-----
+ src/pkg/log/log.go                           |  6 +---
+ src/pkg/net/ip.go                            | 14 +++------
+ src/pkg/time/format.go                       | 16 ++++------
+ src/pkg/xml/xml.go                           | 10 ++-----
+ 10 files changed, 98 insertions(+), 60 deletions(-)

@@ -1,0 +1,26 @@
+commit 1106512db54fc2736c7a9a67dd553fc9e1fca742
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Dec 16 13:35:51 2016 -0800
+
+    path/filepath: deprecate HasPrefix
+    
+    Use the new "Deprecated:" syntax for all instances of HasPrefix.
+    This is a follow-up to http://golang.org/cl/28413 which only modified path_unix.go.
+    
+    In this CL, we avoid mentioning that strings.HasPrefix should be used since
+    that function is still subtly wrong in security applications.
+    
+    See http://golang.org/cl/5712045 for more information.
+    
+    Fixes #18355
+    
+    Change-Id: I0d0306152cd0b0ea5110774c2c78117515b9f5cd
+    Reviewed-on: https://go-review.googlesource.com/34554
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/path/filepath/path_plan9.go   | 3 +++
+ src/path/filepath/path_unix.go    | 3 ++-
+ src/path/filepath/path_windows.go | 3 +++
+ 3 files changed, 8 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit eb20ba6d0143ee8db5635c242e4d74d27dba9520
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 28 15:59:54 2010 -0700
+
+    netchan: allow chan of basic types now that gob can handle such
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1741041
+
+ src/pkg/netchan/export.go       |  2 +-
+ src/pkg/netchan/import.go       |  5 +----
+ src/pkg/netchan/netchan_test.go | 33 ++++++++++++++-------------------
+ 3 files changed, 16 insertions(+), 24 deletions(-)

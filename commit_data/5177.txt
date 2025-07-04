@@ -1,0 +1,14 @@
+commit 6962e2b7542964af7c750336bda18e4b07843039
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 30 10:44:51 2010 -0700
+
+    make: use actual dependency for install
+    
+    otherwise "make install" runs cp unconditionally
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/802044
+
+ src/Make.pkg | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

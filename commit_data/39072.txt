@@ -1,0 +1,13 @@
+commit 2625fef642becd16773f2376a243029e5d62f739
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 8 16:30:29 2019 +0000
+
+    api: update next.txt
+    
+    Change-Id: I2f2a70dd9279ab95fdabee51579d49363a9f65b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176018
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ api/next.txt | 48 ++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 46 insertions(+), 2 deletions(-)

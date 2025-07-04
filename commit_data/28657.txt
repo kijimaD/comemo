@@ -1,0 +1,16 @@
+commit 59c63c711c73f3872c3047c2e80debba5ff1b802
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 3 13:31:07 2016 -0700
+
+    go/printer: support for printing alias declarations
+    
+    For #16339.
+    
+    Change-Id: Ie2e3338b87e84f45cda0868213bbcd2dae9ab6e3
+    Reviewed-on: https://go-review.googlesource.com/30212
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/printer/nodes.go                     | 66 ++++++++++++++++++++++++++---
+ src/go/printer/testdata/declarations.golden | 46 ++++++++++++++++++++
+ src/go/printer/testdata/declarations.input  | 46 ++++++++++++++++++++
+ 3 files changed, 151 insertions(+), 7 deletions(-)

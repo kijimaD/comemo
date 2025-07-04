@@ -1,0 +1,34 @@
+commit 77863e42432bbd7cbe0a476bc20773283356f64f
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Jul 27 13:03:58 2023 -0400
+
+    src/buildall.bash: mention no longer being used by Go build system
+    
+    The buildall.bash script was initially added in 2015 (in CL 9438),
+    documented as used in the implementation of the new compile-only
+    builders at the time.
+    
+    That description was updated as the builder implementation changed
+    from "linux-amd64-compilesmoke" to "all-compile" and most recently
+    to "misc-compile", which it still mentions today.
+    
+    The build system stopped using it in CL 464955 and there are no plans
+    to use it again in the future, so update the description so that it's
+    not misleading. Notably, adding additional checks to this script does
+    not mean they will be caught by builders.
+    
+    Updates #31916.
+    Updates #58163.
+    
+    Change-Id: I17558b1c150a3ad95105de14511c51791287991b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/513755
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/buildall.bash                | 8 ++++++--
+ src/cmd/go/internal/work/exec.go | 4 ++--
+ 2 files changed, 8 insertions(+), 4 deletions(-)

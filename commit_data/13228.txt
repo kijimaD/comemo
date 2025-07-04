@@ -1,0 +1,12 @@
+commit aad8e954740ee21333f60a673b0b77b2c2718923
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu May 31 06:12:24 2012 +0900
+
+    net: fix test to avoid unintentional nil pointer dereference
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6248065
+
+ src/pkg/net/unicast_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

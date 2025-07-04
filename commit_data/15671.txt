@@ -1,0 +1,12 @@
+commit 72dd01451f58a5b1a1cdd1d92810a8ab0d75d97d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 11 01:27:03 2013 -0400
+
+    cmd/5l: fix build (define stub machoreloc1)
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7694043
+
+ src/cmd/5l/asm.c | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

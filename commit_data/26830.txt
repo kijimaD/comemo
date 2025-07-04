@@ -1,0 +1,26 @@
+commit 2a4158207edb499f8b210aaa7a9af103b93b5ac7
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Apr 10 21:58:37 2016 -0400
+
+    cmd/compile/internal/gc: refactor cgen_div
+    
+    This commit adds two new functions to cgen.go: hasHMUL64 and
+    hasRROTC64. These are used to determine whether or not an
+    architecture supports the instructions needed to perform an
+    optimization in cgen_div.
+    
+    This commit should not affect existing architectures (although it
+    does add s390x to the new functions). However, since most
+    architectures support HMUL the hasHMUL64 function could be
+    modified to enable most of the optimizations in cgen_div on those
+    platforms.
+    
+    Change-Id: I33bf329ddeb6cf2954bd17b7c161012de352fb62
+    Reviewed-on: https://go-review.googlesource.com/21775
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/cgen.go | 68 ++++++++++++++++++++++++++-----------
+ 1 file changed, 49 insertions(+), 19 deletions(-)

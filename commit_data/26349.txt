@@ -1,0 +1,53 @@
+commit 56e0ecc5ea67c4cd71fe894bf9745f35273bcdea
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 15 20:45:50 2016 -0700
+
+    cmd/compile: keep value use counts in SSA
+    
+    Keep track of how many uses each Value has.  Each appearance in
+    Value.Args and in Block.Control counts once.
+    
+    The number of uses of a value is generically useful to
+    constrain rewrite rules.  For instance, we might want to
+    prevent merging index operations into loads if the same
+    index expression is used lots of times.
+    
+    But I have one use in particular for which the use count is required.
+    We must make sure we don't combine ops with loads if the load has
+    more than one use.  Otherwise, we may split a single load
+    into multiple loads and that breaks perceived behavior in
+    the presence of races.  In particular, the load of m.state
+    in sync/mutex.go:Lock can't be done twice.  (I have a separate
+    CL which triggers the mutex failure.  This CL has a test which
+    demonstrates a similar failure.)
+    
+    Change-Id: Icaafa479239f48632a069d0c3f624e6ebc6b1f0e
+    Reviewed-on: https://go-review.googlesource.com/20790
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
+
+ src/cmd/compile/internal/gc/ssa.go             |  36 ++---
+ src/cmd/compile/internal/ssa/block.go          |  10 ++
+ src/cmd/compile/internal/ssa/check.go          |  20 +++
+ src/cmd/compile/internal/ssa/copyelim.go       |  11 +-
+ src/cmd/compile/internal/ssa/cse.go            |   2 +-
+ src/cmd/compile/internal/ssa/deadcode.go       |  13 ++
+ src/cmd/compile/internal/ssa/flagalloc.go      |   2 +-
+ src/cmd/compile/internal/ssa/func.go           |  17 ++
+ src/cmd/compile/internal/ssa/func_test.go      |   2 +-
+ src/cmd/compile/internal/ssa/fuse.go           |   2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  15 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    |   6 +-
+ src/cmd/compile/internal/ssa/nilcheck.go       |   4 +-
+ src/cmd/compile/internal/ssa/prove.go          |   2 +-
+ src/cmd/compile/internal/ssa/regalloc.go       |  10 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |   4 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 208 ++++++++++++++-----------
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  10 +-
+ src/cmd/compile/internal/ssa/shortcircuit.go   |   7 +-
+ src/cmd/compile/internal/ssa/sizeof_test.go    |   2 +-
+ src/cmd/compile/internal/ssa/value.go          |  13 ++
+ src/cmd/compile/internal/ssa/zcse.go           |   2 +-
+ test/atomicload.go                             |  45 ++++++
+ 23 files changed, 296 insertions(+), 147 deletions(-)

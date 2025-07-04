@@ -1,0 +1,13 @@
+commit c4b714d3fe36fe5c1928711940a9e7b8c9fb7db3
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Wed Jul 9 14:12:30 2014 -0400
+
+    os: no /tmp on android
+    
+    LGTM=minux, bradfitz
+    R=golang-codereviews, minux, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/104650043
+
+ src/pkg/os/file_unix.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,24 @@
+commit b8a2e25f55de3ab42a846c08c0002b8d88248bca
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Tue Mar 1 22:55:06 2016 +0800
+
+    cmd/vet: remove -test flag
+    
+    -test flag is a testing only flag that enables all vet checks. It was needed
+    because there was no way to run all vet checks in a single command
+    invocation. However it is possible to do this now by combining -all and -shadow
+    flags.
+    
+    Also a recently added -tests flag is similarly named, having both -test and
+    -tests can be confusing.
+    
+    Change-Id: Ie5bacbe0bef5c8409eeace46f16141fa4e782c32
+    Reviewed-on: https://go-review.googlesource.com/20006
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/doc.go      |  2 --
+ src/cmd/vet/main.go     | 10 +++-------
+ src/cmd/vet/vet_test.go |  3 ++-
+ 3 files changed, 5 insertions(+), 10 deletions(-)

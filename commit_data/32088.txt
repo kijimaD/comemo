@@ -1,0 +1,21 @@
+commit 31b2c4cc255b98e4255854a008c0c9b53ad4fd26
+Author: Gustav Westling <zegl@westling.xyz>
+Date:   Sun Jul 30 22:14:22 2017 +0200
+
+    .github: add .md extension to SUPPORT file
+    
+    This makes GitHub render the markdown file automatically
+    on their web UI.
+    
+    SUPPORT.md is the recommended file name according to the GitHub
+    documentation:
+    https://help.github.com/articles/adding-support-resources-to-your-project/
+    
+    Fixes #21223
+    
+    Change-Id: I9f9b9daced9c29a16850e8c446656f353f50b1ae
+    Reviewed-on: https://go-review.googlesource.com/52013
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .github/{SUPPORT => SUPPORT.md} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

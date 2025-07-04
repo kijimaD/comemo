@@ -1,0 +1,16 @@
+commit a9a580690bafa85c225e3777cc7fc191000535fb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 2 21:11:32 2017 +0000
+
+    net/http: quiet some log spam in TestNoBodyOnChunked304Response
+    
+    Updates #22540
+    
+    Change-Id: I63e8c4874f8a774e9c47affc856aadf8c35ca23b
+    Reviewed-on: https://go-review.googlesource.com/75593
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/transport_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

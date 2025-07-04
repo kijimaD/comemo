@@ -1,0 +1,16 @@
+commit 32b3a48ea8f29f0f5ee93714567eb24a660f3b07
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Aug 23 23:38:31 2014 +0000
+
+    runtime: convert float64toint64, float64touint64 to Go
+    
+    This is a very dumb translation to keep the code as close to the original C as possible.
+    
+    LGTM=rsc
+    R=khr, minux, rsc, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/126490043
+
+ src/pkg/runtime/vlrt.go    | 91 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/vlrt_arm.c | 12 ------
+ 2 files changed, 91 insertions(+), 12 deletions(-)

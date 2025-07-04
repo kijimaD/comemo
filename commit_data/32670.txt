@@ -1,0 +1,24 @@
+commit 753bac3a55359b9f19565143eef6179a404bdeea
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Sep 9 15:54:15 2017 +0000
+
+    misc/cgo/testplugin: pass GO_GCFLAGS
+    
+    The noopt builder sets GO_GCFLAGS when building the standard library.
+    Set it when building plugins to ensure the -shared packages built for it
+    have the same inlining in the export data (and thus the same package
+    version).
+    
+    Tested locally with GO_GCFLAGS="-N -l" ./all.bash
+    
+    Fixes #17937
+    
+    Change-Id: Id037cfbf4af744c05c47bdc58eea60a5dba69533
+    Reviewed-on: https://go-review.googlesource.com/62511
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/test.bash | 30 +++++++++++++++---------------
+ src/cmd/dist/test.go          |  8 --------
+ 2 files changed, 15 insertions(+), 23 deletions(-)

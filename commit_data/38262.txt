@@ -1,0 +1,29 @@
+commit f0749c74fd5c32b8981065c24cc593328ccf5591
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 20 16:20:56 2019 +0100
+
+    cmd/link: fix moduledata symbols for aix/ppc64 and external linking
+    
+    Moduledata symbols like runtime.data or runtime.text must have the
+    same position in the final executable (as some symbol accesses are made
+    by offset from them).
+    ld on AIX might move them randomly if there are nil size symbols.
+    
+    ld will also remove unreachable symbols like runtime.epclntab or
+    runtime.rodata. In order to keep them, R_REF relocations are created
+    between firstmoduledata and these symbols. This relocation tells ld to
+    keep these symbols even if there aren't reachable.
+    
+    Change-Id: Ie5a28cf406977131cec6442f7f5b6fd89fb775a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164004
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/objabi/reloctype.go |  5 +++
+ src/cmd/link/internal/ld/data.go     | 78 ++++++++++++++++++++++++++++++++----
+ src/cmd/link/internal/ld/lib.go      | 10 +++--
+ src/cmd/link/internal/ld/symtab.go   | 14 +++++++
+ src/cmd/link/internal/ld/xcoff.go    |  4 +-
+ src/cmd/link/internal/ppc64/asm.go   |  3 ++
+ 6 files changed, 101 insertions(+), 13 deletions(-)

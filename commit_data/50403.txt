@@ -1,0 +1,20 @@
+commit 454a058ffcd90dc8db311c08747506186af1f952
+Author: ruinan <ruinan.sun@arm.com>
+Date:   Fri Jul 1 06:25:12 2022 +0000
+
+    cmd/compile: Add shiftIsBounded check for logic shifts of arm64
+    
+    This CL adds shiftIsBounded checks for the Lsh* and Rsh* rules in arm64.
+    There is no need to check the shift value again with CMP + CSEL when the
+    shift value is valid.
+    
+    Change-Id: I54620de64f02a1b5a11089add237248ae2de01b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417714
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  140 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 1776 ++++++++++++++++++++------
+ test/codegen/shift.go                        |   91 +-
+ 3 files changed, 1560 insertions(+), 447 deletions(-)

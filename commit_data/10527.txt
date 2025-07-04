@@ -1,0 +1,16 @@
+commit 4cc64bd5bf54a89ec83d70e562c63a6e4810804b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Nov 28 15:42:47 2011 -0500
+
+    exp/ssh: move openChan to NewSession
+    
+    openChan was only being called by NewSession, Dial has
+    its own version.
+    
+    R=gustav.paul, agl, rsc
+    CC=golang-dev
+    https://golang.org/cl/5435071
+
+ src/pkg/exp/ssh/client.go  | 34 +++-------------------------------
+ src/pkg/exp/ssh/session.go | 28 +++++++++++++++++++++++-----
+ 2 files changed, 26 insertions(+), 36 deletions(-)

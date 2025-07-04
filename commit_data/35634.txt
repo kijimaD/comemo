@@ -1,0 +1,21 @@
+commit 29e5a81e28c633aa8d1062ce9f3749e9a8f040da
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Jun 7 17:25:28 2018 -0700
+
+    cmd/compile: mark BS{F,R}L as clobbering flags
+    
+    Turns out it doesn't currently matter, as these ops are always issued
+    together with a BTSL which does clobber flags. So I can't write a test
+    that currently fails. But better to be future-proof.
+    
+    BS{F,R}Q generates flags, so it doesn't need to be marked as clobbering.
+    
+    Change-Id: I70daea154023fd435fac696bf3a384803c647cd3
+    Reviewed-on: https://go-review.googlesource.com/117375
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  8 ++++----
+ src/cmd/compile/internal/ssa/opGen.go        | 14 ++++++++------
+ 2 files changed, 12 insertions(+), 10 deletions(-)

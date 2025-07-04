@@ -1,0 +1,23 @@
+commit 403f91c24430213b6a8efb3d143b6eae08b02ec2
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Aug 30 15:51:57 2022 -0500
+
+    cmd/compile/internal: merge rules in PPC64.rules
+    
+    This uses rulegen syntax which allows similar rules
+    to be combined, saving lines in the rules file.
+    The Lsh16x32 rule had an incorrect value and that was
+    fixed.
+    
+    Change-Id: I637410e39d8554825076aca5ac24083ce05ab186
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429035
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 441 ++++++++-------------------
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 138 ++++-----
+ 2 files changed, 193 insertions(+), 386 deletions(-)

@@ -1,0 +1,18 @@
+commit 73b3e2301ebbaa4f940006b0869a158156613b4b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Nov 26 10:59:43 2012 +1100
+
+    net: never return -1 bytes read from netFD.Read
+    
+    If the a network read would block, and a packet arrived just before the timeout expired, then the number of bytes from the previous (blocking) read, -1, would be returned.
+    
+    This change restores the previous logic, where n would be unconditionally set to 0 if err != nil, but was skipped due to a change in CL 6851096.
+    
+    The test for this change is CL 6851061.
+    
+    R=bradfitz, mikioh.mikioh, dvyukov, rsc
+    CC=golang-dev
+    https://golang.org/cl/6852085
+
+ src/pkg/net/fd_unix.go | 3 +++
+ 1 file changed, 3 insertions(+)

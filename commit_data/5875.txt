@@ -1,0 +1,14 @@
+commit aa4639faf1943d76544cbc4a069239f2087b0563
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 26 09:55:25 2010 +1000
+
+    fix windows Make.cmd:
+    - TARG had extra space at the end;
+    - it should be set before "all" target.
+    
+    R=rsc, Joe Poirier
+    CC=golang-dev
+    https://golang.org/cl/1846042
+
+ src/Make.cmd | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

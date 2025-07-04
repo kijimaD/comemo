@@ -1,0 +1,15 @@
+commit 7b0bb48056a59d3829ee47ab853b282d38b1efd1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 6 13:00:54 2011 -0700
+
+    json: fix test if rand returns 0.
+    
+    Fixes test when run with gccgo using optimization, which
+    changes the order of the calls to rand.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4639101
+
+ src/pkg/json/scanner_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

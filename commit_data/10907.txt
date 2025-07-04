@@ -1,0 +1,22 @@
+commit fd1c1b9679a2ed9c96bc3ccd74336ba5b23a5049
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 20 16:42:44 2011 -0500
+
+    cmd/go: work toward build script
+    
+    The commands in the standard tree are now named
+    by the pseudo-import paths cmd/gofmt etc.
+    This avoids ambiguity between cmd/go's directory
+    and go/token's parent directory.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5503050
+
+ src/cmd/gc/runtime.go |   2 +
+ src/cmd/gc/unsafe.go  |   2 +
+ src/cmd/go/build.go   | 216 ++++++++++++++++++++++++++++++++++++++------------
+ src/cmd/go/list.go    |   6 +-
+ src/cmd/go/main.go    |  42 ++++++++--
+ src/cmd/go/pkg.go     |  19 ++++-
+ 6 files changed, 223 insertions(+), 64 deletions(-)

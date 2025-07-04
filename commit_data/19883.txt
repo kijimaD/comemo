@@ -1,0 +1,17 @@
+commit d46e133f7491ed2b3550426387a251ec4ceec4b5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 5 11:45:24 2014 -0700
+
+    mime/multipart: add Writer data race test
+    
+    Camlistore uses this pattern to do streaming writes, as do
+    others I imagine, and it was broken by the lazy boundary
+    change.
+    
+    LGTM=dvyukov, ruiu
+    R=ruiu, dvyukov
+    CC=golang-codereviews, mathieu.lonjaret
+    https://golang.org/cl/116690043
+
+ src/pkg/mime/multipart/writer_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

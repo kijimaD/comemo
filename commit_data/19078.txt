@@ -1,0 +1,12 @@
+commit e688e7128d6e8b345dcc5fd7b06086008ad329fb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 9 10:02:55 2014 -0400
+
+    runtime: fix flaky linux/386 build
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/86030043
+
+ src/pkg/runtime/runtime_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

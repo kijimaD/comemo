@@ -1,0 +1,16 @@
+commit cb5bca8e8af619a5a6548e5d1a2b2aa0c9accc25
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Jul 9 15:42:02 2015 -0700
+
+    crypto/tls: reject ServerHellos with empty ALPN protocols.
+    
+    https://tools.ietf.org/html/rfc7301#section-3.1 specifies that a
+    ProtocolName may not be empty. This change enforces this for ServerHello
+    messages—it's already enforced for ClientHello messages.
+    
+    Change-Id: Ic5a5be6bebf07fba90a3cabd10b07ab7b4337f53
+    Reviewed-on: https://go-review.googlesource.com/12003
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/handshake_messages.go | 4 ++++
+ 1 file changed, 4 insertions(+)

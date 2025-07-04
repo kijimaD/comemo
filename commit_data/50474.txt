@@ -1,0 +1,35 @@
+commit 9503bcae2b20d290332d00d78672881b7fcfedf0
+Author: Anuraag Agrawal <anuraaga@gmail.com>
+Date:   Fri Jun 10 05:41:02 2022 +0000
+
+    strings: reuse the input string for Repeat count of 1
+    
+    The existing implementation allocates a new string even when the
+    count is 1, where we know the output is the same as the input.
+    While we wouldn't expect a count of 1 for hardcoded values of the
+    parameter, it is expected when the parameter is computed based on
+    a different value (e.g., the length of a input slice).
+    
+    name            old time/op  new time/op  delta
+    Repeat/5x0-10   2.03ns ± 0%  2.02ns ± 0%   ~     (p=1.000 n=1+1)
+    Repeat/5x1-10   13.7ns ± 0%   2.0ns ± 0%   ~     (p=1.000 n=1+1)
+    Repeat/5x2-10   18.2ns ± 0%  18.1ns ± 0%   ~     (p=1.000 n=1+1)
+    Repeat/5x6-10   27.0ns ± 0%  27.0ns ± 0%   ~     (p=1.000 n=1+1)
+    Repeat/10x0-10  2.02ns ± 0%  2.02ns ± 0%   ~     (p=1.000 n=1+1)
+    Repeat/10x1-10  16.1ns ± 0%   2.0ns ± 0%   ~     (p=1.000 n=1+1)
+    Repeat/10x2-10  20.8ns ± 0%  20.9ns ± 0%   ~     (p=1.000 n=1+1)
+    Repeat/10x6-10  29.2ns ± 0%  29.4ns ± 0%   ~     (p=1.000 n=1+1)
+    
+    Change-Id: I48e08e08f8f6d6914d62b3d6a61d563d637bec59
+    GitHub-Last-Rev: 068f58e08b8f5c4105e7a210f242ca1ff3a61177
+    GitHub-Pull-Request: golang/go#53321
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411477
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/strings/strings.go      | 5 ++++-
+ src/strings/strings_test.go | 2 +-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

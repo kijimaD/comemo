@@ -1,0 +1,28 @@
+commit 953bc8f391a63adf00bac2515dba62abe8a1e2c2
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jan 21 14:45:15 2020 -0500
+
+    crypto/x509: mitigate CVE-2020-0601 verification bypass on Windows
+    
+    An attacker can trick the Windows system verifier to use a poisoned set
+    of elliptic curve parameters for a trusted root, allowing it to generate
+    spoofed signatures. When this happens, the returned chain will present
+    the unmodified original root, so the actual signatures won't verify (as
+    they are invalid for the correct parameters). Simply double check them
+    as a safety measure and mitigation.
+    
+    Windows users should still install the system security patch ASAP.
+    
+    This is the same mitigation adopted by Chromium:
+    
+    https://chromium-review.googlesource.com/c/chromium/src/+/1994434
+    
+    Change-Id: I2c734f6fb2cb51d906c7fd77034318ffeeb3e146
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215905
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ryan Sleevi <sleevi@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/x509/root_windows.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

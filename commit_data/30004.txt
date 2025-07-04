@@ -1,0 +1,41 @@
+commit 166b1219b8a5b246c83986c7ecef3d15c85c8150
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 31 14:32:11 2017 -0800
+
+    cmd/compile: allocate Nodes together with Name/Param/Func
+    
+    After allocating a Node that needs a Name, Param, and/or Func field,
+    we never clear that field, so we can reduce GC overhead slightly by
+    allocating them together with the owner Node.
+    
+    name       old time/op     new time/op     delta
+    Template       325ms ± 7%      325ms ± 7%    ~           (p=0.910 n=29+30)
+    Unicode        177ms ±12%      173ms ±11%    ~           (p=0.110 n=29+30)
+    GoTypes        1.06s ± 7%      1.05s ± 5%  -1.22%        (p=0.027 n=30+30)
+    Compiler       4.48s ± 3%      4.47s ± 3%    ~           (p=0.423 n=30+30)
+    
+    name       old user-ns/op  new user-ns/op  delta
+    Template        476M ±22%       467M ±14%    ~           (p=0.310 n=29+30)
+    Unicode         298M ±22%       294M ±25%    ~           (p=0.335 n=30+30)
+    GoTypes        1.54G ± 9%      1.48G ± 9%  -4.06%        (p=0.000 n=30+30)
+    Compiler       6.26G ± 6%      6.14G ± 6%  -1.90%        (p=0.004 n=30+30)
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      40.9MB ± 0%     41.1MB ± 0%  +0.53%        (p=0.000 n=30+30)
+    Unicode       30.9MB ± 0%     31.0MB ± 0%  +0.16%        (p=0.000 n=30+30)
+    GoTypes        122MB ± 0%      123MB ± 0%  +0.37%        (p=0.000 n=30+30)
+    Compiler       477MB ± 0%      479MB ± 0%  +0.37%        (p=0.000 n=30+29)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        400k ± 1%       376k ± 1%  -5.96%        (p=0.000 n=30+30)
+    Unicode         330k ± 1%       325k ± 1%  -1.48%        (p=0.000 n=30+30)
+    GoTypes        1.22M ± 0%      1.16M ± 0%  -4.38%        (p=0.000 n=30+30)
+    Compiler       4.35M ± 0%      4.13M ± 0%  -5.08%        (p=0.000 n=30+29)
+    
+    Change-Id: I9bdc7d9223bb32f785df71810564e82d9a76d109
+    Reviewed-on: https://go-review.googlesource.com/36022
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 40 +++++++++++++++++++++++++++----------
+ 1 file changed, 29 insertions(+), 11 deletions(-)

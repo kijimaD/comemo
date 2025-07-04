@@ -1,0 +1,16 @@
+commit 4ad505d1028bce57be165c343685edbc2518b4fc
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 3 01:44:03 2013 -0500
+
+    cmd/gc: update ideal bool rules to match latest spec
+    
+    Fixes #3915.
+    Fixes #3923.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7281044
+
+ src/cmd/gc/const.c |  9 ++++++---
+ test/const6.go     | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 3 deletions(-)

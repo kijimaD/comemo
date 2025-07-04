@@ -1,0 +1,17 @@
+commit e094e80f65f77bf83e2962dc5150915711f2166d
+Author: Austin Clements <austin@google.com>
+Date:   Wed Aug 16 12:30:10 2023 -0400
+
+    runtime: add self-check mode to cache in pcvalue
+    
+    This would have helped with debugging the failures caused by CL 515276.
+    
+    Change-Id: Id641949d8bcd763de7f93778ad9bd3fdde95dcb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520062
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/symtab.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

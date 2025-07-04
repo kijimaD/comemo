@@ -1,0 +1,16 @@
+commit fa49c3970a43ca77d46363397e7f4f3ae1f5957c
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Tue Oct 4 09:21:30 2016 -0700
+
+    database/sql: fixup remaining driver call to use context
+    
+    Missed one in the prior CL.
+    
+    Change-Id: I6f6d84d52fe4d902a985971a402701fb3b1eed86
+    Reviewed-on: https://go-review.googlesource.com/30255
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/sql.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

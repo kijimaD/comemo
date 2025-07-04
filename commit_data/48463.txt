@@ -1,0 +1,27 @@
+commit b9d6cea5016835ca5521469631e55f5c489aa0e7
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Fri Mar 18 17:36:52 2022 +0800
+
+    cmd/link: set alignment of compressed section based on arch
+    
+    The ELF compression header(Chdr) has Addralign field that is set to the
+    alignment of the uncompressed section which makes section able to have
+    a different alignment than the decompressed section. However `file` and
+    other tools require both Chdr.Addralign and Addralign to be equal.
+    
+    Ref https://sourceware.org/bugzilla/show_bug.cgi?id=23919
+    Related #42136
+    
+    Fixes #51769
+    
+    Change-Id: I3cf99dbd2359932576420a3c0d342c7e91b99227
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393916
+    Trust: mzh <mzh@golangcn.org>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Fangrui Song <maskray@google.com>
+
+ src/cmd/link/internal/ld/dwarf.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

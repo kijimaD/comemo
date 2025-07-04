@@ -1,0 +1,13 @@
+commit cd3ab57a9c2d6088ad1deef97786d5b9f01343f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 8 15:39:18 2009 -0700
+
+    fix comment
+    
+    R=r
+    DELTA=1  (0 added, 1 deleted, 0 changed)
+    OCL=28576
+    CL=28576
+
+ src/lib/os/proc.go | 1 -
+ 1 file changed, 1 deletion(-)

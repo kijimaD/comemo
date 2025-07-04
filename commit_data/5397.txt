@@ -1,0 +1,12 @@
+commit b5da6ea4dd628617fc72def2c62a5d0f0c82c3b9
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Thu Apr 29 11:02:10 2010 -0700
+
+    net: use short variable declaration
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1019043
+
+ src/pkg/net/parse_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

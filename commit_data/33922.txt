@@ -1,0 +1,12 @@
+commit cd97aca3fdd87aca95f547643fe28f352e4f27cf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 1 02:04:51 2018 +0000
+
+    doc: 2018 is the Year of the Gopher
+    
+    Change-Id: Ie167512e000f3a8be0ff8a6a9edd52bd74f45115
+    Reviewed-on: https://go-review.googlesource.com/85775
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

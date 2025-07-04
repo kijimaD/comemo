@@ -1,0 +1,14 @@
+commit 2202663a93bacb1cedf0f807f9b76333ac05e892
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 1 11:55:00 2013 -0500
+
+    build: disable cgo on windows
+    
+    Update #4955.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7435049
+
+ src/run.bat | 2 ++
+ 1 file changed, 2 insertions(+)

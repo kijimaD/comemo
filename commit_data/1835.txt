@@ -1,0 +1,15 @@
+commit 1e39143966b602ce346e970b9ff85176a781475f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 16 21:47:38 2009 -0700
+
+    Don't try to define the same label twice, as that produces a
+    label redefinition error.
+    
+    R=gri
+    DELTA=6  (0 added, 0 deleted, 6 changed)
+    OCL=26357
+    CL=26372
+
+ test/bugs/bug140.go | 8 ++++----
+ test/golden.out     | 4 ++--
+ 2 files changed, 6 insertions(+), 6 deletions(-)

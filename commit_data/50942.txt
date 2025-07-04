@@ -1,0 +1,20 @@
+commit bfcc3a755cbd9b5c38a4961f1df76c4db0d41442
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 19 14:22:25 2022 -0700
+
+    go/types, types2: remove global goVersion flag (cleanup)
+    
+    Now that we have an easy mechanism to set the Go version with a comment
+    line directly in test files, we don't need this flag anymore.
+    
+    Change-Id: Ic1f1a6fdf2c6c692512bff49650916ec43645aee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444275
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/check_test.go | 1 -
+ src/go/types/check_test.go                    | 6 ------
+ 2 files changed, 7 deletions(-)

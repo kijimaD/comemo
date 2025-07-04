@@ -1,0 +1,44 @@
+commit 69a7c152a72c713032498bfbc6ec7c41d84a4b63
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Mar 21 15:24:08 2016 -0700
+
+    cmd/compile: change the way SSA does slice zero-cap detection
+    
+    There is a special case for slicing s[i:j] when the resulting
+    slice has zero capacity, to prevent pointing to the next object
+    in memory.
+    
+    Change this special case code from:
+      rptr := rcap == 0 ? ptr : ptr+i*elemsize
+    to
+      rptr := ptr + (rcap == 0 ? 0 : i) * elemsize
+    
+    This change leads to slightly smaller generated code, replacing
+    a load with a register zero.
+    
+    old:
+            0x002e 00046 (slice.go:8)       CMPQ    BX, $0
+            0x0032 00050 (slice.go:8)       JEQ     $0, 78
+            0x0034 00052 (slice.go:8)       MOVQ    "".a+8(FP), BP
+            0x0039 00057 (slice.go:8)       LEAQ    (BP)(CX*8), AX
+            0x003e 00062 ... rest of function ...
+    
+            0x004e 00078 (slice.go:7)       MOVQ    "".a+8(FP), AX
+            0x0053 00083 (slice.go:8)       JMP     62
+    
+    new:
+            0x002e 00046 (slice.go:8)       CMPQ    BX, $0
+            0x0032 00050 (slice.go:8)       JEQ     $0, 78
+            0x0034 00052 (slice.go:8)       MOVQ    "".a+8(FP), BP
+            0x0039 00057 (slice.go:8)       LEAQ    (BP)(CX*8), AX
+            0x003e 00062 ... rest of function...
+    
+            0x004e 00078 (slice.go:8)       MOVQ    $0, CX
+            0x0050 00080 (slice.go:8)       JMP     52
+    
+    Change-Id: I2a396616b0d7b090c226a47c92a7ba14b128401f
+    Reviewed-on: https://go-review.googlesource.com/20994
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 68 ++++++++++++++++++++------------------
+ 1 file changed, 36 insertions(+), 32 deletions(-)

@@ -1,0 +1,22 @@
+commit fd9a5d22c69e877afd9daacc335806520c40c0e2
+Author: Stephen Ma <stephenm@golang.org>
+Date:   Wed Sep 29 14:30:12 2010 +1000
+
+    http: revised http Handler interface
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1993043
+
+ src/cmd/godoc/codewalk.go   |  42 ++---
+ src/cmd/godoc/godoc.go      |  82 +++++-----
+ src/cmd/godoc/main.go       |  24 +--
+ src/pkg/expvar/expvar.go    |  12 +-
+ src/pkg/http/fs.go          |  46 +++---
+ src/pkg/http/pprof/pprof.go |  26 ++--
+ src/pkg/http/server.go      | 372 +++++++++++++++++++++++---------------------
+ src/pkg/http/status.go      |   6 +
+ src/pkg/rpc/debug.go        |   6 +-
+ src/pkg/rpc/server.go       |  12 +-
+ src/pkg/websocket/server.go |  28 ++--
+ 11 files changed, 343 insertions(+), 313 deletions(-)

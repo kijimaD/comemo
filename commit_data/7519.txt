@@ -1,0 +1,12 @@
+commit 1634390fb15138268926c3d759f2ad26354eaad9
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Feb 22 10:12:18 2011 +1100
+
+    testing: Fix typo on Logf doc comment.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/4167064
+
+ src/pkg/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit e8d65b92d7129edf4ca495206467f600960e803e
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 6 14:53:44 2014 -0400
+
+    liblink: fix arm build errors
+    
+    This was supposed to be in CL 135490044
+    but got lost in a transfer from machine to machine.
+    
+    TBR=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/135560043
+
+ src/liblink/asm5.c |  6 ++++--
+ src/liblink/obj5.c | 12 ++++--------
+ 2 files changed, 8 insertions(+), 10 deletions(-)

@@ -1,0 +1,20 @@
+commit d15dfdc023f888b97ce0bc101d97c4631e575d94
+Author: jsign <jsign.uy@gmail.com>
+Date:   Sat Aug 31 22:32:11 2019 +0000
+
+    io/ioutil: don't check for short write in WriteFile
+    
+    *os.File already does it.
+    
+    Fixes #33064
+    
+    Change-Id: I3edf0a31bf6d6e5023f47f01ebc92ed057357278
+    GitHub-Last-Rev: e6a5ba45d7e74def668adf145f46387ef27f5d28
+    GitHub-Pull-Request: golang/go#33065
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185857
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/io/ioutil/ioutil.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

@@ -1,0 +1,25 @@
+commit 587b3c1192397393afb0ec5acd608e3dfe9f2116
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Sep 28 16:20:29 2021 -0400
+
+    cmd/link: access pcdata via aux symbols
+    
+    Pcdata are now separate aux symbols. Read them from aux, instead
+    of using funcinfo.
+    
+    Now we can remove pcdata fields from funcinfo.
+    
+    Change-Id: Ie65e3962edecc0f39127a5f6963dc59d1f141e67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352893
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/goobj/funcinfo.go     |  55 +-------------
+ src/cmd/internal/obj/objfile.go        |   8 --
+ src/cmd/link/internal/ld/dwarf.go      |   2 +-
+ src/cmd/link/internal/ld/lib.go        |   2 +-
+ src/cmd/link/internal/ld/pcln.go       |  32 ++++----
+ src/cmd/link/internal/loader/loader.go | 129 ++++++++++++++++-----------------
+ 6 files changed, 86 insertions(+), 142 deletions(-)

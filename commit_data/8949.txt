@@ -1,0 +1,13 @@
+commit d45ba2c146e5861569a34f44907fae1386b238ab
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jul 6 14:18:46 2011 +1000
+
+    exp/template: remove debugging dreg.
+    
+    R=r, gri
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/4671047
+
+ src/pkg/exp/template/lex_test.go | 1 -
+ 1 file changed, 1 deletion(-)

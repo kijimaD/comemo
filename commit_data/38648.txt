@@ -1,0 +1,20 @@
+commit 4145c5da1f533fafd928769d18d5be60968cb9dc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 28 13:32:31 2019 -0700
+
+    cmd/compile: better recovery after := (rather than =) in declarations
+    
+    Before this fix, a mistaken := in a (const/type/var) declaration
+    ended that declaration with an error from which the parser didn't
+    recover well. This low-cost change will provide a better error
+    message and lets the parser recover perfectly.
+    
+    Fixes #31092.
+    
+    Change-Id: Ic4f94dc5e29dd00b7ef6d53a80dded638e3cea80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169958
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go          | 22 ++++++++++++++++++----
+ .../internal/syntax/testdata/issue31092.src        | 16 ++++++++++++++++
+ 2 files changed, 34 insertions(+), 4 deletions(-)

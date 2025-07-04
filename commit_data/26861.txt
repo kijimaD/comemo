@@ -1,0 +1,27 @@
+commit cd85f711c0b6847cbfe4e05f4402df075ea936de
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 11 21:23:11 2016 -0700
+
+    cmd/compile: add x.Uses==1 test to load combiners
+    
+    We need to make sure that when we combine loads, we only do
+    so if there are no other uses of the load.  We can't split
+    one load into two because that can then lead to inconsistent
+    loaded values in the presence of races.
+    
+    Add some aggressive copy removal code so that phantom
+    "dead copy" uses of values are cleaned up promptly.  This lets
+    us use x.Uses==1 conditions reliably.
+    
+    Change-Id: I9037311db85665f3868dbeb3adb3de5c20728b38
+    Reviewed-on: https://go-review.googlesource.com/21853
+    Reviewed-by: Todd Neal <todd@tneal.org>
+
+ src/cmd/compile/internal/gc/ssa_test.go            |  2 +
+ src/cmd/compile/internal/gc/testdata/dupLoad.go    | 46 +++++++++++++++++
+ .../compile/internal/gc/testdata/namedReturn.go    |  4 ++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       | 12 ++---
+ src/cmd/compile/internal/ssa/nilcheck_test.go      |  2 +-
+ src/cmd/compile/internal/ssa/rewrite.go            | 60 +++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 24 ++++-----
+ 7 files changed, 129 insertions(+), 21 deletions(-)

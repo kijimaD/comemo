@@ -1,0 +1,19 @@
+commit 4cd743e27eef7495a71cee08a9e8ca971ffcc0a5
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Nov 23 11:43:56 2023 -0800
+
+    os: use atomic.Uintptr for Process.handle
+    
+    Suggested-by: Michael Knyszek <mknyszek@google.com>
+    Change-Id: I116731b6c3738aae8ff1d3be227f8f51fa3320c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544795
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/exec.go         | 5 +++--
+ src/os/exec_windows.go | 7 +++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

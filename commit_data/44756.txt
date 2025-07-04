@@ -1,0 +1,26 @@
+commit e838c76a6ea99007b872669b06590a41278f6188
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 19 15:55:30 2021 -0400
+
+    cmd/go/internal/modload: remove go116EnableNarrowAll constant
+    
+    This constant existed in case there was a serious problem with the
+    change to the "all" pattern in Go 1.16 (CL 240623), so that we could
+    roll back the change in behavior by just flipping the constant without
+    introducing merge conflicts elsewhere.
+    
+    Go 1.16 has been out for a while and the new "all" behavior seems fine,
+    so we can jettison this feature flag.
+    
+    For #36460
+    
+    Change-Id: Ic2730edcee81514d56c7086e11542468eb63c84a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303431
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/modfile.go | 4 ----
+ 1 file changed, 4 deletions(-)

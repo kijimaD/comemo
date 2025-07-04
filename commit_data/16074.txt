@@ -1,0 +1,13 @@
+commit e0f338cca5085dd860358eb8c2091de335e6a13a
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 3 10:59:36 2013 -0700
+
+    doc/go1.1.html: document os/signal.Stop
+    Also fix the sort order of the laundry list.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8325044
+
+ doc/go1.1.html | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

@@ -1,0 +1,12 @@
+commit f439299035bbdb4ac7c1c684214b7bf8b4347474
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 4 16:29:22 2008 -0700
+
+    fix bug - need to read final message in daisy chain to avoid hang
+    
+    R=rsc
+    OCL=13840
+    CL=13840
+
+ test/chan/fifo.go | 1 +
+ 1 file changed, 1 insertion(+)

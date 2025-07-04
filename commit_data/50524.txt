@@ -1,0 +1,28 @@
+commit a7bcc94719a5a79241aa3ce35c1e2dbb83b94af7
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Sep 1 20:36:34 2022 +1000
+
+    cmd/compile: resolve known outcomes for SLTI/SLTIU on riscv64
+    
+    When SLTI/SLTIU is used with ANDI/ORI, it may be possible to determine the
+    outcome based on the values of the immediates. Resolve these cases.
+    
+    Improves code generation for various shift operations.
+    
+    While here, sort tests by architecture to improve readability and ease
+    future maintenance.
+    
+    Change-Id: I87e71e016a0e396a928e7d6389a2df61583dfd8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428217
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules | 11 ++++-
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 64 +++++++++++++++++++++++++
+ test/codegen/shift.go                          | 66 +++++++++++++-------------
+ 3 files changed, 106 insertions(+), 35 deletions(-)

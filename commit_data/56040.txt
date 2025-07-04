@@ -1,0 +1,21 @@
+commit 25aa45afcf40ff6c699b47bad0cb609bba84da12
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Sun Mar 24 12:06:41 2024 +0000
+
+    os: fix typo in test
+    
+    Change-Id: Ib445940f0f24385dde1b62277c8083e6369d0645
+    GitHub-Last-Rev: 02c18c27773e966145e379933e4e01d4531e7ec3
+    GitHub-Pull-Request: golang/go#66503
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574016
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/os/readfrom_linux_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

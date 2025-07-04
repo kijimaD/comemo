@@ -1,0 +1,15 @@
+commit c7597a8d23ff2124c3de1dfc8f26b29a203cdf10
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 14 13:49:35 2024 +0200
+
+    internal/poll: use internal/byteorder
+    
+    Change-Id: Ied768b8b675281b340f91f4ac6f688594be8bf4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585118
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/internal/poll/fd_wasip1.go | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

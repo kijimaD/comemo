@@ -1,0 +1,29 @@
+commit 30501bbef9fcfc9d53e611aaec4d20bb3cdb8ada
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 10 16:02:48 2022 -0800
+
+    spec: introduce notion of basic interface, misc. fine-tuning
+    
+    A basic interface is a classical Go interface containing only
+    methods or embedding basic interfaces.
+    
+    Use this to simplify rule about what interfaces may be used
+    where. The term "basic interface" will also be useful when
+    talking about various interfaces in general.
+    
+    Fix rule restricting union terms: as it was written it also
+    excluded interface terms with non-empty method sets due to
+    embedded non-interface types with methods.
+    
+    Split the large section on interfaces into three smaller
+    pieces by introducing section titles.
+    
+    Change-Id: I142a4d5609eb48aaa0f7800b5b85c1d6c0703fcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384994
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 34 +++++++++++++++++++++-------------
+ 1 file changed, 21 insertions(+), 13 deletions(-)

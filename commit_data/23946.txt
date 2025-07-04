@@ -1,0 +1,25 @@
+commit 7aa4e29dce2b941644ff1f19e528ccc4790c519e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 3 10:04:42 2015 +0200
+
+    net/http: fix server/transport data race when sharing the request body
+    
+    Introduced in https://go-review.googlesource.com/12865 (git rev c2db5f4c).
+    
+    This fix doesn't add any new lock acquistions: it just moves the
+    existing one taken by the unreadDataSize method and moves it out
+    wider.
+    
+    It became flaky at rev c2db5f4c, but now reliably passes again:
+    $ go test -v -race -run=TestTransportAndServerSharedBodyRace -count=100 net/http
+    
+    Fixes #11985
+    
+    Change-Id: I6956d62839fd7c37e2f7441b1d425793f4a0db30
+    Reviewed-on: https://go-review.googlesource.com/12909
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/server.go   | 4 +++-
+ src/net/http/transfer.go | 7 +++----
+ 2 files changed, 6 insertions(+), 5 deletions(-)

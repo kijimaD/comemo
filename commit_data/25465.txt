@@ -1,0 +1,17 @@
+commit 62c280ac1c2fce24133359513fa33ff11315f5ad
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 6 13:10:22 2016 -0800
+
+    runtime/pprof: skip TestStackBarrierProfiling on dragonfly too
+    
+    Just saw a few dragonfly failures here.
+    
+    I'm tempted to preemptively add plan9 here too, but I'll wait until
+    I see it fail.
+    
+    Change-Id: Ic99fc088dbfd1aa21f509148aee98ccfe7f640bf
+    Reviewed-on: https://go-review.googlesource.com/18306
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

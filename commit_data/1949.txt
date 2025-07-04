@@ -1,0 +1,13 @@
+commit 9efd6b8a3d4d9b8336abf37d63487aded193b8b2
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Apr 2 18:06:43 2009 -0700
+
+    compiler falut for forgetting
+    the assignment on a type switch
+    
+    R=r
+    OCL=27048
+    CL=27048
+
+ src/cmd/gc/swt.c | 7 +++++++
+ 1 file changed, 7 insertions(+)

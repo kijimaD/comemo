@@ -1,0 +1,21 @@
+commit d7b0f2a524743fef990c6905e628304a0065116f
+Author: Johan Euphrosine <proppy@google.com>
+Date:   Sat Dec 1 14:11:46 2012 -0800
+
+    math/rand: remove noop iteration in Perm
+    
+    The first iteration always do `m[0], m[0] = m[0], m[0]`, because
+    `rand.Intn(1)` is 0.
+    
+    fun note: IIRC in TAOCP version of this algorithm, `i` goes
+    backward (n-1->1), meaning that the "already" shuffled part of the
+    array is never altered betweens iterations, while in the current
+    implementation the "not-yet" shuffled part of the array is
+    conserved between iterations.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6845121
+
+ src/pkg/math/rand/rand.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

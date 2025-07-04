@@ -1,0 +1,25 @@
+commit afe7c8d0b25f26f0abd749ca52c7e1e7dfdee8cb
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 2 08:48:23 2020 -0500
+
+    testing: increase benchmark output to four significant figures
+    
+    Currently, the benchmark output from the testing package prints small
+    values with three significant figures. This means it can only
+    distinguish 1 part in 100, or a 1% error, which can be enough to throw
+    off further analysis of the output. This CL increases it to four
+    significant figures. For time values, at least, anything beyond four
+    significant figures is almost certainly noise.
+    
+    Fixes #34626.
+    
+    Change-Id: I3bcf305427130026276e6a4c78167989319f280c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267102
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/testing/benchmark.go      | 20 ++++++++++++--------
+ src/testing/benchmark_test.go | 21 +++++++++++----------
+ 2 files changed, 23 insertions(+), 18 deletions(-)

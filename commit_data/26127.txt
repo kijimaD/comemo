@@ -1,0 +1,51 @@
+commit b212c68b9007ad328da81b3d589c032ba0de3434
+Author: Klaus Post <klauspost@gmail.com>
+Date:   Tue Mar 8 15:57:12 2016 +0100
+
+    hash/crc32: use slicing by 8 for Castagnoli and smaller sizes
+    
+    This adds "slicing by 8" optimization to Castagnoli tables which will
+    speed up CRC32 calculation on systems without asssembler,
+    which are all but AMD64.
+    
+    In my tests, it is faster to use "slicing by 8" for sizes all down to
+    16 bytes, so the switchover point has been adjusted.
+    
+    There are no benchmarks for small sizes, so I have added one for 40 bytes,
+    as well as one for bigger sizes (32KB).
+    
+    Castagnoli, No assembler, 40 Byte payload: (before, after)
+    BenchmarkCastagnoli40B-4   10000000     161 ns/op         246.94 MB/s
+    BenchmarkCastagnoli40B-4   20000000     100 ns/op         398.01 MB/s
+    
+    Castagnoli, No assembler, 32KB payload: (before, after)
+    BenchmarkCastagnoli32KB-4     10000     115426 ns/op      283.89 MB/s
+    BenchmarkCastagnoli32KB-4     30000     45171 ns/op       725.41 MB/s
+    
+    IEEE, No assembler, 1KB payload: (before, after)
+    BenchmarkCrc1KB-4       500000     3604 ns/op         284.10 MB/s
+    BenchmarkCrc1KB-4      1000000     1463 ns/op         699.79 MB/s
+    
+    Compared:
+    benchmark                     old ns/op     new ns/op     delta
+    BenchmarkCastagnoli40B-4      161           100           -37.89%
+    BenchmarkCastagnoli32KB-4     115426        45171         -60.87%
+    BenchmarkCrc1KB-4             3604          1463          -59.41%
+    
+    benchmark                     old MB/s     new MB/s     speedup
+    BenchmarkCastagnoli40B-4      246.94       398.01       1.61x
+    BenchmarkCastagnoli32KB-4     283.89       725.41       2.56x
+    BenchmarkCrc1KB-4             284.10       699.79       2.46x
+    
+    Change-Id: I303e4ec84e8d4dafd057d64c0e43deb2b498e968
+    Reviewed-on: https://go-review.googlesource.com/19335
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/hash/crc32/crc32.go          | 10 ++++++-
+ src/hash/crc32/crc32_amd64.go    |  8 +++--
+ src/hash/crc32/crc32_amd64p32.go |  8 +++--
+ src/hash/crc32/crc32_generic.go  | 12 +++++---
+ src/hash/crc32/crc32_test.go     | 63 +++++++++++++++++++++-------------------
+ 5 files changed, 62 insertions(+), 39 deletions(-)

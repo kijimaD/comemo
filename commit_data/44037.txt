@@ -1,0 +1,46 @@
+commit f1778c28a9c6a898e9d78207847d61b189c49b5c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 17 14:03:07 2020 -0800
+
+    test: recognize and use gc build tag
+    
+    Change the run.go driver to recognize the "gc" build tag.
+    
+    Change existing tests to use the "gc" build tag if they use some
+    feature that seems specific to the gc compiler, such as passing specific
+    options to or expecting specific behavior from "go tool compile".
+    Change tests to use the "!gccgo" build tag if they use "go build" or
+    "go run", as while those might work with compilers other than gc, they
+    won't work with the way that gccgo runs its testsuite (which happens
+    independently of the go command).
+    
+    For #43252
+    
+    Change-Id: I666e04b6d7255a77dfc256ee304094e3a6bb15ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279052
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/fixedbugs/bug302.go         | 2 +-
+ test/fixedbugs/bug369.go         | 2 +-
+ test/fixedbugs/issue10607.go     | 2 +-
+ test/fixedbugs/issue11771.go     | 2 +-
+ test/fixedbugs/issue13268.go     | 1 +
+ test/fixedbugs/issue14636.go     | 2 +-
+ test/fixedbugs/issue16037_run.go | 2 +-
+ test/fixedbugs/issue19658.go     | 2 +-
+ test/fixedbugs/issue21317.go     | 6 +-----
+ test/fixedbugs/issue21576.go     | 2 +-
+ test/fixedbugs/issue22660.go     | 6 +-----
+ test/fixedbugs/issue22662b.go    | 6 +-----
+ test/fixedbugs/issue33275_run.go | 2 +-
+ test/fixedbugs/issue33555.go     | 2 +-
+ test/fixedbugs/issue36437.go     | 2 +-
+ test/fixedbugs/issue9355.go      | 6 +-----
+ test/fixedbugs/issue9862_run.go  | 2 +-
+ test/linkobj.go                  | 2 +-
+ test/linkx_run.go                | 2 +-
+ test/nosplit.go                  | 2 +-
+ test/run.go                      | 2 +-
+ test/sinit_run.go                | 2 +-
+ 22 files changed, 22 insertions(+), 37 deletions(-)

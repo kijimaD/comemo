@@ -1,0 +1,25 @@
+commit 843745240430e6b6c0a94b31ca3ddc2cd77b3b06
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Jan 10 18:30:27 2016 -0800
+
+    crypto/rsa: expand on documentation and add some examples.
+    
+    In some cases the documentation for functions in this package was
+    lacking from the beginning and, in order cases, the documentation didn't
+    keep pace as the package grew.
+    
+    This change somewhat addresses that.
+    
+    Updates #13711.
+    
+    Change-Id: I25b2bb1fcd4658c5417671e23cf8e644d08cb9ab
+    Reviewed-on: https://go-review.googlesource.com/18486
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/rsa/example_test.go | 169 +++++++++++++++++++++++++++++++++++++++++
+ src/crypto/rsa/pkcs1v15.go     |  23 ++++++
+ src/crypto/rsa/rsa.go          |  41 +++++++++-
+ 3 files changed, 232 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit ee7dd810f9ca4e63ecfc1d3044869591783b8b74
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Fri Dec 2 19:43:45 2016 +0000
+
+    crypto/tls: simplify the Handshake locking strategy
+    
+    If in.Mutex is never locked by Handshake when c.handshakeComplete is
+    true, and since c.handshakeComplete is unset and then set back by
+    handleRenegotiation all under both in.Mutex and handshakeMutex, we can
+    significantly simplify the locking strategy by removing the sync.Cond.
+    
+    See also https://groups.google.com/forum/#!topic/golang-dev/Xxiai-R_jH0
+    and a more complete analysis at https://go-review.googlesource.com/c/go/+/33776#message-223a3ccc819f7015cc773d214c65bad70de5dfd7
+    
+    Change-Id: I6052695ece9aff9e3112c2fb176596fde8aa9cb2
+    Reviewed-on: https://go-review.googlesource.com/33776
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/conn.go             | 83 +++++---------------------------------
+ src/crypto/tls/handshake_client.go |  1 -
+ src/crypto/tls/handshake_server.go |  1 -
+ 3 files changed, 11 insertions(+), 74 deletions(-)

@@ -1,0 +1,37 @@
+commit f1903fd4ecbf7a1e524bf71ddecb8650b9d2ea9f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 3 15:03:02 2022 -0800
+
+    go/types, types2: simplify Checker.typeAssertion, use same code in both type checkers
+    
+    - Remove the xtyp argument from the Checker.typeAssertion parameter
+      list; it was confusing and not needed. Adjusted call sites.
+    
+    - Simplify logic in Checker.typeAssertion.
+    
+    - Use the same code in both types2 and go/types, specifically
+      use the same error positions.
+    
+    - Adjust error messages as needed.
+    
+    This removes another subtle discrepancy between types2 and go/types.
+    The go/types error messages don't have the have/want appendix for
+    the affected error messages yet because we don't use case folding
+    in lookups yet.
+    
+    Change-Id: Id39f5c473da36c9baad60082f85cf1f34dc26c50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383014
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/expr.go            | 32 ++++++++--------------
+ src/cmd/compile/internal/types2/stmt.go            | 16 ++++++-----
+ .../internal/types2/testdata/check/issues.src      |  4 +--
+ .../types2/testdata/fixedbugs/issue49005.go        |  5 +---
+ .../types2/testdata/fixedbugs/issue50816.go2       |  4 +--
+ src/go/types/expr.go                               | 31 ++++++++++-----------
+ src/go/types/stmt.go                               | 16 ++++++-----
+ src/go/types/testdata/check/issues.src             |  4 +--
+ src/go/types/testdata/fixedbugs/issue49005.go      | 31 +++++++++++++++++++++
+ src/go/types/testdata/fixedbugs/issue50816.go2     |  4 +--
+ 10 files changed, 84 insertions(+), 63 deletions(-)

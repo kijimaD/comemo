@@ -1,0 +1,14 @@
+commit bebe06a7840bd1344a94a9fcefaccbe35be7f7aa
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 1 18:04:49 2009 -0700
+
+    type switch bug involving function parameter names
+    
+    R=ken
+    OCL=34232
+    CL=34232
+
+ src/cmd/gc/subr.c        |  8 ++++++--
+ src/cmd/gc/swt.c         |  4 ++--
+ test/fixedbugs/bug200.go | 19 +++++++++++++++++++
+ 3 files changed, 27 insertions(+), 4 deletions(-)

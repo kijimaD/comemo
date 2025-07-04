@@ -1,0 +1,13 @@
+commit 4481df645bd0fc6392b560b54e6178efc70d0b1e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 19 10:07:31 2009 -0700
+
+    fix spelling that is correct but bothers me anyway
+    
+    R=rsc
+    DELTA=3  (0 added, 0 deleted, 3 changed)
+    OCL=33496
+    CL=33519
+
+ src/pkg/http/url.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

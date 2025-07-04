@@ -1,0 +1,12 @@
+commit 46d1461ab75d67844ed4292cb7324a23f3a8496a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Dec 9 23:24:58 2013 -0500
+
+    strconv: add example for Unquote.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/38920043
+
+ src/pkg/strconv/quote_example_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)

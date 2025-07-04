@@ -1,0 +1,94 @@
+commit eca41af0124d4c6f29b571815ebcb25dd06fb324
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Mon Feb 19 15:26:49 2018 +0100
+
+    cmd/link: fix up debug_range for dsymutil (revert CL 72371)
+    
+    Dsymutil, an utility used on macOS when externally linking executables,
+    does not support base address selector entries in debug_ranges.
+    
+    CL 73271 worked around this problem by removing base address selectors
+    and emitting CU-relative relocations for each list entry.
+    
+    This commit, as an optimization, reintroduces the base address
+    selectors and changes the linker to remove them again, but only when it
+    knows that it will have to invoke the external linker on macOS.
+    
+    Compilecmp comparing master with a branch that has scope tracking
+    always enabled:
+    
+    completed   15 of   15, estimated time remaining 0s (eta 2:43PM)
+    name        old time/op       new time/op       delta
+    Template          272ms ± 8%        257ms ± 5%  -5.33%  (p=0.000 n=15+14)
+    Unicode           124ms ± 7%        122ms ± 5%    ~     (p=0.210 n=14+14)
+    GoTypes           873ms ± 3%        870ms ± 5%    ~     (p=0.856 n=15+13)
+    Compiler          4.49s ± 2%        4.49s ± 5%    ~     (p=0.982 n=14+14)
+    SSA               11.8s ± 4%        11.8s ± 3%    ~     (p=0.653 n=15+15)
+    Flate             163ms ± 6%        164ms ± 9%    ~     (p=0.914 n=14+15)
+    GoParser          203ms ± 6%        202ms ±10%    ~     (p=0.571 n=14+14)
+    Reflect           547ms ± 7%        542ms ± 4%    ~     (p=0.914 n=15+14)
+    Tar               244ms ± 7%        237ms ± 3%  -2.80%  (p=0.002 n=14+13)
+    XML               289ms ± 6%        289ms ± 5%    ~     (p=0.839 n=14+14)
+    [Geo mean]        537ms             531ms       -1.10%
+    
+    name        old user-time/op  new user-time/op  delta
+    Template          360ms ± 4%        341ms ± 7%  -5.16%  (p=0.000 n=14+14)
+    Unicode           189ms ±11%        190ms ± 8%    ~     (p=0.844 n=15+15)
+    GoTypes           1.13s ± 4%        1.14s ± 7%    ~     (p=0.582 n=15+14)
+    Compiler          5.34s ± 2%        5.40s ± 4%  +1.19%  (p=0.036 n=11+13)
+    SSA               14.7s ± 2%        14.7s ± 3%    ~     (p=0.602 n=15+15)
+    Flate             211ms ± 7%        214ms ± 8%    ~     (p=0.252 n=14+14)
+    GoParser          267ms ±12%        266ms ± 2%    ~     (p=0.837 n=15+11)
+    Reflect           706ms ± 4%        701ms ± 3%    ~     (p=0.213 n=14+12)
+    Tar               331ms ± 9%        320ms ± 5%  -3.30%  (p=0.025 n=15+14)
+    XML               378ms ± 4%        373ms ± 6%    ~     (p=0.253 n=14+15)
+    [Geo mean]        704ms             700ms       -0.58%
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         38.0MB ± 0%       38.4MB ± 0%  +1.12%  (p=0.000 n=15+15)
+    Unicode          28.8MB ± 0%       28.8MB ± 0%  +0.17%  (p=0.000 n=15+15)
+    GoTypes           112MB ± 0%        114MB ± 0%  +1.47%  (p=0.000 n=15+15)
+    Compiler          465MB ± 0%        473MB ± 0%  +1.71%  (p=0.000 n=15+15)
+    SSA              1.48GB ± 0%       1.53GB ± 0%  +3.07%  (p=0.000 n=15+15)
+    Flate            24.3MB ± 0%       24.7MB ± 0%  +1.67%  (p=0.000 n=15+15)
+    GoParser         30.7MB ± 0%       31.0MB ± 0%  +1.15%  (p=0.000 n=12+15)
+    Reflect          76.3MB ± 0%       77.1MB ± 0%  +0.97%  (p=0.000 n=15+15)
+    Tar              39.2MB ± 0%       39.6MB ± 0%  +0.91%  (p=0.000 n=15+15)
+    XML              41.5MB ± 0%       42.0MB ± 0%  +1.29%  (p=0.000 n=15+15)
+    [Geo mean]       77.5MB            78.6MB       +1.35%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           385k ± 0%         387k ± 0%  +0.51%  (p=0.000 n=15+15)
+    Unicode            342k ± 0%         343k ± 0%  +0.10%  (p=0.000 n=14+15)
+    GoTypes           1.19M ± 0%        1.19M ± 0%  +0.62%  (p=0.000 n=15+15)
+    Compiler          4.51M ± 0%        4.54M ± 0%  +0.50%  (p=0.000 n=14+15)
+    SSA               12.2M ± 0%        12.4M ± 0%  +1.12%  (p=0.000 n=14+15)
+    Flate              234k ± 0%         236k ± 0%  +0.60%  (p=0.000 n=15+15)
+    GoParser           318k ± 0%         320k ± 0%  +0.60%  (p=0.000 n=15+15)
+    Reflect            974k ± 0%         977k ± 0%  +0.27%  (p=0.000 n=15+15)
+    Tar                395k ± 0%         397k ± 0%  +0.37%  (p=0.000 n=14+15)
+    XML                404k ± 0%         407k ± 0%  +0.53%  (p=0.000 n=15+15)
+    [Geo mean]         794k              798k       +0.52%
+    
+    name        old text-bytes    new text-bytes    delta
+    HelloSize         680kB ± 0%        680kB ± 0%    ~     (all equal)
+    
+    name        old data-bytes    new data-bytes    delta
+    HelloSize        9.62kB ± 0%       9.62kB ± 0%    ~     (all equal)
+    
+    name        old bss-bytes     new bss-bytes     delta
+    HelloSize         125kB ± 0%        125kB ± 0%    ~     (all equal)
+    
+    name        old exe-bytes     new exe-bytes     delta
+    HelloSize        1.11MB ± 0%       1.13MB ± 0%  +1.85%  (p=0.000 n=15+15)
+    
+    Change-Id: I61c98ba0340cb798034b2bb55e3ab3a58ac1cf23
+    Reviewed-on: https://go-review.googlesource.com/98075
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/internal/dwarf/dwarf.go     | 18 +++++++-----------
+ src/cmd/internal/obj/data.go        | 20 ++++----------------
+ src/cmd/internal/obj/objfile.go     |  5 -----
+ src/cmd/link/internal/ld/dwarf.go   | 22 ++++++++++++----------
+ src/cmd/link/internal/sym/symbol.go | 12 ++----------
+ 5 files changed, 25 insertions(+), 52 deletions(-)

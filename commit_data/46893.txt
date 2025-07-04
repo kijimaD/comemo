@@ -1,0 +1,27 @@
+commit 0fd0639e4c429e147d33bfc42654fcd651f4449f
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Oct 12 15:08:54 2021 -0700
+
+    cmd/go: stamp tags and flags in build info
+    
+    Toolchain flags (like -gcflags), build tags (including race and msan),
+    and cgo variables (including CGO_ENABLED, CGO_CPPFLAGS and others) are
+    now stamped into binaries.
+    
+    For #37475
+    
+    Change-Id: I9023e682c0618f91805434946c6bc937536b69bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355493
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                              |  7 ++-
+ src/cmd/go/go_test.go                              |  2 +-
+ src/cmd/go/internal/cfg/cfg.go                     |  1 +
+ src/cmd/go/internal/load/flag.go                   |  6 +-
+ src/cmd/go/internal/load/pkg.go                    | 33 ++++++++++-
+ src/cmd/go/internal/work/build.go                  |  8 ++-
+ .../go/testdata/script/version_build_settings.txt  | 66 ++++++++++++++++++++++
+ 7 files changed, 115 insertions(+), 8 deletions(-)

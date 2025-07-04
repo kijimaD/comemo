@@ -1,0 +1,29 @@
+commit f8abdd6c8a6bb4882e708f87d1e83ba5f897aeff
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 13 16:38:01 2019 -0800
+
+    cmd/gofmt: normalize integer imaginary literals starting with 0
+    
+    An 'i' suffix on an integer literal marks the integer literal as
+    a decimal integer imaginary value, even if the literal without the
+    suffix starts with a 0 and thus looks like an octal value:
+    
+            0123i == 123i // != 0123 * 1i
+    
+    This is at best confusing, and at worst a potential source of bugs.
+    It is always safe to rewrite such literals into the equivalent
+    literal without the leading 0.
+    
+    This CL implements this normalization.
+    
+    Change-Id: Ib77ad535f98b5be912ecbdec20ca1b472c1b4973
+    Reviewed-on: https://go-review.googlesource.com/c/162538
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/gofmt/gofmt.go                   | 51 ++++++++++++++++++++++++--------
+ src/cmd/gofmt/testdata/go2numbers.golden | 14 ++++++++-
+ src/cmd/gofmt/testdata/go2numbers.input  | 12 ++++++++
+ 3 files changed, 63 insertions(+), 14 deletions(-)

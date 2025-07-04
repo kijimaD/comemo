@@ -1,0 +1,19 @@
+commit f6fb549d22a66516ae96720e9a322aad80d0aaa7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 23 12:19:09 2015 -0400
+
+    runtime/cgo: move TMPDIR magic out of os
+    
+    It's not clear this really belongs anywhere at all,
+    but this is a better place for it than package os.
+    This way package os can avoid importing "C".
+    
+    Fixes #10455.
+    
+    Change-Id: Ibe321a93bf26f478951c3a067d75e22f3d967eb7
+    Reviewed-on: https://go-review.googlesource.com/12574
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/{os/file_darwin.go => runtime/cgo/tmpdir_darwin.go} | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

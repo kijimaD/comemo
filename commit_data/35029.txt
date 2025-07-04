@@ -1,0 +1,17 @@
+commit 4074a67c49b72c846912952c8a511d25c5b3585d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 17 14:54:06 2018 -0700
+
+    go/internal/gcimporter: extract ChanDir and fake FileSet logic
+    
+    This code will be useful for the indexed format importer, so break it
+    out to be easier to reuse separately.
+    
+    Change-Id: Ie7e6b2ed89770e1ed9aa1edf11682fe35d6bb373
+    Reviewed-on: https://go-review.googlesource.com/107617
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/internal/gcimporter/bimport.go | 53 ++++++++++++++++++++++-------------
+ 1 file changed, 33 insertions(+), 20 deletions(-)

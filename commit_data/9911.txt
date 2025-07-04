@@ -1,0 +1,13 @@
+commit d3eefb8cf31f149b250ebd2c9297fc3fa40ff298
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Oct 9 06:50:21 2011 +1100
+
+    dashboard: include last 100 lines in build failure mail
+    
+    R=golang-dev, rsc, iant, robert.hencke
+    CC=golang-dev
+    https://golang.org/cl/5235041
+
+ misc/dashboard/godashboard/fail-notify.txt |  3 +++
+ misc/dashboard/godashboard/gobuild.py      | 12 ++++++++----
+ 2 files changed, 11 insertions(+), 4 deletions(-)

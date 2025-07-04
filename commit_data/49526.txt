@@ -1,0 +1,21 @@
+commit b9c4d94fdbe0c9e11a1e604cf321614b90a1d882
+Author: Sean Liao <sean@liao.dev>
+Date:   Tue Mar 22 22:00:22 2022 +0000
+
+    cmd/go/internal/list: update help info with Deprecated field
+    
+    Also align Retracted documentation with actual type of []string
+    
+    Fixes #51876
+    
+    Change-Id: I3b34e53424aa7ee5330eb71adac23510fff91798
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394677
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go/alldocs.go            | 27 ++++++++++++++-------------
+ src/cmd/go/internal/list/list.go | 27 ++++++++++++++-------------
+ 2 files changed, 28 insertions(+), 26 deletions(-)

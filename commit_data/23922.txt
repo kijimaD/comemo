@@ -1,0 +1,13 @@
+commit 2ae3581639ec2e481b1d1168d7db50b97d7bffb6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 30 15:25:29 2015 +0200
+
+    A+C: automated update
+    
+    Change-Id: Ie4431e74f095b85b4b5c07d087c3d29acf46d138
+    Reviewed-on: https://go-review.googlesource.com/12902
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ AUTHORS      | 11 +++++++++++
+ CONTRIBUTORS | 13 +++++++++++++
+ 2 files changed, 24 insertions(+)

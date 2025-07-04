@@ -1,0 +1,21 @@
+commit 35ffca31b180e6f9da6035326132f048980dc58c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 21 07:14:51 2017 -0800
+
+    os/exec: deflake TestStdinCloseRace
+    
+    Stop reporting errors from cmd.Process.Kill; they don't matter for
+    purposes of this test, and they can occur if the process exits quickly.
+    
+    Fixes #19211.
+    Fixes #19213.
+    
+    Change-Id: I1a0bb9170220ca69199abb8e8811b1dde43e1897
+    Reviewed-on: https://go-review.googlesource.com/37309
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/exec/exec_test.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

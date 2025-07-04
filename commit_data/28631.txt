@@ -1,0 +1,19 @@
+commit 7e0218cdb204cec082601988324d54ef484a8f5f
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Sep 30 12:04:46 2016 -0400
+
+    cmd/compile: remove unnecessary OpSB checks in S390X.rules
+    
+    Reversed, indexed and multi-register stores/loads cannot accept SB
+    inputs. Therefore if one of these Ops is an input to a rule any
+    pointer that is an argument to that Op cannot be OpSB.
+    
+    Change-Id: Ib8048362d1c6277122afec0d13a1c905290d69cb
+    Reviewed-on: https://go-review.googlesource.com/30131
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  38 -------
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 152 +++++++++++++--------------
+ 2 files changed, 76 insertions(+), 114 deletions(-)

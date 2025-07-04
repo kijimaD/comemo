@@ -1,0 +1,16 @@
+commit 9656f9296e5b3e25540689e38d5fe59cc088911c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Oct 21 15:29:32 2024 +0200
+
+    crypto/internal/mlkem768: unexport encryptionKey.A
+    
+    Change-Id: I001e48dbb476e590cd84194f386bf5ea4cc1a1b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621976
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/crypto/internal/mlkem768/mlkem768.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

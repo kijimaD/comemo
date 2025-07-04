@@ -1,0 +1,15 @@
+commit 792ff386043cd40604ff34bfaab4879c375f7a04
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 7 14:45:45 2011 -0500
+
+    http: fix cookie_test
+    
+    Was only breaking on some dashboard builds because
+    not all run the network tests.
+    
+    R=bradfitzgo, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4240086
+
+ src/pkg/http/cookie_test.go | 28 +++++++++++++++++++++-------
+ 1 file changed, 21 insertions(+), 7 deletions(-)

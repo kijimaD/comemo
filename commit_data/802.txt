@@ -1,0 +1,17 @@
+commit 8877d27b401046f6b6403946ad5bcb50dd349539
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Oct 3 16:12:21 2008 -0700
+
+    interfaces of all types
+    
+    R=r
+    OCL=16462
+    CL=16462
+
+ src/cmd/6g/align.c  |  2 +-
+ src/cmd/6g/gg.h     |  2 --
+ src/cmd/6g/obj.c    | 84 ++++++++++++++++++++++++++++++-----------------------
+ src/cmd/gc/go.h     |  2 +-
+ src/cmd/gc/subr.c   | 40 +++++++++----------------
+ src/runtime/iface.c | 30 ++++++++++---------
+ 6 files changed, 80 insertions(+), 80 deletions(-)

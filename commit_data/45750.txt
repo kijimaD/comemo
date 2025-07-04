@@ -1,0 +1,23 @@
+commit 79cd407f88f640b889df7645bf3e0491ed25eac7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 4 10:56:06 2021 -0400
+
+    syscall: regenerate zsyscall_windows.go
+    
+    The declaration order in CL 319310 does not match what the generator
+    produces from scratch. That currently causes
+    cmd/internal/moddeps.TestAllDependencies to fail, since it is
+    explicitly checking for that kind of skew.
+    
+    Updates #45914
+    
+    Change-Id: If2a9cabc3d54e21deba7cb438fa364df205f38ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325112
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/syscall/zsyscall_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

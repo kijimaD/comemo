@@ -1,0 +1,16 @@
+commit d3450d85ec2223358f1e1724001f61e8a64b9a0c
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Thu Aug 8 10:57:32 2013 -0700
+
+    misc/notepadplus: fix functionList regex issue
+    
+    The receiver name is optional. when Method's receiver name messing,
+    the functionList regex can't match the Method,
+    e.g. `func (*T) ProtoMessage() {}`.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12530044
+
+ misc/notepadplus/functionList.xml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

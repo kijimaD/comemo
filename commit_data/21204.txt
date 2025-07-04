@@ -1,0 +1,17 @@
+commit e16ab38dc9dd788a17b989484d32dca0ef643c45
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 7 17:05:51 2015 -0800
+
+    build: increase Plan 9 timeout for runtime multi-CPU test, add temporary -v
+    
+    This isn't the final answer, but it will give us a clue about what's
+    going on.
+    
+    Update #9491
+    
+    Change-Id: I997f6004eb97e86a4a89a8caabaf58cfdf92a8f0
+    Reviewed-on: https://go-review.googlesource.com/2510
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/run.rc | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

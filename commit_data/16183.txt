@@ -1,0 +1,14 @@
+commit a5fe79ef787ab6b9048368648736ca66f3622f5b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 16 13:30:52 2013 -0700
+
+    cmd/dist, make.bash: pass -mmacosx-version-min=10.6 to gcc on Darwin
+    Fixes #5261.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8798044
+
+ src/cmd/dist/build.c | 4 ++++
+ src/make.bash        | 4 ++++
+ 2 files changed, 8 insertions(+)

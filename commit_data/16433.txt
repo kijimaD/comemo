@@ -1,0 +1,12 @@
+commit a307c5c9b700f80b396e5cc6b4b8cfb74d96c770
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu May 30 02:59:57 2013 +0800
+
+    misc/cgo/test: check API compatibility for cgo pseudo-functions
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/9826043
+
+ misc/cgo/test/api.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

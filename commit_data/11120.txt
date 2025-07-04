@@ -1,0 +1,15 @@
+commit e955a3cca2ad600666f2f814aad6075a42a88d4d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 12 14:15:58 2012 +1100
+
+    net/textproto: always copy the data from bufio to avoid corruption
+    
+    Fixes #2621.
+    
+    R=rsc, rsc
+    CC=golang-dev
+    https://golang.org/cl/5498104
+
+ src/pkg/net/textproto/reader.go      | 71 +++++++++++-------------------------
+ src/pkg/net/textproto/reader_test.go |  9 +++++
+ 2 files changed, 30 insertions(+), 50 deletions(-)

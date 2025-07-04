@@ -1,0 +1,17 @@
+commit fcd877ea8abd737c0b9dcfa36e27589ae62cffb9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 22 15:52:33 2011 -0800
+
+    fix build: correct build scripts
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5498075
+
+ src/buildscript_darwin_amd64.sh  | 1 -
+ src/buildscript_freebsd_amd64.sh | 1 -
+ src/buildscript_linux_amd64.sh   | 1 -
+ src/buildscript_netbsd_amd64.sh  | 1 -
+ src/buildscript_openbsd_amd64.sh | 1 -
+ src/buildscript_windows_amd64.sh | 1 -
+ 6 files changed, 6 deletions(-)

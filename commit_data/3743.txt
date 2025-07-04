@@ -1,0 +1,17 @@
+commit bcce2987e0ea9ba25d102f3565eac04e84307181
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Nov 3 17:23:50 2009 -0800
+
+    crypto/rsa: fix blinding when using a null random source.
+    
+    For testing it can be useful to use a null random source (one which
+    always returns zero) to remove non-determinism from the tests.
+    However, when performing RSA blinding, the random blind ends up being
+    zero and it's hard to reverse a multiplication by zero.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1018033
+
+ src/pkg/crypto/rsa/rsa.go | 4 ++++
+ 1 file changed, 4 insertions(+)

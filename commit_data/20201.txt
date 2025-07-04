@@ -1,0 +1,29 @@
+commit 1ad1c0bf31d878b32d8b093e84fed7bcc369f9cd
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 29 09:54:00 2014 -0700
+
+    text/template: add back pointer to Nodes for better error generation
+    ErrorContext now has all the information it needs from the Node,
+    rather than depending on the template that contains it. This makes
+    it easier for html/template to generate correct locations in its
+    error messages.
+    
+    Updated html/template to use this ability where it is easy, which is
+    not everywhere, but more work can probably push it through.
+    
+    Fixes #8577.
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/130620043
+
+ src/pkg/html/template/error.go            |  16 +-
+ src/pkg/html/template/escape.go           |  75 ++++-----
+ src/pkg/html/template/escape_test.go      |  18 +--
+ src/pkg/html/template/template.go         |   4 +-
+ src/pkg/html/template/transition.go       |  12 +-
+ src/pkg/text/template/parse/node.go       | 250 +++++++++++++++++++++---------
+ src/pkg/text/template/parse/parse.go      |  62 ++++----
+ src/pkg/text/template/parse/parse_test.go |   3 +-
+ 8 files changed, 272 insertions(+), 168 deletions(-)

@@ -1,0 +1,39 @@
+commit aafd96408feef0785d32fd3e1c5a67d4159a98e7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 10 10:19:43 2017 -0700
+
+    runtime: speed up stack copying
+    
+    I was surprised to see readvarint show up in a cpu profile.
+    
+    Use a few simple optimizations to speed up stack copying:
+    
+    * Avoid making a copy of the cache.entries array or any of its elements.
+    * Use a shift instead of a signed division in stackmapdata.
+    * Change readvarint to return the number of bytes consumed
+      rather than an updated slice.
+    * Make some minor optimizations to readvarint to help the compiler.
+    * Avoid called readvarint when the value fits in a single byte.
+    
+    The first and last optimizations are the most significant,
+    although they all contribute a little.
+    
+    Add a benchmark for stack copying that includes lots of different
+    functions in a recursive loop, to bust the cache.
+    
+    This might speed up other runtime operations as well;
+    I only benchmarked stack copying.
+    
+    name                old time/op  new time/op  delta
+    StackCopy-8         96.4ms ± 2%  82.7ms ± 1%  -14.24%  (p=0.000 n=20+19)
+    StackCopyNoCache-8   167ms ± 1%   131ms ± 1%  -21.58%  (p=0.000 n=20+20)
+    
+    Change-Id: I13d5c455c65073c73b656acad86cf8e8e3c9807b
+    Reviewed-on: https://go-review.googlesource.com/43150
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/stack_test.go | 172 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/symtab.go     |  33 ++++++---
+ 2 files changed, 195 insertions(+), 10 deletions(-)

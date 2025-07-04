@@ -1,0 +1,35 @@
+commit cc09212f59ee215cae5345dc1ffcd1ed81664e1b
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 1 09:42:04 2018 -0700
+
+    runtime: use libc for nanotime on Darwin
+    
+    Use mach_absolute_time and mach_timebase_info to get nanosecond-level
+    timing information from libc on Darwin.
+    
+    The conversion code from Apple's arbitrary time unit to nanoseconds is
+    really annoying.  It would be nice if we could replace the internal
+    runtime "time" with arbitrary units and put the conversion to nanoseconds
+    only in the places that really need it (so it isn't in every nanotime call).
+    
+    It's especially annoying because numer==denom==1 for all the machines
+    I tried.  Makes it hard to test the conversion code :(
+    
+    Update #17490
+    
+    Change-Id: I6c5d602a802f5c24e35184e33d5e8194aa7afa86
+    Reviewed-on: https://go-review.googlesource.com/110655
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/asm_386.s            |  2 ++
+ src/runtime/defs_darwin.go       |  3 +++
+ src/runtime/defs_darwin_386.go   |  4 +++
+ src/runtime/defs_darwin_amd64.go |  4 +++
+ src/runtime/stubs3.go            |  1 +
+ src/runtime/stubs4.go            |  9 +++++++
+ src/runtime/sys_darwin.go        | 25 +++++++++++++++++++
+ src/runtime/sys_darwin_386.s     | 38 ++++++++++++++++++++++------
+ src/runtime/sys_darwin_amd64.s   | 54 +++++++++++++++++++++-------------------
+ 9 files changed, 107 insertions(+), 33 deletions(-)

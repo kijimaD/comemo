@@ -1,0 +1,35 @@
+commit 1b1c6b838e678cbc9d93a78324fb5de873cd4487
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Feb 23 00:02:27 2025 +1100
+
+    cmd/compile: simplify intrinsification of BitLen16 and BitLen8
+    
+    Decompose BitLen16 and BitLen8 within the SSA rules for architectures that
+    support BitLen32 or BitLen64, rather than having a custom intrinsic.
+    
+    Change-Id: Ie4188ce69d1021e63cec27a8e7418efb0714812b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651817
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/ARM.rules     |  1 +
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules   |  1 +
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  1 +
+ src/cmd/compile/internal/ssa/_gen/MIPS.rules    |  1 +
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules   |  1 +
+ src/cmd/compile/internal/ssa/_gen/S390X.rules   |  1 +
+ src/cmd/compile/internal/ssa/_gen/Wasm.rules    |  1 +
+ src/cmd/compile/internal/ssa/rewriteARM.go      | 34 +++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go    | 34 +++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 34 +++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS.go     | 34 +++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go    | 34 +++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go    | 51 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteWasm.go     | 51 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/intrinsics.go   | 39 +++----------------
+ 15 files changed, 284 insertions(+), 34 deletions(-)

@@ -1,0 +1,12 @@
+commit 008c62b2cd728db744dcef53f1226cb1e43ba617
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 12 09:36:35 2012 -0700
+
+    math/big: optimize common case of Int.Bit(0)
+    
+    R=golang-dev, dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/6306069
+
+ src/pkg/math/big/int.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

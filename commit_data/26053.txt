@@ -1,0 +1,20 @@
+commit 3858efcc586914634c5a64b8ef289abe7d4d28b3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 3 17:39:55 2016 -0800
+
+    math/big: use correct precision in Float.Float32/64 for denormals
+    
+    When a big.Float is converted to a denormal float32/64, the rounding
+    precision depends on the size of the denormal. Rounding may round up
+    and thus change the size (exponent) of the denormal. Recompute the
+    correct precision again for correct placement of the mantissa.
+    
+    Fixes #14553.
+    
+    Change-Id: Iedab5810a2d2a405cc5da28c6de7be34cb035b86
+    Reviewed-on: https://go-review.googlesource.com/20198
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 24 +++++++++++++----------
+ src/math/big/float_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+), 10 deletions(-)

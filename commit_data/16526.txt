@@ -1,0 +1,12 @@
+commit b637135003cd1b3dbc3cffe2c63752888713503d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jun 11 02:51:01 2013 +0800
+
+    cmd/cgo: makes clang happy by not using __gcc_struct__ attribute.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/10150043
+
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

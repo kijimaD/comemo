@@ -1,0 +1,13 @@
+commit b1a52ce4a3eafe41b15c224e67debff60475b26f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 8 22:13:10 2009 -0800
+
+    make hg mail more forgiving:
+    create CL first, even if gofmt is needed
+    or no reviewers listed.
+    
+    R=r
+    http://go/go-review/1025025
+
+ lib/codereview/codereview.py | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

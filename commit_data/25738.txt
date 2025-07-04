@@ -1,0 +1,20 @@
+commit 7ebf653fcc8510f260a1afbc3fb9e3de157dfe04
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 9 12:58:35 2016 -0800
+
+    go/internal/gcimporter: interpret relative srcDir relative to cwd
+    
+    1) go/types.dir: Correctly return "." if there is no path.
+    2) go/internal/gcimporter.FindPkg: work-around for build.Import
+       (build.Import doesn't produce expected result if srcDir is
+       relative). See also issue 14282.
+    
+    Fixes #14215.
+    
+    Change-Id: Ia3721f9ad8a1115d2595fe99b04baaf30d5765f2
+    Reviewed-on: https://go-review.googlesource.com/19393
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/go/internal/gcimporter/gcimporter.go |  6 +++++-
+ src/go/types/resolver.go                 | 10 ++++------
+ 2 files changed, 9 insertions(+), 7 deletions(-)

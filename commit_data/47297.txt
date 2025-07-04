@@ -1,0 +1,22 @@
+commit 4c7cafdd03426bc2b9fb1275d13d0abc755dde16
+Author: Charlie Getzen <charlie@bolt.com>
+Date:   Fri Nov 5 17:27:35 2021 +0000
+
+    net/http: distinguish between timeouts and client hangups in TimeoutHandler
+    
+    Fixes #48948
+    
+    Change-Id: I411e3be99c7979ae289fd937388aae63d81adb59
+    GitHub-Last-Rev: 14abd7e4d774ed5ef63aa0a69e80fbc8b5a5af26
+    GitHub-Pull-Request: golang/go#48993
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356009
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/http/export_test.go |  7 +----
+ src/net/http/serve_test.go  | 63 ++++++++++++++++++++++++++++++++++++++++-----
+ src/net/http/server.go      | 20 +++++++++-----
+ 3 files changed, 71 insertions(+), 19 deletions(-)

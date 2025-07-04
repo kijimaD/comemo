@@ -1,0 +1,14 @@
+commit 87b1f05dbe96d799e6a7ecfa6671f819d5090242
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 21 11:56:47 2009 -0800
+
+    sys.readfile has been removed.  Remove the test case for it.
+    It was disabled last week anyhow.
+    
+    R=r,rsc
+    DELTA=24  (0 added, 24 deleted, 0 changed)
+    OCL=23205
+    CL=23220
+
+ test/readfile.go | 28 ----------------------------
+ 1 file changed, 28 deletions(-)

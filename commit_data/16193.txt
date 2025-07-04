@@ -1,0 +1,16 @@
+commit b08a3164c0a10b608db0e9fafcdc3c9168e3cffe
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Apr 17 23:21:15 2013 -0700
+
+    crypto/rand: better panic message for invalid Int argument.
+    
+    Also document the panic to be consistent with math/rand.
+    
+    Fixes #5187.
+    
+    R=golang-dev, dave, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/8303043
+
+ src/pkg/crypto/rand/util.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

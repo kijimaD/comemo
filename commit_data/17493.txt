@@ -1,0 +1,15 @@
+commit 52f15df9e2e9fada55c7f132242eb78a8ba4f3ab
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Sep 6 16:55:35 2013 -0400
+
+    cmd/go: rename go.exe if cannot delete it during clean
+    
+    Fixes #6179
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12916047
+
+ src/cmd/go/build.go |  2 +-
+ src/cmd/go/clean.go | 20 ++++++++++++++++++--
+ 2 files changed, 19 insertions(+), 3 deletions(-)

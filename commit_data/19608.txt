@@ -1,0 +1,14 @@
+commit 0852368f88b0c90ec323e96f25033677f81b1ffd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 24 16:33:32 2014 -0700
+
+    A+C: add Tetsuo Kiso (personal CLA)
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/101520043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

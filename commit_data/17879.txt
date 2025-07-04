@@ -1,0 +1,14 @@
+commit 2fbcb0819206775b919ca62eca961f94df06d0f4
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 12 20:04:22 2013 -0800
+
+    doc/asm.html: new document, a brief guide to the assembler
+    
+    Fixes #6060
+    
+    R=golang-dev, iant, bradfitz, josharian, minux.ma, aram, rsc
+    CC=golang-dev
+    https://golang.org/cl/20930043
+
+ doc/asm.html | 402 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 402 insertions(+)

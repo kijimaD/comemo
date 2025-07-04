@@ -1,0 +1,17 @@
+commit 10b53867e85dd2c43b2bb7ee7eb892019b2c08cf
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 20 16:38:57 2010 -0400
+
+    encoding/hex: fix typo
+    
+    Thanks to avadh4all for spotting it.
+    
+    Fixes #1214.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2616041
+
+ src/pkg/encoding/hex/hex.go      | 2 +-
+ src/pkg/encoding/hex/hex_test.go | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

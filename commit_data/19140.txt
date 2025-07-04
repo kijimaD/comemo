@@ -1,0 +1,15 @@
+commit d826b2ed98ba7d37bd09addc9df16320e58f9e4e
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue Apr 15 08:46:21 2014 +0200
+
+    cmd/dist: use GOHOSTARCH/GOHOSTOS instead of GOOS/GOARCH for host libraries and binaries
+    
+    Fixes #6559
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/81330045
+
+ src/cmd/dist/build.c | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)

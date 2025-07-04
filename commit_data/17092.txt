@@ -1,0 +1,18 @@
+commit bdbd5418f4c2dc87fa18e6b39e4ead21c6d87bbe
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Thu Aug 8 10:44:01 2013 -0700
+
+    os: make Readdir work as documented
+    
+    Readdir's result should never contain a nil.
+    
+    Fixes #5960.
+    
+    R=golang-dev, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12261043
+
+ src/pkg/os/export_test.go  |  1 +
+ src/pkg/os/file_unix.go    | 11 ++++++++---
+ src/pkg/os/os_unix_test.go | 40 +++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 48 insertions(+), 4 deletions(-)

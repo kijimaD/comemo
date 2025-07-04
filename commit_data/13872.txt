@@ -1,0 +1,15 @@
+commit 4d7c81bc674479a6d21cbeec14bb1d6dac5e4a8c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Sep 20 00:18:41 2012 +0800
+
+    cmd/ld: consistent binary for cgo programs
+    We use pkg path instead of file name (which contains $WORK) in section symbols names.
+    
+    R=golang-dev, fullung, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/6445085
+
+ src/cmd/ld/ldelf.c   | 3 +--
+ src/cmd/ld/ldmacho.c | 3 +--
+ src/cmd/ld/ldpe.c    | 3 +--
+ 3 files changed, 3 insertions(+), 6 deletions(-)

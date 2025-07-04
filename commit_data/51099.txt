@@ -1,0 +1,30 @@
+commit d031e9e07a07afef8d16576fd7079a739a7e4394
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Oct 28 15:59:43 2022 -0500
+
+    cmd/compile/internal/ssa: re-adjust CarryChainTail scheduling priority
+    
+    This needs to be as low as possible while not breaking priority
+    assumptions of other scores to correctly schedule carry chains.
+    
+    Prior to the arm64 changes, it was set below ReadTuple. At the time,
+    this prevented the MulHiLo implementation on PPC64 from occluding
+    the scheduling of a full carry chain.
+    
+    Memory scores can also prevent better scheduling, as can be observed
+    with crypto/internal/edwards25519/field.feMulGeneric.
+    
+    Fixes #56497
+    
+    Change-Id: Ia4b54e6dffcce584faf46b1b8d7cea18a3913887
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447435
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/schedule.go |  2 +-
+ test/codegen/mathbits.go                 | 33 ++++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)

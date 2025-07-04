@@ -1,0 +1,18 @@
+commit 93e97ef066d3aad0a51a4a54212382f04c142255
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 20 15:22:21 2017 -0700
+
+    cmd/compile/internal/gc: update comment in plive.go
+    
+    onebitwalktype1 no longer appears to be a bottleneck for the mentioned
+    test case. In fact, we appear to compile it significantly faster now
+    than Go 1.4 did (~1.8s vs ~3s).
+    
+    Fixes #21951.
+    
+    Change-Id: I315313e906092a7d6ff4ff60a918d80a4cff7a7f
+    Reviewed-on: https://go-review.googlesource.com/65110
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

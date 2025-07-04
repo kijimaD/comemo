@@ -1,0 +1,12 @@
+commit cd2e2f60e77c05d68755ce5df4c401be1ea5b0d3
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 1 15:49:40 2015 +1000
+
+    doc: add most major changes and most net changes to go1.5.html
+    
+    Change-Id: Ied305480f22b60767c4628e5a31236ac01eafc86
+    Reviewed-on: https://go-review.googlesource.com/11825
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.5.html | 162 ++++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 121 insertions(+), 41 deletions(-)

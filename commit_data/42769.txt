@@ -1,0 +1,17 @@
+commit b0cc02e8c2bdba5401838d9d70a859191af9bfa5
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Aug 19 16:54:36 2020 +0200
+
+    internal/poll: treat copy_file_range EPERM as not-handled
+    
+    Fixes #40893
+    
+    Change-Id: I938ea4796c1e1d1e136117fe78b06ad6da8e40de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249257
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Antonio Troina <thoeni@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/copy_file_range_linux.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

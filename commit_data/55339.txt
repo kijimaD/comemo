@@ -1,0 +1,50 @@
+commit c95fe91d0715dc0a8d55ac80a80f383c3635548b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Dec 29 22:56:58 2023 +1100
+
+    runtime: correct scavengeIndex.sysGrow min index handling
+    
+    The backing store for the scavengeIndex chunks slice is allocated on demand
+    as page allocation occurs. When pageAlloc.grow is called, a range is
+    allocated from a reserved region, before scavengeIndex.grow is called
+    to ensure that the chunks needed to manage this new range have a valid
+    backing store. The valid region for chunks is recorded as the index min
+    and index max. Any changes need to take the existing valid range into
+    consideration and ensure that a contiguous valid range is maintained.
+    
+    However, a bug in the min index handling can currently lead to an existing
+    part of the chunk slice backing store being zeroed via remapping. Initially,
+    there is no backing store allocated and both min and max are zero. As soon
+    as an allocation occurs max will be non-zero, however it is still valid for
+    min to be zero depending on the base addresses of the page allocations. A
+    sequence like the following will trigger the bug:
+    
+    1. A page allocation occurs requiring chunks [0, 512) (after rounding) - a
+       sysMap occurs for the backing store, min is set to 0 and max is set
+       to 512.
+    
+    2. A page allocation occurs requiring chunks [512, 1024) - another sysMap
+       occurs for this part of the backing store, max is set to 1024, however
+       min is incorrectly set to 512, since haveMin == 0 (validly).
+    
+    3. Another page allocation occurs requiring chunks [0, 512) - since min is
+       currently 512 a sysMap occurs for the already mapped and inuse part
+       of the backing store from [0, 512), zeroing the chunk data.
+    
+    Correct this by only updating min when either haveMax == 0 (the
+    uninitialised case) or when needMin < haveMin (the case where the new
+    backing store range is actually below the current allocation). Remove
+    the unnecessary haveMax == 0 check for updating max, as the existing
+    needMax > haveMax case already covers this.
+    
+    Fixes #63385
+    
+    Change-Id: I9deed74c4ffa187c98286fe7110e5d735e81f35f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553135
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+
+ src/runtime/mpagealloc_64bit.go | 23 ++++++++++-------------
+ 1 file changed, 10 insertions(+), 13 deletions(-)

@@ -1,0 +1,26 @@
+commit e948c3394ee137bae45e85cfa7c8ec0bb0e16dc8
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Apr 15 18:09:48 2022 -0700
+
+    reflect: make Value.Type inlineable
+    
+    This allows the result of Type to be computed much faster.
+    
+    Performance:
+    
+            old     new     delta
+            1.76ns  0.66ns  -62.27%
+    
+    Change-Id: Ie007fd175aaa41b2f67c71fa2a34ab8d292dd0e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400335
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/reflect/value.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

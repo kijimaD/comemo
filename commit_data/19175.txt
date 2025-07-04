@@ -1,0 +1,13 @@
+commit 3af8d6fa4ae61a56350d09b886a9f18937fa5fb9
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Wed Apr 16 12:15:39 2014 -0700
+
+    doc/go1.3.html: fix id anchor for FreeBSD
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/88000047
+
+ doc/go1.3.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 9f002f6892fb68c0f6fd504fbf1468f17de77eb6
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 20 12:15:10 2010 -0700
+
+    gc: delete debug print
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1732043
+
+ src/cmd/gc/subr.c | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,38 @@
+commit b3b8d2bfeb0ad36426f8b308afda634442708c3c
+Author: Christian Stewart <christian@paral.in>
+Date:   Wed Jun 1 20:52:12 2022 +0000
+
+    cmd/dist: use gohostarch for ssa rewrite check
+    
+    Fix a build failure when bootstrapping the Go compiler with go-bootstrap 1.4
+    while the environment contains GOARCH=riscv64.
+    
+    Building Go toolchain1 using go-1.4-bootstrap-20171003.
+    src/cmd/compile/internal/ssa/rewriteRISCV64.go:4814
+    invalid operation: y << x (shift count type int64, must be unsigned integer)
+    
+    This is because:
+    
+     - buildtool.go:198: calls bootstrapRewriteFile(src)
+     - bootstrapRewriteFile: buildtool.go:283 calls:
+     - isUnneededSSARewriteFile: checks os.Getenv("GOARCH")
+     - isUnneededSSARewriteFile: returns "", false
+     - bootstrapRewriteFile: calls bootstrapFixImports
+     - boostrapFixImports: generates code go1.4 cannot compile
+    
+    Instead of checking "GOARCH" in the environment, use the gohostarch variable.
+    
+    Change-Id: Ie9c190498555c4068461fead6278a62e924062c6
+    GitHub-Last-Rev: 300d7a7fea0a67c696970fd271e2ce709674a658
+    GitHub-Pull-Request: golang/go#52362
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400376
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+
+ src/cmd/dist/buildtool.go | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

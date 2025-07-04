@@ -1,0 +1,29 @@
+commit 479501c14c9d36e27727bc4b4294d57c5ddc29d0
+Author: Austin Clements <austin@google.com>
+Date:   Sat Apr 16 18:27:38 2016 -0400
+
+    runtime: count black allocations toward scan work
+    
+    Currently we count black allocations toward the scannable heap size,
+    but not toward the scan work we've done so far. This is clearly
+    inconsistent (we have, in effect, scanned these allocations and since
+    they're already black, we're not going to scan them again). Worse, it
+    means we don't count black allocations toward the scannable heap size
+    as of the *next* GC because this is based on the amount of scan work
+    we did in this cycle.
+    
+    Fix this by counting black allocations as scan work. Currently the GC
+    spends very little time in allocate-black mode, so this probably
+    hasn't been a problem, but this will become important when we switch
+    to always allocating black.
+    
+    Change-Id: If6ff693b070c385b65b6ecbbbbf76283a0f9d990
+    Reviewed-on: https://go-review.googlesource.com/22119
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/malloc.go  | 8 +++++---
+ src/runtime/mgc.go     | 9 +++++++--
+ src/runtime/mgcmark.go | 4 +++-
+ 3 files changed, 15 insertions(+), 6 deletions(-)

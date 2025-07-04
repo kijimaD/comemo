@@ -1,0 +1,14 @@
+commit 1537f14db558ced001ba6e5d75dadcca173b0189
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Wed Sep 22 15:54:35 2021 +0800
+
+    io: fix spelling in documentation
+    
+    Change-Id: Ie23a9f1300a803d9c713e82b0d892dd90333ca7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351371
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/io/io.go         | 2 +-
+ src/io/multi_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

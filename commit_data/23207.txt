@@ -1,0 +1,22 @@
+commit 496ad0a286e556c9faf3bc11540986375b284b08
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 26 21:49:31 2015 -0400
+
+    cmd/compile: move Node.Paramfld to Node.Param.Field
+    
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 264
+    $
+    
+    Change-Id: I5c90089dcf5df51c874250f28a1bc3ec32f764b9
+    Reviewed-on: https://go-review.googlesource.com/10522
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/dcl.go       |  2 +-
+ src/cmd/compile/internal/gc/esc.go       |  2 +-
+ src/cmd/compile/internal/gc/pgen.go      |  4 ++--
+ src/cmd/compile/internal/gc/syntax.go    | 35 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/typecheck.go | 13 +++++++++++-
+ src/cmd/compile/internal/gc/walk.go      | 11 +++++-----
+ 6 files changed, 40 insertions(+), 27 deletions(-)

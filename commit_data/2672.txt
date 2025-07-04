@@ -1,0 +1,13 @@
+commit 7c06f285d06f8c76d58194333b29748a58c2a642
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 10 18:21:07 2009 -0700
+
+    capital_letter was never used
+    
+    R=rsc
+    DELTA=2  (0 added, 1 deleted, 1 changed)
+    OCL=31472
+    CL=31477
+
+ doc/go_spec.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

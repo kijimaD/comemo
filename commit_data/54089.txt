@@ -1,0 +1,15 @@
+commit ce16086345435d85906de31ea4af486b69bae895
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 18 09:44:16 2023 -0700
+
+    spec: correct type parameter name used in example
+    
+    Change-Id: I40595a3f598483d029473af465c756f8777ecc91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520915
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

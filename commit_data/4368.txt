@@ -1,0 +1,12 @@
+commit 2e4334eb3a16eb28768cda7f13568e17e9976d45
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 9 16:54:24 2009 -0800
+
+    minor manual format corrections
+    
+    R=rsc
+    https://golang.org/cl/172042
+
+ src/pkg/exp/eval/type.go       | 1 -
+ src/pkg/net/dialgoogle_test.go | 3 +--
+ 2 files changed, 1 insertion(+), 3 deletions(-)

@@ -1,0 +1,33 @@
+commit fbf763fd1d6be3c162ea5ff3c8843171ef937c3a
+Author: database64128 <free122448@hotmail.com>
+Date:   Thu Nov 10 08:20:29 2022 +0000
+
+    net: unify TCP keepalive behavior
+    
+    CL 107196 introduced a default TCP keepalive interval for Dialer and TCPListener (used by both ListenConfig and ListenTCP). Leaving DialTCP out was likely an oversight.
+    
+    DialTCP's documentation says it "acts like Dial". Therefore it's natural to also expect DialTCP to enable TCP keepalive by default.
+    
+    This commit addresses this disparity by moving the enablement logic down to the newTCPConn function, which is used by both dialer and listener.
+    
+    Fixes #49345
+    
+    Change-Id: I99c08b161c468ed0b993d1dbd2bd0d7e803f3826
+    GitHub-Last-Rev: 5c2f1cb0fbc5e83aa6cdbdf3ed4e23419d9bca65
+    GitHub-Pull-Request: golang/go#56565
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447917
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/dial.go          | 16 +---------------
+ src/net/file_plan9.go    |  2 +-
+ src/net/file_unix.go     |  2 +-
+ src/net/tcpsock.go       | 17 +++++++++++++----
+ src/net/tcpsock_plan9.go | 13 ++-----------
+ src/net/tcpsock_posix.go | 13 ++-----------
+ src/net/tcpsock_test.go  | 19 +++++++++++++++++++
+ 7 files changed, 39 insertions(+), 43 deletions(-)

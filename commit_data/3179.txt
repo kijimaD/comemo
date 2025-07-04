@@ -1,0 +1,16 @@
+commit f56e6fd7864c31039b19ac56781fa042e9519d36
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 1 16:19:14 2009 -0700
+
+    make debug/proc "build" on more architectures
+    
+    R=austin
+    DELTA=17  (0 added, 16 deleted, 1 changed)
+    OCL=34213
+    CL=34218
+
+ src/pkg/debug/proc/Makefile             | 2 +-
+ src/pkg/debug/proc/regs_darwin_386.go   | 5 -----
+ src/pkg/debug/proc/regs_darwin_amd64.go | 6 ------
+ src/pkg/debug/proc/regs_linux_386.go    | 5 -----
+ 4 files changed, 1 insertion(+), 17 deletions(-)

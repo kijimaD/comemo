@@ -1,0 +1,17 @@
+commit 6f96a76cd115cf8e3f48d5a4a10ef1fc41dbf689
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 21 10:47:31 2013 -0800
+
+    unicode: use new Scanner interface in table creation
+    Update norm and local/collate as well.
+    
+    R=mpvl
+    CC=golang-dev
+    https://golang.org/cl/7395045
+
+ src/pkg/exp/locale/collate/maketables.go | 17 ++++-------
+ src/pkg/exp/locale/collate/regtest.go    | 15 ++++------
+ src/pkg/exp/norm/maketables.go           | 47 +++++++++++------------------
+ src/pkg/exp/norm/normregtest.go          | 20 +++++--------
+ src/pkg/unicode/maketables.go            | 51 +++++++++++++-------------------
+ 5 files changed, 59 insertions(+), 91 deletions(-)

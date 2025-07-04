@@ -1,0 +1,17 @@
+commit 7b659eb1552320f34ed687330e433153ee4c2266
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 20 17:25:07 2017 +0900
+
+    all: gofmt
+    
+    Change-Id: I2d0439a9f068e726173afafe2ef1f5d62b7feb4d
+    Reviewed-on: https://go-review.googlesource.com/46190
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go |  4 ++--
+ src/crypto/dsa/dsa_test.go             |  2 +-
+ src/hash/crc32/crc32_arm64.go          | 32 ++++++++++++++++----------------
+ src/runtime/symtab_test.go             |  2 +-
+ 4 files changed, 20 insertions(+), 20 deletions(-)

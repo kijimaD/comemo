@@ -1,0 +1,13 @@
+commit e2cb60b378e9030dc4e3bf158f54dddcd87295f9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 19 13:03:01 2009 -0700
+
+    fix for conversion rule
+    
+    R=rsc
+    DELTA=25  (10 added, 7 deleted, 8 changed)
+    OCL=30516
+    CL=30531
+
+ doc/go_spec.html | 29 ++++++++++++++++-------------
+ 1 file changed, 16 insertions(+), 13 deletions(-)

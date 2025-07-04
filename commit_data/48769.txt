@@ -1,0 +1,23 @@
+commit 1f97f960e76d1b722b7c4a0dd61e9b20ec6c2a37
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 12 13:34:42 2022 -0700
+
+    cmd/link: don't sort pclntab entries
+    
+    They are already in a good order. The sort here does nothing, as
+    all the SymValues are 0. Sorting just arbitrarily permutes items
+    because everything is equal and the sort isn't stable.
+    
+    Not sure why the ordering of these symbols matter. That ordering was
+    added in CL 243223.
+    
+    Change-Id: Iee153394afdb39387701cfe0375bc022cf4bd489
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399540
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+
+ src/cmd/link/internal/ld/data.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

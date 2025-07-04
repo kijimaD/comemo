@@ -1,0 +1,20 @@
+commit 03305a9e0c786dab67a373106a81df56dda21e25
+Author: Yasha Bubnov <girokompass@gmail.com>
+Date:   Mon Nov 28 23:16:16 2016 +0300
+
+    net/http/httptest: close client connections in separate goroutines
+    
+    The existing implementation sequentially closes connection in the loop
+    and until the previous client connections is not closed the next one
+    would not be processed. Instead, the algorithm modified to spawn the
+    function that closes single connection in a standalone goroutine, thus
+    making at least a try to close it.
+    
+    Change-Id: Ib96b5b477f841926450d122b67f14f1a2da36ee1
+    Reviewed-on: https://go-review.googlesource.com/33614
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httptest/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

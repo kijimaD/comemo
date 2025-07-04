@@ -1,0 +1,20 @@
+commit c015f76acb73990d4cb7fb056165b64d79b1b037
+Author: David Chase <drchase@google.com>
+Date:   Tue Feb 23 20:00:31 2021 -0500
+
+    cmd/compile: implement too-big-to-SSA struct passing in registers
+    
+    Added a test that exercises named results
+    
+    Change-Id: Ie228b68f4f846266595a95e0f65a6e4b8bf79635
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297029
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/abi/abiutils.go     | 59 +++++++++++++++---
+ src/cmd/compile/internal/ssa/expand_calls.go | 26 +++++---
+ src/cmd/compile/internal/ssagen/ssa.go       | 27 ++++++---
+ test/abi/named_results.go                    | 91 ++++++++++++++++++++++++++++
+ test/abi/named_results.out                   | 13 ++++
+ 5 files changed, 190 insertions(+), 26 deletions(-)

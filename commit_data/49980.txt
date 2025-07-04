@@ -1,0 +1,25 @@
+commit 03e1870b635dbfa54b6ee3624c435daf2a6b3b1f
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Aug 17 10:04:57 2022 -0500
+
+    cmd/dist: enable testsanitizer test on ppc64le
+    
+    Even though the -race option works for ppc64le, some of the
+    testsanitizer test have failed in the past on our builders. These
+    same failures can't be reproduced on other systems.
+    
+    This is an experiment to re-enable this test on ppc64le to see if
+    it still fails on the builders.
+    
+    Updates #45040
+    
+    Change-Id: I0729bec5864e6c4cc752968485e89179df027063
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424534
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

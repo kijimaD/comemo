@@ -1,0 +1,16 @@
+commit 0c706fddce2066fa0f72df364dd393f74027d753
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Mon Aug 6 14:24:13 2018 +0300
+
+    cmd/compile/internal/gc: remove commented-out code from esc.go
+    
+    Also adjust some comments to where they belong.
+    
+    Change-Id: Ifbb38052401b0d33d7bb9800f56a20ce8f39c25f
+    Reviewed-on: https://go-review.googlesource.com/127761
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/esc.go | 14 +-------------
+ 1 file changed, 1 insertion(+), 13 deletions(-)

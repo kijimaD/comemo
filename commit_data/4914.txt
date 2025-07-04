@@ -1,0 +1,12 @@
+commit 0485a999ff078c760a9cd4013b0f21b6ed90ffda
+Author: Michael Hoisie <hoisie@gmail.com>
+Date:   Sun Feb 21 19:49:43 2010 -0800
+
+    http request URI should never be empty
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/217071
+
+ src/pkg/http/request.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

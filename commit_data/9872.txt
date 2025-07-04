@@ -1,0 +1,30 @@
+commit 9a0a30ec531d6d1d268cebca14d9aafd5d18b32e
+Author: Fumitoshi Ukai <ukai@google.com>
+Date:   Wed Oct 5 10:50:29 2011 -0700
+
+    websocket: add hybi-13 support
+    
+    Major changes between hybi-08 and hybi-13
+    - hybi-08 uses Sec-WebSocket-Origin, but hybi-13 uses Origin
+    - hybi-13 introduces new close status codes.
+    
+    hybi-17 spec (editorial changes of hybi-13) mentions
+    - if a server doesn't support the requested version, it MUST respond
+      with Sec-WebSocket-Version headers containing all available versions.
+    - client MUST close the connection upon receiving a masked frame
+    - server MUST close the connection upon receiving a non-masked frame
+    note that hybi-17 still uses "Sec-WebSocket-Version: 13"
+    
+    see http://code.google.com/p/pywebsocket/wiki/WebSocketProtocolSpec
+    for changes between spec drafts.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5147043
+
+ src/pkg/websocket/client.go    |   6 +-
+ src/pkg/websocket/hybi.go      |  65 +++++++++++----
+ src/pkg/websocket/hybi_test.go | 178 +++++++++++++++++++++++++++++++++++++++--
+ src/pkg/websocket/server.go    |   7 ++
+ src/pkg/websocket/websocket.go |  41 +++++-----
+ 5 files changed, 251 insertions(+), 46 deletions(-)

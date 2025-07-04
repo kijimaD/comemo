@@ -1,0 +1,14 @@
+commit 82189f654df7f3032f27a764ec8ce662f68764c1
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 19 14:19:56 2011 +1000
+
+    template/parse: add a Walk method to Tree.
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev, mikesamuel
+    https://golang.org/cl/4918041
+
+ src/pkg/template/parse/Makefile      |   1 +
+ src/pkg/template/parse/parse_test.go | 127 +++++++++++++++++++++++++++++++++++
+ src/pkg/template/parse/walk.go       |  89 ++++++++++++++++++++++++
+ 3 files changed, 217 insertions(+)

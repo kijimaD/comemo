@@ -1,0 +1,13 @@
+commit f436ade2fd12d58c23f5b69b1e55b98c19efb3c0
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 28 16:08:38 2008 -0700
+
+    update tests
+    
+    R=gri
+    OCL=13526
+    CL=13526
+
+ test/{bugs => fixedbugs}/bug057.go | 0
+ test/golden.out                    | 9 +++++----
+ 2 files changed, 5 insertions(+), 4 deletions(-)

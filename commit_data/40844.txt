@@ -1,0 +1,20 @@
+commit 992d2e53dc8b9f44609a6377d1a60b4056eab67f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 19 12:19:57 2019 -0500
+
+    cmd/go: convert TestPackageMainTestImportsArchiveNotBinary to a script test
+    
+    Updates #28387
+    Updates #30316
+    
+    Change-Id: I31e04c89f2cc226f9b5110f14c8b80a18e937efb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207960
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                            | 17 -------------
+ src/cmd/go/testdata/script/test_main_archive.txt | 32 ++++++++++++++++++++++++
+ src/cmd/go/testdata/src/main_test/m.go           |  4 ---
+ src/cmd/go/testdata/src/main_test/m_test.go      | 10 --------
+ 4 files changed, 32 insertions(+), 31 deletions(-)

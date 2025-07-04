@@ -1,0 +1,132 @@
+commit 14c7caae5074fdf0d97a3ad995e20c63e4065cbf
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Jul 13 18:12:20 2020 +0200
+
+    runtime: add 24 byte allocation size class
+    
+    This CL introduces a 24 byte allocation size class which
+    fits 3 pointers on 64 bit and 6 pointers on 32 bit architectures.
+    
+    Notably this new size class fits a slice header on 64 bit
+    architectures exactly while previously a 32 byte size class
+    would have been used for allocating a slice header on the heap.
+    
+    The main complexity added with this CL is that heapBitsSetType
+    needs to handle objects that aren't 16-byte aligned but contain
+    more than a single pointer on 64-bit architectures.
+    
+    Due to having a non 16 byte aligned size class on 32 bit a
+    h.shift of 2 is now possible which means a heap bitmap byte might
+    only be partially written. Due to this already having been
+    possible on 64 bit before the heap bitmap code only needed
+    minor adjustments for 32 bit doublecheck code paths.
+    
+    Note that this CL changes the slice capacity allocated by append
+    for slice growth to a target capacity of 17 to 24 bytes.
+    
+    On 64 bit architectures the capacity of the slice returned by
+    append([]byte{}, make([]byte, 24)...)) is 32 bytes before and
+    24 bytes after this CL. Depending on allocation patterns of the
+    specific Go program this can increase the number of total
+    alloctions as subsequent appends to the slice can trigger slice
+    growth earlier than before. On the other side if the slice is
+    never appended to again above its capacity this will lower heap
+    usage by 8 bytes.
+    
+    This CL changes the set of size classes reported in the
+    runtime.MemStats.BySize array due to it being limited to a
+    total of 61 size classes. The new 24 byte size class is now
+    included and the 20480 byte size class is not included anymore.
+    
+    Fixes #8885
+    
+    name                      old time/op       new time/op       delta
+    Template                        196ms ± 3%        194ms ± 2%    ~     (p=0.247 n=10+10)
+    Unicode                        85.6ms ±16%       88.1ms ± 1%    ~     (p=0.165 n=10+10)
+    GoTypes                         673ms ± 2%        668ms ± 2%    ~     (p=0.258 n=9+9)
+    Compiler                        3.14s ± 6%        3.08s ± 1%    ~     (p=0.243 n=10+9)
+    SSA                             6.82s ± 1%        6.76s ± 1%  -0.87%  (p=0.006 n=9+10)
+    Flate                           128ms ± 7%        127ms ± 3%    ~     (p=0.739 n=10+10)
+    GoParser                        154ms ± 3%        153ms ± 4%    ~     (p=0.730 n=9+9)
+    Reflect                         404ms ± 1%        412ms ± 4%  +1.99%  (p=0.022 n=9+10)
+    Tar                             172ms ± 4%        170ms ± 4%    ~     (p=0.065 n=10+9)
+    XML                             231ms ± 4%        230ms ± 3%    ~     (p=0.912 n=10+10)
+    LinkCompiler                    341ms ± 1%        339ms ± 1%    ~     (p=0.243 n=9+10)
+    ExternalLinkCompiler            1.72s ± 1%        1.72s ± 1%    ~     (p=0.661 n=9+10)
+    LinkWithoutDebugCompiler        221ms ± 2%        221ms ± 2%    ~     (p=0.529 n=10+10)
+    StdCmd                          18.4s ± 3%        18.2s ± 1%    ~     (p=0.515 n=10+8)
+    
+    name                      old user-time/op  new user-time/op  delta
+    Template                        238ms ± 4%        243ms ± 6%    ~     (p=0.661 n=9+10)
+    Unicode                         116ms ± 6%        113ms ± 3%  -3.37%  (p=0.035 n=9+10)
+    GoTypes                         854ms ± 2%        848ms ± 2%    ~     (p=0.604 n=9+10)
+    Compiler                        4.10s ± 1%        4.11s ± 1%    ~     (p=0.481 n=8+9)
+    SSA                             9.49s ± 1%        9.41s ± 1%  -0.92%  (p=0.001 n=9+10)
+    Flate                           149ms ± 6%        151ms ± 7%    ~     (p=0.481 n=10+10)
+    GoParser                        189ms ± 2%        190ms ± 2%    ~     (p=0.497 n=9+10)
+    Reflect                         511ms ± 2%        508ms ± 2%    ~     (p=0.211 n=9+10)
+    Tar                             215ms ± 4%        212ms ± 3%    ~     (p=0.105 n=10+10)
+    XML                             288ms ± 2%        288ms ± 2%    ~     (p=0.971 n=10+10)
+    LinkCompiler                    559ms ± 4%        557ms ± 1%    ~     (p=0.968 n=9+10)
+    ExternalLinkCompiler            1.78s ± 1%        1.77s ± 1%    ~     (p=0.055 n=8+10)
+    LinkWithoutDebugCompiler        245ms ± 3%        245ms ± 2%    ~     (p=0.684 n=10+10)
+    
+    name                      old alloc/op      new alloc/op      delta
+    Template                       34.8MB ± 0%       34.4MB ± 0%  -0.95%  (p=0.000 n=9+10)
+    Unicode                        28.6MB ± 0%       28.3MB ± 0%  -0.95%  (p=0.000 n=10+10)
+    GoTypes                         115MB ± 0%        114MB ± 0%  -1.02%  (p=0.000 n=10+9)
+    Compiler                        554MB ± 0%        549MB ± 0%  -0.86%  (p=0.000 n=9+10)
+    SSA                            1.28GB ± 0%       1.27GB ± 0%  -0.83%  (p=0.000 n=10+10)
+    Flate                          21.8MB ± 0%       21.6MB ± 0%  -0.87%  (p=0.000 n=8+10)
+    GoParser                       26.7MB ± 0%       26.4MB ± 0%  -0.97%  (p=0.000 n=10+9)
+    Reflect                        75.0MB ± 0%       74.1MB ± 0%  -1.18%  (p=0.000 n=10+10)
+    Tar                            32.6MB ± 0%       32.3MB ± 0%  -0.94%  (p=0.000 n=10+7)
+    XML                            41.5MB ± 0%       41.2MB ± 0%  -0.90%  (p=0.000 n=10+8)
+    LinkCompiler                    105MB ± 0%        104MB ± 0%  -0.94%  (p=0.000 n=10+10)
+    ExternalLinkCompiler            153MB ± 0%        152MB ± 0%  -0.69%  (p=0.000 n=10+10)
+    LinkWithoutDebugCompiler       63.7MB ± 0%       63.6MB ± 0%  -0.13%  (p=0.000 n=10+10)
+    
+    name                      old allocs/op     new allocs/op     delta
+    Template                         336k ± 0%         336k ± 0%  +0.02%  (p=0.002 n=10+10)
+    Unicode                          332k ± 0%         332k ± 0%    ~     (p=0.447 n=10+10)
+    GoTypes                         1.16M ± 0%        1.16M ± 0%  +0.01%  (p=0.001 n=10+10)
+    Compiler                        4.92M ± 0%        4.92M ± 0%  +0.01%  (p=0.000 n=10+10)
+    SSA                             11.9M ± 0%        11.9M ± 0%  +0.02%  (p=0.000 n=9+10)
+    Flate                            214k ± 0%         214k ± 0%  +0.02%  (p=0.032 n=10+8)
+    GoParser                         270k ± 0%         270k ± 0%  +0.02%  (p=0.004 n=10+9)
+    Reflect                          877k ± 0%         877k ± 0%  +0.01%  (p=0.000 n=10+10)
+    Tar                              313k ± 0%         313k ± 0%    ~     (p=0.075 n=9+10)
+    XML                              387k ± 0%         387k ± 0%  +0.02%  (p=0.007 n=10+10)
+    LinkCompiler                     455k ± 0%         456k ± 0%  +0.08%  (p=0.000 n=10+9)
+    ExternalLinkCompiler             670k ± 0%         671k ± 0%  +0.06%  (p=0.000 n=10+10)
+    LinkWithoutDebugCompiler         113k ± 0%         113k ± 0%    ~     (p=0.149 n=10+10)
+    
+    name                      old maxRSS/op     new maxRSS/op     delta
+    Template                        34.1M ± 1%        34.1M ± 1%    ~     (p=0.853 n=10+10)
+    Unicode                         35.1M ± 1%        34.6M ± 1%  -1.43%  (p=0.000 n=10+10)
+    GoTypes                         72.8M ± 3%        73.3M ± 2%    ~     (p=0.724 n=10+10)
+    Compiler                         288M ± 3%         295M ± 4%    ~     (p=0.393 n=10+10)
+    SSA                              630M ± 1%         622M ± 1%  -1.18%  (p=0.001 n=10+10)
+    Flate                           26.0M ± 1%        26.2M ± 2%    ~     (p=0.493 n=10+10)
+    GoParser                        28.6M ± 1%        28.5M ± 2%    ~     (p=0.256 n=10+10)
+    Reflect                         55.5M ± 2%        55.4M ± 1%    ~     (p=0.436 n=10+10)
+    Tar                             33.0M ± 1%        32.8M ± 2%    ~     (p=0.075 n=10+10)
+    XML                             38.7M ± 1%        39.0M ± 1%    ~     (p=0.053 n=9+10)
+    LinkCompiler                     164M ± 1%         164M ± 1%  -0.27%  (p=0.029 n=10+10)
+    ExternalLinkCompiler             174M ± 0%         173M ± 0%  -0.33%  (p=0.002 n=9+10)
+    LinkWithoutDebugCompiler         137M ± 0%         136M ± 2%    ~     (p=0.825 n=9+10)
+    
+    Change-Id: I9ecf2a10024513abef8fbfbe519e44e0b29b6167
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242258
+    Trust: Martin Möhrmann <moehrmann@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mbitmap.go       | 112 +++++++++++++++++++++++++++++-----
+ src/runtime/mksizeclasses.go |   6 +-
+ src/runtime/mstats.go        |   4 ++
+ src/runtime/sizeclasses.go   | 141 ++++++++++++++++++++++---------------------
+ 4 files changed, 174 insertions(+), 89 deletions(-)

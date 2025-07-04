@@ -1,0 +1,26 @@
+commit 025a9c343880f9dc98c7c7479ab481a061e60950
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 2 18:39:07 2022 -0700
+
+    cmd/compile: remove ir.TypeAssertExpr.Ntype
+    
+    As with ir.CompLitExpr.Ntype, there's no need for
+    ir.TypeAssertExpr.Ntype in a pure-types2 world.
+    
+    Change-Id: Iff48c98330f072fd6b26099e13a19c56adecdc42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403842
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ir/expr.go             | 10 ++++++----
+ src/cmd/compile/internal/ir/fmt.go              |  4 ----
+ src/cmd/compile/internal/ir/node_gen.go         |  6 ------
+ src/cmd/compile/internal/noder/reader.go        |  2 +-
+ src/cmd/compile/internal/noder/stencil.go       | 17 +++++++----------
+ src/cmd/compile/internal/typecheck/expr.go      |  9 +--------
+ src/cmd/compile/internal/typecheck/iimport.go   |  3 +--
+ src/cmd/compile/internal/typecheck/typecheck.go |  4 ----
+ src/cmd/compile/internal/walk/switch.go         |  3 +--
+ 9 files changed, 17 insertions(+), 41 deletions(-)

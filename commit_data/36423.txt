@@ -1,0 +1,12 @@
+commit 2fad8b219ff9f13f10396c97c0a3bca5c6153d78
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Mon Aug 20 01:13:33 2018 +0000
+
+    runtime: fix typo: there -> the
+    
+    Change-Id: I2ecbd68b1b30ab64e64ae120101761400c22457b
+    Reviewed-on: https://go-review.googlesource.com/129757
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mgc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

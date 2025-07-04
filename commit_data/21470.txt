@@ -1,0 +1,13 @@
+commit 3fa90ea96468d561a527a186b032490a04936879
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 3 16:19:05 2015 -0800
+
+    cmd/go: add 9g and 9l to documentation
+    
+    Change-Id: I274c438ab168278dfbb34ada3ed9a7f7c66b66ef
+    Reviewed-on: https://go-review.googlesource.com/3834
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/go/build.go | 4 ++--
+ src/cmd/go/doc.go   | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

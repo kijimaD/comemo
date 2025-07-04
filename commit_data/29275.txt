@@ -1,0 +1,28 @@
+commit 53fc330e2d154443acf3d01e0d68bae22b2b7804
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Oct 30 03:28:05 2016 +0000
+
+    net/http: add Server.Close & Server.Shutdown for forced & graceful shutdown
+    
+    Also updates x/net/http2 to git rev 541150 for:
+    
+       http2: add support for graceful shutdown of Server
+       https://golang.org/cl/32412
+    
+       http2: make http2.Server access http1's Server via an interface check
+       https://golang.org/cl/32417
+    
+    Fixes #4674
+    Fixes #9478
+    
+    Change-Id: I8021a18dee0ef2fe3946ac1776d2b10d3d429052
+    Reviewed-on: https://go-review.googlesource.com/32329
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/export_test.go |   6 ++
+ src/net/http/h2_bundle.go   |  62 +++++++++++---
+ src/net/http/http_test.go   |   5 ++
+ src/net/http/serve_test.go  |  93 ++++++++++++++++++++
+ src/net/http/server.go      | 201 ++++++++++++++++++++++++++++++++++++++++++--
+ 5 files changed, 352 insertions(+), 15 deletions(-)

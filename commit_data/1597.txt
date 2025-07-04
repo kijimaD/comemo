@@ -1,0 +1,13 @@
+commit 9e735985d42368de01fbef63af713cb8675bdffa
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 30 16:31:26 2009 -0800
+
+    avoid memcpy(x, x),
+    which valgrind complains about.
+    
+    R=ken
+    OCL=23990
+    CL=23990
+
+ src/cmd/gc/walk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

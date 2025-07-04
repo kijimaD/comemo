@@ -1,0 +1,26 @@
+commit 8df0bcc1fb9a4da7f2fafa959fe9c101f99866ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 01:22:53 2015 -0400
+
+    cmd/go: disable password prompt when running git
+    
+    This fix only works on Git 2.3.0 and later.
+    
+    There appears to be no portable way to fix the earlier versions.
+    We already run git with stdin closed, but on Unix git calls getpass,
+    which opens /dev/tty itself. We could do package syscall-specific
+    things to get /dev/tty invalidated during the exec, but I'd really
+    rather not. And on Windows, Git opens "CONIN$" and "CONOUT$"
+    itself, and I have no idea how to invalidate those.
+    
+    Fix the problem for newish Git versions and wait for people to update.
+    Best we can do.
+    
+    Fixes #9341.
+    
+    Change-Id: I576579b106764029853e0f74d411e19108deecf5
+    Reviewed-on: https://go-review.googlesource.com/12175
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/get.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

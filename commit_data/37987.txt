@@ -1,0 +1,19 @@
+commit 5aac0f0d1edbeb03ffe1c189ec97d55c2a7c1e84
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 23 20:47:44 2019 -0800
+
+    go/types: include test/fixedbugs/bug073.go again in test
+    
+    This test was excluded from the go/types std lib test
+    because it tested old behavior (shift count must be
+    an unsigned int). With the compiler changes made and
+    the test adjusted accordingly, we can include it again.
+    
+    Updates #19113.
+    
+    Change-Id: If9b6b83505d2bd2b426fcefa225986d73658a229
+    Reviewed-on: https://go-review.googlesource.com/c/159319
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/go/types/stdlib_test.go | 1 -
+ 1 file changed, 1 deletion(-)

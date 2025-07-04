@@ -1,0 +1,25 @@
+commit a14efb1be3a59dffbf4dd9121191d6d656049564
+Author: Keith Randall <khr@google.com>
+Date:   Mon Sep 16 14:38:12 2019 -0700
+
+    runtime: allow the Go runtime to return multiple stack frames for a single PC
+    
+    Upgrade the thread sanitizer to handle mid-stack inlining correctly.
+    We can now return multiple stack frames for each pc that the thread sanitizer
+    gives us to symbolize.
+    
+    To fix #33309, we still need to modify the tsan library with its portion
+    of this fix, rebuild the .syso files on all supported archs, and check
+    them into runtime/race.
+    
+    Update #33309
+    
+    Change-Id: I340013631ffc8428043ab7efe3a41b6bf5638eaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195781
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/race.go   | 44 ++++++++++++++++++++++++++++++++++++++++----
+ src/runtime/symtab.go | 12 +++++++-----
+ 2 files changed, 47 insertions(+), 9 deletions(-)

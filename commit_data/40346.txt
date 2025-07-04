@@ -1,0 +1,16 @@
+commit 57ad6ef15d8e1cbfd06223c538c0f250ca8e4df1
+Author: ajz01 <ajzdenek@gmail.com>
+Date:   Tue Oct 22 02:51:33 2019 +0000
+
+    go/parser: remove superfluous case from switch statement
+    
+    Change-Id: I96a9b34bf8e42c21a3e0258cbc8b1416328834be
+    GitHub-Last-Rev: 32709619a690459dc29a32f12cfbd3908ce270e3
+    GitHub-Pull-Request: golang/go#35066
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202598
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/parser/parser.go | 1 -
+ 1 file changed, 1 deletion(-)

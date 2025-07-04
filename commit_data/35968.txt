@@ -1,0 +1,66 @@
+commit 0029cd479e344e0fa6930331cf86e6f985508163
+Author: David Chase <drchase@google.com>
+Date:   Tue Jul 3 11:34:38 2018 -0400
+
+    cmd/compile: add LocalAddr that takes SP,mem operands
+    
+    Lack of a well-defined order between VarDef and related
+    address operations sometimes causes problems with store order
+    and write barrier transformations; glitches in the order are
+    made irreparable (by later optimizations) if the two parts of
+    the glitch straddle a split in the original block caused by
+    insertion of a write barrier diamond.
+    
+    Fix this by creating a LocalAddr for addresses of locals
+    (what VarDef matters for) that takes a memory input to
+    help make the order explicit.  Addr is modified to only
+    be legal for SB operand, so there is no overlap between
+    Addr and LocalAddr uses (there may be some downstream
+    cleanup from this).
+    
+    Changes to generic.rules and rewrite.go ensure that codegen
+    tests continue to pass; CSE of LocalAddr is impaired, not
+    quite sure of the cost.
+    
+    Fixes #26105.
+    
+    Change-Id: Id4192b4440aa4e9d7ba54a465c456df9b530b515
+    Reviewed-on: https://go-review.googlesource.com/122483
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go             |  31 ++-
+ src/cmd/compile/internal/ssa/check.go          |  14 +-
+ src/cmd/compile/internal/ssa/cse_test.go       |   4 +-
+ src/cmd/compile/internal/ssa/deadstore.go      |   2 +-
+ src/cmd/compile/internal/ssa/func.go           |  13 ++
+ src/cmd/compile/internal/ssa/gen/386.rules     |   1 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   2 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |   1 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |   1 +
+ src/cmd/compile/internal/ssa/gen/MIPS.rules    |   1 +
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules  |   1 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |   1 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |   1 +
+ src/cmd/compile/internal/ssa/gen/Wasm.rules    |   1 +
+ src/cmd/compile/internal/ssa/gen/generic.rules |   8 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   3 +-
+ src/cmd/compile/internal/ssa/loop_test.go      |   2 +-
+ src/cmd/compile/internal/ssa/nilcheck.go       |   2 +-
+ src/cmd/compile/internal/ssa/nilcheck_test.go  |   2 +-
+ src/cmd/compile/internal/ssa/numberlines.go    |   2 +-
+ src/cmd/compile/internal/ssa/opGen.go          |   8 +
+ src/cmd/compile/internal/ssa/rewrite.go        |  11 +-
+ src/cmd/compile/internal/ssa/rewrite386.go     |  16 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   |  39 ++++
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  16 ++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  16 ++
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  16 ++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |  16 ++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  16 ++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   |  16 ++
+ src/cmd/compile/internal/ssa/rewriteWasm.go    |  16 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 275 +++++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/writebarrier.go   |  27 +--
+ test/fixedbugs/issue26105.go                   |  25 +++
+ 34 files changed, 555 insertions(+), 51 deletions(-)

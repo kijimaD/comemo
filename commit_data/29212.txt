@@ -1,0 +1,30 @@
+commit 0f06d0a051714d14b923b0a9164ab1b3f463aa74
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 21 12:04:31 2016 -0400
+
+    cmd/go: apply import restrictions to test code too
+    
+    We reject import of main packages, but we missed tests.
+    Reject in all tests except test of that main package.
+    
+    We reject local (relative) imports from code with a
+    non-local import path, but again we missed tests.
+    Reject those too.
+    
+    Fixes #14811.
+    Fixes #15795.
+    Fixes #17475.
+    
+    Change-Id: I535ff26889520276a891904f54f1a85b2c40207d
+    Reviewed-on: https://go-review.googlesource.com/31821
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/cmd/go/go_test.go                              | 253 ++++++++++++++++++++-
+ src/cmd/go/pkg.go                                  | 135 +++++------
+ src/cmd/go/testdata/src/importmain/ismain/main.go  |   5 +
+ src/cmd/go/testdata/src/importmain/test/test.go    |   1 +
+ .../go/testdata/src/importmain/test/test_test.go   |   6 +
+ 5 files changed, 324 insertions(+), 76 deletions(-)

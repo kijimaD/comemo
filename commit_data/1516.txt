@@ -1,0 +1,14 @@
+commit 06869eedf96d5ee695d83f645497ed18fcb661d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 16 15:25:52 2009 -0800
+
+    disallow other package's names in struct field dot.
+    
+    R=ken
+    OCL=22996
+    CL=22996
+
+ src/cmd/gc/dcl.c | 2 ++
+ src/cmd/gc/go.h  | 1 +
+ src/cmd/gc/go.y  | 1 +
+ 3 files changed, 4 insertions(+)

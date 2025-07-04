@@ -1,0 +1,16 @@
+commit db4e48ece9adaff37303dcf03944c8c98b8697e5
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 6 11:36:21 2009 -0800
+
+    big: fix carry error, add test case.
+    crypto/x509: reenable tests.
+    
+    R=gri
+    CC=go-dev
+    http://go/go-review/1026004
+
+ src/pkg/big/arith.go             |  3 ---
+ src/pkg/big/arith_test.go        |  3 ++-
+ src/pkg/big/int_test.go          | 29 +++++++++++++++++++++++++++++
+ src/pkg/crypto/x509/x509_test.go | 13 -------------
+ 4 files changed, 31 insertions(+), 17 deletions(-)

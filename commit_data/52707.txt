@@ -1,0 +1,29 @@
+commit 1064335047776c371599c2d7ba716ffadd26d28b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Apr 17 14:41:10 2023 -0400
+
+    runtime: consolidate function descriptor definitions on PPC64
+    
+    This reapplies CL 481075, which was a reappliation of CL 478917.
+    
+    This CL has been reverted twice now due to conflicts with CL 392854 /
+    CL 481061, which had bugs and had to be reverted.
+    
+    Now this CL skips the conflicting changes to runtime/cgo/asm_ppc64x.s,
+    which will be merged directly into a new version of CL 392854 /
+    CL 481061. That way, if there are _more_ issues, this CL need not be
+    involved in any more reverts.
+    
+    Change-Id: I2801b918faf9418dd0edff19f2a63f4d9e08896c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485335
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/asm_ppc64x.h       | 20 ++++++++++++++++++--
+ src/runtime/asm_ppc64x.s       | 21 +++------------------
+ src/runtime/rt0_aix_ppc64.s    | 17 ++++-------------
+ src/runtime/rt0_linux_ppc64.s  | 13 +++----------
+ src/runtime/sys_linux_ppc64x.s | 23 ++++++-----------------
+ 5 files changed, 34 insertions(+), 60 deletions(-)

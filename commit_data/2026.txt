@@ -1,0 +1,18 @@
+commit 1605176e25fd5f7d2136e52797a0b2fa6e1f8947
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 15 18:53:43 2009 -0700
+
+    godoc: use data-driven templates for html, text generation
+    
+    R=gri
+    DELTA=1341  (668 added, 282 deleted, 391 changed)
+    OCL=27485
+    CL=27526
+
+ src/lib/go/ast.go            |  32 +-
+ src/run.bash                 |   2 +
+ usr/gri/pretty/Makefile      |   4 +-
+ usr/gri/pretty/comment.go    | 215 +++++++++++++
+ usr/gri/pretty/docprinter.go | 558 ++++++++++++++++++----------------
+ usr/gri/pretty/godoc.go      | 698 ++++++++++++++++++++++++-------------------
+ 6 files changed, 948 insertions(+), 561 deletions(-)

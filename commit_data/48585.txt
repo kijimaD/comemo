@@ -1,0 +1,21 @@
+commit 3b7fce24cda8b9b245bae94aee9fafea87926c50
+Author: David Chase <drchase@google.com>
+Date:   Wed Mar 30 12:01:21 2022 -0400
+
+    cmd: make go and moddeps tests insensitive to presence of src/go.work
+    
+    If there is a go.work file in src, "go test cmd/internal/moddeps"
+    and "go test cmd/go" fail.  Setting GOWORK=off in various command
+    invocations avoids this problem.
+    
+    Change-Id: I89fd021ff94998ceda6a3bbc4c3743f08558f98b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396777
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/mod_dot.txt   | 1 +
+ src/cmd/internal/moddeps/moddeps_test.go | 7 ++++---
+ 2 files changed, 5 insertions(+), 3 deletions(-)

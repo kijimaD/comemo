@@ -1,0 +1,17 @@
+commit 8c2c35debebaaa86aab1f180940f0a77db0b6f30
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Fri Sep 4 10:05:31 2015 -0700
+
+    net/http/httptest: ResponseRecorder.WriteString
+    
+    Fixes #11000
+    
+    Change-Id: Ic137e8a6c5c6b5b7eee213aca9acf78368e1d686
+    Reviewed-on: https://go-review.googlesource.com/14296
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httptest/recorder.go      | 11 +++++++++++
+ src/net/http/httptest/recorder_test.go |  8 ++++++++
+ 2 files changed, 19 insertions(+)

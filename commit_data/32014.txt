@@ -1,0 +1,25 @@
+commit 4dbcacda961abb0ca3490dc06923fa7ab344d702
+Author: Nathaniel Caza <mastercactapus@gmail.com>
+Date:   Mon Feb 13 21:00:06 2017 -0600
+
+    crypto/x509: load all trusted certs on darwin (nocgo)
+    
+    The current implementation ignores certificates that exist
+    in the login and System keychains.
+    
+    This change adds the missing System and login keychain
+    files to the `/usr/bin/security` command in
+    `execSecurityRoots`. If the current user cannot be
+    obtained, the login keychain is ignored.
+    
+    Refs #16532
+    
+    Change-Id: I8594a6b8940c58df8a8015b274fa45c39e18862c
+    Reviewed-on: https://go-review.googlesource.com/36941
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/root_darwin.go | 22 +++++++++++++++++++++-
+ src/go/build/deps_test.go      |  2 +-
+ 2 files changed, 22 insertions(+), 2 deletions(-)

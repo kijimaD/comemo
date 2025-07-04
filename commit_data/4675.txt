@@ -1,0 +1,13 @@
+commit 7263bfc73bef737b8ba22b78bf1f8bfa87965ad4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 25 18:31:44 2010 -0800
+
+    cc: correct handling of leading ·
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/193081
+
+ src/cmd/cc/lex.c   |  7 ++++---
+ src/cmd/cc/lexbody | 13 +++++++------
+ 2 files changed, 11 insertions(+), 9 deletions(-)

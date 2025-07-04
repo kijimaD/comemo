@@ -1,0 +1,30 @@
+commit d65c0593c4f1dd4a9b381cf654668aa27166b24e
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Thu Nov 3 12:16:06 2022 -0700
+
+    text/template/parse: fix interaction of break/continue keywords and functions
+    
+    Fixes a bug that was introduced in CL 410414; in that CL, to avoid
+    a race condition in the initialization of the lexer, the setting
+    of the breakOK and continueOK options was moved to before
+    Tree.funcs was populated from parameters. As a result, the parser
+    missed the fact that 'break' and 'continue' were defined as functions.
+    
+    Following CL 421883 race conditions are no longer an issue, so
+    the simplest fix is just to move the initialization where it was
+    before - in startParse, after t.funcs has been set.
+    
+    Fixes #56538
+    
+    Change-Id: I3b99fe9ad12255a4f6eb9a00eb3f64529ff055c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447775
+    Run-TryBot: Eli Bendersky‎ <eliben@golang.org>
+    Auto-Submit: Eli Bendersky‎ <eliben@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/text/template/parse/parse.go      | 10 +++++-----
+ src/text/template/parse/parse_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 5 deletions(-)

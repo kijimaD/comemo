@@ -1,0 +1,12 @@
+commit 6b9a0fa356de3c733c14951e42ca31cfafe7ff79
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Wed Feb 17 14:55:16 2016 -0800
+
+    doc: fix typo in go1.6 release date.
+    
+    Change-Id: If15fdcd3cd49394a0c1dffd39fbbeede11081ccb
+    Reviewed-on: https://go-review.googlesource.com/19528
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/devel/release.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

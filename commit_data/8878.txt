@@ -1,0 +1,15 @@
+commit cf3eeb29841d671c63d4d308bf8f5a99906d33d8
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Jun 28 16:10:39 2011 +1000
+
+    io.WriteString: if the object has a WriteString method, use it
+    
+    This avoids allocation when writing to bytes.Buffers and bufio.Writers, for
+    example.
+    
+    R=golang-dev, rsc, r, consalus, r
+    CC=golang-dev
+    https://golang.org/cl/4625068
+
+ src/pkg/io/io.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

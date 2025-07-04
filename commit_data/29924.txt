@@ -1,0 +1,14 @@
+commit 1ede11d13a2a4ed63e9a6cf8b6039225749fa6ea
+Author: Kevin Burke <kev@inburke.com>
+Date:   Thu Dec 8 22:22:24 2016 -0800
+
+    os/user: document the difference between Username and Name
+    
+    Fixes #18261.
+    
+    Change-Id: I4bd7363aac4e62461f61fd95b3c7a18063412182
+    Reviewed-on: https://go-review.googlesource.com/34241
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/user/user.go | 36 ++++++++++++++++++++++--------------
+ 1 file changed, 22 insertions(+), 14 deletions(-)

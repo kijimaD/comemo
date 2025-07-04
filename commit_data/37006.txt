@@ -1,0 +1,15 @@
+commit de31f637a9edec8a94c8fb6124bb30ff1d6ee1ee
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Wed Oct 17 10:40:44 2018 +0300
+
+    cmd/compile: make tabs narrow in src column of ssa.html
+    
+    Too deeply nested code is hard to fit in ssa.html.
+    This CL reduces the tab size to 4 characters.
+    
+    Change-Id: I08643b0868bce3439567084c7d701654655f23d7
+    Reviewed-on: https://go-review.googlesource.com/c/142857
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/html.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

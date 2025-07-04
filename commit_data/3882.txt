@@ -1,0 +1,14 @@
+commit 213bd39a3beeddbbc40466632c7492b603d9c2ec
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 7 16:46:49 2009 -0800
+
+    fix a few style nits; arrange the doc list in
+    an order we want people to read the docs.
+    
+    R=r
+    CC=go-dev
+    http://go/go-review/1025017
+
+ doc/style.css        |  7 +++----
+ lib/godoc/godoc.html | 12 ++++++------
+ 2 files changed, 9 insertions(+), 10 deletions(-)

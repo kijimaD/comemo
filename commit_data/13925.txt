@@ -1,0 +1,12 @@
+commit d18cc29f55f383c42b9a138a52c81fc9c734eec7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 24 13:15:33 2012 -0500
+
+    tag go1.0.3
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6543069
+
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 1c9dfb7647a6802c73a7aafa6f45f2e6249f5ab6
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Oct 21 10:29:45 2010 +1100
+
+    os: correct Stat S_ISDIR on Windows
+    
+    R=rsc, brainman
+    CC=golang-dev
+    https://golang.org/cl/2598041
+
+ src/pkg/os/stat_windows.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

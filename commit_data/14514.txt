@@ -1,0 +1,14 @@
+commit da803e5cd38ff74dfec212c1a04c114ee305b7b4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Nov 28 08:45:23 2012 +0900
+
+    net: fix ResolveIPAddr
+    
+    Fixes misedit in CL 6842053.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6849115
+
+ src/pkg/net/iprawsock.go | 3 +++
+ 1 file changed, 3 insertions(+)

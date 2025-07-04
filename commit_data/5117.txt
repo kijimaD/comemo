@@ -1,0 +1,13 @@
+commit 72bc37c1220088994649bb032316a42d2cd8ece7
+Author: Dean Prichard <dean.prichard@gmail.com>
+Date:   Tue Mar 23 18:13:20 2010 -0700
+
+    arm: fix build
+    
+    R=kaib, rsc
+    CC=golang-dev
+    https://golang.org/cl/627045
+
+ src/cmd/5g/gobj.c   | 4 ++--
+ test/golden-arm.out | 5 ++---
+ 2 files changed, 4 insertions(+), 5 deletions(-)

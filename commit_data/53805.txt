@@ -1,0 +1,23 @@
+commit ad90eeffa5343a134c5898e3630ac90a362eaf9f
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Jul 21 13:49:06 2023 -0400
+
+    cmd/dist: handle -json flag in runPending (clean up)
+    
+    Document work fields a bit more, and move code that
+    synthesizes JSON-encoded skip events to testjson.go.
+    
+    For #37486.
+    For #61557.
+    
+    Change-Id: Iffc23cf990bc39696e1e3fce8ce5a6790fc44e78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512115
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/dist/test.go     | 77 ++++++++++++++++--------------------------------
+ src/cmd/dist/testjson.go | 18 +++++++++++
+ 2 files changed, 44 insertions(+), 51 deletions(-)

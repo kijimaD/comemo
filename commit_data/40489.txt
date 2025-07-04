@@ -1,0 +1,19 @@
+commit 1d4369fa219a2cf6d6f84860e02f0cb3e6afb77a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 28 11:37:24 2019 -0400
+
+    go/build: use the main module's root when locating module sources
+    
+    Previously, we were using srcDir, which would apply the wrong module
+    dependencies (including the wrong 'replace' and 'exclude' directives)
+    when locating an import path within a module.
+    
+    Fixes #34860
+    
+    Change-Id: Ie59dcc2075a7b51ba40f7cd2f62dae27bf58c9b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203820
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/go/build/build.go      | 83 ++++++++++++++++++++++++++++++++--------------
+ src/go/build/build_test.go | 16 +++++++--
+ 2 files changed, 73 insertions(+), 26 deletions(-)

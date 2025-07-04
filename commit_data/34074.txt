@@ -1,0 +1,21 @@
+commit ea012d100bad48e5659637fde2f4d9737a087815
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 22 15:04:20 2017 -0800
+
+    go/importer: use named receiver types for methods of named interfaces
+    
+    R=go1.11
+    
+    Once approved, this change must be ported to golang.org/x/tools/go/gcimporter15.
+    
+    Fixes #13829.
+    
+    Change-Id: I26a0094d2bfd38b97f2b64bae84b9f428fc9cdf1
+    Reviewed-on: https://go-review.googlesource.com/85318
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/internal/gcimporter/bimport.go           | 64 +++++++++++++++----------
+ src/go/internal/gcimporter/gcimporter_test.go   | 53 +++++++++++++++++++-
+ src/go/internal/srcimporter/srcimporter_test.go | 38 +++++++++++++++
+ src/go/types/type.go                            | 11 +++--
+ 4 files changed, 134 insertions(+), 32 deletions(-)

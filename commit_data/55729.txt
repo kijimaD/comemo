@@ -1,0 +1,16 @@
+commit 24070cf747d8b3f4487f1ca7247dcdf0ac266e8c
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Dec 15 17:19:08 2023 +0800
+
+    runtime: fix the potential race of idle P's during injectglist
+    
+    Fixes #63555
+    
+    Change-Id: I26e7baf58fcb78e66e0feed5725e371e25d657cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550175
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/runtime/proc.go | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)

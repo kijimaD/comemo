@@ -1,0 +1,13 @@
+commit f69f45c5383044c503add49d12659e14c1496491
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 8 10:43:44 2014 -0700
+
+    test: add another test case that gccgo crashed on
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/124020044
+
+ test/fixedbugs/bug490.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

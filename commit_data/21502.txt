@@ -1,0 +1,18 @@
+commit b64dedabea13122449a336ebac9e6cdf66b9eb5b
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 26 01:09:07 2014 -0500
+
+    syscall: darwin/arm support
+    
+    Change-Id: Id6f7fa12084204bc3a200f423c7966ce2a0b63a0
+    Reviewed-on: https://go-review.googlesource.com/2123
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/syscall/asm_darwin_arm.s       |  134 ++++
+ src/syscall/syscall_darwin_arm.go  |   71 ++
+ src/syscall/zerrors_darwin_arm.go  | 1349 ++++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_darwin_arm.go | 1324 +++++++++++++++++++++++++++++++++++
+ src/syscall/zsysnum_darwin_arm.go  |  345 +++++++++
+ src/syscall/ztypes_darwin_arm.go   |  447 ++++++++++++
+ 6 files changed, 3670 insertions(+)

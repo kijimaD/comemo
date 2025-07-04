@@ -1,0 +1,14 @@
+commit 4f0aac52d926270255fa2b682aca15e8ff404c59
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Jan 12 10:49:35 2017 -0500
+
+    cmd/go: add comment about SIGUSR2 on iOS
+    
+    Missing from CL 34926.
+    
+    Change-Id: I4a046440c30811f26da53bee0e853dae3b0ac57a
+    Reviewed-on: https://go-review.googlesource.com/35123
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

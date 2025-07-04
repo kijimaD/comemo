@@ -1,0 +1,23 @@
+commit 37f84817247d3b8e687a701ccb0d6bc7ffe3cb78
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Feb 22 23:41:38 2019 +0100
+
+    errors: add Frame and Formatter/Printer interfaces
+    
+    errors.New now implements Formatter and includes Frame
+    information that is reported when detail is requested.
+    
+    Partly implements proposal Issue #29934.
+    
+    Change-Id: Id76888d246d7d862595b5e92d517b9c03f23a7a6
+    Reviewed-on: https://go-review.googlesource.com/c/163557
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/errors/errors.go      | 14 ++++++++++--
+ src/errors/format.go      | 34 ++++++++++++++++++++++++++++
+ src/errors/frame.go       | 56 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/errors/frame_test.go  | 43 ++++++++++++++++++++++++++++++++++++
+ src/go/build/deps_test.go |  2 +-
+ 5 files changed, 146 insertions(+), 3 deletions(-)

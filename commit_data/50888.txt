@@ -1,0 +1,27 @@
+commit 7feb68728dda2f9d86c0a1158307212f5a4297ce
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 12 14:57:47 2022 -0400
+
+    os: split wait6 syscall wrapper into per-platform files
+    
+    There are getting to be enough special cases in this wrapper that
+    the increase in clarity from having a single file is starting to be
+    outweighed by the complexity from chained conditionals.
+    
+    Updates #50138.
+    Updates #13987.
+    
+    Change-Id: If4f1be19c0344e249aa6092507c28363ca6c8438
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442575
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/wait6_dragonfly.go   | 18 ++++++++++++++++++
+ src/os/wait6_freebsd64.go   | 20 ++++++++++++++++++++
+ src/os/wait6_freebsd_386.go | 18 ++++++++++++++++++
+ src/os/wait6_freebsd_arm.go | 18 ++++++++++++++++++
+ src/os/wait6_netbsd.go      | 18 ++++++++++++++++++
+ src/os/wait_wait6.go        | 18 +-----------------
+ 6 files changed, 93 insertions(+), 17 deletions(-)

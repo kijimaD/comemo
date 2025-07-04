@@ -1,0 +1,13 @@
+commit bff71ed421e51cd89fb2e113ab80e5aef10bd986
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 12:20:40 2011 -0700
+
+    A+C: Jan Newmarch (individual CLA)
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5305062
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

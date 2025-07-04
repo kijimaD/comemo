@@ -1,0 +1,25 @@
+commit 5d1addf45dfed5b2227ae8835597b855562d9f61
+Author: griesemer <gri@golang.org>
+Date:   Mon Oct 2 16:23:25 2017 -0700
+
+    go/printer: fix formatting of three-index slice expression
+    
+    Apply gofmt to src, misc.
+    
+    Fixes #22111.
+    
+    Change-Id: Ib1bda0caaf2c1787a8137b7a61bbef7a341cc68c
+    Reviewed-on: https://go-review.googlesource.com/67633
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ misc/cgo/test/issue21809.go                  | 46 ++++++++++++++--------------
+ misc/cgo/testcshared/src/p/p.go              |  1 +
+ misc/cgo/testshared/src/division/division.go |  2 +-
+ src/cmd/compile/internal/gc/swt.go           |  2 +-
+ src/go/printer/nodes.go                      | 37 +++++++++++++++-------
+ src/go/printer/testdata/expressions.golden   | 39 ++++++++++++++++++++---
+ src/go/printer/testdata/expressions.input    | 29 ++++++++++++++++++
+ src/go/printer/testdata/expressions.raw      | 39 ++++++++++++++++++++---
+ 8 files changed, 149 insertions(+), 46 deletions(-)

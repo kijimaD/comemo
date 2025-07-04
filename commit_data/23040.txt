@@ -1,0 +1,31 @@
+commit 76ec0ee53a5619b4ead4772c075105bf66c0ac67
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 3 17:43:38 2015 -0700
+
+    cmd/internal/gc: separate Name-only Node fields
+    
+    Name will be converted from an anonymous to a
+    named field in a subsequent, automated CL.
+    
+    No functional changes. Passes toolstash -cmp.
+    
+    This reduces the size of gc.Node from 424 to 400 bytes.
+    This in turn reduces the permanent (pprof -inuse_space)
+    memory usage while compiling the test/rotate?.go tests:
+    
+    test    old(MB) new(MB) change
+    rotate0 379.49  367.30  -3.21%
+    rotate1 373.42  361.59  -3.16%
+    rotate2 381.17  368.77  -3.25%
+    rotate3 374.30  362.48  -3.15%
+    
+    Updates #9933.
+    
+    Change-Id: I21479527c136add4f1efb9342774e3be3e276e83
+    Reviewed-on: https://go-review.googlesource.com/10120
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/subr.go      |  3 ++-
+ src/cmd/internal/gc/syntax.go    | 33 ++++++++++++++++++---------------
+ src/cmd/internal/gc/typecheck.go |  3 +++
+ 3 files changed, 23 insertions(+), 16 deletions(-)

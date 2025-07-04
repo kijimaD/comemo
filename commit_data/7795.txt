@@ -1,0 +1,12 @@
+commit 929449ddaf4fbd61e827e7d75776acd94c287bcf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 17 16:33:10 2011 +1100
+
+    doc: explain release and weekly tags in install.html
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4272058
+
+ doc/install.html | 23 ++++++++++++++++++++++-
+ 1 file changed, 22 insertions(+), 1 deletion(-)

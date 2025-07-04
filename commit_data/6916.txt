@@ -1,0 +1,15 @@
+commit 71bd053ada2ec6ac5c8d37855e772ca7ec7fba04
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Dec 10 12:20:14 2010 +1100
+
+    html: parse <table><tr><td> tags.
+    
+    Also, shorten fooInsertionMode to fooIM.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3504042
+
+ src/pkg/html/parse.go      | 392 +++++++++++++++++++++++++++++++++++----------
+ src/pkg/html/parse_test.go |   2 +-
+ 2 files changed, 307 insertions(+), 87 deletions(-)

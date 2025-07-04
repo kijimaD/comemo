@@ -1,0 +1,19 @@
+commit f1b5bb95887685afa85d6a58ee8054101ce2d24c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 27 15:23:17 2015 -0700
+
+    go/types: convert untyped switch expressions to default type
+    
+    R=1.6
+    
+    Fixes #11667.
+    Fixes #11687.
+    
+    Change-Id: I060db212e8e0ee35fdefb4d482398f8f71650b38
+    Reviewed-on: https://go-review.googlesource.com/12713
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/expr.go            |  4 +--
+ src/go/types/stmt.go            | 32 ++++++++++------------
+ src/go/types/testdata/stmt0.src | 59 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 75 insertions(+), 20 deletions(-)

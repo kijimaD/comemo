@@ -1,0 +1,16 @@
+commit 97f81572c4a97b6539f0a7b3ca3089daf3d6b4c3
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Sun Feb 3 16:07:39 2019 +0000
+
+    bytes: clean up a test
+    
+    Change-Id: Iaa0e1721996b582bba9509c083755e1f125abb6b
+    GitHub-Last-Rev: c9b13ec0cdc2b22aafa54706dc6df6113a11712b
+    GitHub-Pull-Request: golang/go#29996
+    Reviewed-on: https://go-review.googlesource.com/c/160420
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/bytes/buffer_test.go | 22 ++++++++--------------
+ 1 file changed, 8 insertions(+), 14 deletions(-)

@@ -1,0 +1,18 @@
+commit aad4fe4d8fd455a345c5cedb06ad3b400d8cb5ec
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 22 11:33:42 2015 -0400
+
+    cmd/go: document internal and vendor
+    
+    Fixes #11606.
+    
+    Change-Id: I70d38c22812c17119b998aad9c1c68e7cf74e98a
+    Reviewed-on: https://go-review.googlesource.com/12524
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.html        |   4 +-
+ src/cmd/go/alldocs.go | 106 +++++++++++++++++++++++++++++++++++++++++++++++---
+ src/cmd/go/build.go   |   4 +-
+ src/cmd/go/get.go     |   4 ++
+ src/cmd/go/help.go    |  98 ++++++++++++++++++++++++++++++++++++++++++++--
+ 5 files changed, 202 insertions(+), 14 deletions(-)

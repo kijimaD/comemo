@@ -1,0 +1,23 @@
+commit 5d36bc18d56fa5d7ad10b675dd82892ed3100332
+Author: Sean Liao <sean@liao.dev>
+Date:   Fri Jul 12 20:42:50 2024 +0100
+
+    net/http: document io.Seeker requirement for fs.FS arguments
+    
+    Using the same wording as http.FS, even though it's not strictly
+    required if a content type can be determined by file extension.
+    
+    Fixes #66877
+    Updates #44553
+    
+    Change-Id: I7b70c10909bdd289a57d1998a565262b8aaf2dd2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597977
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/filetransport.go | 2 +-
+ src/net/http/fs.go            | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

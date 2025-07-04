@@ -1,0 +1,22 @@
+commit 1f17d61026a9d83591db420ba1441c8555d2f4a0
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu Feb 28 04:40:51 2019 -0500
+
+    internal/cpu: change s390x API to match x/sys/cpu
+    
+    This CL changes the internal/cpu API to more closely match the
+    public version in x/sys/cpu (added in CL 163003). This will make it
+    easier to update the dependencies of vendored code. The most prominent
+    renaming is from VE1 to VXE for the vector-enhancements facility 1.
+    VXE is the mnemonic used for this facility in the HWCAP vector.
+    
+    Change-Id: I922d6c8bb287900a4bd7af70567e22eac567b5c1
+    Reviewed-on: https://go-review.googlesource.com/c/164437
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/elliptic/p256_s390x.go |  2 +-
+ src/internal/cpu/cpu.go           | 39 ++++++++++++++++++++-------------------
+ src/internal/cpu/cpu_s390x.go     | 39 +++++++++++++++++++++++++--------------
+ 3 files changed, 46 insertions(+), 34 deletions(-)

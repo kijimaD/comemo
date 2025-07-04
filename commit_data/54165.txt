@@ -1,0 +1,33 @@
+commit 4b9a70a3b7101d01c67f1c7f839ab4f1234fda2e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Aug 20 14:33:32 2023 -0700
+
+    cmd/compile/internal/types: simpler signature type representation
+    
+    Now that all of the uses of signature types have been cleaned up, we
+    can simplify the internal representation significantly.
+    
+    In particular, instead of 3 separate struct objects each with 3
+    separate slices of fields, we can store all of the parameters in a
+    single slice and track the boundaries between them.
+    
+    We still need a results tuple struct for representing the type of
+    multi-value call expressions, but just a single one and it can safely
+    reuse the results subsection of the full parameters slice.
+    
+    Note: while Sizeof(Func) has increased (e.g., 32->56 on amd64), we're
+    saving on the allocation of 2 Types, 2 Structs, and 2 []*Field (288
+    bytes total on amd64), not counting any extra GC size class padding
+    from using a single shared []*Field instead of 3 separate ones.
+    
+    Change-Id: I119b5e960e715b3bc4f1f726e58b910a098659da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521335
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Bypass: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/types/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types/type.go        | 98 ++++++++++++++++-----------
+ 2 files changed, 60 insertions(+), 40 deletions(-)

@@ -1,0 +1,15 @@
+commit 00e2524d8aa7d4ee045530696a76efc9038962c0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 20 22:58:11 2017 -0800
+
+    sync/atomic: fix mipsx frame sizes
+    
+    Found by vet.
+    
+    Change-Id: Ied3089a2cc8757ae5377fb5fa05bbb385d26ad9c
+    Reviewed-on: https://go-review.googlesource.com/37307
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/sync/atomic/asm_mipsx.s | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,15 @@
+commit 6dc0e977d007216f1525f4dd1f73abf881e9b12c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 30 18:50:50 2020 -0800
+
+    doc/go1.14: mention new math/bits functions Rem, Rem32, Rem64
+    
+    Updates #28970
+    Updates #36878
+    
+    Change-Id: I9676f50516dd5b32bd4e44be136fcb9f43776edd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217127
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.14.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

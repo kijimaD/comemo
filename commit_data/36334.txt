@@ -1,0 +1,16 @@
+commit a1addf15df95418d86fc0d495bc9aa85590d5724
+Author: nogoegst <nogoegst@users.noreply.github.com>
+Date:   Tue Jul 3 19:49:52 2018 +0000
+
+    bufio: make Reader naming consistent
+    
+    All the readers are denoted as `b` while for `Reader.Size()` it is `r`.
+    
+    Change-Id: Ib6f97306c11b3abb2ff30edbc9f9362cad36d080
+    GitHub-Last-Rev: 992f88b374b5a309303b7fa1622ee629d0fb741b
+    GitHub-Pull-Request: golang/go#26205
+    Reviewed-on: https://go-review.googlesource.com/122156
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bufio/bufio.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

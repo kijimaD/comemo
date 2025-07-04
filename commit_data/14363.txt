@@ -1,0 +1,14 @@
+commit e245ae7501b5373cc709e75e50b54600728f5cc2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Nov 9 10:05:46 2012 +0900
+
+    runtime: re-enable crash test on FreeBSD
+    
+    It also passes on FreeBSD.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6812103
+
+ src/pkg/runtime/crash_test.go | 7 -------
+ 1 file changed, 7 deletions(-)

@@ -1,0 +1,25 @@
+commit 989b372a5cb73c982aa5ba00081e67e89cc71ff1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 23 08:40:40 2015 +1000
+
+    cmd/asm: fix shifts again, this time for sure
+    
+    There are two conditions to worry about:
+    
+    1) The shift count cannot be negative. Since the evaluator uses unsigned
+    arithmetic throughout, this means checking that the high bit of
+    the shift count is always off, which is done by converting to int64
+    and seeing if the result is negative.
+    
+    2) For right shifts, the value cannot be negative. We don't want a
+    high bit in the value because right shifting a value depends on the
+    sign, and for clarity we always want unsigned shifts.
+    
+    Next step is to build some testing infrastructure for the parser.
+    
+    Change-Id: I4c46c79989d02c107fc64954403fc18613763f1d
+    Reviewed-on: https://go-review.googlesource.com/11326
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/asm/internal/asm/parse.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

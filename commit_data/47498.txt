@@ -1,0 +1,20 @@
+commit 7f4a946fa26f2ffdc14c354f2f1cc193ab5d0e90
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Nov 16 21:59:15 2021 +0700
+
+    cmd/compile: prevent irgen crashing for empty local declaration stmt
+    
+    Updates #47631
+    Fixes #49611
+    
+    Change-Id: Ib4a4466038e0d4a9aa9380d7909f29f7d15c6c69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364314
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/stmt.go |  8 +++++---
+ test/fixedbugs/issue49611.go           | 11 +++++++++++
+ test/typeparam/issue49611.go           | 11 +++++++++++
+ 3 files changed, 27 insertions(+), 3 deletions(-)

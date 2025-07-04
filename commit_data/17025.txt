@@ -1,0 +1,16 @@
+commit 5e36877d2a5f41d4e0109d63025d68ce1929054a
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Aug 5 14:23:32 2013 -0400
+
+    crypto: include hash number in panic message.
+    
+    In the event that code tries to use a hash function that isn't compiled
+    in and panics, give the developer a fighting chance of figuring out
+    which hash function it needed.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12420045
+
+ src/pkg/crypto/crypto.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 7ccd505dc47842c94898f5aed72509c54af22576
+Author: Sanjay Menakuru <balasanjay@gmail.com>
+Date:   Tue Jan 3 14:12:54 2012 +1100
+
+    cmd/go: include test files in the files sent to gofmt, govet, and gofix
+    
+    Also, add TestGoFiles to the go command's public api.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5505083
+
+ src/cmd/go/list.go | 11 ++++++-----
+ src/cmd/go/pkg.go  | 55 ++++++++++++++++++++++++++++++------------------------
+ 2 files changed, 37 insertions(+), 29 deletions(-)

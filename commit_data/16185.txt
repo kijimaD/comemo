@@ -1,0 +1,13 @@
+commit f29013d19b79c960030e528b9106f8d0273cc21e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 16 13:59:10 2013 -0700
+
+    doc/effective_go: another doubled word
+    It's clear that that should never happen.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8798045
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

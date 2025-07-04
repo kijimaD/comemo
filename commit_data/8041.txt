@@ -1,0 +1,12 @@
+commit dd4423292ea7a475ef9db9fac8221e3c06bdc90f
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Apr 11 08:48:19 2011 +1000
+
+    misc/vim: update type highlighting for new reflect package
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4385051
+
+ misc/vim/syntax/go.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

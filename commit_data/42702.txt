@@ -1,0 +1,27 @@
+commit 7bbd5ca5a6a94f58d33de6b1244248a32dc8cd9c
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 22 11:21:36 2020 -0400
+
+    runtime: replace index and contains with bytealg calls
+    
+    The runtime has its own implementation of string indexing. To reduce
+    code duplication and cognitive load, replace this with calls to the
+    internal/bytealg package. We can't do this on Plan 9 because it needs
+    string indexing in a note handler (which isn't allowed to use the
+    optimized bytealg version because it uses SSE), so we can't just
+    eliminate the index function, but this CL does down-scope it so make
+    it clear it's only for note handlers on Plan 9.
+    
+    Change-Id: Ie1a142678262048515c481e8c26313b80c5875df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244537
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/os_plan9.go  | 18 ++++++++++++++++--
+ src/runtime/proc.go      |  3 ++-
+ src/runtime/runtime1.go  |  5 +++--
+ src/runtime/string.go    | 16 ----------------
+ src/runtime/traceback.go |  3 ++-
+ 5 files changed, 23 insertions(+), 22 deletions(-)

@@ -1,0 +1,28 @@
+commit c64e8e327ec706c4ac9ac767273e08a5175b5ec8
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Oct 13 12:40:48 2011 +1100
+
+    html: insert implied <p> and </p> tags
+    
+    (test # 25 in tests1.dat)
+    #data
+    <p><b><div></p></b></div>X
+    #document
+    | <html>
+    |   <head>
+    |   <body>
+    |     <p>
+    |       <b>
+    |     <div>
+    |       <b>
+    |
+    |           <p>
+    |           "X"
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5254060
+
+ src/pkg/html/parse.go      | 60 ++++++++++++++++++++++++++++------------------
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 38 insertions(+), 24 deletions(-)

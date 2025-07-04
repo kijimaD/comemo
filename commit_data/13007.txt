@@ -1,0 +1,22 @@
+commit 38590329807beaea154f427549302f71a7a0444e
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue May 1 22:32:46 2012 -0700
+
+    build: dist-based build for Plan 9
+    
+    R=rsc, iant, iant, seed
+    CC=golang-dev
+    https://golang.org/cl/5608059
+
+ src/all.rc                  |  13 +
+ src/clean.rc                |  14 +
+ src/cmd/dist/a.h            |   2 +
+ src/cmd/dist/arg.h          |   3 +-
+ src/cmd/dist/build.c        | 108 +++++--
+ src/cmd/dist/buildgc.c      |   1 -
+ src/cmd/dist/buildruntime.c |   7 +-
+ src/cmd/dist/goc2c.c        |   7 +-
+ src/cmd/dist/plan9.c        | 734 ++++++++++++++++++++++++++++++++++++++++++++
+ src/make.rc                 |  91 ++++++
+ src/run.rc                  |  50 +++
+ 11 files changed, 998 insertions(+), 32 deletions(-)

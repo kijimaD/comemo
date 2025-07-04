@@ -1,0 +1,36 @@
+commit 2c50bffee1c49d71ec1ea2c6cad10570ad780a4b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 24 11:33:29 2017 -0700
+
+    cmd/compile: simplify funcsyms
+    
+    Sym.Fsym is used only to avoid adding duplicate
+    entries to funcsyms, but that is easily
+    accomplished by detecting the first lookup
+    vs subsequent lookups of the func sym name.
+    
+    This avoids creating an unnecessary ONAME node
+    during funcsym, which eliminates a dependency
+    in the backend on Curfn and lineno.
+    
+    It also makes the code a lot simpler and clearer.
+    
+    Updates #15756
+    
+    Passes toolstash-check -all.
+    No compiler performance changes.
+    funcsymname does generate garbage via string
+    concatenation, but it is not called very much,
+    and this CL also eliminates allocation of several
+    Nodes and Names.
+    
+    Change-Id: I7116c78fa39d975b7bd2c65a1d228749cf0dd46b
+    Reviewed-on: https://go-review.googlesource.com/38605
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/dcl.go         | 46 ++++++++++++++++++------------
+ src/cmd/compile/internal/gc/go.go          |  3 +-
+ src/cmd/compile/internal/gc/obj.go         |  7 +++--
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/subr.go        | 12 ++++++--
+ 5 files changed, 43 insertions(+), 27 deletions(-)

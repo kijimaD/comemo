@@ -1,0 +1,14 @@
+commit a2354cd4e42728f96f010337b4f35d39ff760d8a
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 2 15:42:46 2011 -0700
+
+    image: fix build
+    accidentally deleted one method
+    TBR=rsc
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4438090
+
+ src/pkg/image/image.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

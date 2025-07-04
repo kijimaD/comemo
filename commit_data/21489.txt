@@ -1,0 +1,12 @@
+commit 91c0f006fc6f30d970d18ef19407e2a77a2e6acb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 4 16:31:59 2015 -0800
+
+    math/big: more Float conversion tests
+    
+    Change-Id: Ia30886569141ca2e0321bea6ee1d5c9e0f79d6f9
+    Reviewed-on: https://go-review.googlesource.com/3941
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/floatconv_test.go | 91 +++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 90 insertions(+), 1 deletion(-)

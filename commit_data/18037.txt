@@ -1,0 +1,12 @@
+commit 8eb508dd08bdebe3c37fc16e7d13b4fc7c078b73
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Tue Dec 17 23:18:12 2013 -0500
+
+    flag: remove unused FlagSet.exitOnError field
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/14279043
+
+ src/pkg/flag/flag.go | 1 -
+ 1 file changed, 1 deletion(-)

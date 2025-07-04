@@ -1,0 +1,20 @@
+commit d0dc68901a9c175a36208bc84a1d9ab3451e2071
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 8 13:50:00 2012 -0500
+
+    net/http: panic on duplicate registrations
+    
+    Otherwise, the registration semantics are
+    init-order-dependent, which I was trying very hard
+    to avoid in the API.  This may break broken programs.
+    
+    Fixes #2900.
+    
+    R=golang-dev, r, bradfitz, dsymonds, balasanjay, kevlar
+    CC=golang-dev
+    https://golang.org/cl/5644051
+
+ doc/go1.html               |  8 ++++++-
+ doc/go1.tmpl               |  8 ++++++-
+ src/pkg/net/http/server.go | 57 +++++++++++++++++++++++++++++++++-------------
+ 3 files changed, 55 insertions(+), 18 deletions(-)

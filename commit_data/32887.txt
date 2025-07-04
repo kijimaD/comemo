@@ -1,0 +1,35 @@
+commit 0828ec1ea8f1733d61db0893fe8c03abbcebc2e5
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Wed Sep 27 20:31:55 2017 -0300
+
+    flag: align multi-line usage strings
+    
+    Previously, a multi-line flag usage string would not be indented with the
+    rest of the usage strings. This made long usage strings difficult to read.
+    
+    For example, the usage for flag.String("A", "", "1\n2\n3") would be printed
+    as:
+    
+      -A    1
+    2
+    3
+    
+    But will now be printed as:
+    
+      -A    1
+            2
+            3
+    
+    Also fixes a slight error in the FlagSet.PrintDefaults documentation.
+    
+    Fixes #20799
+    
+    Change-Id: I4379c6b7590fdb93a2809a01046a0f6ae32c3e5d
+    Reviewed-on: https://go-review.googlesource.com/66711
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/flag/flag.go      | 10 ++++++----
+ src/flag/flag_test.go |  8 ++++++++
+ 2 files changed, 14 insertions(+), 4 deletions(-)

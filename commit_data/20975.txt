@@ -1,0 +1,12 @@
+commit 2fa657c5d618c24ab306075a1415c9a0ca96c44a
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 12 01:52:05 2014 -0500
+
+    .gitattributes: enforce unix eol style
+    
+    Change-Id: I5f021b131f5650217bd14dec09cfb81fb0447b9e
+    Reviewed-on: https://go-review.googlesource.com/1422
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .gitattributes | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,74 @@
+commit 5c22a4a2e13a7f43d1f3b887e17bd50cf8713afe
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 8 23:58:04 2015 +1000
+
+    cmd/7g: reactivate componentgen
+    
+    Update #10203
+    
+    When the portable componentgen was introduced in b960263 it
+    produced broken code on arm64 and was deactivated. In the month since
+    it looks like the underlying issues have been fixed so componentgen
+    produces working binaries that are slightly smaller, ~3kb reduction in
+    size for godoc binary.
+    
+    Benchmarks are underwhelming, but where visible, trending towards
+    an improvement (this is with Minux's peep optimiser CL).
+    
+    benchmark                          old ns/op       new ns/op       delta
+    BenchmarkBinaryTree17              15336842000     15002766000     -2.18%
+    BenchmarkFannkuch11                10848984000     10896931000     +0.44%
+    BenchmarkFmtFprintfEmpty           203             188             -7.39%
+    BenchmarkFmtFprintfString          753             720             -4.38%
+    BenchmarkFmtFprintfInt             667             670             +0.45%
+    BenchmarkFmtFprintfIntInt          1103            1102            -0.09%
+    BenchmarkFmtFprintfPrefixedInt     981             969             -1.22%
+    BenchmarkFmtFprintfFloat           1396            1348            -3.44%
+    BenchmarkFmtManyArgs               4151            4102            -1.18%
+    BenchmarkGobDecode                 34202360        32933020        -3.71%
+    BenchmarkGobEncode                 27579180        27438820        -0.51%
+    BenchmarkGzip                      1296119000      1285096000      -0.85%
+    BenchmarkGunzip                    291099800       289727200       -0.47%
+    BenchmarkHTTPClientServer          169476          169803          +0.19%
+    BenchmarkJSONEncode                70313600        69973400        -0.48%
+    BenchmarkJSONDecode                227811800       232875200       +2.22%
+    BenchmarkMandelbrot200             12985600        12996430        +0.08%
+    BenchmarkGoParse                   14708930        14507320        -1.37%
+    BenchmarkRegexpMatchEasy0_32       464             460             -0.86%
+    BenchmarkRegexpMatchEasy0_1K       4516            4517            +0.02%
+    BenchmarkRegexpMatchEasy1_32       452             454             +0.44%
+    BenchmarkRegexpMatchEasy1_1K       4664            4669            +0.11%
+    BenchmarkRegexpMatchMedium_32      602             602             +0.00%
+    BenchmarkRegexpMatchMedium_1K      172939          172494          -0.26%
+    BenchmarkRegexpMatchHard_32        9733            9577            -1.60%
+    BenchmarkRegexpMatchHard_1K        301356          298143          -1.07%
+    BenchmarkRevcomp                   2754334000      2753874000      -0.02%
+    BenchmarkTemplate                  315664000       311810800       -1.22%
+    BenchmarkTimeParse                 1034            989             -4.35%
+    BenchmarkTimeFormat                1118            1137            +1.70%
+    
+    benchmark                         old MB/s     new MB/s     speedup
+    BenchmarkGobDecode                22.44        23.31        1.04x
+    BenchmarkGobEncode                27.83        27.97        1.01x
+    BenchmarkGzip                     14.97        15.10        1.01x
+    BenchmarkGunzip                   66.66        66.98        1.00x
+    BenchmarkJSONEncode               27.60        27.73        1.00x
+    BenchmarkJSONDecode               8.52         8.33         0.98x
+    BenchmarkGoParse                  3.94         3.99         1.01x
+    BenchmarkRegexpMatchEasy0_32      68.92        69.47        1.01x
+    BenchmarkRegexpMatchEasy0_1K      226.71       226.65       1.00x
+    BenchmarkRegexpMatchEasy1_32      70.75        70.42        1.00x
+    BenchmarkRegexpMatchEasy1_1K      219.55       219.28       1.00x
+    BenchmarkRegexpMatchMedium_32     1.66         1.66         1.00x
+    BenchmarkRegexpMatchMedium_1K     5.92         5.94         1.00x
+    BenchmarkRegexpMatchHard_32       3.29         3.34         1.02x
+    BenchmarkRegexpMatchHard_1K       3.40         3.43         1.01x
+    BenchmarkRevcomp                  92.28        92.29        1.00x
+    BenchmarkTemplate                 6.15         6.22         1.01x
+    
+    Change-Id: I0b7d95388d6920fcbd7fe305df0c7c630a407726
+    Reviewed-on: https://go-review.googlesource.com/8636
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/7g/ggen.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

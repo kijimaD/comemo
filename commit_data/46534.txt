@@ -1,0 +1,21 @@
+commit f6f6621312263e1e3ea2928bdccc967f0f977865
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 21 11:25:59 2021 -0700
+
+    go/types: make ptrRecv a method hasPtrRecv of Func
+    
+    This is a clean port of CL 351310 from types2 to go/types
+    with the necessary changes to methodset.go which doesn't
+    exist in types2.
+    
+    Change-Id: Ifdac820d3be14c7bfa778b7bca3f6ba58d220b2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351311
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/lookup.go    |  2 +-
+ src/go/types/methodset.go | 23 ++---------------------
+ src/go/types/named.go     |  4 ++--
+ src/go/types/object.go    | 23 +++++++++++++++++++++--
+ src/go/types/resolver.go  |  2 +-
+ 5 files changed, 27 insertions(+), 27 deletions(-)

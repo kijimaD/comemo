@@ -1,0 +1,14 @@
+commit be9f6344a774e2edc2bb931194273cf1adcd587f
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Thu Apr 29 11:01:21 2010 -0700
+
+    net: parser should handle EOF without newline properly.
+    
+    Fixes #686.
+    
+    R=rsc
+    CC=adg, golang-dev
+    https://golang.org/cl/979044
+
+ src/pkg/net/parse.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

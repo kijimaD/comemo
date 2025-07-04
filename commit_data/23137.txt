@@ -1,0 +1,18 @@
+commit 1defd227bd464d13ce32df08594d6642a15ca0b4
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Mon May 25 18:58:19 2015 +0200
+
+    net/mail: add AddressParser type
+    
+    Add the AddressParser type to allow decoding any charset in
+    mail addresses.
+    
+    Fixes #7079
+    
+    Change-Id: Ic34efb3e3d804a4e17149a6c38cfd73f5f275ab7
+    Reviewed-on: https://go-review.googlesource.com/10392
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/mail/message.go      |  64 ++++++++++------
+ src/net/mail/message_test.go | 171 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 213 insertions(+), 22 deletions(-)

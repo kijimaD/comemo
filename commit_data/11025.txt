@@ -1,0 +1,12 @@
+commit 3f1eb94ef2380e1f100835c3bccb7394d0c6138d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 4 14:06:54 2012 -0800
+
+    runtime: fix typo in comment
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5511047
+
+ src/pkg/runtime/extern.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

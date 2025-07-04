@@ -1,0 +1,13 @@
+commit 9e56bcb9fe23bbd75d8896e845a9129251d4fca5
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 2 21:51:39 2020 -0400
+
+    doc/go1.15: runtime release notes
+    
+    Change-Id: Ie37e993e840df2c063dee98fa3f6eca8e8713ca3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236177
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.15.html | 51 ++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 46 insertions(+), 5 deletions(-)

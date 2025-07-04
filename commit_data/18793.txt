@@ -1,0 +1,19 @@
+commit e509bbc943e817317e4db04b48f2895bec712c2f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Mar 7 16:02:25 2014 +1100
+
+    cmd/6a: add support for nacl/amd64p32
+    
+    Replaces CL 70000043.
+    
+    Switch to the amd64p32 linker model if we are building under nacl/amd64p32.
+    
+    No need to introduce linkarchinit() as 6a contains its own main() function.
+    
+    LGTM=rsc
+    R=rsc, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/72020043
+
+ src/cmd/6a/lex.c | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

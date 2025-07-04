@@ -1,0 +1,17 @@
+commit 9d0ca262bbfa5561910f75e7b7d937b615d69393
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 14 16:09:36 2021 -0800
+
+    doc/go1.18: mention that embedding a type parameter is forbidden
+    
+    For #47694
+    
+    Change-Id: Ibf38eabcb78abc563fcf77e2b566175a18c06fa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372114
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.18.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

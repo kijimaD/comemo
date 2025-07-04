@@ -1,0 +1,74 @@
+commit 44526cdbe0c012c2a9bf6fc493aa8ad3411b884f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 22:06:05 2011 -0400
+
+    non-pkg: gofix -r error -force=error
+    
+    R=golang-dev, iant, r, r
+    CC=golang-dev
+    https://golang.org/cl/5307066
+
+ doc/codelab/wiki/final-noclosure.go     | 18 ++++++++---------
+ doc/codelab/wiki/final-noerror.go       |  5 ++---
+ doc/codelab/wiki/final-parsetemplate.go | 11 +++++------
+ doc/codelab/wiki/final-template.go      |  5 ++---
+ doc/codelab/wiki/final.go               | 11 +++++------
+ doc/codelab/wiki/get.go                 |  2 +-
+ doc/codelab/wiki/index.html             | 20 +++++++++----------
+ doc/codelab/wiki/notemplate.go          |  5 ++---
+ doc/codelab/wiki/part1-noerror.go       |  3 +--
+ doc/codelab/wiki/part1.go               |  5 ++---
+ doc/codelab/wiki/part2.go               |  5 ++---
+ doc/codewalk/urlpoll.go                 |  2 +-
+ doc/go_tutorial.html                    | 18 ++++++++---------
+ doc/progs/cat_rot13.go                  |  4 ++--
+ doc/progs/file.go                       | 12 +++++------
+ doc/progs/file_windows.go               | 12 +++++------
+ doc/progs/helloworld3.go                |  2 +-
+ doc/talks/io2010/decrypt.go             |  4 ++--
+ doc/talks/io2010/encrypt.go             |  2 +-
+ doc/tmpltohtml.go                       |  3 +--
+ misc/cgo/gmp/gmp.go                     |  2 +-
+ misc/cgo/test/basic.go                  |  4 ++--
+ misc/dashboard/builder/exec.go          |  6 +++---
+ misc/dashboard/builder/http.go          | 20 +++++++++----------
+ misc/dashboard/builder/main.go          | 15 +++++++-------
+ misc/dashboard/builder/package.go       |  7 ++++---
+ misc/goplay/goplay.go                   | 16 +++++++--------
+ src/cmd/cgo/ast.go                      | 12 +++++------
+ src/cmd/cgo/gcc.go                      | 31 +++++++++++++++--------------
+ src/cmd/cgo/main.go                     |  4 ++--
+ src/cmd/cgo/out.go                      |  4 ++--
+ src/cmd/cgo/util.go                     |  2 +-
+ src/cmd/godoc/appinit.go                |  3 +--
+ src/cmd/godoc/codewalk.go               | 19 +++++++++---------
+ src/cmd/godoc/filesystem.go             | 18 ++++++++---------
+ src/cmd/godoc/godoc.go                  | 20 +++++++++----------
+ src/cmd/godoc/httpzip.go                | 14 ++++++-------
+ src/cmd/godoc/index.go                  | 16 +++++++--------
+ src/cmd/godoc/main.go                   |  7 ++++---
+ src/cmd/godoc/parser.go                 |  7 +++----
+ src/cmd/godoc/utils.go                  |  2 +-
+ src/cmd/godoc/zip.go                    | 13 ++++++------
+ src/cmd/gofix/main.go                   | 12 +++++------
+ src/cmd/gofmt/gofmt.go                  | 14 ++++++-------
+ src/cmd/goinstall/download.go           | 35 +++++++++++++++++----------------
+ src/cmd/goinstall/main.go               | 17 ++++++++--------
+ src/cmd/goinstall/make.go               | 16 +++++++--------
+ src/cmd/gotest/gotest.go                |  2 +-
+ src/cmd/govet/govet.go                  |  4 ++--
+ src/cmd/hgpatch/main.go                 | 32 +++++++++++++++---------------
+ test/chan/goroutines.go                 |  2 +-
+ test/env.go                             |  4 ++--
+ test/fixedbugs/bug243.go                |  8 ++++----
+ test/fixedbugs/bug262.go                |  7 +++----
+ test/fixedbugs/bug286.go                | 14 +++++--------
+ test/fixedbugs/bug326.go                | 20 +++++++++----------
+ test/fixedbugs/bug331.go                | 14 ++++++-------
+ test/fixedbugs/bug354.go                |  8 ++------
+ test/func2.go                           |  3 +--
+ test/garbage/parser.go                  |  2 +-
+ test/recover2.go                        |  7 ++-----
+ test/recover3.go                        |  2 +-
+ test/zerodivide.go                      |  6 +++---
+ 63 files changed, 300 insertions(+), 320 deletions(-)

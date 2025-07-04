@@ -1,0 +1,12 @@
+commit fda1d16935e81479fe08717424fa472b445f3a58
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 23 16:59:06 2008 -0700
+
+    - parsing support for composite literals
+    
+    R=r
+    OCL=13394
+    CL=13394
+
+ usr/gri/gosrc/parser.go | 86 ++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 81 insertions(+), 5 deletions(-)

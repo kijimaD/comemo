@@ -1,0 +1,16 @@
+commit f2a520f48d21db700655ee061e429d10f13e4856
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 30 08:59:56 2009 -0700
+
+    clean up error output;
+    do not print entire buffer on error,
+    since it can be very large.
+    instead print identifying string.
+    
+    R=krasin
+    DELTA=14  (1 added, 3 deleted, 10 changed)
+    OCL=35141
+    CL=35143
+
+ src/pkg/compress/flate/deflate_test.go | 24 +++++++++++-------------
+ 1 file changed, 11 insertions(+), 13 deletions(-)

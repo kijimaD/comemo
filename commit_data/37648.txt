@@ -1,0 +1,17 @@
+commit 353ebe721019ac833646bea829d7840e55f3da30
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 10 14:58:08 2018 -0500
+
+    cmd/go/internal/modfetch/codehost: return VCSError for unimplemented functions and malformed responses
+    
+    Updates #28943
+    Updates #26092
+    
+    Change-Id: I07af2731ef5af046b9f7c7280ccb3976cdf41ca4
+    Reviewed-on: https://go-review.googlesource.com/c/153458
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/vcs.go | 39 ++++++++++++++++++----------
+ src/cmd/go/testdata/script/mod_get_svn.txt   | 21 +++++++++++++++
+ 2 files changed, 46 insertions(+), 14 deletions(-)

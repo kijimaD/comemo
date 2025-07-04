@@ -1,0 +1,28 @@
+commit 6a70f9d07339729639520f4ed8faef8965e6e26e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 25 18:14:02 2013 -0400
+
+    runtime: pass setmg function to cgo_init
+    
+    This keeps the logic about how to set the thread-local variables
+    m and g in code compiled and linked by the gc toolchain,
+    an important property for upcoming cgo changes.
+    
+    It's also just a nice cleanup: one less place to update when
+    these details change.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7560048
+
+ src/pkg/runtime/asm_386.s               | 11 +++++++++++
+ src/pkg/runtime/asm_amd64.s             |  8 ++++++++
+ src/pkg/runtime/cgo/gcc_freebsd_386.c   | 14 +++++---------
+ src/pkg/runtime/cgo/gcc_freebsd_amd64.c | 16 ++++++----------
+ src/pkg/runtime/cgo/gcc_linux_386.c     | 17 +++++------------
+ src/pkg/runtime/cgo/gcc_linux_amd64.c   | 15 ++++++---------
+ src/pkg/runtime/cgo/gcc_netbsd_386.c    | 14 +++++---------
+ src/pkg/runtime/cgo/gcc_netbsd_amd64.c  | 15 ++++++---------
+ src/pkg/runtime/cgo/gcc_openbsd_386.c   | 14 +++++---------
+ src/pkg/runtime/cgo/gcc_openbsd_amd64.c | 15 ++++++---------
+ 10 files changed, 63 insertions(+), 76 deletions(-)

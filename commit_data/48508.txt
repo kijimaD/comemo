@@ -1,0 +1,19 @@
+commit 947bf333fc2d93e519241b521ddc13c76daa4862
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Mar 23 17:13:38 2022 +0700
+
+    cmd/compile/internal/types: simplify AllowsGoVersion
+    
+    After CL 394556, only LocalPkg is passed to AllowsGoVersion, so simplify
+    the code to not depend on Pkg anymore.
+    
+    Change-Id: I8f9bfd4090100eec60cf3959c0d8fa92a26fc32a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394954
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/noder.go     |  2 +-
+ src/cmd/compile/internal/types/goversion.go | 16 +++-------------
+ 2 files changed, 4 insertions(+), 14 deletions(-)

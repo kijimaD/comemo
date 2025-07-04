@@ -1,0 +1,22 @@
+commit e3f1c66f313a59888620c415163b93c12153574e
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jun 9 11:07:36 2016 -0700
+
+    cmd/compile: for tail calls in stubs, ensure args are alive
+    
+    The generated code for interface stubs sometimes just messes
+    with a few of the args and then tail-calls to the target routine.
+    The args that aren't explicitly modified appear to not be used.
+    But they are used, by the thing we're tail calling.
+    
+    Fixes #16016
+    
+    Change-Id: Ib9b3a8311bb714a201daee002885fcb59e0463fa
+    Reviewed-on: https://go-review.googlesource.com/23960
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/plive.go |  9 +++++++++
+ test/fixedbugs/issue16016.go         | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

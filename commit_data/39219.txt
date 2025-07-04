@@ -1,0 +1,18 @@
+commit 648c7b592a30b2280e8d23419224c657ab0a8332
+Author: Keegan Carruthers-Smith <keegan.csmith@gmail.com>
+Date:   Tue May 7 15:49:56 2019 +0200
+
+    regexp/syntax: exclude full range from String negation case
+    
+    If the char class is 0x0-0x10ffff we mistakenly would String that to `[^]`,
+    which is not a valid regex.
+    
+    Fixes #31807
+    
+    Change-Id: I9ceeaddc28b67b8e1de12b6703bcb124cc784556
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175679
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/regexp/syntax/parse_test.go | 1 +
+ src/regexp/syntax/regexp.go     | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

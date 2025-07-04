@@ -1,0 +1,12 @@
+commit 9714c2208b7c68ae2164357b0d7f56953d5b5c38
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 10 09:50:21 2010 -0700
+
+    asn1: remove superfluous if's, unused function
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/1743059
+
+ src/pkg/asn1/marshal.go | 29 ++++++-----------------------
+ 1 file changed, 6 insertions(+), 23 deletions(-)

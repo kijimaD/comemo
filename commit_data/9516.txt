@@ -1,0 +1,13 @@
+commit 26608d4fbbc3a8d672529db36c5c735250948bdf
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Fri Aug 26 17:20:19 2011 -0400
+
+    6l, 8l: handle forward JCXZ
+    
+    R=rsc
+    CC=golang-dev, vcc.163
+    https://golang.org/cl/4963044
+
+ src/cmd/6l/span.c | 20 ++++++--------------
+ src/cmd/8l/span.c | 20 ++++++--------------
+ 2 files changed, 12 insertions(+), 28 deletions(-)

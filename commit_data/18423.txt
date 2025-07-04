@@ -1,0 +1,25 @@
+commit 546081fd01aad2446b9cd50444662c6438e7fb2e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 7 10:23:53 2014 +0900
+
+    syscall: make use of signed char explicit in generating z-files on freebsd/arm
+    
+    This CL is in preparation to make cgo work on freebsd/arm.
+    
+    The signedness of C char might be a problem when we make bare syscall
+    APIs, Go structures, using built-in bootstrap scripts with cgo because
+    they do translate C stuff to Go stuff internally. For now almost all
+    the C compilers assume that the type of char will be unsigned on arm
+    by default but it makes a different view from amd64, 386.
+    
+    This CL just passes -fsigned-char, let the type of char be signed,
+    option which is supported on both gcc and clang to the underlying C
+    compilers through cgo for avoiding such inconsistency on syscall API.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/59740051
+
+ src/pkg/syscall/mkall.sh | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

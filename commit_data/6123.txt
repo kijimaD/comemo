@@ -1,0 +1,18 @@
+commit 089ce170930ebdf0908369fa7d0a30647488f2af
+Author: James Fysh <james.fysh@gmail.com>
+Date:   Sat Aug 28 07:54:16 2010 +1000
+
+            Documentation: Fix a bug in the example in Constants subsection
+    
+            Not a bug per-se, the issue is that the fmt.Sprintf method inside the
+            ByteSize.String() method ends up calling itself to generate the String
+            representation of the ByteSize value.  Infinite loops are bad.
+    
+        Updated as per review comments
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1974046
+
+ doc/effective_go.html | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)

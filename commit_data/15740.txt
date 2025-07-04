@@ -1,0 +1,12 @@
+commit d526e5e79ca7182f1e6c88514bfa58c0e70b7d9e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 12 16:50:10 2013 -0700
+
+    go/test/bench/go1: add regexp test
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7480047
+
+ test/bench/go1/regexp_test.go | 59 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 59 insertions(+)

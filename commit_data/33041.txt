@@ -1,0 +1,29 @@
+commit 2595fe7fb6f272f9204ca3ef0b0c55e66fb8d90f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 15 10:51:15 2017 -0400
+
+    runtime: don't start new threads from locked threads
+    
+    Applications that need to manipulate kernel thread state are currently
+    on thin ice in Go: they can use LockOSThread to prevent other
+    goroutines from running on the manipulated thread, but Go may clone
+    this manipulated state into a new thread that's put into the runtime's
+    thread pool along with other threads.
+    
+    Fix this by never starting a new thread from a locked thread or a
+    thread that may have been started by C. Instead, the runtime starts a
+    "template thread" with a known-good state. If it then needs to start a
+    new thread but doesn't know that the current thread is in a good
+    state, it forwards the thread creation to the template thread.
+    
+    Fixes #20676.
+    
+    Change-Id: I798137a56e04b7723d55997e9c5c085d1d910643
+    Reviewed-on: https://go-review.googlesource.com/46033
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/proc.go     | 117 ++++++++++++++++++++++++++++++++++++++++++++++--
+ src/runtime/runtime2.go |   1 +
+ 2 files changed, 115 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit 2b4cc6ccb5f86d856eca2fb069b10b11aaa278bd
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Jul 11 20:26:51 2012 +0200
+
+    spec: correct typo in string conversion examples.
+    
+    R=golang-dev, dave, r
+    CC=golang-dev, remy
+    https://golang.org/cl/6378046
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,62 @@
+commit f8f08bfd7c3894b4ea8481065ddd5609aa21d6a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 18 10:20:13 2025 -0500
+
+    math/big: improve scan test and benchmark
+    
+    Add a few more test cases for scanning (integer conversion),
+    which were helpful in debugging some upcoming changes.
+    
+    BenchmarkScan currently times converting the value 10**N
+    represented in base B back into []Word form.
+    When B = 10, the text is 1 followed by many zeros, which
+    could hit a "multiply by zero" special case when processing
+    many digit chunks, misrepresenting the actual time required
+    depending on whether that case is optimized.
+    
+    Change the benchmark to use 9**N, which is about as big and
+    will not cause runs of zeros in any of the tested bases.
+    
+    The benchmark comparison below is not showing faster code,
+    since of course the code is not changing at all here. Instead,
+    it is showing that the new benchmark work is roughly the same
+    size as the old benchmark work.
+    
+    goos: darwin
+    goarch: arm64
+    pkg: math/big
+    cpu: Apple M3 Pro
+                          │     old     │                new                 │
+                          │   sec/op    │   sec/op     vs base               │
+    ScanPi-12               43.35µ ± 1%   43.59µ ± 1%       ~ (p=0.069 n=15)
+    Scan/10/Base2-12        202.3n ± 2%   193.7n ± 1%  -4.25% (p=0.000 n=15)
+    Scan/100/Base2-12       1.512µ ± 3%   1.447µ ± 1%  -4.30% (p=0.000 n=15)
+    Scan/1000/Base2-12      15.06µ ± 2%   14.33µ ± 0%  -4.83% (p=0.000 n=15)
+    Scan/10000/Base2-12     188.0µ ± 5%   177.3µ ± 1%  -5.65% (p=0.000 n=15)
+    Scan/100000/Base2-12    5.814m ± 3%   5.382m ± 1%  -7.43% (p=0.000 n=15)
+    Scan/10/Base8-12        78.57n ± 2%   75.02n ± 1%  -4.52% (p=0.000 n=15)
+    Scan/100/Base8-12       548.2n ± 2%   526.8n ± 1%  -3.90% (p=0.000 n=15)
+    Scan/1000/Base8-12      5.674µ ± 2%   5.421µ ± 0%  -4.46% (p=0.000 n=15)
+    Scan/10000/Base8-12     94.42µ ± 1%   88.61µ ± 1%  -6.15% (p=0.000 n=15)
+    Scan/100000/Base8-12    4.906m ± 2%   4.498m ± 3%  -8.31% (p=0.000 n=15)
+    Scan/10/Base10-12       73.42n ± 1%   69.56n ± 0%  -5.26% (p=0.000 n=15)
+    Scan/100/Base10-12      511.9n ± 1%   488.2n ± 0%  -4.63% (p=0.000 n=15)
+    Scan/1000/Base10-12     5.254µ ± 2%   5.009µ ± 0%  -4.66% (p=0.000 n=15)
+    Scan/10000/Base10-12    90.22µ ± 2%   84.52µ ± 0%  -6.32% (p=0.000 n=15)
+    Scan/100000/Base10-12   4.842m ± 3%   4.471m ± 3%  -7.65% (p=0.000 n=15)
+    Scan/10/Base16-12       62.28n ± 1%   58.70n ± 1%  -5.75% (p=0.000 n=15)
+    Scan/100/Base16-12      398.6n ± 0%   377.9n ± 1%  -5.19% (p=0.000 n=15)
+    Scan/1000/Base16-12     4.108µ ± 1%   3.782µ ± 0%  -7.94% (p=0.000 n=15)
+    Scan/10000/Base16-12    83.78µ ± 2%   80.51µ ± 1%  -3.90% (p=0.000 n=15)
+    Scan/100000/Base16-12   5.080m ± 3%   4.698m ± 3%  -7.53% (p=0.000 n=15)
+    geomean                 12.41µ        11.74µ       -5.36%
+    
+    Change-Id: If3ce290ecc7f38672f11b42fd811afb53dee665d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650639
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/math/big/intconv_test.go | 26 ++++++++++++++++++++++++--
+ src/math/big/natconv_test.go |  2 +-
+ 2 files changed, 25 insertions(+), 3 deletions(-)

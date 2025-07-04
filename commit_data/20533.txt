@@ -1,0 +1,13 @@
+commit dfaf1f71e67de2807e07c880060b457d32a66b8b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 24 17:39:00 2014 -0700
+
+    net/http: update ProxyFromEnvironment docs for HTTPS_PROXY addition
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/142650043
+
+ src/net/http/transport.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

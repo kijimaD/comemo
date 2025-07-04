@@ -1,0 +1,20 @@
+commit 29dc4b40f85fdb0985eea3e718385dc3c6cd22b7
+Author: Jens Frederich <jfrederich@gmail.com>
+Date:   Thu Feb 19 21:37:38 2015 +0100
+
+    cmd/go: "go get" don't ignore git default branch
+    
+    Any Git branch can be the default branch not only master. Removing
+    hardwired 'checkout master', and using 'checkout {tag}' is the best
+    choice. It works with and without a master branch. Furthermore it
+    resolves the Github default branch issue. Changing Github default
+    branch is effectively changing HEAD.
+    
+    Fixes #9032
+    
+    Change-Id: I19a1221bcefe0806e7556c124c6da7ac0c2160b5
+    Reviewed-on: https://go-review.googlesource.com/5312
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/vcs.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

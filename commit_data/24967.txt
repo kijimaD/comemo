@@ -1,0 +1,22 @@
+commit e4a1acced742a53421e22fe498d66c81d623110b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 18 20:22:29 2015 +0000
+
+    net/http: accept empty method in Transport again
+    
+    Fix regression from https://golang.org/cl/16829 ("require valid methods
+    in NewRequest and Transport.RoundTrip").
+    
+    An empty string is a valid method (it means "GET", per the docs).
+    
+    Fixes #13311
+    
+    Change-Id: I26b71dc4ccc146498b5d7e38fbe31ed11dd5a6cf
+    Reviewed-on: https://go-review.googlesource.com/16952
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/transport.go      |  2 +-
+ src/net/http/transport_test.go | 15 ++++++++++++++-
+ 2 files changed, 15 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 632be89407d862fb6f566e8c217d69a9cf24866d
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Jan 11 10:17:54 2011 -0500
+
+    cgo: output alignment fix
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3902044
+
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

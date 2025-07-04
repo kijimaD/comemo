@@ -1,0 +1,21 @@
+commit f063e0da28d441065d36f7d676f86d478f67db1f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 18 19:01:33 2021 +0000
+
+    runtime: add harddecommit GODEBUG flag
+    
+    This change adds a new debug flag that makes the runtime map pages
+    PROT_NONE in sysUnused on Linux, in addition to the usual madvise calls.
+    This behavior mimics the behavior of decommit on Windows, and is helpful
+    in debugging the scavenger. sysUsed is also updated to re-map the pages
+    as PROT_READ|PROT_WRITE, mimicing Windows' explicit commit behavior.
+    
+    Change-Id: Iaac5fcd0e6920bd1d0e753dd4e7f0c0b128fe842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356612
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/extern.go    |  5 +++++
+ src/runtime/mem_linux.go | 20 ++++++++++++++++++++
+ src/runtime/runtime1.go  |  2 ++
+ 3 files changed, 27 insertions(+)

@@ -1,0 +1,21 @@
+commit be0471880d128f7c98efec28c0f3114075e74918
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 20 17:04:35 2019 -0500
+
+    misc/cgo/fortran: avoid writing to $PWD
+    
+    The bash script that drives this test needs to know whether the
+    fortran compiler works, but it doesn't actually care about the
+    generated binary. Write that binary to /dev/null.
+    
+    Updates #28387
+    Updates #30316
+    
+    Change-Id: I4f86da1aeb939fc205f467511fc69235a6a9af26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208124
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/fortran/test.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,31 @@
+commit 4946d9e87b7340b7846fa2e5f4aea28c4d5f6ab4
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 4 12:54:47 2018 -0400
+
+    runtime: stop when we run out of hints in race mode
+    
+    Currently, the runtime falls back to asking for any address the OS can
+    offer for the heap when it runs out of hint addresses. However, the
+    race detector assumes the heap lives in [0x00c000000000,
+    0x00e000000000), and will fail in a non-obvious way if we go outside
+    this region.
+    
+    Fix this by actively throwing a useful error if we run out of heap
+    hints in race mode.
+    
+    This problem is currently being triggered by TestArenaCollision, which
+    intentionally triggers this fallback behavior. Fix the test to look
+    for the new panic message in race mode.
+    
+    Fixes #24670.
+    Updates #24133.
+    
+    Change-Id: I57de6d17a3495dc1f1f84afc382cd18a6efc2bf7
+    Reviewed-on: https://go-review.googlesource.com/104717
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/malloc.go      |  8 ++++++++
+ src/runtime/malloc_test.go | 13 ++++++++++++-
+ 2 files changed, 20 insertions(+), 1 deletion(-)

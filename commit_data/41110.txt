@@ -1,0 +1,17 @@
+commit 5c44cc47c6e868c3b6c800b24e64182bcc213fe6
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sat Jan 11 19:53:20 2020 +0100
+
+    os: handle long path in RemoveAll for windows
+    
+    Fixes #36375
+    
+    Change-Id: I407a1db23868880b83e73bc136d274659483fb69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214437
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/removeall_noat.go |  1 +
+ src/os/removeall_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+)

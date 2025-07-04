@@ -1,0 +1,16 @@
+commit 549ca930a068ebdf05133656ecde085368e18faa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 31 13:01:34 2012 -0800
+
+    net: move DNSConfigError to a portable file
+    
+    The type being unavailable on Windows was the only API
+    signature difference in the net package.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5608043
+
+ src/pkg/net/dnsconfig.go | 13 -------------
+ src/pkg/net/net.go       | 12 ++++++++++++
+ 2 files changed, 12 insertions(+), 13 deletions(-)

@@ -1,0 +1,21 @@
+commit b0891060ae309a4a18035195f4b06eca0e6e584d
+Author: Devon H. O'Dell <devon.odell@gmail.com>
+Date:   Wed Feb 22 15:44:09 2012 +1100
+
+    runtime: fix FreeBSD signal handling around thread creation
+    Ignore signals while we are spawning a new thread. Previously, a
+    signal arriving just before runtime.minit setting up the signal
+    handler triggers a "double fault" in signal trampolining.
+    Fixes #3017.
+    
+    R=rsc, mikioh.mikioh, minux.ma, adg
+    CC=golang-dev
+    https://golang.org/cl/5684060
+
+ src/pkg/runtime/cgo/gcc_freebsd_386.c   | 10 ++++++++++
+ src/pkg/runtime/cgo/gcc_freebsd_amd64.c | 11 +++++++++++
+ src/pkg/runtime/os_freebsd.h            |  1 +
+ src/pkg/runtime/sys_freebsd_386.s       | 13 +++++++++++++
+ src/pkg/runtime/sys_freebsd_amd64.s     | 12 +++++++++++-
+ src/pkg/runtime/thread_freebsd.c        |  7 +++++++
+ 6 files changed, 53 insertions(+), 1 deletion(-)

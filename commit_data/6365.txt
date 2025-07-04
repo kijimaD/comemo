@@ -1,0 +1,15 @@
+commit 34d413f562fb4de78a8ea84ec3fed252c3667820
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 23 23:04:32 2010 -0400
+
+    runtime: fix unwindstack crash
+    
+    Bug and fix identified by Alexey Gokhberg.
+    Fixes #1135.
+    
+    R=r, brainman
+    CC=golang-dev
+    https://golang.org/cl/2198046
+
+ src/pkg/runtime/proc.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

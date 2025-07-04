@@ -1,0 +1,25 @@
+commit ee23998963d293615768845579c923da3bd3a97a
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 22 14:18:23 2009 -0700
+
+    tweak the newlines so the headers stand out better.
+    
+    old:
+            CONSTANTS
+            const (
+                MissingKind = iota;
+              )
+    new:
+            CONSTANTS
+    
+            const (
+                MissingKind = iota;
+             )
+    
+    R=gri,rsc
+    DELTA=4  (4 added, 0 deleted, 0 changed)
+    OCL=30362
+    CL=30598
+
+ lib/godoc/package.txt | 4 ++++
+ 1 file changed, 4 insertions(+)

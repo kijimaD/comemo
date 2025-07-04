@@ -1,0 +1,17 @@
+commit 199b17cca8daf5bac6210e5719b1e85a51bd311d
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Aug 26 13:50:34 2016 +0900
+
+    path/filepath: handle "C:." correctly in EvalSymlinks on Windows
+    
+    Fixes #16886
+    
+    Change-Id: Idfacb0cf44d9994559c8e09032b4595887e76433
+    Reviewed-on: https://go-review.googlesource.com/28214
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/path/filepath/path_test.go | 34 ++++++++++++++++++++++++++++++++++
+ src/path/filepath/symlink.go   |  5 +++--
+ 2 files changed, 37 insertions(+), 2 deletions(-)

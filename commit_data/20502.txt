@@ -1,0 +1,25 @@
+commit db56d4d5eb14454e0d4b5c46d0dc89af11fbbf9d
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 22 11:46:02 2014 -0700
+
+    text/template: allow comparison functions to work between any integers
+    Previously, signed and unsigned integers could not be compared, but
+    this has problems with things like comparing 'x' with a byte in a string.
+    Since signed and unsigned integers have a well-defined ordering,
+    even though their types are different, and since we already allow
+    comparison regardless of the size of the integers, why not allow it
+    regardless of the sign?
+    
+    Integers only, a fine place to draw the line.
+    
+    Fixes #7489.
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/149780043
+
+ src/text/template/doc.go       |  9 +++--
+ src/text/template/exec_test.go | 66 +++++++++++++++++++++++---------
+ src/text/template/funcs.go     | 86 +++++++++++++++++++++++++-----------------
+ 3 files changed, 105 insertions(+), 56 deletions(-)

@@ -1,0 +1,18 @@
+commit f0d1195e13e06acdf8999188decc63306f9903f5
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Fri Mar 1 07:29:54 2024 +0000
+
+    internal/trace: remove unreachable code
+    
+    Change-Id: If5c9801e8954ce7f517b90ea6c30ea3e9eec09ee
+    GitHub-Last-Rev: 135c8473ae9bc4126f3acdf72b1aeb90b0022297
+    GitHub-Pull-Request: golang/go#66051
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568395
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+
+ src/internal/trace/v2/testdata/cmd/gotraceraw/main.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 1ab55a3f047502d8d59616c823facb7cd3ded487
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 17 15:01:43 2015 -0500
+
+    runtime: fix runtime-gdb_test on arm
+    
+    Apparently when ARM stops at a GDB breakpoint, it appears to be in
+    syscall.Syscall.  The "info goroutines" test expected it to be in a
+    runtime function.  Since this isn't fundamental to the test, simply
+    tweak the test's regexp to make sure "info goroutines" prints some
+    running goroutine with an active M, but don't require it to be in any
+    particular function.
+    
+    Change-Id: Iba2618b46d3dc49cef62ffb72484b83ea7b0317d
+    Reviewed-on: https://go-review.googlesource.com/5060
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/runtime/runtime-gdb_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

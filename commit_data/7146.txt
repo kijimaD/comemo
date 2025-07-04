@@ -1,0 +1,12 @@
+commit 052ff45690fef2630c43cdde5ee91ba502f1370a
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 18 20:56:55 2011 -0800
+
+    crypto/cipher: fix build (missing file in Makefile)
+    
+    R=agl, adg
+    CC=golang-dev
+    https://golang.org/cl/4073041
+
+ src/pkg/crypto/cipher/Makefile | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

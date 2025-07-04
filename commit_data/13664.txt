@@ -1,0 +1,19 @@
+commit 2281c3294b01501b177670e21d571ca7d5074cbf
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Aug 22 22:23:56 2012 +1000
+
+    cmd/go: fix cgo linking on netbsd
+    
+    NetBSD's built-in linker script for 'ld -r' does not provide a
+    SEARCH_DIR. As a result libgcc.a is not found when -lgcc is used.
+    
+    Work around this by determining the path to libgcc (by invoking
+    gcc with the -print-libgcc-file-name option) and explicitly
+    referencing the resulting library.
+    
+    R=golang-dev, iant, aram, lucio.dere, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6470044
+
+ src/cmd/go/build.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

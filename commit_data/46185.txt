@@ -1,0 +1,21 @@
+commit d350a6653252fe1f698ac00be99964fa31d06e89
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 26 16:57:06 2021 -0700
+
+    cmd/compile: eagerly CalcStructSize for synthetic ABI types
+    
+    The next CL is going to replace Type.Width with Type.Size(), but
+    Type.Size() isn't safe to call concurrently. So this CL calls
+    CalcStructSize, which *is* allowed to be used concurrently, but then
+    it's the caller's responsibility to ensure it's called right after
+    NewStruct.
+    
+    Change-Id: If9cd81650ccb3a867b4449af757375fa56227901
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345483
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/abi/abiutils.go | 3 +++
+ 1 file changed, 3 insertions(+)

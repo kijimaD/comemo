@@ -1,0 +1,17 @@
+commit 98af38807e9bc240b83d1a0aa6985a2b4a9f9778
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 18 16:49:59 2012 -0800
+
+    net: use NewTimer, not NewTicker, in fd_windows.go
+    
+    It works with NewTicker too, but is potentially a bit less efficient,
+    and reads wrong.
+    
+    This is what happens when you TBR Windows changes, I guess.
+    
+    R=golang-dev, gri, iant
+    CC=golang-dev
+    https://golang.org/cl/5536060
+
+ src/pkg/net/fd_windows.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

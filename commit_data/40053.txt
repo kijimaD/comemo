@@ -1,0 +1,25 @@
+commit f672e221fc40a376d1b4dc57bd7dda9d3b4f8807
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 26 12:29:09 2019 -0700
+
+    cmd/compile: extract typecheckarraylit function
+    
+    Typechecking slice literals, array literals, and array literals using
+    "..." notation all use very similar logic, but tie into the logic for
+    checking the OCOMPLIT node in slightly different ways.
+    
+    By refactoring this function out into a separate helper, it makes it
+    easier to separate slice and array literals, and the subsequent CL
+    will further separate array literals that do use "..." notation from
+    those that do not.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I4c572e0d9d08bcc86b5c224bd6f9e1c498726c19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197603
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 136 ++++++++++++++++---------------
+ 1 file changed, 71 insertions(+), 65 deletions(-)

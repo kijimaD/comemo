@@ -1,0 +1,44 @@
+commit 9f347035ef46c5f275fedf23893e0883b3b24035
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Apr 29 16:44:58 2021 -0400
+
+    cmd/api: disallow silent API additions after api/go1.n.txt is created
+    
+    At this time, the golang.org/s/release process arranges such that the
+    api/go1.n.txt file is created when a Go 1.N Beta 1 release is being cut.
+    The API check is currently configured so that tests don't fail visibly
+    even if api/go1.n.txt becomes a subset of the actual API additions in
+    the upcoming Go 1.N release as long as 'go version' has "devel" in it.
+    The first time that 'go version' output drops the "devel" substring
+    during testing is after the release-branch.go1.N branch is created
+    as part of the process to cut a Go 1.N Release Candidate 1 release.
+    
+    The month or so between Beta 1 and RC 1 is well into the freeze and
+    deliberate API changes are rare and very intentional. There seems to
+    be agreement that it's healthy to make the API check stricter during
+    that time period. Doing so will ensure that api/go1.n.txt cannot get
+    stale after creation without anyone noticing, and may catch CLs that
+    don't have the intended diff on the API.
+    
+    This CL changes behavior to be simple and clear: from the moment
+    an api/go1.n.txt file corresponding to the current Go version in
+    development is added to the tree, silent API additions stop being
+    permitted.
+    
+    This CL also moves the magical "override the value of -allow_new flag
+    if runtime.Version() contains 'devel' string" behavior from cmd/api
+    command to the run.go script that calls it, making the CLI of cmd/api
+    itself less surprising.
+    
+    Fixes #43956.
+    
+    Change-Id: I89468207573f7ccdbc9f12625dcdd3ef2bcf8f10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315350
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+
+ src/cmd/api/goapi.go |  3 +--
+ src/cmd/api/run.go   | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 2 deletions(-)

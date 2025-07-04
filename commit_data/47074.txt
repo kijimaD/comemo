@@ -1,0 +1,20 @@
+commit 79ff663754f4238bd1fe2e56f460c2f603c71b80
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 27 14:11:33 2021 -0700
+
+    constraints: remove Slice/Map/Chan
+    
+    Now that we permit arbitrary types as constraints, we no longer need them.
+    
+    For #48424
+    
+    Change-Id: I15fef26a563988074650cb0801895b002c44148a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359258
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/constraints/constraints.go      | 15 ---------
+ src/constraints/constraints_test.go | 62 +++++++------------------------------
+ test/typeparam/issue48609.go        |  4 +--
+ 3 files changed, 13 insertions(+), 68 deletions(-)

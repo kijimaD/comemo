@@ -1,0 +1,12 @@
+commit 1a03580ef112d7e7103790e102a5582b8dcbaf0d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 16 14:05:41 2013 -0800
+
+    net/http: Serve creates service goroutines, not service threads
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7132045
+
+ src/pkg/net/http/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

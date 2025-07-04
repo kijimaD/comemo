@@ -1,0 +1,12 @@
+commit 4967f857d56f6f98b73250692a7901545716b5a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 28 12:48:21 2010 -0800
+
+    codereview: make sure each mail has a reviewer
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/196050
+
+ lib/codereview/codereview.py | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

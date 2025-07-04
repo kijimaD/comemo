@@ -1,0 +1,16 @@
+commit 9162c4be9c1eb2a36f46a493d8931a7caa3cac10
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Oct 23 14:51:51 2023 -0400
+
+    cmd/compile/internal/ir: update CallExpr comment reference
+    
+    CL 532795 changed CallExpr.X to CallExpr.Fun.
+    
+    Change-Id: Ib2079e239a85daa4a3f5b5165c2cddc76a648b5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537175
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/ir/expr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit c7b2f6494c67352d2a521f1f58a049061c636dd1
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Sat May 27 08:48:31 2023 -0400
+
+    runtime: clarify Pinner doc
+    
+    Rewrite in idiomatic form, fix a typo, break into paragraph, rephrase
+    slightly.
+    
+    Change-Id: If146db86aa84214e61128a3bc3e9905396d44710
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498716
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ansiwen <ansiwen@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/pinner.go | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

@@ -1,0 +1,19 @@
+commit 4f63e0a1f88695eec9fc3116d6833b447bcd94a7
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Nov 12 09:33:34 2020 -0800
+
+    cmd/compile:  update comments only for Node types and some functions
+    
+    Improve the comments in syntax.go on Node structs and constants. Also, updated a
+    few function header comments.
+    
+    Change-Id: I3e6e4a3c5678fc0b4e18844507b3460303ce1240
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269538
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/gc/closure.go |  4 ++
+ src/cmd/compile/internal/gc/dcl.go     |  2 +
+ src/cmd/compile/internal/gc/inl.go     | 23 ++++++------
+ src/cmd/compile/internal/gc/syntax.go  | 68 ++++++++++++++++++++++------------
+ 4 files changed, 63 insertions(+), 34 deletions(-)

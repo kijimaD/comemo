@@ -1,0 +1,29 @@
+commit cecca43804e0bd795581b6ec6a376509ed5fea05
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jul 31 12:55:40 2014 +0400
+
+    runtime: get rid of free
+    Several reasons:
+    1. Significantly simplifies runtime.
+    2. This code proved to be buggy.
+    3. Free is incompatible with bump-the-pointer allocation.
+    4. We want to write runtime in Go, Go does not have free.
+    5. Too much code to free env strings on startup.
+    
+    LGTM=khr
+    R=golang-codereviews, josharian, tracey.brendan, khr
+    CC=bradfitz, golang-codereviews, r, rlh, rsc
+    https://golang.org/cl/116390043
+
+ src/pkg/runtime/env_posix.c | 15 +------
+ src/pkg/runtime/malloc.c    | 97 ---------------------------------------------
+ src/pkg/runtime/malloc.h    |  8 ----
+ src/pkg/runtime/mcache.c    | 37 -----------------
+ src/pkg/runtime/mcentral.c  | 80 -------------------------------------
+ src/pkg/runtime/mgc0.c      | 61 +++++++---------------------
+ src/pkg/runtime/mheap.c     | 36 -----------------
+ src/pkg/runtime/panic.c     |  3 +-
+ src/pkg/runtime/proc.c      |  4 +-
+ src/pkg/runtime/runtime.h   |  1 -
+ src/pkg/runtime/time.goc    |  1 -
+ 11 files changed, 18 insertions(+), 325 deletions(-)

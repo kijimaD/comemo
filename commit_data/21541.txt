@@ -1,0 +1,15 @@
+commit 1e5d8bb5444368a7b6f2f169bbbb43452a0479d9
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 9 16:54:06 2015 -0800
+
+    cmd/go: document that -run isn't implemented
+    
+    I am an idiot but the failure to implement this means we can decide
+    exactly what its design should be for 1.5
+    
+    Change-Id: Ie2b025fcd899d306ddeddd09d1d0e8f9a99ab7a8
+    Reviewed-on: https://go-review.googlesource.com/4291
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/go/generate.go | 1 +
+ 1 file changed, 1 insertion(+)

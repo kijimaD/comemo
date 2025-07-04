@@ -1,0 +1,23 @@
+commit 6e76aeba0bda33f6bd45ac9c8e5c026c1688e846
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Aug 23 15:05:19 2018 -0400
+
+    doc/go1.11: add link to new WebAssembly wiki page
+    
+    The wiki page has recently been created, and at this time it's
+    just a stub. It's expected that support for WebAssembly will be
+    evolving over time, and the wiki page can be kept updated with
+    helpful information, how to get started, tips and tricks, etc.
+    
+    Use present tense because it's expected that there will be more
+    general information added by the time Go 1.11 release happens.
+    
+    Also add link to https://webassembly.org/ in first paragraph.
+    
+    Change-Id: I139c2dcec8f0d7fd89401df38a3e12960946693f
+    Reviewed-on: https://go-review.googlesource.com/131078
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.11.html | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

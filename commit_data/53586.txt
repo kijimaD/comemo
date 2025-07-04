@@ -1,0 +1,19 @@
+commit 0183c1aa02dc2efd17d9693d960ca6f4266eee8a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 16 15:56:37 2023 -0400
+
+    cmd/compile/internal/syntax: skip GOROOT/misc in TestStdLib if it doesn't exist
+    
+    cmd/distpack deletes GOROOT/misc from its distribution.
+    
+    For #24904.
+    
+    Change-Id: I47c60e9a6d39d015683dde7f44bf7c34517b6a8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504059
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/syntax/parser_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

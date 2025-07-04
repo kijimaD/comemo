@@ -1,0 +1,16 @@
+commit e8deb3f828886afe3dc7403f128cbafebe9fb1a1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 12 10:42:25 2012 -0700
+
+    net/http: return appropriate errors from ReadRequest
+    
+    Fixes #3298
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5783080
+
+ src/pkg/net/http/request.go      |  6 ++++--
+ src/pkg/net/http/request_test.go | 19 +++++++++++++++++++
+ src/pkg/net/http/server.go       |  2 +-
+ 3 files changed, 24 insertions(+), 3 deletions(-)

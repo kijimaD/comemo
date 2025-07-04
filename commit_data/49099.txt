@@ -1,0 +1,23 @@
+commit 50203976777808f03b01974076ddeb26f24be311
+Author: miller <millerresearch@gmail.com>
+Date:   Sun May 8 13:29:27 2022 +0100
+
+    path/filepath: simplify EvalSymlinks for plan9
+    
+    Plan 9 doesn't have symbolic links, so EvalSymlinks can be simplified
+    just to check validity of the path and call Clean. This saves a lot
+    of redundant file system activity.
+    
+    Updates #50775
+    
+    Change-Id: I84c24ef1d5e6e38fd19df2d37c72fbf883f0140d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404954
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/path/filepath/symlink_plan9.go | 27 +++++++++++++++++++++++++++
+ src/path/filepath/symlink_unix.go  |  2 +-
+ 2 files changed, 28 insertions(+), 1 deletion(-)

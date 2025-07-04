@@ -1,0 +1,12 @@
+commit c38391ad7b326ea5d572df26e6e98c149a3b85bd
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 8 11:30:20 2008 -0700
+
+    test update. some tests now run; no change to output
+    
+    SVN=126328
+
+ test/ken/mfunc.go      | 1 -
+ test/ken/rob1.go       | 2 +-
+ test/ken/robliteral.go | 2 +-
+ 3 files changed, 2 insertions(+), 3 deletions(-)

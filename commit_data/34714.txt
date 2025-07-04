@@ -1,0 +1,35 @@
+commit 48db2c01b42d959f2d8fa0c24d853bdb6100cf8a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 26 06:56:39 2018 +0000
+
+    all: use strings.Builder instead of bytes.Buffer where appropriate
+    
+    I grepped for "bytes.Buffer" and "buf.String" and mostly ignored test
+    files. I skipped a few on purpose and probably missed a few others,
+    but otherwise I think this should be most of them.
+    
+    Updates #18990
+    
+    Change-Id: I5a6ae4296b87b416d8da02d7bfaf981d8cc14774
+    Reviewed-on: https://go-review.googlesource.com/102479
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/tar/writer.go       |  3 +--
+ src/cmd/cover/html.go           |  3 ++-
+ src/expvar/expvar.go            |  4 +--
+ src/go/types/methodset.go       |  4 +--
+ src/mime/encodedword.go         | 56 +++++++++++++----------------------------
+ src/mime/mediatype.go           |  7 +++---
+ src/net/http/cookie.go          | 12 +++------
+ src/net/http/httptest/server.go |  4 +--
+ src/net/mail/message.go         |  3 +--
+ src/net/url/url.go              | 10 ++++----
+ src/regexp/onepass.go           |  4 +--
+ src/regexp/syntax/parse_test.go |  6 ++---
+ src/regexp/syntax/prog.go       | 14 +++++------
+ src/regexp/syntax/regexp.go     |  7 +++---
+ src/testing/example.go          |  3 +--
+ src/testing/testing.go          |  2 +-
+ 16 files changed, 56 insertions(+), 86 deletions(-)

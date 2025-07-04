@@ -1,0 +1,18 @@
+commit 09fb56dc7d8230db521816e75fcff0f77241de0e
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Apr 1 15:53:52 2015 +1300
+
+    cmd/go: start support for -linkshared
+    
+    This will fruitlessly rebuild stale packages that are in a shared
+    library.
+    
+    Change-Id: I66a6e1adf7818558e7d1351ab215a5021b4a8a6b
+    Reviewed-on: https://go-review.googlesource.com/8333
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go    | 14 ++++++++++++++
+ src/cmd/go/doc.go      |  3 +++
+ src/cmd/go/test.go     |  1 +
+ src/cmd/go/testflag.go |  3 ++-
+ 4 files changed, 20 insertions(+), 1 deletion(-)

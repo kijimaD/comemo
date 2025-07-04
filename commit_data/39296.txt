@@ -1,0 +1,24 @@
+commit cbdf9ade5604917593af3ce5ce576a465edfca83
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed May 15 02:12:10 2019 +0000
+
+    runtime: save/restore callee saved registers in arm64's sigtramp
+    
+    ARM64's R19-R29 and F8-F15 are callee saved registers, which
+    should be saved in the beginning of sigtramp, and restored at
+    the end.
+    
+    fixes #31827
+    
+    Change-Id: I622e03f1a13fec969d3a11b6a303a8a492e02bcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177045
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/cgo/testsanitizers/tsan_test.go |   4 -
+ src/runtime/sys_darwin_arm64.s       | 148 +++++++++++++++++++----------------
+ src/runtime/sys_linux_arm64.s        |  46 ++++++++++-
+ src/runtime/sys_netbsd_arm64.s       |  46 ++++++++++-
+ src/runtime/sys_openbsd_arm64.s      |  46 ++++++++++-
+ 5 files changed, 215 insertions(+), 75 deletions(-)

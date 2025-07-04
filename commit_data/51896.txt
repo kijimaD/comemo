@@ -1,0 +1,22 @@
+commit fcd0e0963f3bdf289216c1083f1439a71dc571a4
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Dec 27 14:10:18 2022 -0500
+
+    math/big: add Int.Float64 conversion
+    
+    This operation converts a big.Int to float64,
+    reporting the accuracy of the result, with
+    a fast path in hardware.
+    
+    Fixes #56984
+    
+    Change-Id: I86d0fb0e105a06a4009986f2f5fd87a4d446f6f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453115
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+
+ api/next/56984.txt       |  1 +
+ src/math/big/int.go      | 20 ++++++++++++++++++++
+ src/math/big/int_test.go | 49 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 70 insertions(+)

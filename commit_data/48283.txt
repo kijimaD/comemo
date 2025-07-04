@@ -1,0 +1,24 @@
+commit 46afa893ebf85e23dd820a11e6007a9adb503419
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Mon Jan 3 18:48:51 2022 +0100
+
+    crypto/rand: use fast key erasure RNG on plan9 instead of ANSI X9.31
+    
+    This should be a bit faster and slicker than the very old ANSI X9.31,
+    which relied on the system time. Uses AES instead of ChaCha because it's
+    in the standard library.
+    
+    Reference: https://blog.cr.yp.to/20170723-random.html
+    Reference: https://github.com/jedisct1/supercop/blob/master/crypto_rng/aes256/ref/rng.c
+    
+    Change-Id: Ib7b37a83cca29f5d346355b7cb8cfe5250086b95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375215
+    Trust: Jason Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/rand/rand_plan9.go | 114 +++++++++++++++++-------------------------
+ 1 file changed, 46 insertions(+), 68 deletions(-)

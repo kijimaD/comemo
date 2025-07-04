@@ -1,0 +1,21 @@
+commit 1e122e3894bd12407b0043ab25c2a5f665b3f6e5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 4 10:03:32 2022 -0800
+
+    syscall: remove TestRlimit
+    
+    It's more trouble than it's worth. New code should be using x/sys/unix
+    anyhow.
+    
+    Fixes #40564
+    Fixes #51479
+    
+    Change-Id: I1c0e13f494380c1565e98359f088af9f52790b79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390020
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/syscall/syscall_unix_test.go | 27 ---------------------------
+ 1 file changed, 27 deletions(-)

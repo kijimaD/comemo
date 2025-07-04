@@ -1,0 +1,24 @@
+commit d8c815d8b5df75c9c030a318fbc566f38c58526f
+Author: David Chase <drchase@google.com>
+Date:   Tue Mar 1 16:53:37 2016 -0500
+
+    cmd/compile: note escape of parts of closured-capture vars
+    
+    Missed a case for closure calls (OCALLFUNC && indirect) in
+    esc.go:esccall.
+    
+    Cleanup to runtime code for windows to more thoroughly hide
+    a technical escape.  Also made code pickier about failing
+    to late non-optional kernel32.dll.
+    
+    Fixes #14409.
+    
+    Change-Id: Ie75486a2c8626c4583224e02e4872c2875f7bca5
+    Reviewed-on: https://go-review.googlesource.com/20102
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go |  5 +++++
+ src/runtime/os1_windows.go         | 35 ++++++++++++++++++++---------------
+ test/escape_closure.go             | 26 ++++++++++++++++++++++++++
+ 3 files changed, 51 insertions(+), 15 deletions(-)

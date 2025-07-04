@@ -1,0 +1,14 @@
+commit 15b0d1376a4dba84e387e092ec0c8f576cdf8e8d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 27 11:53:35 2018 -0800
+
+    cmd/compile: clean up comments
+    
+    Follow-up to CL 94256.
+    
+    Change-Id: I61c450dee5975492192453738f734f772e95c1a5
+    Reviewed-on: https://go-review.googlesource.com/97515
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/config.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

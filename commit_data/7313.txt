@@ -1,0 +1,27 @@
+commit b50ed022f5d735ee341ebdf15a9a151f4b6e5494
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 1 12:02:49 2011 -0800
+
+    go spec: follow-up cleanups after communication operator changes
+    
+    These are syntactical changes to better reflect the communication
+    operator's new status in the language.
+    
+    - sending to a channel is now done via a send statement
+    - there is no binary communication operation anymore which
+      leads to a reduction of the number of precedence levels
+      from 6 to 5 (yeah!)
+    - small semantic change: since a send operation is not part
+      of the expression syntax anymore, a <- send operator is
+      binding weaker than any other operator now
+    - receiving from a channel is done as before via the unary
+      receive expression
+    - communication clauses in select statement now can contain
+      send statements or receive expressions
+    
+    R=rsc, r, iant, ken2, gri1
+    CC=golang-dev
+    https://golang.org/cl/3973051
+
+ doc/go_spec.html | 119 ++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 60 insertions(+), 59 deletions(-)

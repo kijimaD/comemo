@@ -1,0 +1,19 @@
+commit 4ce9ea52c9ac48f85fba1233b6e7d563f89dff8b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Oct 22 23:59:00 2020 +1100
+
+    strconv: fix Eisel-Lemire for negative zero
+    
+    This is somewhat academic (and no tests failed before this commit),
+    since func atof64 only calls func eiselLemire when func atof64exact
+    fails, and func atof64exact doesn't fail when parsing positive or
+    negative zeroes. But it's still worth fixing.
+    
+    Change-Id: Ibe6ef4c8fd96827673b711d5456003fbc447e39c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264140
+    Trust: Nigel Tao <nigeltao@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/strconv/eisel_lemire.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

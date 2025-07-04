@@ -1,0 +1,17 @@
+commit a52821569310ca3807f74993af4019dfcaa74cfe
+Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+Date:   Wed Feb 5 11:25:01 2020 +0000
+
+    doc/go1.14: fix inconsistent markup
+    
+    Unlike the others, the dt tag of reflect is not next to the dl tag.
+    The dd's closing tags may or may not have been omitted. They were unified without omission.
+    
+    Updates #36878
+    
+    Change-Id: I4e24f93fe8763ae8a1e4392db72e0b4818884f44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217701
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.14.html | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

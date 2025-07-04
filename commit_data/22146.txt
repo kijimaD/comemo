@@ -1,0 +1,26 @@
+commit db454afd2353364ad1c3bcd6002def81871ed2b2
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Sat Feb 28 00:41:31 2015 +0100
+
+    cmd/go: allow go get with local path
+    
+    Previously, running 'go get' with a local path would correctly
+    download the package but fail to install it.
+    This is because a sticky error - resulting from discovering that the
+    package needed to be downloaded - was still around.
+    Theoretically, such sticky errors would be cleared but they weren't
+    because the map tracking these errors were indexed with the correct
+    canonical import path of the package (e.g. "ex.com/x/pkg") whereas the
+    clearing was done with the local path (e.g. "./pkg".)
+    
+    Always use the canonical import path.
+    
+    Fixes #9767
+    
+    Change-Id: Ia0e8a51ac591d4c833d11285da5b767ef7ed8ad2
+    Reviewed-on: https://go-review.googlesource.com/6266
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/get.go    | 10 ++++++++++
+ src/cmd/go/test.bash | 10 ++++++++++
+ 2 files changed, 20 insertions(+)

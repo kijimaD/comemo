@@ -1,0 +1,28 @@
+commit 496d7c691481966fd6ea806205aa025698a172af
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 3 16:32:52 2021 -0700
+
+    text/template: add lock for Template.tmpl to fix data race
+    
+    This adds a new lock protecting "tmpl".
+    
+    This is a copy of https://golang.org/cl/257817 by Andreas Fleig,
+    updated for current tip, and updated to start running the
+    html/template TestEscapeRace test.
+    
+    Thanks to @bep for providing the test case.
+    
+    Fixes #39807
+    
+    Change-Id: Ic8874484290283a49116812eeaffb8608346dc70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316669
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/html/template/exec_test.go |  2 --
+ src/text/template/exec.go      |  9 ++++-----
+ src/text/template/exec_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ src/text/template/template.go  |  9 +++++++++
+ 4 files changed, 51 insertions(+), 7 deletions(-)

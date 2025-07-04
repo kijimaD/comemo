@@ -1,0 +1,13 @@
+commit 18de11479c08fcb3d0b457a4bcabae5457168258
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Jan 18 10:03:00 2012 -0800
+
+    crypto/tls: add FreeBSD root certificate location
+        Fixes #2721.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5532090
+
+ src/pkg/crypto/tls/root_unix.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

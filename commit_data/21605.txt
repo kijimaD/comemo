@@ -1,0 +1,22 @@
+commit 4b27c9d72eaa501fae86d6365205eacbfd89e83f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 5 12:31:13 2015 -0500
+
+    cmd/gc: add .y to error about missing x in x.y
+    
+    If the Go source says x.y, and x is undefined, today we get
+    
+            undefined: x
+    
+    Change to:
+    
+            undefined: x in x.y
+    
+    Change-Id: I8ea95503bd469ea933c6bcbd675b7122a5d454f3
+    Reviewed-on: https://go-review.googlesource.com/4643
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/gc/go.h        |  1 +
+ src/cmd/gc/subr.c      | 13 +++++++++++++
+ src/cmd/gc/typecheck.c |  8 ++++++--
+ 3 files changed, 20 insertions(+), 2 deletions(-)

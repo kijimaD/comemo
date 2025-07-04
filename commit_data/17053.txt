@@ -1,0 +1,12 @@
+commit 7583c14be7a4d3c2289c536148bc65957c41f3fc
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Tue Aug 6 07:57:51 2013 -0700
+
+    misc/notepadplus: simplify Function List regex
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12508043
+
+ misc/notepadplus/functionList.xml | 17 ++++++-----------
+ 1 file changed, 6 insertions(+), 11 deletions(-)

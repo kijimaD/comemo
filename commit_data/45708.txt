@@ -1,0 +1,22 @@
+commit 6b8c94b6c524710bc3290546176a0da2f7c8c9db
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu May 27 12:35:01 2021 -0400
+
+    go/types: guard against check==nil in newNamed
+    
+    When importing generic named types, it is possible for Checker.newNamed
+    to be called during type instantiation when the Checker is nil.
+    
+    In this case we should be able to safely skip this delayed expansion.
+    
+    Updates #45580
+    
+    Change-Id: I75422100464d57eba24642c93e06e8b47d904fc3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322974
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/type.go | 22 ++++++++++------------
+ 1 file changed, 10 insertions(+), 12 deletions(-)

@@ -1,0 +1,20 @@
+commit 2e20386fc7a0bc4bf5f3950ae6b5be897f005086
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 9 13:30:35 2010 -0700
+
+    Library support for cgo export.
+    
+    These functions are used to call from a C function back to a
+    Go function.  This only includes 386 support.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/834045
+
+ src/libcgo/386.S          | 24 +++++++++++++++++++++++
+ src/pkg/runtime/386/asm.s | 39 +++++++++++++++++++++++++++++++++++-
+ src/pkg/runtime/cgocall.c | 50 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/cgocall.h |  1 +
+ src/pkg/runtime/proc.c    | 26 ++++++++++++++++++++++--
+ src/pkg/runtime/runtime.h |  5 +++--
+ 6 files changed, 140 insertions(+), 5 deletions(-)

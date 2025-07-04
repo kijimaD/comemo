@@ -1,0 +1,26 @@
+commit d61ae9ded4ebc142fb0edccfee893fa10c233357
+Author: hopehook <hopehook@qq.com>
+Date:   Sun Feb 12 22:27:35 2023 +0800
+
+    mime/multipart: fix Reader.ReadForm(math.MaxInt64) overflow
+    
+    Because "CopyN" will read one more byte, which will cause us
+    to overflow when calling "Reader.ReadForm(math.MaxInt64)".
+    
+    So we should check if the parameter exceeds "math.MaxInt64"
+    to avoid returning no data.
+    
+    Fixes #58384.
+    
+    Change-Id: I30088ce6468176b21e4a9a0b8b6080f2986dda23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467557
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/mime/multipart/formdata.go      |  3 +++
+ src/mime/multipart/formdata_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

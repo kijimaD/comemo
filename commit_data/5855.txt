@@ -1,0 +1,12 @@
+commit 42dd7a6daea0eef0102fa01fadffb3d88589e228
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jul 20 23:51:07 2010 -0700
+
+    net(windows): properly handle EOF in (*netFD).Read().
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/1848045
+
+ src/pkg/net/fd_windows.go | 3 +++
+ 1 file changed, 3 insertions(+)

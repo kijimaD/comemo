@@ -1,0 +1,15 @@
+commit 977803e796eed6efaa85bbc6a7b6b03629291989
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 12 21:03:09 2023 -0800
+
+    cmd/compile: generate itabs using rttype mechanism
+    
+    Change-Id: I9a85704c57e978c8c6303b21da3e4627d3446f3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549455
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 25 +++++++++++++++----------
+ src/cmd/compile/internal/rttype/rttype.go       | 22 ++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 10 deletions(-)

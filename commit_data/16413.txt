@@ -1,0 +1,17 @@
+commit ae73b903696981ae3c4da203a3ea4e083e401b46
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon May 27 20:46:53 2013 +0800
+
+    runtime: make arm signal handler call runtime.badsignal
+    In preparation for CL 9249043 (already submitted).
+    
+    Fixes #5553.
+    
+    R=golang-dev, iant, capnm9, dave
+    CC=golang-dev
+    https://golang.org/cl/9251043
+
+ src/pkg/runtime/sys_freebsd_arm.s | 7 ++++++-
+ src/pkg/runtime/sys_linux_arm.s   | 7 ++++++-
+ src/pkg/runtime/sys_netbsd_arm.s  | 7 ++++++-
+ 3 files changed, 18 insertions(+), 3 deletions(-)

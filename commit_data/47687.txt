@@ -1,0 +1,15 @@
+commit d921bb21df43a9bf1a6c22ab208d6a4bc9d05146
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 3 09:04:26 2021 -0500
+
+    doc/go1.18: reorganize runtime/compiler a little
+    
+    For #47694.
+    
+    Change-Id: Iedf85f522f7c79ae0a61b4fc1f2f092cf7b613df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368696
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ doc/go1.18.html | 48 +++++++++++++++++++++++++-----------------------
+ 1 file changed, 25 insertions(+), 23 deletions(-)

@@ -1,0 +1,15 @@
+commit 94955f9b4076aafd54fc756b9d11065e2bba5b05
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Fri Mar 1 00:21:08 2013 -0500
+
+    runtime: check the value returned by runtime·SysAlloc
+    
+    R=golang-dev, rsc
+    CC=golang-dev, minux.ma
+    https://golang.org/cl/7424047
+
+ src/pkg/runtime/malloc.goc | 4 ++++
+ src/pkg/runtime/mgc0.c     | 8 ++++++++
+ src/pkg/runtime/mheap.c    | 2 ++
+ src/pkg/runtime/mprof.goc  | 6 ++++++
+ 4 files changed, 20 insertions(+)

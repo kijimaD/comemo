@@ -1,0 +1,12 @@
+commit 8114a855da66750ebebfe4bcaf3516b688c375c0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 5 23:36:53 2017 -0500
+
+    doc/go1.10: process comments from CL 78131 PS 5
+    
+    Change-Id: Ie246756452cd872961aeb659b35297c229504a3c
+    Reviewed-on: https://go-review.googlesource.com/81936
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.10.html | 113 +++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 70 insertions(+), 43 deletions(-)

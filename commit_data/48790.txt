@@ -1,0 +1,24 @@
+commit 35a92f92bd0ce15c658dd6794238ca90b71e4422
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Apr 13 13:21:30 2022 -0700
+
+    encoding/binary: add AppendVarint AppendUvarint
+    
+    This adds a straight-forward implementation of the functionality.
+    A more performant version could be added that unrolls the loop
+    as is done in google.golang.org/protobuf/encoding/protowire,
+    but usages that demand high performance can use that package instead.
+    
+    Fixes #51644
+    
+    Change-Id: I9d3b615a60cdff47e5200e7e5d2276adf4c93783
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400176
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/51644.txt                 |  2 ++
+ src/encoding/binary/varint.go      | 20 ++++++++++++++++++++
+ src/encoding/binary/varint_test.go | 12 ++++++++++++
+ 3 files changed, 34 insertions(+)

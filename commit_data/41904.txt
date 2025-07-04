@@ -1,0 +1,24 @@
+commit ea7126fe141879e1065d196570c078fbec09f3b6
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 9 20:28:55 2020 -0700
+
+    cmd/compile: use a Sym type instead of interface{} for symbolic offsets
+    
+    Will help with strongly typed rewrite rules.
+    
+    Change-Id: Ifbf316a49f4081322b3b8f13bc962713437d9aba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227785
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/amd64/ssa.go          |  1 -
+ src/cmd/compile/internal/gc/ssa.go             | 14 ------
+ src/cmd/compile/internal/gc/syntax.go          |  4 ++
+ src/cmd/compile/internal/ppc64/ssa.go          | 11 +----
+ src/cmd/compile/internal/ssa/gen/rulegen.go    | 66 +++++++++++++++++++-------
+ src/cmd/compile/internal/ssa/op.go             | 12 ++++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 16 +++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  4 +-
+ src/cmd/internal/obj/link.go                   |  6 ++-
+ 9 files changed, 81 insertions(+), 53 deletions(-)

@@ -1,0 +1,13 @@
+commit d0252b17ce16dfc9725a3945d9a1fa2fe3e507c2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 10 14:40:19 2014 -0500
+
+    lib/codereview: allow addca CLs without LGTM
+    
+    LGTM=gri
+    R=golang-codereviews, gri
+    CC=golang-codereviews
+    https://golang.org/cl/61610043
+
+ lib/codereview/codereview.py | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

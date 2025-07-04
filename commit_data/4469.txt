@@ -1,0 +1,14 @@
+commit c276d87c6c4ed332b55d89be7d408cb72b69a6ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 21 08:31:02 2009 -0800
+
+    cgo: interpret $CGOPKGDIR as absolute path if rooted
+    
+    R=dho
+    CC=golang-dev
+    https://golang.org/cl/180099
+
+ src/Make.pkg        | 6 +++++-
+ src/cmd/cgo/main.go | 7 +++++--
+ src/cmd/cgo/out.go  | 8 ++++++--
+ 3 files changed, 16 insertions(+), 5 deletions(-)

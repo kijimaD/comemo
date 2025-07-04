@@ -1,0 +1,21 @@
+commit 24df1d06bc1544f096c484b30d50914f9d1d7c81
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 5 21:35:51 2018 +0000
+
+    Revert "net/http/httputil: allow ReverseProxy to call ModifyResponse on failed requests"
+    
+    This reverts commit https://golang.org/cl/54030
+    
+    Reason for revert: to not paint ourselves into a corner.
+    See https://github.com/golang/go/issues/23009
+    
+    Fixes #23009
+    Updates #21255
+    
+    Change-Id: I68caab078839b9d2bf645a7bbed8405a5a30cd22
+    Reviewed-on: https://go-review.googlesource.com/86435
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 21 ++++++++-------------
+ src/net/http/httputil/reverseproxy_test.go | 29 -----------------------------
+ 2 files changed, 8 insertions(+), 42 deletions(-)

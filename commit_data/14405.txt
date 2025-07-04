@@ -1,0 +1,18 @@
+commit 8c96e6d7404f27f473f97dcef8b9fc1f7f7161da
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Nov 15 03:36:19 2012 +1100
+
+    debug/elf: fix offset for GNU version symbols
+    
+    Since we no longer skip the first entry when reading a symbol table,
+    we no longer need to allow for the offset difference when processing
+    the GNU version symbols.
+    
+    Unbreaks builds on Linux.
+    
+    R=golang-dev, agl, iant
+    CC=golang-dev
+    https://golang.org/cl/6843057
+
+ src/pkg/debug/elf/file.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

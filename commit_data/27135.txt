@@ -1,0 +1,30 @@
+commit e8337491aa6b6a5f96f31077764352549dc34159
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 11 17:00:46 2016 -0500
+
+    runtime: free dead G stacks concurrently
+    
+    Currently we free cached stacks of dead Gs during STW stack root
+    marking. We do this during STW because there's no way to take
+    ownership of a particular dead G, so attempting to free a dead G's
+    stack during concurrent stack root marking could race with reusing
+    that G.
+    
+    However, we can do this concurrently if we take a completely different
+    approach. One way to prevent reuse of a dead G is to remove it from
+    the free G list. Hence, this adds a new fixed root marking task that
+    simply removes all Gs from the list of dead Gs with cached stacks,
+    frees their stacks, and then adds them to the list of dead Gs without
+    cached stacks.
+    
+    This is also a necessary step toward rescanning only dirty stacks,
+    since it eliminates another task from STW stack marking.
+    
+    Change-Id: Iefbad03078b284a2e7bf30fba397da4ca87fe095
+    Reviewed-on: https://go-review.googlesource.com/20665
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgcmark.go | 45 ++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 38 insertions(+), 7 deletions(-)

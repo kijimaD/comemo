@@ -1,0 +1,14 @@
+commit a51b8cf870f5911a9785973a3362e4411d83b17d
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Thu Oct 3 10:55:17 2013 -0700
+
+    gofmt: explain why lower bounds aren't automatically simplified
+    
+    Full credit goes to gri and rsc for their explanations.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/14229043
+
+ src/cmd/gofmt/simplify.go | 4 ++++
+ 1 file changed, 4 insertions(+)

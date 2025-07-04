@@ -1,0 +1,13 @@
+commit 4723308ff5ab437d2b0892e7cdac86d490495a9b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 3 16:01:58 2014 -0500
+
+    net/http: make a test fail harder, earlier
+    
+    LGTM=dave
+    R==r, r, dave
+    CC=golang-codereviews
+    https://golang.org/cl/59810043
+
+ src/pkg/net/http/transport_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

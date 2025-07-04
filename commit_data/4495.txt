@@ -1,0 +1,14 @@
+commit 316cb50db171e8e4417e5cd017bc1cedf7c4255a
+Author: Rob Pike <r@golang.org>
+Date:   Sun Dec 27 07:57:57 2009 +1100
+
+    add exceptions to the road map.  i think this just was an oversight.
+    also a way to run code when object is deleted.
+    both of these are possibilities, not certainties.
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/181057
+
+ doc/devel/roadmap.html | 5 +++++
+ 1 file changed, 5 insertions(+)

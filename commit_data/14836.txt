@@ -1,0 +1,19 @@
+commit 4ba27df69c4bf9ce00eb34bb69860a248319be11
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jan 10 08:00:03 2013 +1100
+
+    cmd/dist: drop unneeded clang flags
+    
+    Our source no longer needs these flags set to build cleanly using clang.
+    
+    Tested with
+    
+    * Ubuntu clang version 3.0-6ubuntu3 (tags/RELEASE_30/final) (based on LLVM 3.0) on i386
+    * clang version 3.2 (tags/RELEASE_32/final) on amd64 cross compiling all platforms
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7058053
+
+ src/cmd/dist/build.c | 4 ----
+ 1 file changed, 4 deletions(-)

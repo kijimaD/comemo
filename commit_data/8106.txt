@@ -1,0 +1,14 @@
+commit c94f5fb0baa62497a7d440e7537632ac92c090c6
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 14 17:26:12 2011 -0700
+
+    gob: fix handling of indirect receivers for GobDecoders.
+    The previous code was just wrong. Let's not talk about it.
+    Passes iant's new test.
+    
+    R=rsc, iant, iant2
+    CC=golang-dev
+    https://golang.org/cl/4396053
+
+ src/pkg/gob/decode.go | 35 ++++++++++++++++-------------------
+ 1 file changed, 16 insertions(+), 19 deletions(-)

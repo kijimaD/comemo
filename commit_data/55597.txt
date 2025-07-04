@@ -1,0 +1,20 @@
+commit b634f6fdcbebee23b7da709a243f3db217b64776
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Nov 14 16:28:29 2023 -0800
+
+    syscall: rm obsoleted comment
+    
+    The comment being removed is no longer true as of CL 494916.
+    
+    Change-Id: I4975866c58efb5c9c41db3640564ac7233f5840f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542415
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/syscall/flock_linux_32bit.go | 3 ---
+ 1 file changed, 3 deletions(-)

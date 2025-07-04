@@ -1,0 +1,14 @@
+commit f882d89b768bcfbd02b209acf0d525f4dbdd8f09
+Author: G. Hussain Chinoy <ghchinoy@gmail.com>
+Date:   Thu Aug 30 18:24:53 2018 +0000
+
+    ghchinoy: add example for ioutil.WriteFile
+    
+    Change-Id: I65c3bda498562fdf39994ec1cadce7947e2d84b5
+    Reviewed-on: https://go-review.googlesource.com/132277
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/io/ioutil/example_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

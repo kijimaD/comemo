@@ -1,0 +1,22 @@
+commit ad49c7bb6223b64da5a4dfae2150cd5396955b49
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Mar 17 16:28:30 2015 +1300
+
+    cmd/internal/obj: remove dead fields and code
+    
+    A quick pass through link.go, mostly removing fields that are not
+    used on the "creating a single object file" side of the fence.
+    
+    Change-Id: I35ba41378c2c418f7df2f2f88dce65bc64a1a45d
+    Reviewed-on: https://go-review.googlesource.com/7672
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/arm/asm5.go |   2 +-
+ src/cmd/internal/obj/arm/obj5.go |   2 -
+ src/cmd/internal/obj/data.go     |   6 --
+ src/cmd/internal/obj/link.go     | 129 +++++++++------------------------------
+ src/cmd/internal/obj/sym.go      |   8 ---
+ src/cmd/internal/obj/x86/obj6.go |   2 -
+ 6 files changed, 30 insertions(+), 119 deletions(-)

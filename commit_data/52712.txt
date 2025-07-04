@@ -1,0 +1,19 @@
+commit 522eace4ca496626bcb3b65f9dcb6e8db2673fed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 18 19:20:28 2023 -0700
+
+    go/types, types2: be deliberate with Checker.use in Checker.assignVar
+    
+    Follow-up on comment in CL 486135. Cleanup.
+    
+    Change-Id: Ib0480d52e30687350f8328965c18fa83262df0a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486215
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go | 3 ++-
+ src/go/types/assignments.go                    | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

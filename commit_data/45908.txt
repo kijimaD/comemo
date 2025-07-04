@@ -1,0 +1,23 @@
+commit 11f5df2d6703b3fbd61a256e4e32ba67d835e7ad
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 7 12:11:37 2021 -0700
+
+    cmd/compile: extract pkgqual from symfmt
+    
+    The logic in symfmt for deciding how to package-qualify an identifier
+    is easily refactored into a separate function, loosely similar to
+    go/types.Qualifier's API.
+    
+    Passes toolstash -cmp.
+    
+    Updates #47087.
+    
+    Change-Id: Ib3e7cc35a6577dc28df8eca79ba3457c48168e86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333161
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types/fmt.go | 43 ++++++++++++++++-------------------
+ 1 file changed, 20 insertions(+), 23 deletions(-)

@@ -1,0 +1,13 @@
+commit d178c016c2b6ae2403986c730d8d11ed95a8211f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 10 13:29:52 2013 +1000
+
+    net/http: in ServeContent, don't seek on content until necessary
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/11080043
+
+ src/pkg/net/http/fs.go      | 39 +++++++++++++++++++++++++++------------
+ src/pkg/net/http/fs_test.go | 31 +++++++++++++++++++++++++------
+ 2 files changed, 52 insertions(+), 18 deletions(-)

@@ -1,0 +1,18 @@
+commit 12e8ffc18e84a76f8e01457852c456a3b28ec55a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 27 14:27:59 2021 -0700
+
+    io: avoid integer overflow in NewSectionReader
+    
+    Fixes #48620
+    
+    Change-Id: I37a5909ad27dc4a170929cb2e2ed1045cf524d59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352629
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/io/io.go      | 11 ++++++++++-
+ src/io/io_test.go | 14 ++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

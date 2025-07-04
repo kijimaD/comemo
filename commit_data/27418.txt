@@ -1,0 +1,14 @@
+commit 1a3e4f05a067f37e8ee8f7a0d5eec39a7e0cad84
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Tue May 17 20:16:41 2016 +0800
+
+    os/signal: fix wrong constant name in the documentation
+    
+    os.SIGINT is not defined, os.Interrupt or syscall.SIGINT should be used.
+    
+    Change-Id: I39867726d28e179d1160a4fd353b7bea676c9dbb
+    Reviewed-on: https://go-review.googlesource.com/23127
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/signal/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

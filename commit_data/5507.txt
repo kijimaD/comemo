@@ -1,0 +1,14 @@
+commit e8dec0dc052d51a6e11f4e39e26536ebfe44b70b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 21 14:28:34 2010 -0700
+
+    big: fix Int.SetString comment, simplify implementation,
+         always return z for nat.scan
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1236043
+
+ src/pkg/big/int.go | 30 +++++++++++++-----------------
+ src/pkg/big/nat.go |  2 +-
+ 2 files changed, 14 insertions(+), 18 deletions(-)

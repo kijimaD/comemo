@@ -1,0 +1,26 @@
+commit 9e4d87d1158a5847dbb94c0fd3f6ab451460d148
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jun 29 21:51:10 2018 +0100
+
+    all: update stale test skips
+    
+    Issues #10043, #15405, and #22660 appear to have been fixed, and
+    whatever tests I could run locally do succeed, so remove the skips.
+    
+    Issue #7237 was closed in favor of #17906, so update its skip line.
+    
+    Issue #7634 was closed as it had not appeared for over three years.
+    Re-enable it for now. An issue should be open if the test starts being
+    skipped again.
+    
+    Change-Id: I67daade906744ed49223291035baddaad9f56dca
+    Reviewed-on: https://go-review.googlesource.com/121735
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go          | 2 --
+ src/net/http/serve_test.go     | 2 +-
+ src/net/http/transport_test.go | 2 --
+ src/time/sleep_test.go         | 4 ----
+ 4 files changed, 1 insertion(+), 9 deletions(-)

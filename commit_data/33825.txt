@@ -1,0 +1,18 @@
+commit 8b13988e40e468995360802a2dc7de9b32a34fea
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Dec 6 16:47:52 2017 -0500
+
+    api: promote next to go1.10
+    
+    Change-Id: I2a4347540ecb94a9f124a228dc31452620ab0645
+    Reviewed-on: https://go-review.googlesource.com/82335
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ api/go1.10.txt     | 645 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt       | 641 ----------------------------------------------------
+ src/cmd/api/run.go |   2 +-
+ 3 files changed, 646 insertions(+), 642 deletions(-)

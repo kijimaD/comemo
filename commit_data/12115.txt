@@ -1,0 +1,12 @@
+commit 5ba08f4215fbe453796969cd413c267a5d3bbd78
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 22 09:37:38 2012 +1100
+
+    misc/goplay: remove redundant chdir
+    
+    R=ajstarks, r
+    CC=golang-dev
+    https://golang.org/cl/5687070
+
+ misc/goplay/goplay.go | 6 ------
+ 1 file changed, 6 deletions(-)

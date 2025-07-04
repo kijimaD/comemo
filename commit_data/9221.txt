@@ -1,0 +1,14 @@
+commit db3088a37c3e4743183bc4c5934c1d4ebc3ca498
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 27 17:38:39 2011 -0400
+
+    build: fix for noclobber users
+    
+    Fixes #2020.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4814056
+
+ src/env.bash | 5 +++++
+ 1 file changed, 5 insertions(+)

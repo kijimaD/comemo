@@ -1,0 +1,13 @@
+commit d4d5bd1bb78f5c69df66cfb7ce83470504bee5c0
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Jan 6 12:38:01 2012 -0500
+
+    Add Szabolcs Nagy as a contributor.
+    
+    R=iant, gri
+    CC=golang-dev
+    https://golang.org/cl/5517056
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

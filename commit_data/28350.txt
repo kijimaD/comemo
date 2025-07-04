@@ -1,0 +1,15 @@
+commit 7e2b5a102e1c7fcc314b5e58151043530ea1ffe9
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Sep 13 15:57:52 2016 -0400
+
+    test: re-enable phi optimization test
+    
+    CL 28978 (6ec993a) accidentally disabled the test (it would only
+    run if amd64 AND s390x, whereas it should be amd64 OR s390x).
+    
+    Change-Id: I23c1ad71724ff55f5808d5896b19b62c8ec5af76
+    Reviewed-on: https://go-review.googlesource.com/28981
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/phiopt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

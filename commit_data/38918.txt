@@ -1,0 +1,37 @@
+commit 511484afa2fa4ab6cd85a783c77ab345c83b1b88
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 25 20:48:08 2019 -0400
+
+    cmd/go: add internal/note, internal/sumweb, internal/tlog from golang.org/x/exp/sumdb
+    
+    Copied and updated import paths.
+    Eventually we will probably publish
+    these packages somewhere in golang.org/x
+    (as non-internal packages) and then we will
+    be able to vendor them properly.
+    For now, copy.
+    
+    sumweb.globsMatchPath moved to str.GlobsMatchPath.
+    
+    Change-Id: I4585e6dc5daa423e4ca9669195d41e58e7c8c275
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173950
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/note/example_test.go  | 128 ++++++
+ src/cmd/go/internal/note/note.go          | 684 ++++++++++++++++++++++++++++++
+ src/cmd/go/internal/note/note_test.go     | 473 +++++++++++++++++++++
+ src/cmd/go/internal/str/path.go           |  45 ++
+ src/cmd/go/internal/sumweb/cache.go       |  59 +++
+ src/cmd/go/internal/sumweb/client.go      | 619 +++++++++++++++++++++++++++
+ src/cmd/go/internal/sumweb/client_test.go | 460 ++++++++++++++++++++
+ src/cmd/go/internal/sumweb/encode.go      | 167 ++++++++
+ src/cmd/go/internal/sumweb/encode_test.go |  67 +++
+ src/cmd/go/internal/sumweb/server.go      | 183 ++++++++
+ src/cmd/go/internal/sumweb/test.go        | 133 ++++++
+ src/cmd/go/internal/tlog/ct_test.go       |  96 +++++
+ src/cmd/go/internal/tlog/note.go          | 135 ++++++
+ src/cmd/go/internal/tlog/note_test.go     | 117 +++++
+ src/cmd/go/internal/tlog/tile.go          | 418 ++++++++++++++++++
+ src/cmd/go/internal/tlog/tlog.go          | 601 ++++++++++++++++++++++++++
+ src/cmd/go/internal/tlog/tlog_test.go     | 269 ++++++++++++
+ 17 files changed, 4654 insertions(+)

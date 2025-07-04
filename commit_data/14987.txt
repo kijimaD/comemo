@@ -1,0 +1,16 @@
+commit 4019d0e4243cea82b033e12da75d49f82419f2cd
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Jan 26 09:57:06 2013 +0800
+
+    runtime: avoid defining the same variable in more than one translation unit
+    For gccgo runtime and Darwin where -fno-common is the default.
+    
+    R=iant, dave
+    CC=golang-dev
+    https://golang.org/cl/7094061
+
+ src/pkg/runtime/malloc.goc |  2 ++
+ src/pkg/runtime/malloc.h   |  2 +-
+ src/pkg/runtime/proc.c     |  7 +++++++
+ src/pkg/runtime/runtime.h  | 10 +++++-----
+ 4 files changed, 15 insertions(+), 6 deletions(-)

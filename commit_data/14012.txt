@@ -1,0 +1,13 @@
+commit ce6acefc5d9049762066cad6c7cac1378de4544e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 4 08:37:48 2012 +1000
+
+    go/doc: add nil to list of predeclared constants
+    
+    R=gri
+    CC=gobot, golang-dev
+    https://golang.org/cl/6601054
+
+ src/pkg/go/doc/example.go | 2 +-
+ src/pkg/go/doc/reader.go  | 5 +++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

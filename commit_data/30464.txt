@@ -1,0 +1,17 @@
+commit b2a2a6054a015eddad4043f55fa280aed0334607
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 28 17:40:33 2017 -0800
+
+    go/internal/srcimporter: report reimport of incomplete packages
+    
+    See the issue below for details.
+    
+    For #19337.
+    
+    Change-Id: I7637dcd4408f1bc4a9b3050a107aadb4de6f950b
+    Reviewed-on: https://go-review.googlesource.com/37620
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/internal/srcimporter/srcimporter.go      | 30 ++++++++++++++-----------
+ src/go/internal/srcimporter/srcimporter_test.go | 16 +++++++++++++
+ 2 files changed, 33 insertions(+), 13 deletions(-)

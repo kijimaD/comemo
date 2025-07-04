@@ -1,0 +1,19 @@
+commit ba6ccf3b04cbda5ac19412c933c69425ca828bfa
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Mon Jun 1 12:19:05 2020 -0600
+
+    testing: capture testname on --- PASS and --- FAIL lines
+    
+    This fixes an issue raised at https://github.com/golang/go/issues/38458#issuecomment-635617670
+    in which --- PASS and --- FAIL lines would not trigger --- CONT lines
+    of other tests.
+    
+    Change-Id: I0d8cc54d682a370d0a6ea6816a11b2e462a92efe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235997
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ .../script/test_chatty_parallel_success_sleepy.txt | 39 ++++++++++++++++++++++
+ src/testing/testing.go                             | 11 +++---
+ 2 files changed, 44 insertions(+), 6 deletions(-)

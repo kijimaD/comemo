@@ -1,0 +1,13 @@
+commit f71153278aac798f58c1aeb1d598fdaa0a2360f1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 28 11:09:21 2011 +1000
+
+    os: simplify WriteString
+    It was working too hard.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4639081
+
+ src/pkg/os/file.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

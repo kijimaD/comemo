@@ -1,0 +1,45 @@
+commit 1b9dc3e178be578cf1d8c06fe371283a58bdd93f
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Fri May 17 15:07:07 2024 +0200
+
+    runtime: increase profiling stack depth to 128
+    
+    The current stack depth limit for alloc, mutex, block, threadcreate and
+    goroutine profiles of 32 frequently leads to truncated stack traces in
+    production applications. Increase the limit to 128 which is the same
+    size used by the execution tracer.
+    
+    Create internal/profilerecord to define variants of the runtime's
+    StackRecord, MemProfileRecord and BlockProfileRecord types that can hold
+    arbitrarily big stack traces. Implement internal profiling APIs based on
+    these new types and use them for creating protobuf profiles and to act
+    as shims for the public profiling APIs using the old types.
+    
+    This will lead to an increase in memory usage for applications that
+    use the impacted profile types and have stack traces exceeding the
+    current limit of 32. Those applications will also experience a slight
+    increase in CPU usage, but this will hopefully soon be mitigated via CL
+    540476 and 533258 which introduce frame pointer unwinding for the
+    relevant profile types.
+    
+    For #43669.
+    
+    Change-Id: Ie53762e65d0f6295f5d4c7d3c87172d5a052164e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572396
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ doc/next/6-stdlib/99-minor/runtime/pprof/43669.md |   2 +
+ src/cmd/internal/objabi/pkgspecial.go             |   1 +
+ src/go/build/deps_test.go                         |   5 +-
+ src/internal/profilerecord/profilerecord.go       |  28 +++
+ src/runtime/cpuprof.go                            |   4 +-
+ src/runtime/mprof.go                              | 250 ++++++++++++++++------
+ src/runtime/pprof/pprof.go                        |  83 ++++---
+ src/runtime/pprof/pprof_test.go                   |   2 +-
+ src/runtime/pprof/protomem.go                     |   5 +-
+ src/runtime/pprof/protomem_test.go                |   9 +-
+ src/runtime/proc.go                               |  26 ++-
+ src/runtime/tracestack.go                         |   5 +
+ 12 files changed, 310 insertions(+), 110 deletions(-)

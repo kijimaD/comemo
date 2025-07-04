@@ -1,0 +1,26 @@
+commit 2248fc63ab53f90020e77df3fbd131a539d68fd4
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 6 17:17:33 2020 -0800
+
+    cmd/compile: give every really deep type a unique name
+    
+    This avoids the security problem in #29312 where two very deep, but
+    distinct, types are given the same name. They both make it to the
+    linker which chooses one, and the use of the other is now type unsafe.
+    
+    Instead, give every very deep type its own name. This errs on the
+    other side, in that very deep types that should be convertible to each
+    other might now not be. But at least that's not a security hole.
+    
+    Update #29312.
+    
+    Change-Id: Iac0ebe73fdc50594fd6fbf7432eef65f9a053126
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213517
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go | 15 +++++++-
+ test/fixedbugs/issue29312.go       | 70 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 84 insertions(+), 1 deletion(-)

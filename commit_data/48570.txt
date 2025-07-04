@@ -1,0 +1,23 @@
+commit 7cb1ae3e8e4bc4d80d711b5180705af556c95843
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 28 16:22:22 2022 -0700
+
+    go/types, types2: better error message for some invalid receiver errors (cleanup)
+    
+    Use the 1.17 compiler error message together with the receiver base type.
+    Also, simplify and flatten the receive testing logic for clarity.
+    
+    Change-Id: I71e58f261900dd7a85d2eb89a310c36b68d1b0b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396298
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/signature.go       | 88 +++++++++-------------
+ .../types2/testdata/check/decls2/decls2a.go        |  6 +-
+ .../internal/types2/testdata/check/decls4.go       |  6 +-
+ .../types2/testdata/fixedbugs/issue47968.go        |  4 +-
+ src/go/types/signature.go                          | 88 +++++++++-------------
+ src/go/types/testdata/check/decls2/decls2a.go      |  6 +-
+ src/go/types/testdata/check/decls4.go              |  6 +-
+ src/go/types/testdata/fixedbugs/issue47968.go      |  4 +-
+ 8 files changed, 90 insertions(+), 118 deletions(-)

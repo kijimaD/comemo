@@ -1,0 +1,72 @@
+commit d4e21288e444d3ffd30d1a0737f15ea3fc3b8ad9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 25 11:06:41 2018 -0400
+
+    cmd/go: add minimal module-awareness for legacy operation
+    
+    We want authors to be able to publish code that works with both
+    the current standard go command and the planned new go command
+    support for modules. If authors have tagged their code v2 or later,
+    semantic import versioning means the import paths must include a
+    v2 path element after the path prefix naming the module.
+    One option for making this convention compatible with original go get
+    is to move code into a v2 subdirectory of the root.
+    That makes sense for some authors, but many authors would prefer
+    not to move all the code into a v2 subdirectory for a transition and
+    then move it back up once we everyone has a module-aware go command.
+    
+    Instead, this CL teaches the old (non-module-aware) go command
+    a tiny amount about modules and their import paths, to expand
+    the options for authors who want to publish compatible packages.
+    If an author has a v2 of a package, say my/thing/v2/sub/pkg,
+    in the my/thing repo's sub/pkg subdirectory (no v2 in the file system path),
+    then old go get continues to import that package as my/thing/sub/pkg.
+    But when go get is processing code in any module (code in a tree with
+    a go.mod file) and encounters a path like my/thing/v2/sub/pkg,
+    it will check to see if my/thing/go.mod says "module my/thing/v2".
+    If so, the go command will read the import my/thing/v2/sub/pkg
+    as if it said my/thing/sub/pkg, which is the correct "old" import path
+    for the package in question.
+    
+    This CL will be back-ported to Go 1.10 and Go 1.9 as well.
+    
+    Once users have updated to the latest Go point releases containing
+    this new logic, authors will be able to update to using modules
+    within their own repos, including using semantic import paths
+    with vN path elements, and old go get will still be able to consume
+    those repositories.
+    
+    This CL also makes "go get" ignore meta go-import lines using
+    the new "mod" VCS type. This allows a package to specify both
+    a "mod" type and a "git" type, to present more efficient module
+    access to module-aware go but still present a Git repo to the old
+    "go get".
+    
+    Fixes #24751.
+    Fixes #25069.
+    
+    Change-Id: I378955613a0d63834d4f50f121f4db7e4d87dc0a
+    Reviewed-on: https://go-review.googlesource.com/109340
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/get/discovery.go               |   7 +
+ src/cmd/go/internal/get/get.go                     |   2 +-
+ src/cmd/go/internal/get/pkg_test.go                |  14 ++
+ src/cmd/go/internal/list/list.go                   |   4 +-
+ src/cmd/go/internal/load/pkg.go                    | 249 ++++++++++++++++++---
+ src/cmd/go/internal/load/test.go                   |   4 +-
+ src/cmd/go/internal/test/test.go                   |   4 +-
+ src/cmd/go/testdata/modlegacy/src/new/go.mod       |   1 +
+ src/cmd/go/testdata/modlegacy/src/new/new.go       |   3 +
+ src/cmd/go/testdata/modlegacy/src/new/p1/p1.go     |   7 +
+ src/cmd/go/testdata/modlegacy/src/new/p2/p2.go     |   1 +
+ src/cmd/go/testdata/modlegacy/src/new/sub/go.mod   |   1 +
+ .../go/testdata/modlegacy/src/new/sub/inner/go.mod |   1 +
+ .../go/testdata/modlegacy/src/new/sub/inner/x/x.go |   1 +
+ .../go/testdata/modlegacy/src/new/sub/x/v1/y/y.go  |   1 +
+ src/cmd/go/testdata/modlegacy/src/old/p1/p1.go     |   5 +
+ src/cmd/go/testdata/modlegacy/src/old/p2/p2.go     |   1 +
+ src/cmd/go/vendor_test.go                          |  31 +++
+ 18 files changed, 296 insertions(+), 41 deletions(-)

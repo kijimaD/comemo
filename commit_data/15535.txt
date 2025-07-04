@@ -1,0 +1,14 @@
+commit f5ceeb94a8054dda97d6331ec689037b4aff6a3a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 1 12:13:42 2013 -0500
+
+    build: disable cgo test on openbsd
+    
+    Update #4878.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7450048
+
+ src/run.bash | 1 +
+ 1 file changed, 1 insertion(+)

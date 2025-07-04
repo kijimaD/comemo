@@ -1,0 +1,25 @@
+commit a18bfb8c673591b7cbf5d16842e09e87c2c9b8cf
+Author: Mike Andrews <mra@xoba.com>
+Date:   Tue Mar 4 13:43:26 2014 -0800
+
+    net/smtp: set ServerName in StartTLS, as now required by crypto/tls
+    
+    the crypto/tls revision d3d43f270632 (CL 67010043, requiring ServerName or InsecureSkipVerify) breaks net/smtp,
+    since it seems impossible to do SMTP via TLS anymore. i've tried to fix this by simply using a tls.Config with
+    ServerName, instead of a nil *tls.Config. without this fix, doing SMTP with TLS results in error "tls: either
+    ServerName or InsecureSkipVerify must be specified in the tls.Config".
+    
+    testing: the new method TestTlsClient(...) sets up a skeletal smtp server with tls capability, and test client
+    injects a "fake" certificate allowing tls to work on localhost; thus, the modification to SendMail(...) enabling
+    this.
+    
+    Fixes #7437.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, josharian, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/70380043
+
+ src/pkg/net/smtp/smtp.go      |   8 ++-
+ src/pkg/net/smtp/smtp_test.go | 144 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 151 insertions(+), 1 deletion(-)

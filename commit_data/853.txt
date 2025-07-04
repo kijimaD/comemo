@@ -1,0 +1,12 @@
+commit 1836541566863ae7d8c3a9b379d8869252dc9f3e
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Oct 14 12:48:14 2008 -0700
+
+    bug with struct-type { 1 }
+    
+    R=r
+    OCL=17096
+    CL=17096
+
+ src/cmd/gc/const.c | 1 +
+ 1 file changed, 1 insertion(+)

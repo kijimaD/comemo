@@ -1,0 +1,32 @@
+commit 0728e2b139b63cf203487bd5f76b64507392b780
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:56:50 2024 -0500
+
+    runtime: simplify, speed up adjusttimers
+    
+    The current adjusttimers does an O(n) loop and then queues
+    a bunch of reinsertions, each of which is O(log n), for a worst
+    case of O(n log n) time plus an allocation of n elements.
+    
+    Reestablishing the heap invariant from an arbitrarily ordered
+    slice can be done in O(n) time, so it is both simpler and faster
+    to avoid the allocated temporary queue and just re-init the
+    heap if we have damaged it. The cost of doing so is no worse
+    than the O(n) loop we already did.
+    
+    This change also avoids holding multiple timers locked (status
+    set to timerMoving) at any given moment, as well as holding
+    individual timers locked for unbounded amounts of time,
+    as opposed to fixed-size critical sections.
+    
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: If966c1d1e66db797f4b19e7b1abbc06ab651764d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564115
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/time.go | 89 +++++++++++++++++------------------------------------
+ 1 file changed, 28 insertions(+), 61 deletions(-)

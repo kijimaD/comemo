@@ -1,0 +1,24 @@
+commit 53094ac844c48b0574d5374348cc09d7649104c3
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 14 08:14:44 2020 -0400
+
+    cmd: go get golang.org/x/tools@d1624618 && go mod vendor
+    
+    This brings in CL 262197, which enables handling of ABI selector
+    syntax in the asmdecl checker.
+    
+    Updates #27539, #40724.
+    
+    Change-Id: I088f5eeacb3588ed49c4aa2277641049bf5b9083
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262318
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/go.mod                                                 |  2 +-
+ src/cmd/go.sum                                                 |  4 ++--
+ .../golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go   | 10 ++++++++++
+ src/cmd/vendor/modules.txt                                     |  2 +-
+ 4 files changed, 14 insertions(+), 4 deletions(-)

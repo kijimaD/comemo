@@ -1,0 +1,26 @@
+commit 150d2448e5a213cd679396371c0a147918dc2125
+Author: Michał Derkacz <michal@Lnet.pl>
+Date:   Sun Jun 14 00:06:24 2020 +0200
+
+    cmd/compile,cmd/internal/obj/riscv,runtime: use Duff's devices on riscv64
+    
+    Implement runtime.duffzero and runtime.duffcopy for riscv64.
+    Use obj.ADUFFZERO/obj.ADUFFCOPY for medium size, word aligned
+    zeroing/moving.
+    
+    Change-Id: I42ec622055630c94cb77e286d8d33dbe7c9f846c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237797
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/riscv64/ggen.go       |  10 +-
+ src/cmd/compile/internal/riscv64/ssa.go        |  14 +
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  14 +
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  38 ++
+ src/cmd/compile/internal/ssa/opGen.go          |  28 +
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go |  33 +
+ src/cmd/internal/obj/riscv/obj.go              |   8 +-
+ src/runtime/duff_riscv64.s                     | 907 +++++++++++++++++++++++++
+ src/runtime/mkduff.go                          |  28 +
+ 9 files changed, 1076 insertions(+), 4 deletions(-)

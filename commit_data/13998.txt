@@ -1,0 +1,57 @@
+commit 7b36acc4acbe8509b312e6a1263ced9ddd7b54fb
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Oct 2 08:12:39 2012 +1000
+
+    cmd/5g: avoid temporary during constant binary op
+    
+    This CL is an attempt to backport the abop code generation from 6g. This improves the generation of the range offset if the increment can be encoded directly via Operand2 shift encoding.
+    
+    0023 (/home/dfc/src/range.go:7) BGE     ,29(APC)
+    0024 (/home/dfc/src/range.go:7) MOVW    0(R3),R5
+    0025 (/home/dfc/src/range.go:7) MOVW    $4,R1
+    0026 (/home/dfc/src/range.go:7) ADD     R1,R3,R3
+    0027 (/home/dfc/src/range.go:8) ADD     R5,R4,R4
+    0028 (/home/dfc/src/range.go:7) B       ,17(APC)
+    
+    becomes
+    
+    0023 (/home/dfc/src/range.go:7) BGE     ,28(APC)
+    0024 (/home/dfc/src/range.go:7) MOVW    0(R3),R0
+    0025 (/home/dfc/src/range.go:7) ADD     $4,R3,R3
+    0026 (/home/dfc/src/range.go:8) ADD     R0,R4,R4
+    0027 (/home/dfc/src/range.go:7) B       ,17(APC)
+    
+    Benchmarks are unimpressive
+    
+    dfc@qnap:~/go/test/bench/go1$ ~/go/misc/benchcmp {old,new}.txt
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkBinaryTree17    2147483647   2147483647   +0.93%
+    BenchmarkFannkuch11      2147483647   2147483647   -2.52%
+    BenchmarkGobDecode        196135200    195842000   -0.15%
+    BenchmarkGobEncode         78581650     76734450   -2.35%
+    BenchmarkGzip            2147483647   2147483647   -0.47%
+    BenchmarkGunzip          1087243000   1070254000   -1.56%
+    BenchmarkJSONEncode      1107558000   1146077000   +3.48%
+    BenchmarkJSONDecode      2147483647   2147483647   -0.07%
+    BenchmarkMandelbrot200   2147483647   2147483647   -0.77%
+    BenchmarkParse             74328550     71653400   -3.60%
+    BenchmarkRevcomp          111123900    109325950   -1.62%
+    BenchmarkTemplate        2147483647   2147483647   -0.82%
+    
+    benchmark                  old MB/s     new MB/s  speedup
+    BenchmarkGobDecode             3.91         3.92    1.00x
+    BenchmarkGobEncode             9.77        10.00    1.02x
+    BenchmarkGzip                  3.65         3.66    1.00x
+    BenchmarkGunzip               17.85        18.13    1.02x
+    BenchmarkJSONEncode            1.75         1.69    0.97x
+    BenchmarkJSONDecode            0.83         0.83    1.00x
+    BenchmarkParse                 0.78         0.81    1.04x
+    BenchmarkRevcomp              22.87        23.25    1.02x
+    BenchmarkTemplate              0.84         0.85    1.01x
+    
+    R=remyoudompheng, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6564067
+
+ src/cmd/5g/cgen.c | 35 ++++++++++++++++++++++++++++++-----
+ 1 file changed, 30 insertions(+), 5 deletions(-)

@@ -1,0 +1,18 @@
+commit f9066fe1c0a7181242f77d8534e0b6e112c982a9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 13 22:14:04 2013 +0400
+
+    runtime: more reliable preemption
+    Currently it's possible that a goroutine
+    that periodically executes non-blocking
+    cgo/syscalls is never preempted.
+    This change splits scheduler and syscall
+    ticks to prevent such situation.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12658045
+
+ src/pkg/runtime/proc.c    | 34 +++++++++++++++++++++-------------
+ src/pkg/runtime/runtime.h |  5 +++--
+ 2 files changed, 24 insertions(+), 15 deletions(-)

@@ -1,0 +1,23 @@
+commit 1292176bc98be4b7b9d24abec05e88b3dbd89e21
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jun 8 14:26:44 2022 -0400
+
+    cmd/go: clean paths before using them form index functions
+    
+    We use str.TrimFilePathPrefix to trim the module root prefix and get the
+    relative path of each package in the module when scanning the module
+    and in the RelPath function.  Make sure to clean the path before
+    indexing and in RelPath to ensure that each path starts with that
+    prefix, because walk will clean the root path before joining each
+    subdirectory path to it.
+    
+    Change-Id: I1dc1eddbd42030eb6d5d8e76a8675f94216447c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411118
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modindex/read.go               |  3 +-
+ .../script/list_replace_absolute_windows.txt       | 37 ++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

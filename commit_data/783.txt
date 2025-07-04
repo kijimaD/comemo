@@ -1,0 +1,12 @@
+commit 387c1bc31eef954dfbf5a1fa2a2659587495e215
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 30 15:35:40 2008 -0700
+
+    pretty types; use 6g -t to disable
+    
+    R=ken
+    OCL=16240
+    CL=16242
+
+ src/cmd/gc/subr.c | 107 +++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 102 insertions(+), 5 deletions(-)

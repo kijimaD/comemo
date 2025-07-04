@@ -1,0 +1,22 @@
+commit 2e4f490b31272a2df73d4ba23aad7f5a8ca49a2f
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Jan 29 20:06:54 2020 +1100
+
+    cmd/compile,cmd/link: fix and re-enable open-coded defers on riscv64
+    
+    The R_CALLRISCV relocation marker is on the JALR instruction, however the actual
+    relocation is currently two instructions previous for the AUIPC+ADDI sequence.
+    Adjust the platform dependent offset accordingly and re-enable open-coded defers.
+    
+    Fixes #36786.
+    
+    Change-Id: I71597c193c447930fbe94ce44b7355e89ae877bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216797
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 4 ----
+ src/cmd/link/internal/ld/pcln.go   | 7 ++++++-
+ test/live.go                       | 6 +-----
+ 3 files changed, 7 insertions(+), 10 deletions(-)

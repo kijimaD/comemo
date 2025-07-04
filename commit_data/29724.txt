@@ -1,0 +1,16 @@
+commit bcacb6d3f4d7cb2b77ce16ad98938af1eeceea0a
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 2 00:46:10 2016 -0500
+
+    vendor/golang_org/x/crypto/chacha20poly1305: revendor to pick up fix for #18154
+    
+    Fixes #18154.
+    
+    Change-Id: I1836b63a380b7fc2f9965e909859b1a89a3ae5d5
+    Reviewed-on: https://go-review.googlesource.com/33856
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .../x/crypto/chacha20poly1305/chacha20poly1305_amd64.s | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

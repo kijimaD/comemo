@@ -1,0 +1,21 @@
+commit 1bad3831a0afe76d3403f564e89be6b76f8c6d98
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:54:56 2021 -0600
+
+    cmd/internal/obj: remove param element from ppc64 optab
+    
+    This is rarely used, and is implied based on the
+    memory type of the operand.  This is a step towards
+    simplifying the MOV* pseudo opcodes on ppc64.
+    
+    Similarly, remove the bogus param value from AVMULESB.
+    
+    Change-Id: Ibad4d045ec6d8c5163a468b2db1dfb762ef674ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300177
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/ppc64/asm9.go | 257 ++++++++++++++++++++-----------------
+ 1 file changed, 136 insertions(+), 121 deletions(-)

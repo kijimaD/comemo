@@ -1,0 +1,35 @@
+commit 3ebb1ad9cddf4711d4b0f44c24da1ceac3d9e069
+Author: Austin Clements <austin@google.com>
+Date:   Sun Dec 30 19:47:27 2018 -0500
+
+    runtime: ring buffer for binary debug logging
+    
+    This adds an internal runtime debug log. It uses per-M time-stamped
+    ring buffers of binary log records. On panic, these buffers are
+    collected, interleaved, and printed.
+    
+    The entry-point to the debug log is a new "dlog" function. dlog is
+    designed so it can be used even from very constrained corners of the
+    runtime such as signal handlers or inside the write barrier.
+    
+    The facility is only enabled if the debuglog build tag is set.
+    Otherwise, it compiles away to a no-op implementation.
+    
+    The debug log format is also designed so it would be reasonable to
+    decode from a core dump, though this hasn't been implemented.
+    
+    Change-Id: I6e2737c286358e97a0d8091826498070b95b66a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/157997
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/debuglog.go             | 808 ++++++++++++++++++++++++++++++++++++
+ src/runtime/debuglog_off.go         |  19 +
+ src/runtime/debuglog_on.go          |  45 ++
+ src/runtime/debuglog_test.go        | 158 +++++++
+ src/runtime/export_debuglog_test.go |  46 ++
+ src/runtime/panic.go                |   2 +
+ src/runtime/runtime2.go             |   2 +
+ src/runtime/signal_sighandler.go    |   2 +
+ 8 files changed, 1082 insertions(+)

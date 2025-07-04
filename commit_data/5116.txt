@@ -1,0 +1,12 @@
+commit 456642adb5f26b77b5d00a416b990a2788e0b922
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Tue Mar 23 18:13:16 2010 -0700
+
+    cmd/goinstall: include command name in error reporting (usually missing software or incorrect $PATH)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/695041
+
+ src/cmd/goinstall/main.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

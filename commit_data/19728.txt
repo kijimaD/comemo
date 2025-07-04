@@ -1,0 +1,14 @@
+commit a44cf8d18e9af4cae0d93f6a4f6c33f3cfbe7f18
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 15 11:25:39 2014 +1000
+
+    A+C: add Chris McGee (individual CLA)
+    
+    TBR=dsymonds
+    R=golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/112300043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

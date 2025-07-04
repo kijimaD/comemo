@@ -1,0 +1,15 @@
+commit b70ddc0b51bb49ed223858a8aabb028a065b4596
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 5 13:14:08 2015 -0800
+
+    runtime: only check whether the runtime is stale once during tests
+    
+    Noticed while investigating the speed of the runtime tests, as part
+    of debugging while Plan 9's runtime tests are timing out on GCE.
+    
+    Change-Id: I95f5a3d967a0b45ec1ebf10067e193f51db84e26
+    Reviewed-on: https://go-review.googlesource.com/2283
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_test.go | 27 ++++++++++++++++++++-------
+ 1 file changed, 20 insertions(+), 7 deletions(-)

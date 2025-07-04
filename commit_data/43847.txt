@@ -1,0 +1,21 @@
+commit cb3f84ad25abaea28dad905ceddd81a5a334e806
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 19 13:58:52 2020 -0500
+
+    cmd/go/internal/modload: eliminate LoadedModules
+    
+    As of CL 271646, all external callers have been eliminated. Replace
+    the remaining internal caller with a direct reference to the buildList
+    variable and remove the exported function to prevent backsliding.
+    
+    For #36460
+    
+    Change-Id: Iea82df1e3e604ada602dda3e830c06d441eee2a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271647
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/build.go     | 2 +-
+ src/cmd/go/internal/modload/buildlist.go | 9 ---------
+ 2 files changed, 1 insertion(+), 10 deletions(-)

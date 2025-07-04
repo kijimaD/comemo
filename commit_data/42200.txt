@@ -1,0 +1,16 @@
+commit 45cd312394ebbcdce956952f0e269a82d89e6639
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 6 21:37:37 2019 -0400
+
+    runtime: fix debuglog traceback printing off-by-one
+    
+    The debuglog traceback printer wasn't adjusting for call/return PCs.
+    
+    Change-Id: I98dda1c0f22cd78651d88124ea51dc166dc91c7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227646
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/debuglog.go | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

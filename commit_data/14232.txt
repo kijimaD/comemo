@@ -1,0 +1,14 @@
+commit 184e7a2bf2d091a48029f9953693a2b9f3ba3cc1
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 29 11:16:58 2012 -0400
+
+    crypto/x509: always write validity times in UTC.
+    
+    RFC 5280 section 4.1.2.5.1 says so.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6775068
+
+ src/pkg/crypto/x509/x509.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

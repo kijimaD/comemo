@@ -1,0 +1,12 @@
+commit 991a968f44010667faf58ce96626ac5b03c12fa2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 10 11:31:00 2010 -0800
+
+    runtime: do not zero blocks on free (this time for sure!)
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/207054
+
+ src/pkg/runtime/malloc.cgo | 1 -
+ 1 file changed, 1 deletion(-)

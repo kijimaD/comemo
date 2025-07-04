@@ -1,0 +1,12 @@
+commit 0808b199e0f6c3143c706a3a489dc727868b19fc
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 1 21:46:04 2010 -0700
+
+    Effective Go: append and a few words about ...
+    
+    R=rsc, gri, iant
+    CC=golang-dev
+    https://golang.org/cl/2821041
+
+ doc/effective_go.html | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

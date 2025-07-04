@@ -1,0 +1,12 @@
+commit 8ba48fb5caa0bf5b1b2a73c788cd753c41373b44
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 13 15:48:57 2011 -0700
+
+    fix build from e904b6784768 breakage
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4696047
+
+ src/pkg/http/fs_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

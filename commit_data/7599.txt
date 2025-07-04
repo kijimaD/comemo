@@ -1,0 +1,12 @@
+commit 1d258a554a4a09a9f75c65ebc0f388c2bbb318a1
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Mar 2 10:10:12 2011 +1100
+
+    http: give ParseHTTPVersion a real example.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4239050
+
+ src/pkg/http/request.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

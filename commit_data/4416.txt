@@ -1,0 +1,19 @@
+commit dec5bb7882baf1cc1935e3c1d5d14965e47aae44
+Author: Arvindh Rajesh Tamilmani <art@a-30.net>
+Date:   Mon Dec 14 19:28:36 2009 -0800
+
+    xml: handle unexpected EOF while parsing and fix a bug in name
+    
+    mustgetc reports unexpected EOF as SyntaxError.  using
+    mustgetc seems to be a better approach than letting the
+    caller handle unexpected EOF every time.
+    
+    name: the second if statement should explicitly return
+    ok==false.
+    
+    R=rsc
+    https://golang.org/cl/174083
+
+ src/pkg/xml/xml.go      | 68 +++++++++++++++++++++++++++++--------------------
+ src/pkg/xml/xml_test.go | 63 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 104 insertions(+), 27 deletions(-)

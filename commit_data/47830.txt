@@ -1,0 +1,23 @@
+commit 3c495839fe6e711b9161f8efc2d1bd474bf60916
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 16 10:25:07 2021 -0800
+
+    spec: describe constraint parsing ambiguity and work-around more precisely
+    
+    The new description matches the implementation (CL 370774).
+    
+    Also, in the section on type constraints, use "defines" instead of
+    "determines" because the constraint interface defines the type set
+    which is precisely the set of acceptable type arguments.
+    
+    For #49482.
+    
+    Change-Id: I6f30f49100e8ba8bec0a0f1b450f88cae54312eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372874
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

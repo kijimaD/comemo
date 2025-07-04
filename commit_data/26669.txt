@@ -1,0 +1,17 @@
+commit 72c1180852d5b059cd1e51d1db1956ea208b7f2f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 30 23:08:44 2016 -0700
+
+    net: don't do DNS for onion and local addresses
+    
+    Fixes #13705
+    
+    Change-Id: I86c60c78ce0394f830f904c9cba83ebbf3efc046
+    Reviewed-on: https://go-review.googlesource.com/21328
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dnsclient_unix.go      | 17 ++++++++++++++
+ src/net/dnsclient_unix_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+)

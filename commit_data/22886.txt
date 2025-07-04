@@ -1,0 +1,17 @@
+commit 83b25d9342b0ce6620f38419ff74c6d16b43f554
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon Mar 30 15:45:33 2015 +0200
+
+    cmd/ld: make .rela and .rela.plt sections contiguous
+    
+    ELF normally requires this and Solaris runtime loader will crash if we
+    don't do it.
+    
+    Fixes Solaris build.
+    
+    Change-Id: I0482eed890aff2d346136ae7f9caf8f094f502ed
+    Reviewed-on: https://go-review.googlesource.com/8216
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/data.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

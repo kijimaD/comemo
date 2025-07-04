@@ -1,0 +1,24 @@
+commit b63db7f72446753de0f5bb78b629dbe58fb15cda
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Nov 9 16:37:05 2020 -0500
+
+    runtime: give test child time to block
+    
+    The child in TestPanicSystemstack prints "x\n" and then blocks on a
+    lock. Receiving those bytes only indicates that the child is _about to
+    block_. Since we don't have a way to know when it is fully blocked,
+    sleep a bit to give it time to block. This makes us less likely to lose
+    the race and signal before the child blocks, which will fail the test as
+    the stack trace cannot be read from a running G.
+    
+    Fixes #33626
+    
+    Change-Id: I8a27b1b114bf75e1e5bcb2a7a33aa69cdbc22f40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268578
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/crash_unix_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

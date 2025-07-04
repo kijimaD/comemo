@@ -1,0 +1,22 @@
+commit 74a9d283e4d498b78521f4a40c23b4c3f5ff7387
+Author: Florin Papa <fpapa@google.com>
+Date:   Mon Nov 21 12:54:11 2022 -0800
+
+    debug/elf: retrieve values for dynamic section tags
+    
+    Add functionality to retrieve values for .dynamic entries that don't
+    correspond to entries in the string table.
+    
+    Fixes #56892
+    
+    Change-Id: I6edabc8ca331c819e442d06e19b7f4df8343372b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452617
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/56892.txt         |  1 +
+ src/debug/elf/file.go      | 34 ++++++++++++++++++++++++++++++++++
+ src/debug/elf/file_test.go | 18 ++++++++++++++++++
+ 3 files changed, 53 insertions(+)

@@ -1,0 +1,19 @@
+commit d57a4a656a8579b0ea3570c24329252ed536f98c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 30 14:21:06 2016 -0700
+
+    cmd/compile: eliminate addmethod tpkg parameter
+    
+    It's only needed for a check that can be pushed up into bimport.go,
+    where it makes more sense anyway.
+    
+    Change-Id: I6ef381ff4f29627b0f390ce27fef08902932bea6
+    Reviewed-on: https://go-review.googlesource.com/28177
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go   | 7 ++++++-
+ src/cmd/compile/internal/gc/dcl.go       | 8 +-------
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ 3 files changed, 8 insertions(+), 9 deletions(-)

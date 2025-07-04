@@ -1,0 +1,20 @@
+commit 6f7c9ea855b1ae97871837abf33b85aaa6731eae
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Sun Apr 24 12:14:13 2022 +0800
+
+    runtime: set userForced while holding gcsema
+    
+    Fixes #52515
+    
+    Change-Id: If10068a97733daf61aba72da5ed3935db8eed8b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401776
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/mgc.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

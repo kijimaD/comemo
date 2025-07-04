@@ -1,0 +1,12 @@
+commit 3dc6c9e64d8de9931ed621aaa15884512014afd2
+Author: Christian Himpel <chressie@googlemail.com>
+Date:   Thu Aug 5 10:31:00 2010 +1000
+
+    misc/vim: highlight misspelled words only in comments
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/1915043
+
+ misc/vim/syntax/go.vim | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

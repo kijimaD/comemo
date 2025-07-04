@@ -1,0 +1,76 @@
+commit 357f73369510e3ef37e2a473a7fd9034b1ddeeed
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Aug 9 06:43:17 2013 +0200
+
+    cmd/5c, cmd/5g, cmd/5l: turn MOVB, MOVH into plain moves, optimize short arithmetic.
+    
+    Pseudo-instructions MOVBS and MOVHS are used to clarify
+    the semantics of short integers vs. registers:
+     * 8-bit and 16-bit values in registers are assumed to always
+       be zero-extended or sign-extended depending on their type.
+     * MOVB is truncation or move of an already extended value
+       between registers.
+     * MOVBU enforces zero-extension at the destination (register).
+     * MOVBS enforces sign-extension at the destination (register).
+    And similarly for MOVH/MOVS/MOVHU.
+    
+    The linker is adapted to assemble MOVB and MOVH to an ordinary
+    mov. Also a peephole pass in 5g that aims at eliminating
+    redundant zero/sign extensions is improved.
+    
+    encoding/binary:
+    benchmark                              old ns/op    new ns/op    delta
+    BenchmarkReadSlice1000Int32s              220387       217185   -1.45%
+    BenchmarkReadStruct                        12839        12910   +0.55%
+    BenchmarkReadInts                           5692         5534   -2.78%
+    BenchmarkWriteInts                          6137         6016   -1.97%
+    BenchmarkPutUvarint32                        257          241   -6.23%
+    BenchmarkPutUvarint64                        812          754   -7.14%
+    benchmark                               old MB/s     new MB/s  speedup
+    BenchmarkReadSlice1000Int32s               18.15        18.42    1.01x
+    BenchmarkReadStruct                         5.45         5.42    0.99x
+    BenchmarkReadInts                           5.27         5.42    1.03x
+    BenchmarkWriteInts                          4.89         4.99    1.02x
+    BenchmarkPutUvarint32                      15.56        16.57    1.06x
+    BenchmarkPutUvarint64                       9.85        10.60    1.08x
+    
+    crypto/des:
+    benchmark                              old ns/op    new ns/op    delta
+    BenchmarkEncrypt                            7002         5169  -26.18%
+    BenchmarkDecrypt                            7015         5195  -25.94%
+    benchmark                               old MB/s     new MB/s  speedup
+    BenchmarkEncrypt                            1.14         1.55    1.36x
+    BenchmarkDecrypt                            1.14         1.54    1.35x
+    
+    strconv:
+    benchmark                              old ns/op    new ns/op    delta
+    BenchmarkAtof64Decimal                       457          385  -15.75%
+    BenchmarkAtof64Float                         574          479  -16.55%
+    BenchmarkAtof64FloatExp                     1035          906  -12.46%
+    BenchmarkAtof64Big                          1793         1457  -18.74%
+    BenchmarkAtof64RandomBits                   2267         2066   -8.87%
+    BenchmarkAtof64RandomFloats                 1416         1194  -15.68%
+    BenchmarkAtof32Decimal                       451          379  -15.96%
+    BenchmarkAtof32Float                         547          435  -20.48%
+    BenchmarkAtof32FloatExp                     1095          986   -9.95%
+    BenchmarkAtof32Random                       1154         1006  -12.82%
+    BenchmarkAtoi                               1415         1380   -2.47%
+    BenchmarkAtoiNeg                            1414         1401   -0.92%
+    BenchmarkAtoi64                             1744         1671   -4.19%
+    BenchmarkAtoi64Neg                          1737         1662   -4.32%
+    
+    Fixes #1837.
+    
+    R=rsc, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12424043
+
+ src/cmd/5c/reg.c   |   4 +--
+ src/cmd/5g/cgen.c  |  10 ++++++
+ src/cmd/5g/ggen.c  |   9 ++++-
+ src/cmd/5g/gsubr.c |  49 +++++++++++++++++--------
+ src/cmd/5g/peep.c  | 103 +++++++++++++++++++++++++++++++++++++++--------------
+ src/cmd/5g/reg.c   |   4 +--
+ src/cmd/5l/asm.c   |   2 ++
+ src/cmd/5l/optab.c |   4 +--
+ 8 files changed, 136 insertions(+), 49 deletions(-)

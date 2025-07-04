@@ -1,0 +1,12 @@
+commit be45ba712bb2cae5ea73979ff89ef7fc19b563eb
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Dec 16 17:14:02 2010 -0500
+
+    crypto/tls: missed a file
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3674043
+
+ src/pkg/crypto/tls/handshake_server_test.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

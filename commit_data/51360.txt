@@ -1,0 +1,26 @@
+commit 0789ca4951f9c72e0a09051783276e3730d6db06
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 16 20:58:58 2022 -0500
+
+    go/types, types2: ensure signatures are instantiated if all type args
+    are provided
+    
+    Improve the accuracy of recorded types and instances for function calls,
+    by instantiating their signature before checking arguments if all type
+    arguments are provided. This avoids a problem where fully instantiated
+    function signatures are are not recorded as such following an error
+    checking their arguments.
+    
+    Fixes golang/go#51803
+    
+    Change-Id: Iec4cbd219a2cd19bb1bcf2a5c4019f556e4304b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451436
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/api_test.go | 13 ++++++-----
+ src/cmd/compile/internal/types2/call.go     | 34 +++++++++++++++++++++++-----
+ src/go/types/api_test.go                    | 13 ++++++-----
+ src/go/types/call.go                        | 35 +++++++++++++++++++++++------
+ 4 files changed, 72 insertions(+), 23 deletions(-)

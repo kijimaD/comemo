@@ -1,0 +1,14 @@
+commit 3c3c5f38a057d76ebdf5424ba7b595aca886b6a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 1 13:38:05 2012 -0500
+
+    cmd/dist: Unix grammar fix
+    
+    Fixes #3165.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5712051
+
+ src/cmd/dist/build.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

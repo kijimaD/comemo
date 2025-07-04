@@ -1,0 +1,24 @@
+commit bf14ef61fc8f3e56d21589ac4377ea390a2bbef7
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 7 10:03:10 2008 -0700
+
+    test cleanup
+    
+    SVN=126120
+
+ test/bugs/bug010.go                |   5 ++
+ test/bugs/bug025.go                |   2 +-
+ test/{bugs => fixedbugs}/bug006.go |   0
+ test/{bugs => fixedbugs}/bug022.go |   5 ++
+ test/{bugs => fixedbugs}/bug035.go |   0
+ test/{bugs => fixedbugs}/bug037.go |   0
+ test/{bugs => fixedbugs}/bug039.go |   0
+ test/{bugs => fixedbugs}/bug043.go |   6 +-
+ test/{bugs => fixedbugs}/bug044.go |   6 +-
+ test/{bugs => fixedbugs}/bug051.go |   0
+ test/golden.out                    | 127 +++++++++----------------------------
+ test/ken/robfunc.go                |   4 +-
+ test/ken/simpconv.go               |   2 +
+ test/run                           |   3 +-
+ test/test0.go                      |  10 ++-
+ 15 files changed, 62 insertions(+), 108 deletions(-)

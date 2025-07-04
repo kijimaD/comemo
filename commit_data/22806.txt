@@ -1,0 +1,15 @@
+commit 7556948ebf1c1d739c2fa3b06a0b9bc10e4f150d
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Apr 29 22:58:52 2015 +1200
+
+    cmd/internal/ld: put the list of packages built into a shared library into an ELF note
+    
+    Change-Id: I611f7dec2109dc7e2f090ced0a1dca3d4b577134
+    Reviewed-on: https://go-review.googlesource.com/9520
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/elf.go  | 49 ++++++++++++++++++++++++++++++++++++++++-----
+ src/cmd/internal/ld/lib.go  |  9 +++++++++
+ src/cmd/internal/ld/pobj.go |  4 ++++
+ 3 files changed, 57 insertions(+), 5 deletions(-)

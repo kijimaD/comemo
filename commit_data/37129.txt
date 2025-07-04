@@ -1,0 +1,14 @@
+commit 67a9c0afd1cc38fb119c3c4787280668bad0f750
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 26 17:13:04 2018 -0700
+
+    cmd/compile/internal/gc: fix ONAME documentation
+    
+    Named constants are represented as OLITERAL with n.Sym != nil.
+    
+    Change-Id: If6bc8c507ef8c3e4e47f586d86fd1d0f20bf8974
+    Reviewed-on: https://go-review.googlesource.com/c/145198
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/syntax.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

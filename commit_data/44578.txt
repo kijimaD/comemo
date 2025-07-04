@@ -1,0 +1,19 @@
+commit 41245ab28390fed22ba03ee87c0e3db97b16c73b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 9 17:14:15 2021 -0800
+
+    cmd/compile/internal/types2: remove concept of finals
+    
+    This is a 1:1 port of the respective change in go/types
+    in https://golang.org/cl/299590.
+    
+    Change-Id: I65ad723f2e21e3d95fc0b94665e0121e31871a48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300250
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check.go   | 21 ---------------------
+ src/cmd/compile/internal/types2/typexpr.go | 12 ++++++------
+ 2 files changed, 6 insertions(+), 27 deletions(-)

@@ -1,0 +1,18 @@
+commit f448cb8ba83be1055cc73101e0c217c2a503c8ad
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 20 17:29:57 2021 -0400
+
+    cmd/compile: use f.Nname.Type() in makeABIWrapper
+    
+    Apparently, f.Nname.Ntype.Type() doesn't work with types2, as it
+    doesn't set Ntype, unlike the old type checker. f.Nname.Type()
+    works for both.
+    
+    Change-Id: I6fa8a81c9fc7b65e008d9f158b88f0d56d84c3ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312089
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ssagen/abi.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

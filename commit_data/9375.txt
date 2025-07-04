@@ -1,0 +1,12 @@
+commit 93ecb5bb1ba923dc86e36147ff8c8b0b61640a09
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Tue Aug 16 14:22:02 2011 -0400
+
+    ld: make addaddrplus4 static
+    
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/4835043
+
+ src/cmd/ld/data.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

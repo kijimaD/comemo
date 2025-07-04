@@ -1,0 +1,14 @@
+commit 1a56a27c58cb7c59d8b073a78b96833f9ebe4b75
+Author: Gabriel Nicolas Avellaneda <avellaneda.gabriel@gmail.com>
+Date:   Tue Jun 27 18:00:59 2017 -0300
+
+    doc: Proper default value for the $GOPATH.
+    
+    It should be $HOME/go instead of $HOME/work
+    
+    Change-Id: I22e0a89deff30f935c3e25a237d6c0c161103339
+    Reviewed-on: https://go-review.googlesource.com/46890
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/code.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

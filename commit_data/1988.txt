@@ -1,0 +1,12 @@
+commit 78edbfdcf47d634bba23e20e9025a55f2ce83a13
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 10 06:22:41 2009 -0700
+
+    test for new string bug
+    
+    TBR=r
+    OCL=27306
+    CL=27306
+
+ test/stack.go | 5 +++++
+ 1 file changed, 5 insertions(+)

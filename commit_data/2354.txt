@@ -1,0 +1,17 @@
+commit 2494bcb4b1914c17dce8491cf2244fd0fd63115b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 1 19:12:10 2009 -0700
+
+    - enable scanner to handle illegal chars w/o returning an error
+    so that it can be used for non-Go chars
+    - adjust parser accordingly
+    
+    R=rsc
+    DELTA=58  (42 added, 2 deleted, 14 changed)
+    OCL=29688
+    CL=29703
+
+ src/lib/go/parser/parser.go        | 11 ++++++++++-
+ src/lib/go/scanner/scanner.go      | 32 +++++++++++++++++++++-----------
+ src/lib/go/scanner/scanner_test.go | 27 ++++++++++++++++++++++++---
+ 3 files changed, 55 insertions(+), 15 deletions(-)

@@ -1,0 +1,13 @@
+commit 950f2637c20a3b1d1668ca539f4c867573c52968
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Nov 5 16:43:29 2009 -0800
+
+    crypto/tls (part 4/5)
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1019002
+
+ src/pkg/crypto/tls/Makefile |  19 +++++
+ src/pkg/crypto/tls/tls.go   | 172 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 191 insertions(+)

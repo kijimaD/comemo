@@ -1,0 +1,20 @@
+commit 30d0452b24f7418e616ba5c74d248473a84d5bca
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 3 15:19:00 2012 -0500
+
+    lib9/utf: make safe for automatic build
+    
+    Add // +build ignore to mkrunetype.c,
+    rename runetypebody to be .h since it is #included,
+    delete old runetypebody tables.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5627043
+
+ src/lib9/utf/mkrunetype.c                          |    2 +
+ src/lib9/utf/runetype.c                            |    2 +-
+ src/lib9/utf/runetypebody-5.0.0.c                  | 1361 -----------------
+ src/lib9/utf/runetypebody-5.2.0.c                  | 1541 --------------------
+ .../{runetypebody-6.0.0.c => runetypebody-6.0.0.h} |    0
+ 5 files changed, 3 insertions(+), 2903 deletions(-)

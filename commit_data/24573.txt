@@ -1,0 +1,17 @@
+commit 460568b6fd66b756f9bf111e1ce86bbf50334548
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Tue Oct 20 17:23:24 2015 -0400
+
+    path/filepath: disable symlink tests on android.
+    
+    Same reason as https://go-review.googlesource.com/#/c/16115/
+    
+    For golang/go#10807
+    
+    Change-Id: Id0c404e9feb963f39a111fc317c9787692516ae1
+    Reviewed-on: https://go-review.googlesource.com/16116
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/path/filepath/match_test.go | 2 +-
+ src/path/filepath/path_test.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

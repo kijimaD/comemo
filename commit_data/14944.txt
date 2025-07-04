@@ -1,0 +1,14 @@
+commit faaa7c07d7351fcd8a10fd1df27272b09d681061
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jan 22 02:52:34 2013 +0800
+
+    cmd/cgo: doc updates
+    1. note that to use C.free <stdlib.h> must be included
+    2. can also extract errno from a void C function
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6935045
+
+ src/cmd/cgo/doc.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

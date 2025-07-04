@@ -1,0 +1,23 @@
+commit c82a6307f4ad5bc211bfd387dcd38602599eeb63
+Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
+Date:   Sun May 28 09:09:07 2017 -0700
+
+    cmd/cover: take default value of total only once.
+    
+    Defaulting total to 1 for each function, adds up to the
+    counting error. testing/cover.go already does this once.
+    
+    Fixes #20515
+    
+    Change-Id: I0e3f524c2ccb628eb9a8f0a1f81c22365c24cf9a
+    Reviewed-on: https://go-review.googlesource.com/44337
+    Run-TryBot: Dhananjay Nakrani <dhananjayn@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cover/cover_test.go        | 28 ++++++++++++++++++++++++----
+ src/cmd/cover/func.go              | 14 +++++++++-----
+ src/cmd/cover/testdata/p.go        | 27 +++++++++++++++++++++++++++
+ src/cmd/cover/testdata/profile.cov |  5 +++++
+ src/cmd/vet/all/whitelist/all.txt  |  1 -
+ 5 files changed, 65 insertions(+), 10 deletions(-)

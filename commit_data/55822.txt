@@ -1,0 +1,17 @@
+commit f1722e9a6e57e4e7b926c4204707f7a15091b5c0
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 15 13:04:36 2024 -0800
+
+    slices: simplify rotate code
+    
+    The rotate-by-reverse code in fact does only 2 writes per entry, so
+    it is fine and simpler.
+    
+    Change-Id: I5feea9698b5575f1f0ae9069cc1d074643529262
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562321
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/slices/slices.go | 54 +++++-----------------------------------------------
+ 1 file changed, 5 insertions(+), 49 deletions(-)

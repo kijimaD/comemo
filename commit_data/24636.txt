@@ -1,0 +1,23 @@
+commit e6ccfc1ad14d1078428fe5f408498f925ab69670
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 23 16:01:09 2015 -0700
+
+    cmd/compile/internal/gc: escape binary export data so it contains no '$'
+    
+    Necessary to ensure that subsequent tools can continue to find
+    then end of the export data section simply by searching for "$$".
+    
+    Adjusted gcimporter used by go/types accordingly.
+    
+    Also, fixed a bug in gcimporter related to reading export data
+    in debug format.
+    
+    Change-Id: Iaea4ed05edd8a5bab28ebe5b19a4740f5e537d35
+    Reviewed-on: https://go-review.googlesource.com/16283
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go |  41 +++++++++----
+ src/cmd/compile/internal/gc/bimport.go |  41 +++++++++----
+ src/cmd/compile/internal/gc/export.go  |  10 +---
+ src/go/internal/gcimporter/bimport.go  | 106 ++++++++++++++++++++++-----------
+ 4 files changed, 131 insertions(+), 67 deletions(-)

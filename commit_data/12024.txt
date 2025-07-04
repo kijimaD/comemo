@@ -1,0 +1,12 @@
+commit 130b29b6371443edd5ae9bc23e44bb9d97b78311
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Feb 18 15:09:01 2012 +1100
+
+    image: add Decode example.
+    
+    R=r, bradfitz, r, adg
+    CC=golang-dev
+    https://golang.org/cl/5675076
+
+ src/pkg/image/decode_example_test.go | 79 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 79 insertions(+)

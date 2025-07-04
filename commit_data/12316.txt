@@ -1,0 +1,24 @@
+commit 7c6654aa7024609b81c3d8dc7fee0cb2c8731465
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 1 14:56:05 2012 -0800
+
+    all: fixed various typos
+    
+    (Semi-automatically detected.)
+    
+    R=golang-dev, remyoudompheng, r
+    CC=golang-dev
+    https://golang.org/cl/5715052
+
+ src/pkg/crypto/x509/x509.go          | 6 +++---
+ src/pkg/exp/html/node.go             | 2 +-
+ src/pkg/exp/norm/forminfo.go         | 6 +++---
+ src/pkg/exp/proxy/per_host.go        | 2 +-
+ src/pkg/go/ast/print.go              | 2 +-
+ src/pkg/net/http/httputil/persist.go | 2 +-
+ src/pkg/net/http/transfer.go         | 2 +-
+ src/pkg/net/lookup_plan9.go          | 2 +-
+ src/pkg/os/exec.go                   | 2 +-
+ src/pkg/strconv/extfloat.go          | 2 +-
+ src/pkg/time/time.go                 | 2 +-
+ 11 files changed, 15 insertions(+), 15 deletions(-)

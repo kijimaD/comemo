@@ -1,0 +1,12 @@
+commit 5baaa490d6bd95a5ef57a4593274a690f2e3dd82
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 8 10:12:56 2010 -0400
+
+    gc: better printing of named constants, func literals
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2121045
+
+ src/cmd/gc/print.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)

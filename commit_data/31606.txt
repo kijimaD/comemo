@@ -1,0 +1,28 @@
+commit 1ea796ee69a495e51abba01711f4aca0beeb6bed
+Author: Mark Ryan <mark.d.ryan@intel.com>
+Date:   Sat Apr 29 06:19:18 2017 +0100
+
+    encoding/base32: ensure base32 decoder propagates errors correctly
+    
+    A number of issues in decoder.Read and newlineFilteringReader.Read were
+    preventing errors from the reader supplying the encoded data from being
+    propagated to the caller.  Fixing these issues revealed some additional
+    problems in which valid decoded data was not always returned to the user
+    when errors were actually propagated.
+    
+    This commit fixes both the error propagation and the lost decoded data
+    problems.  It also adds some new unit tests to ensure errors are handled
+    correctly by decoder.Read.  The new unit tests increase the test coverage
+    of this package from 96.2% to 97.9%.
+    
+    Fixes #20044
+    
+    Change-Id: I1a8632da20135906e2d191c2a8825b10e7ecc4c5
+    Reviewed-on: https://go-review.googlesource.com/42094
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/base32/base32.go      |  41 ++++++++--
+ src/encoding/base32/base32_test.go | 155 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 188 insertions(+), 8 deletions(-)

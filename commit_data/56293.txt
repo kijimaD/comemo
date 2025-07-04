@@ -1,0 +1,16 @@
+commit 4351af68eb053973f8782bf1514358e4a8d1ab00
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Apr 25 00:53:19 2024 +0800
+
+    net/http: improve continue statements for tests
+    
+    Change-Id: I302368c17fbb6983bd14ab72784076e548ed8829
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581475
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/http/cookie_test.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

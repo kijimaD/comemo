@@ -1,0 +1,15 @@
+commit 25caf18a8ebb4dc9617073a459b54b5797018104
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 27 18:38:02 2009 -0700
+
+    improve generated code for godocability
+    
+    R=rsc
+    DELTA=459  (168 added, 279 deleted, 12 changed)
+    OCL=34005
+    CL=34007
+
+ src/pkg/unicode/maketables.go  |  91 ++++++-----
+ src/pkg/unicode/script_test.go |  29 ++--
+ src/pkg/unicode/tables.go      | 349 ++++++++++++++---------------------------
+ 3 files changed, 179 insertions(+), 290 deletions(-)

@@ -1,0 +1,19 @@
+commit 1d3ad6733e7b1417444bfe1c5ca85b6108e9ac6c
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Sep 10 12:55:16 2017 +0200
+
+    runtime: refactor hmap.extra.overflow array into two separate fields
+    
+    This makes it easier to deduce from the field names which overflow
+    field corresponds to h.buckets and which to h.oldbuckets by aligning
+    the naming with the buckets fields in hmap.
+    
+    Change-Id: I8d6a729229a190db0212bac012ead1a3c13cf5d0
+    Reviewed-on: https://go-review.googlesource.com/62411
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go |  6 ++++--
+ src/runtime/hashmap.go                 | 33 ++++++++++++++++++---------------
+ 2 files changed, 22 insertions(+), 17 deletions(-)

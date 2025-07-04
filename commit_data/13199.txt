@@ -1,0 +1,14 @@
+commit d61707f49053d13afb7c9bfdb7981aeff94a9c62
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 29 18:02:40 2012 -0400
+
+    encoding/json: add round trip test in Unmarshal
+    
+    Also convert table to use tagged literal.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6258061
+
+ src/pkg/encoding/json/decode_test.go | 84 ++++++++++++++++++++++--------------
+ 1 file changed, 51 insertions(+), 33 deletions(-)

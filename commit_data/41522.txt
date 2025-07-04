@@ -1,0 +1,23 @@
+commit a908e09a34fff3c47efab69857d27bf6965b948a
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Fri Feb 14 08:34:31 2020 +1100
+
+    runtime: deflake CGO traceback tests
+    
+    The CGO traceback function is called whenever CGO code is executing and
+    a signal is received. This occurs much more frequently now SIGURG
+    is used for preemption.
+    
+    Disable signal preemption to significantly increase the likelihood that
+    a signal results in a profile sample during the test.
+    
+    Updates #37201
+    
+    Change-Id: Icb1a33ab0754d1a74882a4ee265b4026abe30bdc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219417
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_cgo_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

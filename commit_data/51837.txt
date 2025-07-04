@@ -1,0 +1,14 @@
+commit 1c4cfb92d14de98614f8c7178f77e11bcd7ac0ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 14 14:03:03 2023 -0500
+
+    net/http: add section headers to package doc
+    
+    Change-Id: I2379cceeb74cb8511058b24cdd100b21649505ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462197
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/doc.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

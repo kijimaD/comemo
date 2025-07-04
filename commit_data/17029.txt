@@ -1,0 +1,17 @@
+commit 7963ba6a4a7a9ab701cfac0e4f006d0a59c1b65e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 5 12:26:05 2013 -0700
+
+    os, syscall: implement Getwd on darwin using getattrlist
+    
+    Fixes #4807
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12349044
+
+ src/pkg/os/getwd.go                 |  4 +-
+ src/pkg/syscall/syscall_bsd.go      | 11 -----
+ src/pkg/syscall/syscall_darwin.go   | 93 ++++++++++++++++++++++++++++++++++++-
+ src/pkg/syscall/syscall_no_getwd.go | 11 +++++
+ 4 files changed, 106 insertions(+), 13 deletions(-)

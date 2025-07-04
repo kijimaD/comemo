@@ -1,0 +1,14 @@
+commit 1590be9e6f18a06734f84365589d3ab10ef79732
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Mon Jan 14 12:11:22 2013 +0000
+
+    html/template: Clarifying references to "text/template" in the documentation.
+    
+    Fixes #4634.
+    
+    R=adg, kevlar
+    CC=golang-dev
+    https://golang.org/cl/7066053
+
+ src/pkg/html/template/template.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

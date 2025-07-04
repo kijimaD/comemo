@@ -1,0 +1,12 @@
+commit 9149d91888fc9aa05bb44af6b67508cc16861db5
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Mon Apr 12 10:28:50 2010 -0700
+
+    xml: update documentation to match current coding style
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/891048
+
+ src/pkg/xml/read.go | 27 +++++++++++++--------------
+ 1 file changed, 13 insertions(+), 14 deletions(-)

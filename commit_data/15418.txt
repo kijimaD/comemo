@@ -1,0 +1,19 @@
+commit e3ed4cace07150cd766dd81d3dfbadffd2cde7b3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 25 13:27:15 2013 -0800
+
+    net/http/cgi: make tests compile on plan9
+    
+    Don't reference the non-portable syscall.Signal(0).
+    
+    Maybe they'll pass too. Untested. plan9 bit from
+    Akshat Kumar.
+    
+    R=golang-dev, akumar
+    CC=golang-dev
+    https://golang.org/cl/7370049
+
+ src/pkg/net/http/cgi/host_test.go  |  7 +------
+ src/pkg/net/http/cgi/plan9_test.go | 18 ++++++++++++++++++
+ src/pkg/net/http/cgi/posix_test.go | 21 +++++++++++++++++++++
+ 3 files changed, 40 insertions(+), 6 deletions(-)

@@ -1,0 +1,18 @@
+commit 9892cd634dbb829a9806f3dacf8f13cfe1b18d4c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 13 11:38:47 2019 -0400
+
+    cmd/go: do not allow version prefixes to match prereleases of that version
+    
+    Fixes #31972
+    
+    Change-Id: I3bb9ef3a1134e67d2d062bea2f0e4032647e12e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176898
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/modload/query.go      |  4 ++--
+ src/cmd/go/internal/modload/query_test.go |  7 ++++++-
+ src/cmd/go/testdata/script/mod_query.txt  | 10 +++++++++-
+ 3 files changed, 17 insertions(+), 4 deletions(-)

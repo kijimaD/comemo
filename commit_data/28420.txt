@@ -1,0 +1,20 @@
+commit 0cbb12f0bbaeb3893b3d011fdb1a270291747ab0
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Aug 26 08:50:50 2016 -0400
+
+    plugin: new package for loading plugins
+    
+    Includes a linux implementation.
+    
+    Change-Id: Iacc2ed7da760ae9deebc928adf2b334b043b07ec
+    Reviewed-on: https://go-review.googlesource.com/27823
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/deps_test.go   |   1 +
+ src/plugin/plugin.go        |  70 +++++++++++++++++++++++++
+ src/plugin/plugin_dlopen.go | 125 ++++++++++++++++++++++++++++++++++++++++++++
+ src/plugin/plugin_stubs.go  |  17 ++++++
+ src/runtime/plugin.go       |  51 ++++++++++++++++++
+ 5 files changed, 264 insertions(+)

@@ -1,0 +1,16 @@
+commit 705f9af38eb45d7f2281a95dec552571963c11af
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 29 16:43:24 2009 -0700
+
+    Replacement for abandoned CL 29626:
+    bug157 and bug158
+    
+    R=rsc
+    DELTA=59  (59 added, 0 deleted, 0 changed)
+    OCL=29632
+    CL=29634
+
+ test/bugs/bug157.go | 32 ++++++++++++++++++++++++++++++++
+ test/bugs/bug158.go | 26 ++++++++++++++++++++++++++
+ test/golden.out     |  9 +++++++++
+ 3 files changed, 67 insertions(+)

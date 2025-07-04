@@ -1,0 +1,20 @@
+commit 0a364330a2abba1fede96c7cdd6432f3007866b3
+Author: smasher164 <aindurti@gmail.com>
+Date:   Mon Apr 27 13:23:24 2020 -0400
+
+    strconv: remove redundant conversions to int
+    
+    IntSize is an untyped constant that does not need explicit conversion.
+    Annotating IntSize as an int and running github.com/mdempsky/unconvert
+    reveals these two cases.
+    
+    Fixes #38682.
+    
+    Change-Id: I014646b7457ddcde32474810153229dcf0c269c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230306
+    Run-TryBot: Akhil Indurti <aindurti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strconv/atoi.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

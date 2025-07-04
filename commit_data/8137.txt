@@ -1,0 +1,15 @@
+commit f80f97a351f0450a981edc6adf10dd1a5f2b0770
+Author: Quan Yong Zhai <qyzhai@gmail.com>
+Date:   Mon Apr 18 11:19:47 2011 -0400
+
+    net: fix dialgoogle_test.go
+    ~$ nslookup www.google.com
+    Server: 8.8.8.8
+    cannonical name = www-g-com-chn.l.google.com.
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/4445045
+
+ src/pkg/net/dialgoogle_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

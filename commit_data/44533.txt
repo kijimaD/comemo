@@ -1,0 +1,23 @@
+commit 80098ef00c1c8a832b2d67d7cbd4dea5f8eff6e9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Mar 4 14:40:50 2021 +0700
+
+    cmd/compile: don't expand invalid embedded interface
+    
+    The invalid interface type will be reported already, so don't expand
+    that invalid one, which causes the compiler crashes.
+    
+    Updates #43311
+    
+    Change-Id: Ic335cfa74f0b9fcfd0929dc5fd31d9156a8f5f5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298710
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/types/size.go | 2 +-
+ test/fixedbugs/issue20245.go           | 2 +-
+ test/fixedbugs/issue22921.go           | 2 +-
+ test/fixedbugs/issue27938.go           | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

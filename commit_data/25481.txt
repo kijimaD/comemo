@@ -1,0 +1,12 @@
+commit 002e658a917448642afd84960fbc291cf3c24cbd
+Author: Michael McGreevy <mcgreevy@golang.org>
+Date:   Thu Jan 7 13:32:46 2016 +1100
+
+    net/http: Minor fix to error messages in test.
+    
+    Change-Id: I995ac0559f89110662d79d136d710ef3a0bb1505
+    Reviewed-on: https://go-review.googlesource.com/18351
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

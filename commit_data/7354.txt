@@ -1,0 +1,21 @@
+commit fa3d0d73f0e0559f63dd14d09fc167c89df9fe54
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 3 10:53:31 2011 -0800
+
+    go spec: adjust notion of Assignability
+    
+    This change makes it legal to pass a struct value as receiver
+    outside the package declaring the struct even if the respective
+    struct type has non-exported fields.
+    
+    This is a backwards-compatible language change motivated by the
+    fact that it is already possible to circumvent the assignment
+    restriction when calling methods through interfaces (see issue
+    1402).
+    
+    R=r, rsc, iant, ken2
+    CC=golang-dev
+    https://golang.org/cl/3926044
+
+ doc/go_spec.html | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

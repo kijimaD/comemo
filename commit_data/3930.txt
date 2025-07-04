@@ -1,0 +1,12 @@
+commit fb5fce5532b2f18dfa2e9ea964e0365a1edbe69a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 9 12:35:56 2009 -0800
+
+    fix for incorrect composite literal grammar
+    (issue found by ken)
+    
+    R=go-dev, rsc
+    http://go/go-review/1025030
+
+ doc/go_spec.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

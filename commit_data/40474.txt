@@ -1,0 +1,38 @@
+commit 97592b3c14e96eece91ddc91a188e08fd2ed2dfa
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 23 10:20:49 2019 -0400
+
+    cmd/compile: intrinsics for runtime/internal/atomic.Store8
+    
+    For #10958, #24543, but makes sense on its own.
+    
+    Change-Id: I2a87dab66b82a1863e4b6512b1f8def51463ce2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203284
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go          |  2 +-
+ src/cmd/compile/internal/arm64/ssa.go          |  1 +
+ src/cmd/compile/internal/gc/ssa.go             |  8 ++-
+ src/cmd/compile/internal/mips64/ssa.go         |  7 ++-
+ src/cmd/compile/internal/ppc64/ssa.go          | 10 ++-
+ src/cmd/compile/internal/s390x/ssa.go          |  2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  1 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  1 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  1 +
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  1 +
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules  |  1 +
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |  1 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |  1 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |  2 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go   |  1 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go          | 85 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 20 ++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 16 +++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 16 +++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 17 ++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 19 ++++++
+ 23 files changed, 206 insertions(+), 10 deletions(-)

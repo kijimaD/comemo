@@ -1,0 +1,14 @@
+commit 8473b4487c26f85fa31088da739507d3b218dc29
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 20 17:37:13 2013 -0800
+
+    go/types: export data result types are always parenthesized
+    
+    Minor simplification of gcimporter, removed TODO.
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/7363044
+
+ src/pkg/go/types/gcimporter.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

@@ -1,0 +1,23 @@
+commit 456cf0f22c93e1a6654980f4a48a564555f6c8a2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Apr 19 22:17:08 2015 +0900
+
+    net: fix inconsistent error values on Interface
+    
+    This change fixes inconsistent error values on Interfaces,
+    InterfaceAddrs, InterfaceBy{Index,Name}, and Addrs and MulticastAddrs
+    methods of Interface.
+    
+    Updates #4856.
+    
+    Change-Id: I09e65522a22f45c641792d774ebf7a0081b874ad
+    Reviewed-on: https://go-review.googlesource.com/9140
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/interface.go         | 44 ++++++++++++++++++++++++++++++++------------
+ src/net/interface_bsd.go     | 13 ++++++-------
+ src/net/interface_darwin.go  | 11 ++++-------
+ src/net/interface_freebsd.go | 11 ++++-------
+ src/net/interface_linux.go   | 13 ++++++-------
+ src/net/interface_windows.go |  9 ++++-----
+ 6 files changed, 56 insertions(+), 45 deletions(-)

@@ -1,0 +1,26 @@
+commit 6406e09f69c70b10cab58702f10456a3e9a83bef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 10 08:33:26 2021 -0800
+
+    cmd/compile/internal/types2: move some functions into different files (cleanup)
+    
+    - move structuralType/structuralString into type.go
+    - move functions exported for the compiler into compilersupport.go
+    - updated/added comments
+    - removed AsNamed and AsInterface - not needed by compiler
+    
+    No semantic changes.
+    
+    Change-Id: Ia454a49edafd627c2a25b0b71db4aa93ddd7f1f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362995
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/noder/decl.go             |  2 +-
+ src/cmd/compile/internal/noder/expr.go             |  4 +-
+ src/cmd/compile/internal/types2/builtins.go        | 50 ---------------
+ src/cmd/compile/internal/types2/compilersupport.go | 34 ++++++++++
+ src/cmd/compile/internal/types2/type.go            | 74 ++++++++++++----------
+ 5 files changed, 78 insertions(+), 86 deletions(-)

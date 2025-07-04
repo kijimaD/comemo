@@ -1,0 +1,12 @@
+commit 2f538554f6ce8ec8b0cdb3c448759e1670cad1ff
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 6 15:08:24 2008 -0700
+
+    - fix to func.go
+    - extra empty line between test output
+    
+    SVN=121499
+
+ test/golden.out | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ test/run        |  1 +
+ 2 files changed, 45 insertions(+)

@@ -1,0 +1,14 @@
+commit c8579e57cb1f1c32a99dd57314c5ced1a457dde3
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Feb 25 00:52:16 2016 -0500
+
+    build: use go tool dist list
+    
+    Change-Id: I9b79bd301d0b75ca1f16d4a05e3cb687a8428c14
+    Reviewed-on: https://go-review.googlesource.com/19884
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/buildall.bash | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,16 @@
+commit 4737399bd99e5221150f508de1125cc00d329f60
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Jan 28 20:08:54 2015 +0300
+
+    runtime/pprof: skip trace tests on solaris and windows
+    
+    Coarse-grained test skips to fix bots.
+    Need to look closer at windows and nacl failures.
+    
+    Change-Id: I767ef1707232918636b33f715459ee3c0349b45e
+    Reviewed-on: https://go-review.googlesource.com/3416
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/pprof/trace_test.go | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)

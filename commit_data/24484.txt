@@ -1,0 +1,54 @@
+commit 89c341c5e969b571a9475b263b237a8a25efd76b
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 4 20:16:57 2015 -0700
+
+    runtime: directly track GC assist balance
+    
+    Currently we track the per-G GC assist balance as two monotonically
+    increasing values: the bytes allocated by the G this cycle (gcalloc)
+    and the scan work performed by the G this cycle (gcscanwork). The
+    assist balance is hence assistRatio*gcalloc - gcscanwork.
+    
+    This works, but has two important downsides:
+    
+    1) It requires floating-point math to figure out if a G is in debt or
+       not. This makes it inappropriate to check for assist debt in the
+       hot path of mallocgc, so we only do this when a G allocates a new
+       span. As a result, Gs can operate "in the red", leading to
+       under-assist and extended GC cycle length.
+    
+    2) Revising the assist ratio during a GC cycle can lead to an "assist
+       burst". If you think of plotting the scan work performed versus
+       heaps size, the assist ratio controls the slope of this line.
+       However, in the current system, the target line always passes
+       through 0 at the heap size that triggered GC, so if the runtime
+       increases the assist ratio, there has to be a potentially large
+       assist to jump from the current amount of scan work up to the new
+       target scan work for the current heap size.
+    
+    This commit replaces this approach with directly tracking the GC
+    assist balance in terms of allocation credit bytes. Allocating N bytes
+    simply decreases this by N and assisting raises it by the amount of
+    scan work performed divided by the assist ratio (to get back to
+    bytes).
+    
+    This will make it cheap to figure out if a G is in debt, which will
+    let us efficiently check if an assist is necessary *before* performing
+    an allocation and hence keep Gs "in the black".
+    
+    This also fixes assist bursts because the assist ratio is now in terms
+    of *remaining* work, rather than work from the beginning of the GC
+    cycle. Hence, the plot of scan work versus heap size becomes
+    continuous: we can revise the slope, but this slope always starts from
+    where we are right now, rather than where we were at the beginning of
+    the cycle.
+    
+    Change-Id: Ia821c5f07f8a433e8da7f195b52adfedd58bdf2c
+    Reviewed-on: https://go-review.googlesource.com/15408
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go      | 52 +++++++++++++++++++++++++++++++++----------------
+ src/runtime/mgcmark.go  | 32 +++++++++++++++++-------------
+ src/runtime/mheap.go    |  9 +++++----
+ src/runtime/runtime2.go | 11 +++++++++--
+ 4 files changed, 68 insertions(+), 36 deletions(-)

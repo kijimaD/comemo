@@ -1,0 +1,14 @@
+commit d10b50dc3447ec69563320b0538b7a1b1f4cfc81
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 6 15:30:32 2017 -0800
+
+    cmd/compile/internal/syntax: print position info for names in tree dump
+    
+    Debugging support.
+    
+    Change-Id: Ia518aaed36eaba76e6233306f718ad8aff3ce744
+    Reviewed-on: https://go-review.googlesource.com/37875
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/dumper.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

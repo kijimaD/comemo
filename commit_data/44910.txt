@@ -1,0 +1,24 @@
+commit 6996bae5d1d34ea9e2ab6399f70adb402697ed94
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 1 11:11:04 2021 -0400
+
+    cmd/compile: use ABI0 for cgo_unsafe_args functions
+    
+    cgo_unsafe_args paragma indicates that the function (or its
+    callee) uses address and offsets to dispatch arguments, which
+    currently using ABI0 frame layout. Pin them to ABI0.
+    
+    With this, "GOEXPERIMENT=regabi,regabiargs go run hello.go" works
+    on Darwin/AMD64.
+    
+    Change-Id: I3eadd5a3646a9de8fa681fa0a7f46e7cdc217d24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306609
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go        | 14 ++++----------
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go |  5 +++--
+ src/cmd/compile/internal/ssagen/abi.go       |  7 +++++++
+ 4 files changed, 15 insertions(+), 13 deletions(-)

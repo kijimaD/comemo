@@ -1,0 +1,32 @@
+commit 26999cfd84dfa11f8e87153dc91a9f67070f6916
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Feb 24 23:31:53 2022 -0500
+
+    runtime/internal/atomic: set SP delta correctly for 64-bit atomic functions on ARM
+    
+    64-bit atomic functions on ARM have the following structure:
+    - check if the address is 64-bit aligned, if not, prepare a frame
+      and call panicUnaligned
+    - tail call armXXX or goXXX depending on GOARM
+    
+    The alignment check calls panicUnaligned after preparing a frame,
+    so the stack can be unwound. The call never returns, so the SP is
+    not set back. However, the assembler assigns SP delta following
+    the instruction stream order, not the control flow. So it leaves
+    a nonzero SP delta after the check, to the tail call instructions,
+    which is wrong because when they are executed the SP is not
+    decremented. This CL fixes this by adding the SP back (the
+    instruction never executes, just tells the assembler to set the
+    SP delta back).
+    
+    Should fix #51353.
+    
+    Change-Id: I976cb1cfb0e9008b13538765cbc7eea0c19c7130
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388014
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/internal/atomic/atomic_arm.s | 42 ++++++++++++--------------------
+ 1 file changed, 16 insertions(+), 26 deletions(-)

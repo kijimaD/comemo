@@ -1,0 +1,12 @@
+commit 1edfb4cc7592120e571c7f2e8fd2ade038fb6481
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 29 11:12:52 2010 -0700
+
+    Effective Go: update for new http interface.
+    
+    R=rsc, stephenm
+    CC=golang-dev
+    https://golang.org/cl/2310041
+
+ doc/effective_go.html | 39 ++++++++++++++++++++++++---------------
+ 1 file changed, 24 insertions(+), 15 deletions(-)

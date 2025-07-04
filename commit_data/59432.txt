@@ -1,0 +1,15 @@
+commit ec7d955abf8bbaa6fdc65b460d957767e13e6378
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Mon May 5 14:05:53 2025 -0700
+
+    cmd/compile/internal/test: verify inlining for mutex fast paths
+    
+    Change-Id: I17568a898ea8514c7b32d2f48c44365ae37cf898
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670195
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/test/inl_test.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

@@ -1,0 +1,21 @@
+commit 0a0186fb7832928c9b5b1966854a8abc31678ea8
+Author: Sarah Adams <shadams@google.com>
+Date:   Mon Mar 20 16:11:46 2017 -0700
+
+    encoding/xml: unmarshal allow empty, non-string values
+    
+    When unmarshaling, if an element is empty, eg. '<tag></tag>', and
+    destination type is int, uint, float or bool, do not attempt to parse
+    value (""). Set to its zero value instead.
+    
+    Fixes #13417
+    
+    Change-Id: I2d79f6d8f39192bb277b1a9129727d5abbb2dd1f
+    Reviewed-on: https://go-review.googlesource.com/38386
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/xml/read.go      |  19 +++++
+ src/encoding/xml/read_test.go | 156 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 175 insertions(+)

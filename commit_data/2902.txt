@@ -1,0 +1,17 @@
+commit 7655588438953c7b4dce3cc448da6419651466cb
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 6 18:04:48 2009 -0700
+
+    meteor-contest
+    
+    R=rsc
+    DELTA=1276  (1275 added, 0 deleted, 1 changed)
+    OCL=32851
+    CL=32854
+
+ test/bench/meteor-contest.c   | 626 +++++++++++++++++++++++++++++++++++++++
+ test/bench/meteor-contest.go  | 669 ++++++++++++++++++++++++++++++++++++++++++
+ test/bench/meteor-contest.txt |  24 ++
+ test/bench/timing.log         |   6 +
+ test/bench/timing.sh          |  10 +-
+ 5 files changed, 1334 insertions(+), 1 deletion(-)

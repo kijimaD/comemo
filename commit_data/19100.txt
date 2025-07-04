@@ -1,0 +1,14 @@
+commit 1d879fe7746bd21f93018a85d0aeb22b2d921aad
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 11 08:52:16 2014 +1000
+
+    doc/go1.3.html: fix spelling mistakes
+    Keep those builders busy.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/85710046
+
+ doc/go1.3.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

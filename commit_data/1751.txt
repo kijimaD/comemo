@@ -1,0 +1,13 @@
+commit 26cb4df72606a1baeec0ef05c81701690b286e91
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 4 22:46:44 2009 -0800
+
+    log: document
+    
+    R=rsc
+    DELTA=26  (17 added, 1 deleted, 8 changed)
+    OCL=25731
+    CL=25734
+
+ src/lib/log.go | 34 +++++++++++++++++++++++++---------
+ 1 file changed, 25 insertions(+), 9 deletions(-)

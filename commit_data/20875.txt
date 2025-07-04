@@ -1,0 +1,15 @@
+commit af3e02e4040f4ae62d62d4f23411e11fa96340be
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 9 20:20:06 2014 -0500
+
+    cmd/pprof: install as go tool pprof
+    
+    LGTM=bradfitz, r
+    R=r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/168320043
+
+ src/cmd/go/pkg.go    |  1 +
+ src/cmd/pprof/README |  8 ++++++++
+ src/cmd/pprof/doc.go | 12 ++++++++++++
+ 3 files changed, 21 insertions(+)

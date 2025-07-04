@@ -1,0 +1,21 @@
+commit 5881d3048dd851d1e259ecab4e247f50cc10c6a8
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Mon Jun 25 12:30:31 2018 +0200
+
+    syscall/js: turn constant package vars into functions
+    
+    This is so the values can not be changed and the type is easy to see.
+    
+    Requested on https://go-review.googlesource.com/c/go/+/120561.
+    
+    Change-Id: If2ed48ca3ba8874074687bfb2375d2f5592e8e0d
+    Reviewed-on: https://go-review.googlesource.com/120564
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/rand/rand_js.go   |  2 +-
+ src/net/http/roundtrip_js.go | 18 +++++++++---------
+ src/syscall/fs_js.go         |  4 ++--
+ src/syscall/js/callback.go   | 10 +++++-----
+ src/syscall/js/js.go         | 34 ++++++++++++++++++++--------------
+ src/syscall/js/js_test.go    | 26 +++++++++++++-------------
+ 6 files changed, 50 insertions(+), 44 deletions(-)

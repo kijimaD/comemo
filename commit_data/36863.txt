@@ -1,0 +1,18 @@
+commit d2170040617231a26ab0722d093ecb19e2ba8302
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Oct 3 21:11:31 2018 +0200
+
+    runtime: skip TestLldbPython when lldb is too old
+    
+    The TestLldbPython test is known to fail with very old lldb releases
+    (3.8 and older). Skip the test when the lldb found on the system is
+    too old.
+    
+    Fixes #22299
+    
+    Change-Id: I8f78d6c0d995118f806dae87f3f04a9726473116
+    Reviewed-on: https://go-review.googlesource.com/c/139397
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime-lldb_test.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

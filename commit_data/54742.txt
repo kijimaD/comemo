@@ -1,0 +1,22 @@
+commit 1d400cdfc995b1467d6901e0042bca0f37ffdec2
+Author: andig <cpuidle@gmx.de>
+Date:   Sat Oct 14 09:32:20 2023 +0000
+
+    encoding/json: use reflect.Value.IsZero
+    
+    IsZero does the same thing, using this rather than writing it again.
+    
+    Follow-up to https://github.com/golang/go/pull/63519
+    
+    Change-Id: I93768874052935dd7cb58804f22748091bcc3ef7
+    GitHub-Last-Rev: dfbc6ed635125535a73fe509716e0df31cc8f7b0
+    GitHub-Pull-Request: golang/go#63540
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535415
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/json/encode.go | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

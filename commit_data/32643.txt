@@ -1,0 +1,17 @@
+commit b65cffdcd82212f6072555637fe7529aa88bb225
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 8 16:25:25 2017 -0700
+
+    cmd/compile: slightly more idiomatic println code
+    
+    Updates #21808.
+    
+    Change-Id: I0314426afcfeed17b1111040110d7f2b0e209526
+    Reviewed-on: https://go-review.googlesource.com/62430
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

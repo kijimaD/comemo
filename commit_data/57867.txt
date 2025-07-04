@@ -1,0 +1,16 @@
+commit 9c93d99c616b8708bed55781915f7256051ab91e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Nov 3 23:09:45 2024 +1100
+
+    image/jpeg: add more theHuffmanSpec comments
+    
+    Change-Id: I2c68dde6e968e0643109161e52a76189e48b4d19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624715
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/image/jpeg/writer.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

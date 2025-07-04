@@ -1,0 +1,23 @@
+commit 60d437f99468906935f35e5c6fbd31c7228a1045
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 7 10:49:33 2020 -0800
+
+    runtime: avoid double notewakeup in netpoll stub code
+    
+    Otherwise we can see
+    - goroutine 1 calls netpollBreak, the atomic.Cas succeeds, then suspends
+    - goroutine 2 calls noteclear, sets netpollBroken to 0
+    - goroutine 3 calls netpollBreak, the atomic.Cas succeeds, calls notewakeup
+    - goroutine 1 wakes up calls notewakeup, crashes due to double wakeup
+    
+    This doesn't happen on Plan 9 because it only runs one thread at a time.
+    But Fuschia wants to use this code too.
+    
+    Change-Id: Ib636e4f327bb15e44a2c40fd681aae9a91073a30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218537
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/netpoll_stub.go | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

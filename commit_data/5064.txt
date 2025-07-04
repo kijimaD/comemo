@@ -1,0 +1,12 @@
+commit a24f8144e46d1083dbc8bc8a4cb95e0b0fc15217
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 16 18:45:16 2010 -0700
+
+    doc/install: tweak port text; drop redundant list of operating systems.
+    
+    R=adg
+    CC=golang-dev, r
+    https://golang.org/cl/597041
+
+ doc/install.html | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

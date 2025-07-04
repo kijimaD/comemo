@@ -1,0 +1,16 @@
+commit ba25778f3f24fcf0be5167737b28dd62d7fbeff1
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Tue Jan 10 11:07:35 2012 +0100
+
+    gc: omit runtime.closure wrap for closures without closure variables
+    
+    Fixes #1894.
+    
+    test/closure.go's test for newfunc already covers this.
+    
+    R=rsc, dsymonds, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5516051
+
+ src/cmd/gc/closure.c | 4 ++++
+ 1 file changed, 4 insertions(+)

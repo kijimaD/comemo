@@ -1,0 +1,22 @@
+commit be0c4547d21e7e29ba062af7240b67e2263e5325
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Dec 4 17:24:54 2024 -0500
+
+    doc/next: add linker change release notes
+    
+    Document that we now generate GNU build ID or Mach-O UUID by
+    default, and the related flags to disable or override it.
+    
+    Fixes #68678.
+    Fixes #70586.
+    For #68545.
+    
+    Change-Id: Ic79f3c05aab8a5032ba6983b8c72eeb4202bfe84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633875
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/next/5-toolchain.md | 7 +++++++
+ doc/next/9-todo.md      | 2 --
+ 2 files changed, 7 insertions(+), 2 deletions(-)

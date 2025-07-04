@@ -1,0 +1,22 @@
+commit 40c93a5238cb1c888a56366ce1b22c17cae6114c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 11 18:44:41 2008 -0700
+
+    - experiments with forward-declaring types of non-imported packages
+    - adjusted switch syntax (no repeated case: case: anymore)
+    - enabled some constant expressions that work now
+    
+    R=r
+    OCL=14098
+    CL=14098
+
+ usr/gri/gosrc/compilation.go |  30 +++++----
+ usr/gri/gosrc/export.go      |  65 +++-----------------
+ usr/gri/gosrc/globals.go     |   6 +-
+ usr/gri/gosrc/go.go          |   8 ++-
+ usr/gri/gosrc/import.go      |  10 ++-
+ usr/gri/gosrc/parser.go      | 141 +++++++++++++++++++++++++++++--------------
+ usr/gri/gosrc/platform.go    |  14 ++++-
+ usr/gri/gosrc/printer.go     |  10 ++-
+ usr/gri/gosrc/scanner.go     |  11 ++--
+ 9 files changed, 162 insertions(+), 133 deletions(-)

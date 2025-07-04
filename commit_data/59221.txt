@@ -1,0 +1,25 @@
+commit 9302a57134a698b62576cd3b849017a02c731c98
+Author: Aleksey Markin <alexanius@gmail.com>
+Date:   Wed Mar 26 18:47:15 2025 +0300
+
+    cmd/link/internal/ld: introduce -funcalign=N option
+    
+    This patch adds linker option -funcalign=N that allows to set alignment
+    for function entries.
+    
+    This CL is based on vasiliy.leonenko@gmail.com's cl/615736.
+    
+    For #72130
+    
+    Change-Id: I57e5c9c4c71a989533643fda63a9a79c5c897dea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660996
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/doc.go              |  2 +
+ src/cmd/link/internal/ld/data.go |  4 +-
+ src/cmd/link/internal/ld/lib.go  |  6 ++-
+ src/cmd/link/internal/ld/main.go |  4 ++
+ src/cmd/link/link_test.go        | 83 +++++++++++++++++++++++++++++++++++++++-
+ 5 files changed, 94 insertions(+), 5 deletions(-)

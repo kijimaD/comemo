@@ -1,0 +1,15 @@
+commit 0c3a0543c2e4322ff3dccf6e2b82a7fbafaaabea
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 6 17:05:49 2022 -0400
+
+    doc/go1.19: compiler section is complete, modulo TODOs
+    
+    For #51400
+    
+    Change-Id: I964e52e0a36e7bbe77175670e93ce8c99e7dab6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410367
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ doc/go1.19.html | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

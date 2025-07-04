@@ -1,0 +1,11 @@
+commit 00368bae8cfe1c466c857d2beba1ff8d4eb2248d
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jun 28 11:38:07 2008 -0700
+
+    new test - map failure
+    
+    SVN=125258
+
+ test/bugs/bug060.go | 17 +++++++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 20 insertions(+)

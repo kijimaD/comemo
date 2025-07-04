@@ -1,0 +1,18 @@
+commit d80a177a9ecb3a37fc536dc6b11e99b54dca8f33
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 1 11:06:28 2009 -0700
+
+    make ToUpper, ToLower etc. handle unicode properly.
+    Change their names too.
+    
+    R=rsc
+    DELTA=206  (123 added, 2 deleted, 81 changed)
+    OCL=34170
+    CL=34194
+
+ src/pkg/json/struct.go          |   2 +-
+ src/pkg/strings/strings.go      | 115 +++++++++++++++++++++++----------------
+ src/pkg/strings/strings_test.go | 118 ++++++++++++++++++++++++++++++++++++----
+ src/pkg/unicode/maketables.go   |   2 +-
+ src/pkg/utf8/utf8.go            |   6 ++
+ 5 files changed, 182 insertions(+), 61 deletions(-)

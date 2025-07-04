@@ -1,0 +1,22 @@
+commit 435b9dd1a1bae81a32eafb59a9de7fb2873cd51e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 6 18:19:03 2019 +0000
+
+    text/template: avoid a global map to help the linker's deadcode elimination
+    
+    Fixes #36021
+    Updates #2559
+    Updates #26775
+    
+    Change-Id: I2e6708691311035b63866f25d5b4b3977a118290
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210284
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/funcs.go      | 71 ++++++++++++++++++++++++++---------------
+ src/text/template/link_test.go  | 64 +++++++++++++++++++++++++++++++++++++
+ src/text/template/multi_test.go |  2 +-
+ src/text/template/template.go   |  2 +-
+ 4 files changed, 111 insertions(+), 28 deletions(-)

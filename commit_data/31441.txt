@@ -1,0 +1,19 @@
+commit c1ac70ff9206191d3e9daf5cf9f9de193f8dd9a8
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 20 16:10:59 2017 -0400
+
+    runtime/pprof: use symbol information already in profile in tests
+    
+    Currently the pprof tests re-symbolize PCs in profiles, and do so in a
+    way that can't handle inlining. Proto profiles already contain full
+    symbol information, so this modifies the tests to use the symbol
+    information already present in the profile.
+    
+    Change-Id: I63cd491de7197080fd158b1e4f782630f1bbbb56
+    Reviewed-on: https://go-review.googlesource.com/41255
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 73 +++++++++++++++++++++--------------------
+ 1 file changed, 37 insertions(+), 36 deletions(-)

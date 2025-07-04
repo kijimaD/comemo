@@ -1,0 +1,16 @@
+commit 683e2fd578495d1de399b16ed82bf5c35a4164f0
+Author: Erwin Oegema <blablaechthema@hotmail.com>
+Date:   Mon Mar 26 13:21:29 2018 +0000
+
+    path/filepath: change example to print the correct path on failure
+    
+    This change makes errors in the example code a bit better, as it's no use to show the root dir when an error occurs walking a subdirectory or file.
+    
+    Change-Id: I546276e9b151fabba5357258f03bfbd47a508201
+    GitHub-Last-Rev: 398c1eeb6164a7edc6fdee8cb8c17c3bd0b649ef
+    GitHub-Pull-Request: golang/go#24536
+    Reviewed-on: https://go-review.googlesource.com/102535
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/path/filepath/example_unix_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

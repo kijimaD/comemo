@@ -1,0 +1,19 @@
+commit 1fd140820382e826dfe460297dd9696b415bbc30
+Author: Keith Randall <khr@google.com>
+Date:   Tue Apr 30 10:31:19 2019 -0700
+
+    runtime: fix data sizes for res_search results
+    
+    The return values are 32 bit, not 64 bit.
+    
+    I don't think this would be the cause of any problems, but
+    it can't hurt to fix it.
+    
+    Change-Id: Icdd50606360ab9d74070271f9d1721d5fe640bc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174518
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/lookup_darwin_amd64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

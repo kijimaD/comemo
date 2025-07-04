@@ -1,0 +1,13 @@
+commit 7e69c90ade8ed87e390552c7de0f27a40951f052
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 10 15:10:19 2010 -0800
+
+    runtime: Add some missing runtime· prefixes to ARM asm code.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/3024041
+
+ src/pkg/runtime/arm/cas6.s | 2 +-
+ src/pkg/runtime/arm/vlop.s | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

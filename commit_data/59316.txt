@@ -1,0 +1,19 @@
+commit 548dcfea1aa3dfbc975a417dc609c4f372a03042
+Author: 1911860538 <alxps1911@gmail.com>
+Date:   Fri Apr 11 15:14:11 2025 +0000
+
+    net/url: clarify why @ is allowed in userinfo
+    
+    Add comment to clarify why '@' is allowed in validUserinfo func.
+    
+    Change-Id: Ia9845bc40fea6c34093434d57bb1be4ddbc70b84
+    GitHub-Last-Rev: ce65168ab03afd879ad028de295f6adb7ee1c97d
+    GitHub-Pull-Request: golang/go#73195
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663455
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/net/url/url.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit f4be93a8f1ab2cbcdec5e0502fdf20de0b279265
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Aug 7 20:11:46 2019 +0200
+
+    doc: update list of archs supporting -race
+    
+    Change-Id: Id0a55674a16671aaee99182d9096a9263f7a80b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189357
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/articles/race_detector.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

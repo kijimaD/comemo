@@ -1,0 +1,16 @@
+commit 08d8eca9680d22e3229bac06b23852542340d6cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 10 21:45:41 2014 -0700
+
+    bytes, strings: more consistent error messages
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/86060044
+
+ src/pkg/bytes/reader.go        | 12 ++++++------
+ src/pkg/bytes/reader_test.go   |  4 ++--
+ src/pkg/strings/reader.go      | 12 ++++++------
+ src/pkg/strings/reader_test.go |  4 ++--
+ 4 files changed, 16 insertions(+), 16 deletions(-)

@@ -1,0 +1,18 @@
+commit 2de65cad54da0f7fe3ff6aafb3cd70ad36146e2b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Aug 19 14:59:56 2014 +1000
+
+    os: make SameFile handle paths like c:a.txt properly
+    
+    Fixes #8490.
+    
+    LGTM=r, rsc
+    R=golang-codereviews, rsc, bradfitz, r
+    CC=golang-codereviews
+    https://golang.org/cl/127740043
+
+ src/pkg/os/file_windows.go      |  6 +++--
+ src/pkg/os/os_windows_test.go   | 54 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/os/stat_windows.go      |  6 +++--
+ src/pkg/syscall/exec_windows.go | 15 ++++++------
+ 4 files changed, 69 insertions(+), 12 deletions(-)

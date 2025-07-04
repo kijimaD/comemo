@@ -1,0 +1,31 @@
+commit 608acff8479640b00c85371d91280b64f5ec9594
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Jan 22 10:43:44 2025 -0500
+
+    go/types: avoid importer.Default
+    
+    It uses a throwaway FileSet, so all position info is
+    wrong, and potentially misleading.
+    
+    (Various other helpers in go/types testing also use a
+    throwaway FileSet, and should really accept it as a parameter.)
+    
+    Fixes #71272
+    
+    Change-Id: I9d899b987837b4041a299aad5ec266cb4f5d125c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643777
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+
+ src/go/types/api_test.go      | 10 ++++++++--
+ src/go/types/check_test.go    |  3 +--
+ src/go/types/eval_test.go     |  5 ++---
+ src/go/types/example_test.go  |  5 ++---
+ src/go/types/issues_test.go   |  9 ++++++---
+ src/go/types/lookup_test.go   |  3 +--
+ src/go/types/mono_test.go     |  3 +--
+ src/go/types/resolver_test.go |  6 +++---
+ src/go/types/self_test.go     |  5 ++---
+ src/go/types/sizes_test.go    | 14 ++++++++++----
+ 10 files changed, 36 insertions(+), 27 deletions(-)

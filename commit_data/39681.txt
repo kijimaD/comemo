@@ -1,0 +1,19 @@
+commit 37373592afe200a13d6ecf02b73a97e51beef9e1
+Author: Eddie Scholtz <escholtz@google.com>
+Date:   Tue Aug 27 13:33:45 2019 -0600
+
+    encoding/xml: rename fInnerXml to fInnerXML
+    
+    Per the code review guidelines: "Words in names that are
+    initialisms or acronyms have a consistent case."
+    
+    Change-Id: I347b02d2f48455f2cbbc040191ba197e3e8f23fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191970
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/xml/marshal.go  | 2 +-
+ src/encoding/xml/read.go     | 2 +-
+ src/encoding/xml/typeinfo.go | 8 ++++----
+ 3 files changed, 6 insertions(+), 6 deletions(-)

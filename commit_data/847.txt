@@ -1,0 +1,12 @@
+commit 900e076d215d01f08488126db401b6176539efd1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 10 16:21:50 2008 -0700
+
+    handle zeroed interface in ifaceI2I
+    
+    R=r
+    OCL=16938
+    CL=16938
+
+ src/runtime/iface.c | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

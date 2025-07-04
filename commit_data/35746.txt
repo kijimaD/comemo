@@ -1,0 +1,20 @@
+commit 741dad28cb50b7cdbd4b6fd46114541aa73b15be
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Jan 6 18:10:30 2018 +0900
+
+    cmd/cgo: avoid name confliction for C functions
+    
+    Use more cryptic names for local variables inside C function wrappers.
+    
+    Fixes #23356
+    
+    Change-Id: Ia6a0218f27a13be14f589b1a0facc9683d22ff56
+    Reviewed-on: https://go-review.googlesource.com/86495
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue23356.go | 19 +++++++++++++++++++
+ src/cmd/cgo/out.go          | 22 +++++++++++-----------
+ 3 files changed, 31 insertions(+), 11 deletions(-)

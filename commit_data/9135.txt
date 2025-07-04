@@ -1,0 +1,13 @@
+commit 62f618a22cf5c607a90ccb95bf6ceed6ab866ffe
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 20 08:39:24 2011 +1000
+
+    sync/atomic: delete workaround
+    Load seems to work on arm now.
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4795042
+
+ src/pkg/sync/atomic/atomic_test.go | 9 ---------
+ 1 file changed, 9 deletions(-)

@@ -1,0 +1,10 @@
+commit d024fb4ae47c9df7285014b41d670db11caa95d7
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 12 13:31:17 2008 -0700
+
+    add missing include file
+    
+    SVN=122485
+
+ include/utf.h | 1 +
+ 1 file changed, 1 insertion(+)

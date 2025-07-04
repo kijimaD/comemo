@@ -1,0 +1,18 @@
+commit 2254a8ee991899f0f72d7fbd116c189582441ea0
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jun 11 21:06:26 2008 -0700
+
+    import/export
+    
+    SVN=122309
+
+ src/cmd/6g/gen.c    |  6 +++---
+ src/cmd/6g/gg.h     |  2 --
+ src/cmd/6g/gsubr.c  |  6 ++++++
+ src/cmd/gc/dcl.c    | 30 +++++++++++++++++++++---------
+ src/cmd/gc/export.c | 51 +++++++++++++++++++++++++++++----------------------
+ src/cmd/gc/go.h     |  4 ++++
+ src/cmd/gc/go.y     | 10 +++++++---
+ src/cmd/gc/lex.c    |  4 +++-
+ src/cmd/gc/walk.c   | 41 ++++++++++++++++++++++++++++++++---------
+ 9 files changed, 105 insertions(+), 49 deletions(-)

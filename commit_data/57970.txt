@@ -1,0 +1,24 @@
+commit a763084ed2e19653952764c1ed0da0329bd94a89
+Author: Richard Miller <millerresearch@gmail.com>
+Date:   Thu Nov 14 16:00:22 2024 +0000
+
+    make.rc: correct test for undefined GOROOT_BOOTSTRAP
+    
+    The test "if(! ~ $#GOROOT_BOOTSTRAP 1)", to check for the environment
+    variable GOROOT_BOOTSTRAP being undefined, will not succeed if the
+    variable is set to the empty string (as the coordinator was doing).
+    A better test is "if(~ $"GOROOT_BOOTSTRAP '')", which succeeds if
+    the variable is undefined, or set to an empty list or an empty string.
+    
+    For #69038
+    
+    Change-Id: Ic6e6944e0c76461daea206ba9575b863f92f6228
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627944
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/make.rc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

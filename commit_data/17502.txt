@@ -1,0 +1,12 @@
+commit a789ae9e8eb676928bfb0f0cd19ecd19923bfbf7
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Mon Sep 9 09:37:05 2013 +1000
+
+    compress/flate: small documentation fix
+    
+    R=golang-dev, adg
+    CC=bradfitz, golang-dev, remyoudompheng
+    https://golang.org/cl/13568045
+
+ src/pkg/compress/flate/deflate.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

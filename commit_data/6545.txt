@@ -1,0 +1,13 @@
+commit 18ccbda50c679a700fcd5b3756380703e6d3b0ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 18 12:01:59 2010 -0400
+
+    A+C: Yuval Pavel Zholkover (individual CLA)
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2506045
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

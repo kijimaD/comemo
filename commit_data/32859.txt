@@ -1,0 +1,85 @@
+commit 438c8f6b531a1cfcb4a084d3090b631938a9839e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Sep 26 12:35:54 2017 +1000
+
+    syscall: make Exit call runtime.exit
+    
+    syscall.Exit and runtime.exit do the same thing.
+    Why duplicate code?
+    
+    CL 45115 fixed bug where windows runtime.exit was correct,
+    but syscall.Exit was broken. So CL 45115 fixed windows
+    syscall.Exit by calling runtime.exit.
+    
+    Austin suggested that all OSes should do the same, and
+    this CL implements his idea.
+    
+    While making changes, I discovered that nacl syscall.Exit
+    returned error
+    
+    func Exit(code int) (err error)
+    
+    and I changed it into
+    
+    func Exit(code int)
+    
+    like all other OSes. I assumed it was a mistake and it
+    is OK to do because cmd/api does not complain about it.
+    
+    Also I changed plan9 runtime.exit to accept int32 just
+    like all other OSes do.
+    
+    Change-Id: I12f6022ad81406566cf9befcc6edc382eebd413b
+    Reviewed-on: https://go-review.googlesource.com/66170
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/runtime/os_plan9.go                 |  2 +-
+ src/runtime/runtime.go                  |  6 ++++++
+ src/runtime/syscall_windows.go          |  6 ------
+ src/syscall/asm_plan9_386.s             |  9 ---------
+ src/syscall/asm_plan9_amd64.s           |  9 ---------
+ src/syscall/asm_plan9_arm.s             |  9 ---------
+ src/syscall/syscall.go                  |  3 ++-
+ src/syscall/syscall_darwin.go           |  1 -
+ src/syscall/syscall_dragonfly.go        |  1 -
+ src/syscall/syscall_freebsd.go          |  1 -
+ src/syscall/syscall_linux.go            |  1 -
+ src/syscall/syscall_nacl.go             |  1 -
+ src/syscall/syscall_netbsd.go           |  1 -
+ src/syscall/syscall_openbsd.go          |  1 -
+ src/syscall/syscall_plan9.go            |  5 -----
+ src/syscall/syscall_solaris.go          |  1 -
+ src/syscall/syscall_windows.go          |  3 ---
+ src/syscall/zsyscall_darwin_386.go      |  7 -------
+ src/syscall/zsyscall_darwin_amd64.go    |  7 -------
+ src/syscall/zsyscall_darwin_arm.go      |  7 -------
+ src/syscall/zsyscall_darwin_arm64.go    |  7 -------
+ src/syscall/zsyscall_dragonfly_amd64.go |  7 -------
+ src/syscall/zsyscall_freebsd_386.go     |  7 -------
+ src/syscall/zsyscall_freebsd_amd64.go   |  7 -------
+ src/syscall/zsyscall_freebsd_arm.go     |  7 -------
+ src/syscall/zsyscall_linux_386.go       |  7 -------
+ src/syscall/zsyscall_linux_amd64.go     |  7 -------
+ src/syscall/zsyscall_linux_arm.go       |  7 -------
+ src/syscall/zsyscall_linux_arm64.go     |  7 -------
+ src/syscall/zsyscall_linux_mips.go      |  7 -------
+ src/syscall/zsyscall_linux_mips64.go    |  7 -------
+ src/syscall/zsyscall_linux_mips64le.go  |  7 -------
+ src/syscall/zsyscall_linux_mipsle.go    |  7 -------
+ src/syscall/zsyscall_linux_ppc64.go     |  7 -------
+ src/syscall/zsyscall_linux_ppc64le.go   |  7 -------
+ src/syscall/zsyscall_linux_s390x.go     |  7 -------
+ src/syscall/zsyscall_nacl_386.go        | 10 ----------
+ src/syscall/zsyscall_nacl_amd64p32.go   | 10 ----------
+ src/syscall/zsyscall_nacl_arm.go        | 10 ----------
+ src/syscall/zsyscall_netbsd_386.go      |  7 -------
+ src/syscall/zsyscall_netbsd_amd64.go    |  7 -------
+ src/syscall/zsyscall_netbsd_arm.go      |  7 -------
+ src/syscall/zsyscall_openbsd_386.go     |  7 -------
+ src/syscall/zsyscall_openbsd_amd64.go   |  7 -------
+ src/syscall/zsyscall_openbsd_arm.go     |  7 -------
+ src/syscall/zsyscall_solaris_amd64.go   |  8 --------
+ 46 files changed, 9 insertions(+), 264 deletions(-)

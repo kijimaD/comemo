@@ -1,0 +1,15 @@
+commit 017e73c1b259450e6fc1b8437844c66b9ce08db3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 13 22:48:21 2011 -0400
+
+    gc: fix func syntax error
+    
+    Fixes #1685.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4414042
+
+ src/cmd/gc/go.y |  3 ++-
+ test/func6.go   | 14 ++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

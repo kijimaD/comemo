@@ -1,0 +1,18 @@
+commit 3a2d64789bb661bc5d2e27df30c3e3560bad6a03
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Wed Feb 16 17:57:15 2011 -0500
+
+    gc: make string const comparison unsigned
+    
+    Make compile-time string const comparison match semantics
+    of runtime.cmpstring.
+    
+    Fixes #1515.
+    
+    R=rsc
+    CC=golang-dev, rog
+    https://golang.org/cl/4172049
+
+ src/cmd/gc/const.c        |  6 +++---
+ test/fixedbugs/bug1515.go | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 3 deletions(-)

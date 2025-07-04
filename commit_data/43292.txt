@@ -1,0 +1,18 @@
+commit fc3a6f4533149212264f74c3a6871a79dc7bbe65
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 13 10:18:35 2020 +0200
+
+    syscall: remove stray TODO comment
+    
+    This was addressed by CL 2816 and the same comment was deleted from
+    asm_linux_386.s.
+    
+    Change-Id: Icc797993161d67e7c4f4cdb11c2b96ac88e00dd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261458
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_linux_386.go | 3 ---
+ 1 file changed, 3 deletions(-)

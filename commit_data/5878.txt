@@ -1,0 +1,13 @@
+commit 5f14f0690ba9a2ccfe26bbdcddcafd6587bb20f7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jul 26 13:44:32 2010 +1000
+
+    A+C: Wei Guangjing
+    
+    R=golang-dev, brainman
+    CC=golang-dev
+    https://golang.org/cl/1899041
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,16 @@
+commit d4d77052b4d615d72a485fece53879c7c66f5a2a
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 19 11:18:35 2014 -0500
+
+    crypto/x509: add example of using a custom root list.
+    
+    Fixes #6267.
+    
+    LGTM=r, josharian
+    R=golang-codereviews, josharian, r
+    CC=golang-codereviews
+    https://golang.org/cl/61020043
+
+ src/pkg/crypto/tls/example_test.go  | 57 +++++++++++++++++++++++
+ src/pkg/crypto/x509/example_test.go | 91 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 148 insertions(+)

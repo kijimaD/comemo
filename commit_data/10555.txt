@@ -1,0 +1,25 @@
+commit 07ee3cc741604136254499ccaf1e6c9d1bd868ff
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 30 17:42:18 2011 -0500
+
+    html/template: update to new template API
+    
+    Not quite done yet but enough is here to review.
+    
+    Embedding is eliminated so clients can't accidentally reach
+    methods of text/template.Template that would break the
+    invariants.
+    
+    TODO later: Add and Clone are unimplemented.
+    TODO later: address issue 2349
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5434077
+
+ src/pkg/Makefile                     |   1 +
+ src/pkg/html/template/clone_test.go  |  32 ++--
+ src/pkg/html/template/escape.go      |  47 ++---
+ src/pkg/html/template/escape_test.go |  38 ++--
+ src/pkg/html/template/template.go    | 327 +++++++++++++++++------------------
+ 5 files changed, 212 insertions(+), 233 deletions(-)

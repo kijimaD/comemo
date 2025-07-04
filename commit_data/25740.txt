@@ -1,0 +1,17 @@
+commit 70418eb819eb1d02c2c56a13159d95baab85d3a8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 11 16:36:38 2016 +0000
+
+    runtime: add test for mincore's return value sign on Linux
+    
+    Updates #14297
+    
+    Change-Id: I6b5f5020af5efaaa71280bdeb2ff99785ee9b959
+    Reviewed-on: https://go-review.googlesource.com/19457
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/export_test.go        |  2 ++
+ src/runtime/runtime_linux_test.go | 13 +++++++++++++
+ 2 files changed, 15 insertions(+)

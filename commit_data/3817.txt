@@ -1,0 +1,15 @@
+commit f65e42d0392cb2292d39a314b1681b8538370cf2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 14:53:42 2009 -0800
+
+    gofmt-ify gob
+    (the one-line struct types used in composite literals will become
+    one line again in another cleanup round; don't worry about them now)
+    
+    R=r
+    http://go/go-review/1016056
+
+ src/pkg/gob/codec_test.go   | 499 +++++++++++++++++++++++++-------------------
+ src/pkg/gob/decode.go       |   6 +-
+ src/pkg/gob/encoder_test.go |  68 +++---
+ 3 files changed, 328 insertions(+), 245 deletions(-)

@@ -1,0 +1,14 @@
+commit 72bd1a7e36cad230ecc8b07fdfaea86158d9ec60
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 18 11:01:58 2013 -0400
+
+    debug/gosym: avoid test failure on Windows
+    
+    Would fix build if build hadn't already been broken with something else.
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/11525043
+
+ src/pkg/debug/gosym/pclntab_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

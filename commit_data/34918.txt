@@ -1,0 +1,20 @@
+commit 8bb8eaff626796908938e7f0da102dc51a265237
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 10 18:40:01 2018 +0000
+
+    Revert "runtime: use fixed TLS offsets on darwin/amd64 and darwin/386"
+    
+    This reverts commit 76e92d1c9e2943de7093af14d58663fa2993e608.
+    
+    Reason for revert: Seems to have broken the darwin/386 builder, the toolchain is barfing on the new inline assembly.
+    
+    Change-Id: Ic83fa3c85148946529c5fd47d1e1669898031ace
+    Reviewed-on: https://go-review.googlesource.com/106155
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/link/internal/ld/sym.go    | 20 +++------
+ src/runtime/cgo/gcc_darwin_386.c   | 92 ++++++++++++++++++++++++++++++++++++--
+ src/runtime/cgo/gcc_darwin_amd64.c | 63 ++++++++++++++++++++++++--
+ src/runtime/sys_darwin_386.s       | 11 ++---
+ src/runtime/sys_darwin_amd64.s     |  9 ++--
+ 5 files changed, 167 insertions(+), 28 deletions(-)

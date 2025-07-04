@@ -1,0 +1,12 @@
+commit 9f6de01d8d0f7c17fd88ed1d3082ee856acb2beb
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 14 14:04:52 2010 -0800
+
+    gob: document the byte count used in the encoding of values.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3641041
+
+ src/pkg/gob/doc.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

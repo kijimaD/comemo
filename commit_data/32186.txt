@@ -1,0 +1,17 @@
+commit 9aea0e89b6df032c29d0add8d69ba2c95f1106d9
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Thu Aug 10 14:48:36 2017 -0300
+
+    runtime: make sure R0 is zero before _main on ppc64le
+    
+    _main has an early check to verify if a binary is statically or dynamically
+    linked that depends on R0 being zero. R0 is not guaranteed to be zero at that
+    point and this was breaking Go on Alpine for ppc64le.
+    
+    Change-Id: I4a1059ff7fd3db6fc489e7dcfe631c1814dd965b
+    Reviewed-on: https://go-review.googlesource.com/54730
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/runtime/rt0_linux_ppc64le.s | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,15 @@
+commit cb96d98b0629ee7c5ab9a5d0865565972460bd1c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 27 17:02:24 2011 +1000
+
+    os: another attempt to handle OpenFile flag parameter properly on Windows
+    
+    Fixes #1791.
+    
+    R=rsc, r, r, iant
+    CC=golang-dev
+    https://golang.org/cl/4551046
+
+ src/pkg/os/os_test.go              | 10 +++++++++-
+ src/pkg/syscall/syscall_windows.go | 17 +++++++----------
+ 2 files changed, 16 insertions(+), 11 deletions(-)

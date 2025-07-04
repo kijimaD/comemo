@@ -1,0 +1,28 @@
+commit a704d39b29dfc21599f644909c0f98bbfa745cb4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Feb 7 23:22:50 2025 +0000
+
+    os: hide SetFinalizer from users of Root
+    
+    Currently Root embeds a root and calls SetFinalizer on &r.root. This
+    sets the finalizer on the outer root, which is visible to users of
+    os.Root, and thus they can mutate the finalizer attached to it.
+    
+    This change modifies Root to not embed its inner root, but rather to
+    refer to it by pointer. This allows us to set the finalizer on this
+    independent inner object, preventing users of os.Root from changing the
+    finalizer. This follows the same pattern as os.File's finalizer.
+    
+    Fixes #71617.
+    
+    Change-Id: Ibd199bab1b3c877d5e12ef380fd4647b4e10221f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647876
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/root.go          | 2 +-
+ src/os/root_noopenat.go | 2 +-
+ src/os/root_unix.go     | 4 ++--
+ src/os/root_windows.go  | 4 ++--
+ 4 files changed, 6 insertions(+), 6 deletions(-)

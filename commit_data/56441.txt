@@ -1,0 +1,27 @@
+commit ec711aaaaa31b551a47b3677d05014e8aa60f9ea
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Wed Aug 30 17:49:55 2023 +0800
+
+    all: delete loong64 non-register ABI fallback path
+    
+    Change-Id: If1d3eba9a922ac6f9d78301bb8f07e445c712899
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525576
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Commit-Queue: abner chenc <chenguoqi@loongson.cn>
+    Run-TryBot: abner chenc <chenguoqi@loongson.cn>
+
+ src/internal/bytealg/compare_loong64.s           | 18 -----
+ src/internal/bytealg/equal_loong64.s             | 24 ------
+ src/internal/bytealg/indexbyte_loong64.s         | 22 ------
+ src/internal/runtime/syscall/asm_linux_loong64.s | 26 -------
+ src/reflect/asm_loong64.s                        | 10 ---
+ src/runtime/asm_loong64.s                        | 98 ------------------------
+ src/runtime/memclr_loong64.s                     |  4 -
+ src/runtime/memmove_loong64.s                    |  5 --
+ 8 files changed, 207 deletions(-)

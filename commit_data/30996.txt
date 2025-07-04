@@ -1,0 +1,20 @@
+commit fc327a14c490db9d2e14c4c44ba8791dc54be02a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 4 15:26:04 2017 -0700
+
+    cmd/compile: remove order canonicalization rules from mips
+    
+    CL 38801 introduced automatic commutative rule generation.
+    Manual order canonicalization rules thus lead to infinite loops.
+    
+    Fixes #19842
+    
+    Change-Id: I877c476152f4d207fdc67bc6f3018265aa9bc5ac
+    Reviewed-on: https://go-review.googlesource.com/39533
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/MIPS.rules |   3 -
+ src/cmd/compile/internal/ssa/rewriteMIPS.go | 104 ----------------------------
+ 2 files changed, 107 deletions(-)

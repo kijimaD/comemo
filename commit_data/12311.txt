@@ -1,0 +1,14 @@
+commit b5d4cffd152cb3194f78c17df7bcf8dcde697947
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Mar 1 15:20:13 2012 -0300
+
+    encoding/xml: fix xml test tag usage
+    
+    No real problem.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5717049
+
+ src/pkg/encoding/xml/marshal_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

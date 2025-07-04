@@ -1,0 +1,29 @@
+commit 87f2208bdaa983a7b3de9de98aa88b1f2cd1a4f9
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 25 15:54:25 2009 -0700
+
+    rename runtime internals to have modern names (array->slice etc)
+    
+    R=rsc
+    DELTA=444  (179 added, 177 deleted, 88 changed)
+    OCL=33847
+    CL=33849
+
+ src/cmd/gc/align.c                   |  4 ++-
+ src/cmd/gc/builtin.c.boot            | 18 ++++++------
+ src/cmd/gc/sinit.c                   | 12 ++++----
+ src/cmd/gc/sys.go                    | 18 ++++++------
+ src/cmd/gc/walk.c                    | 30 ++++++++++----------
+ src/pkg/runtime/Makefile             |  2 +-
+ src/pkg/runtime/cgo2c.c              |  6 ++--
+ src/pkg/runtime/chan.c               |  8 +++---
+ src/pkg/runtime/hashmap.c            | 12 ++++----
+ src/pkg/runtime/iface.c              |  8 +++---
+ src/pkg/runtime/reflect.cgo          |  2 +-
+ src/pkg/runtime/runtime.c            | 10 +++----
+ src/pkg/runtime/runtime.h            | 12 ++++----
+ src/pkg/runtime/{array.c => slice.c} | 54 ++++++++++++++++++------------------
+ src/pkg/runtime/string.cgo           | 10 +++----
+ src/pkg/runtime/symtab.c             | 22 +++++++--------
+ src/pkg/runtime/type.h               |  4 +--
+ 17 files changed, 117 insertions(+), 115 deletions(-)

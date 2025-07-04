@@ -1,0 +1,17 @@
+commit 02d1dae1069f881ea6b53ecc3cbf3bbe3ac40a72
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Dec 6 16:42:48 2011 -0500
+
+    crypto/x509: if a parent cert has a raw subject, use it.
+    
+    This avoids a problem when creating certificates with parents that
+    were produce by other code: the Go structures don't contain all the
+    information about the various ASN.1 string types etc and so that
+    information would otherwise be lost.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5453067
+
+ src/pkg/crypto/x509/x509.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

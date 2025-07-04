@@ -1,0 +1,56 @@
+commit d8264de8683dac99ffbbbc1f46415e627b73c9ed
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Wed Nov 9 14:49:12 2016 -0800
+
+    all: spell "marshal" and "unmarshal" consistently
+    
+    The tree is inconsistent about single l vs double l in those
+    words in documentation, test messages, and one error value text.
+    
+            $ git grep -E '[Mm]arshall(|s|er|ers|ed|ing)' | wc -l
+                  42
+            $ git grep -E '[Mm]arshal(|s|er|ers|ed|ing)' | wc -l
+                1694
+    
+    Make it consistently a single l, per earlier decisions. This means
+    contributors won't be confused by misleading precedence, and it helps
+    consistency.
+    
+    Change the spelling in one error value text in newRawAttributes of
+    crypto/x509 package to be consistent.
+    
+    This change was generated with:
+    
+            perl -i -npe 's,([Mm]arshal)l(|s|er|ers|ed|ing),$1$2,' $(git grep -l -E '[Mm]arshall' | grep -v AUTHORS | grep -v CONTRIBUTORS)
+    
+    Updates #12431.
+    Follows https://golang.org/cl/14150.
+    
+    Change-Id: I85d28a2d7692862ccb02d6a09f5d18538b6049a2
+    Reviewed-on: https://go-review.googlesource.com/33017
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/devel/weekly.html                | 12 ++++++------
+ doc/progs/json1.go                   |  6 +++---
+ doc/progs/json3.go                   |  2 +-
+ doc/progs/json4.go                   |  2 +-
+ src/crypto/elliptic/elliptic_test.go |  2 +-
+ src/crypto/tls/conn.go               |  2 +-
+ src/crypto/x509/x509.go              |  2 +-
+ src/encoding/json/decode_test.go     |  4 ++--
+ src/encoding/json/encode_test.go     |  4 ++--
+ src/encoding/xml/marshal.go          | 14 +++++++-------
+ src/encoding/xml/marshal_test.go     |  2 +-
+ src/encoding/xml/read.go             |  4 ++--
+ src/encoding/xml/read_test.go        |  2 +-
+ src/encoding/xml/typeinfo.go         |  6 +++---
+ src/html/template/doc.go             |  2 +-
+ src/html/template/js.go              |  4 ++--
+ src/math/big/floatmarsh.go           |  2 +-
+ src/math/big/intmarsh.go             |  2 +-
+ src/net/dnsmsg.go                    |  2 +-
+ src/syscall/dir_plan9.go             |  2 +-
+ test/fixedbugs/issue13171.go         |  2 +-
+ 21 files changed, 40 insertions(+), 40 deletions(-)

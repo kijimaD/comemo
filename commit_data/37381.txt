@@ -1,0 +1,20 @@
+commit b075dfba8066033e35cd62aaacf3c8a2593cfa57
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 13 09:46:32 2018 -0500
+
+    cmd/go/internal/modload: skip go.mod directories on all systems, not just Plan 9
+    
+    I see no reason Plan 9 should be special cased.
+    A directory named go.mod is not useful on any system.
+    Followup to CL 129804.
+    
+    Change-Id: I9cc91b5934b17650bfdb07370aa73aeae445968c
+    Reviewed-on: https://go-review.googlesource.com/c/149337
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/init.go                              | 5 ++---
+ src/cmd/go/internal/modload/{init_plan9_test.go => init_test.go} | 0
+ 2 files changed, 2 insertions(+), 3 deletions(-)

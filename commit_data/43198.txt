@@ -1,0 +1,24 @@
+commit f8d80977b784fd4879963e61dc9fca1fc9bf2193
+Author: David Chase <drchase@google.com>
+Date:   Fri Oct 2 14:53:48 2020 -0400
+
+    cmd/compile: correct leaf type when "selecting" singleton register-sized struct
+    
+    Two part fix:
+    1) bring the type "correction" forward from a later CL in the expand calls series
+    2) when a leaf-selwect is rewritten in place, update the type (it might have been
+       changed by the type correction in 1).
+    
+    Fixes #41736.
+    
+    Change-Id: Id097efd10481bf0ad92aaead81a7207221c144b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259203
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/config.go       |   2 +-
+ src/cmd/compile/internal/ssa/expand_calls.go |  41 +++++++++--
+ test/fixedbugs/issue41736.go                 | 105 +++++++++++++++++++++++++++
+ 3 files changed, 141 insertions(+), 7 deletions(-)

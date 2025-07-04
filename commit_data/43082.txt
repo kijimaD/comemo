@@ -1,0 +1,19 @@
+commit bc320fc1f5bc5d6019e3d8d62aa32eac3417bb7f
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Sep 23 12:52:27 2020 -0400
+
+    doc: update overview for authentication
+    
+    The instructions have already been updated in greater
+    detail in "Step 2: Configure git authentication", but
+    the overview needs updated to reflect the new workflow.
+    
+    Change-Id: I6f411a3dc500a9058036a4a828403c0153e4220a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256857
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ doc/contribute.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

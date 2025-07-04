@@ -1,0 +1,31 @@
+commit a1e057e585903cd35f4b497904af82117d60d3ba
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Feb 20 00:35:58 2020 +0000
+
+    cmd/go: roll forward "convert TestShadowingLogic to the script framework"
+    
+    This rolls forward the change golang.org/cl/214431, which was reverted
+    in golang.org/cl/220217. The cl was broken because
+    TestVersionControlErrorMessageIncludesCorrectDirectory, which is going
+    to be removed in golang.org/cl/214429 hadn't been submitted yet.
+    
+    Original change description:
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I87b3f9acb8575fbcbd58d454b5f9bac4923429b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220178
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/go_test.go                             | 45 -----------------------
+ src/cmd/go/testdata/script/list_shadow.txt        | 25 +++++++++++++
+ src/cmd/go/testdata/shadow/root1/src/foo/foo.go   |  1 -
+ src/cmd/go/testdata/shadow/root1/src/math/math.go |  1 -
+ src/cmd/go/testdata/shadow/root2/src/foo/foo.go   |  1 -
+ 5 files changed, 25 insertions(+), 48 deletions(-)

@@ -1,0 +1,27 @@
+commit 3a84e3305b7edebf50f2cc3067aa009f9934488c
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Mar 16 11:53:08 2015 +1300
+
+    runtime, cmd/internal/ld: initialize themoduledata slices directly
+    
+    This CL is quite conservative in some ways.  It continues to define
+    symbols that have no real purpose (e.g. epclntab).  These could be
+    deleted if there is no concern that external tools might look for them.
+    
+    It would also now be possible to make some changes to the pcln data but
+    I get the impression that would definitely require some thought and
+    discussion.
+    
+    Change-Id: Ib33cde07e4ec38ecc1d6c319a10138c9347933a3
+    Reviewed-on: https://go-review.googlesource.com/7616
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/data.go   |  4 ++++
+ src/cmd/internal/ld/pcln.go   | 15 +++++++++++++
+ src/cmd/internal/ld/symtab.go | 33 +++++++++++++++++++---------
+ src/runtime/proc1.go          |  2 +-
+ src/runtime/runtime1.go       |  7 +-----
+ src/runtime/symtab.go         | 51 ++++++++++++-------------------------------
+ 6 files changed, 58 insertions(+), 54 deletions(-)

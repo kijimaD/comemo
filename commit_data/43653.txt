@@ -1,0 +1,23 @@
+commit 89a6540d8a93b95620080a8145c9882b063e3e46
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Oct 29 16:03:57 2020 -0400
+
+    runtime: elide timer re-check if P has no timers
+    
+    In golang.org/cl/264477, I missed this new block after rebasing past
+    golang.org/cl/232298. These fields must be zero if there are no timers.
+    
+    Updates #28808
+    Updates #18237
+    
+    Change-Id: I2d9e1cbf326497c833daa26b11aed9a1e12c2270
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266367
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

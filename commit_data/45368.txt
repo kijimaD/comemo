@@ -1,0 +1,35 @@
+commit cde6a675bccb95f0660e302965065eeef6a68128
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Apr 1 12:23:22 2021 -0400
+
+    go/scanner: optimize scanIdentifier
+    
+    While profiling parsing, I noticed that scanIdentifier was extremely
+    hot, and could be optimized: it is responsible for a significant
+    fraction of scanning and had a lot of unnecessary branching, bounds
+    checks, and function calls.
+    
+    This CL implements some of those optimizations, while trying to strike a
+    balance between optimization and readability. It achieves this by
+    optimizing for the common case of ASCII identifiers, falling back on the
+    slower scan when encountering the first non-ASCII character.
+    
+    Benchmark results:
+    
+    name                               old time/op    new time/op    delta
+    Scan-12                              16.9µs ± 4%    15.8µs ± 5%   -6.92%  (p=0.000 n=20+18)
+    ScanFiles/go/types/expr.go-12         793µs ± 4%     672µs ± 6%  -15.23%  (p=0.000 n=20+20)
+    ScanFiles/go/parser/parser.go-12     1.08ms ± 6%    0.90ms ± 4%  -16.68%  (p=0.000 n=20+20)
+    ScanFiles/net/http/server.go-12      1.44ms ± 4%    1.23ms ± 5%  -14.58%  (p=0.000 n=18+20)
+    ScanFiles/go/scanner/errors.go-12    40.7µs ± 2%    32.6µs ± 3%  -20.01%  (p=0.000 n=19+20)
+    
+    Change-Id: If78380004248e3ea75cfc78eb7f38f528124dced
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308611
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/scanner/scanner.go | 53 ++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 50 insertions(+), 3 deletions(-)

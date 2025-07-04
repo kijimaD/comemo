@@ -1,0 +1,19 @@
+commit 74879f0f014549f7881539d96d842ae1d6d3aa92
+Author: Sabin Mihai Rapan <sabin.rapan@gmail.com>
+Date:   Mon Feb 5 19:44:09 2018 +0200
+
+    strconv: update Unquote example to be more concise
+    
+    Changed the example to convey the intent of the Unquote function
+    in a more succint way.
+    
+    Fixes #23693
+    
+    Change-Id: I49465641d730e70b5af0d47057335af39882bcec
+    Reviewed-on: https://go-review.googlesource.com/92015
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/strconv/example_test.go | 34 +++++++++++++++-------------------
+ 1 file changed, 15 insertions(+), 19 deletions(-)

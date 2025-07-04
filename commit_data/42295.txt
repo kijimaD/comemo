@@ -1,0 +1,23 @@
+commit 94e61ab94d4ab865cd3f9f73062a1c201bb6584d
+Author: Aaron Patterson <tenderlove@ruby-lang.org>
+Date:   Tue Jan 14 19:13:47 2020 +0000
+
+    runtime/runtime2: pack the sudog struct
+    
+    This commit moves the isSelect bool below the ticket uint32.  The
+    boolean was consuming 8 bytes of the struct.  The uint32 was also
+    consuming 8 bytes, so we can pack isSelect below the uint32 and save 8
+    bytes.  This reduces the sudog struct from 96 bytes to 88 bytes.
+    
+    Change-Id: If555cdaf2f5eaa125e2590fc4d113dbc99750738
+    GitHub-Last-Rev: d63b4e086b17da74e185046dfecb12d58e4f19ac
+    GitHub-Pull-Request: golang/go#36552
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214677
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/export_test.go | 2 ++
+ src/runtime/runtime2.go    | 8 +++++---
+ src/runtime/sizeof_test.go | 1 +
+ 3 files changed, 8 insertions(+), 3 deletions(-)

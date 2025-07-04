@@ -1,0 +1,55 @@
+commit ed3ae9a340e506d873e57444a8eb28cd06e933a2
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Dec 17 12:43:19 2020 +0530
+
+    cmd/doc: properly display interface methods
+    
+    Previously, we used to call doc.ToText to print each comment
+    in a comment group attached to an interface method. This broke any
+    preformatted code block attached to the comment, and displayed everything
+    aligned to a single column. Additionally, the name of the interface
+    also wasn't displayed which didn't show which interface
+    the method belonged to.
+    
+    To fix this, we print the entire interface node using format.Node
+    which takes care of displaying the comments correctly, and we also
+    filter out the methods that don't match, so that the method can be
+    displayed as belonging to an interface.
+    
+    As an example, previously it would show:
+    
+    // Comment before exported method.
+    //
+    // // Code block showing how to use ExportedMethod
+    // func DoSomething() error {
+    // ExportedMethod()
+    // return nil
+    // }
+    func ExportedMethod()  // Comment on line with exported method.
+    
+    Now, it shows:
+    
+    type ExportedInterface interface {
+            // Comment before exported method.
+            //
+            //      // Code block showing how to use ExportedMethod
+            //      func DoSomething() error {
+            //              ExportedMethod()
+            //              return nil
+            //      }
+            ExportedMethod() // Comment on line with exported method.
+    
+    }
+    
+    Fixes #43188
+    
+    Change-Id: I28099fe4aab35e08049b2616a3506240f57133cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279433
+    Trust: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/doc/doc_test.go     |  7 +++----
+ src/cmd/doc/pkg.go          | 28 +++++++++++++++-------------
+ src/cmd/doc/testdata/pkg.go |  7 +++++++
+ 3 files changed, 25 insertions(+), 17 deletions(-)

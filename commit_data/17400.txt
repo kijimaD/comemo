@@ -1,0 +1,22 @@
+commit daed1fee8b8fb7e899fa137e5df62df01bd1c18d
+Author: Shivakumar GN <shivakumar.gn@gmail.com>
+Date:   Tue Aug 27 10:35:06 2013 -0700
+
+    misc/pprof: pprof http used with net/http/pprof not working on windows/amd64
+    
+    Removed posix assumptions in temporary file generation
+    Removed curl dependence
+    Changed opening of svg file
+    
+    These must now work including symbol resolution.
+    [1] go tool pprof <prog_name> http://.../debug/pprof/profile
+    [2] go tool pprof http://.../debug/pprof/profile
+    
+    Fixes 6177.
+    
+    R=golang-dev, alex.brainman, bradfitz, kamil.kisiel
+    CC=golang-dev
+    https://golang.org/cl/13085043
+
+ misc/pprof | 97 ++++++++++++++++++++++++++++++++------------------------------
+ 1 file changed, 50 insertions(+), 47 deletions(-)

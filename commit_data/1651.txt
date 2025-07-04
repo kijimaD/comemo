@@ -1,0 +1,12 @@
+commit a948fdd6265d0ca2aa3d3d1dfef0670132eb4ef4
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 9 11:25:47 2009 -0800
+
+    typo. this split-os building thing is frustrating.
+    
+    R=rsc
+    OCL=24681
+    CL=24681
+
+ src/lib/os/dir_amd64_darwin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

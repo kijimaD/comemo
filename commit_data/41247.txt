@@ -1,0 +1,14 @@
+commit 153a9e80332ca165d9d00149e9d8b9747d486c18
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Dec 6 18:24:29 2019 -0500
+
+    doc: add section on go.mod file syntax
+    
+    Updates #33637
+    
+    Change-Id: I265e4fda863b871a3ce0ca7b6c926081dadbf5a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210799
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/modules.md | 392 +++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 381 insertions(+), 11 deletions(-)

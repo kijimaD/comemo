@@ -1,0 +1,14 @@
+commit ed8c23149ffa467b8154c4009517499abdacc20e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 4 17:58:56 2010 -0700
+
+    fix build: literal types cannot be parenthesized anymore
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1849055
+
+ src/pkg/go/printer/testdata/expressions.golden | 7 -------
+ src/pkg/go/printer/testdata/expressions.input  | 7 -------
+ src/pkg/go/printer/testdata/expressions.raw    | 7 -------
+ 3 files changed, 21 deletions(-)

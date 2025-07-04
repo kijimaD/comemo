@@ -1,0 +1,14 @@
+commit 9776d025b3375f35920707757d9f5a450195c69f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 9 22:05:34 2018 +0000
+
+    net/http: clarify when it's allowed to reuse a Request
+    
+    Fixes #21780
+    
+    Change-Id: Ic6fb6a536fff800a05be2d25309f72092604a785
+    Reviewed-on: https://go-review.googlesource.com/122817
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/net/http/client.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

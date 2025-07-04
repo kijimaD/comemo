@@ -1,0 +1,23 @@
+commit 3ab825de9d50b24e2b97267a5d66dadb66399180
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 10 09:34:15 2020 -0400
+
+    cmd/go/internal/modget: warn about unmatched packages exactly once
+    
+    Due to an inverted condition, we were emitting a "matched no packages"
+    warning twice in some cases and not at all in others.
+    
+    For #41315
+    
+    Change-Id: I472cd2d4f75811c8734852f2bdd7346f4c612816
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254819
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modget/get.go             |  9 ++++--
+ src/cmd/go/testdata/script/mod_get_nopkgs.txt | 40 +++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 3 deletions(-)

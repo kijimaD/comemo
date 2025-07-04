@@ -1,0 +1,12 @@
+commit 4d3c9990867d77844fba1bbf0d8f7794f2492d11
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Nov 2 15:03:36 2011 +0900
+
+    builtin: document built-in error type
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/5307080
+
+ src/pkg/builtin/builtin.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

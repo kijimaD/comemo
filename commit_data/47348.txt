@@ -1,0 +1,18 @@
+commit b7529c3617a64ed5d1e2a6c7a9366d4a4988a38d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Nov 9 10:37:43 2021 +0700
+
+    cmd/go: fix mod_get_direct
+    
+    https://github.com/googleapis/google-cloud-go has changed the default
+    branch from master to main, causing mod_get_direct failed on longtest.
+    
+    Change-Id: I8fe0356b2ff532d1fdedbcb1e1832d7335babaa0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361965
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/mod_get_direct.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

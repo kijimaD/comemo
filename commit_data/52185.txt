@@ -1,0 +1,19 @@
+commit 142d30b2cb036289b27726cee726129087728a66
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 6 12:36:31 2023 +0100
+
+    cmd/go: trim spaces in pkg-config ldflags output
+    
+    Fixes #58889
+    Updates #35262
+    
+    Change-Id: I1d51aa03f445faaf4f4e9cc412d5499cad526663
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473616
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/work/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

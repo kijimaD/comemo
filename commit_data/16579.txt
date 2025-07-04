@@ -1,0 +1,12 @@
+commit d660688f14baf29a84d1d7cbeea9eae92c15c60f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 17 17:59:53 2013 +0400
+
+    runtime/race: add tests for method thunks
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/10257043
+
+ src/pkg/runtime/race/testdata/mop_test.go | 87 +++++++++++++++++++++++++++++++
+ 1 file changed, 87 insertions(+)

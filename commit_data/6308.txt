@@ -1,0 +1,17 @@
+commit 1e4b1f93375be572c11af1d4f07a8eb14a4e8afe
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 20 10:14:39 2010 +1000
+
+    netchan: handle closing of channels.
+    This also silences some misleading logging.
+    Also improve logging.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2245041
+
+ src/pkg/netchan/common.go       |  1 +
+ src/pkg/netchan/export.go       | 43 +++++++++++++++++++++--------
+ src/pkg/netchan/import.go       | 60 +++++++++++++++++++++++++++++------------
+ src/pkg/netchan/netchan_test.go | 58 +++++++++++++++++++++++++++------------
+ 4 files changed, 117 insertions(+), 45 deletions(-)

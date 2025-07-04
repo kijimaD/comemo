@@ -1,0 +1,17 @@
+commit e14e67fff63b364f531667c1a2390feb4b3c1c64
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 6 09:24:16 2016 -0700
+
+    cmd/compile: clean up one Node.Etype usage
+    
+    Whoever Marvin is, we're one step closer to realizing his dream.
+    
+    Change-Id: I8dece4417d0f9ec234be158d0ee7bc6735342d93
+    Reviewed-on: https://go-review.googlesource.com/27465
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/inl.go    |  6 ++----
+ src/cmd/compile/internal/gc/syntax.go | 11 +++++++++++
+ 2 files changed, 13 insertions(+), 4 deletions(-)

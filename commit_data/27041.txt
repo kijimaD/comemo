@@ -1,0 +1,16 @@
+commit 11f1041022e001869de076699f297b28d25fc558
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 21 10:42:25 2016 +1000
+
+    debug/pe: update cstring documentation
+    
+    Updates #15345
+    
+    Change-Id: If1fca1f6042571cb0ac689bbb3c294309dd6e7b4
+    Reviewed-on: https://go-review.googlesource.com/22331
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/pe/string.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

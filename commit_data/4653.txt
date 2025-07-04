@@ -1,0 +1,20 @@
+commit 9628d4c6eb5fffe4eaf17e3f34fa90ca044abf0d
+Author: Firmansyah Adiputra <frm.adiputra@gmail.com>
+Date:   Fri Jan 22 17:55:44 2010 +1100
+
+    Add authentication.
+    
+    Other code fixing:
+    - Fixed bugs in get32.
+    - Fix code for parsing display string (as a new function).
+    - Fix code for connecting to X server. The old code only work
+      if the server is listening to TCP port, otherwise it doesn't
+      work (at least in my PC).
+    
+    R=nigeltao_golang, rsc, jhh
+    CC=golang-dev
+    https://golang.org/cl/183111
+
+ src/pkg/xgb/auth.go | 110 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/xgb/xgb.go  | 130 +++++++++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 208 insertions(+), 32 deletions(-)

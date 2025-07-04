@@ -1,0 +1,13 @@
+commit 4a8ef1f65db072ecd6ff79201338ac75b43640fa
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 3 14:40:38 2013 +0400
+
+    runtime: disable preemption in several scheduler functions
+    Required for preemptive scheduler, see the comments for details.
+    
+    R=golang-dev, khr, iant, khr
+    CC=golang-dev
+    https://golang.org/cl/9740051
+
+ src/pkg/runtime/proc.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

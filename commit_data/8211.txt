@@ -1,0 +1,21 @@
+commit 3a1fdc655e40a9b3f27734ca950139ffcfb54e0b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 25 12:08:48 2011 -0400
+
+    gc: fix import width bug
+    
+    Fixes #1705.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4443060
+
+ src/cmd/5g/cgen.c              |  2 ++
+ src/cmd/6g/cgen.c              |  2 ++
+ src/cmd/8g/cgen.c              |  2 ++
+ src/cmd/gc/dcl.c               |  4 ++++
+ src/cmd/gc/walk.c              |  4 +++-
+ test/fixedbugs/bug335.dir/a.go |  9 +++++++++
+ test/fixedbugs/bug335.dir/b.go | 11 +++++++++++
+ test/fixedbugs/bug335.go       | 10 ++++++++++
+ 8 files changed, 43 insertions(+), 1 deletion(-)

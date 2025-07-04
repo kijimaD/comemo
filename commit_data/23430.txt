@@ -1,0 +1,12 @@
+commit 2f3d103f550d005536a4249c1d172ff824c9f082
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jun 19 09:36:25 2015 +0900
+
+    os: fix nits found by vet
+    
+    Change-Id: I97812575ff9c69301a5ce2e1c814b40e1da32a55
+    Reviewed-on: https://go-review.googlesource.com/11271
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/os/os_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

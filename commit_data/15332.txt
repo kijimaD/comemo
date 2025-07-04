@@ -1,0 +1,13 @@
+commit d8682f99221c796046c15fb5a68a6fd5341bae83
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 20 14:30:09 2013 -0800
+
+    A+C: add Robert Dinu (Individual CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7386045
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,13 @@
+commit ba8ddc25ca18664484ad852890fcae61b9f98891
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 25 11:07:08 2014 -0700
+
+    cmd/go: add simple test for generate's line parser
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/128710043
+
+ src/cmd/go/generate_test.go | 46 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)

@@ -1,0 +1,18 @@
+commit 683f51d3071abe8dbe13ef877595825b469f30e3
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Jun 29 14:17:00 2023 +0000
+
+    cmd/asm/internal/lex: fix comment, remove the first "has"
+    
+    Change-Id: I429f0fa6c99ef576fe83c7bd0d1c1e176ecbb179
+    GitHub-Last-Rev: fb581b7f271f026182de0737c4fe5c360d5dea96
+    GitHub-Pull-Request: golang/go#61066
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507097
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/lex/slice.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

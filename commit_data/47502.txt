@@ -1,0 +1,18 @@
+commit 6c36c332fefdd433cfe6e6468a2542fc310e9f8a
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Mon Nov 15 10:14:04 2021 +0100
+
+    debug/pe,debug/macho: add support for DWARF5 sections
+    
+    Adds the same logic used in debug/elf to load DWARF5 sections.
+    
+    Fixes #49590
+    
+    Change-Id: Iee05b9927a6f521842b330eab8942ade3fc2bd86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363895
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
+
+ src/debug/macho/file.go | 14 +++++++++++---
+ src/debug/pe/file.go    | 14 +++++++++++---
+ 2 files changed, 22 insertions(+), 6 deletions(-)

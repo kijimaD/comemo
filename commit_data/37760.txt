@@ -1,0 +1,33 @@
+commit d0f8a7517ab0b33c8e3dd49294800dd6144e4cee
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Dec 7 00:07:43 2018 +0000
+
+    runtime: don't clear lockedExt on locked M when G exits
+    
+    When a locked M has its G exit without calling UnlockOSThread, then
+    lockedExt on it was getting cleared. Unfortunately, this meant that
+    during P handoff, if a new M was started, it might get forked (on
+    most OSs besides Windows) from the locked M, which could have kernel
+    state attached to it.
+    
+    To solve this, just don't clear lockedExt. At the point where the
+    locked M has its G exit, it will also exit in accordance with the
+    LockOSThread API. So, we can safely assume that it's lockedExt state
+    will no longer be used. For the case of the main thread where it just
+    gets wedged instead of exiting, it's probably better for it to keep
+    the locked marker since it more accurately represents its state.
+    
+    Fixed #28979.
+    
+    Change-Id: I7d3d71dd65bcb873e9758086d2cbcb9a06429b0f
+    Reviewed-on: https://go-review.googlesource.com/c/153078
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/proc.go                                |  5 +-
+ src/runtime/proc_test.go                           |  6 ++
+ src/runtime/testdata/testprog/gettid.go            | 29 -------
+ src/runtime/testdata/testprog/lockosthread.go      | 99 ++++++++++++++++++++++
+ src/runtime/testdata/testprog/syscalls.go          | 54 ++++++++++++
+ .../testprog/{gettid_none.go => syscalls_none.go}  | 12 +++
+ 6 files changed, 175 insertions(+), 30 deletions(-)

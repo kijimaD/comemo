@@ -1,0 +1,16 @@
+commit bcb563f4db2ce78be114689258c6a42201543bc5
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Sun Jan 14 04:05:21 2018 +0900
+
+    cmd/compile: allow converting defined string types to []rune
+    
+    Fixes #23298
+    
+    Change-Id: I107c6f3a80db83f063c0daf262c6e7f7492e4d4c
+    Reviewed-on: https://go-review.googlesource.com/87695
+    Run-TryBot: Kunpei Sakai <namusyaka@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go |  2 +-
+ test/fixedbugs/issue23298.go        | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

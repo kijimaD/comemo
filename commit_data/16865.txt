@@ -1,0 +1,23 @@
+commit b3defa2e8e66f5a03ce4ac344b9e5bcf3b4321d3
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 24 15:04:10 2013 -0700
+
+    undo CL 11683043 / bb75d03e6ccb
+    
+    Broke arm build.
+    R=dave
+    
+    ««« original CL description
+    cc: generate argument pointer maps for C functions.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/11683043
+    »»»
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/11788043
+
+ src/cmd/cc/pgen.c | 135 ++++++------------------------------------------------
+ 1 file changed, 14 insertions(+), 121 deletions(-)

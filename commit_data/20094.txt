@@ -1,0 +1,28 @@
+commit 9a1e142bbc3209f8899a729ec857a1c8838bf9f4
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Aug 24 12:31:03 2014 +0400
+
+    runtime: convert channel operations to Go, part 1 (chansend1).
+    
+    LGTM=dvyukov
+    R=dvyukov, khr
+    CC=golang-codereviews
+    https://golang.org/cl/127460044
+
+ src/cmd/api/goapi.go                |   1 +
+ src/cmd/gc/select.c                 |   1 +
+ src/pkg/reflect/asm_386.s           |   2 +
+ src/pkg/reflect/asm_amd64.s         |   2 +
+ src/pkg/reflect/asm_amd64p32.s      |   2 +
+ src/pkg/reflect/asm_arm.s           |   2 +
+ src/pkg/runtime/chan.go             | 278 ++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/chan.goc            |  77 ----------
+ src/pkg/runtime/chan.h              |  13 --
+ src/pkg/runtime/chan_test.go        |  32 +++++
+ src/pkg/runtime/mprof.goc           |  11 +-
+ src/pkg/runtime/pprof/pprof_test.go |   2 +-
+ src/pkg/runtime/proc.c              |   1 -
+ src/pkg/runtime/runtime.h           |  15 +-
+ src/pkg/runtime/stack.c             |  22 ++-
+ src/pkg/runtime/stubs.go            |  12 ++
+ 16 files changed, 378 insertions(+), 95 deletions(-)

@@ -1,0 +1,18 @@
+commit 806f478499b57c5167fb5301101961b7563903d2
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 9 16:25:48 2020 +0700
+
+    cmd/compile: don't report not enough args error if call is undefined
+    
+    Fixes #38745
+    
+    Change-Id: I2fbd8b512a8cf911b81a087162c74416116efea5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253678
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ test/ddd1.go                             | 2 +-
+ test/fixedbugs/issue38745.go             | 3 +--
+ 3 files changed, 3 insertions(+), 4 deletions(-)

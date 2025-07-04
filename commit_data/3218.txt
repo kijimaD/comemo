@@ -1,0 +1,21 @@
+commit 851497bc65e5c2e2360427bd1b3703dfddf087a2
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Sep 3 17:14:49 2009 -0700
+
+    Thread Thread into Value Get/Set/Assign so other Value
+    implementations can abort.  Make genConstant get values lazily
+    since we need the Thread now.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=299  (8 added, 19 deleted, 272 changed)
+    OCL=34353
+    CL=34353
+
+ usr/austin/eval/eval_test.go |   8 +-
+ usr/austin/eval/expr.go      |  12 +-
+ usr/austin/eval/expr1.go     | 121 +++++++++----------
+ usr/austin/eval/gen.go       |  12 +-
+ usr/austin/eval/stmt.go      |   8 +-
+ usr/austin/eval/value.go     | 270 +++++++++++++++++++++----------------------
+ 6 files changed, 210 insertions(+), 221 deletions(-)

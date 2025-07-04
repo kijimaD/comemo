@@ -1,0 +1,20 @@
+commit fba8566cda3a7ba8f32ed398466f1d95bb205594
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Mar 24 13:15:31 2023 -0400
+
+    runtime: fix ARM assembly code in cgocallback
+    
+    A comparison instruction was missing in CL 392854.
+    
+    Should fix ARM builders.
+    
+    For #51676.
+    
+    Change-Id: Ica27a99be10e595bab4fad35e2e6c00a1c68a662
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479255
+    TryBot-Bypass: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/asm_arm.s | 1 +
+ 1 file changed, 1 insertion(+)

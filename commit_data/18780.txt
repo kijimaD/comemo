@@ -1,0 +1,16 @@
+commit 5db255fa3c8b3f5d5aa1560d1e5be4688dfb7925
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 6 11:24:28 2014 -0800
+
+    net/http/cgi: kill child CGI process on copy error
+    
+    Fixes #7196
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, iant
+    https://golang.org/cl/69970052
+
+ src/pkg/net/http/cgi/host.go            | 12 +++++
+ src/pkg/net/http/cgi/matryoshka_test.go | 93 ++++++++++++++++++++++++++++++++-
+ 2 files changed, 104 insertions(+), 1 deletion(-)

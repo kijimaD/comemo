@@ -1,0 +1,14 @@
+commit 3c6fec86e30a28b3a773d1b972ca8bc8c3c90c30
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jun 24 14:29:20 2020 -0400
+
+    crypto/tls: fix DialContext docs
+    
+    Change-Id: I58e3febbf63049bebb4f8ed8893288183c8aaccd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239745
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/tls/tls.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

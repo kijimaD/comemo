@@ -1,0 +1,12 @@
+commit ad4ed87f80c33f23bdd3767ef3208f15a1fb5c90
+Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+Date:   Wed Aug 14 05:26:56 2019 +0000
+
+    doc/go1.13: add missing periods
+    
+    Change-Id: If9ad650174572c475f0b3d3394208c2a9dd0a596
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190237
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+
+ doc/go1.13.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

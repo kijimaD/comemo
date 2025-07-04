@@ -1,0 +1,18 @@
+commit cbaa666682386fe5350bf87d7d70171704c90fe4
+Author: Yasser Abdolmaleki <yasser@yasser.ca>
+Date:   Thu Jul 25 20:44:06 2019 -0700
+
+    net: document *OpError.Err must not be nil
+    
+    The point of *net.OpError is to add details to an underlying lower
+    level error. It makes no sense to have an OpError without an Err and
+    a nil *OpError.Err will cause *OpError.Error() method to panic.
+    
+    Fixes #33007
+    
+    Change-Id: If4fb2501e02dad110a095b73e18c47312ffa6015
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187677
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/net/net.go | 1 +
+ 1 file changed, 1 insertion(+)

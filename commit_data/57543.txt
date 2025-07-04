@@ -1,0 +1,25 @@
+commit 1596a6c8ec6d4ccb4a219b0c467bed192720de12
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Sep 19 15:43:14 2024 +0000
+
+    unique,internal/concurrent: add some more tests
+    
+    One is a test of unsafe.String usage, which was broken before CL 610738
+    was merged.
+    
+    The other is trying to improve coverage of "near collision" scenarios in
+    the HashTrieMap where only the last few bits differ. This is intended to
+    catch off-by-one errors in iterating down the tree.
+    
+    For #69534.
+    
+    Change-Id: I3f302e148e81269a50e93b5edf83cafc2d291098
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614475
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/internal/concurrent/hashtriemap_test.go | 18 ++++++++++++++++++
+ src/unique/handle_test.go                   | 24 ++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+)

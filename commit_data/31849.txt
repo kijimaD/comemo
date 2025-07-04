@@ -1,0 +1,14 @@
+commit 827be89a69534cca8245df9c435d13387eea9667
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Thu Jun 15 22:18:24 2017 +0200
+
+    path/filepath: fix TestGlobError
+    
+    Change-Id: I7776547332066e1d7651e9aa06eec301dfaf38bc
+    Reviewed-on: https://go-review.googlesource.com/45892
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/path/filepath/match_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,11 @@
+commit a269cdae8debb1abfe659126baf3944c252e9d11
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Nov 17 23:34:08 2009 -0800
+
+    Added Kate syntax highlighting file.
+    
+    R=rsc
+    https://golang.org/cl/155075
+
+ misc/kate/go.xml | 129 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 129 insertions(+)

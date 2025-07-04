@@ -1,0 +1,14 @@
+commit 2f14b161493057e00a58fbe102c8a782e1410de0
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:40:16 2015 -0400
+
+    cmd/internal/obj/x86: skip test on darwin/arm64
+    
+    Just like darwin/arm, cannot fork..
+    
+    Change-Id: If565afbceb79013b9e3103e1e28d93691e9fc0a5
+    Reviewed-on: https://go-review.googlesource.com/8826
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/internal/obj/x86/obj6_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

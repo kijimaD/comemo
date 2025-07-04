@@ -1,0 +1,29 @@
+commit 51859ec2292d9c1d82a7054ec672ff551a0d7497
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu May 5 10:27:24 2022 -0500
+
+    internal/cpu: report CPU if known on PPC64
+    
+    The PPC64 maintainers are testing on P10 hardware, so it is helpful
+    to report the correct cpu, even if this information is not used
+    elsewhere yet.
+    
+    Note, AIX will report the current CPU of the host system, so a
+    POWER10 will not set the IsPOWER9 flag. This is existing behavior,
+    and should be fixed in a separate patch.
+    
+    Change-Id: Iebe23dd96ebe03c8a1c70d1ed2dc1506bad3c330
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404394
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/internal/cpu/cpu.go              | 13 +++++++------
+ src/internal/cpu/cpu_no_name.go      |  2 +-
+ src/internal/cpu/cpu_ppc64x.go       | 12 ++++++++++++
+ src/internal/cpu/cpu_ppc64x_aix.go   |  8 ++++++--
+ src/internal/cpu/cpu_ppc64x_linux.go |  2 ++
+ 5 files changed, 28 insertions(+), 9 deletions(-)

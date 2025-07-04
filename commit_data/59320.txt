@@ -1,0 +1,26 @@
+commit 05ed8a00e07e93fd40cf8269bdf16d6d2b34740d
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 6 21:53:22 2025 -0800
+
+    internal/runtime/maps: prune tombstones in maps before growing
+    
+    Before growing, if there are lots of tombstones try to remove them.
+    If we can remove enough, we can continue at the given size for a
+    while longer.
+    
+    Fixes #70886
+    
+    Change-Id: I71e0d873ae118bb35798314ec25e78eaa5340d73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640955
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/runtime/maps/group.go                 |   6 ++
+ src/internal/runtime/maps/map_test.go              |  55 +++++++++++
+ src/internal/runtime/maps/runtime_fast32_swiss.go  |   5 +
+ src/internal/runtime/maps/runtime_fast64_swiss.go  |   5 +
+ src/internal/runtime/maps/runtime_faststr_swiss.go |   5 +
+ src/internal/runtime/maps/table.go                 | 101 +++++++++++++++++++++
+ 6 files changed, 177 insertions(+)

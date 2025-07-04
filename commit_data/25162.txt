@@ -1,0 +1,14 @@
+commit c6d660a330cc12849aceb27b72abc74eb54393fe
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Dec 4 16:31:20 2015 -0700
+
+    net/http: make TestRedirect also test in http2 mode
+    
+    Change-Id: Idfbe91abc11b2b3b735cd8d11fb1938f9e5c0473
+    Reviewed-on: https://go-review.googlesource.com/17437
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/request_test.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

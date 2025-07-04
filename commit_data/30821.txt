@@ -1,0 +1,16 @@
+commit 9330ef869ce9cf281ec5d78e73824a8b3a6c7c2b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 23 11:21:42 2017 -0700
+
+    cmd/compile: use Widthptr instead of Types[Tptr].Width
+    
+    Change-Id: I21e3abcfd1859f933f55fe875476dec07e43b038
+    Reviewed-on: https://go-review.googlesource.com/38466
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/dcl.go     | 2 +-
+ src/cmd/compile/internal/gc/reflect.go | 2 +-
+ src/cmd/compile/internal/gc/subr.go    | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)

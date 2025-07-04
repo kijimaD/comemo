@@ -1,0 +1,18 @@
+commit 3c7456c1b01253188be93290a1746fbeb5d4d27f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 30 16:24:07 2018 +0000
+
+    os: find Hostname using Uname to fix Android
+    
+    It's also fewer system calls. Fall back to longer read
+    only if it seems like the Uname result is truncated.
+    
+    Fixes #24701
+    
+    Change-Id: Ib6550acede8dddaf184e8fa9de36377e17bbddab
+    Reviewed-on: https://go-review.googlesource.com/110295
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/os_test.go   | 11 ++++++++++-
+ src/os/sys_linux.go | 34 +++++++++++++++++++++++++++++++---
+ 2 files changed, 41 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit abb3c0618b658a41bf91a087f1737412e93ff6d9
+Author: Patrick Mylund Nielsen <patrick@patrickmn.com>
+Date:   Mon Jun 25 20:41:46 2012 -0400
+
+    net/http: provide access to POST-only form values
+    
+    Fixes #3630.
+    
+    R=rsc
+    CC=bradfitz, dsymonds, golang-dev, rodrigo.moraes
+    https://golang.org/cl/6210067
+
+ src/pkg/net/http/request.go      | 139 ++++++++++++++++++++++++++-------------
+ src/pkg/net/http/request_test.go |  40 +++++++++--
+ 2 files changed, 129 insertions(+), 50 deletions(-)

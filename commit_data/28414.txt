@@ -1,0 +1,16 @@
+commit 79167bbd9c71017e18836a3e5e40261b57012358
+Author: Suyash <dextrous93@gmail.com>
+Date:   Wed Sep 14 22:36:58 2016 +0530
+
+    sort: add examples for sort.Search
+    
+    This adds examples showing the different ways of using sort.Search.
+    
+    Change-Id: Iaa08b4501691f37908317fdcf2e618fbe9f99ade
+    Reviewed-on: https://go-review.googlesource.com/29131
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sort/example_search_test.go | 42 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

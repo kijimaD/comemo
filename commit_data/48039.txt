@@ -1,0 +1,25 @@
+commit 41f485b9a7d8fd647c415be1d11b612063dff21c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 28 17:22:32 2022 -0500
+
+    cmd/go: rewrite TestScript/cgo_stale_precompiled to be agnostic to staleness
+    
+    The configuration set by x/build/cmd/releasebot causes runtime/cgo to
+    be stale in the darwin/amd64 release (see #36025, #35459).
+    That staleness is mostly benign because we can reasonably assume that
+    users on macOS will either disable CGO entirely or have a C compiler
+    installed to rebuild (and cache) the stale packages if needed.
+    
+    Fixes #50892
+    Fixes #50893
+    Updates #46347
+    
+    Change-Id: Ib9ce6b5014de436264238f680f7ca4ae02c9a220
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381854
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/testdata/script/cgo_stale_precompiled.txt | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

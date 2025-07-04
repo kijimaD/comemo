@@ -1,0 +1,13 @@
+commit 304d72be8c2375ff5be2e796669dcf102d825dc0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 15 15:38:16 2010 -0700
+
+    os: error in documentation
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2225041
+
+ src/pkg/os/file_unix.go    | 2 +-
+ src/pkg/os/file_windows.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

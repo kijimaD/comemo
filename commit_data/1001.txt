@@ -1,0 +1,16 @@
+commit 7112dc1db729777e4102f2799a79ebd93e1b41f7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 29 22:05:42 2008 -0700
+
+    - implemented Shr
+    - removed shift work-arounds (6g code appears to work now)
+    - made similar routines more regular in structure
+    - more tests
+    
+    R=r
+    OCL=18102
+    CL=18102
+
+ usr/gri/bignum/bignum.go      | 69 ++++++++++++++++++++-----------------------
+ usr/gri/bignum/bignum_test.go | 21 +++++++++++--
+ 2 files changed, 51 insertions(+), 39 deletions(-)

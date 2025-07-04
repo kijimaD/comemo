@@ -1,0 +1,20 @@
+commit e96fd132644953e762314c87922e217284499ca6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 30 15:12:52 2019 -0700
+
+    runtime: use correct state machine in addAdjustedTimers
+    
+    The addAdjustedTimers function was a late addition, and it got some of
+    the state machine wrong, leading to failures like
+    https://storage.googleapis.com/go-build-log/930576b6/windows-amd64-2016_53d0319e.log
+    
+    Updates #6239
+    Updates #27707
+    
+    Change-Id: I9e94e563b4698ff3035ce609055ca292b9cab3df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204280
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/time.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

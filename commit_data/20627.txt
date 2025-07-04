@@ -1,0 +1,21 @@
+commit a22424567c622ee0b111787a37e775c815d2e14b
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 3 13:23:35 2014 -0700
+
+    fmt: part 2 of the great flag rebuild: make %+v work in formatters
+    Apply a similar transformation to %+v that we did to %#v, making it
+    a top-level setting separate from the + flag itself. This fixes the
+    appearance of flags in Formatters and cleans up the code too,
+    probably making it a little faster.
+    
+    Fixes #8835.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/154820043
+
+ src/fmt/fmt_test.go | 122 ++++++++++++++++++++++------------------------------
+ src/fmt/format.go   |  48 +++++++++------------
+ src/fmt/print.go    | 111 +++++++++++++++++++++++------------------------
+ 3 files changed, 127 insertions(+), 154 deletions(-)

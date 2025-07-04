@@ -1,0 +1,15 @@
+commit e5a4211b36ca776189730de6f1ab4403dde46f46
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Feb 11 13:41:46 2014 +0400
+
+    runtime: do not profile blocked netpoll on windows
+    There is frequently a thread hanging on GQCS,
+    currently it skews profiles towards netpoll,
+    but it is not bad and is not consuming any resources.
+    
+    R=alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/61560043
+
+ src/pkg/runtime/netpoll_windows.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)

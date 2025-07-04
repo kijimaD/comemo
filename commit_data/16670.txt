@@ -1,0 +1,20 @@
+commit 1e112cd59f560129f4dca5e9af7c3cbc445850b6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jun 28 17:52:17 2013 +0400
+
+    runtime: preempt goroutines for GC
+    The last patch for preemptive scheduler,
+    with this change stoptheworld issues preemption
+    requests every 100us.
+    Update #543.
+    
+    R=golang-dev, daniel.morsing, rsc
+    CC=golang-dev
+    https://golang.org/cl/10264044
+
+ src/pkg/runtime/proc.c       | 20 +++++++++++++-------
+ src/pkg/runtime/proc_test.go | 30 ++++++++++++++++++++++++++++++
+ src/pkg/runtime/runtime.h    |  1 +
+ src/pkg/runtime/stack.c      | 24 +++++++++++++++++++++---
+ src/pkg/runtime/stack.h      | 11 ++++++-----
+ 5 files changed, 71 insertions(+), 15 deletions(-)

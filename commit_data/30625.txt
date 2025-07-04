@@ -1,0 +1,26 @@
+commit 2de773d45f202d38c981a433880e867a7b5d0745
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 10 15:09:05 2017 -0800
+
+    math/big: make nat.setUint64 vet-friendly
+    
+    nat.setUint64 is nicely generic.
+    By assuming 32- or 64-bit words, however,
+    we can write simpler code,
+    and eliminate some shifts
+    in dead code that vet complains about.
+    
+    Generated code for 64 bit systems is unaltered.
+    Generated code for 32 bit systems is much better.
+    For 386, the routine length drops from 325
+    bytes of code to 271 bytes of code, with fewer loops.
+    
+    Change-Id: I1bc14c06272dee37a7fcb48d33dd1e621eba945d
+    Reviewed-on: https://go-review.googlesource.com/38070
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/vet/all/whitelist/64bit.txt |  2 --
+ src/math/big/nat.go                 | 20 +++++---------------
+ 2 files changed, 5 insertions(+), 17 deletions(-)

@@ -1,0 +1,20 @@
+commit 83c73a85db84a04c8e60e52cfa348fc6b675fbf7
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 6 21:08:21 2016 -0700
+
+    cmd/compile: ignore contentEscapes for marking nodes as escaping
+    
+    Redo of CL 28575 with fixed test.
+    We're in a pre-KeepAlive world for a bit yet, the old tests
+    were in a client which was in a post-KeepAlive world.
+    
+    Change-Id: I114fd630339d761ab3306d1d99718d3cb973678d
+    Reviewed-on: https://go-review.googlesource.com/28582
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go |  2 +-
+ test/live.go                       | 11 +++++++++++
+ test/live_ssa.go                   |  9 +++++++++
+ 3 files changed, 21 insertions(+), 1 deletion(-)

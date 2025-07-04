@@ -1,0 +1,15 @@
+commit eac86fd3f0edb3a82d51c3ced90a73fd17e22d81
+Author: Jeff Hodges <jeff@somethingsimilar.com>
+Date:   Mon Feb 6 11:26:15 2012 -0500
+
+    cmd/go: pass env CGO_CFLAGS to cgo
+    
+    Passing the CGO_CFLAGS to cgo is required to make alternative include
+    directories work when building a cgo project.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5635048
+
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,45 @@
+commit b4be65bc7f56ed7ee19bbe8c18fb2a35e08bedca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 9 11:20:09 2012 -0800
+
+    math/big: simplify fast string conversion
+    
+    - use slice ops for convertWords instead of lo/hi boundaries
+    - always compute leading zeroes (simplifies logic significantly),
+      but remove them once, at the end (since leafSize is small, the
+      worst-case scenario is not adding significant overhead)
+    - various comment cleanups (specifically, replaced direct -> iterative,
+      and indirect -> recursive)
+    - slightly faster overall for -bench=String
+    
+    (This CL incorporates the changes re: my comments to CL 5418047
+    https://golang.org/cl/5418047/ )
+    
+    benchmark                          old ns/op    new ns/op    delta
+    big.BenchmarkString10Base2               519          527   +1.54%
+    big.BenchmarkString100Base2             2279         2158   -5.31%
+    big.BenchmarkString1000Base2           18475        17323   -6.24%
+    big.BenchmarkString10000Base2         178248       166219   -6.75%
+    big.BenchmarkString100000Base2       1548494      1431587   -7.55%
+    big.BenchmarkString10Base8               415          422   +1.69%
+    big.BenchmarkString100Base8             1025          978   -4.59%
+    big.BenchmarkString1000Base8            6822         6428   -5.78%
+    big.BenchmarkString10000Base8          64598        61065   -5.47%
+    big.BenchmarkString100000Base8        593788       549150   -7.52%
+    big.BenchmarkString10Base10              654          645   -1.38%
+    big.BenchmarkString100Base10            1863         1835   -1.50%
+    big.BenchmarkString1000Base10          12099        11981   -0.98%
+    big.BenchmarkString10000Base10         57601        56888   -1.24%
+    big.BenchmarkString100000Base10     20123120     19827890   -1.47%
+    big.BenchmarkString10Base16              358          362   +1.12%
+    big.BenchmarkString100Base16             815          776   -4.79%
+    big.BenchmarkString1000Base16           4710         4421   -6.14%
+    big.BenchmarkString10000Base16         43938        40968   -6.76%
+    big.BenchmarkString100000Base16       406307       373930   -7.97%
+    
+    R=michael.jones, mtj
+    CC=golang-dev
+    https://golang.org/cl/5432090
+
+ src/pkg/math/big/nat.go | 190 +++++++++++++++++++++++-------------------------
+ 1 file changed, 89 insertions(+), 101 deletions(-)

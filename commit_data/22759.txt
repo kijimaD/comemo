@@ -1,0 +1,15 @@
+commit edac5d91445c6d29b2a83d5396654d6038564463
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 29 07:36:16 2015 +0900
+
+    net: rename dialgoogle_test.go to external_test.go
+    
+    In the followup changes, tests that require external facilities such as
+    DNS servers and RRs will move into external_test.go.
+    
+    Change-Id: Ib460b0c51961159830357652dbf5430e1ba01514
+    Reviewed-on: https://go-review.googlesource.com/9461
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/net/{dialgoogle_test.go => external_test.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

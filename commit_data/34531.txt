@@ -1,0 +1,25 @@
+commit 2e9cf5f66e4dccbb9676ebbabd7d36db4f2825a1
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 10 17:39:43 2018 -0500
+
+    cmd/compile: simplify limit logic in prove
+    
+    This replaces the open-coded intersection of limits in the prove pass
+    with a general limit intersection operation. This should get identical
+    results except in one case where it's more precise: when handling an
+    equality relation, if the value is *outside* the existing range, this
+    will reduce the range to empty rather than resetting it. This will be
+    important to a follow-up CL where we can take advantage of empty
+    ranges.
+    
+    For #23354.
+    
+    Change-Id: I3d3d75924f61b1da1cb604b3a9d189b26fb3a14e
+    Reviewed-on: https://go-review.googlesource.com/87477
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
+
+ src/cmd/compile/internal/ssa/prove.go | 54 ++++++++++++++++++-----------------
+ 1 file changed, 28 insertions(+), 26 deletions(-)

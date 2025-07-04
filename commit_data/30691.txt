@@ -1,0 +1,20 @@
+commit 3c7a812485334eb57c0856e6b152aa3d50f9f0a0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 16 17:07:26 2017 -0700
+
+    cmd/compile: eliminate "assignment count mismatch" - not needed anymore
+    
+    See https://go-review.googlesource.com/#/c/38313/ for background.
+    It turns out that only a few tests checked for this.
+    
+    The new error message is shorter and very clear.
+    
+    Change-Id: I8ab4ad59fb023c8b54806339adc23aefd7dc7b07
+    Reviewed-on: https://go-review.googlesource.com/38314
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ test/fixedbugs/bug289.go                 | 4 ++--
+ test/fixedbugs/bug487.go                 | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,18 @@
+commit 143f3b38f5fe48d33bff8f76728739694b3e060f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 15 13:54:19 2011 -0500
+
+    go: help messages for 'go test'
+    
+    The plan is to make 'go test' replace gotest entirely, so it
+    cannot refer to gotest's godoc.  Instead, copy gotest's
+    documentation in as three different help messages:
+    'go help test', 'go help testflag', and 'go help testfunc'.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5491048
+
+ src/cmd/go/main.go |   2 +
+ src/cmd/go/test.go | 141 +++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 139 insertions(+), 4 deletions(-)

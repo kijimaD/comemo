@@ -1,0 +1,17 @@
+commit 495b3db88b6e556893b8b6c8aa2ff832911698da
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Sep 24 08:32:59 2009 -0700
+
+    Fix declared and not used errors in ogle.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=8  (0 added, 2 deleted, 6 changed)
+    OCL=34854
+    CL=34965
+
+ usr/austin/ogle/cmd.go    | 7 +++----
+ usr/austin/ogle/rtype.go  | 4 ++--
+ usr/austin/ogle/rvalue.go | 1 -
+ usr/austin/ogle/vars.go   | 2 +-
+ 4 files changed, 6 insertions(+), 8 deletions(-)

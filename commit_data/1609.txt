@@ -1,0 +1,12 @@
+commit c55d310cd20d1289894de0432a0e83fa2c0eae1a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 3 15:58:13 2009 -0800
+
+    fix build.  missed this file
+    
+    TBR=r
+    OCL=24269
+    CL=24269
+
+ src/lib/http/Makefile | 15 ++++-----------
+ 1 file changed, 4 insertions(+), 11 deletions(-)

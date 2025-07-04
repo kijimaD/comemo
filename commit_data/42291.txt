@@ -1,0 +1,19 @@
+commit e538b7e931c209706c3e8c1b0c2d53dab651b965
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue May 5 00:11:00 2020 -0400
+
+    net/http/cgi: reject invalid header names
+    
+    Being lenient on those has caused enough security issues.
+    
+    Spun out of CL 231419.
+    
+    Fixes #38889
+    
+    Change-Id: Idd3bc6adc22e08a30b3dabb146ce78d4105684cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232277
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/deps_test.go | 2 +-
+ src/net/http/cgi/host.go  | 7 ++++++-
+ 2 files changed, 7 insertions(+), 2 deletions(-)

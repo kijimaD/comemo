@@ -1,0 +1,23 @@
+commit cd682f3832629e600e497c4a9b37209f4aeed5dc
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Sat Mar 24 18:07:58 2018 +0200
+
+    runtime: improve Windows gdb tests
+    
+    This ensures that gdb tests run on Windows by ignoring any line ending.
+    
+    Works with gdb 7.7, however with gdb 7.9 and 7.12 gets an error
+    error:
+    
+        internal-error: buildsym_init: Assertion `free_pendings == NULL'
+        failed.
+    
+    Updates #21380
+    
+    Change-Id: I6a6e5b2a1b5efdca4dfce009fcb9c134c87497d6
+    Reviewed-on: https://go-review.googlesource.com/102419
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/runtime-gdb_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

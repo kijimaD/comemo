@@ -1,0 +1,12 @@
+commit ec80737bdf5986983cca0afda614441ec9cae104
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Dec 5 11:10:58 2016 +1100
+
+    doc: debug/pe.Section is not new, Section.Relocs field is
+    
+    Change-Id: Ie50d68f87670de6c199016ebdc740c11ee636e9a
+    Reviewed-on: https://go-review.googlesource.com/33931
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

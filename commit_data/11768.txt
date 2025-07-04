@@ -1,0 +1,14 @@
+commit 5d198bf8661be6ad0659793eebaec0ab587eb876
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 10 14:52:08 2012 +1100
+
+    os/exec: add Cmd.Waitmsg, fix a misleading comment
+    
+    Fixes #2948
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5655048
+
+ src/pkg/os/exec/exec.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

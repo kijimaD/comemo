@@ -1,0 +1,18 @@
+commit e95989c1c1251d479e92a84180dd50384afdec8b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 22 11:21:35 2017 -0700
+
+    cmd/compile/internal/gc: remove unnecessary bitvector in plive
+    
+    In livenessepilogue, if we save liveness information for instructions
+    before updating liveout, we can avoid an extra bitvector temporary and
+    some extra copying around.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I10d5803167ef3eba2e9e95094adc7e3d33929cc7
+    Reviewed-on: https://go-review.googlesource.com/38408
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/plive.go | 54 +++++++++++++++---------------------
+ 1 file changed, 22 insertions(+), 32 deletions(-)

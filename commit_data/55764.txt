@@ -1,0 +1,24 @@
+commit b6753baaedf6ae932c3ad4af1451163045e7ff84
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 15 15:30:16 2024 -0500
+
+    cmd/compile: compile len(ch) as call to runtime.chanlen
+    
+    An upcoming CL will give this call more to do.
+    For now, separate out the compiler change that
+    stops inlining the computation.
+    
+    Change-Id: I4c5cbd84a0694b306191bff38cc6ea2d69458d7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564556
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go             |   3 +
+ .../internal/typecheck/_builtin/coverage.go        |   1 +
+ .../compile/internal/typecheck/_builtin/runtime.go |   4 +-
+ src/cmd/compile/internal/typecheck/builtin.go      | 267 +++++++++++----------
+ src/cmd/compile/internal/walk/builtin.go           |  17 +-
+ src/runtime/chan.go                                |  13 +-
+ 6 files changed, 163 insertions(+), 142 deletions(-)

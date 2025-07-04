@@ -1,0 +1,42 @@
+commit ad989c7dbad8227a0e6944802f0557e625807bb2
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Apr 28 02:12:17 2021 -0400
+
+    crypto/cipher: make AES-GCM benchmarks match ChaCha20Poly1305 ones
+    
+    It's useful to compare TLS AEADs. Here are the numbers on my MacBook
+    with an Intel(R) Core(TM) i7-7920HQ CPU @ 3.10GHz.
+    
+    name                            speed
+    AESGCM/Open-128-64-8             692MB/s ± 2%
+    AESGCM/Seal-128-64-8             568MB/s ± 1%
+    AESGCM/Open-128-1350-8          3.96GB/s ± 1%
+    AESGCM/Seal-128-1350-8          3.17GB/s ± 4%
+    AESGCM/Open-128-8192-8          5.46GB/s ± 2%
+    AESGCM/Seal-128-8192-8          4.40GB/s ± 3%
+    
+    name                            speed
+    AESGCM/Open-256-64-8             602MB/s ± 2%
+    AESGCM/Seal-256-64-8             508MB/s ± 1%
+    AESGCM/Open-256-1350-8          3.06GB/s ± 1%
+    AESGCM/Seal-256-1350-8          2.65GB/s ± 2%
+    AESGCM/Open-256-8192-8          4.02GB/s ± 3%
+    AESGCM/Seal-256-8192-8          3.53GB/s ± 2%
+    
+    name                            speed
+    Chacha20Poly1305/Open-64-8       385MB/s ± 3%
+    Chacha20Poly1305/Seal-64-8       396MB/s ± 3%
+    Chacha20Poly1305/Open-1350-8    1.67GB/s ± 2%
+    Chacha20Poly1305/Seal-1350-8    1.62GB/s ± 1%
+    Chacha20Poly1305/Open-8192-8    2.04GB/s ± 2%
+    Chacha20Poly1305/Seal-8192-8    2.04GB/s ± 3%
+    
+    Change-Id: I9373ab85bf132b45b41078205259100fa2d46dda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314610
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/cipher/benchmark_test.go | 68 ++++++++++++++-----------------------
+ 1 file changed, 26 insertions(+), 42 deletions(-)

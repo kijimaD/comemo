@@ -1,0 +1,14 @@
+commit ab2a0803383f0f019db0b2252095f2fdb7735cea
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 11 04:57:14 2019 +0000
+
+    doc: document Go 1.12.4 and Go 1.11.9
+    
+    Updates #31293
+    
+    Change-Id: I3d72f732be7b28059310ea6fc134c3bfac81492d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171578
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/devel/release.html | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)

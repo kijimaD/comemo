@@ -1,0 +1,21 @@
+commit 69623890cce1380c828716f6c71fe7af3ccfa4b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 2 23:02:20 2009 -0700
+
+    for consistency with syscall, rename files
+    from GOARCH_GOOS -> GOOS_GOARCH.
+    
+    update os_test and add test of Time.
+    
+    R=r
+    DELTA=490  (247 added, 233 deleted, 10 changed)
+    OCL=29730
+    CL=29805
+
+ src/lib/os/Makefile                                | 10 ++++-----
+ .../{dir_amd64_darwin.go => dir_darwin_amd64.go}   |  0
+ .../os/{dir_amd64_linux.go => dir_linux_amd64.go}  |  0
+ src/lib/os/os_test.go                              | 24 +++++++++++++++++-----
+ .../{stat_amd64_darwin.go => stat_darwin_amd64.go} |  0
+ .../{stat_amd64_linux.go => stat_linux_amd64.go}   |  0
+ 6 files changed, 24 insertions(+), 10 deletions(-)

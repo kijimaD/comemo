@@ -1,0 +1,12 @@
+commit bdeebf4907cba7d6328d04bdfacf49aa2430831f
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Thu Aug 19 00:09:11 2010 -0400
+
+    clean.bash: fix standalone runs
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1933043
+
+ src/clean.bash | 17 ++++++-----------
+ 1 file changed, 6 insertions(+), 11 deletions(-)

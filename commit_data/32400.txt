@@ -1,0 +1,18 @@
+commit 1a2ac46edd162366e685a5fb782cd20adc1e36fa
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sun Aug 20 18:57:18 2017 +0200
+
+    misc/ios: add support for device ids to the exec wrapper
+    
+    If set, GOIOS_DEVICE_ID specifies the device id for the iOS exec
+    wrapper. With that, a single builder can host multiple iOS devices.
+    
+    Change-Id: If3cc049552f5edbd7344befda7b8d7f73b4236e2
+    Reviewed-on: https://go-review.googlesource.com/57296
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: JBD <jbd@google.com>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

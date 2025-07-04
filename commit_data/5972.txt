@@ -1,0 +1,18 @@
+commit c8c2bdbc59900a1641c08dc09abfdf6d1b3c873a
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Fri Aug 6 16:50:48 2010 -0700
+
+    math: fix amd64 Hypot.
+    Underflow/overflow tests for exp_amd64.s
+    
+    Fixes #957.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1817041
+
+ src/pkg/math/Makefile      |  1 +
+ src/pkg/math/all_test.go   |  9 +++++
+ src/pkg/math/exp_amd64.s   | 92 +++++++++++++++++++++++++---------------------
+ src/pkg/math/hypot_amd64.s | 50 +++++++++++++++++++++++++
+ 4 files changed, 110 insertions(+), 42 deletions(-)

@@ -1,0 +1,21 @@
+commit db1fef7b2afd12625e3edd90f879e5d05511d1d6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 10 17:51:27 2016 -0700
+
+    cmd/go: for -msan build runtime/cgo with -fsanitize=memory
+    
+    The go tool used to avoid passing -fsanitize=memory when building
+    runtime/cgo. That was originally to avoid an msan error, but that error
+    was fixed anyhow for issue #13815. And building runtime/cgo with
+    -fsanitize=memory corrects the handling of the context traceback
+    function when the traceback function itself is built with
+    -fsanitize=memory.
+    
+    Change-Id: I4bf5c3d21de6b2eb540600435ae47f5820d17464
+    Reviewed-on: https://go-review.googlesource.com/24855
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

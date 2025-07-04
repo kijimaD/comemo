@@ -1,0 +1,15 @@
+commit 6a10f720f2f3bd48f37c5d357c41e02c8722033a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 23 10:57:21 2015 -0800
+
+    math/big: don't return io.EOF on successful call of ParseFloat
+    
+    Fixes $9938.
+    
+    Change-Id: Ie8680a875225748abd660fb26b4c25546e7b92d3
+    Reviewed-on: https://go-review.googlesource.com/5620
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/floatconv.go      | 17 +++++++----------
+ src/math/big/floatconv_test.go |  6 ++----
+ 2 files changed, 9 insertions(+), 14 deletions(-)

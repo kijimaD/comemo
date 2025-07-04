@@ -1,0 +1,25 @@
+commit aa29cd98dcbc539f2517457a2cdfb8db3f9ff468
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 7 10:23:02 2014 +0900
+
+    syscall: fix build on freebsd/arm
+    
+    This CL is in preparation to make cgo work on freebsd/arm.
+    
+    It's just for fixing build fails on freebsd/arm, we still need to
+    update z-files later for fixing several package test fails.
+    
+    How to generate z-files on freebsd/arm in the bootstrapping phase:
+    1. run freebsd on appropriate arm-eabi platforms
+    2. both syscall z-files and runtime def-files in the current tree are
+       broken about EABI padding, fix them by hand
+    3. run make.bash again to build $GOTOOLDIR/cgo
+    4. use $GOTOOLDIR/cgo directly
+    
+    LGTM=iant
+    R=iant, dave
+    CC=golang-codereviews
+    https://golang.org/cl/59490052
+
+ src/pkg/syscall/ztypes_freebsd_arm.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

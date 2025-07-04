@@ -1,0 +1,17 @@
+commit e643dc79d4d9c9d6cd680351a8d3aab5de531903
+Author: Tarmigan Casebolt <tarmigan@gmail.com>
+Date:   Sun Aug 23 19:51:31 2015 -0700
+
+    net: check 'ok' return in dnsmsg when initially packing rr.Header()
+    
+    In the present code, there is no way for ok to ever return false, but
+    it still a good idea to check it.
+    
+    Change-Id: I8f360018b33a5d85dabbbbec0f89ffc81f77ecbb
+    Reviewed-on: https://go-review.googlesource.com/13956
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/dnsmsg.go | 3 +++
+ 1 file changed, 3 insertions(+)

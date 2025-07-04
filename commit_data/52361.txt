@@ -1,0 +1,22 @@
+commit 8e19d2bbaf787600b9ee26949dbb719bf719d583
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 21 13:59:24 2023 -0700
+
+    cmd/compile/internal/types2: respect commaerr in Checker.exprList
+    
+    The changes to exprList (in call.go), made in CL 282193, didn't
+    get faithfully ported to types2: in the case of operand mode
+    commaerr, unpacking didn't correctly set the type of the 2nd
+    value to error. This shouldn't matter for the compiler, but
+    the code differs from the go/types version. Make them the same.
+    
+    Change-Id: I6f69575f9ad4f43169b851dffeed85c19588a261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478255
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/call.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

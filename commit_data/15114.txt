@@ -1,0 +1,16 @@
+commit 97916f11548110b282c460aa9f939bac139ca99c
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Mon Feb 4 12:37:18 2013 +1100
+
+    archive/tar: Add reader and writer code example.
+    
+    Remove the previous comment examples.
+    
+    R=golang-dev, minux.ma, adg
+    CC=golang-dev
+    https://golang.org/cl/7220048
+
+ src/pkg/archive/tar/example_test.go | 75 +++++++++++++++++++++++++++++++++++++
+ src/pkg/archive/tar/reader.go       | 14 -------
+ src/pkg/archive/tar/writer.go       | 11 ------
+ 3 files changed, 75 insertions(+), 25 deletions(-)

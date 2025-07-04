@@ -1,0 +1,54 @@
+commit 32ecf57d22cfdf3af9419db515eba85fa1d5b67d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 4 00:10:10 2014 -0400
+
+    runtime: reject onM calls from gsignal stack
+    
+    The implementation and use patterns of onM assume
+    that they run on either the m->curg or m->g0 stack.
+    
+    Calling onM from m->gsignal has two problems:
+    
+    (1) When not on g0, onM switches to g0 and then "back" to curg.
+    If we didn't start at curg, bad things happen.
+    
+    (2) The use of scalararg/ptrarg to pass C arguments and results
+    assumes that there is only one onM call at a time.
+    If a gsignal starts running, it may have interrupted the
+    setup/teardown of the args for an onM on the curg or g0 stack.
+    Using scalararg/ptrarg itself would smash those.
+    
+    We can fix (1) by remembering what g was running before the switch.
+    
+    We can fix (2) by requiring that uses of onM that might happen
+    on a signal handling stack must save the old scalararg/ptrarg
+    and restore them after the call, instead of zeroing them.
+    The only sane way to do this is to introduce a separate
+    onM_signalsafe that omits the signal check, and then if you
+    see a call to onM_signalsafe you know the surrounding code
+    must preserve the old scalararg/ptrarg values.
+    (The implementation would be that onM_signalsafe just calls
+    fn if on the signal stack or else jumps to onM. It's not necessary
+    to have two whole copies of the function.)
+    
+    (2) is not a problem if the caller and callee are both Go and
+    a closure is used instead of the scalararg/ptrarg slots.
+    
+    For now, I think we can avoid calling onM from code executing
+    on gsignal stacks, so just reject it.
+    
+    In the long term, (2) goes away (as do the scalararg/ptrarg slots)
+    once everything is in Go, and at that point fixing (1) would be
+    trivial and maybe worth doing just for regularity.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=dvyukov, golang-codereviews, khr, r
+    https://golang.org/cl/135400043
+
+ src/pkg/runtime/asm_386.s      | 14 +++++++++---
+ src/pkg/runtime/asm_amd64.s    | 14 +++++++++---
+ src/pkg/runtime/asm_amd64p32.s | 14 +++++++++---
+ src/pkg/runtime/asm_arm.s      | 16 +++++++++----
+ src/pkg/runtime/stubs.go       | 52 ++++++++++++++++++++++++++++++++++++------
+ 5 files changed, 90 insertions(+), 20 deletions(-)

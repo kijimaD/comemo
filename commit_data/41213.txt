@@ -1,0 +1,15 @@
+commit eadf8b20bc13d663ca7c57ab6e01eee31febdaa5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 30 16:42:21 2020 -0800
+
+    doc/go1.14: mention new method encoding/json.Decoder.InputOffset
+    
+    Updates #29688
+    Updates #36878
+    
+    Change-Id: I230889ec3f1c183dc5adbc662a39a791c0488497
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217123
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+
+ doc/go1.14.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,0 +1,26 @@
+commit c9d2c7f0d26a9619069a3cb2291333174b6db63f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 10:54:53 2015 -0400
+
+    runtime: replace divide with multiply in runtime.usleep on arm
+    
+    We want to adjust the DIV calling convention to use m,
+    and usleep can be called without an m, so switch to a
+    multiplication by the reciprocal (and test).
+    
+    Step toward a fix for #6699 and #10486.
+    
+    Change-Id: Iccf76a18432d835e48ec64a2fa34a0e4d6d4b955
+    Reviewed-on: https://go-review.googlesource.com/12898
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/asm_arm.s          | 21 +++++++++++++++++++++
+ src/runtime/export_arm_test.go |  9 +++++++++
+ src/runtime/sys_arm.go         |  3 +++
+ src/runtime/sys_darwin_arm.s   |  5 +----
+ src/runtime/sys_freebsd_arm.s  |  7 ++-----
+ src/runtime/sys_linux_arm.s    |  5 +----
+ src/runtime/sys_netbsd_arm.s   |  7 ++-----
+ src/runtime/sys_openbsd_arm.s  |  7 ++-----
+ src/runtime/vlop_arm_test.go   | 16 +++++++++++++++-
+ 9 files changed, 56 insertions(+), 24 deletions(-)

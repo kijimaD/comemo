@@ -1,0 +1,37 @@
+commit 411c99671a6c6b6f59abe81d872db6daf2e1738a
+Author: Ben Hoyt <benhoyt@gmail.com>
+Date:   Fri Jun 23 00:35:45 2023 +1200
+
+    slices, maps: add examples; doc comment fixes
+    
+    There are currently no examples in the new slices and maps package, so
+    add some. This adds examples for most functions in the slices package
+    except the very obvious ones, and adds examples for the DeleteFunc and
+    EqualFunc functions in the maps package.
+    
+    Also clarify/correct a few doc comments:
+    
+    * EqualFunc takes an "equality" function, not a "comparison" function
+    * It's confusing for Delete and DeleteFunc to say they "do not create a
+      new slice", as they do return a new slice. They already say they
+      "return the modified slice" which is enough.
+    * Similar for Compact, and mention that it returns the modified slice
+      (and say why)
+    * Note that CompactFunc keeps the first element in equal runs
+    * Say what cmp is in SortStableFunc and IsSortedFunc
+    * Say that MinFunc and MaxFunc return the first value
+    
+    Change-Id: I59c7bb1c7cabc4986d81018a5aaf5b712d3310f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505095
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/maps/example_test.go   |  45 +++++++
+ src/slices/example_test.go | 322 +++++++++++++++++++++++++++++++++++++++++++++
+ src/slices/slices.go       |  11 +-
+ src/slices/sort.go         |   4 +-
+ 4 files changed, 374 insertions(+), 8 deletions(-)

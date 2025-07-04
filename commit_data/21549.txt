@@ -1,0 +1,12 @@
+commit a9a6757c64329cb8e14a5a88df4371089b79644b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 10 19:27:29 2015 +0900
+
+    net: update documentation for WriteMsgUDP
+    
+    Change-Id: I69f24887601e491d6d722bfeb2952d927df8ad80
+    Reviewed-on: https://go-review.googlesource.com/4351
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/udpsock_plan9.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

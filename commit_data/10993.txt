@@ -1,0 +1,14 @@
+commit 3800b14071643951643f0b681b329b4ed30c0b98
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 22 22:24:34 2011 -0500
+
+    runtime: delete old asm_*.h if still around
+    
+    Fixes bug Robert ran into.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5501070
+
+ src/pkg/runtime/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 0c02bd18011c4290b27c3dc70ec2e762c6dcaffc
+Author: Eoghan Sherry <ejsherry@gmail.com>
+Date:   Sat Jan 8 21:24:44 2011 -0800
+
+    time: fix tick accuracy when using multiple Tickers
+    
+    * correctly ignore obsolete ticks
+    * fix update of next alarm time
+    * tighten alarm channel buffers
+    Fixes #1379.
+    
+    R=r, adg, r2
+    CC=golang-dev, soul9
+    https://golang.org/cl/3789045
+
+ src/pkg/time/tick.go | 30 ++++++++----------------------
+ 1 file changed, 8 insertions(+), 22 deletions(-)

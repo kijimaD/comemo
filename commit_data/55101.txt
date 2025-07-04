@@ -1,0 +1,25 @@
+commit 3548f9a01f12f691f32ea7f0279b7949650e69b7
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Nov 20 13:16:13 2023 -0800
+
+    os: remove useless if from Wait on unix
+    
+    Back in the day, Wait used to accept options argument.
+    
+    CL 4962042 fixed the issue of setting process.done flag when WNOHANG
+    option was used.
+    
+    Later, CL 5688046 removed options argument from Wait, but did not remove
+    pid1 != 0 check which was meant to be used with WNOHANG only.
+    
+    Remove the check, which is useless and also confusing.
+    
+    Change-Id: I73b9ef4a0dbe35466e659ca58b896d515ba86d02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543736
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/os/exec_unix.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

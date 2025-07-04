@@ -1,0 +1,93 @@
+commit 7ae9561610200beab11a1a6380a1d0f245262296
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Aug 11 18:58:58 2017 -0700
+
+    archive/tar: implement specialized logic for PAX format
+    
+    Rather than going through writeHeader, which attempts to handle all formats,
+    implement writePAXHeader, which only has an understanding of the PAX format.
+    
+    In PAX, the USTAR header is filled out in a best-effort manner.
+    Thus, we change logic of formatString and formatOctal to try their best to
+    output something (possibly truncated) in the event of an error.
+    
+    The new implementation of PAX headers causes several tests to fail.
+    An investigation into the new output reveals that the new behavior is correct,
+    while the tests had actually locked in incorrect behavior before.
+    
+    A dump of the differences is listed below (-before, +after):
+    
+    << writer-big.tar >>
+    
+    This change is due to fact that we changed the Header.Devminor to force the
+    tar.Writer to choose the GNU format over the PAX one.
+    The ability to control the output is an open issue (see #18710).
+    - 00000150  00 30 30 30 30 30 30 30  00 00 00 00 00 00 00 00  |.0000000........|
+    + 00000150  00 ff ff ff ff ff ff ff  ff 00 00 00 00 00 00 00  |................|
+    
+    << writer-big-long.tar>>
+    
+    The previous logic generated the GNU magic values for a PAX file.
+    The new logic correctly uses the USTAR magic values.
+    - 00000100  00 75 73 74 61 72 20 20  00 00 00 00 00 00 00 00  |.ustar  ........|
+    - 00000500  00 75 73 74 61 72 20 20  00 67 75 69 6c 6c 61 75  |.ustar  .guillau|
+    + 00000100  00 75 73 74 61 72 00 30  30 00 00 00 00 00 00 00  |.ustar.00.......|
+    + 00000500  00 75 73 74 61 72 00 30  30 67 75 69 6c 6c 61 75  |.ustar.00guillau|
+    
+    The previous logic tried to use the specified timestmap in the PAX headers file,
+    but this is problematic as this timestamp can overflow, defeating the point
+    of using PAX, which is intended to extend tar.
+    The new logic uses the zero timestamp similar to what GNU and BSD tar do.
+    - 00000080  30 30 30 30 32 33 32 00  31 32 33 33 32 37 37 30  |0000232.12332770|
+    + 00000080  30 30 30 30 32 35 36 00  30 30 30 30 30 30 30 30  |0000256.00000000|
+    
+    The previous logic populated the devminor and devmajor fields.
+    The new logic leaves them zeroed just like what GNU and BSD tar do.
+    - 00000140  00 00 00 00 00 00 00 00  00 30 30 30 30 30 30 30  |.........0000000|
+    - 00000150  00 30 30 30 30 30 30 30  00 00 00 00 00 00 00 00  |.0000000........|
+    + 00000140  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    + 00000150  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    
+    The previous logic uses PAX headers, but fails to add a record for the size.
+    The new logic does properly add a record for the size.
+    - 00000290  31 36 67 69 67 2e 74 78  74 0a 00 00 00 00 00 00  |16gig.txt.......|
+    - 000002a0  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    + 00000290  31 36 67 69 67 2e 74 78  74 0a 32 30 20 73 69 7a  |16gig.txt.20 siz|
+    + 000002a0  65 3d 31 37 31 37 39 38  36 39 31 38 34 0a 00 00  |e=17179869184...|
+    
+    The previous logic encoded the size as a base-256 field,
+    which is only valid in GNU, but the previous PAX headers implies this should
+    be a PAX file. This result in a strange hybrid that is neither GNU nor PAX.
+    The new logic uses PAX headers to store the size.
+    - 00000470  37 35 30 00 30 30 30 31  37 35 30 00 80 00 00 00  |750.0001750.....|
+    - 00000480  00 00 00 04 00 00 00 00  31 32 33 33 32 37 37 30  |........12332770|
+    + 00000470  37 35 30 00 30 30 30 31  37 35 30 00 30 30 30 30  |750.0001750.0000|
+    + 00000480  30 30 30 30 30 30 30 00  31 32 33 33 32 37 37 30  |0000000.12332770|
+    
+    << ustar.issue12594.tar >>
+    
+    The previous logic used the specified timestamp for the PAX headers file.
+    The new logic just uses the zero timestmap.
+    - 00000080  30 30 30 30 32 33 31 00  31 32 31 30 34 34 30 32  |0000231.12104402|
+    + 00000080  30 30 30 30 32 33 31 00  30 30 30 30 30 30 30 30  |0000231.00000000|
+    
+    The previous logic populated the devminor and devmajor fields.
+    The new logic leaves them zeroed just like what GNU and BSD tar do.
+    - 00000140  00 00 00 00 00 00 00 00  00 30 30 30 30 30 30 30  |.........0000000|
+    - 00000150  00 30 30 30 30 30 30 30  00 00 00 00 00 00 00 00  |.0000000........|
+    + 00000140  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    + 00000150  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    
+    Change-Id: I33419eb1124951968e9d5a10d50027e03133c811
+    Reviewed-on: https://go-review.googlesource.com/55231
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/strconv.go                    |  16 +++--
+ src/archive/tar/testdata/ustar.issue12594.tar | Bin 3072 -> 3072 bytes
+ src/archive/tar/testdata/writer-big-long.tar  | Bin 4096 -> 4096 bytes
+ src/archive/tar/testdata/writer-big.tar       | Bin 4096 -> 4096 bytes
+ src/archive/tar/writer.go                     |  86 +++++++++++++++++++++++---
+ src/archive/tar/writer_test.go                |   1 +
+ 6 files changed, 90 insertions(+), 13 deletions(-)

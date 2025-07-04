@@ -1,0 +1,18 @@
+commit 8a9d4184e6e175194e262bde5fe321838b5d40c4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 17 17:41:44 2017 -0700
+
+    runtime: simplify evacuate's handling of NaNs
+    
+    The new code is not quite equivalent to the old,
+    in that if newbit was very large it might have altered the new tophash.
+    The old behavior is unnecessary and probably undesirable.
+    
+    Change-Id: I7fb3222520cb61081a857adcddfbb9078ead7122
+    Reviewed-on: https://go-review.googlesource.com/56930
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

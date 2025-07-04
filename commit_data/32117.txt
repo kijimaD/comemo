@@ -1,0 +1,17 @@
+commit c4ee0e2a8b0fa493a59fc97e162dede7849cfd44
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Aug 6 16:15:05 2017 +0200
+
+    internal/cpu: fix style nit in variable name
+    
+    Consistent with similar change of style in the crypto repository:
+    http://golang.org/cl/43511
+    
+    Change-Id: Ib158c52a2649dcbbe9eb92f2bdb9d289e0dcc7bf
+    Reviewed-on: https://go-review.googlesource.com/53474
+    Reviewed-by: Han-Wen Nienhuys <hanwen@google.com>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/cpu/cpu_x86.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

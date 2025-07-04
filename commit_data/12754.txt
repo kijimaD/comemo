@@ -1,0 +1,29 @@
+commit 53907221007ebf42cca9ef945550f59ef4478c8c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 26 11:26:05 2012 -0700
+
+    exp/types: generalized GCImporter API.
+    
+    - Renamed ExportData -> FindGcExportData
+      and base it on an a bufio.Reader rather
+      than a filename so it can be used in
+      environments where object files are
+      stored elsewhere.
+    
+    - Factor former GcImporter into GcImportData
+      and GcImport. Implementations with different
+      storage locations for object files can build
+      a customized GcImport using GcImportData.
+    
+    This is pkg/exp only - no impact on Go 1.
+    
+    R=golang-dev, lvd, rsc
+    CC=golang-dev
+    https://golang.org/cl/5574069
+
+ src/pkg/exp/gotype/gotype.go         |   2 +-
+ src/pkg/exp/types/check_test.go      |   2 +-
+ src/pkg/exp/types/exportdata.go      |  52 ++++--------
+ src/pkg/exp/types/gcimporter.go      | 157 ++++++++++++++++++++++-------------
+ src/pkg/exp/types/gcimporter_test.go |  18 ++--
+ 5 files changed, 124 insertions(+), 107 deletions(-)

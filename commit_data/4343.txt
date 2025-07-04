@@ -1,0 +1,11 @@
+commit 8c22dd24e0e5aa847bd56dc7e573092f8652e3c5
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Mon Dec 7 11:31:56 2009 -0800
+
+    Remove copyBytes completely in favor of copy.
+    
+    R=r, rsc
+    https://golang.org/cl/165068
+
+ src/pkg/bytes/buffer.go | 13 ++-----------
+ 1 file changed, 2 insertions(+), 11 deletions(-)

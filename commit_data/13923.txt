@@ -1,0 +1,13 @@
+commit 93cf366d50fc3b98f98cfb88c33430077be49724
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 24 09:49:31 2012 -0700
+
+    A+C: Add Shivakumar GN (Individual CLA)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6541062
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

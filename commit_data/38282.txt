@@ -1,0 +1,17 @@
+commit a6436a5655f56bb904871fece7db43a3ad3bf415
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 6 17:31:04 2019 -0800
+
+    cmd/cgo: use explicit type for arg with bad pointer typedef
+    
+    Fixes #30646
+    
+    Change-Id: I5b7e986b0588e87b9781cce01445e3c55c06b6fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165897
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cgo/gcc.go  | 6 +++++-
+ src/cmd/cgo/main.go | 1 +
+ 2 files changed, 6 insertions(+), 1 deletion(-)

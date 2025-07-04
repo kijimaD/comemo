@@ -1,0 +1,14 @@
+commit 0a0ee89f8bf0c6a07a7793be23645e353de96144
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 9 16:30:00 2009 -0800
+
+    - remove obsolete files (missed before)
+    
+    R=r
+    OCL=22475
+    CL=22475
+
+ usr/gri/pretty/globals.go | 246 ----------------------------------------------
+ usr/gri/pretty/object.go  |  38 -------
+ usr/gri/pretty/type.go    | 207 --------------------------------------
+ 3 files changed, 491 deletions(-)

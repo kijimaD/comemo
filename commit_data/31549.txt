@@ -1,0 +1,14 @@
+commit c061f51e7289437368a0d1cd248fd9fe0dc5b59f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 10 12:57:55 2017 -0700
+
+    os: remove extraneous 's' from TestStdPipe error message
+    
+    Change-Id: I73674a90d88da630b09dcb75ced5d9f0d96c3c09
+    Reviewed-on: https://go-review.googlesource.com/43153
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/pipe_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

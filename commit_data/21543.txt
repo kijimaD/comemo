@@ -1,0 +1,13 @@
+commit a1dbb9201d6cbffce4d7b1396561b0fb99e441f2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 10 13:24:47 2015 +1100
+
+    cmd/go: use current go source code when generating doc.go
+    
+    Change-Id: Iad1764707d173a09467fd36e8c49a58147f12219
+    Reviewed-on: https://go-review.googlesource.com/4320
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/go/doc.go   | 1 +
+ src/cmd/go/mkdoc.sh | 9 ++++++---
+ 2 files changed, 7 insertions(+), 3 deletions(-)

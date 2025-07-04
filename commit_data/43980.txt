@@ -1,0 +1,21 @@
+commit b110733327a66870da9c5f482d8fd3275dae55f3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Dec 9 12:14:00 2020 -0500
+
+    cmd/link: reject too-large relocation addend on darwin/arm64
+    
+    Mach-O relocation addend is signed 24-bit. If the addend
+    overflows, it is better to fail the build than emitting an
+    incorrect binary. (I'm still working on a fix.)
+    
+    Updates #42738.
+    
+    Change-Id: I647f0cd4f6b84d9ac75ef3bf36673bea01dfc211
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276694
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/arm64/asm.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

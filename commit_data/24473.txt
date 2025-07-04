@@ -1,0 +1,12 @@
+commit b43773192c6a9b4f7ce781028d42ed3efa4097cb
+Author: Brian Gitonga Marete <bgm@google.com>
+Date:   Fri Oct 9 13:54:35 2015 +0100
+
+    C: Add Brian Gitonga Marete's Google email address (Google CLA).
+    
+    Change-Id: I51edc77ad4621ad8f3908e69dcb7b4eab086b5fe
+    Reviewed-on: https://go-review.googlesource.com/15680
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

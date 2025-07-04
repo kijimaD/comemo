@@ -1,0 +1,12 @@
+commit cb0f0d6cf1f3bc5bf629d04272756192bbf8db7a
+Author: Andrew <andybons@golang.org>
+Date:   Mon Jun 17 16:20:53 2019 -0400
+
+    doc/go1.13: add release notes for the net package
+    
+    Change-Id: I54dc8afc33d6f8946d2c79b0339118fa3710a688
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182618
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.13.html | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

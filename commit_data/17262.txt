@@ -1,0 +1,31 @@
+commit 5d5defc77ffbf88b8f9a4facf66798e3016340cf
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 15 16:40:33 2013 +0900
+
+    net: rearrange the call order of runtime-integrated network pollster and syscall functions
+    
+    This CL rearranges the call order for raw networking primitives like
+    the following;
+    
+    - For dialers that open active connections, pollDesc.Init will be
+      called before syscall.Connect.
+    
+    - For stream listeners that open passive stream connections,
+      pollDesc.Init will be called just after syscall.Listen.
+    
+    - For datagram listeners that open datagram connections,
+      pollDesc.Init will be called just after syscall.Bind.
+    
+    This is in preparation for runtime-integrated network pollster for BSD
+    variants.
+    
+    Update #5199
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/12730043
+
+ src/pkg/net/sock_posix.go     | 20 ++++++++++++++------
+ src/pkg/net/tcpsock_posix.go  |  5 -----
+ src/pkg/net/unixsock_posix.go |  5 -----
+ 3 files changed, 14 insertions(+), 16 deletions(-)

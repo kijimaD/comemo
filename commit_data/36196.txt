@@ -1,0 +1,19 @@
+commit 6eabfab438fa504df234a079411a3b153257b338
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 2 12:11:46 2018 -0400
+
+    cmd/go: move mod_tidy.txt from testdata/mod to testdata/src
+    
+    This file is clearly a script test, not a module definition, but it's in the
+    wrong directory to be run as one.
+    
+    Fortunately, it passes with only minor modifications (changing “..” to “.”).
+    
+    Change-Id: I66a544dfde82b8348108d2596c74e174157ae297
+    Reviewed-on: https://go-review.googlesource.com/127615
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/testdata/{mod => script}/mod_tidy.txt | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

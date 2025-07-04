@@ -1,0 +1,23 @@
+commit b0f01e17f8f8165b1ae273282eec00d78105e2fe
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Dec 16 17:19:44 2020 -0500
+
+    go/types: report error for invalid (but empty) expr switch
+    
+    This is a port of CL 278132 from the dev.typeparams branch. A notable
+    addition is a new error code, since no existing codes made sense and we
+    have an analogous code for type switches.
+    
+    Fixes #43110
+    
+    Change-Id: I22b3f9d8777063223f82785504e8b7d299bc5216
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278813
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+
+ src/go/types/errorcodes.go            | 10 ++++++++
+ src/go/types/fixedbugs/issue43110.src | 43 +++++++++++++++++++++++++++++++++++
+ src/go/types/stmt.go                  |  4 ++++
+ 3 files changed, 57 insertions(+)

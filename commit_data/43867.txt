@@ -1,0 +1,20 @@
+commit ba2adc21e8c416c47dec5fbce76286758f15b177
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 20 17:09:23 2020 -0500
+
+    runtime/testdata/testprogcgo: refactor CrashTraceback
+    
+    This moves the C part of the CrashTraceback test into its own file in
+    preparation for adding a test that transitions back into Go.
+    
+    Change-Id: I9560dcfd80bf8a1d30809fd360f958f5261ebb01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272130
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/testdata/testprogcgo/traceback.go  | 58 +++-----------------------
+ src/runtime/testdata/testprogcgo/traceback_c.c | 58 ++++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 53 deletions(-)

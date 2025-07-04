@@ -1,0 +1,16 @@
+commit 7366b199c52f1c6ac6590bf126357bd2762ebc5b
+Author: Changkun Ou <hi@changkun.de>
+Date:   Tue Sep 20 08:53:56 2022 +0200
+
+    sync: use atomic.Pointer for entry
+    
+    Change-Id: Ie3b4bfe483d7ef43da29ea1dd73d423dac36cf39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432055
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Changkun Ou <mail@changkun.de>
+
+ src/sync/map.go | 43 ++++++++++++++++++++++---------------------
+ 1 file changed, 22 insertions(+), 21 deletions(-)

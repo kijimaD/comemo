@@ -1,0 +1,16 @@
+commit 1a7fc7b3a783031ec91844460a44ebffe34a6af1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jun 6 13:01:48 2016 -0700
+
+    cmd/compile: handle e == T comparison more efficiently
+    
+    Instead of making a runtime call, compare types and values.
+    
+    Change-Id: Id302083d5a6a5f18e04f36f304f3d290c46976ad
+    Reviewed-on: https://go-review.googlesource.com/26660
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 68 +++++++++++++++++--------------------
+ 1 file changed, 32 insertions(+), 36 deletions(-)

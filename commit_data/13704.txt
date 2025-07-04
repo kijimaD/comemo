@@ -1,0 +1,18 @@
+commit 9dfc6f6427b4b44d5684dad1ae5cea45a82821ee
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 29 14:46:57 2012 -0700
+
+    go_spec.html: clarify rune and string literals
+    No changes to the meaning, just clearer language and more
+    examples, including illegal rune and string literals.
+    In particular, "character literal" and "character constant"
+    are now called "rune literal" and "rune constant" and the
+    word "character" always refers to the source text, not
+    program values.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/6448137
+
+ doc/go_spec.html | 63 +++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 37 insertions(+), 26 deletions(-)

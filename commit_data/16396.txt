@@ -1,0 +1,14 @@
+commit 598de87b0fa26dd13964c035e561f673d058baf5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 23 23:19:47 2013 -0700
+
+    cmd/cgo: change GoStringN and GoBytes from intgo to int32
+    
+    Fixes build.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/9667047
+
+ src/cmd/cgo/out.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

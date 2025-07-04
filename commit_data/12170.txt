@@ -1,0 +1,18 @@
+commit 240b1d5b44f51e6bda24256f276909f64fc4b0ea
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 23 14:43:58 2012 -0500
+
+    runtime: linux signal masking
+    
+    Fixes #3101 (Linux).
+    
+    R=golang-dev, bradfitz, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/5696043
+
+ src/pkg/runtime/os_linux.h        | 11 +++++++++++
+ src/pkg/runtime/sys_linux_386.s   | 12 ++++++++++++
+ src/pkg/runtime/sys_linux_amd64.s | 12 ++++++++++++
+ src/pkg/runtime/sys_linux_arm.s   | 10 ++++++++++
+ src/pkg/runtime/thread_linux.c    | 13 ++++++++++++-
+ 5 files changed, 57 insertions(+), 1 deletion(-)

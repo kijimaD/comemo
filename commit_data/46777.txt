@@ -1,0 +1,20 @@
+commit 39a4df49674540ba8b835ece03edb8d304941187
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 6 09:33:55 2021 -0700
+
+    go/types: break cycles in invalid types
+    
+    This is a clean port of CL 354329 from types2 to go/types.
+    
+    For #48819.
+    
+    Change-Id: I9efdcdbfa6432f3cee64d924a4c67ecc6793cf86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354349
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/decl.go                           |  1 +
+ src/go/types/testdata/fixedbugs/issue41124.go2 |  2 +-
+ src/go/types/testdata/fixedbugs/issue48819.src | 15 +++++++++++++++
+ src/go/types/typeset.go                        |  2 +-
+ 4 files changed, 18 insertions(+), 2 deletions(-)

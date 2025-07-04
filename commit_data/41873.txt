@@ -1,0 +1,69 @@
+commit f7e6ab44b410ef56bb89da182948a451d3cca34c
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 3 12:22:27 2020 -0400
+
+    all: remove scattered remnants of darwin/arm
+    
+    This removes all conditions and conditional code (that I could find)
+    that depended on darwin/arm.
+    
+    Fixes #35439 (since that only happened on darwin/arm)
+    Fixes #37611.
+    
+    Change-Id: Ia4c32a5a4368ed75231075832b0b5bfb1ad11986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227198
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/cgo/test/pkg_test.go                     |  2 +-
+ misc/cgo/test/sigaltstack.go                  |  2 +-
+ misc/cgo/test/testx.go                        |  2 +-
+ misc/cgo/testcarchive/carchive_test.go        |  8 ++++----
+ misc/cgo/testcshared/cshared_test.go          |  2 +-
+ misc/cgo/testso/so_test.go                    |  2 +-
+ misc/cgo/testsovar/so_test.go                 |  2 +-
+ misc/ios/clangwrap.sh                         |  4 +---
+ src/buildall.bash                             |  2 +-
+ src/cmd/dist/build.go                         |  4 ++--
+ src/cmd/dist/test.go                          |  8 ++++----
+ src/cmd/dist/util.go                          |  4 ++--
+ src/cmd/doc/doc_test.go                       |  4 ++--
+ src/cmd/go/go_test.go                         |  2 +-
+ src/cmd/go/internal/load/pkg.go               |  3 +--
+ src/cmd/go/internal/work/build_test.go        |  2 +-
+ src/cmd/go/internal/work/init.go              |  4 ++--
+ src/cmd/internal/sys/supported.go             |  2 +-
+ src/cmd/link/internal/arm/asm.go              | 16 ----------------
+ src/cmd/link/internal/arm/obj.go              |  9 ---------
+ src/cmd/link/internal/ld/sym.go               |  3 ---
+ src/cmd/oldlink/internal/arm/asm.go           | 25 -------------------------
+ src/cmd/oldlink/internal/arm/obj.go           |  9 ---------
+ src/cmd/oldlink/internal/ld/sym.go            |  3 ---
+ src/crypto/x509/root_darwin_test.go           |  2 +-
+ src/go/build/build_test.go                    | 14 ++++----------
+ src/go/build/deps_test.go                     |  2 +-
+ src/go/internal/gcimporter/gcimporter_test.go |  3 +--
+ src/internal/testenv/testenv.go               |  6 +++---
+ src/iostest.bash                              |  9 +++------
+ src/log/syslog/syslog_test.go                 |  2 +-
+ src/net/dial_test.go                          |  2 +-
+ src/net/lookup_test.go                        | 10 +++++-----
+ src/net/platform_test.go                      |  6 +++++-
+ src/net/timeout_test.go                       |  2 +-
+ src/os/file.go                                |  2 +-
+ src/os/os_test.go                             |  8 ++++----
+ src/os/path_test.go                           |  4 ++--
+ src/os/wait_waitid.go                         |  2 +-
+ src/path/filepath/path_test.go                | 16 +++++-----------
+ src/runtime/cgo/cgo.go                        |  3 +--
+ src/runtime/cgo/gcc_darwin_arm64.c            |  2 +-
+ src/runtime/os_darwin.go                      |  8 ++++----
+ src/runtime/pprof/pprof_test.go               |  2 +-
+ src/runtime/signal_arm.go                     |  4 +---
+ src/runtime/signal_unix.go                    |  6 +++---
+ src/runtime/tls_arm.s                         |  5 +----
+ src/runtime/vlrt.go                           |  2 +-
+ src/syscall/mkall.sh                          |  7 -------
+ src/syscall/syscall_unix_test.go              |  2 +-
+ 50 files changed, 81 insertions(+), 174 deletions(-)

@@ -1,0 +1,13 @@
+commit cea44714fb4e79b939e5b781ee61e97b3d7e1c14
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 5 10:05:57 2019 -0400
+
+    runtime: fix typo in debuglog comment
+    
+    Change-Id: I8a40461b93eab034ed930e0c5e32391f84cdbc5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170799
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Sebastien Binet <seb.binet@gmail.com>
+
+ src/runtime/debuglog.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

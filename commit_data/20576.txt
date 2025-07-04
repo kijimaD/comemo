@@ -1,0 +1,32 @@
+commit 1cfa5958f0ab841bd00fcc0d674bfec87e2055bd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 29 13:28:08 2014 -0700
+
+    undo CL 141840043 / 65e21380cb2a
+    
+    Unnecessary; covered by https://golang.org/cl/141690043
+    
+    Verified by jonathan@titanous.com on golang-dev.
+    
+    ««« original CL description
+    cmd/ld: close outfile before cleanup
+    
+    This prevents the temporary directory from being leaked when
+    the linker is run on a FUSE filesystem.
+    
+    Fixes #8684.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/141840043
+    
+    »»»
+    
+    LGTM=jonathan, iant
+    R=iant, jonathan
+    CC=golang-codereviews
+    https://golang.org/cl/150250045
+
+ src/cmd/ld/lib.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

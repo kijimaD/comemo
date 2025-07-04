@@ -1,0 +1,15 @@
+commit 2182d5786b728bc2371b40f689ca73ee9df0cd88
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 9 16:04:03 2014 -0400
+
+    math/cmplx: specify which square root Sqrt returns
+    
+    Fixes #7851.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/93200043
+
+ src/pkg/math/cmplx/sqrt.go | 1 +
+ 1 file changed, 1 insertion(+)

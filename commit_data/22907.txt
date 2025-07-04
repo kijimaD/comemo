@@ -1,0 +1,19 @@
+commit b4bc7b44ae58b5679135b66ae058544afea6c81b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 6 10:54:20 2015 -0700
+
+    time: deflake TestAfterQueuing
+    
+    Ramp up the delay on subsequent attempts. Fast builders have the same delay.
+    
+    Not a perfect fix, but should make it better. And this easy.
+    
+    Fixes #9903 maybe
+    Fixes #10680 maybe
+    
+    Change-Id: I967380c2cb8196e6da9a71116961229d37b36335
+    Reviewed-on: https://go-review.googlesource.com/9795
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/time/sleep_test.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

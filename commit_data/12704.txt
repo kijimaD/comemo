@@ -1,0 +1,12 @@
+commit 4a59be00917f2da069f272053d70a8563f717b22
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Mar 21 10:10:44 2012 +1100
+
+    html/template: fix typo and make grammar consistent in comments.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5866044
+
+ src/pkg/html/template/content.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,29 @@
+commit d6bdae33e918f779e9e50c020d32042e569368e2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 25 18:13:28 2021 -0700
+
+    cmd/compile/internal/types2: address some TODOs (cleanup)
+    
+    - Address some easy TODOs.
+    - Remove some TODOs that are not correct anymore or are unimportent.
+    - Simplify some code on the way.
+    
+    Change-Id: I4d20de3725b3a735022afe022cbc002b2798936d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345176
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/types2/check_test.go      |  3 --
+ src/cmd/compile/internal/types2/expr.go            |  4 +-
+ src/cmd/compile/internal/types2/hilbert_test.go    |  3 +-
+ src/cmd/compile/internal/types2/instantiate.go     | 49 +++++++++-------------
+ src/cmd/compile/internal/types2/named.go           |  2 -
+ src/cmd/compile/internal/types2/self_test.go       |  7 +---
+ src/cmd/compile/internal/types2/signature.go       |  7 +---
+ src/cmd/compile/internal/types2/stmt.go            |  6 ---
+ .../internal/types2/testdata/check/tinference.go2  |  6 +--
+ src/cmd/compile/internal/types2/tuple.go           |  2 -
+ src/cmd/compile/internal/types2/type.go            |  1 -
+ src/cmd/compile/internal/types2/typestring.go      |  1 +
+ src/cmd/compile/internal/types2/unify.go           |  3 --
+ 13 files changed, 27 insertions(+), 67 deletions(-)

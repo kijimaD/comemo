@@ -1,0 +1,13 @@
+commit 48ca3f288c112130d6ab4afabdb375f970652874
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 27 16:13:29 2012 -0700
+
+    flag: fix bug in handling of booleans on error
+    Fixes #3869.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6448072
+
+ src/pkg/flag/flag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

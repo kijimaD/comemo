@@ -1,0 +1,16 @@
+commit 0133d24c9410a9b1f3e41925efd5d1c977dd57d6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 16 12:29:55 2015 -0800
+
+    cmd/compile/internal/gc: don't ignore EOF in new parser
+    
+    Fixes #13274.
+    Fixes #13272.
+    
+    Change-Id: Ie67a2c4671ee2b49831898fff7677cd65d780942
+    Reviewed-on: https://go-review.googlesource.com/16972
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go |  4 +++-
+ test/fixedbugs/issue13274.go          | 11 +++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 37dd7cd040e626d5a9c30f2880005643b3a23d22
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 20 10:22:54 2018 -0700
+
+    runtime: use sys.PtrSize in growslice
+    
+    Minor cleanup.
+    
+    Change-Id: I4175de392969bb6408081a75cebdaeadcef1e68c
+    Reviewed-on: https://go-review.googlesource.com/108576
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/slice.go | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)

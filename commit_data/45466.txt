@@ -1,0 +1,27 @@
+commit c3365ad5f25043d6293f5cec1e71d1526678ac62
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 30 00:04:19 2021 -0400
+
+    cmd/go: annotate versions in vendor/modules.txt
+    
+    In order to prevent edit wars with previous cmd/go releases,
+    the new version annotations are only included if the main module
+    specifies 'go 1.17' or higher.
+    
+    Fixes #36876
+    
+    Change-Id: Iba15e47dd1ac2c16d754679a9b501db4069fa250
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315409
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ doc/go1.17.html                                    | 10 +++
+ src/cmd/go/internal/modcmd/vendor.go               | 57 +++++++++-----
+ src/cmd/go/internal/modload/vendor.go              |  5 ++
+ .../go/testdata/script/mod_go_version_vendor.txt   |  4 +-
+ .../go/testdata/script/mod_vendor_goversion.txt    | 87 ++++++++++++++++++++++
+ src/cmd/vendor/modules.txt                         | 16 ++--
+ src/vendor/modules.txt                             |  8 +-
+ 7 files changed, 154 insertions(+), 33 deletions(-)

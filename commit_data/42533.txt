@@ -1,0 +1,23 @@
+commit dea6d928f6c293631ce93bd3a3bb8b4020188954
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Jun 16 13:08:47 2020 -0400
+
+    bufio: test for exact error value in TestNegativeEOFReader and TestLargeReader
+    
+    CL 225357 added tests for Scanner not panicking on bad readers.
+    CL 225557 created a named error value that is returned instead.
+    CL 237739 documents that the bufio.ErrBadReadCount is returned
+    when bufio.Scanner is used with an invalid io.Reader.
+    
+    This suggests we wouldn't want that behavior to be able to change
+    without a test noticing it, so modify the tests to check for the
+    exact error value instead of just any non-nil one.
+    
+    For #38053.
+    
+    Change-Id: I4b0b8eb6804ebfe2c768505ddb94f0b1017fcf8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238217
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bufio/scan_test.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

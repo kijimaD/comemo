@@ -1,0 +1,18 @@
+commit ea509c95e9c91bdab8f76f81545d472094eadbe8
+Author: Bobby DeSimone <bobbydesimone@gmail.com>
+Date:   Tue Dec 4 00:56:04 2018 +0000
+
+    net/http/httputil: add tests for singleJoiningSlash.
+    
+    These changes add tests for the unexported function singleJoiningSlash.
+    
+    Change-Id: I107905aac4a3c2544be309098b67e970ea5b542c
+    GitHub-Last-Rev: ed6f86f619549f46ef53316b7febaac781b64e4b
+    GitHub-Pull-Request: golang/go#29088
+    Reviewed-on: https://go-review.googlesource.com/c/152337
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httputil/reverseproxy_test.go | 41 +++++++++++++++++++++++-------
+ 1 file changed, 32 insertions(+), 9 deletions(-)

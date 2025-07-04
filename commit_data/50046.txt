@@ -1,0 +1,20 @@
+commit fc34fdb4154ac40711209e9234639285e071daa9
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Aug 19 00:15:53 2022 -0700
+
+    internal/saferio: avoid returning io.EOF from ReadData if data was read
+    
+    ReadData follows the error semantics of io.ReadFull for small sizes,
+    it should do so as well for large sizes.
+    
+    Change-Id: I6a11b00d903ac5332e1dda074473790dcf21f32a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424919
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+
+ src/internal/saferio/io.go      |  7 +++++++
+ src/internal/saferio/io_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

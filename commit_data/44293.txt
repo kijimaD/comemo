@@ -1,0 +1,19 @@
+commit 95a44d2409dc9b37cb4722d74a1de9b671f67128
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 09:23:49 2021 -0500
+
+    cmd/internal/objfile: recognize Windows ARM64 executables
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    
+    Change-Id: I5ec459063d394b9f434d1b8b5030960b45061038
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288821
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/cmd/internal/objfile/pe.go | 2 ++
+ 1 file changed, 2 insertions(+)

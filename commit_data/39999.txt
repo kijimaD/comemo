@@ -1,0 +1,44 @@
+commit 47d27a87f962606230ef9b1a4d42253ceae95f94
+Author: Eli Bendersky <eliben@google.com>
+Date:   Thu Aug 1 15:39:40 2019 -0700
+
+    cmd/gofmt: fix computation of function header size
+    
+    Function sizes are computed to determine whether a function
+    can be kept on one line or should be split to several lines. Part of the
+    computation is the function header from the FUNC token and until the
+    opening { token.
+    
+    Prior to this change, the function header size used distance from the
+    original source position of the current token, which led to issues when
+    the source between FUNC and the original source position was rewritten
+    (such as whitespace being collapsed). Now we take the current output
+    position into account, so that header size represents the reformatted
+    source rather than the original source.
+    
+    The following files in the Go repository are reformatted with this
+    change:
+    
+    * strings/strings_test.go
+    * cmd/compile/internal/gc/fmt.go
+    
+    In both cases the reformatting is minor and seems to be correct given
+    the heuristic to single-line functions longer than 100 columns to
+    multiple lines.
+    
+    Fixes #28082
+    
+    Change-Id: Ib737f6933e09b79e83715211421d5262b366ec93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188818
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go       |  8 +++++---
+ src/cmd/gofmt/testdata/issue28082.golden | 13 +++++++++++++
+ src/cmd/gofmt/testdata/issue28082.input  | 13 +++++++++++++
+ src/go/printer/nodes.go                  | 27 ++++++++++++++++-----------
+ src/strings/strings_test.go              | 10 ++++++----
+ 5 files changed, 53 insertions(+), 18 deletions(-)

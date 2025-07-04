@@ -1,0 +1,17 @@
+commit 9bf3478658a781d38ab0a71bb027d781b8ade14b
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Thu Dec 15 17:35:59 2011 +0100
+
+    gc: better loopdepth analysis for labels
+    
+    This avoids degraded performance caused by extra labels
+    emitted by inlining (breaking strconv ftoa alloc count unittest) and is better in any case.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5483071
+
+ src/cmd/gc/esc.c | 72 +++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ src/cmd/gc/fmt.c |  6 +++++
+ test/escape2.go  | 21 +++++++++++++++++
+ 3 files changed, 96 insertions(+), 3 deletions(-)

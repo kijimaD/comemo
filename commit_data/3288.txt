@@ -1,0 +1,14 @@
+commit 5eb36240b7bc54a728ef0f41f206197d48544feb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 16 11:05:14 2009 -0700
+
+    - added syntax for conversions (was missing)
+    - added TODO for syntax for built-ins (require type as first argument)
+    - removed duplicate definition of Index
+    
+    DELTA=13  (11 added, 1 deleted, 1 changed)
+    OCL=34668
+    CL=34688
+
+ doc/go_spec.html | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

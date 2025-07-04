@@ -1,0 +1,18 @@
+commit c3e54f0988f0a48f756be06e409ff7893e67114c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 13 22:31:47 2010 -0700
+
+    runtime: better trace for fault due to nil pointer call
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/854048
+
+ src/pkg/runtime/darwin/386/signal.c    | 14 +++++++++++---
+ src/pkg/runtime/darwin/amd64/signal.c  | 16 ++++++++++++----
+ src/pkg/runtime/freebsd/386/signal.c   | 14 +++++++++++---
+ src/pkg/runtime/freebsd/amd64/signal.c | 14 +++++++++++---
+ src/pkg/runtime/linux/386/signal.c     | 14 +++++++++++---
+ src/pkg/runtime/linux/amd64/signal.c   | 14 +++++++++++---
+ src/pkg/runtime/linux/arm/signal.c     |  6 +++++-
+ 7 files changed, 72 insertions(+), 20 deletions(-)

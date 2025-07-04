@@ -1,0 +1,12 @@
+commit ad832284c7441da9b2eaecdd0f634af6b35a75a4
+Author: Austin Clements <austin@google.com>
+Date:   Sat Apr 13 10:27:35 2019 -0400
+
+    runtime: remove some unused fields in m and p
+    
+    Change-Id: Ie0171f48aaf48d8399ef578f95352445741d83a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171773
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime2.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

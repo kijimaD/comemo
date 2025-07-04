@@ -1,0 +1,19 @@
+commit 945c2bc74e9f3f6a2a011a35b1f03e21f2ad5d4d
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Aug 15 17:11:19 2023 +0800
+
+    cmd/compile: add ABI register definations for loong64
+    
+    Updates #40724
+    
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: I56f7382dda58a565b8c3256f1c7845a3031f67de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521776
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Auto-Submit: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/abi-internal.md | 50 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

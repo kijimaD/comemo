@@ -1,0 +1,17 @@
+commit 718d6c5880fe3507b1d224789b29bc2410fc9da5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 16 10:44:06 2018 -0700
+
+    crypto/x509: don't require C99 mode in Darwin cgo code
+    
+    Fixes #24425
+    
+    Change-Id: I2aacbced8cd14da67fe9a4cbd62b434c18b5fce2
+    Reviewed-on: https://go-review.googlesource.com/101215
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/root_cgo_darwin.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

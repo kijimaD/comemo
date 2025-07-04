@@ -1,0 +1,19 @@
+commit eca28cc4f3ae13bfb5817419e801c8a61929bc2a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 5 16:25:00 2017 -0500
+
+    cmd/go: do not use cache when -a is specified
+    
+    Clearly -a means don't use the cache.
+    An oversight that it did.
+    
+    Fixes #22586.
+    
+    Change-Id: I250b351439bd3fb5f8d6efc235b614f0a75ca64c
+    Reviewed-on: https://go-review.googlesource.com/76016
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/go_test.go               |  3 +++
+ src/cmd/go/internal/work/buildid.go | 24 +++++++++++++-----------
+ 2 files changed, 16 insertions(+), 11 deletions(-)

@@ -1,0 +1,25 @@
+commit 52b10ab79451df78797b87e40eb9371127bad260
+Author: Charlotte Brandhorst-Satzkorn <charlotte@catzkorn.dev>
+Date:   Fri Oct 22 22:46:46 2021 -0400
+
+    net/http: correct Content-Length parsing for js/wasm
+    
+    The Content-Length was incorrectly set to 0 for ill-formed and invalid
+    values. In these cases, return an error.
+    
+    If the Content-Length header was omitted, it was incorrectly set to 0.
+    In this case, set the Content-Length value to -1.
+    
+    Fixes #49108
+    
+    Change-Id: I24fe9a31ed5b6ddb53f2b2bd10f2c84e428823e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358134
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: David Crawshaw <crawshaw@golang.org>
+
+ src/net/http/roundtrip_js.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

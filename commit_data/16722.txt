@@ -1,0 +1,12 @@
+commit 4ca346795e9f1008878768214895c372838e7e48
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jul 10 17:31:46 2013 +1000
+
+    html: add escaping tests
+    
+    R=golang-dev, dsymonds, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/11095043
+
+ src/pkg/html/escape_test.go | 97 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 97 insertions(+)

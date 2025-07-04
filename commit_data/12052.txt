@@ -1,0 +1,23 @@
+commit cb5e181fe7ba9b7412fc661e57551a0f776c294a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 19 03:16:20 2012 -0500
+
+    time: switch to using (uncompressed) zoneinfo zip file
+    
+    Removal of old zoneinfo files is a separate CL due to its size.
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/5676100
+
+ lib/time/README                  |   3 +-
+ lib/time/update.bash             |  19 ++++--
+ lib/time/zoneinfo.zip            | Bin 0 -> 370359 bytes
+ src/pkg/time/sys_plan9.go        |  37 ++++++++++-
+ src/pkg/time/sys_unix.go         |  38 ++++++++++-
+ src/pkg/time/sys_windows.go      |  64 ++++++++++++++++++
+ src/pkg/time/zoneinfo.go         |   9 +--
+ src/pkg/time/zoneinfo_read.go    | 140 ++++++++++++++++++++++++++++++++++++++-
+ src/pkg/time/zoneinfo_unix.go    |   6 +-
+ src/pkg/time/zoneinfo_windows.go |   3 +-
+ 10 files changed, 300 insertions(+), 19 deletions(-)

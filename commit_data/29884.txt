@@ -1,0 +1,16 @@
+commit 9e199702c829d303ebe001a09c47aa4ec3b3ff81
+Author: Mike Wiacek <mjwiacek@google.com>
+Date:   Wed Dec 28 16:15:35 2016 -0800
+
+    net/http/httputil: clarify the contract on ReverseProxy's Director.
+    
+    Avoid potential race conditions by clarifying to implemntors of the
+    ReverseProxy interface, the lifetime of provided http.Request structs.
+    
+    Fixes #18456
+    Change-Id: I46aa60322226ecc3a0d30fa1ef108e504171957a
+    Reviewed-on: https://go-review.googlesource.com/34720
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy.go | 2 ++
+ 1 file changed, 2 insertions(+)

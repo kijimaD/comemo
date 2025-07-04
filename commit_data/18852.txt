@@ -1,0 +1,22 @@
+commit fcc10bc0f1bed00e951f26bd32aaeea5d6d691b3
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Mar 13 08:14:05 2014 +0100
+
+    cmd/gc: fix spurious type errors in walkselect.
+    
+    The lowering to runtime calls introduces hidden pointers to the
+    arguments of select clauses. When implicit conversions were
+    involved it could end up with incompatible pointers. Since the
+    pointed-to types have the same representation, we can introduce a
+    forced conversion.
+    
+    Fixes #6847.
+    
+    LGTM=rsc
+    R=rsc, iant, khr
+    CC=golang-codereviews
+    https://golang.org/cl/72380043
+
+ src/cmd/gc/select.c         | 12 +++++++
+ test/fixedbugs/issue6847.go | 85 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 97 insertions(+)

@@ -1,0 +1,26 @@
+commit 3391517c0e4695a87cdb806cbf7b9760e7c9fa73
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat May 7 16:18:57 2022 -0700
+
+    cmd/compile: don't crash in size computation for invalid type
+    
+    An invalid program may produce invalid types. If the program
+    calls unsafe.Sizeof on such a type, which is a compile-time
+    computation, the size-computation must be able to handle it.
+    Add the invalid type to the list of permissible basic types
+    and give it a size of 1 (word).
+    
+    Fixes #52748.
+    
+    Change-Id: I6c409628f9b77044758caf71cdcb199f9e77adea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404894
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/noder/sizes.go |  1 +
+ test/fixedbugs/issue52748.go            | 13 +++++++++++++
+ 2 files changed, 14 insertions(+)

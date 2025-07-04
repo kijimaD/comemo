@@ -1,0 +1,22 @@
+commit da94586aa3767c38ccb625ac653e038bb842444a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 14 14:26:59 2023 -0700
+
+    cmd/go: check for errors reading gccgo package list
+    
+    Previously if there was something invalid about the package list
+    cmd/go would crash rather than reporting a useful error.
+    
+    For #60798
+    
+    Change-Id: I502facf41442ab49217405b5b1874fff52a6d416
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503496
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/work/action.go | 25 ++++++++++++++++---------
+ 1 file changed, 16 insertions(+), 9 deletions(-)

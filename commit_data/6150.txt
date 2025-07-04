@@ -1,0 +1,15 @@
+commit 3d76135ee5b6084b1497b12421e3d3fe8b160a16
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 2 08:10:53 2010 +1000
+
+    netchan: rather than 0, make -1 mean infinite, by analogy with strings.Split etc.
+    It's unlikely to affect any extant code, but I wanted to make this API change
+    before digging in for a rewrite.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2112041
+
+ src/pkg/netchan/export.go | 5 +++--
+ src/pkg/netchan/import.go | 4 ++--
+ 2 files changed, 5 insertions(+), 4 deletions(-)

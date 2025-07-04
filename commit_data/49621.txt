@@ -1,0 +1,29 @@
+commit 695be961d57508da5a82217f7415200a11845879
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Wed Jun 15 10:43:05 2022 -0700
+
+    go/parser: limit recursion depth
+    
+    Limit nested parsing to 100,000, which prevents stack exhaustion when
+    parsing deeply nested statements, types, and expressions. Also limit
+    the scope depth to 1,000 during object resolution.
+    
+    Thanks to Juho Nurminen of Mattermost for reporting this issue.
+    
+    Fixes #53616
+    Fixes CVE-2022-1962
+    
+    Change-Id: I4d7b86c1d75d0bf3c7af1fdea91582aa74272c64
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1491025
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417063
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/parser/interface.go   |  10 ++-
+ src/go/parser/parser.go      |  54 +++++++++++++-
+ src/go/parser/parser_test.go | 169 +++++++++++++++++++++++++++++++++++++++++++
+ src/go/parser/resolver.go    |   9 ++-
+ 4 files changed, 234 insertions(+), 8 deletions(-)

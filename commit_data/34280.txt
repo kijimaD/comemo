@@ -1,0 +1,18 @@
+commit ec62ee7f6d3839fe69aeae538dadc1c9dc3bf020
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Feb 20 21:04:56 2018 +0100
+
+    cmd/compile: use | in the most repetitive 386 rules
+    
+    For now, limited to the most repetitive rules that are also short and
+    simple, so that we can have a substantial conciseness win without
+    compromising rules readability.
+    
+    Ran rulegen, no change in the actual compiler code (as expected).
+    
+    Change-Id: Ibf157382fb4544c063fbc80406fb9302430728fe
+    Reviewed-on: https://go-review.googlesource.com/95595
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/386.rules | 63 +++++++-----------------------
+ 1 file changed, 15 insertions(+), 48 deletions(-)

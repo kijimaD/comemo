@@ -1,0 +1,20 @@
+commit 95773ab9b053edc43ba07a182f3d5e0e29775a45
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 1 16:34:50 2020 -0700
+
+    sync/atomic: fix TestSwapPointer test
+    
+    It plays way too loose with unsafe.Pointer rules.
+    It runs afoul of the checkptr rules, so some race detector builds
+    were failing.
+    
+    Fixes #38210
+    
+    Change-Id: I5e1c78201d06295524fdedb3fe5b49d61446f443
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226880
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/sync/atomic/atomic_test.go | 68 +++++++++++++++++++++++++-----------------
+ 1 file changed, 41 insertions(+), 27 deletions(-)

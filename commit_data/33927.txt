@@ -1,0 +1,12 @@
+commit 15bc0a129ac149ac5130cb06d6bfdbbcc7e24d3c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 2 16:37:48 2018 -0800
+
+    doc/go1.10: mention new os.IsTimeout function
+    
+    Change-Id: I84fd3912163ca262df5d7d4690c0dd7e136e79ca
+    Reviewed-on: https://go-review.googlesource.com/85938
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.10.html | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,32 @@
+commit 59afdd3ed0ace5c5dc34f8b4cf22edc329e186f7
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Feb 19 12:29:31 2025 +0100
+
+    crypto/tls: clean up supported/default/allowed parameters
+    
+    Cleaned up a lot of the plumbing to make it consistently follow this
+    logic: clone the preference order; filter by user preference; filter by
+    FIPS policy. There should be no behavior changes.
+    
+    Updates #71757
+    
+    Change-Id: I6a6a4656eb02e56d079f0a22f98212275a400000
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657096
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+
+ src/crypto/tls/auth.go                           | 26 ++++----
+ src/crypto/tls/cipher_suites.go                  | 14 ++--
+ src/crypto/tls/common.go                         | 84 ++++++++++--------------
+ src/crypto/tls/defaults.go                       | 56 ++++------------
+ src/crypto/tls/defaults_boring.go                | 67 +++++++++++++++++++
+ src/crypto/tls/{fips_test.go => fips140_test.go} | 48 +++++++++-----
+ src/crypto/tls/handshake_client.go               | 26 ++------
+ src/crypto/tls/handshake_client_test.go          |  2 +-
+ src/crypto/tls/handshake_server.go               | 18 +----
+ src/crypto/tls/handshake_server_tls13.go         |  4 +-
+ src/crypto/tls/tls_test.go                       |  4 +-
+ 11 files changed, 177 insertions(+), 172 deletions(-)

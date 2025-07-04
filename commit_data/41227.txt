@@ -1,0 +1,18 @@
+commit e6ebbe0d20fe877b111cf4ccf8349cba129d6d3a
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Feb 4 18:07:23 2020 +0000
+
+    syscall: Revert "release a js.Func object in fsCall"
+    
+    This reverts CL 217417 (commit 753d56d3642eb83848aa39e65982a9fc77e722d7).
+    
+    This change was unintentionally submitted to master during the
+    Go 1.14 code freeze; it should be sent again for Go 1.15.
+    
+    Change-Id: Ie790342f227ae3adfc5f9a90ce3abdc2c9be619b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217721
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/syscall/fs_js.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

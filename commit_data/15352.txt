@@ -1,0 +1,16 @@
+commit 0cdc0b3b78dcb029bc4951637a0d9be11ee0d7e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 21 12:53:25 2013 -0500
+
+    cmd/5g, cmd/6g: fix node dump formats
+    
+    lvd changed the old %N to %+hN and these
+    never got updated.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7391045
+
+ src/cmd/5g/cgen.c | 4 ++--
+ src/cmd/6g/cgen.c | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

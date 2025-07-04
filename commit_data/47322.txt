@@ -1,0 +1,104 @@
+commit f19e4001808863d2ebfe9d1975476513d030c381
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Nov 6 11:09:56 2021 +0100
+
+    all: remove more leftover // +build lines
+    
+    CL 344955 and CL 359476 removed almost all // +build lines, but leaving
+    some assembly files and generating scripts. Also, some files were added
+    with // +build lines after CL 359476 was merged. Remove these or rename
+    files where more appropriate.
+    
+    For #41184
+    
+    Change-Id: I7eb85a498ed9788b42a636e775f261d755504ffa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361480
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/crypto/cipher/xor_ppc64x.s                         | 1 -
+ src/crypto/md5/md5block_ppc64x.s                       | 1 -
+ src/crypto/x509/internal/macos/corefoundation.s        | 1 -
+ src/crypto/x509/internal/macos/security.s              | 1 -
+ src/debug/pe/file_cgo_test.go                          | 1 -
+ src/internal/bytealg/compare_mips64x.s                 | 1 -
+ src/internal/bytealg/compare_mipsx.s                   | 1 -
+ src/internal/bytealg/compare_ppc64x.s                  | 1 -
+ src/internal/bytealg/count_ppc64x.s                    | 1 -
+ src/internal/bytealg/equal_mips64x.s                   | 1 -
+ src/internal/bytealg/equal_mipsx.s                     | 1 -
+ src/internal/bytealg/equal_ppc64x.s                    | 1 -
+ src/internal/bytealg/index_ppc64x.s                    | 1 -
+ src/internal/bytealg/indexbyte_mips64x.s               | 1 -
+ src/internal/bytealg/indexbyte_mipsx.s                 | 1 -
+ src/internal/bytealg/indexbyte_ppc64x.s                | 1 -
+ src/internal/cpu/cpu_x86.s                             | 1 -
+ src/reflect/asm_mips64x.s                              | 1 -
+ src/reflect/asm_mipsx.s                                | 1 -
+ src/reflect/asm_ppc64x.s                               | 1 -
+ src/reflect/float32reg_ppc64x.s                        | 1 -
+ src/runtime/asan_amd64.s                               | 1 -
+ src/runtime/asan_arm64.s                               | 1 -
+ src/runtime/asm_mips64x.s                              | 1 -
+ src/runtime/asm_mipsx.s                                | 1 -
+ src/runtime/asm_ppc64x.s                               | 1 -
+ src/runtime/atomic_mips64x.s                           | 1 -
+ src/runtime/atomic_mipsx.s                             | 1 -
+ src/runtime/atomic_ppc64x.s                            | 1 -
+ src/runtime/duff_mips64x.s                             | 1 -
+ src/runtime/duff_ppc64x.s                              | 1 -
+ src/runtime/internal/atomic/atomic_mips64x.s           | 1 -
+ src/runtime/internal/atomic/atomic_mipsx.s             | 1 -
+ src/runtime/internal/atomic/atomic_ppc64x.s            | 1 -
+ src/runtime/internal/atomic/sys_nonlinux_arm.s         | 1 -
+ src/runtime/libfuzzer_amd64.s                          | 1 -
+ src/runtime/libfuzzer_arm64.s                          | 1 -
+ src/runtime/memclr_386.s                               | 1 -
+ src/runtime/memclr_amd64.s                             | 1 -
+ src/runtime/memclr_mips64x.s                           | 1 -
+ src/runtime/memclr_mipsx.s                             | 1 -
+ src/runtime/memclr_ppc64x.s                            | 1 -
+ src/runtime/memmove_386.s                              | 1 -
+ src/runtime/memmove_amd64.s                            | 1 -
+ src/runtime/memmove_mips64x.s                          | 1 -
+ src/runtime/memmove_mipsx.s                            | 1 -
+ src/runtime/memmove_ppc64x.s                           | 1 -
+ src/runtime/msan_amd64.s                               | 1 -
+ src/runtime/msan_arm64.s                               | 1 -
+ src/runtime/preempt_mips64x.s                          | 1 -
+ src/runtime/preempt_mipsx.s                            | 1 -
+ src/runtime/preempt_ppc64x.s                           | 1 -
+ src/runtime/race_amd64.s                               | 1 -
+ src/runtime/race_arm64.s                               | 1 -
+ src/runtime/race_ppc64le.s                             | 1 -
+ src/runtime/rt0_linux_mips64x.s                        | 2 --
+ src/runtime/rt0_linux_mipsx.s                          | 2 --
+ src/runtime/sys_linux_mips64x.s                        | 2 --
+ src/runtime/sys_linux_mipsx.s                          | 2 --
+ src/runtime/sys_linux_ppc64x.s                         | 2 --
+ src/runtime/time_linux_amd64.s                         | 1 -
+ src/runtime/time_windows_386.s                         | 1 -
+ src/runtime/time_windows_amd64.s                       | 1 -
+ src/runtime/time_windows_arm.s                         | 1 -
+ src/runtime/time_windows_arm64.s                       | 1 -
+ src/runtime/tls_arm.s                                  | 1 -
+ src/runtime/tls_mips64x.s                              | 1 -
+ src/runtime/tls_mipsx.s                                | 1 -
+ src/runtime/tls_ppc64x.s                               | 1 -
+ src/runtime/zcallback_windows.s                        | 1 -
+ src/sync/atomic/asm.s                                  | 1 -
+ src/sync/atomic/race.s                                 | 1 -
+ src/syscall/asan.go                                    | 1 -
+ src/syscall/asan0.go                                   | 3 +--
+ src/syscall/asm9_unix2_amd64.s                         | 1 -
+ src/syscall/asm_linux_mips64x.s                        | 2 --
+ src/syscall/asm_linux_mipsx.s                          | 2 --
+ src/syscall/asm_linux_ppc64x.s                         | 2 --
+ src/syscall/{asm9_unix1_amd64.s => asm_netbsd_amd64.s} | 3 ---
+ src/syscall/asm_unix_386.s                             | 1 -
+ src/syscall/asm_unix_amd64.s                           | 1 -
+ src/syscall/mksyscall.pl                               | 1 -
+ src/syscall/mksyscall_libc.pl                          | 1 -
+ 83 files changed, 1 insertion(+), 94 deletions(-)

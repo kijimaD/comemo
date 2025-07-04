@@ -1,0 +1,61 @@
+commit 0d26efb12ae255d0f4cbf9484c1fedc2596ff09c
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 9 18:30:38 2016 -0500
+
+    runtime: remove unnecessary clears of the heap bitmap
+    
+    Currently we clear the heap bitmap of a span both when we allocate
+    that span *and* when we free it. There's no point in doing both, and
+    we definitely have to write the heap bitmap when we allocate a span
+    for pointer-sized objects, so switch to clearing only when we allocate
+    a span.
+    
+    This results in a slight overall performance improvement; however,
+    most of the benchmarks that get slower are very short, while the
+    longer benchmarks generally got faster.
+    
+    name              old time/op  new time/op  delta
+    XBenchGarbage-12  2.48ms ± 1%  2.47ms ± 1%  -0.58%  (p=0.000 n=91+91)
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              2.85s ± 2%     2.85s ± 2%    ~     (p=0.550 n=20+19)
+    Fannkuch11-12                2.54s ± 0%     2.47s ± 1%  -2.72%  (p=0.000 n=19+18)
+    FmtFprintfEmpty-12          51.3ns ± 4%    51.0ns ± 3%    ~     (p=0.223 n=20+20)
+    FmtFprintfString-12          169ns ± 0%     167ns ± 0%  -1.18%  (p=0.000 n=17+16)
+    FmtFprintfInt-12             160ns ± 0%     161ns ± 0%  +0.63%  (p=0.000 n=16+15)
+    FmtFprintfIntInt-12          267ns ± 0%     269ns ± 1%  +0.62%  (p=0.000 n=17+20)
+    FmtFprintfPrefixedInt-12     234ns ± 1%     240ns ± 0%  +2.80%  (p=0.000 n=20+20)
+    FmtFprintfFloat-12           316ns ± 0%     313ns ± 0%  -0.76%  (p=0.000 n=20+19)
+    FmtManyArgs-12              1.04µs ± 0%    1.05µs ± 0%  +0.45%  (p=0.000 n=19+16)
+    GobDecode-12                7.90ms ± 1%    7.81ms ± 0%  -1.10%  (p=0.000 n=18+18)
+    GobEncode-12                6.61ms ± 1%    6.58ms ± 0%  -0.46%  (p=0.000 n=20+15)
+    Gzip-12                      320ms ± 1%     322ms ± 1%  +0.47%  (p=0.030 n=20+20)
+    Gunzip-12                   42.4ms ± 1%    42.6ms ± 0%  +0.37%  (p=0.000 n=20+20)
+    HTTPClientServer-12         70.7µs ± 1%    70.6µs ± 2%    ~     (p=0.784 n=18+20)
+    JSONEncode-12               16.9ms ± 1%    16.8ms ± 0%  -0.64%  (p=0.000 n=20+20)
+    JSONDecode-12               60.8ms ± 0%    58.6ms ± 1%  -3.50%  (p=0.000 n=17+18)
+    Mandelbrot200-12            3.92ms ± 0%    3.91ms ± 0%  -0.25%  (p=0.000 n=19+19)
+    GoParse-12                  3.65ms ± 0%    3.68ms ± 1%  +0.67%  (p=0.000 n=17+16)
+    RegexpMatchEasy0_32-12       102ns ± 1%     102ns ± 2%  +0.67%  (p=0.009 n=19+19)
+    RegexpMatchEasy0_1K-12       350ns ± 0%     351ns ± 1%  +0.34%  (p=0.002 n=20+20)
+    RegexpMatchEasy1_32-12      84.1ns ± 2%    84.2ns ± 2%    ~     (p=0.799 n=20+18)
+    RegexpMatchEasy1_1K-12       510ns ± 1%     508ns ± 1%  -0.45%  (p=0.000 n=20+17)
+    RegexpMatchMedium_32-12      132ns ± 1%     134ns ± 1%  +0.85%  (p=0.000 n=20+19)
+    RegexpMatchMedium_1K-12     40.0µs ± 1%    39.9µs ± 1%  -0.29%  (p=0.014 n=19+18)
+    RegexpMatchHard_32-12       2.09µs ± 1%    2.05µs ± 0%  -1.76%  (p=0.000 n=20+18)
+    RegexpMatchHard_1K-12       62.7µs ± 1%    61.8µs ± 1%  -1.39%  (p=0.000 n=20+19)
+    Revcomp-12                   541ms ± 1%     534ms ± 0%  -1.16%  (p=0.000 n=19+20)
+    Template-12                 71.1ms ± 0%    69.1ms ± 0%  -2.83%  (p=0.000 n=18+19)
+    TimeParse-12                 356ns ± 0%     357ns ± 0%  +0.36%  (p=0.000 n=17+19)
+    TimeFormat-12                358ns ± 0%     372ns ± 1%  +3.74%  (p=0.000 n=15+18)
+    [Geo mean]                  62.6µs         62.5µs       -0.25%
+    
+    Change-Id: Ied190b77c7a4d91ec7b2218c592fc31cf7acf362
+    Reviewed-on: https://go-review.googlesource.com/19633
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mcentral.go | 1 -
+ src/runtime/mgcsweep.go | 1 -
+ 2 files changed, 2 deletions(-)

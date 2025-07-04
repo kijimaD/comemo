@@ -1,0 +1,23 @@
+commit 6d2309b576bf4aa769a428f133ba2c8c524ff410
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 12 08:59:19 2023 -0400
+
+    Revert "reflect: change rtype so that it (not *rtype) implements Type"
+    
+    This reverts CL 487558, which is causing test failures in Google. See
+    b/282133554.
+    
+    Change-Id: Icafa4ffc6aaa24a363abb90b8ae0b0183aca2b89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494410
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/reflect/all_test.go       |   6 +-
+ src/reflect/benchmark_test.go |   5 +-
+ src/reflect/export_test.go    |  12 +--
+ src/reflect/makefunc.go       |   2 +-
+ src/reflect/type.go           | 236 ++++++++++++++++++++----------------------
+ src/reflect/value.go          |  24 ++---
+ 6 files changed, 139 insertions(+), 146 deletions(-)

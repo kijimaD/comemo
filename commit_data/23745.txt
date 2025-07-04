@@ -1,0 +1,15 @@
+commit dabb268170e38870968ebf7247bd7efcb70060f8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 17 22:29:44 2015 -0700
+
+    cmd/compile: ignore carriage return in magic comments
+    
+    Update #11771.
+    
+    Change-Id: I3bb3262619765d3ca79652817e17e8f260f41907
+    Reviewed-on: https://go-review.googlesource.com/12379
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go |  4 +--
+ test/fixedbugs/issue11771.go       | 64 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 2 deletions(-)

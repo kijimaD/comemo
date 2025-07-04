@@ -1,0 +1,74 @@
+commit c7cc2b94c63af610a29b1b48cfbfb87cb8abf05b
+Author: Andrew Pogrebnoy <absourd.noise@gmail.com>
+Date:   Fri Oct 7 10:12:54 2022 +0300
+
+    runtime: move epoll syscalls to runtime/internal/syscall
+    
+    This change moves Linux epoll's syscalls implementation to the
+    "runtime/internal/syscall" package. The intention in this CL was to
+    minimise behavioural changes but make the code more generalised. This
+    also will allow adding new syscalls (like epoll_pwait2) without the
+    need to implement assembly stubs for each arch.
+    
+    It also drops epoll_create as not all architectures provide this call.
+    epoll_create1 was added to the kernel in version 2.6.27 and Go requires
+    Linux kernel version 2.6.32 or later since Go 1.18. So it is safe to
+    always use epoll_create1.
+    
+    This is a resubmit as the previous CL 421994 was reverted due to test
+    failures after the merge with the master. The issue was fixed in
+    CL 438615
+    
+    For #53824
+    For #51087
+    
+    Change-Id: I1bd0f23a85b4f9b80178c5dd36fd3e95ff4f9648
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/440115
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/defs2_linux.go                         | 11 ---
+ src/runtime/defs_linux.go                          | 12 ----
+ src/runtime/defs_linux_386.go                      | 16 -----
+ src/runtime/defs_linux_amd64.go                    | 16 -----
+ src/runtime/defs_linux_arm.go                      | 17 -----
+ src/runtime/defs_linux_arm64.go                    | 17 -----
+ src/runtime/defs_linux_loong64.go                  | 17 -----
+ src/runtime/defs_linux_mips64x.go                  | 17 -----
+ src/runtime/defs_linux_mipsx.go                    | 17 -----
+ src/runtime/defs_linux_ppc64.go                    | 17 -----
+ src/runtime/defs_linux_ppc64le.go                  | 17 -----
+ src/runtime/defs_linux_riscv64.go                  | 17 -----
+ src/runtime/defs_linux_s390x.go                    | 17 -----
+ src/runtime/export_linux_test.go                   | 10 ++-
+ src/runtime/export_unix2_test.go                   | 10 +++
+ src/runtime/export_unix_test.go                    |  1 -
+ src/runtime/internal/syscall/defs_linux.go         | 10 +++
+ src/runtime/internal/syscall/defs_linux_386.go     | 29 ++++++++
+ src/runtime/internal/syscall/defs_linux_amd64.go   | 29 ++++++++
+ src/runtime/internal/syscall/defs_linux_arm.go     | 30 ++++++++
+ src/runtime/internal/syscall/defs_linux_arm64.go   | 30 ++++++++
+ src/runtime/internal/syscall/defs_linux_loong64.go | 30 ++++++++
+ src/runtime/internal/syscall/defs_linux_mips64x.go | 32 +++++++++
+ src/runtime/internal/syscall/defs_linux_mipsx.go   | 32 +++++++++
+ src/runtime/internal/syscall/defs_linux_ppc64x.go  | 32 +++++++++
+ src/runtime/internal/syscall/defs_linux_riscv64.go | 30 ++++++++
+ src/runtime/internal/syscall/defs_linux_s390x.go   | 30 ++++++++
+ src/runtime/internal/syscall/syscall_linux.go      | 29 +++++++-
+ src/runtime/internal/syscall/syscall_linux_test.go | 19 +++++
+ src/runtime/netpoll_epoll.go                       | 84 ++++++++++------------
+ src/runtime/runtime_linux_test.go                  |  9 ---
+ src/runtime/sys_linux_386.s                        | 52 --------------
+ src/runtime/sys_linux_amd64.s                      | 54 --------------
+ src/runtime/sys_linux_arm.s                        | 52 --------------
+ src/runtime/sys_linux_arm64.s                      | 52 --------------
+ src/runtime/sys_linux_loong64.s                    | 52 --------------
+ src/runtime/sys_linux_mips64x.s                    | 61 ----------------
+ src/runtime/sys_linux_mipsx.s                      | 59 ---------------
+ src/runtime/sys_linux_ppc64x.s                     | 54 --------------
+ src/runtime/sys_linux_riscv64.s                    | 52 --------------
+ src/runtime/sys_linux_s390x.s                      | 52 --------------
+ 41 files changed, 411 insertions(+), 813 deletions(-)

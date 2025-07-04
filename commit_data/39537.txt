@@ -1,0 +1,15 @@
+commit 707f3e8c619674444c01b2af4a494732e136dcfd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 22 15:52:37 2019 -0700
+
+    cmd/go: mention GODEBUG in "go help environment"
+    
+    Change-Id: Id2c07ccba7c514ec3a4bbd493edbc68ae5cd6250
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187157
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/alldocs.go               | 3 +++
+ src/cmd/go/internal/help/helpdoc.go | 3 +++
+ 2 files changed, 6 insertions(+)

@@ -1,0 +1,49 @@
+commit eb122456455469b512c4a1995ab8d0f97b407ba0
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Dec 2 17:58:00 2022 +0100
+
+    math/big: fix BitLen performance regression
+    
+    CL 450055 replaced BitLen with a slower constant-time implementation,
+    which caused a performance regression in some ecosystem benchmarks.
+    
+    https://perf.golang.org/search?q=upload%3A20221130.13+pkg%3Agithub.com%2Fericlagergren%2Fdecimal%2Fbenchmarks
+    
+    Current tip vs this CL
+    
+    name                                   old time/op  new time/op  delta
+    Pi/foo=ericlagergren_(Go)/prec=100-4    151µs ± 0%   129µs ± 0%  -14.89%  (p=0.000 n=10+9)
+    Pi/foo=ericlagergren_(GDA)/prec=100-4   305µs ± 0%   269µs ± 1%  -11.88%  (p=0.000 n=9+10)
+    Pi/foo=cockroachdb/apd/prec=100-4      5.74ms ± 0%  5.33ms ± 0%   -7.02%  (p=0.000 n=9+10)
+    Pi/foo=shopspring/prec=100-4            265µs ±16%   268µs ±11%     ~     (p=0.796 n=10+10)
+    Pi/foo=apmckinlay/prec=100-4           3.10µs ± 0%  3.08µs ± 0%   -0.60%  (p=0.000 n=8+10)
+    Pi/foo=go-inf/prec=100-4                132µs ± 9%   137µs ± 9%     ~     (p=0.182 n=10+9)
+    Pi/foo=float64/prec=100-4              4.97µs ± 0%  4.98µs ± 0%     ~     (p=0.196 n=10+10)
+    
+    CL 450055's parent vs this CL
+    
+    name                                   old time/op  new time/op  delta
+    Pi/foo=ericlagergren_(Go)/prec=100-4    129µs ± 1%   129µs ± 0%    ~     (p=0.182 n=10+9)
+    Pi/foo=ericlagergren_(GDA)/prec=100-4   267µs ± 1%   269µs ± 1%  +0.93%  (p=0.001 n=9+10)
+    Pi/foo=shopspring/prec=100-4            252µs ± 9%   268µs ±11%    ~     (p=0.052 n=10+10)
+    Pi/foo=apmckinlay/prec=100-4           3.10µs ± 1%  3.08µs ± 0%  -0.66%  (p=0.000 n=9+10)
+    Pi/foo=go-inf/prec=100-4                135µs ± 6%   137µs ± 9%    ~     (p=0.605 n=9+9)
+    Pi/foo=float64/prec=100-4              4.97µs ± 0%  4.98µs ± 0%  +0.23%  (p=0.005 n=8+10)
+    
+    goos: linux
+    goarch: amd64
+    pkg: github.com/ericlagergren/decimal_benchmarks
+    cpu: Intel(R) Core(TM) i5-7400 CPU @ 3.00GHz
+    
+    Fixes #57014
+    
+    Change-Id: I08478bea122212320a592ad2652e33077807de09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454617
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/math/big/nat.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

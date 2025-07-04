@@ -1,0 +1,19 @@
+commit 81d6ec204fcfbcbb617f38b8ee5183080669c066
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sat Oct 26 20:01:47 2019 +0200
+
+    os: remove read-only directories in RemoveAll on Windows
+    
+    Remove skipping of TestRemoveUnreadableDir on Windows.
+    
+    Fixes #26295
+    
+    Change-Id: I364a3caa55406c855ece807759f6298f7e4ddf1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203599
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/removeall_noat.go | 8 ++++++++
+ src/os/removeall_test.go | 2 +-
+ 2 files changed, 9 insertions(+), 1 deletion(-)

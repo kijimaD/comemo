@@ -1,0 +1,18 @@
+commit 3e0f5f934eb474196297fddf957157422f93a2d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 17 11:07:30 2018 -0400
+
+    doc/code: drop mentions of GOPATH/pkg directory
+    
+    It's already half gone and later will be all gone.
+    It's not worth explaining in an introduction doc.
+    
+    Fixes #24506
+    Updates #4719
+    
+    Change-Id: Ie48128b3aa090d84e0e734aa45f14a4480292913
+    Reviewed-on: https://go-review.googlesource.com/129679
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/code.html | 51 ++++++---------------------------------------------
+ 1 file changed, 6 insertions(+), 45 deletions(-)

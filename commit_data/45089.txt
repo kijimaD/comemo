@@ -1,0 +1,41 @@
+commit 263e13d1f7d2d13782c5a63799c9979b9bbfd853
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 12 14:00:49 2021 -0400
+
+    test: make codegen tests work with both ABIs
+    
+    Some codegen tests were written with the assumption that
+    arguments and results are in memory, and with a specific stack
+    layout. With the register ABI, the assumption is no longer true.
+    Adjust the tests to work with both cases.
+    
+    - For tests expecting in memory arguments/results, change to use
+      global variables or memory-assigned argument/results.
+    
+    - Allow more registers. E.g. some tests expecting register names
+      contain only letters (e.g. AX), but  it can also contain numbers
+      (e.g. R10).
+    
+    - Some instruction selection changes when operate on register vs.
+      memory, e.g. ADDQ vs. LEAQ, MOVB vs. MOVL. Accept both.
+    
+    TODO: mathbits.go and memops.go still need fix.
+    Change-Id: Ic5932b4b5dd3f5d30ed078d296476b641420c4c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309335
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ test/codegen/arithmetic.go     |  2 +-
+ test/codegen/bits.go           | 18 +++++++++---------
+ test/codegen/clobberdeadreg.go |  4 ++--
+ test/codegen/comparisons.go    |  8 +++++---
+ test/codegen/issue25378.go     |  8 ++++----
+ test/codegen/maps.go           |  4 ++--
+ test/codegen/math.go           |  4 ++--
+ test/codegen/memcombine.go     | 12 ++++++------
+ test/codegen/slices.go         |  2 +-
+ test/codegen/stack.go          |  4 ++--
+ test/codegen/zerosize.go       | 10 +++++-----
+ 11 files changed, 39 insertions(+), 37 deletions(-)

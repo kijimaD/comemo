@@ -1,0 +1,18 @@
+commit 265e73ee14ebfedc027871cd153f0b90c6665070
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 17 18:06:29 2008 -0700
+
+    beginnings of reflection values.
+    
+    R=rsc
+    DELTA=421  (357 added, 17 deleted, 47 changed)
+    OCL=17388
+    CL=17401
+
+ usr/r/reflect/Makefile     |  11 +++-
+ usr/r/reflect/cast_amd64.s | 133 +++++++++++++++++++++++++++++++++++++++++++++
+ usr/r/reflect/gencast.sh   |  36 ++++++++++++
+ usr/r/reflect/main.go      | 102 ++++++++++++++++++++++++----------
+ usr/r/reflect/tostring.go  |  77 ++++++++++++++++++++------
+ usr/r/reflect/type.go      | 114 ++++++++++++++++++++++++++++++++------
+ 6 files changed, 408 insertions(+), 65 deletions(-)

@@ -1,0 +1,16 @@
+commit 703166ea14e510a4aee805f956475570130f2df2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 24 16:50:49 2015 +0200
+
+    net/url: validate ports in URLs and bytes after IPv6 literals
+    
+    Fixes #11208
+    
+    Change-Id: I35cc94129577b2a977fd35aafb0a5fb02c534a7c
+    Reviewed-on: https://go-review.googlesource.com/11414
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/net/http/readrequest_test.go |  8 +++++++
+ src/net/url/url.go               | 46 ++++++++++++++++++++++++++++++++--------
+ src/net/url/url_test.go          | 33 ++++++++++++++++++++++++++++
+ 3 files changed, 78 insertions(+), 9 deletions(-)

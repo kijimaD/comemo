@@ -1,0 +1,29 @@
+commit dfee3332e66bd3f3afd76615767d2cd9b1905b26
+Author: Ross Light <ross@zombiezen.com>
+Date:   Thu Aug 27 13:08:29 2020 -0700
+
+    net/http: document concurrency expectations for Request.Body
+    
+    This is primarily aimed at client requests where the user can supply
+    their own io.ReadCloser, but also clarifies server request behavior.
+    A server request body can be one of:
+    
+    - *body
+    - *http2RequestBody
+    - *expectContinueReader
+    - *maxBytesReader
+    
+    Of those, *expectContinueReader did not meet these expectations, so this
+    change also removes the data race.
+    
+    Change-Id: Id4f1ae573d938347b1123a7b612b271aabb045a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251087
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/http/request.go | 4 ++++
+ src/net/http/server.go  | 6 +++---
+ 2 files changed, 7 insertions(+), 3 deletions(-)

@@ -1,0 +1,20 @@
+commit c80b06a54ee198f0146b673205006a9a8b82c34c
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 11 13:03:46 2008 -0700
+
+    add lib/os to standard build
+    break lib/os into multiple source files
+    
+    R=rsc
+    DELTA=189  (178 added, 4 deleted, 7 changed)
+    OCL=15149
+    CL=15152
+
+ src/lib/clean.bash     | 10 +++++--
+ src/lib/make.bash      | 12 ++++----
+ src/lib/os/Makefile    |  9 ++++--
+ src/lib/os/os_base.go  | 18 ++++++++++++
+ src/lib/os/os_error.go | 76 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/os/os_file.go  | 74 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/make.bash          |  9 +++++-
+ 7 files changed, 197 insertions(+), 11 deletions(-)

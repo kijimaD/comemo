@@ -1,0 +1,18 @@
+commit b397f633ca9e2e829e7b86c7c9bef3922de1e955
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon May 7 13:44:22 2018 -0400
+
+    cmd/link: compress debug sections in external linking mode
+    
+    Forked from CL 111895.
+    
+    For #11799.
+    
+    Change-Id: Ie1346ac2c9122de494823b9058df3a0971e9dfe1
+    Reviewed-on: https://go-review.googlesource.com/118277
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/link/internal/ld/lib.go | 38 +++++++++++++++++++++++++-------------
+ 1 file changed, 25 insertions(+), 13 deletions(-)

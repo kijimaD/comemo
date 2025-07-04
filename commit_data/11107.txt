@@ -1,0 +1,12 @@
+commit c7fdbeb6c1acc842dcbe756950e2773eb2419efc
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jan 11 09:47:08 2012 -0800
+
+    cmd/go: fix test documentation
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5529067
+
+ src/cmd/go/test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

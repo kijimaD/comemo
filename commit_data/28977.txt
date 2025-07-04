@@ -1,0 +1,23 @@
+commit 6eede325ab9e444c19c8dc4fd5cc6c3603abb93c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 21 14:43:59 2016 -0700
+
+    cmd/compile: fix detection of duplicate cases for integer ranges
+    
+    Previously, the check to make sure we only considered constant cases
+    for duplicates was skipping past integer ranges, because those use
+    n.List instead of n.Left. Thanks to Emmanuel Odeke for investigating
+    and helping to identify the root cause.
+    
+    Fixes #17517.
+    
+    Change-Id: I46fcda8ed9c346ff3a9647d50b83f1555587b740
+    Reviewed-on: https://go-review.googlesource.com/31716
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/swt.go | 39 ++++++++++++++++++++------------------
+ test/switch5.go                    |  9 +++++++++
+ 2 files changed, 30 insertions(+), 18 deletions(-)

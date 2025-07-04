@@ -1,0 +1,13 @@
+commit 9f46962c3b3c423485ec5a0ae452e1522bf261a5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 31 15:18:46 2010 -0700
+
+    big: added RatString, some simplifications
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2095041
+
+ src/pkg/big/rat.go      | 29 +++++++++++++++++------------
+ src/pkg/big/rat_test.go |  4 ++--
+ 2 files changed, 19 insertions(+), 14 deletions(-)

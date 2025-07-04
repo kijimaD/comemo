@@ -1,0 +1,22 @@
+commit 70a04f6880a2082a76f6282361b607f859db950f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 13 16:37:51 2018 -0800
+
+    go/types: make gotype continue after syntax errors
+    
+    This avoids odd behavior where sometimes a lot of useful
+    errors are not reported simply because of a small syntax
+    error.
+    
+    Tested manually with non-existing files. (We cannot easily
+    add an automatic test because this is a stand-alone binary
+    in this directory that must be built manually.)
+    
+    Fixes #23593.
+    
+    Change-Id: Iff90f95413bed7d1023fa0a5c9eb0414144428a9
+    Reviewed-on: https://go-review.googlesource.com/93815
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/gotype.go | 24 ++++++++++++++++++++----
+ 1 file changed, 20 insertions(+), 4 deletions(-)

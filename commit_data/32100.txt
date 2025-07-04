@@ -1,0 +1,14 @@
+commit 0173631d53df98b17d282b3d71e8f515388915cc
+Author: Axel Wagner <axel.wagner.hh@googlemail.com>
+Date:   Sat Jul 15 11:43:22 2017 -0600
+
+    encoding/binary: add examples for varint functions
+    
+    Change-Id: I191f6e46b452fadde9f641140445d843b0c7d534
+    Reviewed-on: https://go-review.googlesource.com/48604
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/binary/example_test.go | 91 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 91 insertions(+)

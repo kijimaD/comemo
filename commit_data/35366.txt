@@ -1,0 +1,23 @@
+commit 47be3d49c7d7ff77e675b0d0fb78c05fdb43dee2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 10 15:17:58 2018 -0700
+
+    reflect: use 'defined' rather than 'named', use 'embedded' rather than 'anonymous'
+    
+    On the API level this is just an update of the documentation to match
+    the current spec more closely.
+    
+    On the implementation side, this is a rename of various unexported names.
+    
+    For #22005.
+    
+    Change-Id: Ie5ae32f3b10f003805240efcceab3d0fd373cd51
+    Reviewed-on: https://go-review.googlesource.com/112717
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/all_test.go | 10 +++----
+ src/reflect/type.go     | 71 +++++++++++++++++++++++++------------------------
+ src/reflect/value.go    |  4 +--
+ 3 files changed, 43 insertions(+), 42 deletions(-)

@@ -1,0 +1,26 @@
+commit 740851bacafd8e47b9a6ce0cd8fa8e05506a7382
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Dec 14 13:03:06 2020 -0500
+
+    cmd/link: avoid use of -T when linking with lld
+    
+    When doing external linking on Windows, auto-detect the linker flavor
+    (bfd vs gold vs lld) and when linking with "lld", avoid the use of
+    "-T" (linker script), since this option is not supported by lld.
+    [Note: the Go linker currently employs -T to ensure proper placement
+    of the .debug_gdb_scripts section, to work around issues in older
+    versions of binutils; LLD recognizes this section and does place it
+    properly].
+    
+    Updates #39326.
+    
+    Change-Id: I3ea79cdceef2316bf86eccdb60188ac3655264ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278932
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/lib.go | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)

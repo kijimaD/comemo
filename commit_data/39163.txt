@@ -1,0 +1,43 @@
+commit 3e2c522d5c712fa2b1d18a101272abefc7dcb074
+Author: Damien Neil <dneil@google.com>
+Date:   Mon May 13 14:51:55 2019 -0700
+
+    errors, fmt: revert rejected changes for Go 1.13
+    
+    Reverts the following changes:
+    
+      https://go.googlesource.com/go/+/1f90d081391d4f5911960fd28d81d7ea5e554a8f
+      https://go.googlesource.com/go/+/8bf18b56a47a98b9dd2fa03beb358312237a8c76
+      https://go.googlesource.com/go/+/5402854c3557f87fa2741a52ffc15dfb1ef333cc
+      https://go.googlesource.com/go/+/37f84817247d3b8e687a701ccb0d6bc7ffe3cb78
+      https://go.googlesource.com/go/+/6be6f114e0d483a233101a67c9644cd72bd3ae7a
+    
+    Partially reverts the followinng change, removing the errors.Opaque
+    function and the errors.Wrapper type definition:
+    
+      https://go.googlesource.com/go/+/62f5e8156ef56fa61e6af56f4ccc633bde1a9120
+    
+    Updates documentation referencing the Wrapper type.
+    
+    Change-Id: Ia622883e39cafb06809853e3fd90b21441124534
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176997
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+
+ src/errors/errors.go                    |  34 +-
+ src/errors/format.go                    |  34 --
+ src/errors/frame.go                     |  47 ---
+ src/errors/frame_test.go                |  66 ----
+ src/errors/wrap.go                      |  29 +-
+ src/errors/wrap_test.go                 |  61 ----
+ src/fmt/doc.go                          |  18 +-
+ src/fmt/errors.go                       | 239 -------------
+ src/fmt/errors_test.go                  | 576 --------------------------------
+ src/fmt/format.go                       |   5 -
+ src/fmt/format_example_test.go          |  46 ---
+ src/fmt/print.go                        |  35 +-
+ src/go/build/deps_test.go               |   5 +-
+ src/internal/errinternal/errinternal.go |   9 -
+ src/internal/oserror/errors_test.go     |   6 +-
+ 15 files changed, 37 insertions(+), 1173 deletions(-)

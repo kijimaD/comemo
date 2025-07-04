@@ -1,0 +1,16 @@
+commit 4ed666e228bda4ab8a8c05719678968e0c4049ef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 27 16:45:42 2009 -0700
+
+    doc fixes (no lang changes)
+    - added missing predeclared identifiers
+    - html-escaping of a few <<'s and >>'s
+    - added a few links (and removed the §'s)
+    
+    R=r
+    DELTA=30  (0 added, 0 deleted, 30 changed)
+    OCL=33985
+    CL=33995
+
+ doc/go_spec.html | 60 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 30 insertions(+), 30 deletions(-)

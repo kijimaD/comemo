@@ -1,0 +1,20 @@
+commit 07c658316b411a4b0e71a3a7e78b970b091795ab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 21 16:59:29 2021 -0800
+
+    io/ioutil: forward TempFile and TempDir to os package
+    
+    For #42026
+    Fixes #44311
+    
+    Change-Id: I3dabcf902d155f95800b4adf1d7578906a194ce6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285378
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/io/ioutil/export_test.go   |   7 ---
+ src/io/ioutil/tempfile.go      | 108 +++--------------------------------------
+ src/io/ioutil/tempfile_test.go |  13 ++---
+ 3 files changed, 13 insertions(+), 115 deletions(-)

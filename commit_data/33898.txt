@@ -1,0 +1,16 @@
+commit bfb8f2a765d6097c82b30ae2c19c99fa1082add3
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Dec 14 16:11:03 2017 -0500
+
+    doc/debugging_with_gdb: update -gcflags usage
+    
+    After go1.10, compiler/linker option flags apply only to the packages
+    listed directly on the command line unless the matching pattern is
+    specified. For debugging, we want to apply the flags to all packages.
+    
+    Change-Id: Ic69eee1491b1080fc140592f200c59a6e03d87ac
+    Reviewed-on: https://go-review.googlesource.com/84135
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/debugging_with_gdb.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

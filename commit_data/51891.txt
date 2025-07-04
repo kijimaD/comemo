@@ -1,0 +1,25 @@
+commit 53372ab2791f2bd8a02ef21928893d213e6bfe95
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Mon Jan 30 21:51:40 2023 -0800
+
+    misc: increase node stack size
+    
+    The default NodeJS V8 stack size is 984K, which is not enough to run
+    the regexp or go/parser tests. This commit increases the stack size
+    to 8192K, which removes the stack size limit error.
+    
+    Fixes #56498
+    Fixes #57614
+    
+    Change-Id: I357885d420daf259187403deab25ff587defa0fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463994
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Julien Fabre <ju.pryz@gmail.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/wasm/go_js_wasm_exec | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

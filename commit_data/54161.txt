@@ -1,0 +1,20 @@
+commit 52ebd1624d1a70d84deef4aa442b549267665480
+Author: mstmdev <mstmdev@gmail.com>
+Date:   Tue Aug 22 16:34:22 2023 +0000
+
+    cmd/asm: add more flags to the documentation
+    
+    Add the flags -e and -v.
+    
+    Change-Id: I48c22141ea0bc634f30625214b1a277e686bb98e
+    GitHub-Last-Rev: 4a12fe4f4448804f9d8a9635a6c869556891225f
+    GitHub-Pull-Request: golang/go#62208
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521679
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/asm/doc.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,18 @@
+commit ae82315b82672ca95c2b5365d7d18283981a40af
+Author: Alexander Morozov <lk4d4math@gmail.com>
+Date:   Mon Aug 31 08:41:43 2015 -0700
+
+    syscall: move check of unprivileged_userns_clone to whoamiCmd
+    
+    This is basic validation and should be performed early
+    
+    Fixes #12412
+    
+    Change-Id: I903f7eeafdc22376704985a53d649698cf9d8ef4
+    Reviewed-on: https://go-review.googlesource.com/14110
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/exec_linux_test.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

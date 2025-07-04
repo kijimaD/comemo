@@ -1,0 +1,44 @@
+commit 7ef0237d89b7cf5ca9537e926aca3ca59944e1e0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 16 17:00:02 2021 -0400
+
+    cmd/go/internal/modload: clean up error reporting
+    
+    • Consolidate 'if ld.AllowErrors' conditions into an 'ld.errorf'
+      method.
+    
+    • Rename SilenceErrors to SilencePackageErrors and clarify its
+      documentation. (There is currently no way to silence errors in the
+      module graph. Perhaps we should add one, but for now let's at least
+      clarify the existing behavior.)
+    
+    • Move 'tidy -v' verbose logging into LoadPackages, where other
+      logging happens.
+    
+    • Make checkMultiplePaths a loader method (since it only matters
+      during package loading anyway).
+    
+    • Check package and module-graph errors in loadFromRoots instead of
+      LoadPackages. These checks were previously omitted on the
+      ImportFromFiles path, which seems likely to be a bug. (We now
+      suppress package errors explicitly in ImportFromFiles, which at
+      least makes the bug more explicit.)
+    
+    This somewhat simplifies the code structure in preparation for
+    the lazy-mode tidy implementation.
+    
+    For #36460
+    
+    Change-Id: I3ce3586c6934989d5194f00f99e7cc4423cf767f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313229
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/load/pkg.go          |   2 +-
+ src/cmd/go/internal/modcmd/why.go        |   2 +-
+ src/cmd/go/internal/modget/get.go        |   2 +-
+ src/cmd/go/internal/modload/buildlist.go |  65 ++---------
+ src/cmd/go/internal/modload/load.go      | 192 +++++++++++++++++++++++--------
+ 5 files changed, 156 insertions(+), 107 deletions(-)

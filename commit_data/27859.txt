@@ -1,0 +1,21 @@
+commit 0cd8faf74494f400d278b9b0071908951bea6f40
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jun 17 12:28:31 2016 -0700
+
+    cmd/internal/obj: add opcode space safety check
+    
+    This CL adds a safety mechanism
+    for changing the number of opcodes
+    available per architecture.
+    
+    A subsequent CL will actually make the change.
+    
+    Change-Id: I6332ed5514f2f153c54d11b7da0cc8a6be1c8066
+    Reviewed-on: https://go-review.googlesource.com/24222
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/link.go | 3 ++-
+ src/cmd/internal/obj/util.go | 3 +++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit e2c30e1fc5157a7c8aff5d8c41b263b30aa5b372
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 8 10:17:47 2017 -0400
+
+    cmd/go: change testMainDeps from map to slice
+    
+    This makes the construction of pmain.Internal.Imports consistently ordered.
+    
+    Change-Id: I82348a18c7824378aa7e5bc5b6bcd550d4b758da
+    Reviewed-on: https://go-review.googlesource.com/56271
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/test/test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

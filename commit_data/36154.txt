@@ -1,0 +1,16 @@
+commit d10ab13c18e1c7ec990a7878a6d1a0dadb089f90
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 25 18:08:16 2018 +0000
+
+    net/http: expand a TimeoutHandler test a bit
+    
+    Updates #22821
+    
+    Change-Id: I2d0d483538174a90f56c26d99bea89fe9ce4d144
+    Reviewed-on: https://go-review.googlesource.com/125855
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/net/http/serve_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

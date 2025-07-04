@@ -1,0 +1,21 @@
+commit f2781229a91129fff9c34e48f957b588d30b13b3
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 11 23:02:32 2023 +1000
+
+    runtime/cgo: consolidate openbsd cgo code
+    
+    All openbsd architectures now use the same code, deduplicate accordingly.
+    
+    Change-Id: I65f1d9bd78c97dbdf552ec95ebba7ec4d04c8d2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518622
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ .../cgo/{gcc_openbsd_386.c => gcc_openbsd.c}       |  2 +
+ src/runtime/cgo/gcc_openbsd_amd64.c                | 59 ---------------------
+ src/runtime/cgo/gcc_openbsd_arm.c                  | 60 ----------------------
+ src/runtime/cgo/gcc_openbsd_arm64.c                | 60 ----------------------
+ src/runtime/cgo/gcc_openbsd_mips64.c               | 60 ----------------------
+ 5 files changed, 2 insertions(+), 239 deletions(-)

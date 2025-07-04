@@ -1,0 +1,14 @@
+commit a12ba4b83275cda3b3bfb6d609d34492c03717f5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 13:25:02 2015 -0800
+
+    doc: Americanise spelling of wilful
+    
+    Fixes #13660
+    
+    Change-Id: I05bcb4efcb865192a1ef6756e9dccef83505934c
+    Reviewed-on: https://go-review.googlesource.com/17990
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/conduct.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

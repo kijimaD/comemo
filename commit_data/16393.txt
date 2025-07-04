@@ -1,0 +1,17 @@
+commit 7b9df092618d593e29ff8e7a509a5ad110431439
+Author: Frederick Kelly Mayle III <frederickmayle@gmail.com>
+Date:   Thu May 23 14:17:52 2013 -0700
+
+    runtime: faster range on empty map
+    
+    benchmark                old ns/op    new ns/op    delta
+    BenchmarkMapIter               191          190   -0.52%
+    BenchmarkMapIterEmpty           22            4  -78.96%
+    
+    R=golang-dev, minux.ma, dvyukov, iant, khr
+    CC=golang-dev
+    https://golang.org/cl/9637043
+
+ src/pkg/runtime/hashmap.c        |  2 +-
+ src/pkg/runtime/mapspeed_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

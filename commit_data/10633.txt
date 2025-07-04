@@ -1,0 +1,18 @@
+commit 130e2943a320f012757518787b0c9dbf182ecb3a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 6 16:38:02 2011 -0800
+
+    http: make Transport warning about connections closing more accurate
+    
+    It was fragile and non-portable, and then became spammy with
+    the os.EINVAL removal.  Now it just uses the length of the
+    Peek return value instead.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5453065
+
+ src/pkg/net/http/Makefile             |  5 -----
+ src/pkg/net/http/transport.go         | 14 ++++----------
+ src/pkg/net/http/transport_windows.go | 21 ---------------------
+ 3 files changed, 4 insertions(+), 36 deletions(-)

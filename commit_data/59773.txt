@@ -1,0 +1,27 @@
+commit da0e8c4517178f545ee78b11e3d91e1daa7ce07a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Jun 3 21:35:20 2025 +0700
+
+    cmd/compile: relax reshaping condition
+    
+    CL 641955 changes the Unified IR reader to not doing shapify when
+    reading reshaping expression. However, this condition only matters with
+    pointer type shaping, which will lose the original type, causes the
+    reshaping ends up with a completely different type.
+    
+    This CL relaxes the condition, always allow non-pointer types shaping.
+    
+    Updates #71184
+    Fixes #73947
+    
+    Change-Id: Ib0bafd8932c52d99266f311b6cbfc75c00383f9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/678335
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/cmd/compile/internal/noder/reader.go       |  20 +++-
+ src/cmd/compile/testdata/script/issue73947.txt | 125 +++++++++++++++++++++++++
+ 2 files changed, 144 insertions(+), 1 deletion(-)

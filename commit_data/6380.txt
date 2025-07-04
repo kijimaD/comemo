@@ -1,0 +1,14 @@
+commit daf64bf567354167aa0f60a7e4688892e55825dd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 24 12:58:08 2010 -0700
+
+    gofmt: don't substitute invalid positions with valid ones in rewrites
+    
+    Fixes rewrite bug: 'f(x) -> f(0)' where functions "picked up" ... arguments.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2279041
+
+ src/cmd/gofmt/rewrite.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,28 @@
+commit 0cf6f8c096e8482da62ffa264ba6929f9179945e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 23 14:30:40 2011 +1100
+
+    5l/6l/8l: use enums for header type and symbolic strings for -H option values
+    
+    Thanks to rsc for the suggestion.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4174060
+
+ src/cmd/5l/asm.c   | 28 ++++++++---------
+ src/cmd/5l/doc.go  |  2 ++
+ src/cmd/5l/obj.c   | 46 +++++++++++++++++-----------
+ src/cmd/6l/asm.c   | 58 +++++++++++++++++------------------
+ src/cmd/6l/doc.go  |  8 +++--
+ src/cmd/6l/obj.c   | 62 ++++++++++++++++++-------------------
+ src/cmd/6l/pass.c  |  8 ++---
+ src/cmd/8l/asm.c   | 56 +++++++++++++++++-----------------
+ src/cmd/8l/doc.go  | 10 ++++--
+ src/cmd/8l/obj.c   | 89 ++++++++++++++++++++++++++----------------------------
+ src/cmd/8l/pass.c  | 16 +++++-----
+ src/cmd/ld/data.c  |  6 ++--
+ src/cmd/ld/dwarf.c |  2 +-
+ src/cmd/ld/lib.c   | 13 ++++++++
+ src/cmd/ld/lib.h   | 31 +++++++++++++++++++
+ 15 files changed, 248 insertions(+), 187 deletions(-)

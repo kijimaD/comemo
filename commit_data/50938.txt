@@ -1,0 +1,20 @@
+commit 1f068f0dc7bc997446a7aac44cfc70746ad918e0
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Oct 18 12:11:43 2022 -0400
+
+    runtime: throw in unreachable exitThread
+    
+    Several OSes don't ever reach exitThread, On AIX, Plan9, Solaris, and
+    Windows, we throw if this function is accidentally reached. Do the same
+    on Darwin and OpenBSD for consistency.
+    
+    Change-Id: Icd189b11179755a28b3ec48b267349c57facbf24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443717
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/sys_darwin.go   | 1 +
+ src/runtime/sys_openbsd2.go | 1 +
+ 2 files changed, 2 insertions(+)

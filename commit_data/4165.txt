@@ -1,0 +1,12 @@
+commit c16f5cd9a6bc74ce5c6b98580c8ffbabb3aca9a1
+Author: James Meneghello <rawrz0r@gmail.com>
+Date:   Thu Nov 19 21:07:54 2009 -0800
+
+    Contributions etc.
+    
+    R=rsc, r
+    https://golang.org/cl/156106
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

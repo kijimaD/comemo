@@ -1,0 +1,17 @@
+commit 687925ffcf034b84029f646ea87f22eca5aeada5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 22:55:26 2015 -0400
+
+    cmd/go: document that <meta> tags should be early in the HTML for go get
+    
+    While we are here, fix a few things not updated for -insecure.
+    
+    Fixes #8163.
+    
+    Change-Id: Ib80c9ac00d6b61cce26c3d20bee3d30ab9af1331
+    Reviewed-on: https://go-review.googlesource.com/12148
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/alldocs.go | 10 +++++++---
+ src/cmd/go/help.go    | 10 +++++++---
+ 2 files changed, 14 insertions(+), 6 deletions(-)

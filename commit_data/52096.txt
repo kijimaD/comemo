@@ -1,0 +1,21 @@
+commit 8367e2dfc72f626cba75be71112d42fdb2ed82f7
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Feb 24 01:46:09 2023 -0800
+
+    encoding/json: remove legacy fuzz.go file
+    
+    With native support for fuzzing in the Go toolchain,
+    rely instead on the fuzz tests declared in fuzz_test.go.
+    
+    Change-Id: I601842cd0bc7e64ea3bfdafbbbc3534df11acf59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471197
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/encoding/json/fuzz.go | 42 ------------------------------------------
+ 1 file changed, 42 deletions(-)

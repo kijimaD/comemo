@@ -1,0 +1,13 @@
+commit 35748919429c23b9ea91099b8d3b481dff5bbae5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 29 15:08:49 2015 -0700
+
+    src: update buildall.bash comment with renamed trybot builder
+    
+    Change-Id: I77887d247d3e5d60305fc76f962652268827b955
+    Reviewed-on: https://go-review.googlesource.com/9516
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/buildall.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

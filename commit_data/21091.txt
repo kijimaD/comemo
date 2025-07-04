@@ -1,0 +1,12 @@
+commit c7eb9663aa2cf71811fde079b83159ea09cbd106
+Author: Michael Matloob <matloob@google.com>
+Date:   Tue Dec 23 23:19:08 2014 -0800
+
+    regexp: fix typo in comment: s/onpass/onepass/
+    
+    Change-Id: Idff57050a34d09e7fa9b77e9b53d61bb5ea2a71c
+    Reviewed-on: https://go-review.googlesource.com/2095
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/regexp/regexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

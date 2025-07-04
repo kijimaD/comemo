@@ -1,0 +1,22 @@
+commit 288c1c83d96836e5ce45a7d232c6d0271cc3ed52
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 28 15:57:44 2010 -0800
+
+    gc: tweak error messages, avoid internalization settings in bison
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/194129
+
+ src/cmd/gc/Makefile   |  2 +-
+ src/cmd/gc/go.errors  | 16 ++++++++--------
+ src/cmd/gc/lex.c      | 22 +++++++++++++---------
+ test/syntax/import.go |  2 +-
+ test/syntax/semi1.go  |  2 +-
+ test/syntax/semi2.go  |  2 +-
+ test/syntax/semi3.go  |  2 +-
+ test/syntax/semi4.go  |  2 +-
+ test/syntax/semi5.go  |  2 +-
+ test/syntax/semi6.go  |  2 +-
+ test/syntax/semi7.go  |  2 +-
+ 11 files changed, 30 insertions(+), 26 deletions(-)

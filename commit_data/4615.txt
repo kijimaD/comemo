@@ -1,0 +1,31 @@
+commit 7f11db5ea9862d2c09e5984109f3092cb3f006fc
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Fri Jan 15 13:21:36 2010 -0800
+
+    math: 386 FPU functions
+    
+    sin, cos, tan, asin, acos, atan, exp, log, log10,
+    floor, ceil, and fabs
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/189083
+
+ src/pkg/math/Makefile      |  8 ++++++++
+ src/pkg/math/asin_386.s    | 28 ++++++++++++++++++++++++++++
+ src/pkg/math/asin_decl.go  |  8 ++++++++
+ src/pkg/math/atan_386.s    | 11 +++++++++++
+ src/pkg/math/atan_decl.go  |  7 +++++++
+ src/pkg/math/exp_386.s     | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/math/exp_decl.go   |  7 +++++++
+ src/pkg/math/fabs_386.s    | 10 ++++++++++
+ src/pkg/math/fabs_decl.go  |  7 +++++++
+ src/pkg/math/floor_386.s   | 31 +++++++++++++++++++++++++++++++
+ src/pkg/math/floor_decl.go |  8 ++++++++
+ src/pkg/math/log_386.s     | 19 +++++++++++++++++++
+ src/pkg/math/log_decl.go   |  8 ++++++++
+ src/pkg/math/sin_386.s     | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/math/sin_decl.go   |  8 ++++++++
+ src/pkg/math/tan_386.s     | 26 ++++++++++++++++++++++++++
+ src/pkg/math/tan_decl.go   |  7 +++++++
+ 17 files changed, 278 insertions(+)

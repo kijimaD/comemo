@@ -1,0 +1,13 @@
+commit 3bf3ba2d8179cfbc73f535d3ccc28bc8f46dc45e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 30 09:10:58 2013 +1100
+
+    go/build: clean up after rollback
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7237049
+
+ src/pkg/go/build/build.go      |  8 +-------
+ src/pkg/go/build/build_test.go | 12 ------------
+ 2 files changed, 1 insertion(+), 19 deletions(-)

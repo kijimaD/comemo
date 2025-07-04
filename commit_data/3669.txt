@@ -1,0 +1,14 @@
+commit eb63c3fec44a80df9ae3eaab4cc5c2dc101912bc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 28 17:09:24 2009 -0700
+
+    Test that the compiler rejects map types which should not be
+    compatible.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1018001
+
+ test/bugs/bug212.go | 12 ++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 15 insertions(+)

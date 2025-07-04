@@ -1,0 +1,14 @@
+commit bd9a0185d2c1cca6190bff5d89ec931bd80213e5
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Jul 18 10:53:44 2018 +0200
+
+    doc/go1.11: add space in Go version name
+    
+    Missed in CL 124516.
+    
+    Change-Id: I6488196c8392987d69eca832ab4969aaafe1a26c
+    Reviewed-on: https://go-review.googlesource.com/124658
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.11.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

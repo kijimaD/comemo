@@ -1,0 +1,16 @@
+commit 3479e1e5439c3c4f5236239ad1ebaba2b945f755
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Thu Jun 22 16:33:06 2023 +0300
+
+    internal/fuzz: fix typo in comment
+    
+    Change-Id: I04f0aa2730cd7d60027a36a3b81289e4972d4a9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505115
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/fuzz/counters_unsupported.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 2a47bc9e4f2f44f0fc741bd850cdad391abbeb84
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 17 23:01:42 2023 -0700
+
+    cmd/compile/internal/typecheck: prune some useless code
+    
+    This error checking code is all obsolete by types2.
+    
+    Change-Id: I247cee2c847236dfbd5a878441ad712481692927
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520607
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/typecheck.go | 141 +-----------------------
+ 1 file changed, 2 insertions(+), 139 deletions(-)

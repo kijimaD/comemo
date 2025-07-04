@@ -1,0 +1,22 @@
+commit 0a2650f3988554674f1d0a160b1f057322db5240
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed May 18 14:39:37 2011 -0700
+
+    image/jpeg: small memory layout optimization for encoding.
+    
+    Before:
+    jpeg.BenchmarkEncodeRGBOpaque ... 23.29 MB/s
+    jpeg.BenchmarkEncodeRGBOpaque ... 23.27 MB/s
+    jpeg.BenchmarkEncodeRGBOpaque ... 23.17 MB/s
+    
+    After:
+    jpeg.BenchmarkEncodeRGBOpaque ... 23.42 MB/s
+    jpeg.BenchmarkEncodeRGBOpaque ... 23.34 MB/s
+    jpeg.BenchmarkEncodeRGBOpaque ... 23.33 MB/s
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4538077
+
+ src/pkg/image/jpeg/writer.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

@@ -1,0 +1,17 @@
+commit 807aadcd3e148110d0e7d4dc251d831c35af30b6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 12:09:43 2012 -0500
+
+    cmd/go: fix go test -compiler
+    
+    The compiler must be changed with the Set method
+    so that the buildToolchain gets updated too.
+    
+    Fixes #3231.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5768044
+
+ src/cmd/go/testflag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

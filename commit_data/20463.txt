@@ -1,0 +1,17 @@
+commit ed7db89b90409c1ef0be44f4e5cea7dd6475ba4e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Sep 17 20:38:50 2014 -0700
+
+    runtime: output number of goroutines in GC trace
+    Example output:
+    gc26(1): 1+0+1038+0 us, 0 -> 1 MB, 19074 (88777-69703) objects, 5 gs, 184/0/0 sweeps, 0(0) handoff, 0(0) steal, 0/0/0 yields
+    It's useful to understand long scan times,
+    because goroutine traceback is slow.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/136310044
+
+ src/runtime/mgc0.c | 2 ++
+ 1 file changed, 2 insertions(+)

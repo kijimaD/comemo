@@ -1,0 +1,15 @@
+commit 609d742e791eebceddaeae419b3b909594f4e404
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 31 14:09:19 2013 +1000
+
+    fmt: remove "Scan:" prefix from error messages
+    The prefix was not uniformly applied and is probably better left off anyway.
+    
+    Fixes #4944.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/12140043
+
+ src/pkg/fmt/scan.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

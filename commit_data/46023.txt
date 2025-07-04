@@ -1,0 +1,22 @@
+commit 850768bbc9fd2d74a88233fa1f46791d08d1afc8
+Author: astraw99 <wangchengiscool@gmail.com>
+Date:   Mon Aug 16 09:54:40 2021 +0000
+
+    time: update current time comment
+    
+    In the time package, the ticker and timer both send
+    current time to channel C, so this PR update the comment
+    to understand them better.
+    
+    Change-Id: I99846a40bf8ef780bf0062dd84cf721b3b892a1b
+    GitHub-Last-Rev: 535da54b8ebd25be22289699212364df0aa49c7f
+    GitHub-Pull-Request: golang/go#47597
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340649
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/time/sleep.go | 6 +-----
+ src/time/tick.go  | 6 +++---
+ 2 files changed, 4 insertions(+), 8 deletions(-)

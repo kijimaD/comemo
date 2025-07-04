@@ -1,0 +1,33 @@
+commit b5b2cf519fe332891c165077f3723ee74932a647
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 1 10:32:20 2022 +0700
+
+    go/types,types2: exclude tests that need cgo.Incomplete
+    
+    Since when go/types,types2 do not know about build constraints, and
+    runtime/cgo.Incomplete is only available on platforms that support cgo.
+    
+    These tests are also failing on aix with failure from linker, so disable
+    them on aix to make builder green. The fix for aix is tracked in #54814
+    
+    Updates #46731
+    Updates #54814
+    
+    Change-Id: I5d6f6e29a8196efc6c457ea64525350fc6b20309
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427394
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/types2/stdlib_test.go | 9 +++++++++
+ src/go/types/stdlib_test.go                    | 9 +++++++++
+ test/fixedbugs/bug514.go                       | 2 +-
+ test/fixedbugs/issue40954.go                   | 2 +-
+ test/fixedbugs/issue42032.go                   | 2 +-
+ test/fixedbugs/issue42076.go                   | 2 +-
+ test/fixedbugs/issue46903.go                   | 3 +--
+ test/fixedbugs/issue51733.go                   | 2 +-
+ 8 files changed, 24 insertions(+), 7 deletions(-)

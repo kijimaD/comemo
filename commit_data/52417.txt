@@ -1,0 +1,29 @@
+commit d49b11be1d4413ac68d4a3127a506aa78bc7301a
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Mar 27 10:21:10 2023 -0400
+
+    src/log/slog: disallow == on Values
+    
+    Comparing two Values with == is sensitive to the internal
+    representation of Values, and may not correspond to
+    equality on the Go values they represent. For example,
+    
+        StringValue("X") != StringValue(strings.ToUpper("x"))
+    
+    because Go ends up doing a pointer comparison on the data
+    stored in the Values.
+    
+    So make Values non-comparable by adding a non-comparable field.
+    
+    Updates #56345.
+    
+    Change-Id: Ieedbf454e631cda10bc6fcf470b57d3f1d2182cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479516
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/log/slog/attr.go   | 4 ++++
+ src/log/slog/record.go | 2 +-
+ src/log/slog/value.go  | 3 ++-
+ 3 files changed, 7 insertions(+), 2 deletions(-)

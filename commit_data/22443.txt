@@ -1,0 +1,14 @@
+commit 922a412822e4f103334634e7350d02a7f8d07069
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:43:27 2015 -0400
+
+    cmd/addr2line: skip fork test on darwin/arm64
+    
+    Just like darwin/arm.
+    
+    Change-Id: Ia84662f58f6b1bb168cce8a9837945b1cbd175e1
+    Reviewed-on: https://go-review.googlesource.com/8828
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/addr2line/addr2line_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

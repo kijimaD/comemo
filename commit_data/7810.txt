@@ -1,0 +1,16 @@
+commit add8c8db60940e8099f5cb9ff9af80c28763499e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 18 11:50:19 2011 -0700
+
+    net: Use preallocated buffer for epoll.
+    
+    Reduces rpc test "mallocs per rpc round trip" by 4.
+    
+    Gains ~8% on a localhost client/server RPC test.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4284056
+
+ src/pkg/net/fd_linux.go | 74 ++++++++++++++++++++++++++++---------------------
+ 1 file changed, 42 insertions(+), 32 deletions(-)

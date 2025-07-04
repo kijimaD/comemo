@@ -1,0 +1,15 @@
+commit f6f125dd072ed16efdede5a28defe7d8c552a02c
+Author: griesemer <gri@golang.org>
+Date:   Tue Aug 15 13:46:16 2017 +0200
+
+    go/types: document that Signature.Recv() is ignored for type identity
+    
+    Fixes #21367.
+    
+    Change-Id: I50704c5a613abcce57b340db8992c7bcb1cb728f
+    Reviewed-on: https://go-review.googlesource.com/55710
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/predicates.go | 6 ++++--
+ src/go/types/type.go       | 3 ++-
+ 2 files changed, 6 insertions(+), 3 deletions(-)

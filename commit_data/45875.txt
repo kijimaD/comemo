@@ -1,0 +1,20 @@
+commit a1d27269d698d684497d0dc61c968a1c2dbe00b3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Jun 19 03:35:15 2021 -0700
+
+    cmd/go: prep for 'go env' refactoring
+    
+    This CL refactors code a little to make it easier to add GOEXPERIMENT
+    support in the future.
+    
+    Change-Id: I87903056f7863049e58be72047b2b8a60a213baf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329654
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/envcmd/env.go        | 210 +++++++++++++++++--------------
+ src/cmd/go/main.go                       |  64 +++++-----
+ src/cmd/go/testdata/script/env_unset.txt |  23 ++++
+ 3 files changed, 170 insertions(+), 127 deletions(-)

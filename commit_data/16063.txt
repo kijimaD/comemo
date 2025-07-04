@@ -1,0 +1,12 @@
+commit b34f0551387fcf043d65cd7d96a0214956578f94
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 2 23:17:37 2013 -0700
+
+    spec: Go has no 'reference types'
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8288044
+
+ doc/go_spec.html | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

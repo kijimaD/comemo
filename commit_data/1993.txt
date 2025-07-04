@@ -1,0 +1,15 @@
+commit a91a8042b47e58d718e0af0edaf2eda485cc8880
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Apr 10 19:49:31 2009 -0700
+
+    range over strings
+    
+    R=r
+    OCL=27332
+    CL=27332
+
+ src/cmd/gc/builtin.c.boot |   2 +
+ src/cmd/gc/sys.go         |   2 +
+ src/cmd/gc/walk.c         |  77 ++++++++++++++++++++++-
+ src/runtime/string.c      | 156 ++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 235 insertions(+), 2 deletions(-)

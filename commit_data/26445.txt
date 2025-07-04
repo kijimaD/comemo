@@ -1,0 +1,17 @@
+commit 596949c18a29c51fcfa3ec2596cae72241e256e1
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Mar 21 11:02:55 2016 -0400
+
+    cmd/dist: allow gohostarch to be s390x
+    
+    Should let the s390x builder progress a little further.
+    
+    Change-Id: I5eab5f384b0b039f8e246ba69ecfb24de08625d2
+    Reviewed-on: https://go-review.googlesource.com/20965
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/util.go | 2 ++
+ 1 file changed, 2 insertions(+)

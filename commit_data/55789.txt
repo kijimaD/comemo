@@ -1,0 +1,22 @@
+commit 9f9008ce6645aa322ed0e8bd27b1868143d8e832
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 28 15:47:28 2024 -0800
+
+    go/types, types2: disable incorrect optimization in type validity check
+    
+    Fixes #65711.
+    
+    Change-Id: I3196b7d053c9868b74c53623526f2da0ab878f53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567976
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check.go           |  3 +-
+ src/cmd/compile/internal/types2/validtype.go       | 30 +++++++++-----
+ src/go/types/check.go                              |  3 +-
+ src/go/types/validtype.go                          | 30 +++++++++-----
+ .../types/testdata/fixedbugs/issue65711.go         | 25 ++++++++++++
+ src/internal/types/testdata/fixedbugs/issue6977.go | 47 ++++++++++++----------
+ 6 files changed, 96 insertions(+), 42 deletions(-)

@@ -1,0 +1,16 @@
+commit 1b8f51c91794e3fb90e582ba22ad06b6ad28e1d4
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Mar 9 00:41:03 2013 +0100
+
+    runtime: fix integer overflow in amd64 memmove.
+    
+    Fixes #4981.
+    
+    R=bradfitz, fullung, rsc, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7474047
+
+ src/pkg/runtime/memmove_amd64.s             |  5 ++-
+ src/pkg/runtime/memmove_linux_amd64_test.go | 61 +++++++++++++++++++++++++++++
+ src/pkg/runtime/runtime.h                   |  2 +-
+ 3 files changed, 65 insertions(+), 3 deletions(-)

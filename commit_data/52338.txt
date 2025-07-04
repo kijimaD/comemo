@@ -1,0 +1,20 @@
+commit b414ba4c993e38b0c5241f9d36021423afeb05ed
+Author: Bryan Mills <bcmills@google.com>
+Date:   Mon Mar 20 14:31:59 2023 +0000
+
+    Revert "cmd/go: import runtime/cgo when externally linking"
+    
+    This reverts CL 477195.
+    
+    Reason for revert: test fails on darwin and solaris builders.
+    
+    Change-Id: I68085f06bc84b0b8649804b8968626ed0e788931
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477795
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/go/internal/load/pkg.go             | 29 +++-------------------
+ src/cmd/go/testdata/script/build_static.txt | 38 -----------------------------
+ 2 files changed, 4 insertions(+), 63 deletions(-)

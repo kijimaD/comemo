@@ -1,0 +1,17 @@
+commit 4ae3835aa28d21fd9045223640b7617ca1b83dfe
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Jun 13 10:12:06 2019 +0200
+
+    cmd/go: silence ar with D flag failures
+    
+    The first call of ar must not show its output in order to avoid useless
+    error messages about D flag.
+    
+    Change-Id: I3a2f5144b3bb271705000b67cd46cd02e98aca77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182077
+    Run-TryBot: Clément Chigot <clement.chigot@atos.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/gccgo.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

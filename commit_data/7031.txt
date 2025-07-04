@@ -1,0 +1,15 @@
+commit 8184778abf3d60fd436541368077a08f3b4287b9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 4 13:16:50 2011 -0800
+
+    fix occurrences of occur[^sr .,?!;\n]
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/3794043
+
+ src/pkg/exp/datafmt/datafmt.go                | 2 +-
+ src/pkg/go/parser/interface.go                | 2 +-
+ src/pkg/go/printer/printer.go                 | 4 ++--
+ src/pkg/index/suffixarray/suffixarray_test.go | 4 ++--
+ 4 files changed, 6 insertions(+), 6 deletions(-)

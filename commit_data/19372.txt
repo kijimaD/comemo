@@ -1,0 +1,17 @@
+commit 6d63d4f3be32bfd3dbc57fe6872d315369c59c6d
+Author: Guillaume J. Charmes <guillaume@charmes.net>
+Date:   Thu May 15 15:18:05 2014 -0700
+
+    archive/tar: Do not panic on Read if uninitialized
+    
+    Calling tar.Reader.Read() used to work fine, but without this patch it panics.
+    Simply return EOF to indicate the tar.Reader.Next() needs to be called.
+    
+    LGTM=iant, bradfitz
+    R=golang-codereviews, bradfitz, iant, mikioh.mikioh, dominik.honnef
+    CC=golang-codereviews
+    https://golang.org/cl/94530043
+
+ src/pkg/archive/tar/reader.go      |  3 +++
+ src/pkg/archive/tar/reader_test.go | 16 ++++++++++++++++
+ 2 files changed, 19 insertions(+)

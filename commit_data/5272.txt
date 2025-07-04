@@ -1,0 +1,13 @@
+commit d77010547da31b28036563918e44b452597baa2e
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Sun Apr 11 14:49:44 2010 -0700
+
+    debug/elf: Fix doc comments
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/849049
+
+ src/pkg/debug/elf/elf.go  | 45 ++++++++++-----------------------------------
+ src/pkg/debug/elf/file.go |  2 +-
+ 2 files changed, 11 insertions(+), 36 deletions(-)

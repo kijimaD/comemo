@@ -1,0 +1,23 @@
+commit 575ea5a87a86de3107b2401e10ff4e50e5a133a0
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 12 18:00:25 2020 -0400
+
+    cmd/link: set runtime.text to the address of the first function
+    
+    In CL 240065 we changed it to set to FlagTextAddr. Normally it
+    is the address of the first function, except on plan9/amd64
+    where, as FlagTextAddr is not aligned, it is rounded up. Set it
+    to the actual text start address.
+    
+    Fixes #41137.
+    
+    Change-Id: I1bba67f5eb4e24d9f745a11350fc999ff48bff45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261644
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/data.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

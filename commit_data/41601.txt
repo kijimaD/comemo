@@ -1,0 +1,37 @@
+commit fae87a2223e1fa959a20017742455200fe3c35f1
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Mar 5 12:46:04 2020 -0800
+
+    runtime: fix problem with repeated panic/recover/re-panics and open-coded defers
+    
+    In the open-code defer implementation, we add defer struct entries to the defer
+    chain on-the-fly at panic time to represent stack frames that contain open-coded
+    defers. This allows us to process non-open-coded and open-coded defers in the
+    correct order. Also, we need somewhere to be able to store the 'started' state of
+    open-coded defers. However, if a recover succeeds, defers will now be processed
+    inline again (unless another panic happens). Any defer entry representing a frame
+    with open-coded defers will become stale once we run the corresponding defers
+    inline and exit the associated stack frame. So, we need to remove all entries for
+    open-coded defers at recover time.
+    
+    The current code was only removing the top-most open-coded defer from the defer
+    chain during recovery. However, with recursive functions that do repeated
+    panic-recover-repanic, multiple stale entries can accumulate on the chain. So, we
+    just adjust the loop to process the entire chain. Since this is at panic/recover
+    case, it is fine to scan through the entire chain (which should usually have few
+    elements in it, since most defers are open-coded).
+    
+    The added test fails with a SEGV without the fix, because it tries to run a stale
+    open-code defer entry (and the stack has changed).
+    
+    Fixes #37664.
+    
+    Change-Id: I8e3da5d610b5e607411451b66881dea887f7484d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222420
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/defer_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/panic.go      | 14 ++++++------
+ 2 files changed, 62 insertions(+), 6 deletions(-)

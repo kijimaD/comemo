@@ -1,0 +1,14 @@
+commit f023b7a997d2deeda907a70d5f74232d239b4a11
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 25 17:36:37 2008 -0700
+
+    Change the name of the result variable so that it does not
+    hide the package "ip".
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=15914
+    CL=15914
+
+ src/lib/net/net.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

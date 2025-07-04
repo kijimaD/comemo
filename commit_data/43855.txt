@@ -1,0 +1,23 @@
+commit c47eac7db00e03776c3975025184e1938fbced75
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 20 12:54:18 2020 -0800
+
+    cmd/cgo, cmd/internal/pkgpath: support gofrontend mangler v3
+    
+    The gofrontend mangling scheme used by gccgo and GoLLVM has changed again.
+    Support the new version. This is a port of the relevant parts of
+    https://golang.org/cl/271726.
+    
+    For #41862
+    
+    Change-Id: I9c961c8e17ec960a83a23e1d49ea900962b63393
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272127
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/cgo/out.go                       | 23 ++++++-----
+ src/cmd/internal/pkgpath/pkgpath.go      | 68 ++++++++++++++++++++++++++++++--
+ src/cmd/internal/pkgpath/pkgpath_test.go | 22 ++++++++++-
+ 3 files changed, 98 insertions(+), 15 deletions(-)

@@ -1,0 +1,23 @@
+commit 918c82308a8b489cc5f179f4e18531ad12cd6692
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Fri Sep 4 18:07:55 2015 -0700
+
+    html/template: preserve attr in stateBeforeValue
+    
+    Context: #12149. The problem there is that contents of
+    <script type="text/template"> are treated as JS, and thus // is treated
+    as regexp.
+    
+    Preserve context.attr while we are in the attribute, in particular in
+    stateBeforeValue, so we have attr when reading attr value.
+    
+    Next CL will actually fix the bug.
+    
+    Change-Id: I99add2237b0885ecdcc08b4f7c25d0af99173e53
+    Reviewed-on: https://go-review.googlesource.com/14335
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/html/template/context.go     |   3 +-
+ src/html/template/escape_test.go | 124 ++++++++++++++++++++-------------------
+ src/html/template/transition.go  |   2 +-
+ 3 files changed, 67 insertions(+), 62 deletions(-)

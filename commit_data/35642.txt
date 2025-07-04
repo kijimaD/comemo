@@ -1,0 +1,16 @@
+commit a5f83037aeb74032870946c20780e6ba61f326a2
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Sat Jun 9 20:14:44 2018 -0700
+
+    net/http/httptest: deprecate ResponseRecorder.HeaderMap
+    
+    Users of this field are better off using Result instead.
+    
+    Fixes #25763.
+    
+    Change-Id: I4391afa6ed3873107628630adc1d409d77fb3f20
+    Reviewed-on: https://go-review.googlesource.com/117675
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httptest/recorder.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

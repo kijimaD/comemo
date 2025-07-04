@@ -1,0 +1,15 @@
+commit 3fab2a97e4ae677e74a4569e924ddd0d56cf4a78
+Author: Michael Chaten <mchaten@gmail.com>
+Date:   Thu May 3 17:35:44 2012 -0400
+
+    encoding/json: Fix panic when trying to unmarshal the empty string into an integer
+    
+    Fixes #3450.
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6035050
+
+ src/pkg/encoding/json/decode.go      |  5 +++++
+ src/pkg/encoding/json/decode_test.go | 19 +++++++++++++++++++
+ 2 files changed, 24 insertions(+)

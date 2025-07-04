@@ -1,0 +1,18 @@
+commit 8f5755e76e8e39733c3c919e77cdc2757bac2751
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 25 08:48:26 2019 +0200
+
+    runtime: gofmt after CL 192937
+    
+    CL 192937 introduced some changes which weren't properly gofmt'ed. Do so
+    now.
+    
+    Change-Id: I2d2d57ea8a79fb41bc4ca59fa23f12198d615fd8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196812
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/crash_test.go             |  2 +-
+ src/runtime/testdata/testprog/vdso.go | 38 +++++++++++++++++------------------
+ 2 files changed, 20 insertions(+), 20 deletions(-)

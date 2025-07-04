@@ -1,0 +1,13 @@
+commit 41971434d1ac17d3a978a651e619d43e266ddbba
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Apr 6 14:11:56 2011 -0400
+
+    crypto/rsa: add 3-prime support.
+    
+    R=golang-dev, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4365041
+
+ src/pkg/crypto/rsa/rsa.go      | 124 +++++++++++++++++++++++++++++++++++++----
+ src/pkg/crypto/rsa/rsa_test.go |  47 +++++++++++++++-
+ 2 files changed, 160 insertions(+), 11 deletions(-)

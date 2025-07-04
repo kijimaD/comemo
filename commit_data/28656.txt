@@ -1,0 +1,22 @@
+commit 57ae83307fc4cb90338b39dcc6fe3c61ee8ce0b7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 3 13:28:25 2016 -0700
+
+    go/ast, go/parser: parse alias declarations
+    
+    For now, we also accept "type p = p.T" (using = instead of =>, for
+    type aliases only), so we can experiment with an approach that only
+    uses type aliases. This concession is implemened in the parser.
+    
+    For #16339
+    
+    Change-Id: I88b5522a8b6cfc2e97ca146ede8b32af340220f8
+    Reviewed-on: https://go-review.googlesource.com/30211
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/ast/ast.go           | 28 ++++++++++-----
+ src/go/ast/filter.go        |  4 +++
+ src/go/ast/walk.go          | 10 ++++++
+ src/go/parser/parser.go     | 85 ++++++++++++++++++++++++++++++++-------------
+ src/go/parser/short_test.go |  2 ++
+ 5 files changed, 97 insertions(+), 32 deletions(-)

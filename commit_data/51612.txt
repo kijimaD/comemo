@@ -1,0 +1,18 @@
+commit 643f463186c0bc158ddfbeefc816544048cd2d37
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jan 13 10:31:21 2023 -0500
+
+    cmd/cover: remove go.mod from testdata subdir
+    
+    Remove a superfluous go.mod file in one of the testdata subdirs; test
+    runs ok without it, no need for it to be there (can confuse tooling).
+    
+    Change-Id: I3c43dd8ca557fdd32ce2f84cdb2427326a2dd35e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461945
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/cover/testdata/pkgcfg/go.mod | 3 ---
+ 1 file changed, 3 deletions(-)

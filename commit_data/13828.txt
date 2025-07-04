@@ -1,0 +1,16 @@
+commit 5c5c2c8112f774b118b9251eb15c2df529ad454c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 14 13:40:22 2012 -0700
+
+    os/exec: don't crash when out of fds
+    
+    Command.Start could crash before if no fds were available
+    because a nil *os.File of /dev/null was added to the cleanup
+    list, which crashed before returning the proper error.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6514043
+
+ src/pkg/os/exec/exec.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

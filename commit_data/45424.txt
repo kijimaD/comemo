@@ -1,0 +1,39 @@
+commit 18852e8372fcd6e0964f051d608839a093f6b5c7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 26 19:26:34 2021 -0400
+
+    cmd/link: use a two-pass approach for trampoline insertion
+    
+    Currently in the linker, for trampoline insertion it does a one-pass
+    approach, where it assigns addresses for each function and inserts
+    trampolines on the go. For this to work and not to emit too many
+    unnecessary trampolines, the functions need to be laid out in
+    dependency order, so a direct call's target is always as a known
+    address (or known to be not too far).
+    
+    This mostly works, but there are a few exceptions:
+    - linkname can break dependency tree and cause cycles.
+    - in internal linking mode, on some platforms, some calls are turned
+      into calls via PLT, but the PLT stubs are inserted rather late.
+    
+    Also, this is expensive in that it has to investigate all CALL
+    relocations.
+    
+    This CL changes it to use a two-pass approach. The first pass is
+    just to assign addresses without inserting any trampolines, assuming
+    the program is not too big. If this succeeds, no extra work needs to
+    be done. If this fails, start over and insert trampolines for too-
+    far targets as well as targets with unknown addresses. This should
+    make it faster for small programs (most cases) and generate fewer
+    conservative trampolines.
+    
+    Change-Id: Ib13e01f38ec6dfbef1cd446b06da33ee17bded5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314450
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/arm/obj.go   |   1 +
+ src/cmd/link/internal/ld/data.go   | 128 ++++++++++++++++++++++++++-----------
+ src/cmd/link/internal/ld/lib.go    |  17 +++--
+ src/cmd/link/internal/ppc64/obj.go |   1 +
+ 4 files changed, 103 insertions(+), 44 deletions(-)

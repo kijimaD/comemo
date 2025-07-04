@@ -1,0 +1,12 @@
+commit a90cbd741a794b67a1c7b4932f40f7d40bd25702
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue May 15 08:38:05 2012 +1000
+
+    misc/dashboard/codereview: add sameer.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6203076
+
+ misc/dashboard/codereview/dashboard/people.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,12 @@
+commit 95919328ac600833be9c07286de052275e70a42b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 5 10:34:17 2015 -0400
+
+    cmd/vet: skip exec tests on systems that can't exec
+    
+    Change-Id: I09257b8f5482cba10b5f4d3813c778d6e9e74d40
+    Reviewed-on: https://go-review.googlesource.com/10752
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/vet/vet_test.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

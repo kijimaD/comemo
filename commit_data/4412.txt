@@ -1,0 +1,11 @@
+commit 0d3f5a84b8dee340ef2301ea5ec0f195c4962fba
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 15 09:31:24 2009 +1100
+
+    simpler fix for the negative rune problem, spotted seconds after submitting the previous fix.
+    
+    R=rsc
+    https://golang.org/cl/178044
+
+ src/pkg/utf8/utf8.go | 36 +++++++++++++++++-------------------
+ 1 file changed, 17 insertions(+), 19 deletions(-)

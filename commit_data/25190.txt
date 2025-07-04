@@ -1,0 +1,25 @@
+commit 50c5042047be3af36e7bb478435093ea45e8f1f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 7 14:22:08 2015 -0500
+
+    runtime: best-effort detection of concurrent misuse of maps
+    
+    If reports like #13062 are really concurrent misuse of maps,
+    we can detect that, at least some of the time, with a cheap check.
+    
+    There is an extra pair of memory writes for writing to a map,
+    but to the same cache line as h.count, which is often being modified anyway,
+    and there is an extra memory read for reading from a map,
+    but to the same cache line as h.count, which is always being read anyway.
+    So the check should be basically invisible and may help reduce the
+    number of "mysterious runtime crash due to map misuse" reports.
+    
+    Change-Id: I0e71b0d92eaa3b7bef48bf41b0f5ab790092487e
+    Reviewed-on: https://go-review.googlesource.com/17501
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/hashmap.go      | 37 ++++++++++++++++++++++++++++++++++---
+ src/runtime/hashmap_fast.go | 18 ++++++++++++++++++
+ 2 files changed, 52 insertions(+), 3 deletions(-)

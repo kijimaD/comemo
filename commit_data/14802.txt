@@ -1,0 +1,14 @@
+commit 396c957a32f094ef0f410235250cf0ed6b8dcf9f
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Mon Jan 7 09:44:35 2013 +1100
+
+    encoding/json: documented that ,string applies only to string and numeric fields.
+    
+    Fixes #4437.
+    
+    R=golang-dev, adg
+    CC=golang-dev, rsc
+    https://golang.org/cl/7064045
+
+ src/pkg/encoding/json/encode.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

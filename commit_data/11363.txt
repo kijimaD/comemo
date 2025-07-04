@@ -1,0 +1,12 @@
+commit 0bb8ce2984e4d8cabbb10a44912ad4141d532c6d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 25 09:24:25 2012 +1100
+
+    text/template: add example for Template
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5564050
+
+ src/pkg/text/template/example_test.go | 69 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 69 insertions(+)

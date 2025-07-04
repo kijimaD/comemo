@@ -1,0 +1,17 @@
+commit e614d607598fccd9e2c77cef567d8b184b8e7ae4
+Author: Benjamin Prosnitz <bprosnitz@google.com>
+Date:   Mon Nov 30 13:08:46 2015 +0800
+
+    net: fall back to hosts file if DNS lookup fails, despite order
+    
+    Fixes #13090
+    
+    Change-Id: I5612d792dabdff89bd0cec57dc2cacf9be7ebf64
+    Reviewed-on: https://go-review.googlesource.com/16341
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dnsclient_unix.go      |  6 +++---
+ src/net/dnsclient_unix_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 3 deletions(-)

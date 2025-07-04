@@ -1,0 +1,16 @@
+commit 285b6021e970d3125dd59772f4737fd3927f5ada
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 24 13:38:18 2009 -0700
+
+    missing files; cleaned up g4 nothave output.
+    fixes 386 build.
+    
+    R=r
+    DELTA=56  (56 added, 0 deleted, 0 changed)
+    OCL=34979
+    CL=34981
+
+ src/cmd/8l/elf.c            |  6 ++++++
+ src/pkg/runtime/nacl/defs.c | 27 +++++++++++++++++++++++++++
+ test/compos.go              | 23 +++++++++++++++++++++++
+ 3 files changed, 56 insertions(+)

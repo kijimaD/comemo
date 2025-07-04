@@ -1,0 +1,20 @@
+commit 6e269256264599a49739ad1145bac3845e94ead4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Nov 2 22:56:10 2016 -0700
+
+    cmd/objdump: speed up tests
+    
+    Rebuild cmd/objdump once instead of twice.
+    Speeds up standalone 'go test cmd/objdump' on my
+    machine from ~1.4s to ~1s.
+    
+    Updates #17751
+    
+    Change-Id: I15fd79cf18c310f892bc28a9e9ca47ee010c989a
+    Reviewed-on: https://go-review.googlesource.com/32673
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/objdump/objdump_test.go | 40 ++++++++++++++++++++++++++++++----------
+ 1 file changed, 30 insertions(+), 10 deletions(-)

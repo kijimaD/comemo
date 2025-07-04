@@ -1,0 +1,26 @@
+commit c116265eb3f2b1a8549e7ceef73b780439404030
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jul 20 21:55:07 2018 +0100
+
+    go/printer: make empty lines break table alignment
+    
+    In previous versions of Go including 1.10, an empty line would break the
+    alignment of elements within an expression list.
+    
+    golang.org/cl/104755 changed the heuristic, with the side effect that
+    empty lines no longer broke the table alignment.
+    
+    Reintroduce the behavior and add a regression test for it.
+    
+    Fixes #26352.
+    
+    Change-Id: I410bcff4cba25c7f8497d46bd7890a2c7ee11d46
+    Reviewed-on: https://go-review.googlesource.com/125260
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/printer/nodes.go                  | 17 +++++++++++++----
+ src/go/printer/testdata/alignment.golden |  9 +++++++++
+ src/go/printer/testdata/alignment.input  |  9 +++++++++
+ 3 files changed, 31 insertions(+), 4 deletions(-)

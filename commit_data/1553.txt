@@ -1,0 +1,28 @@
+commit a7f6d4066e871916931af4b99f1d5a9021dbfeb9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 09:56:42 2009 -0800
+
+    implement new restrictions on what
+    can be compared/hashed.
+    
+    R=r
+    DELTA=351  (201 added, 80 deleted, 70 changed)
+    OCL=23423
+    CL=23481
+
+ src/cmd/gc/go.h       |  7 +++---
+ src/cmd/gc/subr.c     | 20 ++++-----------
+ src/runtime/chan.c    | 12 ++-------
+ src/runtime/hashmap.c | 20 ++-------------
+ src/runtime/iface.c   | 44 ++++++++++++++++++++++++++++++---
+ src/runtime/runtime.c | 57 ++++++++++++++++++++----------------------
+ src/runtime/runtime.h | 15 ++++++++----
+ test/bigalg.go        | 20 ---------------
+ test/cmp1.go          | 66 +++++++++++++++++++++++++++++++++++++++++++++++++
+ test/cmp2.go          | 16 ++++++++++++
+ test/cmp3.go          | 16 ++++++++++++
+ test/cmp4.go          | 15 ++++++++++++
+ test/cmp5.go          | 15 ++++++++++++
+ test/golden.out       | 32 ++++++++++++++++++++++++
+ test/map.go           | 68 +++++++++++++++++++++++++--------------------------
+ 15 files changed, 282 insertions(+), 141 deletions(-)

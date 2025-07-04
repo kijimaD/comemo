@@ -1,0 +1,15 @@
+commit 1fe8f47cc39aec39fca3e6f367a7c1c7b254014f
+Author: pierwill <pierwill@users.noreply.github.com>
+Date:   Thu Feb 3 15:44:53 2022 +0000
+
+    cmd/compile: correct doc comment name for OrderedOrEqual
+    
+    Change-Id: I9ac2565f8d39a30c5f10d924a934441b30e12e98
+    GitHub-Last-Rev: 6943ac4ac52c29023da59965e5b2dcc5cb7b0b9a
+    GitHub-Pull-Request: golang/go#50983
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382459
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/poset.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

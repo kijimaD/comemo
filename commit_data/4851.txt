@@ -1,0 +1,12 @@
+commit fba50ee5ede4866a621b90355fb466e7634c3325
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 12 15:28:11 2010 -0800
+
+    update gofmt test script
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/207088
+
+ src/cmd/gofmt/test.sh | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

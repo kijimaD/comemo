@@ -1,0 +1,19 @@
+commit 14c59abd76a7f2bc11fcbd9009d49e9ffcd33e8e
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Thu May 12 22:34:48 2011 -0400
+
+    image/tiff: Reject images with SampleFormat != 1.
+    
+    The TIFF spec says that a baseline TIFF reader must gracefully terminate
+    when the image has a SampleFormat tag which it does not support.
+    For baseline compatibility, only SampleFormat=1 (the default) is needed.
+    Images with other sample formats (e.g. floating-point color values)
+    are very rare in practice.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4515073
+
+ src/pkg/image/tiff/consts.go |  1 +
+ src/pkg/image/tiff/reader.go | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+)

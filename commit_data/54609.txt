@@ -1,0 +1,29 @@
+commit e9379a8f8bd5f00463f67fe7e052cbcb262b169a
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Sep 12 16:06:45 2023 -0500
+
+    cmd/internal/asm/ppc64: support 34b ADD/MOVD $const, Rx
+    
+    For constant signed values which require 34b to represent,
+    the assembler will generate a pli instruction on
+    linux/power10/PPC64 instead of loading a constant.
+    
+    Similarly, ADD is extended to support 34b signed constants.
+    On linux/power10/PPC64, this generates a paddi instruction.
+    For assembler consistency, a second form is added if paddi
+    cannot be used. The second form is provided for assembly
+    writers.
+    
+    Change-Id: I98144306af766b02fbbe36b72856a23cdf51d247
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528317
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  4 ++++
+ src/cmd/internal/obj/ppc64/asm9.go        | 32 ++++++++++++++++++-------------
+ src/cmd/internal/obj/ppc64/obj9.go        |  8 ++++++--
+ 3 files changed, 29 insertions(+), 15 deletions(-)

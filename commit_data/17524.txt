@@ -1,0 +1,12 @@
+commit 6cbc5387c30b7358d930c10f465c70c16357fd36
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 10 15:13:45 2013 +1000
+
+    doc/go1.2.html: introduction, language changes
+    
+    R=golang-dev, remyoudompheng, dominik.honnef, adg
+    CC=golang-dev
+    https://golang.org/cl/13341049
+
+ doc/go1.2.html | 231 ++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 147 insertions(+), 84 deletions(-)

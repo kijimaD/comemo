@@ -1,0 +1,19 @@
+commit 3b6e86f48ab58799b4064f7e840ad71e242a73dc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 15:17:14 2015 -0400
+
+    cmd/compile: fix race detector handling of OBLOCK nodes
+    
+    Fixes #7561 correctly.
+    Fixes #9137.
+    
+    Change-Id: I7f27e199d7101b785a7645f789e8fe41a405a86f
+    Reviewed-on: https://go-review.googlesource.com/11713
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/cmd/compile/internal/gc/order.go    |   6 ++
+ src/cmd/compile/internal/gc/racewalk.go |  40 ++++++------
+ src/cmd/compile/internal/gc/walk.go     |   5 ++
+ src/runtime/race/race_test.go           |   9 +++
+ src/runtime/race/testdata/mop_test.go   | 104 ++++++++++++++++++++++++++++++++
+ 5 files changed, 144 insertions(+), 20 deletions(-)

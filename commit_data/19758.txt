@@ -1,0 +1,14 @@
+commit 92c1e720401e07a97670c92b0ac208da8cc4988c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jul 17 21:51:03 2014 +0400
+
+    runtime: make NumGoroutines faster
+    Resolves TODO for not walking all goroutines in NumGoroutines.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/107290044
+
+ src/pkg/runtime/proc.c | 33 +++++++++++++++------------------
+ 1 file changed, 15 insertions(+), 18 deletions(-)

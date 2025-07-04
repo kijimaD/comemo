@@ -1,0 +1,25 @@
+commit 6ef25c2ad3e1051629e78de0a8cd3553d48c832e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 13 15:24:56 2020 -0500
+
+    cmd/go: convert testCDAndGOPATHAreDifferent to the script framework
+    
+    This is a bit complex. There's a driver program to run go with modifications
+    to the GOPATH used to test Windows.
+    
+    Also remove the cd method on testgoData, because this was the last function
+    that used it.
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I3e8e27f37fd3701bd36b6365b128dd73b69181c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214578
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                              | 52 ----------------
+ .../testdata/script/build_cd_gopath_different.txt  | 72 ++++++++++++++++++++++
+ 2 files changed, 72 insertions(+), 52 deletions(-)

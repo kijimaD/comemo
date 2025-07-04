@@ -1,0 +1,10 @@
+commit e6626dafa8de8a0efae351e85cf96f0c683e0a4f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 6 23:06:05 2008 -0800
+
+    - get rid of Designator terminology
+    
+    SVN=111696
+
+ doc/go_lang.txt | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

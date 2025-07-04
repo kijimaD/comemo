@@ -1,0 +1,40 @@
+commit a68494bf21ea84b114c9e1468087f28abbf4c42b
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jan 11 08:35:32 2012 -0500
+
+    crypto/openpgp: assorted cleanups
+    
+    1) Include Szabolcs Nagy's patch which adds serialisation for more
+       signature subpackets.
+    2) Include Szabolcs Nagy's patch which adds functions for making DSA
+       keys.
+    3) Make the random io.Reader an argument to the low-level signature
+       functions rather than having them use crypto/rand.
+    4) Rename crypto/openpgp/error to crypto/openpgp/errors so that it
+       doesn't clash with the new error type.
+    
+    R=bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/5528044
+
+ src/pkg/crypto/openpgp/armor/armor.go              |   4 +-
+ src/pkg/crypto/openpgp/{error => errors}/Makefile  |   4 +-
+ .../openpgp/{error/error.go => errors/errors.go}   |   4 +-
+ src/pkg/crypto/openpgp/keys.go                     |  55 ++++++-----
+ src/pkg/crypto/openpgp/packet/compressed.go        |   4 +-
+ src/pkg/crypto/openpgp/packet/encrypted_key.go     |  16 +--
+ .../crypto/openpgp/packet/one_pass_signature.go    |   8 +-
+ src/pkg/crypto/openpgp/packet/packet.go            |   6 +-
+ src/pkg/crypto/openpgp/packet/packet_test.go       |   4 +-
+ src/pkg/crypto/openpgp/packet/private_key.go       |  35 ++++---
+ src/pkg/crypto/openpgp/packet/public_key.go        |  43 +++++---
+ src/pkg/crypto/openpgp/packet/reader.go            |   4 +-
+ src/pkg/crypto/openpgp/packet/signature.go         | 110 ++++++++++++++-------
+ .../openpgp/packet/symmetric_key_encrypted.go      |  14 +--
+ .../openpgp/packet/symmetrically_encrypted.go      |  27 +++--
+ .../openpgp/packet/symmetrically_encrypted_test.go |   7 +-
+ src/pkg/crypto/openpgp/read.go                     |  30 +++---
+ src/pkg/crypto/openpgp/read_test.go                |  10 +-
+ src/pkg/crypto/openpgp/s2k/s2k.go                  |   8 +-
+ src/pkg/crypto/openpgp/write.go                    |  20 ++--
+ 20 files changed, 244 insertions(+), 169 deletions(-)

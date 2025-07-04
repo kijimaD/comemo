@@ -1,0 +1,19 @@
+commit f36ee8c2494465a78f416e7f7653134b5428c168
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 22:35:17 2016 -0500
+
+    cmd/go: respect internal directories during 'go run'
+    
+    Fixes #12217.
+    
+    Change-Id: I5ee6cb18eaa66bdec1affe689aa531c05e719fc9
+    Reviewed-on: https://go-review.googlesource.com/18645
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/build.go                                            |  2 ++
+ src/cmd/go/go_test.go                                          | 10 ++++++++++
+ src/cmd/go/testdata/src/run/bad.go                             |  5 +++++
+ src/cmd/go/testdata/src/run/good.go                            |  5 +++++
+ src/cmd/go/testdata/src/run/internal/internal.go               |  1 +
+ src/cmd/go/testdata/src/run/subdir/internal/private/private.go |  1 +
+ 6 files changed, 24 insertions(+)

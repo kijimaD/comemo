@@ -1,0 +1,20 @@
+commit 7c46f0349844f950cc811727ded2393cff7e0369
+Author: Quentin Smith <quentin@golang.org>
+Date:   Fri Oct 14 15:13:30 2016 -0400
+
+    strconv: strip \r in raw strings passed to Unquote
+    
+    To match the language spec, strconv.Unquote needs to strip carriage
+    returns from the raw string.
+    
+    Also fixes TestUnquote to not be a noop.
+    
+    Fixes #15997
+    
+    Change-Id: I2456f50f2ad3830f37e545f4f6774ced9fe609d7
+    Reviewed-on: https://go-review.googlesource.com/31210
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/strconv/quote.go      | 10 ++++++++++
+ src/strconv/quote_test.go |  3 ++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

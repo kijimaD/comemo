@@ -1,0 +1,21 @@
+commit 74ec40fc8acffb81f17ccbaa498b15f694c25e4d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Nov 5 01:05:04 2020 +0000
+
+    path/filepath: revert "add WalkDir"
+    
+    This reverts CL 266240.
+    
+    Reason for revert: tests aren't passing on windows-amd64-longtest.
+    
+    Change-Id: If323c6254a42aff0418e2c0a9531f3d4c829a242
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267798
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/path/filepath/export_test.go |   2 -
+ src/path/filepath/path.go        | 213 +++++----------------------------------
+ src/path/filepath/path_test.go   |  89 ++++++----------
+ 3 files changed, 54 insertions(+), 250 deletions(-)

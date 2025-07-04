@@ -1,0 +1,50 @@
+commit db99a8faa89cdd10435de16a7230fd0ce8e47139
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Feb 24 17:57:51 2014 -0500
+
+    crypto/tls: pick ECDHE curves based on server preference.
+    
+    Currently an ECDHE handshake uses the client's curve preference. This
+    generally means that we use P-521. However, P-521's strength is
+    mismatched with the rest of the cipher suite in most cases and we have
+    a fast, constant-time implementation of P-256.
+    
+    With this change, Go servers will use P-256 where the client supports
+    it although that can be overridden in the Config.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/66060043
+
+ src/pkg/crypto/tls/common.go                       | 24 +++++-
+ src/pkg/crypto/tls/handshake_client.go             |  2 +-
+ src/pkg/crypto/tls/handshake_messages.go           | 20 ++++-
+ src/pkg/crypto/tls/handshake_messages_test.go      |  4 +-
+ src/pkg/crypto/tls/handshake_server.go             | 10 ++-
+ src/pkg/crypto/tls/handshake_server_test.go        |  2 +-
+ src/pkg/crypto/tls/key_agreement.go                | 62 ++++++++-------
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-ECDSA  | 72 +++++++++---------
+ .../testdata/Client-TLSv10-ClientCert-ECDSA-RSA    | 34 ++++-----
+ .../testdata/Client-TLSv10-ClientCert-RSA-ECDSA    | 88 +++++++++++-----------
+ .../tls/testdata/Client-TLSv10-ClientCert-RSA-RSA  | 48 ++++++------
+ .../tls/testdata/Client-TLSv10-ECDHE-ECDSA-AES     | 68 ++++++++---------
+ .../tls/testdata/Client-TLSv10-ECDHE-RSA-AES       | 68 ++++++++---------
+ src/pkg/crypto/tls/testdata/Client-TLSv10-RSA-RC4  | 30 ++++----
+ .../tls/testdata/Client-TLSv11-ECDHE-ECDSA-AES     | 70 ++++++++---------
+ .../tls/testdata/Client-TLSv11-ECDHE-RSA-AES       | 68 ++++++++---------
+ src/pkg/crypto/tls/testdata/Client-TLSv11-RSA-RC4  | 30 ++++----
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-ECDSA  | 82 ++++++++++----------
+ .../testdata/Client-TLSv12-ClientCert-ECDSA-RSA    | 34 ++++-----
+ .../testdata/Client-TLSv12-ClientCert-RSA-ECDSA    | 86 ++++++++++-----------
+ .../tls/testdata/Client-TLSv12-ClientCert-RSA-RSA  | 48 ++++++------
+ .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES     | 70 ++++++++---------
+ .../tls/testdata/Client-TLSv12-ECDHE-ECDSA-AES-GCM | 64 ++++++++--------
+ .../tls/testdata/Client-TLSv12-ECDHE-RSA-AES       | 68 ++++++++---------
+ src/pkg/crypto/tls/testdata/Client-TLSv12-RSA-RC4  | 30 ++++----
+ .../tls/testdata/Server-TLSv10-ECDHE-ECDSA-AES     | 87 ++++++++++-----------
+ .../Server-TLSv12-CipherSuiteCertPreferenceECDSA   | 84 ++++++++++-----------
+ .../Server-TLSv12-CipherSuiteCertPreferenceRSA     | 83 +++++++++-----------
+ .../tls/testdata/Server-TLSv12-ECDHE-ECDSA-AES     | 85 ++++++++++-----------
+ .../crypto/tls/testdata/Server-TLSv12-RSA-AES-GCM  | 75 ++++++++----------
+ 30 files changed, 794 insertions(+), 802 deletions(-)

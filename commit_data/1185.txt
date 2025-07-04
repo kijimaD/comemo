@@ -1,0 +1,21 @@
+commit 87b112440739f219f706bd7e48bc05327d88eee6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 19 12:52:30 2008 -0800
+
+    gobuild: add coverage rule, ignore files in package main.
+    
+    R=r
+    DELTA=55  (41 added, 11 deleted, 3 changed)
+    OCL=19594
+    CL=19598
+
+ src/cmd/gobuild/gobuild.c |  9 +++++++++
+ src/lib/fmt/Makefile      |  4 ++++
+ src/lib/http/Makefile     | 21 +++++++--------------
+ src/lib/math/Makefile     |  4 ++++
+ src/lib/net/Makefile      |  4 ++++
+ src/lib/os/Makefile       |  4 ++++
+ src/lib/reflect/Makefile  |  4 ++++
+ src/lib/strconv/Makefile  |  4 ++++
+ src/lib/syscall/Makefile  |  4 ++++
+ 9 files changed, 44 insertions(+), 14 deletions(-)

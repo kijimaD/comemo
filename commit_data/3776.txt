@@ -1,0 +1,11 @@
+commit 517ebbb24a8373d6e9e14286c75e268640861b00
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 17:02:47 2009 -0800
+
+    gofmt-ify src/pkg/archive
+    
+    R=rsc
+    http://go/go-review/1018046
+
+ src/pkg/archive/tar/writer_test.go | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

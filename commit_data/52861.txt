@@ -1,0 +1,33 @@
+commit c746059a86348b03b09d6452de5bb1a4e58612dd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 3 12:16:40 2023 -0700
+
+    go/types, types2: rename allowVersionf to verifyVersionf
+    
+    Follow-up on comment in CL 491715.
+    
+    Change-Id: Ie6a71859e791434b7ab53c5524f35718a3567ecb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492236
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go | 12 ++++++------
+ src/cmd/compile/internal/types2/call.go     |  6 +++---
+ src/cmd/compile/internal/types2/decl.go     |  4 ++--
+ src/cmd/compile/internal/types2/expr.go     |  2 +-
+ src/cmd/compile/internal/types2/resolver.go |  4 ++--
+ src/cmd/compile/internal/types2/typeset.go  |  6 +++---
+ src/cmd/compile/internal/types2/typexpr.go  |  4 ++--
+ src/cmd/compile/internal/types2/version.go  |  4 ++--
+ src/go/types/builtins.go                    | 12 ++++++------
+ src/go/types/call.go                        |  6 +++---
+ src/go/types/decl.go                        |  4 ++--
+ src/go/types/expr.go                        |  2 +-
+ src/go/types/resolver.go                    |  4 ++--
+ src/go/types/typeset.go                     |  6 +++---
+ src/go/types/typexpr.go                     |  4 ++--
+ src/go/types/version.go                     |  4 ++--
+ 16 files changed, 42 insertions(+), 42 deletions(-)

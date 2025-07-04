@@ -1,0 +1,13 @@
+commit 024c83f2f8b9df15cddafac6eab59d07140b3372
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 3 10:18:45 2009 -0700
+
+    fix build.  i would love to know why my other client
+    didn't see this as a diff.
+    
+    TBR=r
+    OCL=29827
+    CL=29831
+
+ src/lib/syscall/syscall_darwin.go | 11 -----------
+ 1 file changed, 11 deletions(-)

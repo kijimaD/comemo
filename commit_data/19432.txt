@@ -1,0 +1,14 @@
+commit cab54408da90caac6e1f1d6eaeb4166eeb98d899
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 21 17:19:12 2014 -0400
+
+    test: fix two typos in float_lit2.go
+    
+    Noted by gri in CL 100660044 review but I missed them.
+    
+    TBR=gri
+    CC=golang-codereviews
+    https://golang.org/cl/97570049
+
+ test/float_lit2.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

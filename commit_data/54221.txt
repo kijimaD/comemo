@@ -1,0 +1,24 @@
+commit 789b3f84072e6120fbe1bd637dd82e7158c07387
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 22 15:08:11 2023 -0700
+
+    cmd/go: don't set LD_LIBRARY_PATH for SWIG
+    
+    Setting LD_LIBRARY_PATH when running "go test" for a package that uses
+    SWIG dates back to the initial introduction of SWIG support in
+    CL 5845071 in 2012. Back then SWIG worked by creating a shared library,
+    but in CL 6851 in 2015 we changed SWIG to generate cgo input files,
+    and no shared library was used. Since we no longer use a shared library,
+    we no longer need to set LD_LIBRARY_PATH.
+    
+    Change-Id: I31ecc03c6c52f4efdf2ef6fb3ebeab35adc325aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522035
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/test/test.go | 19 -------------------
+ 1 file changed, 19 deletions(-)

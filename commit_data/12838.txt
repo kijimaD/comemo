@@ -1,0 +1,12 @@
+commit a28a10e1a2352736fa8bbf6def02517f42260e34
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Apr 5 18:37:46 2012 +0400
+
+    runtime: remove redundant code
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5987046
+
+ src/pkg/runtime/mcache.c | 5 -----
+ 1 file changed, 5 deletions(-)

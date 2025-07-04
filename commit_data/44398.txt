@@ -1,0 +1,24 @@
+commit adb467ffd2d82b796de12bdd8effa2cfefe01f29
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Sat Jan 2 16:28:11 2021 +0200
+
+    cmd/compile: reduce inline cost of OCONVOP
+    
+    OCONVOP doesn't have effect in the compiled code so, it can be safely
+    excluded from inline cost calculation.
+    
+    Also make sequence ODEREF OCONVNOP* OADDR cost 1. This is rather common
+    conversion, such as *(*uint32)(unsafe.Pointer(&x)).
+    
+    Fixes #42788
+    
+    Change-Id: I5001f7e89d985c198b6405694cdd5b819cf3f47a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281232
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Elias Naur <mail@eliasnaur.com>
+
+ src/cmd/compile/internal/inline/inl.go | 16 ++++++++++++++++
+ test/inline.go                         | 23 +++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

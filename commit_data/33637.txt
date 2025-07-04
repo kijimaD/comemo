@@ -1,0 +1,27 @@
+commit 556fb16bbda6c9312d8862cfce2d0c03e5ce0426
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue Jun 13 11:07:34 2017 +0000
+
+    cmd/internal/obj/arm64: fix assemble msr/mrs bug
+    
+    The arguments <pstatefield> is a struct that includes two elements,
+    element reg is special register, elememt enc is pstate field values.
+    The current code compares two different type values and get a incorrect
+    result.
+    
+    The fix follows pstate field to create a systemreg struct,
+    each system register has a vaule to use in instruction.
+    
+    Uncomment the msr/mrs cases.
+    
+    Fixes #21464
+    
+    Change-Id: I1bb1587ec8548f3e4bd8d5be4d7127bd10d53186
+    Reviewed-on: https://go-review.googlesource.com/56030
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/arm64enc.s | 10 +++---
+ src/cmd/internal/obj/arm64/asm7.go           | 48 ++++++++++++++++++++++------
+ 2 files changed, 43 insertions(+), 15 deletions(-)

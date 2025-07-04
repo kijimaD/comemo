@@ -1,0 +1,25 @@
+commit 0580e2a4964b634c24d9dfaa1fbb4e4886dd1a5d
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Fri Dec 13 16:21:45 2024 -0500
+
+    crypto/internal/fips140test: add KDA HKDF ACVP tests
+    
+    Adds ACVP test coverage for the SP 800-56Crev2 HKDF KDA based on the
+    NIST spec:
+    
+     https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-kdf-hkdf.html
+    
+    Updates #69642
+    
+    Change-Id: Ie4f48f9b0181eaf6c2201a9796d366a31c474eba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/636115
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ .../internal/fips140test/acvp_capabilities.json    |  2 ++
+ .../internal/fips140test/acvp_test.config.json     |  4 +++-
+ src/crypto/internal/fips140test/acvp_test.go       | 28 ++++++++++++++++++++++
+ 3 files changed, 33 insertions(+), 1 deletion(-)

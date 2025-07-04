@@ -1,0 +1,14 @@
+commit 3f548cd2d91e4e7d4cdd3eeaa1b57dce465a0588
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 17 16:59:04 2008 -0800
+
+    add gobuild to build
+    
+    R=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=19404
+    CL=19415
+
+ src/cmd/clean.bash | 2 +-
+ src/cmd/make.bash  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

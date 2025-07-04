@@ -1,0 +1,19 @@
+commit f278ae61d551ebd12956a1ed21ad6131495a2513
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Aug 16 10:53:49 2023 +0000
+
+    fmt: amend comment for getField
+    
+    Change-Id: I52c9ed0c1a178f3ae3eb4f135d8f11018075fe3b
+    GitHub-Last-Rev: 407aa89c88fc7bb3e4ad9ef55c2a0c5c2f92642c
+    GitHub-Pull-Request: golang/go#62061
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519935
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/fmt/print.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

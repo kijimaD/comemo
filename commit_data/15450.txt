@@ -1,0 +1,22 @@
+commit 60066754fd6d080e6f0b08d88369beea4b54b801
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 26 14:33:24 2013 -0800
+
+    go/types: be more robust in presence of multiple errors
+    
+    - better documentation of Check
+    - better handling of (explicit) internal panics
+    - gotype: don't stop after 1st error
+    
+    R=adonovan, r
+    CC=golang-dev
+    https://golang.org/cl/7406052
+
+ src/pkg/exp/gotype/gotype.go      | 33 +++++++++++++++++++++++++++------
+ src/pkg/exp/gotype/gotype_test.go |  6 +++---
+ src/pkg/go/types/api.go           |  9 ++++++---
+ src/pkg/go/types/check.go         | 24 ++++++++++++++++++++----
+ src/pkg/go/types/errors.go        |  2 +-
+ src/pkg/go/types/objects.go       |  6 ++++--
+ src/pkg/go/types/stmt.go          |  3 +++
+ 7 files changed, 64 insertions(+), 19 deletions(-)

@@ -1,0 +1,31 @@
+commit a0bebffa339efc92af3a51781d910ef79b830482
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 22 10:12:18 2022 -0500
+
+    cmd/dist: consistently use $GOROOT/bin/go instead of just "go"
+    
+    Also remove existing special cases that transform "go" into
+    gorootBinGo, because they make debugging and code-reviews more
+    difficult: log messages that don't include the full path can mask bugs
+    like #31567, and the reader of the code has to trace through the
+    various call chains to verify that the correct "go" is being used.
+    
+    Instead, we can make the use of the correct "go" command plainly
+    obvious in the code by using one consistent name for it.
+    (Prior to this CL, we had three different names for it:
+    gorootBinGo, "go", and cmdGo. Now we have only one.
+    
+    Updates #31567.
+    
+    Change-Id: Ia9ff27e5e800c79af5a4e9f2803c9ea5ccafbf35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452678
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/dist/build.go | 11 +++++------
+ src/cmd/dist/test.go  | 29 +++++++++++++----------------
+ src/cmd/dist/util.go  |  6 +-----
+ 3 files changed, 19 insertions(+), 27 deletions(-)

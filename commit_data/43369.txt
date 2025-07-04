@@ -1,0 +1,21 @@
+commit 2754d911641c3a4569f48d61c541fc2ac395d23b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 19 17:55:55 2020 +0000
+
+    runtime: add lock rank partial-order edge between fin and mheap
+    
+    finlock may be held across a write barrier, which could then acquire the
+    mheap lock. Notably, this occurs in the mp.unlockf write in gopark where
+    finlock is held by the finalizer goroutines and is going to sleep.
+    
+    Fixes #42062.
+    
+    Change-Id: Icf76637ae6fc12795436272633dca3d473780875
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263678
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/runtime/lockrank.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

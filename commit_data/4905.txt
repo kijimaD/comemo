@@ -1,0 +1,32 @@
+commit 8e714aab2bfdc71635786732e1bac45f27f2201c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 19 16:01:31 2010 -0800
+
+    - removed exp/parser (support for old semicolon syntax)
+    - go/ast: removed StringList (not needed anymore)
+    - go/ast: changed import path and field list tag to a single string
+    - updated all dependencies
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/217056
+
+ src/cmd/cgo/ast.go                |    5 +-
+ src/cmd/godoc/index.go            |    8 +-
+ src/cmd/gofmt/doc.go              |    8 -
+ src/cmd/gofmt/gofmt.go            |   18 +-
+ src/pkg/Makefile                  |    1 -
+ src/pkg/exp/eval/eval_test.go     |    2 +-
+ src/pkg/exp/eval/expr.go          |   14 -
+ src/pkg/exp/eval/expr_test.go     |    3 -
+ src/pkg/exp/eval/stmt_test.go     |   16 +-
+ src/pkg/exp/eval/world.go         |    6 +-
+ src/pkg/exp/parser/Makefile       |   12 -
+ src/pkg/exp/parser/interface.go   |  203 ----
+ src/pkg/exp/parser/parser.go      | 1972 -------------------------------------
+ src/pkg/exp/parser/parser_test.go |   95 --
+ src/pkg/go/ast/ast.go             |   19 +-
+ src/pkg/go/ast/walk.go            |   13 +-
+ src/pkg/go/parser/parser.go       |   11 +-
+ src/pkg/go/printer/nodes.go       |    9 +-
+ 18 files changed, 33 insertions(+), 2382 deletions(-)

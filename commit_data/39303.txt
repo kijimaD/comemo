@@ -1,0 +1,30 @@
+commit ac921dad66f193b68a69a630de815d627d9e5003
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 3 18:04:58 2019 -0700
+
+    cmd/cgo: roll back "use C exact-width integer types to represent Go types"
+    
+    Roll back CL 159258 and CL 168337. Those changes broke existing
+    code. I can't see any way to keep existing code working while also
+    producing good error messages for types like C.ulong (such as the ones
+    already tested for in misc/cgo/errors).
+    
+    This is not an exact roll back because parts of the code have changed
+    since those CLs.
+    
+    Updates #29878
+    Fixes #31093
+    
+    Change-Id: I56fe76c167ff0ab381ed273b9ca4b952402e1434
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180357
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ misc/cgo/test/cgo_test.go |  1 -
+ misc/cgo/test/test.go     | 12 ------------
+ misc/cgo/test/testx.go    |  5 -----
+ src/cmd/cgo/doc.go        |  4 +---
+ src/cmd/cgo/gcc.go        | 40 ----------------------------------------
+ src/cmd/cgo/out.go        | 36 +++++++++++++++++++++---------------
+ 6 files changed, 22 insertions(+), 76 deletions(-)

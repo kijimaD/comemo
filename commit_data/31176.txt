@@ -1,0 +1,18 @@
+commit b3fb6b00ae6649631ce43a034f2d160045af3aee
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 14 06:43:01 2017 -0700
+
+    cmd/compile: relocate large comment to plive.go
+    
+    It was a bit weird to have it at the top of pgen.go.
+    This does half of the TODO at the top of the comment.
+    
+    Change-Id: I65140fa05673b2dbb6feddb8c1877f6d624a7844
+    Reviewed-on: https://go-review.googlesource.com/40698
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/pgen.go  | 58 ------------------------------------
+ src/cmd/compile/internal/gc/plive.go | 57 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 58 deletions(-)

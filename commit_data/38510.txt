@@ -1,0 +1,22 @@
+commit 4906a00cdd0e71915d691acad3f852d498ee1a6f
+Author: Andrei Tudor Călin <mail@acln.ro>
+Date:   Thu Mar 21 16:04:25 2019 +0100
+
+    image/png: add Fuzz function
+    
+    Add a Fuzz function to package png, under the gofuzz build
+    tag. This function is based on the png/png.go code, from
+    github.com/dvyukov/go-fuzz-corpus, modified to use direct
+    comparison of image bounds rather than reflect.DeepEqual.
+    
+    Updates #30979
+    Updates #19109
+    
+    Change-Id: Idb86e7ded0c2d78e6cadbeda84c7b1f35b8c579c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168558
+    Reviewed-by: thepudds <thepudds1460@gmail.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+
+ src/image/png/fuzz.go | 52 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 52 insertions(+)

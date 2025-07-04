@@ -1,0 +1,17 @@
+commit 13b3af03913e4c875cb153d708b16adb023600f9
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 23 17:54:34 2024 -0400
+
+    runtime: delete TestDebugLogBuild
+    
+    Now that we're actually testing debuglog in the regular build
+    configuration, it's far less important that we take the time to
+    rebuild with the debuglog tag.
+    
+    Change-Id: I62bfd494ccb99087f35851c4476238b39ef40dec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600698
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/debuglog_test.go | 12 ------------
+ 1 file changed, 12 deletions(-)

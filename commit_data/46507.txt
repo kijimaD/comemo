@@ -1,0 +1,47 @@
+commit af72ddfcd7826df9aefb2207b8ac270bb91fea2f
+Author: David Chase <drchase@google.com>
+Date:   Thu Sep 9 16:34:02 2021 -0400
+
+    cmd/compile: extend dump-to-file to handle "genssa" (asm) case.
+    
+    Extend the existing dump-to-file to also do assembly output
+    to make it easier to write debug-information tests that check
+    for line-numbering in particular orders.
+    
+    Includes POC test (which is silent w/o -v):
+    go test  -v -run TestDebugLines cmd/compile/internal/ssa
+    === RUN   TestDebugLines
+    Preserving temporary directory /var/folders/v6/xyzzy/T/debug_lines_test321
+    About to run (cd /var/folders/v6/xyzzy/T/debug_lines_test321; \
+        GOSSADIR=/var/folders/v6/xyzzy/T/debug_lines_test321 \
+        /Users/drchase/work/go/bin/go build -o foo.o \
+        '-gcflags=-N -l -d=ssa/genssa/dump=sayhi' \
+        /Users/drchase/work/go/src/cmd/compile/internal/ssa/testdata/sayhi.go )
+    Saw stmt# 8 for submatch '8' on dump line #7 = ' v107   00005 (+8)  MOVQ    AX, "".n(SP)'
+    Saw stmt# 9 for submatch '9' on dump line #9 = ' v87    00007 (+9)  MOVUPS  X15, ""..autotmp_2-32(SP)'
+    Saw stmt# 10 for submatch '10' on dump line #46 = ' v65     00044 (+10)     MOVUPS  X15, ""..autotmp_2-32(SP)'
+    Saw stmt# 11 for submatch '11' on dump line #83 = ' v131    00081 (+11)     MOVQ    "".wg+8(SP), AX'
+    --- PASS: TestDebugLines (4.95s)
+    PASS
+    ok      cmd/compile/internal/ssa        5.685s
+    
+    Includes a test to ensure that inlining information is printed correctly.
+    
+    Updates #47880.
+    
+    Change-Id: I83b596476a88687d71d5b65dbb94641a576d747e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348970
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/compile.go            |  59 ++++--
+ src/cmd/compile/internal/ssa/debug_lines_test.go   | 213 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/func.go               |   2 +-
+ src/cmd/compile/internal/ssa/print.go              |  20 +-
+ .../compile/internal/ssa/testdata/inline-dump.go   |  17 ++
+ src/cmd/compile/internal/ssa/testdata/sayhi.go     |  12 ++
+ src/cmd/compile/internal/ssagen/ssa.go             |  55 +++++-
+ src/cmd/internal/obj/util.go                       |   5 +
+ 8 files changed, 360 insertions(+), 23 deletions(-)

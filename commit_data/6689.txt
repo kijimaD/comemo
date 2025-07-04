@@ -1,0 +1,12 @@
+commit ce980445234854f0eeb0d203d9d813e0b5d133ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 1 15:25:39 2010 -0700
+
+    fix build
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2820041
+
+ src/pkg/go/printer/testdata/statements.golden | 2 ++
+ 1 file changed, 2 insertions(+)

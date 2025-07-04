@@ -1,0 +1,39 @@
+commit a68e5d94fad421e64d471dae1c5ee0b95b933242
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 18 22:00:28 2017 -0700
+
+    cmd/compile: clean up SSA test API
+    
+    I noted in CL 38327 that the SSA test API felt a bit
+    clunky after the ssa.Func/ssa.Cache/ssa.Config refactoring,
+    and promised to clean it up once the dust settled.
+    The dust has settled.
+    
+    Along the way, this CL fixes a potential latent bug,
+    in which the amd64 test context was used for all dummy Syslook calls.
+    The lone SSA test using the s390x context did not depend on the
+    Syslook context being correct, so the bug did not arise in practice.
+    
+    Change-Id: If964251d1807976073ad7f47da0b1f1f77c58413
+    Reviewed-on: https://go-review.googlesource.com/38346
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/copyelim_test.go     |  2 +-
+ src/cmd/compile/internal/ssa/cse_test.go          |  4 +--
+ src/cmd/compile/internal/ssa/deadcode_test.go     | 10 +++---
+ src/cmd/compile/internal/ssa/deadstore_test.go    |  8 ++---
+ src/cmd/compile/internal/ssa/dom_test.go          | 21 +++++------
+ src/cmd/compile/internal/ssa/export_test.go       | 44 ++++++++++++++++++-----
+ src/cmd/compile/internal/ssa/func_test.go         | 40 +++++++++++----------
+ src/cmd/compile/internal/ssa/fuse_test.go         | 10 +++---
+ src/cmd/compile/internal/ssa/lca_test.go          |  2 +-
+ src/cmd/compile/internal/ssa/loop_test.go         |  5 ++-
+ src/cmd/compile/internal/ssa/nilcheck_test.go     | 20 +++++------
+ src/cmd/compile/internal/ssa/passbm_test.go       |  4 +--
+ src/cmd/compile/internal/ssa/regalloc_test.go     |  2 +-
+ src/cmd/compile/internal/ssa/schedule_test.go     |  4 +--
+ src/cmd/compile/internal/ssa/shift_test.go        | 24 ++++++-------
+ src/cmd/compile/internal/ssa/shortcircuit_test.go |  2 +-
+ src/cmd/compile/internal/ssa/writebarrier_test.go |  4 +--
+ 17 files changed, 117 insertions(+), 89 deletions(-)

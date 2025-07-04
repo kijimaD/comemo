@@ -1,0 +1,14 @@
+commit 1cc2ff8fc7b3729116f43bf68f9456b8f2d0efa9
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 30 12:03:56 2013 -0800
+
+    runtime: use readrange instead of read to check for races
+    on map keys and values which are now passed by reference.
+    
+    R=dvyukov, khr
+    CC=golang-codereviews
+    https://golang.org/cl/43490044
+
+ src/pkg/runtime/hashmap.c                 | 48 +++++++++++++++++++-----
+ src/pkg/runtime/race/testdata/map_test.go | 61 +++++++++++++++++++++++++++++++
+ 2 files changed, 99 insertions(+), 10 deletions(-)

@@ -1,0 +1,19 @@
+commit e1ee04828d94e8673f13cd854245920cdea27acc
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Feb 12 22:21:38 2014 +0400
+
+    runtime: refactor chan code
+    1. Make internal chan functions static.
+    2. Move selgen local variable instead of a member of G struct.
+    3. Change "bool *pres/selected" parameter of chansend/chanrecv to "bool block",
+       which is simpler, faster and less code.
+    -37 lines total.
+    
+    LGTM=rsc
+    R=golang-codereviews, dave, gobot, rsc
+    CC=bradfitz, golang-codereviews, iant, khr
+    https://golang.org/cl/58610043
+
+ src/pkg/runtime/chan.c    | 167 +++++++++++++++++++---------------------------
+ src/pkg/runtime/runtime.h |   4 --
+ 2 files changed, 67 insertions(+), 104 deletions(-)

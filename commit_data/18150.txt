@@ -1,0 +1,12 @@
+commit eaff83b98e27890723b175f242735a75f9616d7d
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Thu Jan 2 10:34:21 2014 -0800
+
+    encoding/hex: add Decode error test case
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/46880043
+
+ src/pkg/encoding/hex/hex_test.go | 1 +
+ 1 file changed, 1 insertion(+)

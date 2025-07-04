@@ -1,0 +1,18 @@
+commit 30dd1911717520b51bc1b56e0bbb8aa0a7ee044c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 6 09:53:12 2010 -0400
+
+    gc: O(1) string comparison when lengths differ
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2331045
+
+ src/cmd/5g/cgen.c |  3 +++
+ src/cmd/6g/cgen.c |  3 +++
+ src/cmd/8g/cgen.c |  3 +++
+ src/cmd/gc/gen.c  |  6 ------
+ src/cmd/gc/go.h   |  1 +
+ src/cmd/gc/subr.c | 20 +++++++++++++++++++-
+ src/cmd/gc/walk.c | 29 +++++++++++++++++++++++++++--
+ 7 files changed, 56 insertions(+), 9 deletions(-)

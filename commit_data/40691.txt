@@ -1,0 +1,18 @@
+commit c444ec308506463bd4ab3226c6aab55746347780
+Author: Udalov Max <re.udalov@gmail.com>
+Date:   Wed Jul 3 23:31:50 2019 +0300
+
+    encoding/binary: make Read return an error when data is not a pointer
+    
+    Make binary.Read return an error when passed `data` argument is not
+    a pointer to a fixed-size value or a slice of fixed-size values.
+    
+    Fixes #32927
+    
+    Change-Id: I04f48be55fe9b0cc66c983d152407d0e42cbcd95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184957
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/binary/binary.go      |  6 +++++-
+ src/encoding/binary/binary_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)

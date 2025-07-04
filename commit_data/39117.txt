@@ -1,0 +1,16 @@
+commit 309ab1ecc810fad29d09bbf91c22c6bfd1683c6f
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri May 10 16:57:22 2019 -0400
+
+    cmd/go: add generated code comment to _testmain.go template
+    
+    Fixes #31971
+    
+    Change-Id: I127659be145e348fae20930615666d67dc7971ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176468
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/load/test.go                   |  2 ++
+ src/cmd/go/testdata/script/test_generated_main.txt | 35 ++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

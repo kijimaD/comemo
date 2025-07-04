@@ -1,0 +1,37 @@
+commit a51905fa04fafaa8284d5a4585a81da249f9d8fd
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 23 15:55:03 2015 -0400
+
+    runtime: decentralize sweep termination and mark transition
+    
+    This moves all of GC initialization, sweep termination, and the
+    transition to concurrent marking in to the off->mark transition
+    function. This means it's now handled on the goroutine that detected
+    the state exit condition.
+    
+    As a result, malloc no longer needs to Gosched() at the beginning of
+    the GC cycle to prevent over-allocation while the GC is starting up
+    because it will now *help* the GC to start up. The Gosched hack is
+    still necessary during GC shutdown (this is easy to test by enabling
+    gctrace and hitting Ctrl-S to block the gctrace output).
+    
+    At this point, the GC coordinator still handles later phases. This
+    requires a small tweak to how we start the GC coordinator. Currently,
+    starting the GC coordinator is best-effort and may fail if the
+    coordinator is about to park from the previous cycle but hasn't yet.
+    We fix this by replacing the park/ready to wake up the coordinator
+    with a semaphore. This is temporary since the coordinator will be
+    going away in a few commits.
+    
+    Updates #11970.
+    
+    Change-Id: I2c6a11c91e72dfbc59c2d8e7c66146dee9a444fe
+    Reviewed-on: https://go-review.googlesource.com/16357
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/malloc.go |  2 +-
+ src/runtime/mgc.go    | 70 ++++++++++++++++++++++++++-------------------------
+ src/runtime/trace.go  |  2 +-
+ 3 files changed, 38 insertions(+), 36 deletions(-)

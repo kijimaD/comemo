@@ -1,0 +1,24 @@
+commit 1ef685fb7ba413c6f5943cc1aa61de911a7ef29a
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Sep 28 14:52:33 2022 -0700
+
+    debug: add top level security docs for dwarf, elf, macho, pe, and plan9obj
+    
+    Adds a package level doc comment to the debug/dwarf, debug/elf,
+    debug/macho, debug/pe, and debug/plan9obj noting that these packages
+    are not designed to be hardened against adversarial inputs.
+    
+    Change-Id: I678d01bcdc8ad01c23805f09cc59e64cec6c3f76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435417
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/debug/dwarf/open.go    | 16 +++++++++++++---
+ src/debug/elf/file.go      | 12 +++++++++++-
+ src/debug/macho/file.go    | 12 +++++++++++-
+ src/debug/pe/file.go       | 12 +++++++++++-
+ src/debug/plan9obj/file.go | 12 +++++++++++-
+ 5 files changed, 57 insertions(+), 7 deletions(-)

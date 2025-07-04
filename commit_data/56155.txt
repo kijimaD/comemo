@@ -1,0 +1,25 @@
+commit 8008998b14a6e704b38244f7dff878753d5d179b
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Apr 5 18:22:10 2024 -0400
+
+    all: update vendored golang.org/x/net
+    
+    Pull in CL 576895:
+    
+            ec05fdcd http2: don't retry the first request on a connection on GOAWAY error
+    
+    For #66668.
+    Fixes #60636.
+    
+    Change-Id: I9903607e3d432a5db0325da82eb7f4b378fbddde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576976
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go.mod                |  2 +-
+ src/go.sum                |  4 ++--
+ src/net/http/h2_bundle.go | 15 ++++++++++++++-
+ src/vendor/modules.txt    |  2 +-
+ 4 files changed, 18 insertions(+), 5 deletions(-)

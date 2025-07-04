@@ -1,0 +1,14 @@
+commit d3c1df712658398f29bc8bebd6767e7b3cac2d12
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 27 21:45:58 2017 +0000
+
+    net/http: document streaming nature of Response.Body
+    
+    Fixes #22873
+    
+    Change-Id: Ib2b7ee42a23b84db21cdfa693b62d5e6fbfdb54e
+    Reviewed-on: https://go-review.googlesource.com/80075
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/response.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

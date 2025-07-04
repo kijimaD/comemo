@@ -1,0 +1,15 @@
+commit 8abae596dae6c0863c94114a275a4babf6a92495
+Author: Conrad Meyer <cemeyer@cs.washington.edu>
+Date:   Sun Apr 4 23:23:48 2010 -0700
+
+    nntp: new package, NNTP client
+    
+    R=rsc, rsc1
+    CC=golang-dev
+    https://golang.org/cl/808041
+
+ src/pkg/Makefile          |   1 +
+ src/pkg/nntp/Makefile     |  11 +
+ src/pkg/nntp/nntp.go      | 709 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/nntp/nntp_test.go | 241 ++++++++++++++++
+ 4 files changed, 962 insertions(+)

@@ -1,0 +1,20 @@
+commit 349b7820eb8bd30d42afad945b22e4e9fe74eff1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 24 16:01:50 2017 -0500
+
+    test: deflake locklinear a little
+    
+    This should help on the openbsd systems where the test mostly passes.
+    
+    I don't expect it to help on s390x where the test reliably fails.
+    But it should give more information when it does fail.
+    
+    For #19276.
+    
+    Change-Id: I496c291f2b4b0c747b8dd4315477d87d03010059
+    Reviewed-on: https://go-review.googlesource.com/37348
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/locklinear.go | 25 ++++++++++++++++---------
+ 1 file changed, 16 insertions(+), 9 deletions(-)

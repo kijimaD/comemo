@@ -1,0 +1,17 @@
+commit 650cc32739d56e2c436173e088b5f9df0ff6052b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 14 15:38:25 2010 -0700
+
+    go/printer (gofmt): don't lose mandatory semicolons
+    
+    Fixes #779.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1218042
+
+ src/pkg/go/printer/nodes.go                   | 36 +++++++++++++++------------
+ src/pkg/go/printer/printer.go                 |  4 ++-
+ src/pkg/go/printer/testdata/statements.golden | 18 ++++++++++++++
+ src/pkg/go/printer/testdata/statements.input  | 18 ++++++++++++++
+ 4 files changed, 59 insertions(+), 17 deletions(-)

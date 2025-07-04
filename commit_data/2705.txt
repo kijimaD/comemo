@@ -1,0 +1,17 @@
+commit c105de748d6ee49d69fe087e63953fb15ec467ef
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Jul 14 15:12:10 2009 -0700
+
+    Implementation of process tracing using Linux's ptrace.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1543  (1528 added, 0 deleted, 15 changed)
+    OCL=31570
+    CL=31630
+
+ usr/austin/ptrace/process.go          |   41 +-
+ usr/austin/ptrace/ptrace-nptl.txt     |  131 ++++
+ usr/austin/ptrace/ptrace_linux.go     | 1242 +++++++++++++++++++++++++++++++++
+ usr/austin/ptrace/regs_linux_amd64.go |  150 ++++
+ 4 files changed, 1552 insertions(+), 12 deletions(-)

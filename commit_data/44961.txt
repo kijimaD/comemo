@@ -1,0 +1,26 @@
+commit 298975c634758ee464dc0629402107bfc33c4b41
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Apr 5 19:13:34 2021 +0000
+
+    runtime: use funcID to identify abort in isAbortPC
+    
+    This change eliminates the use of funcPC to determine if an PC is in
+    abort. Using funcPC for this purpose is problematic when using plugins
+    because symbols no longer have unique PCs. funcPC also grabs the wrapper
+    for runtime.abort which isn't what we want for the new register ABI, so
+    rather than mark runtime.abort as ABIInternal, use funcID.
+    
+    For #40724.
+    
+    Change-Id: I2730e99fe6f326d22d64a10384828b94f04d101a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307391
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/objabi/funcid.go |  2 ++
+ src/runtime/panic.go              |  6 +++++-
+ src/runtime/symtab.go             | 13 +++++++++++++
+ 3 files changed, 20 insertions(+), 1 deletion(-)

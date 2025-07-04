@@ -1,0 +1,15 @@
+commit bccc337084bc4f91d9f354f363dff2064fa24fa3
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 13 13:00:45 2009 -0800
+
+    json: allow one to unmarshal a top-level JSON array.
+    
+    Fixies issue 114.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/154121
+
+ src/pkg/json/struct.go      | 20 ++++++++++++++++++--
+ src/pkg/json/struct_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 2 deletions(-)

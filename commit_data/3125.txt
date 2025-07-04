@@ -1,0 +1,16 @@
+commit bf0130cc0f19b5730f5fae0240f85583e70e1a0e
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Aug 28 12:37:39 2009 -0700
+
+    sliceslice inline
+    
+    R=rsc
+    OCL=34041
+    CL=34041
+
+ src/cmd/6g/gg.h           |   1 +
+ src/cmd/6g/ggen.c         | 107 +++++++++++++++++++++++++++++++-------
+ src/cmd/6g/reg.c          |   1 +
+ src/pkg/runtime/runtime.c |   6 +++
+ test/ken/sliceslice.go    | 129 ++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 226 insertions(+), 18 deletions(-)

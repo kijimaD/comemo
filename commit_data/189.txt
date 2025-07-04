@@ -1,0 +1,8 @@
+commit 7131bf476c97238c75fe87d7500a3b95988e6020
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jun 17 18:02:06 2008 -0700
+
+    SVN=123250
+
+ src/cmd/gc/subr.c | 2 ++
+ 1 file changed, 2 insertions(+)

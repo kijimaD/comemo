@@ -1,0 +1,14 @@
+commit 4e9f7047dcf4ab0c059baaac4f5c5a06dc6b38bb
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 5 11:39:12 2012 +1000
+
+    misc/dist: include directories in distribution tar and zip files.
+    
+    Fixes #3458.
+    
+    R=adg, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5969071
+
+ misc/dist/bindist.go | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

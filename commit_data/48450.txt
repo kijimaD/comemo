@@ -1,0 +1,29 @@
+commit da9649e6d9ddfc2677c289f8db3e0c02998f02e0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Mar 19 00:23:33 2022 +0700
+
+    cmd/compile: remove t.Broke() deadcode paths
+    
+    CL 392918 changed t.Broke() to always return false, we can now get rid
+    of all its deadcode paths.
+    
+    Updates #51691
+    
+    Change-Id: I0a2a13def07364e780e4785621690452948e219a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393914
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/const.go     | 15 +++++++--------
+ src/cmd/compile/internal/typecheck/expr.go      |  2 +-
+ src/cmd/compile/internal/typecheck/func.go      |  4 +---
+ src/cmd/compile/internal/typecheck/stmt.go      |  2 +-
+ src/cmd/compile/internal/typecheck/subr.go      |  7 +------
+ src/cmd/compile/internal/typecheck/typecheck.go | 10 ++--------
+ src/cmd/compile/internal/types/alg.go           |  3 ---
+ src/cmd/compile/internal/types/identity.go      |  2 +-
+ src/cmd/compile/internal/types/size.go          | 14 --------------
+ src/cmd/compile/internal/types/type.go          | 11 -----------
+ 10 files changed, 14 insertions(+), 56 deletions(-)

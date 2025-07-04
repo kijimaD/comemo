@@ -1,0 +1,22 @@
+commit a7e25562555a508571b63aedadb088eab8fc5a48
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Feb 6 15:18:26 2017 +1100
+
+    cmd/link: set VirtualAddress to 0 for external linker
+    
+    This is what gcc does when it generates object files.
+    And pecoff.doc says: "for simplicity, compilers should
+     set this to zero". It is easier to count everything,
+    when it starts from 0. Make go linker do the same.
+    
+    For #10776.
+    
+    Change-Id: Iffa4b3ad86160624ed34adf1c6ba13feba34c658
+    Reviewed-on: https://go-review.googlesource.com/36976
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go |  3 ---
+ src/cmd/link/internal/ld/pe.go   | 10 +++++++---
+ 2 files changed, 7 insertions(+), 6 deletions(-)

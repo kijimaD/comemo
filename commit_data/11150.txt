@@ -1,0 +1,102 @@
+commit 1627b46eaa6403775611017e91cceae2e45662b2
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Jan 13 11:05:19 2012 +0100
+
+    xml: major Go 1 fixup
+    
+    This CL improves the xml package in the following ways:
+    
+    - makes its interface match established conventions
+    - brings Marshal and Unmarshal closer together
+    - fixes a large number of bugs and adds tests
+    - improves speed significantly
+    - organizes and simplifies the code
+    
+    Fixes #2426.
+    Fixes #2406.
+    Fixes #1989.
+    
+    What follows is a detailed list of those changes.
+    
+    - All matching is case sensitive without special processing
+      to the field name or xml tag in an attempt to match them.
+      Customize the field tag as desired to match the correct XML
+      elements.
+    
+    - Flags are ",flag" rather than "flag". The names "attr",
+      "chardata", etc, may be used to name actual XML elements.
+    
+    - Overriding of attribute names is possible with "name,attr".
+    
+    - Attribute fields are marshalled properly if they have
+      non-string types. Previously they were unmarshalled, but were
+      ignored at marshalling time.
+    
+    - Comment fields tagged with ",comment" are marshalled properly,
+      rather than being marshalled as normal fields.
+    
+    - The handling of the Any field has been replaced by the ",any"
+      flag to avoid unexpected results when using the field name for
+      other purposes, and has also been fixed to interact properly
+      with name paths. Previously the feature would not function
+      if any field in the type had a name path in its tag.
+    
+    - Embedded struct support fixed and cleaned so it works when
+      marshalling and also when using field paths deeper than one level.
+    
+    - Conflict reporting on field names have been expanded to cover
+      all fields. Previously it'd catch only conflicts of paths
+      deeper than one level. Also interacts correctly with embedded
+      structs now.
+    
+    - A trailing '>' is disallowed in xml tags. It used to be
+      supported for removing the ambiguity between "attr" and "attr>",
+      but the marshalling support for that was broken, and it's now
+      unnecessary. Use "name" instead of "name>".
+    
+    - Fixed docs to point out that a XMLName doesn't have to be
+      an xml.Name (e.g. a struct{} is a good fit too). The code was
+      already working like that.
+    
+    - Fixed asymmetry in the precedence of XML element names between
+      marshalling and unmarshalling. Marshal would consider the XMLName
+      of the field type before the field tag, while unmarshalling would
+      do the opposite. Now both respect the tag of the XMLName field
+      first, and a nice error message is provided in case an attempt
+      is made to name a field with its tag in a way that would
+      conflict with the underlying type's XMLName field.
+    
+    - Do not marshal broken "<???>" tags when in doubt. Use the type
+      name, and error out if that's not possible.
+    
+    - Do not break down unmarshalling if there's an interface{} field
+      in a struct.
+    
+    - Significant speed boost due to caching of type metadata and
+      overall allocation clean ups. The following timings reflect
+      processing of the the atom test data:
+    
+      Old:
+    
+      BenchmarkMarshal           50000             48798 ns/op
+      BenchmarkUnmarshal          5000            357174 ns/op
+    
+      New:
+    
+      BenchmarkMarshal          100000             19799 ns/op
+      BenchmarkUnmarshal         10000            128525 ns/op
+    
+    R=cw, gustavo, kevlar, adg, rogpeppe, fullung, christoph, rsc
+    CC=golang-dev
+    https://golang.org/cl/5503078
+
+ src/pkg/encoding/xml/Makefile        |   1 +
+ src/pkg/encoding/xml/atom_test.go    |  27 +--
+ src/pkg/encoding/xml/embed_test.go   | 127 ----------
+ src/pkg/encoding/xml/marshal.go      | 257 +++++++++++++--------
+ src/pkg/encoding/xml/marshal_test.go | 433 ++++++++++++++++++++++++++---------
+ src/pkg/encoding/xml/read.go         | 332 +++++++++++----------------
+ src/pkg/encoding/xml/read_test.go    | 180 ++++++---------
+ src/pkg/encoding/xml/typeinfo.go     | 321 ++++++++++++++++++++++++++
+ src/pkg/encoding/xml/xml_test.go     |  42 ++--
+ 9 files changed, 1043 insertions(+), 677 deletions(-)

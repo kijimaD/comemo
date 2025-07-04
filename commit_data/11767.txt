@@ -1,0 +1,14 @@
+commit 4c7695126d881b4622ed74238d7ce5c4e6b3b259
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 10 14:45:11 2012 +1100
+
+    strings: delete method comments implied by interface satisfaction
+    
+    Fixes #2957.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5653053
+
+ src/pkg/strings/reader.go | 11 -----------
+ 1 file changed, 11 deletions(-)

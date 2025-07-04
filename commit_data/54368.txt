@@ -1,0 +1,29 @@
+commit 729e21b24c12fe3e4be724672ab63429be8247a6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 6 16:11:34 2023 -0700
+
+    cmd/compile: cleanup uses of ir.Orig and ir.SepCopy
+    
+    Mostly automated refactoring with gofmt:
+    
+    gofmt -r 'ir.Orig(n) -> n'
+    gofmt -r 'ir.SepCopy(n) -> ir.Copy(n)'
+    
+    Followed by some manual cleanups.
+    
+    Change-Id: Ib35abeba9e60b70ba463e161fb39358fb058a83e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526398
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/copy.go        | 14 --------------
+ src/cmd/compile/internal/ir/fmt.go         |  6 ------
+ src/cmd/compile/internal/ir/node.go        |  4 +---
+ src/cmd/compile/internal/noder/reader.go   |  2 +-
+ src/cmd/compile/internal/ssagen/ssa.go     | 10 ++--------
+ src/cmd/compile/internal/typecheck/func.go |  2 +-
+ src/cmd/compile/internal/walk/order.go     | 12 ++++++------
+ 7 files changed, 11 insertions(+), 39 deletions(-)

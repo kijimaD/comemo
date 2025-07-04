@@ -1,0 +1,15 @@
+commit 14082fad9b851267520d5d04aa314719bda47e9e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Mar 23 06:43:43 2015 +0900
+
+    net: fix TestInterfaces, TestInterfaceAddrs on platforms without loopback interface
+    
+    Fixes #10214.
+    
+    Change-Id: If29d26c590eb53d4976e0a6ace0ed33aaf0c3e80
+    Reviewed-on: https://go-review.googlesource.com/7924
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/net/interface_test.go | 83 +++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 58 insertions(+), 25 deletions(-)

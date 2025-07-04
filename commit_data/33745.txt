@@ -1,0 +1,28 @@
+commit eb97160f46cb18770ccb0bd57a08457c9ff20ccc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 22 19:12:12 2017 -0800
+
+    runtime: don't block signals that will kill the program
+    
+    Otherwise we may delay the delivery of these signals for an arbitrary
+    length of time. We are already careful to not block signals that the
+    program has asked to see.
+    
+    Also make sure that we don't miss a signal delivery if a thread
+    decides to stop for a while while executing the signal handler.
+    
+    Also clean up the TestAtomicStop output a little bit.
+    
+    Fixes #21433
+    
+    Change-Id: Ic0c1a4eaf7eba80d1abc1e9537570bf4687c2434
+    Reviewed-on: https://go-review.googlesource.com/79581
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/os/signal/signal_test.go |  6 ++++--
+ src/runtime/runtime2.go      |  2 +-
+ src/runtime/signal_unix.go   | 25 ++++++++++++++++++++++---
+ src/runtime/sigqueue.go      | 30 +++++++++++++++++++++++-------
+ 4 files changed, 50 insertions(+), 13 deletions(-)

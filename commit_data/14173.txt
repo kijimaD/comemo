@@ -1,0 +1,12 @@
+commit 90ad6a2d111d10b60fd5b7f5d46fd224635d5024
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Oct 19 11:02:32 2012 +1100
+
+    runtime: update comment for the "extern register" variables g and m.
+    
+    R=rsc, minux.ma, ality
+    CC=dave, golang-dev
+    https://golang.org/cl/6620050
+
+ src/pkg/runtime/runtime.h | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)

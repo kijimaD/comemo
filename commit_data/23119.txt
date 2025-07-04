@@ -1,0 +1,26 @@
+commit 79afb43a0a42abb435c9a7596d66759eb7af18f2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 21 17:00:37 2015 -0700
+
+    math/big: fix Float.Float32 conversion for denormal corner cases
+    
+    The existing code was incorrect for numbers that after rounding would
+    become the smallest denormal float32 (instead the result was 0). This
+    caused all.bash to fail if Float32() were used in the compiler for
+    constant arithmetic (there's currently a work-around - see also issue
+    10321.
+    
+    This change fixes the implementation of Float.Float32 and adds
+    corresponding test cases. Float32 and Float64 diverge at this point.
+    For ease of review, this change only fixes Float32. Float64 will be
+    made to match in a subsequent change.
+    
+    Fixes #10321.
+    
+    Change-Id: Iccafe37c1593a4946bc552e4ad2045f69be62d80
+    Reviewed-on: https://go-review.googlesource.com/10350
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 79 +++++++++++++++++++++------------------
+ src/math/big/float_test.go | 93 +++++++++++++++++++++++++++++-----------------
+ 2 files changed, 101 insertions(+), 71 deletions(-)

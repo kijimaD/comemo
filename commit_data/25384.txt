@@ -1,0 +1,12 @@
+commit 0f3c2290305ddd05aea472c49b43c7ba45da0f18
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Thu Dec 24 14:26:02 2015 -0400
+
+    runtime: fix sigaltstack test Skipf format string
+    
+    Change-Id: I9485ecbd9d546893e4f0db846b08d835fa7515d7
+    Reviewed-on: https://go-review.googlesource.com/18140
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/test/sigaltstack.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

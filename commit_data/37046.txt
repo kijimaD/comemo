@@ -1,0 +1,16 @@
+commit f5df0a95751e92efcc5adb301603781035eac5b3
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 19 18:09:42 2018 +0200
+
+    cmd/internal/xcoff: don't use io.SeekCurrent for go1.4 compatibility
+    
+    This fixes the build with go1.4 during bootstrap.
+    
+    Change-Id: I35fa1dc3d877d31d5ffe515f5f19188f4a8b77f4
+    Reviewed-on: https://go-review.googlesource.com/c/143377
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/xcoff/file.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

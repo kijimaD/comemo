@@ -1,0 +1,21 @@
+commit 4b8bfa6352e8f67886dc1cd1eba92b248715bd11
+Author: Shawn Walker-Salas <shawn.walker@oracle.com>
+Date:   Fri Jun 30 10:57:04 2017 -0700
+
+    net: fix sendfile for Solaris
+    
+    If a retryable error such as EAGAIN/EINTR is encountered during a call
+    to sendfile(), we should not assume that a partial write occurred.
+    Instead, just like any other platform, we should always try again even
+    if 0 bytes were written.
+    
+    Fixes #20857
+    
+    Change-Id: I9aa48d193c27c6794c550320da4d3f7544041f37
+    Reviewed-on: https://go-review.googlesource.com/47351
+    Run-TryBot: Shawn Walker-Salas <shawn.walker@oracle.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/poll/sendfile_solaris.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

@@ -1,0 +1,19 @@
+commit 21a9141ab364ecfea016bf36b8222f4747afa1fb
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Oct 28 16:20:49 2014 +0900
+
+    net: add test for lookupIPDeadline
+    
+    Just to confirm the fix, by typing the follwing:
+    go test -run=TestLookupIPDeadline -dnsflood or
+    go test -run=TestLookupIPDeadline -dnsflood -tags netgo
+    
+    Update #8602
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/166740043
+
+ src/net/z_last_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 62 insertions(+)

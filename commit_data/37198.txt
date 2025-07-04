@@ -1,0 +1,16 @@
+commit 21d2e15ee1bed44a7a1b8f775aff4a57cae9533a
+Author: tkivisik <taavi.kivisik@gmail.com>
+Date:   Wed Oct 17 12:42:54 2018 +0000
+
+    doc: improve language in contribute
+    
+    Previous wording was incorrect.
+    
+    Change-Id: I91406c775161d9724ec60824c156e8e9a925bcd7
+    GitHub-Last-Rev: 2b6b4e136a78a431cc847a2717cbeae4341ed7bc
+    GitHub-Pull-Request: golang/go#28248
+    Reviewed-on: https://go-review.googlesource.com/c/142879
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ doc/contribute.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

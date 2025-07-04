@@ -1,0 +1,24 @@
+commit d6a057c90ed0746ae394efc0345b53f97d781b64
+Author: Cosmos Nicolaou <cnicolaou@google.com>
+Date:   Mon Feb 25 20:34:09 2013 -0800
+
+    cmd/godoc: add support for display Notes parsed by pkg/go/doc
+    pkg/go/doc: move BUG notes from Package.Bugs to the general Package.Notes field.
+    Removing .Bugs would break existing code so it's left in for now.
+    
+    R=gri, gri, gary.burd, dsymonds, rsc, kevlar
+    CC=golang-dev
+    https://golang.org/cl/7341053
+
+ lib/godoc/package.html               | 19 +++++--------------
+ lib/godoc/package.txt                |  8 ++------
+ src/cmd/godoc/godoc.go               | 29 ++++++++++++++++++++++++-----
+ src/cmd/godoc/main.go                |  7 +++++++
+ src/pkg/go/doc/doc.go                |  5 ++++-
+ src/pkg/go/doc/reader.go             |  6 +-----
+ src/pkg/go/doc/testdata/a.0.golden   |  8 ++++++--
+ src/pkg/go/doc/testdata/a.1.golden   |  8 ++++++--
+ src/pkg/go/doc/testdata/a.2.golden   |  8 ++++++--
+ src/pkg/go/doc/testdata/a0.go        |  4 ++++
+ src/pkg/go/doc/testdata/template.txt |  4 ++--
+ 11 files changed, 67 insertions(+), 39 deletions(-)

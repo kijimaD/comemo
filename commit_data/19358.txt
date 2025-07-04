@@ -1,0 +1,16 @@
+commit 6c7bef551b32c2f7f2371b21cc8d51d807737ef3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu May 15 12:44:29 2014 +1000
+
+    cmd/addr2line, cmd/objdump: fix pe text section starting address
+    
+    fixes windows build
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/97500043
+
+ src/cmd/addr2line/main.go | 11 ++++++++++-
+ src/cmd/objdump/main.go   | 11 ++++++++++-
+ 2 files changed, 20 insertions(+), 2 deletions(-)

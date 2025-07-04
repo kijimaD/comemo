@@ -1,0 +1,20 @@
+commit 4f2d2134764b0b7654105ac2d6f75a75cdc1de56
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Jun 2 23:34:06 2020 +1000
+
+    cmd/compile,cmd/internal/sys: enable additional build modes on linux/riscv64
+    
+    Enable c-archive, c-shared, shared and pie build modes for linux/riscv64.
+    
+    Change-Id: I15a8a51b84dbbb82a5b6592aec84a7f09f0cc37f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263457
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 2 +-
+ src/cmd/dist/test.go                | 8 ++++----
+ src/cmd/go/go_test.go               | 2 +-
+ src/cmd/internal/sys/supported.go   | 6 +++---
+ 4 files changed, 9 insertions(+), 9 deletions(-)

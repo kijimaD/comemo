@@ -1,0 +1,18 @@
+commit 7ce02613870a67f26055836ded66591be148b82b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Feb 25 10:59:20 2015 +1100
+
+    cmd/dist: respect runtime.NumCPU when bootstrapping arm hosts
+    
+    This is a reproposal of CL 2957. This reproposal restricts the
+    scope of this change to just arm systems.
+    
+    With respect to rsc's comments on 2957, on all my arm hosts they perform
+    the build significantly faster with this change in place.
+    
+    Change-Id: Ie09be1a73d5bb777ec5bca3ba93ba73d5612d141
+    Reviewed-on: https://go-review.googlesource.com/5834
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/util.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 2d6a6ed9fc45853d8764a57658a768096e20de4d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 27 16:18:58 2012 +1100
+
+    misc/dashboard: fix bug in UI template
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5700078
+
+ misc/dashboard/app/build/ui.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 7b6111a9ddf899235ef2eb9a3c139e8cc9d83391
+Author: Jean-Marc Eurin <jmeurin@google.com>
+Date:   Wed May 30 14:18:58 2012 -0400
+
+        misc/emacs: Use patch output of gofmt instead of replacing the buffer.
+    
+    This uses the patch output of gofmt (-d option) and applies each
+    chunk to the buffer, instead of replacing the whole buffer.  The
+    main advantage is that the undo history is kept across gofmt'ings,
+    so it can really be used as a before-save-hook.
+    
+    R=sameer, sameer
+    CC=golang-dev
+    https://golang.org/cl/6198047
+
+ misc/emacs/go-mode.el | 71 +++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 49 insertions(+), 22 deletions(-)

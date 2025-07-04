@@ -1,0 +1,12 @@
+commit 9377b28833ef2ea7d8b2cbaa04bf5bc8dfc278d7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 13 09:38:26 2011 -0700
+
+    http: Alphabetize imports.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5002043
+
+ src/pkg/http/chunked.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

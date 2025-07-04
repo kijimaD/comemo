@@ -1,0 +1,31 @@
+commit 301149b9e4f9e1256e80e76b0d8f6beace103731
+Author: David Lazar <lazard@golang.org>
+Date:   Fri Feb 17 16:20:52 2017 -0500
+
+    cmd/internal/obj: avoid duplicate file name symbols
+    
+    The meaning of Version=1 was overloaded: it was reserved for file name
+    symbols (to avoid conflicts with non-file name symbols), but was also
+    used to mean "give me a fresh version number for this symbol."
+    
+    With the new inlining tree, the same file name symbol can appear in
+    multiple entries, but each one would become a distinct symbol with its
+    own version number.
+    
+    Now, we avoid duplicating symbols by using Version=0 for file name
+    symbols and we avoid conflicts with other symbols by prefixing the
+    symbol name with "gofile..".
+    
+    Change-Id: I8d0374053b8cdb6a9ca7fb71871b69b4dd369a9c
+    Reviewed-on: https://go-review.googlesource.com/37234
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/line.go      | 6 ++++--
+ src/cmd/internal/obj/line_test.go | 2 +-
+ src/cmd/internal/obj/link.go      | 6 ------
+ src/cmd/internal/obj/sym.go       | 2 +-
+ src/cmd/link/internal/ld/pcln.go  | 3 ++-
+ 5 files changed, 8 insertions(+), 11 deletions(-)

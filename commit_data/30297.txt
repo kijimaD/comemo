@@ -1,0 +1,18 @@
+commit 1693e7b6f2ad1bd2a800161e92b5ac8d3d882663
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 16 12:52:01 2017 -0800
+
+    cmd/compile/internal/syntax: better errors and recovery for invalid character literals
+    
+    Fixes #15611.
+    
+    Change-Id: I352b145026466cafef8cf87addafbd30716bda24
+    Reviewed-on: https://go-review.googlesource.com/37138
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/scanner.go      | 79 +++++++++++++++----------
+ src/cmd/compile/internal/syntax/scanner_test.go |  9 +--
+ test/fixedbugs/issue15611.go                    | 20 +++++++
+ 3 files changed, 72 insertions(+), 36 deletions(-)

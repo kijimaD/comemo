@@ -1,0 +1,14 @@
+commit 2a9c0124989a917ee0890690bce3efed44acffb8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Jan 22 19:36:34 2012 -0800
+
+    godoc: log node printing error
+    
+    Invaluable when changing template files.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5571044
+
+ src/cmd/godoc/godoc.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

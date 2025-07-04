@@ -1,0 +1,18 @@
+commit e751af1abacaf9958fe2e69d6dcb2e93cb1a3e4d
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Wed Dec 4 19:37:00 2019 -0800
+
+    cmd/go: print newline after GOOS/GOARCH error
+    
+    The newline was dropped during the refactor in CL 194617.
+    
+    Fixes #35984
+    
+    Change-Id: I7e0d7aa2d7a4d1f44898921f8bb40401620d78b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209965
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/action.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

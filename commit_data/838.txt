@@ -1,0 +1,18 @@
+commit 8f5b277cac09a46f54bc11be0f1e30ac1180ffad
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 9 19:40:53 2008 -0700
+
+    beginnings of regular expression library.
+    will move elsewhere when more complete.
+    parses, does not execute.
+    no character classes yet.
+    
+    R=rsc
+    DELTA=522  (522 added, 0 deleted, 0 changed)
+    OCL=16863
+    CL=16874
+
+ usr/r/regexp/Makefile  |  20 ++
+ usr/r/regexp/main.go   |  22 +++
+ usr/r/regexp/regexp.go | 489 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 531 insertions(+)

@@ -1,0 +1,14 @@
+commit b4538d7aaa1a600dc1d3724f9aecb5c8039e1324
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue May 10 07:43:17 2016 +0000
+
+    Revert "os: enable TestGetppid on Plan 9"
+    
+    This reverts commit a677724edfc465193d2f79ee48d2c06defbc916b.
+    
+    Change-Id: I6a54ac26a6deca5b2a39ec9f899469a88b543d3d
+    Reviewed-on: https://go-review.googlesource.com/22980
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/os_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

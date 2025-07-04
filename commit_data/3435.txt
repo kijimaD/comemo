@@ -1,0 +1,18 @@
+commit c17dde2730520ed02e37f34203246363db3023f1
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Oct 5 04:08:24 2009 -0700
+
+    Add write support for the GNU tar binary numeric field extension.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=102  (89 added, 1 deleted, 12 changed)
+    OCL=35321
+    CL=35327
+
+ src/pkg/archive/tar/testdata/writer-big.tar | Bin 0 -> 4096 bytes
+ src/pkg/archive/tar/writer.go               |  42 +++++++++++++++++++++-------
+ src/pkg/archive/tar/writer_test.go          |  32 +++++++++++++++++++--
+ src/pkg/testing/iotest/Makefile             |   1 +
+ src/pkg/testing/iotest/writer.go            |  38 +++++++++++++++++++++++++
+ 5 files changed, 100 insertions(+), 13 deletions(-)

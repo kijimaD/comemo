@@ -1,0 +1,16 @@
+commit 8c5dbba01c9e661ca33a0cb1783c10c71d34da8d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 12 12:10:03 2019 -0500
+
+    crypto/tls: retry ETIMEDOUT flakes in localPipe on dragonfly
+    
+    Fixes #29583
+    
+    Change-Id: Ia89433bddd4c9f67ec1f0150b730cde8a7e973ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206759
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/handshake_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

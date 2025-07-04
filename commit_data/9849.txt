@@ -1,0 +1,31 @@
+commit f75ff01f44f0fa90080bbd9aa3656f0a6fa49042
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 3 13:12:01 2011 -0700
+
+    strings: implement a faster byte->byte Replacer
+    
+    When all old & new string values are single bytes,
+    byteReplacer is now used, instead of the generic
+    algorithm.
+    
+    BenchmarkGenericMatch       10000  102519 ns/op
+    BenchmarkByteByteMatch    1000000    2178 ns/op
+    
+    fast path, when nothing matches:
+    BenchmarkByteByteNoMatch  1000000    1109 ns/op
+    
+    comparisons to multiple Replace calls:
+    BenchmarkByteByteReplaces  100000   16164 ns/op
+    
+    comparison to strings.Map:
+    BenchmarkByteByteMap       500000    5454 ns/op
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5175050
+
+ src/pkg/http/cookie.go          |  13 ++--
+ src/pkg/strings/export_test.go  |   9 +++
+ src/pkg/strings/replace.go      | 169 ++++++++++++++++++++++++++++++++++------
+ src/pkg/strings/replace_test.go |  99 +++++++++++++++++++----
+ 4 files changed, 246 insertions(+), 44 deletions(-)

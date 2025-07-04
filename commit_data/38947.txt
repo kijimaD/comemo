@@ -1,0 +1,15 @@
+commit 06c9ccdfc7b9e39e0f609c00bddd1b39a0385a37
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 29 16:36:21 2019 +0000
+
+    os/exec: always set SYSTEMROOT on Windows if not listed in Cmd.Env
+    
+    Fixes #25210
+    
+    Change-Id: If27b61776154dae9b9b67bf4e4f5faa785d98105
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174318
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/exec/exec.go      | 25 ++++++++++++++++++++++++-
+ src/os/exec/exec_test.go | 19 +++++++++++++++++++
+ 2 files changed, 43 insertions(+), 1 deletion(-)

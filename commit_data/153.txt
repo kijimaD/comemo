@@ -1,0 +1,13 @@
+commit 2694a85a52f9515ee330fd3e78294183caf9835c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 11 18:01:45 2008 -0700
+
+    tweaks in clean rules and dependencies
+    
+    SVN=122274
+
+ src/cmd/6c/Makefile | 2 +-
+ src/cmd/6g/Makefile | 2 +-
+ src/cmd/cc/Makefile | 2 +-
+ src/cmd/gc/Makefile | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

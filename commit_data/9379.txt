@@ -1,0 +1,19 @@
+commit a2677cf363f9d17b416795c621c6bd7de5dcd642
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 16 16:53:02 2011 -0400
+
+    runtime: fix GC bitmap corruption
+    The corruption can occur when GOMAXPROCS
+    is changed from >1 to 1, since GOMAXPROCS=1
+    does not imply there is only 1 goroutine running,
+    other goroutines can still be not parked after
+    the change.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4873050
+
+ src/pkg/runtime/mgc0.c    | 12 ++++++------
+ src/pkg/runtime/proc.c    |  5 +++++
+ src/pkg/runtime/runtime.h |  1 +
+ 3 files changed, 12 insertions(+), 6 deletions(-)

@@ -1,0 +1,12 @@
+commit be629bf79ee8edd0c52caa8a46cb63eb38e55d79
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jul 30 11:45:17 2012 +1000
+
+    misc/dashboard/codereview: make all active CL tables hold up to 50 CLs.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6449060
+
+ misc/dashboard/codereview/dashboard/front.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

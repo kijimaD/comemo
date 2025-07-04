@@ -1,0 +1,12 @@
+commit a65cc2a867fa06d5e2acb92ecace64235411a41f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 18 11:51:21 2008 -0700
+
+    add a bug: method call doesn't compile
+    
+    SVN=123403
+
+ test/bugs/bug048.go |  2 +-
+ test/bugs/bug054.go | 27 +++++++++++++++++++++++++++
+ test/golden.out     | 10 ++++------
+ 3 files changed, 32 insertions(+), 7 deletions(-)

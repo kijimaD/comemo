@@ -1,0 +1,26 @@
+commit 8c0425825ced4042eac0439161abe1f22a47d615
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Thu Jun 14 18:20:03 2018 +0300
+
+    cmd/compile: display Go code for a function in ssa.html
+    
+    This CL adds the "sources" column at the beginning of SSA table.
+    This column displays the source code for the function being passed
+    in the GOSSAFUNC env variable.
+    
+    Also UI was extended so that clicking on particular line will
+    highlight all places this line is referenced.
+    
+    JS code was cleaned and formatted.
+    
+    This CL does not handle inlined functions. See issue 25904.
+    
+    Change-Id: Ic7833a0b05e38795f4cf090f3dc82abf62d97026
+    Reviewed-on: https://go-review.googlesource.com/119035
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go   |  26 +++++++-
+ src/cmd/compile/internal/ssa/html.go | 116 +++++++++++++++++++++++++----------
+ 2 files changed, 107 insertions(+), 35 deletions(-)

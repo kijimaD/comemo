@@ -1,0 +1,13 @@
+commit 637e1f7da04aa09f70d8c21c6ced01bb309bdb46
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 16 19:14:06 2014 -0800
+
+    cmd/gc: correct function name in internal error messages
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/64090043
+
+ src/cmd/gc/sinit.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit 3fcfb1f5737388a00f47d5de1c5266e1136abf05
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Jul 16 10:22:18 2018 -0400
+
+    doc/go1.11: update with latest output from x/build/cmd/relnote
+    
+    Change-Id: I4055ecc39b1b250cce7b32241f13dbc05567361f
+    Reviewed-on: https://go-review.googlesource.com/124015
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.11.html | 228 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 227 insertions(+), 1 deletion(-)

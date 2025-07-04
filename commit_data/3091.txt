@@ -1,0 +1,12 @@
+commit 26a2642fc39227edfd842b58fc4be08a4e837117
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 26 16:19:59 2009 -0700
+
+    fix codec test bug - uint -> uint8
+    
+    R=r
+    OCL=33913
+    CL=33913
+
+ src/pkg/gob/codec_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

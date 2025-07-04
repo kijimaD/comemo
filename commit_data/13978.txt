@@ -1,0 +1,12 @@
+commit 4bf6249ba5f168b8b5f0115fe638bdf2740a8011
+Author: Eric Roshan-Eisner <eric.d.eisner@gmail.com>
+Date:   Fri Sep 28 10:01:09 2012 +1000
+
+    testing: remove redundant whitespace in output
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6565061
+
+ src/pkg/testing/benchmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

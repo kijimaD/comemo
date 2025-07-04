@@ -1,0 +1,20 @@
+commit 9d3dbd78c7ade2a874c32e248618ad44aec6e63b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Jun 2 16:58:28 2022 -0400
+
+    doc/go1.19: add TODOs for undocumented runtime features
+    
+    As of this CL, release notes for all packages owned by @golang/runtime
+    on https://dev.golang.org/owners are either complete or have explicit
+    TODOs.
+    
+    For #51400
+    
+    Change-Id: I5b6affd43883991a3b8a065b4aa211efce7427f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410118
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ doc/go1.19.html | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

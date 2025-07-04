@@ -1,0 +1,18 @@
+commit 152a1aa610117baf9a712b17d2673ad73bd490e6
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Wed Mar 7 00:40:16 2012 -0500
+
+    misc/cgo: re-enable testso
+    
+    Also enabled it for darwin.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5754063
+
+ misc/cgo/testso/Makefile      | 22 ----------------------
+ misc/cgo/testso/cgoso_test.go |  7 +++++++
+ misc/cgo/testso/main.go       | 11 -----------
+ misc/cgo/testso/test.bash     |  9 ---------
+ src/run.bash                  |  5 +----
+ 5 files changed, 8 insertions(+), 46 deletions(-)

@@ -1,0 +1,15 @@
+commit d3fb02b5c5850f53721d923be6770246aca7f69e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 28 17:24:39 2014 -0700
+
+    time: make it clearer that the reference time is the reference time.
+    Because the reference time is the reference time but beginners seem
+    to think otherwise, make it clearer you can't choose the reference time.
+    
+    LGTM=josharian, dave
+    R=golang-codereviews, josharian, dave
+    CC=golang-codereviews
+    https://golang.org/cl/117250044
+
+ src/pkg/time/format.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

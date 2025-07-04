@@ -1,0 +1,25 @@
+commit c2a9c55823b1ed14f84d8ce8880dbda3f5b01eb0
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 27 09:56:38 2022 -0700
+
+    cmd/compile: optimize unsafe.Slice generated code
+    
+    We don't need a multiply when the element type is size 0 or 1.
+    
+    The panic functions don't return, so we don't need any post-call
+    code (register restores, etc.).
+    
+    Change-Id: I0dcea5df56d29d7be26554ddca966b3903c672e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419754
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |   4 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 152 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go         |   2 +-
+ test/codegen/slices.go                         |  15 +++
+ 4 files changed, 172 insertions(+), 1 deletion(-)

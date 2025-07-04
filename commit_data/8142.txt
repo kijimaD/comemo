@@ -1,0 +1,12 @@
+commit 6211b596d62853f0440cee3097566c4654dc16da
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 18 11:21:16 2011 -0700
+
+    mime: add a TODO, fix the format of an error
+    
+    R=r, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4440054
+
+ src/pkg/mime/mediatype.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

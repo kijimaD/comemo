@@ -1,0 +1,42 @@
+commit b4ad49f9f70f5aa973c10db251bef55132e66ca8
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sat Aug 24 17:13:33 2019 +0200
+
+    runtime: remove slow time compatibility hacks for wine
+    
+    A few years ago, Wine-specific detection was added as an ugly hack to
+    work around shortcomings in the emulation layer. Probably it's best to
+    not special case this emulator versus that emulator versus the real
+    deal, but there were two arguments presented in the hack's favor:
+    
+      1. Wine is useful and developers will appreciate being able to debug
+         stuff with it.
+    
+      2. The existing KUSER_SHARED_DATA technique for gathering time is
+         undocumented, and we shouldn't be relying on it anyway, since
+         Microsoft might remove it without notice.
+    
+    As it turns out, neither one of these are, at the time of writing, true.
+    (1) has been handled for some time by Wine with the introduction of the
+    commit entitled "ntdll: Create thread to update user_shared_data time
+    values when necessary". And (2) is in fact documented:
+    https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/content/ntddk/ns-ntddk-kuser_shared_data
+    https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/-kuser
+    It's in use so widely by both third-party software (such as games, a
+    massive market segment) and by Microsoft binaries that removing it from
+    the operating system will basically never happen.
+    
+    So with both issues taken care of, this commit simply gets rid of the
+    old hack.
+    
+    Change-Id: I80093f50e0d10d53648128d0f9dd76b1b92a119e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191759
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/os_windows.go       | 78 -----------------------------------------
+ src/runtime/sys_windows_386.s   | 10 ------
+ src/runtime/sys_windows_amd64.s | 10 ------
+ src/runtime/sys_windows_arm.s   | 14 --------
+ 4 files changed, 112 deletions(-)

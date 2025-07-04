@@ -1,0 +1,19 @@
+commit ae400d003fd5abdebee84b70cfbe5a8ee855e6cb
+Author: Alice <escalice12@gmail.com>
+Date:   Mon Jan 16 11:54:01 2023 +0000
+
+    misc/cgo/testsanitizers: use fmt.Printf instead fmt.Println
+    
+    Change-Id: Ie46bc3cbfb2622b5eb70618557ff5398866f5607
+    GitHub-Last-Rev: a665ef84dd9c11c6c274ad7f1cb51733d8253f6d
+    GitHub-Pull-Request: golang/go#57813
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462044
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ misc/cgo/testsanitizers/testdata/msan.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

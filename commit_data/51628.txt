@@ -1,0 +1,22 @@
+commit 526b8956c23dee7be386720247e143f87e5ec2d2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 8 08:29:14 2022 -0800
+
+    go/types: add commentMap and test
+    
+    This adds the (adjusted) syntax.CommentMap function and corresponding
+    test to the types_test package so that we can use it for collecting
+    ERROR comments in the next CL.
+    
+    For #51006.
+    
+    Change-Id: I63ce96e7394c28c02d5a292250586cc49c1f6e19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456125
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/go/types/commentMap_test.go | 103 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 103 insertions(+)

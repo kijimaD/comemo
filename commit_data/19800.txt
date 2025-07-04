@@ -1,0 +1,15 @@
+commit 0403181a880d25427d35316fcf0ea9a89fc9e40d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jul 23 12:36:34 2014 +1000
+
+    syscall: allow for mksyscall_windows.go to be used outside of syscall
+    
+    Fixes #8398.
+    
+    LGTM=chines
+    R=golang-codereviews, chines, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/114140043
+
+ src/pkg/syscall/mksyscall_windows.go | 57 ++++++++++++++++++++++++++++--------
+ 1 file changed, 45 insertions(+), 12 deletions(-)

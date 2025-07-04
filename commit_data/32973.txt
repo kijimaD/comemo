@@ -1,0 +1,18 @@
+commit aac0d52d97351e0b2acaf5bb9b106eafc9e087cb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 5 14:02:54 2017 -0400
+
+    cmd/go: stop treating GOROOT binaries specially
+    
+    This was for cmd/cgo, and cmd/cgo isn't special anymore.
+    
+    Change-Id: I71efaf553b24798b523c7102859428d36b470698
+    Reviewed-on: https://go-review.googlesource.com/68530
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/internal/cfg/cfg.go    |  8 +-------
+ src/cmd/go/internal/load/pkg.go   | 11 +----------
+ src/cmd/go/internal/work/build.go | 35 -----------------------------------
+ 3 files changed, 2 insertions(+), 52 deletions(-)

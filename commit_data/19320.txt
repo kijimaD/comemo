@@ -1,0 +1,13 @@
+commit 2a7ab1616f861087c6da320f7de360949868384a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon May 12 09:26:05 2014 +1000
+
+    cmd/nm: do not write to GOROOT testdata directories during TestNM
+    
+    LGTM=bradfitz
+    R=bradfitz, 0intro
+    CC=golang-codereviews
+    https://golang.org/cl/95280043
+
+ src/cmd/nm/nm_test.go | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)

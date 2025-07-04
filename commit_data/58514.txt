@@ -1,0 +1,16 @@
+commit befc43655b6d93f0be883222fbb3fde5768892c1
+Author: cuishuang <imcusg@gmail.com>
+Date:   Tue Jan 14 01:11:22 2025 +0800
+
+    testing/fstest: fix function name and comment
+    
+    Change-Id: I17bc68a2e3a96d0dc3d9ddcad40149df37fc4839
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642198
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/testing/fstest/testfs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

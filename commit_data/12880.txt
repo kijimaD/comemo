@@ -1,0 +1,14 @@
+commit 772e8ff4584ac6b97d8f3c38f0b21161ca72fe81
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Apr 11 12:57:38 2012 -0400
+
+    crypto/rsa: fix Verify for multi-prime keys.
+    
+    The least common multiple is not totient/gcd.
+    
+    R=remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/5990045
+
+ src/pkg/crypto/rsa/rsa.go | 36 ++++++++++++------------------------
+ 1 file changed, 12 insertions(+), 24 deletions(-)

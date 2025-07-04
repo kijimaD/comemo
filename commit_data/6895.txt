@@ -1,0 +1,19 @@
+commit 7eeebf49bee7e34a477cfb03fd76a0d3ab0b031a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 16:35:05 2010 -0500
+
+    runtime/cgo: adapt files copied from libcgo
+    
+    Necessary but not sufficient step toward
+    making those builds work.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3411043
+
+ src/pkg/runtime/cgo/freebsd_386.c   | 7 ++-----
+ src/pkg/runtime/cgo/freebsd_amd64.c | 6 ++++--
+ src/pkg/runtime/cgo/nacl_386.c      | 6 ++++--
+ src/pkg/runtime/cgo/windows_386.c   | 6 ++++--
+ src/pkg/runtime/cgo/windows_amd64.c | 6 ++++--
+ 5 files changed, 18 insertions(+), 13 deletions(-)

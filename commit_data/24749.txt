@@ -1,0 +1,57 @@
+commit 321a40721bbfcb9bcf6113d4e8afd1bc030f1d8f
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Thu Oct 29 18:52:22 2015 +0300
+
+    runtime: optimize indexbytebody on amd64
+    
+    Use avx2 to compare 32 bytes per iteration.
+    Results (haswell):
+    
+    name                    old time/op    new time/op     delta
+    IndexByte32-6             15.5ns ± 0%     14.7ns ± 5%   -4.87%        (p=0.000 n=16+20)
+    IndexByte4K-6              360ns ± 0%      183ns ± 0%  -49.17%        (p=0.000 n=19+20)
+    IndexByte4M-6              384µs ± 0%      256µs ± 1%  -33.41%        (p=0.000 n=20+20)
+    IndexByte64M-6            6.20ms ± 0%     4.18ms ± 1%  -32.52%        (p=0.000 n=19+20)
+    IndexBytePortable32-6     73.4ns ± 5%     75.8ns ± 3%   +3.35%        (p=0.000 n=20+19)
+    IndexBytePortable4K-6     5.15µs ± 0%     5.15µs ± 0%     ~     (all samples are equal)
+    IndexBytePortable4M-6     5.26ms ± 0%     5.25ms ± 0%   -0.12%        (p=0.000 n=20+18)
+    IndexBytePortable64M-6    84.1ms ± 0%     84.1ms ± 0%   -0.08%        (p=0.012 n=18+20)
+    Index32-6                  352ns ± 0%      352ns ± 0%     ~     (all samples are equal)
+    Index4K-6                 53.8µs ± 0%     53.8µs ± 0%   -0.03%        (p=0.000 n=16+18)
+    Index4M-6                 55.4ms ± 0%     55.4ms ± 0%     ~           (p=0.149 n=20+19)
+    Index64M-6                 886ms ± 0%      886ms ± 0%     ~           (p=0.108 n=20+20)
+    IndexEasy32-6             80.3ns ± 0%     80.1ns ± 0%   -0.21%        (p=0.000 n=20+20)
+    IndexEasy4K-6              426ns ± 0%      215ns ± 0%  -49.53%        (p=0.000 n=20+20)
+    IndexEasy4M-6              388µs ± 0%      262µs ± 1%  -32.42%        (p=0.000 n=18+20)
+    IndexEasy64M-6            6.20ms ± 0%     4.19ms ± 1%  -32.47%        (p=0.000 n=18+20)
+    
+    name                    old speed      new speed       delta
+    IndexByte32-6           2.06GB/s ± 1%   2.17GB/s ± 5%   +5.19%        (p=0.000 n=18+20)
+    IndexByte4K-6           11.4GB/s ± 0%   22.3GB/s ± 0%  +96.45%        (p=0.000 n=17+20)
+    IndexByte4M-6           10.9GB/s ± 0%   16.4GB/s ± 1%  +50.17%        (p=0.000 n=20+20)
+    IndexByte64M-6          10.8GB/s ± 0%   16.0GB/s ± 1%  +48.19%        (p=0.000 n=19+20)
+    IndexBytePortable32-6    436MB/s ± 5%    422MB/s ± 3%   -3.27%        (p=0.000 n=20+19)
+    IndexBytePortable4K-6    795MB/s ± 0%    795MB/s ± 0%     ~           (p=0.940 n=17+18)
+    IndexBytePortable4M-6    798MB/s ± 0%    799MB/s ± 0%   +0.12%        (p=0.000 n=20+18)
+    IndexBytePortable64M-6   798MB/s ± 0%    798MB/s ± 0%   +0.08%        (p=0.011 n=18+20)
+    Index32-6               90.9MB/s ± 0%   90.9MB/s ± 0%   -0.00%        (p=0.025 n=20+20)
+    Index4K-6               76.1MB/s ± 0%   76.1MB/s ± 0%   +0.03%        (p=0.000 n=14+15)
+    Index4M-6               75.7MB/s ± 0%   75.7MB/s ± 0%     ~           (p=0.076 n=20+19)
+    Index64M-6              75.7MB/s ± 0%   75.7MB/s ± 0%     ~           (p=0.456 n=20+17)
+    IndexEasy32-6            399MB/s ± 0%    399MB/s ± 0%   +0.20%        (p=0.000 n=20+19)
+    IndexEasy4K-6           9.60GB/s ± 0%  19.02GB/s ± 0%  +98.19%        (p=0.000 n=20+20)
+    IndexEasy4M-6           10.8GB/s ± 0%   16.0GB/s ± 1%  +47.98%        (p=0.000 n=18+20)
+    IndexEasy64M-6          10.8GB/s ± 0%   16.0GB/s ± 1%  +48.08%        (p=0.000 n=18+20)
+    
+    Change-Id: I46075921dde9f3580a89544c0b3a2d8c9181ebc4
+    Reviewed-on: https://go-review.googlesource.com/16484
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Klaus Post <klauspost@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/x86/a.out.go  |  2 ++
+ src/cmd/internal/obj/x86/anames.go |  2 ++
+ src/cmd/internal/obj/x86/asm6.go   | 28 ++++++++++++++++++++--------
+ src/runtime/asm_amd64.s            | 35 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 59 insertions(+), 8 deletions(-)

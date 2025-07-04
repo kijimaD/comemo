@@ -1,0 +1,29 @@
+commit c9d88ea2aa628cae224335c49f256e13adfce337
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Feb 1 05:32:03 2024 +0000
+
+    runtime: traceAcquire and traceRelease across all P steals
+    
+    Currently there are a few places where a P can get stolen where the
+    runtime doesn't traceAcquire and traceRelease across the steal itself.
+    What can happen then is the following scenario:
+    - Thread 1 enters a syscall and writes an event about it.
+    - Thread 2 steals Thread 1's P.
+    - Thread 1 exits the syscall and writes one or more events about it.
+    - Tracing ends (trace.gen is set to 0).
+    - Thread 2 checks to see if it should write an event for the P it just
+      stole, sees that tracing is disabled, and doesn't.
+    
+    This results in broken traces, because there's a missing ProcSteal
+    event. The parser always waits for a ProcSteal to advance a
+    GoSyscallEndBlocked event, and in this case, it never comes.
+    
+    Fixes #65181.
+    
+    Change-Id: I437629499bb7669bf7fe2fc6fc4f64c53002916b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560235
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/proc.go | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)

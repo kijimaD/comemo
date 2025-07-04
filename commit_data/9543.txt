@@ -1,0 +1,16 @@
+commit eae0a48cf505f5015d59640c9538570eb45ab1b5
+Author: Mateusz Czapliński <czapkofan@gmail.com>
+Date:   Mon Aug 29 14:25:43 2011 -0400
+
+    libmach: support reading symbols from Windows .exe for nm
+    
+    Fixes #979.
+    
+    R=rsc, alex.brainman
+    CC=golang-dev, vcc.163
+    https://golang.org/cl/4894051
+
+ include/mach.h           |   1 +
+ src/cmd/ld/pe.c          |  32 ++++++---
+ src/libmach/executable.c | 168 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 193 insertions(+), 8 deletions(-)

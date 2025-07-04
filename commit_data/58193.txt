@@ -1,0 +1,17 @@
+commit b8ba5b440b1f84920e80852ec984520046adaf3a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 20 13:51:53 2024 -0800
+
+    cmd/cgo: improve error message for unknown name
+    
+    Fixes #70472
+    
+    Change-Id: Ib50d1dd5a648afc199ed62a507d54d0b0ccb1da2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630375
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/cgo/gcc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

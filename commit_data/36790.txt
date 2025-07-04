@@ -1,0 +1,12 @@
+commit f99fc3a119dbb98fa9dddcb2e31a6c51925fde77
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Oct 1 16:08:49 2018 -0400
+
+    doc: document Go 1.11.1
+    
+    Change-Id: I2f1a55e15dc5737a5a06bd894c46b2c4705f338c
+    Reviewed-on: https://go-review.googlesource.com/138858
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ doc/devel/release.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,0 +1,30 @@
+commit 4cf19fb5a73a33f838efe21b3baa14167469ac83
+Author: Albert Nigmatzianov <albertnigma@gmail.com>
+Date:   Mon May 22 21:39:38 2017 +0200
+
+    log: Prevent getting time if it's unnecessary
+    
+    Small performance gain:
+    name              old time/op    new time/op    delta
+    Itoa-4              95.4ns ± 4%    95.6ns ± 3%    ~     (p=0.256 n=45+46)
+    Println-4            480ns ± 4%     476ns ± 5%  -0.87%  (p=0.003 n=45+45)
+    PrintlnNoFlags-4     316ns ± 3%     299ns ± 4%  -5.38%  (p=0.000 n=42+44)
+    
+    name              old alloc/op   new alloc/op   delta
+    Itoa-4               0.00B          0.00B         ~     (all equal)
+    Println-4            21.0B ± 0%     21.0B ± 0%    ~     (all equal)
+    PrintlnNoFlags-4     21.0B ± 0%     21.0B ± 0%    ~     (all equal)
+    
+    name              old allocs/op  new allocs/op  delta
+    Itoa-4                0.00           0.00         ~     (all equal)
+    Println-4             2.00 ± 0%      2.00 ± 0%    ~     (all equal)
+    PrintlnNoFlags-4      2.00 ± 0%      2.00 ± 0%    ~     (all equal)
+    
+    Change-Id: Idcd03609a5a437a69ffa7004a673bf0b8d22e7ad
+    Reviewed-on: https://go-review.googlesource.com/38056
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/log/log.go      | 18 +++++++++++++-----
+ src/log/log_test.go | 10 ++++++++++
+ 2 files changed, 23 insertions(+), 5 deletions(-)

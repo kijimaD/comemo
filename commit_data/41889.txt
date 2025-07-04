@@ -1,0 +1,18 @@
+commit 7a4247cd46b61ae724d6eaebd51b15d2e5fd7c1c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 28 10:35:26 2019 -0700
+
+    cmd/compile: use math/bits for bvec
+    
+    And delete some dead code.
+    
+    Minor cleanup. Passes toolstash-check.
+    
+    Change-Id: Ia3c77c6bf14942654d00d125a6221e63a442f3c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227317
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bv.go | 25 +++++--------------------
+ 1 file changed, 5 insertions(+), 20 deletions(-)

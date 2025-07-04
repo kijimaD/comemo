@@ -1,0 +1,20 @@
+commit 5db1e99bbd84ef7530e11eabad8d3c2a62366e5c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 5 12:39:40 2023 -0400
+
+    doc/go1.21: document forward and backward compatibility
+    
+    Also handle go test -c TODO.
+    
+    For #15513.
+    For #56986.
+    For #57001.
+    
+    Change-Id: I571ae25d8d8fcd44cb38ac16cdd2a1180016eb94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500956
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ doc/go1.21.html | 94 +++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 84 insertions(+), 10 deletions(-)

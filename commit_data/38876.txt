@@ -1,0 +1,38 @@
+commit 97dfbc54e675b7ec94bfdb3bed453ffa938b77d5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 23 13:30:03 2019 -0700
+
+    unicode/utf8: make acceptRanges bigger
+    
+    This avoids bounds checks in the calling code.
+    The nominal increased size of the array in the binary
+    is compensated for by the decreased size of the functions that call it.
+    
+    The benchmark changes are a bit scattered, but overall positive.
+    
+    name                                 old time/op  new time/op  delta
+    RuneCountTenASCIIChars-8             8.86ns ± 4%  7.93ns ± 5%  -10.45%  (p=0.000 n=45+49)
+    RuneCountTenJapaneseChars-8          38.2ns ± 2%  37.2ns ± 1%   -2.63%  (p=0.000 n=44+41)
+    RuneCountInStringTenASCIIChars-8     7.82ns ± 2%  8.70ns ± 2%  +11.19%  (p=0.000 n=43+43)
+    RuneCountInStringTenJapaneseChars-8  39.3ns ± 9%  40.0ns ± 5%   +1.59%  (p=0.043 n=50+50)
+    ValidTenASCIIChars-8                 8.68ns ± 5%  8.74ns ± 5%     ~     (p=0.070 n=50+48)
+    ValidTenJapaneseChars-8              34.1ns ± 5%  36.8ns ± 4%   +8.09%  (p=0.000 n=45+50)
+    ValidStringTenASCIIChars-8           9.76ns ± 7%  8.33ns ± 3%  -14.59%  (p=0.000 n=48+47)
+    ValidStringTenJapaneseChars-8        37.7ns ± 8%  36.5ns ± 5%   -3.12%  (p=0.011 n=50+47)
+    EncodeASCIIRune-8                    2.60ns ± 1%  2.59ns ± 2%   -0.24%  (p=0.018 n=43+36)
+    EncodeJapaneseRune-8                 3.75ns ± 2%  4.56ns ± 6%  +21.71%  (p=0.000 n=41+50)
+    DecodeASCIIRune-8                    2.59ns ± 2%  2.59ns ± 2%     ~     (p=0.350 n=44+41)
+    DecodeJapaneseRune-8                 4.29ns ± 2%  4.31ns ± 2%   +0.61%  (p=0.001 n=48+39)
+    FullASCIIRune-8                      0.87ns ± 6%  0.29ns ± 5%  -67.31%  (p=0.000 n=49+43)
+    FullJapaneseRune-8                   0.65ns ± 6%  0.65ns ± 4%     ~     (p=0.375 n=50+49)
+    [Geo mean]                           7.02ns       6.51ns        -7.19%
+    
+    
+    Change-Id: I8d5d69c8d33ce2bff94785fba39a2203f9315cb0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173537
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/unicode/utf8/utf8.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

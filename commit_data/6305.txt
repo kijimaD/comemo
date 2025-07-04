@@ -1,0 +1,18 @@
+commit c8b3d02939542acb355c66ed5dc69387db9ed3fc
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 20 07:37:06 2010 +1000
+
+    gob: make robust when decoding a struct with non-struct data.
+    The decoder was crashing when handling an rpc that expected
+    a struct but was delivered something else.  This diagnoses the
+    problem.  The other direction (expecting non-struct but getting
+    one) was already handled.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2246041
+
+ src/pkg/gob/decode.go       |  9 +++++++--
+ src/pkg/gob/encoder_test.go | 28 ++++++++++++++++++++++++++++
+ src/pkg/gob/type.go         | 14 ++++++++++++--
+ 3 files changed, 47 insertions(+), 4 deletions(-)

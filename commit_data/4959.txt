@@ -1,0 +1,24 @@
+commit 9520a68268e60f238d14a13d235c6296ab18369b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 26 11:23:12 2010 -0800
+
+    go/scanner: the position of '\n's chars must be the last position of the current line
+    
+    Background: This didn't matter until recently, because '\n' don't appear as token starts
+    in source code and thus the exact position was irrelevant (and set as was easiest in the
+    code). With auto semicolon insertion, a virtual semicolon may be inserted when a '\n' is
+    seen. The position of the semicolon is the position of the '\n'. Without this fix, these
+    semicolons appeared on the next line instead of the line where they were inserted.  This
+    affected the association of comments to declarations in the parser. As a result, some
+    lead comments where considered line comments, not collected in the ast, and not shown in
+    godoc pages. (This affected only godoc pages, not gofmt-formatted programs).
+    
+    Fixes #592.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/224068
+
+ src/pkg/go/scanner/scanner.go      | 14 ++++++++------
+ src/pkg/go/scanner/scanner_test.go |  6 ++++--
+ 2 files changed, 12 insertions(+), 8 deletions(-)

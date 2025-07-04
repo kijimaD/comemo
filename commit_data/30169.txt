@@ -1,0 +1,14 @@
+commit 5630d39f0c726037e28b16b6d80bba64b848067a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Feb 9 12:28:51 2017 +0900
+
+    database/sql: fix nits in test
+    
+    Change-Id: I451b33d8da8d97917f2b257e6a25392c6e6582db
+    Reviewed-on: https://go-review.googlesource.com/36671
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

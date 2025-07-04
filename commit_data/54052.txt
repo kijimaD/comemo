@@ -1,0 +1,19 @@
+commit 570763e0ec50dff90073d6261eb7cd16e4aaf532
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 15 14:11:37 2023 -0700
+
+    cmd/compile/internal/escape: mark blankLoc as transient
+    
+    Discarded values never persist, so they can be transiently allocated
+    too.
+    
+    Change-Id: I036ce0c1eea45e437142497bb7df3ecb44b56e52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520256
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/escape/escape.go | 1 +
+ 1 file changed, 1 insertion(+)

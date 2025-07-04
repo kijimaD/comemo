@@ -1,0 +1,18 @@
+commit d4b704e110dea8395d107f5fd3be9f3cf2e8d161
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 30 15:46:37 2016 -0800
+
+    cmd/cgo: fix cgo checking when fetching errno value
+    
+    Fixes #18126.
+    
+    Change-Id: I7ae090945ef203673b06eb94817cc5c894b5eadc
+    Reviewed-on: https://go-review.googlesource.com/33752
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue18126.go | 26 +++++++++++++++++++++++
+ src/cmd/cgo/gcc.go          | 51 +++++++++++++++++++++++++++++----------------
+ 3 files changed, 60 insertions(+), 18 deletions(-)

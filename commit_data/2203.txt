@@ -1,0 +1,13 @@
+commit 8f854174c77e769eb148b19954c6d4e48715e0ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 13 18:03:49 2009 -0700
+
+    reflect: update comment (there is no BoolType)
+    
+    R=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=28756
+    CL=28784
+
+ src/lib/reflect/type.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

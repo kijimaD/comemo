@@ -1,0 +1,12 @@
+commit 604c161e32fb8b791d331363a505cc9b0bb59080
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 14 17:06:38 2011 -0700
+
+    gofmt: exclude test case that doesn't compile w/o errors
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4398048
+
+ src/cmd/gofmt/test.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

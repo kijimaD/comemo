@@ -1,0 +1,17 @@
+commit 848d10f06cf327212d1ce7041c0eeae5fda317f1
+Author: Shivakumar GN <shivakumar.gn@gmail.com>
+Date:   Sun Feb 3 11:21:07 2013 -0500
+
+    xml: omit newline at beginning of MarshalIndent output
+    
+    (Still valid XML.)
+    
+    Fixes #3354.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7288047
+
+ src/pkg/encoding/xml/marshal.go      |  7 ++++++-
+ src/pkg/encoding/xml/marshal_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 1 deletion(-)

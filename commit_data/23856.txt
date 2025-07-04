@@ -1,0 +1,34 @@
+commit 510fd1350d039d9c70b2411f3873db9bb86ae0eb
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 24 18:11:36 2015 -0400
+
+    runtime: enable GC assists ASAP
+    
+    Currently the GC coordinator enables GC assists at the same time it
+    enables background mark workers, after the concurrent scan phase is
+    done. However, this means a rapidly allocating mutator has the entire
+    scan phase during which to allocate beyond the heap trigger and
+    potentially beyond the heap goal with no back-pressure from assists.
+    This prevents the feedback system that's supposed to keep the heap
+    size under the heap goal from doing its job.
+    
+    Fix this by enabling mutator assists during the scan phase. This is
+    safe because the write barrier is already enabled and globally
+    acknowledged at this point.
+    
+    There's still a very small window between when the heap size reaches
+    the heap trigger and when the GC coordinator is able to stop the world
+    during which the mutator can allocate unabated. This allows *very*
+    rapidly allocator mutators like TestTraceStress to still occasionally
+    exceed the heap goal by a small amount (~20 MB at most for
+    TestTraceStress). However, this seems like a corner case.
+    
+    Fixes #11677.
+    
+    Change-Id: I0f80d949ec82341cd31ca1604a626efb7295a819
+    Reviewed-on: https://go-review.googlesource.com/12674
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go     | 20 ++++++++++++--------
+ src/runtime/mgcmark.go |  2 --
+ 2 files changed, 12 insertions(+), 10 deletions(-)

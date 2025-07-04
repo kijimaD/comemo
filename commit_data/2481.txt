@@ -1,0 +1,27 @@
+commit 1b9734b995f3d79ec9a412d7e33d3d50ad1a32be
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 18 17:06:08 2009 -0700
+
+    1) Fix a problem with tabwriter.Flush: any pending text not yet
+       in a cell makes a final cell in that line
+       (this showed up as occasionally missing single spaces in
+       godoc-formatted declarations that fit on a single line)
+    
+    2) Cleaned up tabwriter implementation a bit:
+       - replaced local unicodeLen() with utf8.RuneCount()
+       - instead of having 2 parallel arrays for line widths and sizes,
+         have a single array of cells containing a width and size
+       - factored code a bit better
+       - added more comments
+       - added testnames to tabwriter tests
+       - added more test cases and fixed a broken test case that
+         now works correctly
+    
+    R=r
+    DELTA=279  (133 added, 62 deleted, 84 changed)
+    OCL=30509
+    CL=30514
+
+ src/pkg/tabwriter/tabwriter.go      | 239 ++++++++++++++++++++----------------
+ src/pkg/tabwriter/tabwriter_test.go |  72 ++++++++---
+ 2 files changed, 191 insertions(+), 120 deletions(-)

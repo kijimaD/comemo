@@ -1,0 +1,66 @@
+commit 8396015e80afa4ddd4ea3c3f00373d22c3b45d6c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 8 11:59:29 2018 -0500
+
+    cmd/link: set runtime.GOROOT default during link
+    
+    Suppose you build the Go toolchain in directory A,
+    move the whole thing to directory B, and then use
+    it from B to build a new program hello.exe, and then
+    run hello.exe, and hello.exe crashes with a stack
+    trace into the standard library.
+    
+    Long ago, you'd have seen hello.exe print file names
+    in the A directory tree, even though the files had moved
+    to the B directory tree. About two years ago we changed
+    the compiler to write down these files with the name
+    "$GOROOT" (that literal string) instead of A, so that the
+    final link from B could replace "$GOROOT" with B,
+    so that hello.exe's crash would show the correct source
+    file paths in the stack trace. (golang.org/cl/18200)
+    
+    Now suppose that you do the same thing but hello.exe
+    doesn't crash: it prints fmt.Println(runtime.GOROOT()).
+    And you run hello.exe after clearing $GOROOT from the
+    environment.
+    
+    Long ago, you'd have seen hello.exe print A instead of B.
+    Before this CL, you'd still see hello.exe print A instead of B.
+    This case is the one instance where a moved toolchain
+    still divulges its origin. Not anymore. After this CL, hello.exe
+    will print B, because the linker sets runtime/internal/sys.DefaultGoroot
+    with the effective GOROOT from link time.
+    This makes the default result of runtime.GOROOT once again
+    match the file names recorded in the binary, after two years
+    of divergence.
+    
+    With that cleared up, we can reintroduce GOROOT into the
+    link action ID and also reenable TestExecutableGOROOT/RelocatedExe.
+    
+    When $GOROOT_FINAL is set during link, it is used
+    in preference to $GOROOT, as always, but it was easier
+    to explain the behavior above without introducing that
+    complication.
+    
+    Fixes #22155.
+    Fixes #20284.
+    Fixes #22475.
+    
+    Change-Id: Ifdaeb77fd4678fdb337cf59ee25b2cd873ec1016
+    Reviewed-on: https://go-review.googlesource.com/86835
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/buildruntime.go      |  4 ----
+ src/cmd/dist/test.go              | 10 +++++++---
+ src/cmd/go/go_test.go             | 21 +++++----------------
+ src/cmd/go/internal/cfg/cfg.go    | 19 ++++++++++++++-----
+ src/cmd/go/internal/work/exec.go  | 11 ++---------
+ src/cmd/go/internal/work/gc.go    |  5 -----
+ src/cmd/internal/objabi/util.go   |  2 ++
+ src/cmd/link/dwarf_test.go        |  3 +++
+ src/cmd/link/internal/ld/main.go  |  4 ++++
+ src/cmd/link/internal/ld/pcln.go  | 14 +++++++++-----
+ src/runtime/internal/sys/stubs.go |  2 ++
+ 11 files changed, 48 insertions(+), 47 deletions(-)

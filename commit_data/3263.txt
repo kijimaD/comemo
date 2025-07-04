@@ -1,0 +1,16 @@
+commit 1a0860b93f274570dfdea27dbc0d5c94240b6c61
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 14 14:27:19 2009 -0700
+
+    make 5g, 8g build again by disabling init code.
+    
+    R=ken
+    OCL=34604
+    CL=34604
+
+ src/cmd/5g/cgen.c |   4 --
+ src/cmd/5g/gg.h   |   1 -
+ src/cmd/5g/ggen.c | 113 +----------------------------------------------
+ src/cmd/8g/cgen.c |   4 --
+ src/cmd/8g/ggen.c | 130 +-----------------------------------------------------
+ 5 files changed, 2 insertions(+), 250 deletions(-)

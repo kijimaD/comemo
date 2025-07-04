@@ -1,0 +1,18 @@
+commit c3fbc9a5e817d037f04abba4ec6d8a453afb344a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Mar 2 14:47:40 2012 +1100
+
+    os: implement UserTime/SystemTime on windows
+    
+    Fixes #3145.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5721044
+
+ src/pkg/os/exec_windows.go                | 16 ++++++++++++----
+ src/pkg/syscall/syscall_windows.go        |  9 +++++++--
+ src/pkg/syscall/zsyscall_windows_386.go   | 13 +++++++++++++
+ src/pkg/syscall/zsyscall_windows_amd64.go | 13 +++++++++++++
+ src/pkg/syscall/ztypes_windows.go         |  2 ++
+ 5 files changed, 47 insertions(+), 6 deletions(-)

@@ -1,0 +1,22 @@
+commit 3f209abb2954bfb89e3dbd28ed0a622a6fe33242
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 11 16:12:01 2015 -0400
+
+    cmd/internal/gc: detect bad append(f()) during type check
+    
+    Today's earlier fix can stay, but it's a band-aid over the real problem,
+    which is that bad code was slipping through the type checker
+    into the back end (and luckily causing a type error there).
+    
+    I discovered this because my new append does not use the same
+    temporaries and failed the test as written.
+    
+    Fixes #9521.
+    
+    Change-Id: I7e33e2ea15743406e15c6f3fdf73e1edecda69bd
+    Reviewed-on: https://go-review.googlesource.com/9921
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/gc/typecheck.go | 23 +++++++++++++++--------
+ test/fixedbugs/issue9521.go      |  6 ++++--
+ 2 files changed, 19 insertions(+), 10 deletions(-)

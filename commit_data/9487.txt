@@ -1,0 +1,12 @@
+commit 948418f16a59a27238c066dc3ca4b86124fc9346
+Author: Bill Neubauer <wcn@golang.org>
+Date:   Thu Aug 25 12:25:19 2011 -0400
+
+    template: Grammar fix for template documentation.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4944043
+
+ src/pkg/template/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit e0cb80e4d10bb9967d70ff1a0d7e66c9d8af21cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 9 17:42:41 2020 -0700
+
+    cmd/compile/internal/syntax: provide BadExpr where needed, call correct error handler
+    
+    - For "if" statements without a condition, provide a BadExpr rather than nil
+      (clients expect IfStmt.Cond != nil since the parser is taking care of
+      reporting a missing condition).
+    
+    - For 3-index slice expressions, also provide BadExpr where an index is
+      required but missing.
+    
+    - Declare a parser-local error method to hide the embedded error method
+      so we don't use it by mistake.
+    
+    Accidentally found while adjusting prototype parser to work for generics.
+    
+    Change-Id: Iacc211cc60869be05efe9ae630d65dff1dac00a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261218
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

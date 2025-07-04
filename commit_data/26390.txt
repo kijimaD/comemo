@@ -1,0 +1,21 @@
+commit 15ea61146e49b91b84b7b3a3096b13ddfb4cc01f
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 17 13:28:04 2016 -0700
+
+    runtime: use unaligned loads on ppc64
+    
+    benchmark                      old ns/op     new ns/op     delta
+    BenchmarkAlignedLoad-160       8.67          7.42          -14.42%
+    BenchmarkUnalignedLoad-160     8.63          7.37          -14.60%
+    
+    Change-Id: Id4609d7b4038c4d2ec332efc4fe6f1adfb61b82b
+    Reviewed-on: https://go-review.googlesource.com/20812
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/export_test.go |  3 +++
+ src/runtime/hash_test.go   | 22 ++++++++++++++++++++++
+ src/runtime/unaligned1.go  |  2 +-
+ src/runtime/unaligned2.go  |  2 +-
+ 4 files changed, 27 insertions(+), 2 deletions(-)

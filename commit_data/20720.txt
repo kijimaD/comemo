@@ -1,0 +1,18 @@
+commit 343d113610d22dfcb79442c2ef2e9701b741e451
+Author: Chris Manghane <cmang@golang.org>
+Date:   Wed Oct 15 13:13:37 2014 -0700
+
+    cmd/go: add '_go_' suffix to go files compiled by gccgo to avoid naming conflicts
+    
+    Fixes #8828.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/154410043
+
+ misc/cgo/test/issue8828.go          | 16 ++++++++++++++++
+ misc/cgo/test/issue8828/issue8828.c |  7 +++++++
+ misc/cgo/test/issue8828/trivial.go  |  8 ++++++++
+ src/cmd/go/build.go                 |  2 +-
+ 4 files changed, 32 insertions(+), 1 deletion(-)

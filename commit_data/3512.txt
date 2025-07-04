@@ -1,0 +1,13 @@
+commit 9dfe40441ec58c1d18e87a544fcdb98b342553c2
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 12 14:51:12 2009 -0700
+
+    printing and maps
+    
+    R=rsc,gri
+    DELTA=228  (223 added, 1 deleted, 4 changed)
+    OCL=35617
+    CL=35619
+
+ doc/effective_go.html | 236 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 229 insertions(+), 7 deletions(-)

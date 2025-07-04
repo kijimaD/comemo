@@ -1,0 +1,17 @@
+commit f5c43b919499899fe006896643bbfebbea9d1995
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 29 17:57:10 2019 +0000
+
+    net/http: add func NewRequestWithContext, Request.Clone
+    
+    Fixes #23544
+    
+    Change-Id: Iaa31d76c4cda8ce22412d73c9025fc57e4fb1967
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174324
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/net/http/client_test.go           |  3 +-
+ src/net/http/clone.go                 | 64 +++++++++++++++++++++++++++++++
+ src/net/http/httputil/reverseproxy.go |  4 +-
+ src/net/http/request.go               | 72 +++++++++++++++++++++++++++--------
+ 4 files changed, 122 insertions(+), 21 deletions(-)

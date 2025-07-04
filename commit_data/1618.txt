@@ -1,0 +1,12 @@
+commit 7fd04676adb915d58a78d5522691d736fedf04bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 5 13:00:12 2009 -0800
+
+    fix build on thresher - missing constants
+    
+    TBR=r
+    OCL=24439
+    CL=24439
+
+ src/libmach_amd64/linux.c | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

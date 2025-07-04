@@ -1,0 +1,14 @@
+commit d3866ddc65789d1dbdbb90e4bedafcf0bfc65c87
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 20 13:36:47 2010 -0800
+
+    template: fix trivial bug: integers are not "empty"
+    Fixes #1357.
+    
+    R=adg, gri
+    CC=golang-dev
+    https://golang.org/cl/3809041
+
+ src/pkg/template/template.go      | 2 +-
+ src/pkg/template/template_test.go | 6 ++++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

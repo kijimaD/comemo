@@ -1,0 +1,28 @@
+commit 1aa0fcff465a7eb92836bdf343222cb34e9c6d33
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Mon Feb 25 10:52:42 2019 +0100
+
+    misc/android: serialize adb commands on android emulators
+    
+    Android emulator builders are soon to join the trybot set. To avoid
+    flaky runs, work around a longstanding adb bug where concurrent adb
+    commands sometimes fail.
+    
+    I haven't seen the problem on actual devices until recently. It seems
+    that the recently added "adb wait-for-device" can introduce flakyness
+    with errors such as:
+    
+    adb: error: failed to get feature set: protocol fault (couldn't read status): Connection reset by peer
+    
+    Instead of working around that, give up and serialize use of adb
+    everywhere.
+    
+    Fixes #23795
+    Updates #23824
+    
+    Change-Id: If347c9981fa32ff8a1e14b7454f122ef682450a6
+    Reviewed-on: https://go-review.googlesource.com/c/163625
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/android/go_android_exec.go | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)

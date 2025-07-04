@@ -1,0 +1,15 @@
+commit 8c25e08fbdf3511394f5ea5fc69c3ff988a61a5a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 19 19:32:27 2014 +0400
+
+    runtime: fix TestGcLastTime on windows
+    Intended to fix:
+    http://build.golang.org/log/d6718ea67541b8c6be2bb14bcbc4e1c4261f67d7
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews
+    https://golang.org/cl/127520043
+
+ src/pkg/runtime/gc_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

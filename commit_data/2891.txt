@@ -1,0 +1,20 @@
+commit 3355cadf3f25f954302f42c898604c201ffbb435
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 5 15:44:45 2009 -0700
+
+    support []byte (more efficient) as well as string in the interfaces.
+    change the names; Match is for []byte and MatchString is for string, etc.
+    
+    R=rsc
+    DELTA=195  (155 added, 0 deleted, 40 changed)
+    OCL=32800
+    CL=32800
+
+ src/pkg/go/doc/comment.go  |   6 +-
+ src/pkg/go/doc/doc.go      |   6 +-
+ src/pkg/log/log_test.go    |   2 +-
+ src/pkg/net/net_test.go    |   2 +-
+ src/pkg/regexp/all_test.go |  62 ++++++++++++++++++--
+ src/pkg/regexp/regexp.go   | 141 +++++++++++++++++++++++++++++++++++++++------
+ src/pkg/testing/testing.go |   2 +-
+ 7 files changed, 188 insertions(+), 33 deletions(-)

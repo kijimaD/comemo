@@ -1,0 +1,33 @@
+commit f91ddaabe618c488ebe41262216eaaf14262eb1a
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Dec 8 00:22:09 2016 +1100
+
+    runtime, syscall: update openbsd for changes to syskill
+    
+    Change the openbsd runtime to use the current sys_kill and sys_thrkill
+    system calls.
+    
+    Prior to OpenBSD 5.9 the sys_kill system call could be used with both
+    processes and threads. In OpenBSD 5.9 this functionality was split into
+    a sys_kill system call for processes (with a new syscall number) and a
+    sys_thrkill system call for threads. The original/legacy system call was
+    retained in OpenBSD 5.9 and OpenBSD 6.0, however has been removed and
+    will not exist in the upcoming OpenBSD 6.1 release.
+    
+    Note: This change is needed to make Go work on OpenBSD 6.1 (to be
+    released in May 2017) and should be included in the Go 1.8 release.
+    This change also drops support for OpenBSD 5.8, which is already an
+    unsupported OpenBSD release.
+    
+    Change-Id: I525ed9b57c66c0c6f438dfa32feb29c7eefc72b0
+    Reviewed-on: https://go-review.googlesource.com/34093
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/except.txt                       | 4 ++++
+ src/runtime/sys_openbsd_386.s        | 9 +++++----
+ src/runtime/sys_openbsd_amd64.s      | 7 ++++---
+ src/runtime/sys_openbsd_arm.s        | 7 ++++---
+ src/syscall/zsysnum_openbsd_386.go   | 2 +-
+ src/syscall/zsysnum_openbsd_amd64.go | 2 +-
+ src/syscall/zsysnum_openbsd_arm.go   | 2 +-
+ 7 files changed, 20 insertions(+), 13 deletions(-)

@@ -1,0 +1,23 @@
+commit 7450960a1300a6f81da2abac63fcfbe0bccc6c50
+Author: itchyny <itchyny@hatena.ne.jp>
+Date:   Mon Sep 2 00:07:40 2019 +0000
+
+    encoding/json: fix scanner byte offset on scanEnd
+    
+    scanEnd is delayed one byte so we decrement
+    the scanner bytes count by 1 to ensure that
+    this value is correct in the next call of Decode.
+    
+    Fixes #32399
+    
+    Change-Id: I8c8698e7f95bbcf0373aceaa05319819eae9d86f
+    GitHub-Last-Rev: 0ac25d8de23d38c7ac577faddc6983571023f561
+    GitHub-Pull-Request: golang/go#32598
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182117
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/decode_test.go | 35 +++++++++++++++++++++++++++++++++++
+ src/encoding/json/stream.go      |  4 ++++
+ 2 files changed, 39 insertions(+)

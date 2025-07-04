@@ -1,0 +1,41 @@
+commit ecd2e140ec54feca9afbda7726345e09cd380eea
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Nov 12 11:16:43 2021 -0500
+
+    runtime: drop cgoTraceback call assumptions from CgoPprof tests
+    
+    the CgoPprof tests currently assume that calls to their cgoTraceback
+    functions are primarily for generating pprof samples and exit early
+    after receiving two calls.
+    
+    This is a fragile assumption, as cgoTraceback will be called for _any_
+    signal received, hence why the test already looks for 2 calls instead of
+    1.
+    
+    Still, this has caused flaky failures in two cases:
+    
+    * #37201, where async preemption signals add additional probability of
+    receiving non-profiling signals. This was resolved by disabling async
+    preemption.
+    
+    * #49401, where some ITIMER_PROF SIGPROF signals are ignored in favor of
+    per-thread SIGPROF signals.
+    
+    Rather than attempting to keep plugging holes, this CL drops the fragile
+    assumption from these tests. Now they simply unconditionally run for the
+    full 1s before exiting.
+    
+    Fixes #49401
+    
+    Change-Id: I16dc9d2f16c2fb511e9db93dd096a402121f86ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363634
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+
+ src/runtime/crash_cgo_test.go                   |  5 -----
+ src/runtime/testdata/testprogcgo/pprof.go       | 11 +----------
+ src/runtime/testdata/testprogcgo/threadpprof.go | 14 +-------------
+ 3 files changed, 2 insertions(+), 28 deletions(-)

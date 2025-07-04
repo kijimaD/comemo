@@ -1,0 +1,21 @@
+commit 79986e24e0152ba448fd41d65eeb24ebdb6c7ec7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 18 19:38:56 2015 +0000
+
+    runtime/pprof: write heap statistics to heap profile always
+    
+    This is a duplicate of CL 9491.
+    That CL broke the build due to pprof shortcomings
+    and was reverted in CL 9565.
+    
+    CL 9623 fixed pprof, so this can go in again.
+    
+    Fixes #10659.
+    
+    Change-Id: If470fc90b3db2ade1d161b4417abd2f5c6c330b8
+    Reviewed-on: https://go-review.googlesource.com/10212
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go1.5.txt              |  1 +
+ src/runtime/pprof/pprof.go | 56 ++++++++++++++++++++++------------------------
+ 2 files changed, 28 insertions(+), 29 deletions(-)

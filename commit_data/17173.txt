@@ -1,0 +1,15 @@
+commit 4d2494330eff67b8f67eb8af165dbcfc3c2aabdf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 12 19:18:47 2013 -0700
+
+    cmd/api: don't fail API check if there's no network
+    
+    If the hg checkout of go.tools fails, check for Internet
+    connectivity before failing.
+    
+    R=golang-dev, shivakumar.gn
+    CC=golang-dev
+    https://golang.org/cl/12814043
+
+ src/cmd/api/run.go | 5 +++++
+ 1 file changed, 5 insertions(+)

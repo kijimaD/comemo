@@ -1,0 +1,23 @@
+commit 04829a413850eddc81191837bee79ef5699d406e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 16:36:52 2015 -0700
+
+    cmd/9g, etc: remove // fallthrough comments
+    
+    They are vestiges of the c2go transition.
+    
+    Change-Id: I22672e40373ef77d7a0bf69cfff8017e46353055
+    Reviewed-on: https://go-review.googlesource.com/9265
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/9g/gsubr.go           | 3 +--
+ src/cmd/internal/gc/dcl.go    | 1 -
+ src/cmd/internal/gc/esc.go    | 2 --
+ src/cmd/internal/gc/export.go | 2 --
+ src/cmd/internal/gc/fmt.go    | 4 ----
+ src/cmd/internal/gc/gen.go    | 2 --
+ src/cmd/internal/gc/inl.go    | 2 --
+ src/cmd/internal/gc/walk.go   | 1 -
+ src/cmd/internal/ld/dwarf.go  | 1 -
+ src/cmd/internal/ld/elf.go    | 1 -
+ 10 files changed, 1 insertion(+), 18 deletions(-)

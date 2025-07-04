@@ -1,0 +1,44 @@
+commit 8e5f56a2e3a027e886d78f36675c275b9c845da0
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sun Feb 19 19:05:12 2023 -0800
+
+    encoding/json: use append-like operations for encoding
+    
+    As part of the effort to rely less on bytes.Buffer,
+    switch most operations to use more natural append-like operations.
+    This makes it easier to swap bytes.Buffer out with a buffer type
+    that only needs to support a minimal subset of operations.
+    
+    As a simplification, we can remove the use of the scratch buffer
+    and use the available capacity of the buffer itself as the scratch.
+    Also, declare an inlineable mayAppendQuote function to conditionally
+    append a double-quote if necessary.
+    
+    Performance:
+    
+        name              old time/op    new time/op    delta
+        CodeEncoder          405µs ± 2%     397µs ± 2%  -1.94%  (p=0.000 n=20+20)
+        CodeEncoderError     453µs ± 1%     444µs ± 4%  -1.83%  (p=0.000 n=19+19)
+        CodeMarshal          559µs ± 4%     548µs ± 2%  -2.02%  (p=0.001 n=19+17)
+        CodeMarshalError     724µs ± 3%     716µs ± 2%  -1.13%  (p=0.030 n=19+20)
+        EncodeMarshaler     24.9ns ±15%    22.9ns ± 5%    ~     (p=0.086 n=20+17)
+        EncoderEncode       14.0ns ±27%    15.0ns ±20%    ~     (p=0.365 n=20+20)
+    
+    There is a slight performance gain across the board due to
+    the elimination of the scratch buffer. Appends are done directly
+    into the unused capacity of the underlying buffer,
+    avoiding an additional copy. See #53685
+    
+    Updates #27735
+    
+    Change-Id: Icf6d612a7f7a51ecd10097af092762dd1225d49e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469558
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+
+ src/encoding/json/encode.go | 101 +++++++++++++++++---------------------------
+ 1 file changed, 38 insertions(+), 63 deletions(-)

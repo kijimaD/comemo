@@ -1,0 +1,21 @@
+commit 011ea87921cb37dc8e4147d99c22234f875d2651
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 21 15:35:32 2018 -0700
+
+    cmd/compile: fix recursive inimport handling
+    
+    expandDecl can be called recursively, so it's not an appropriate place
+    to clean inimport. Instead, move this up to resolve, along with an
+    appropriate recursion check.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I138d37b057dcc6525c780b4b3fbaa5e97f99655b
+    Reviewed-on: https://go-review.googlesource.com/120455
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/iimport.go   | 2 --
+ src/cmd/compile/internal/gc/typecheck.go | 5 +++++
+ 2 files changed, 5 insertions(+), 2 deletions(-)

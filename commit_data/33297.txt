@@ -1,0 +1,22 @@
+commit b09e2de735ede5078cde2c2d10cceaeb1ab72cd1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 30 14:15:01 2017 -0400
+
+    cmd/dist: force non-devel version for cross-build buildlets
+    
+    If the compiler has a non-devel version it will report that version
+    to the go command for use as the "compiler ID" instead of using
+    the content ID of the binary. This in turn allows the go command
+    to see the compiled-for-amd64 arm compiler and the compiled-for-arm
+    arm compiler as having the same ID, so that packages cross-compiled
+    from amd64 look up-to-date when copied to the arm system
+    during the linux-arm buildlets and trybots.
+    
+    Change-Id: I76cbf129303941f8e31bdb100e263478159ddaa5
+    Reviewed-on: https://go-review.googlesource.com/74360
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/dist/build.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

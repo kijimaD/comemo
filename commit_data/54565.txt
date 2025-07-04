@@ -1,0 +1,19 @@
+commit 33d3625bf8d0aea69c1a64f8da2ff4efe071d7b0
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Sep 25 15:11:04 2023 +0000
+
+    cmd/go/internal/vcs: don’t new errors ahead of time in gitRemoteRepo
+    
+    Also make 'cmd' a const for it is in fact immutable.
+    
+    Change-Id: I3373daa1775e863a378355a355325a7fbdf90485
+    GitHub-Last-Rev: f6698174f53988274c75af83acb267741676b712
+    GitHub-Pull-Request: golang/go#63155
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530395
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/vcs/vcs.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

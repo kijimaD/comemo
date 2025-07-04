@@ -1,0 +1,19 @@
+commit 580987cd5884c21dc2411244e6c9f6fbf6f963a1
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Aug 31 17:00:59 2021 -0400
+
+    go/types: remove need for the instance struct
+    
+    This is a port of CL 345177 to go/types.
+    
+    Change-Id: I79fcfbf5b28e9a7a2e66c81bc831e164a8da8bbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346551
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/instantiate.go |  2 +-
+ src/go/types/named.go       | 18 +++++-------------
+ src/go/types/typestring.go  |  2 +-
+ 3 files changed, 7 insertions(+), 15 deletions(-)

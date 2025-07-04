@@ -1,0 +1,13 @@
+commit 9baa7a51ba117205529b39c8ef738b9f373e5f37
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 15 17:40:47 2010 -0700
+
+    bytes.Buffer.ReadFrom: fix bug.
+    Fixes #852.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1680042
+
+ src/pkg/bytes/buffer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

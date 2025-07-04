@@ -1,0 +1,13 @@
+commit 2da9783e2b79f0c9a05087ba014bb93d03e191ea
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 12 11:30:53 2008 -0700
+
+    preserve AX across stack jump so C routines return correct value when triggering morestack.
+    
+    SVN=126935
+
+ src/runtime/rt0_amd64.s | 19 +++++++++++++++++++
+ src/runtime/rt2_amd64.c |  6 ++----
+ src/runtime/runtime.c   | 20 ++++++++++----------
+ src/runtime/runtime.h   |  3 +++
+ 4 files changed, 34 insertions(+), 14 deletions(-)

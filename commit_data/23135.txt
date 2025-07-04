@@ -1,0 +1,16 @@
+commit 714291f2d80bab1599a866f266a4fc6546e61632
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun May 24 11:29:38 2015 -0700
+
+    cmd/link/internal/ld: if -v, display external linker output
+    
+    It can be useful when debugging to be able to see what the external
+    linker is doing even when it succeeds.  In particular this permits
+    passing -v to the external linker to see precisely what it is doing.
+    
+    Change-Id: Ifed441912d97bbebea20303fdb899e140b380215
+    Reviewed-on: https://go-review.googlesource.com/10363
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 3 +++
+ 1 file changed, 3 insertions(+)

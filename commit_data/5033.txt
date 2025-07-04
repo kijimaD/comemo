@@ -1,0 +1,12 @@
+commit ef4c2b85a03d2b5daabac1438f797b8e77ada413
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 10 15:29:36 2010 -0800
+
+    go_spec.html: fix typo and link
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/382045
+
+ doc/go_spec.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

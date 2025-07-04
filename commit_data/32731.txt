@@ -1,0 +1,36 @@
+commit 5a986eca869773c4459b36dad434b97287d5d4f3
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Fri Sep 15 10:24:47 2017 +0900
+
+    all: fix article typos
+    
+    a -> an
+    
+    Change-Id: I7362bdc199e83073a712be657f5d9ba16df3077e
+    Reviewed-on: https://go-review.googlesource.com/63850
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/archive/zip/reader.go                         |  2 +-
+ src/cmd/cgo/main.go                               |  2 +-
+ src/cmd/compile/internal/gc/walk.go               |  4 ++--
+ src/cmd/compile/internal/ssa/loopreschedchecks.go |  2 +-
+ src/cmd/internal/obj/arm64/obj7.go                |  2 +-
+ src/cmd/link/internal/ld/dwarf.go                 |  2 +-
+ src/compress/gzip/gunzip.go                       |  2 +-
+ src/context/example_test.go                       |  2 +-
+ src/crypto/dsa/dsa.go                             |  2 +-
+ src/crypto/ecdsa/ecdsa.go                         |  2 +-
+ src/crypto/tls/key_agreement.go                   |  2 +-
+ src/encoding/asn1/asn1.go                         | 10 +++++-----
+ src/encoding/asn1/marshal.go                      |  2 +-
+ src/image/color/color.go                          |  4 ++--
+ src/net/http/server.go                            |  2 +-
+ src/os/sys_windows.go                             |  2 +-
+ src/reflect/value.go                              |  2 +-
+ src/regexp/exec.go                                |  2 +-
+ src/runtime/cgocall.go                            |  2 +-
+ src/runtime/mheap.go                              |  2 +-
+ src/strconv/extfloat.go                           |  2 +-
+ test/chan/sendstmt.go                             |  2 +-
+ test/fixedbugs/issue15747b.go                     |  2 +-
+ 23 files changed, 29 insertions(+), 29 deletions(-)

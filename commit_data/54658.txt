@@ -1,0 +1,19 @@
+commit 5955a03e9c22c56fa3d174e95031d74e2cf3adde
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Oct 7 16:18:16 2023 +0000
+
+    reflect: compute the median h uniformly
+    
+    Like sort.Search, use "h := int(uint(i+j) >> 1)" to compute the median h.
+    
+    Change-Id: I62c1e67533657e2b56af872676e5dc4ed4d49c55
+    GitHub-Last-Rev: cbfba7ee9ab0a0bda371db3ad5e8cc4d5ea91579
+    GitHub-Pull-Request: golang/go#63439
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533595
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

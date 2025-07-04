@@ -1,0 +1,26 @@
+commit db324ccd72c93d34effa24e6f1a2a12c0cd39f04
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 12 10:24:30 2013 -0700
+
+    syscall: Convert textflags from numbers to symbols.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12773043
+
+ src/pkg/syscall/asm_darwin_386.s    | 12 +++++++-----
+ src/pkg/syscall/asm_darwin_amd64.s  | 10 ++++++----
+ src/pkg/syscall/asm_freebsd_386.s   | 12 +++++++-----
+ src/pkg/syscall/asm_freebsd_amd64.s | 12 +++++++-----
+ src/pkg/syscall/asm_freebsd_arm.s   | 12 +++++++-----
+ src/pkg/syscall/asm_linux_386.s     | 16 +++++++++-------
+ src/pkg/syscall/asm_linux_amd64.s   | 14 ++++++++------
+ src/pkg/syscall/asm_linux_arm.s     | 12 +++++++-----
+ src/pkg/syscall/asm_netbsd_386.s    | 12 +++++++-----
+ src/pkg/syscall/asm_netbsd_amd64.s  | 12 +++++++-----
+ src/pkg/syscall/asm_netbsd_arm.s    | 12 +++++++-----
+ src/pkg/syscall/asm_openbsd_386.s   | 12 +++++++-----
+ src/pkg/syscall/asm_openbsd_amd64.s | 12 +++++++-----
+ src/pkg/syscall/asm_plan9_386.s     | 14 ++++++++------
+ src/pkg/syscall/asm_plan9_amd64.s   | 14 ++++++++------
+ 15 files changed, 109 insertions(+), 79 deletions(-)

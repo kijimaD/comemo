@@ -1,0 +1,18 @@
+commit bd8009d4392fae3ad148a0fe9adb4ea4ac5ab8d3
+Author: 180909 <734461790@qq.com>
+Date:   Tue Aug 31 17:57:33 2021 +0000
+
+    README.md: update contribute URL
+    
+    /doc/contribute.html now redirects to /doc/contribute.
+    
+    Change-Id: Ib342d515bf6e74bb5807ce21f8df3d985bc7e490
+    GitHub-Last-Rev: c491a060da22d1bb456283f5ed0ae2894f0365ca
+    GitHub-Pull-Request: golang/go#48005
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345590
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ README.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

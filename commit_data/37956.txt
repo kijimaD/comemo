@@ -1,0 +1,22 @@
+commit 7bc2aa670f47266d3c5a840d748a1f2e805b89d7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 23 15:36:41 2019 -0800
+
+    math/big: permit upper-case 'P' binary exponent (not just 'p')
+    
+    The current implementation accepted binary exponents but restricted
+    them to 'p'. This change permits both 'p' and 'P'.
+    
+    R=Go1.13
+    
+    Updates #29008.
+    
+    Change-Id: I7a89ccb86af4438f17b0422be7cb630ffcf43272
+    Reviewed-on: https://go-review.googlesource.com/c/159297
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/math/big/floatconv.go      | 4 ++--
+ src/math/big/floatconv_test.go | 2 ++
+ src/math/big/ratconv.go        | 8 ++++----
+ 3 files changed, 8 insertions(+), 6 deletions(-)

@@ -1,0 +1,31 @@
+commit 0ba3c607dfcc90072191375d57c4059be1ae96c7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 13:29:31 2016 -0400
+
+    cmd/dist, go/build: make CGO_ENABLED during make.bash sticky
+    
+    Per discussion on #12808, it's a bit odd that if you do
+    
+            CGO_ENABLED=0 ./make.bash
+    
+    then you get a toolchain that still tries to use cgo.
+    So make the CGO_ENABLED setting propagate into
+    the resulting toolchain as the default setting for that
+    environment variable, like we do with other variables
+    like CC and GOROOT.
+    
+    No reasonable way to test automatically, but I did
+    test by hand that after the above command, 'go env'
+    shows CGO_ENABLED=0; before it showed CGO_ENABLED=1.
+    
+    Fixes #12808.
+    
+    Change-Id: I26a2fa6cc00e73bde8af7469270b27293392ed71
+    Reviewed-on: https://go-review.googlesource.com/31141
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/buildgo.go | 4 +++-
+ src/go/build/build.go   | 6 +++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

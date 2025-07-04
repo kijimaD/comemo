@@ -1,0 +1,14 @@
+commit 5b1658232e7a379cc7c354de625fbf497147bc6f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 5 16:02:34 2011 +1000
+
+    exp/template: statically check that functions names have been defined.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4675046
+
+ src/pkg/exp/template/parse.go      | 28 ++++++++++++++++++++++++----
+ src/pkg/exp/template/parse_test.go | 21 +++++++++------------
+ src/pkg/exp/template/set.go        |  2 +-
+ 3 files changed, 34 insertions(+), 17 deletions(-)

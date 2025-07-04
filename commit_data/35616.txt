@@ -1,0 +1,18 @@
+commit e5f0c1f6c9dc382bdc6a0ec1a0d5e1fc6f833485
+Author: hellozee <hellozee@disroot.org>
+Date:   Thu Jun 7 05:14:23 2018 +0000
+
+    flag: removed the colon after "Usage" in the documentation
+    
+    Removing the colon will make the "Usage" and "Command line flag syntax" in the docs, a header when interpreted by godoc.
+    
+    Fixes #25749
+    
+    Change-Id: Ifc5572e171db1aaef9775b1d6c86091a8f2528fd
+    GitHub-Last-Rev: 1b579734308cbcb96f17d945b9c7af70e259cb5b
+    GitHub-Pull-Request: golang/go#25750
+    Reviewed-on: https://go-review.googlesource.com/116555
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/flag/flag.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

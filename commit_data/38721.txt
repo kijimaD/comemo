@@ -1,0 +1,12 @@
+commit 0188cb0e8a7a2355a0eebbf557fc444e5bfa30de
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 3 16:32:42 2019 -0400
+
+    runtime: note about improved _Gscan bit handling
+    
+    Change-Id: I8de5aa64a24e77e0ef876918fcace7668769ebc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171022
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/runtime2.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

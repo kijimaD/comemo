@@ -1,0 +1,12 @@
+commit 76a763e0be1b72866038cc446c88d7e71a58a47f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 7 12:57:44 2009 -0700
+
+    8 shift bug
+    
+    R=ken
+    OCL=32882
+    CL=32882
+
+ src/cmd/8g/ggen.c | 31 +++++++++++++++++++++++++++++--
+ 1 file changed, 29 insertions(+), 2 deletions(-)

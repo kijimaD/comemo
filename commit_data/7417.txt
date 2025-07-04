@@ -1,0 +1,28 @@
+commit fb9e37cd9bc9fcb3c8a325867ef843b2e23d1853
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 9 14:23:01 2011 -0800
+
+    template: reverse order of arguments to Execute
+    
+    In line with other functions such as Fprintf, put the
+    thing to be written first.
+    
+    Apologies for the breakages this is sure to cause.
+    
+    R=rsc, gri, adg, eds, r2, aam
+    CC=golang-dev
+    https://golang.org/cl/4169042
+
+ doc/codelab/wiki/final.go         |  2 +-
+ doc/codelab/wiki/index.html       |  2 +-
+ doc/effective_go.html             |  2 +-
+ misc/goplay/goplay.go             |  8 ++++----
+ src/cmd/godoc/godoc.go            |  4 ++--
+ src/cmd/godoc/main.go             |  2 +-
+ src/cmd/goinstall/make.go         |  2 +-
+ src/pkg/exp/eval/gen.go           |  2 +-
+ src/pkg/rpc/debug.go              |  2 +-
+ src/pkg/template/template.go      |  2 +-
+ src/pkg/template/template_test.go | 20 ++++++++++----------
+ test/chan/select5.go              |  2 +-
+ 12 files changed, 25 insertions(+), 25 deletions(-)

@@ -1,0 +1,19 @@
+commit c2becd70c5dad379def219e60452072ab6e72617
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 11 14:31:31 2023 -0400
+
+    cmd/link: check DWARF section sizes separately
+    
+    Currently, we check the total size of all data+DWARF sections
+    doesn't exceed 2 GB, which doesn't make sense. We should check
+    data and DWARF separately. And for DWARF, check each section
+    separately, as we use section offset for references.
+    
+    Change-Id: I723cde6a2f46e55cc5cb0621926722272581eb48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494439
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/data.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

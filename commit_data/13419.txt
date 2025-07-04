@@ -1,0 +1,16 @@
+commit 11cafa3a42e216140adcb9f29d1ec3e320850682
+Author: Jean-Marc Eurin <jmeurin@google.com>
+Date:   Fri Jun 29 12:49:31 2012 -0400
+
+        misc/emacs: Fix the gofmt patching when the TMPDIR is not the default.
+    
+    The previous code assumed the gofmt output referred to /tmp but
+    that's not true if TMPDIR points somewhere else (like on Macs).
+    Fixes #3782.
+    
+    R=sameer
+    CC=golang-dev
+    https://golang.org/cl/6346050
+
+ misc/emacs/go-mode.el | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

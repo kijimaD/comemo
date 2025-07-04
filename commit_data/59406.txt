@@ -1,0 +1,21 @@
+commit 93e3d5dc5f2af317c874fd61cbd354409ea9fd33
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu May 1 12:20:45 2025 +0000
+
+    go/parser: use non-adjusted position while parsing CommentGroups
+    
+    Line directives should not affect the way Comments get grouped
+    into CommentGroups.
+    
+    Change-Id: I9aa4b558cb1333b32be692e8720291d0e6961cae
+    GitHub-Last-Rev: de867b27bff28983716ba9126329d75f456a2b5a
+    GitHub-Pull-Request: golang/go#69133
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609515
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go/parser/parser.go      | 17 +++++++++++------
+ src/go/parser/parser_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+), 6 deletions(-)

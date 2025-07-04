@@ -1,0 +1,16 @@
+commit a5cd53a9fd80800171a9ae27a7fc69f24f7e34ca
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Mar 18 11:13:24 2016 -0400
+
+    cmd/compile/internal/gc: support invalid types/constants in binary export data
+    
+    (Corresponding x/tools/go/gcimporter change is https://go-review.googlesource.com/#/c/20827/)
+    
+    Change-Id: I64e7fee2e273d387f1c51b87986294489978d250
+    Reviewed-on: https://go-review.googlesource.com/20828
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go | 6 ++++++
+ src/cmd/compile/internal/gc/bimport.go | 3 +++
+ src/go/internal/gcimporter/bimport.go  | 5 ++++-
+ 3 files changed, 13 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 7f3c6f64bdf5ed03e0a6308520958c88d244e522
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Nov 28 11:35:39 2018 -0500
+
+    doc: update go1.12.html using latest output from relnote tool
+    
+    Change-Id: I6b20c3fd7f15f35d2288d9a0fd6512c541a62c92
+    Reviewed-on: https://go-review.googlesource.com/c/151558
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.12.html | 146 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 146 insertions(+)

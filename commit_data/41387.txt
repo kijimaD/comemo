@@ -1,0 +1,19 @@
+commit 151ccd4bdb06d77e89f00b8172b70cfb2f49ca2b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Feb 23 13:08:29 2020 -0800
+
+    go/types: report correct number of arguments for make() built-in calls
+    
+    Also: Added test cases for (separate) issue #37393.
+          To be enabled when that issue is fixed.
+    
+    Fixes #37349.
+    Updates #37393.
+    
+    Change-Id: Ib78cb0614c0b396241af06a3aa5d37d8045c2f2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220584
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/types/builtins.go      |  2 +-
+ src/go/types/builtins_test.go | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

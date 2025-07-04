@@ -1,0 +1,21 @@
+commit caaa6764faf0f07442052d588fb4cf2561a20aa9
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jul 12 16:56:29 2011 +1000
+
+    image: re-organize draw.go.
+    
+    There are no behavioral changes, only some copy-and-pastes.
+    
+    Before, drawFillOver was next to drawCopyOver.
+    
+    After, drawFillOver is next to drawFillSrc, which is more similar to
+    drawFillOver than drawCopyOver is.
+    
+    Similarly, drawCopyOver is now next to drawCopySrc, etc.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4695045
+
+ src/pkg/image/draw/draw.go | 160 ++++++++++++++++++++++-----------------------
+ 1 file changed, 80 insertions(+), 80 deletions(-)

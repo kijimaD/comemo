@@ -1,0 +1,27 @@
+commit 1658263bbfbf0c31f179df878049e6d4690501c8
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Mon Sep 16 10:25:48 2019 +0200
+
+    cmd/compile: detect indvars that are bound by other indvars
+    
+    prove wasn't able to detect induction variables that was bound
+    by another inducation variable. This happened because an indvar
+    is a Phi, and thus in case of a dependency, the loop bounding
+    condition looked as Phi < Phi. This triggered an existing
+    codepath that checked whether the upper bound was a Phi to
+    detect loop conditions written in reversed order respect to the
+    idiomatic way (eg: for i:=0; len(n)>i; i++).
+    
+    To fix this, we call the indvar pattern matching on both operands
+    of the loop condition, so that the first operand that matches
+    will be treated as the indvar.
+    
+    Updates #24660 (removes a boundcheck from Fannkuch)
+    
+    Change-Id: Iade83d8deb54f14277ed3f2e37b190e1ed173d11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195220
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/loopbce.go | 24 ++++++++++++++++--------
+ test/loopbce.go                         | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 8 deletions(-)

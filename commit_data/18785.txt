@@ -1,0 +1,15 @@
+commit 1d2b7171d500bbd549d6915b3d65340c117807fc
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Mar 7 10:13:00 2014 +1100
+
+    cmd/5c: fix arm build
+    
+    cmd/5c/txt.c was missing from CL 72010043.
+    
+    LGTM=bradfitz
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/72220043
+
+ src/cmd/5c/txt.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

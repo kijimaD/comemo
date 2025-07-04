@@ -1,0 +1,20 @@
+commit 1a5cd2c0e1809c600e73f9895abc07c14156f7c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 12 17:38:18 2010 -0800
+
+    hash/crc64: new package implementing 64-bit CRC
+    hash/crc32: add Update function
+    hash: add Sum64 interface
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/445042
+
+ src/pkg/Makefile                 |  1 +
+ src/pkg/hash/crc32/crc32.go      |  9 +++-
+ src/pkg/hash/crc32/crc32_test.go | 66 +++++++++++++--------------
+ src/pkg/hash/crc64/Makefile      | 11 +++++
+ src/pkg/hash/crc64/crc64.go      | 96 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/hash/crc64/crc64_test.go | 78 ++++++++++++++++++++++++++++++++
+ src/pkg/hash/hash.go             |  6 +++
+ 7 files changed, 232 insertions(+), 35 deletions(-)

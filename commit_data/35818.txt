@@ -1,0 +1,27 @@
+commit b749845067a2f59d3ffa215b83286272d38398ca
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 27 07:08:41 2018 -0700
+
+    net: limit concurrent threads to limit on file descriptors
+    
+    At least on Darwin, if getaddrinfo can't open a file descriptor it
+    returns EAI_NONAME ("no such host") rather than a meaningful error.
+    Limit the number of concurrent getaddrinfo calls to the number of file
+    descriptors we can open, to make that meaningless error less likely.
+    
+    We don't apply the same limit to Go lookups, because for that we will
+    return a meaningful "too many open files" error.
+    
+    Fixes #25694
+    
+    Change-Id: I601857190aeb64f11e22b4a834c1c6a722a0788d
+    Reviewed-on: https://go-review.googlesource.com/121176
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/lookup_fake.go    |  6 ++++++
+ src/net/lookup_plan9.go   |  6 ++++++
+ src/net/lookup_unix.go    | 25 +++++++++++++++++++++++++
+ src/net/lookup_windows.go |  6 ++++++
+ src/net/net.go            |  8 +++++++-
+ 5 files changed, 50 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 66764cc5b3837e19b951ca44df0bd7e2d613d9cd
+Author: Radek Sohlich <sohlich@gmail.com>
+Date:   Tue Oct 31 17:59:29 2017 +0100
+
+    os/signal: improve documentation for the Notify function
+    
+    It is easy to miss the documentation information that no arguments
+    in the Notify function means that the Notify will catch all possible signals.
+    So the example was added with explicit comment above the Notify usage.
+    
+    Fixes #22257
+    
+    Change-Id: Ia6a16dd4a419f7c77d89020ca5db85979b5b474e
+    Reviewed-on: https://go-review.googlesource.com/74730
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/signal/example_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

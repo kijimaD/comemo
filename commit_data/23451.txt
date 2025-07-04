@@ -1,0 +1,14 @@
+commit 3cab4760d5ce8108c88984cb6c9849e598882b9b
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jun 21 09:10:39 2015 +1000
+
+    cmd/asm: remove pointless check for negative uint
+    
+    Fixes #11278.
+    
+    Change-Id: Ic46fda0f42cefedc3f6085c0e77e67616ce4955e
+    Reviewed-on: https://go-review.googlesource.com/11297
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/asm/internal/asm/parse.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

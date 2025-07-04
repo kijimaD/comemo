@@ -1,0 +1,14 @@
+commit 55559f159e4ba7645a864c89caba0e29498425f9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 3 12:39:54 2016 -0700
+
+    doc/go1.7.html: html tidy
+    
+    Change-Id: I0e07610bae641cd63769b520089f5d854d796648
+    Reviewed-on: https://go-review.googlesource.com/23770
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.7.html | 103 ++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 66 insertions(+), 37 deletions(-)

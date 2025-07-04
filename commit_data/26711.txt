@@ -1,0 +1,22 @@
+commit 1747788c5668e76a238221ae4982daa5bdf24939
+Author: Alexandru Moșoi <brtzsnr@gmail.com>
+Date:   Mon Apr 4 23:33:30 2016 +0200
+
+    cmd/compile: add a pass to print bound checks
+    
+    Since BCE happens over several passes (opt, loopbce, prove)
+    it's easy to regress especially with rewriting.
+    
+    The pass is only activated with special debug flag.
+    
+    Change-Id: I46205982e7a2751156db8e875d69af6138068f59
+    Reviewed-on: https://go-review.googlesource.com/21510
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/checkbce.go | 23 +++++++++
+ src/cmd/compile/internal/ssa/compile.go  |  3 ++
+ src/cmd/compile/internal/ssa/phiopt.go   |  4 ++
+ test/checkbce.go                         | 89 ++++++++++++++++++++++++++++++++
+ 4 files changed, 119 insertions(+)

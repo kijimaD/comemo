@@ -1,0 +1,20 @@
+commit 115c3bfad55809a27009f9ea6f95970ff94164f0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 2 17:36:04 2022 -0700
+
+    cmd/compile/internal/typecheck: avoid use of Name.Ntype for assignments
+    
+    Prep refactoring for the next CL, which removes Name.Ntype
+    entirely. Pulled out separately because this logic is a little subtle,
+    so this should be easier to bisect in case there's something I'm
+    missing here.
+    
+    Change-Id: I4ffec6ee62fcd036582e8d2c963edcbd8bac184f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403837
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/stmt.go | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

@@ -1,0 +1,13 @@
+commit 61f3fdcaec30b5798f62024b3cc485d8d6a615b9
+Author: Rob Pike <r@golang.org>
+Date:   Sun Aug 25 23:50:44 2013 +1000
+
+    doc/go_faq.html: fix non-grammatical sentence
+    With my apologies.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/12984045
+
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

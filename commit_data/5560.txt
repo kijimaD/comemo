@@ -1,0 +1,16 @@
+commit 1fda1323d49b25ab8c757b70066bb0b6376698e1
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu May 27 17:19:47 2010 -0700
+
+    Add Rectangle.Eq and Point.In.
+    Fix Rectangle.Clip.
+    It could return a non-canonical rectangle if its arguments
+    did not overlap.
+    e.g. Rect(0, 0, 10, 10).Clip(Rect(0, 20, 10, 30)) -> Rect(0, 20, 10, 10)
+    
+    R=rsc, r
+    CC=golang-dev, golang-dev
+    https://golang.org/cl/1290041
+
+ src/pkg/exp/draw/arith.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

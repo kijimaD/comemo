@@ -1,0 +1,22 @@
+commit 75cdd2c75dfa3f8095f9e9304513445d461580d4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Aug 14 00:35:24 2022 +0700
+
+    internal/singleflight: make DoChan only return Result channel
+    
+    So next CL can delete "internal/singleflight" and vendor
+    "golang.org/x/sync/singleflight" instead.
+    
+    For #31697
+    
+    Change-Id: I020da1e5a48d484637b538c010029218f5a4a744
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423655
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/singleflight/singleflight.go | 10 ++++------
+ src/net/lookup.go                         |  2 +-
+ 2 files changed, 5 insertions(+), 7 deletions(-)

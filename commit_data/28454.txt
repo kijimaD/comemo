@@ -1,0 +1,26 @@
+commit ca4089ad62b806db7d3f32335d3f20865a75edcd
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 31 15:17:02 2016 -0700
+
+    cmd/compile: args no longer live until end-of-function
+    
+    We're dropping this behavior in favor of runtime.KeepAlive.
+    Implement runtime.KeepAlive as an intrinsic.
+    
+    Update #15843
+    
+    Change-Id: Ib60225bd30d6770ece1c3c7d1339a06aa25b1cbc
+    Reviewed-on: https://go-review.googlesource.com/28310
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/gen.go    |  3 ---
+ src/cmd/compile/internal/gc/plive.go  | 29 ++++++++++-------------------
+ src/cmd/compile/internal/gc/ssa.go    | 33 +++++----------------------------
+ src/cmd/compile/internal/gc/syntax.go | 11 -----------
+ test/fixedbugs/issue15277.go          |  2 ++
+ test/fixedbugs/issue15747.go          |  6 +++---
+ test/live.go                          |  4 ++--
+ test/uintptrescapes2.go               |  6 +++---
+ 8 files changed, 25 insertions(+), 69 deletions(-)

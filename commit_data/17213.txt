@@ -1,0 +1,15 @@
+commit 1a09d70e230a7a9468ded587c7a1e3bee53c402b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 13 19:37:54 2013 -0400
+
+    runtime: fix build on arm
+    
+    Do not use ? :
+    I cannot say this enough.
+    
+    TBR=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/12903043
+
+ src/pkg/runtime/proc.c | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

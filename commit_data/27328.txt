@@ -1,0 +1,27 @@
+commit fa270ad98e77cd0625c97eb01ad01efe11a324e8
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat May 7 07:24:39 2016 +0200
+
+    cmd/go: add -shared to darwin/arm{,64} default build mode
+    
+    Buildmode c-archive now supports position independent code for
+    darwin/arm (in addition to darwin/arm64). Make PIC (-shared) the
+    default for both platforms in the default buildmode.
+    
+    Without this change, gomobile will go install the standard library
+    into its separate package directory without PIC support.
+    
+    Also add -shared to darwin/arm64 in buildmode c-archive, for
+    symmetry (darwin/arm64 always generates position independent code).
+    
+    Fixes #15519
+    
+    Change-Id: If27d2cbea8f40982e14df25da2703cbba572b5c6
+    Reviewed-on: https://go-review.googlesource.com/22920
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 2 +-
+ src/cmd/go/build.go                    | 5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

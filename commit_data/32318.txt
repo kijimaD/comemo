@@ -1,0 +1,23 @@
+commit e0545faf270fdbc0b3864db62f528eb36da3c63f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 7 19:30:03 2017 -0400
+
+    runtime/cgo: defeat inlining in x_cgo_yield
+    
+    We use a call to strncpy to work around a TSAN bug (wherein TSAN only
+    delivers asynchronous signals when the thread receiving the signal
+    calls a libc function). Unfortunately, GCC 7 inlines the call,
+    avoiding the TSAN libc trap entirely.
+    
+    Per Ian's suggestion, use global variables as strncpy arguments: that
+    way, the compiler can't make any assumptions about the concrete values
+    and can't inline the call away.
+    
+    fixes #21196
+    
+    Change-Id: Ie95f1feaf9af1a8056f924f49c29cfc8515385d7
+    Reviewed-on: https://go-review.googlesource.com/55872
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/gcc_util.c | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

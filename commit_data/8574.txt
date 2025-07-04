@@ -1,0 +1,33 @@
+commit e0cca45fcb52825e2e21325bc7e5230bafcce088
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jun 1 15:23:22 2011 -0400
+
+    crypto/openpgp: add support for symmetrically encrypting files.
+    
+    This mostly adds the infrastructure for writing various forms of
+    packets as well as reading them. Adding symmetric encryption support
+    was simply an easy motivation.
+    
+    There's also one brown-paper-bag fix in here. Previously I had the
+    conditional for the MDC hash check backwards: the code was checking
+    that the hash was *incorrect*. This was neatly counteracted by another
+    bug: it was hashing the ciphertext of the OCFB prefix, not the
+    plaintext.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4564046
+
+ src/pkg/crypto/cipher/ocfb.go                      |  8 +-
+ src/pkg/crypto/openpgp/packet/literal.go           | 37 +++++++++
+ src/pkg/crypto/openpgp/packet/packet.go            | 62 ++++++++++++++-
+ src/pkg/crypto/openpgp/packet/packet_test.go       | 44 ++++++++++
+ .../openpgp/packet/symmetric_key_encrypted.go      | 62 ++++++++++++++-
+ .../openpgp/packet/symmetric_key_encrypted_test.go | 39 +++++++++
+ .../openpgp/packet/symmetrically_encrypted.go      | 93 +++++++++++++++++++++-
+ .../openpgp/packet/symmetrically_encrypted_test.go | 46 +++++++++++
+ src/pkg/crypto/openpgp/s2k/s2k.go                  | 20 +++++
+ src/pkg/crypto/openpgp/s2k/s2k_test.go             | 24 ++++++
+ src/pkg/crypto/openpgp/write.go                    | 34 ++++++++
+ src/pkg/crypto/openpgp/write_test.go               | 35 ++++++++
+ 12 files changed, 492 insertions(+), 12 deletions(-)

@@ -1,0 +1,17 @@
+commit 1ebf2d85ba02ff7d3f97e52855166174d71666c2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Nov 7 23:59:09 2012 +0400
+
+    runtime/race: add Windows support
+    This is copy of https://golang.org/cl/6810080
+    but sent from another account (dvyukov@gmail.com is not in CONTRIBUTORS).
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6827060
+
+ src/cmd/go/build.go                          |   4 ++--
+ src/pkg/runtime/race/race.go                 |   2 +-
+ src/pkg/runtime/race/race_windows_amd64.syso | Bin 0 -> 118119 bytes
+ src/run.bat                                  |   9 +++++++++
+ 4 files changed, 12 insertions(+), 3 deletions(-)

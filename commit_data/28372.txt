@@ -1,0 +1,16 @@
+commit 83676b93fb9591fb452612b55237ffdeb2a59119
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Sep 14 11:35:29 2016 -0700
+
+    cmd/compile, cmd/link: fix printf verbs
+    
+    Found by vet.
+    
+    Change-Id: I9dbc6208ddbb5b407f4ddd20efbc166aac852cf7
+    Reviewed-on: https://go-review.googlesource.com/29162
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/decompose.go | 2 +-
+ src/cmd/link/internal/ld/data.go          | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

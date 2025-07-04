@@ -1,0 +1,14 @@
+commit 5e755e9d6d9d5ab1268dc7c2d18a08b543d988c9
+Author: Erin Masatsugu <erin.masatsugu@gmail.com>
+Date:   Thu Aug 30 18:27:07 2018 +0000
+
+    bytes: add example for Buffer.Len
+    
+    Change-Id: Ide50aba940727a7b32cd33dea5315050f1a34717
+    Reviewed-on: https://go-review.googlesource.com/132237
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bytes/example_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

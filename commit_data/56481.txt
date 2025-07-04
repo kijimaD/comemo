@@ -1,0 +1,39 @@
+commit 27603028eb48c19964722e09ee7e4b1c44b960cc
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 14 21:40:51 2024 -0400
+
+    cmd/internal/obj/x86: make SEH symbols content-addressable
+    
+    Currently, the SEH symbol is defined as an aux symbol of the
+    function symbol, without adding to ctxt.Data. Each function has
+    its own SEH symbol. As there are a lot of duplications of the
+    SEH symbol contents, currently a Go object file may contain many
+    copies of identical SEH symbols. They are deduplicated at link
+    time. But it does make the linker do redundant work, and make it
+    hard to reason about the SEH symbol writing in the object file
+    writer, and its resolution in the linker. In fact, in the object
+    file writer, the same SEH symbol may be added to the ctxt.defs
+    multiple times (as it is the aux of multiple function symbols),
+    which is not expected.
+    
+    In fact, "aux symbol" is just a mechanism to associate auxiliary
+    data to another symbol. The auxiliary data symbol itself can be an
+    ordinary data symbol, even a content-addressable symbol. Define
+    the SEH symbol as a conntent-addressable symbol and add it to
+    ctxt.Data. This way there is only one definition of each unique
+    SEH symbol, which can be the aux of many functions.
+    
+    While here, add a check to ensure that we add a symbol at most
+    once to the defs list.
+    
+    Change-Id: Ie7a0cf02ca114060423e025931b30de97ca330fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585656
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/obj/link.go    | 4 ++++
+ src/cmd/internal/obj/objfile.go | 6 +++++-
+ src/cmd/internal/obj/sym.go     | 7 +++++++
+ src/cmd/internal/obj/x86/seh.go | 5 ++---
+ 4 files changed, 18 insertions(+), 4 deletions(-)

@@ -1,0 +1,21 @@
+commit 86e7323bdf8cb2c614ff6b63ca5909f484db8642
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 12 10:56:21 2011 -0700
+
+    runtime: eliminate false sharing during stack growth
+    Remove static variable from runtime·oldstack().
+    Benchmark results on HP Z600 (2 x Xeon E5620, 8 HT cores, 2.40GHz)
+    are as follows (with CL 4657091 applied):
+    benchmark                                        old ns/op    new ns/op    delta
+    BenchmarkStackGrowth                               1183.00      1180.00   -0.25%
+    BenchmarkStackGrowth-2                             1249.00      1211.00   -3.04%
+    BenchmarkStackGrowth-4                              954.00       805.00  -15.62%
+    BenchmarkStackGrowth-8                              701.00       683.00   -2.57%
+    BenchmarkStackGrowth-16                             465.00       415.00  -10.75%
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4693042
+
+ src/pkg/runtime/proc.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 3df44722013b54790e97a32aff945708bd1b62f7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 7 18:20:22 2022 -0800
+
+    spec: adjust rules for specific types once more
+    
+    Introduce a (local) notion of a set of representative types,
+    which serves as a representation/approximation of an
+    interface's actual type set. If the set of representative
+    types is is non-empty and finite, it corresponds to the set
+    of specific types of the interface.
+    
+    In the implementation, the set of representative types serves
+    as a finite representation of an interface's type set, together
+    with the set of methods.
+    
+    Change-Id: Ib4c6cd5e17b81197672e4247be9737dd2cb6b56f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376834
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 28 +++++++++++++++++-----------
+ 1 file changed, 17 insertions(+), 11 deletions(-)

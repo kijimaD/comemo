@@ -1,0 +1,24 @@
+commit 35c986489795b7d5619fb14ec5077fd3c1758eb7
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Mar 25 10:42:10 2025 +0100
+
+    internal/poll: always use SetFileCompletionNotificationModes on non-socket handles
+    
+    SetFileCompletionNotificationModes can be unconditionally called on
+    non-socket handles.
+    
+    The Windows poll.FD implementation still doesn't support non-socket
+    pollable handles yet, so this CL doesn't change any behavior.
+    Support for pollable non-socket handles will come in subsequent CLs.
+    
+    For #19098.
+    
+    Change-Id: I811a61497cfbb26acb566c20367d212335b9d551
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660495
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/internal/poll/fd_windows.go | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)

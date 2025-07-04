@@ -1,0 +1,17 @@
+commit 6749dd40b31dbcfae2eb91deb93989899b868617
+Author: Sean Liao <seankhliao@gmail.com>
+Date:   Tue Feb 8 22:34:13 2022 +0100
+
+    net/smtp: match actual behavior for Auth.Start
+    
+    Looking at history, it appears to never have worked as documented.
+    
+    Fixes #48759
+    
+    Change-Id: I066307c28e3ed1875c1c4049bade62e2818dd400
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383998
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/net/smtp/auth.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

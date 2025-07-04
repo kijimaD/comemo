@@ -1,0 +1,15 @@
+commit d2a45dbf0831e6570cc6c958f3ed8c5c3fd56dbc
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Aug 18 11:50:55 2011 +1000
+
+    misc/vim: command complete using autoload helper function.
+    
+    R=golang-dev, dsymonds, jnwhiteh, n13m3y3r, gustavo
+    CC=golang-dev
+    https://golang.org/cl/4837051
+
+ misc/vim/autoload/go/complete.vim | 49 +++++++++++++++++++++++++++++++++++++++
+ misc/vim/ftplugin/go/import.vim   |  6 ++---
+ misc/vim/plugin/godoc.vim         | 40 +-------------------------------
+ misc/vim/readme.txt               | 35 ++++++++++++++++++++--------
+ 4 files changed, 78 insertions(+), 52 deletions(-)

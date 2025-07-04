@@ -1,0 +1,16 @@
+commit 4414442442481d3f2756bfb05d58582d07551c82
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 09:37:03 2009 -0800
+
+    remove internal references from doc/install.html
+    and doc/contribute.html.
+    
+    add #go-nuts to help section on nav bar.
+    
+    R=r
+    http://go/go-review/1025035
+
+ doc/contribute.html  | 4 ----
+ doc/install.html     | 3 +--
+ lib/godoc/godoc.html | 3 ++-
+ 3 files changed, 3 insertions(+), 7 deletions(-)

@@ -1,0 +1,24 @@
+commit 111064925b34bfd60949c09f0d0b06c8f34430f2
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Nov 16 12:26:23 2016 +0000
+
+    testing: comment out flag.Parse from example
+    
+    The TestMain docs explain that flag.Parse() should be called if TestMain
+    itself depends on command-line flags.
+    
+    The issue here is that the example implementation does not use any
+    flags, and thus the flag.Parse call is unnecessary. This leads to people
+    who use this example as a starting point for their own implementations
+    to forget that the call is not necessary in most cases.
+    
+    Comment it out instead of removing the line to keep it as a reminder, as
+    suggested by Minux Ma.
+    
+    Change-Id: I6ffc5413e7036366ae3cf0f069b7065e832a3b45
+    Reviewed-on: https://go-review.googlesource.com/33273
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

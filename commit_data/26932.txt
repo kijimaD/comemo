@@ -1,0 +1,21 @@
+commit 02b8e6978a86c2f4f3a604e8b05014d127f4020a
+Author: Jeremy Jackins <jeremyjackins@gmail.com>
+Date:   Wed Apr 13 18:16:21 2016 +0900
+
+    runtime: find a home for orphaned comments
+    
+    These comments were left behind after runtime.h was converted
+    from C to Go. I examined the original code and tried to move these
+    to the places that the most sense.
+    
+    Change-Id: I8769d60234c0113d682f9de3bd8d6c34c450c188
+    Reviewed-on: https://go-review.googlesource.com/21969
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/lfstack.go    |   3 ++
+ src/runtime/lock_futex.go |   6 +--
+ src/runtime/mmap.go       |   3 ++
+ src/runtime/runtime2.go   | 107 +++++++++++++++-------------------------------
+ 4 files changed, 44 insertions(+), 75 deletions(-)

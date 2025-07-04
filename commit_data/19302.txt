@@ -1,0 +1,24 @@
+commit 1848d71445adc043b8c70cf80a36819b4b84efbd
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 9 09:55:17 2014 -0700
+
+    cmd/gc: don't give credit for NOPs during register allocation
+    
+    The register allocator decides which variables should be placed into registers by charging for each load/store and crediting for each use, and then selecting an allocation with minimal cost. NOPs will be eliminated, however, so using a variable in a NOP should not generate credit.
+    
+    Issue 7867 arises from attempted registerization of multi-word variables because they are used in NOPs. By not crediting for that use, they will no longer be considered for registerization.
+    
+    This fix could theoretically lead to better register allocation, but NOPs are rare relative to other instructions.
+    
+    Fixes #7867.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/94810044
+
+ src/cmd/5g/reg.c            | 24 +++++++++++++-----------
+ src/cmd/6g/reg.c            | 11 +++++------
+ src/cmd/8g/reg.c            | 25 +++++++++++++------------
+ test/fixedbugs/issue7867.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 74 insertions(+), 29 deletions(-)

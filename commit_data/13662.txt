@@ -1,0 +1,13 @@
+commit 7e3ebaacd8f381192177699ade84be709a7485c5
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 22 11:03:20 2012 +1000
+
+    A+C: add Joakim Sernbrant
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6476043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

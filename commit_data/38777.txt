@@ -1,0 +1,19 @@
+commit 8285c85fe32147fb27d7aa5cfc41b8bd9d65fa0d
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Apr 11 14:28:24 2019 -0700
+
+    syscall: skip DirentRepeat test on freebsd
+    
+    Dirent doesn't work properly. Diable the test for now.
+    
+    Update #31416
+    
+    Change-Id: I34a8045598a9c303dcc754ce04da3c124f122d1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171818
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/dirent_bsd_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

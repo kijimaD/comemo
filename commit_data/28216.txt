@@ -1,0 +1,23 @@
+commit 0e0ab20334358ab009cbcd9d570ef6e884750733
+Author: David Chase <drchase@google.com>
+Date:   Tue Sep 6 09:05:02 2016 -0700
+
+    cmd/compile: remove ld/st-followed nil checks for PPC64
+    
+    Enabled checks (except for DUFF-ops which aren't implemented yet).
+    Added ppc64le to relevant test.
+    
+    Also updated register list to reflect no-longer-reserved-
+    for-constants status (file was missed in that change).
+    
+    Updates #16010.
+    
+    Change-Id: I31b1aac19e14994f760f2ecd02edbeb1f78362e7
+    Reviewed-on: https://go-review.googlesource.com/28548
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go | 125 ++++++++++++++++++----------------
+ test/nilptr3_ssa.go                   |   2 +-
+ 2 files changed, 66 insertions(+), 61 deletions(-)

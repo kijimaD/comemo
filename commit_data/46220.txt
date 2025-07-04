@@ -1,0 +1,25 @@
+commit 86fa510d2456e20ceaa518f97f0c1c89d2ebd81c
+Author: Quim Muntal <quimmuntal@gmail.com>
+Date:   Sun Aug 29 22:57:36 2021 +0200
+
+    go/types, types2: types in method expressions must be instantiated
+    
+    Use varType instead of instantiatedOperand to check if the type of a method expressions is instantiated.
+    
+    This removes the last usage of instantiatedOperand, so it can be deleted.
+    
+    Fixes #48048
+    
+    Change-Id: I2b219dafe2bba3603100bb8f25b8ff4e8ef53841
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345970
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/call.go                   | 12 +++---------
+ .../internal/types2/testdata/fixedbugs/issue48048.go2     | 15 +++++++++++++++
+ src/go/types/call.go                                      | 12 +++---------
+ src/go/types/testdata/fixedbugs/issue48048.go2            | 15 +++++++++++++++
+ 4 files changed, 36 insertions(+), 18 deletions(-)

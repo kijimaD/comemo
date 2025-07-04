@@ -1,0 +1,16 @@
+commit c80bd631a53762a44d0e0f5bf6fd558a691a2167
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 5 12:36:13 2023 -0500
+
+    doc/go1.22: document linker flag changes
+    
+    Updates #41004.
+    For #61422.
+    
+    Change-Id: I5ab60d8e9d30986233d7adec400ef059bbe4c1a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547515
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/go1.22.html | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)

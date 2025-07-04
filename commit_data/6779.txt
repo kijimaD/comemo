@@ -1,0 +1,18 @@
+commit b84b20b820a41ae78881ebefa4e768a264dfb203
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 19 16:17:58 2010 -0500
+
+            crypto/cipher: add CFB and OCFB mode.
+    
+            (Files which I left out of the initial commit to keep it small.)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3183043
+
+ src/pkg/crypto/cipher/Makefile     |  4 +-
+ src/pkg/crypto/cipher/cfb.go       | 64 +++++++++++++++++++++++++++
+ src/pkg/crypto/cipher/cfb_test.go  | 35 +++++++++++++++
+ src/pkg/crypto/cipher/ocfb.go      | 91 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/cipher/ocfb_test.go | 39 ++++++++++++++++
+ 5 files changed, 232 insertions(+), 1 deletion(-)

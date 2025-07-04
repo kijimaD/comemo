@@ -1,0 +1,30 @@
+commit 59712fd03d37c0d17cce9f6605a9cc87fa0d4870
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Mar 3 15:30:24 2019 +0000
+
+    os/exec: preallocate for Cmd.childFiles
+    
+    We're always going to add stdin, stdout, and stderr to childFiles, so
+    its length will be at least three. The final length will be those three
+    elements plus however many files were given via ExtraFiles.
+    
+    Allocate for that final length directly, saving two slice growth allocs
+    in the common case where ExtraFiles is empty.
+    
+    name        old time/op    new time/op    delta
+    ExecEcho-8     435µs ± 0%     435µs ± 0%    ~     (p=0.394 n=6+6)
+    
+    name        old alloc/op   new alloc/op   delta
+    ExecEcho-8    6.39kB ± 0%    6.37kB ± 0%  -0.39%  (p=0.002 n=6+6)
+    
+    name        old allocs/op  new allocs/op  delta
+    ExecEcho-8      36.0 ± 0%      34.0 ± 0%  -5.56%  (p=0.002 n=6+6)
+    
+    Change-Id: Ib702c0da1e43f0a55ed937af6d45fca6a170e8f3
+    Reviewed-on: https://go-review.googlesource.com/c/164898
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/exec/exec.go | 1 +
+ 1 file changed, 1 insertion(+)

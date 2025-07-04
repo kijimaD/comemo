@@ -1,0 +1,17 @@
+commit 9c09ed13d28474ef76a73c533dc75da586f657d3
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jun 30 18:02:31 2010 -0400
+
+    x509: support non-self-signed certs.
+    
+    For generating non-self-signed certs we need to be able to specify a
+    public key (for the signee) which is different from the private key (of
+    the signer).
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1741045
+
+ src/pkg/crypto/x509/x509.go      | 11 ++++++-----
+ src/pkg/crypto/x509/x509_test.go |  2 +-
+ 2 files changed, 7 insertions(+), 6 deletions(-)

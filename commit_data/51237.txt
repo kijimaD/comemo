@@ -1,0 +1,19 @@
+commit 2041bde2b619c8e2cecaa72d986fc1f0d054c615
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 10 13:50:33 2022 -0800
+
+    spec: clarify struct field and array element comparison order
+    
+    Fixes #8606.
+    
+    Change-Id: I64b13b2ed61ecae4641264deb47c9f7653a80356
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449536
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go_spec.html | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

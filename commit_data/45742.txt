@@ -1,0 +1,15 @@
+commit 4f572d707661e3e84ff262d6c605eb6fa1f77abd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 25 08:21:52 2021 -0800
+
+    io/fs: minor corrections to Sub docs
+    
+    Fixes #44376
+    
+    Change-Id: I9cd21adb9d4d434c3d8b8eb8af3042b70c763ea1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296389
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/io/fs/sub.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

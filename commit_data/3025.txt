@@ -1,0 +1,12 @@
+commit 0a162a1433c457e2033825857c2d203835dc5119
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 19 16:44:04 2009 -0700
+
+    new scope rules
+    
+    DELTA=137  (50 added, 24 deleted, 63 changed)
+    OCL=33476
+    CL=33553
+
+ doc/go_spec.html | 164 ++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 95 insertions(+), 69 deletions(-)

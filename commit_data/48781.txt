@@ -1,0 +1,25 @@
+commit 62b8ec744b8e10b80f9271fed93116387c9128ef
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Apr 13 13:31:24 2022 -0700
+
+    math: improve documentation of Copysign
+    
+    Name the arguments in a way that is more self-describing.
+    Many code editor tools show a snippet of the function and
+    its arguments. However, "x" and "y" are not helpful in determining
+    which is the sign and which is the magnitude,
+    short of reading the documentation itself.
+    
+    Name the sign argument as "sign" to be explicit.
+    This follows the same naming convention as IsInf.
+    
+    Change-Id: Ie3055009e475f96c92d5ea7bfe9828eed908c78b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400177
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/math/copysign.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

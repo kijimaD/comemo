@@ -1,0 +1,13 @@
+commit 5617028ab6f6b264b423f2aa8592004fd9c30625
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 27 13:43:50 2009 -0700
+
+    Verify that "byte" is an alias for "uint8".
+    
+    R=r
+    DELTA=6  (6 added, 0 deleted, 0 changed)
+    OCL=26836
+    CL=26841
+
+ src/lib/reflect/all_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

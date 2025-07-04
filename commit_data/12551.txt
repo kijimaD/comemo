@@ -1,0 +1,13 @@
+commit 3492f32b83fbb568ed60a1fb3b3dcc41f0de63b6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Mar 10 14:48:00 2012 -0800
+
+    A+C: Add Gwenael Treguier (Individual CLA)
+    
+    R=golang-dev, wcn
+    CC=golang-dev
+    https://golang.org/cl/5777052
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

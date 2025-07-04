@@ -1,0 +1,21 @@
+commit 296d6871a8283cf6dcbaa916526da4608a37397b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 3 01:56:23 2011 -0400
+
+    ld: make ELF binaries with no shared library dependencies static binaries
+    
+    $ file $GOROOT/bin/{godoc,goyacc}
+    /home/rsc/g/go/bin/godoc:  ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked (uses shared libs), not strpped
+    /home/rsc/g/go/bin/goyacc: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, not stripped
+    $
+    
+    Fixes #1758.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/4428079
+
+ src/cmd/ld/go.c  |  2 ++
+ src/cmd/ld/lib.c | 12 ++++++++++++
+ src/cmd/ld/lib.h |  1 +
+ 3 files changed, 15 insertions(+)

@@ -1,0 +1,107 @@
+commit 6e7b82a4bbd08e5724a29e204faf97342a0b6a15
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Nov 4 08:46:07 2021 -0400
+
+    cmd/pprof: update vendored github.com/google/pprof
+    
+    Pull in the latest published version of github.com/google/pprof
+    as part of #36905.
+    
+    This adds the fmt.Println redundant newline fix from
+    google/pprof@f987b9c94b318d4bd026dcc7892f7f1fab6eadab.
+    
+    Done with:
+    
+            go get -d github.com/google/pprof@latest
+            go mod tidy
+            go mod vendor
+    
+    For #36905.
+    Fixes #49322.
+    
+    Change-Id: Ia832766bba65a30c68407b73b33fefbe81438e65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361294
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Zvonimir Pavlinovic <zpavlinovic@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Zvonimir Pavlinovic <zpavlinovic@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Zvonimir Pavlinovic <zpavlinovic@google.com>
+
+ src/cmd/go.mod                                     |    6 +-
+ src/cmd/go.sum                                     |   13 +-
+ .../google/pprof/internal/elfexec/elfexec.go       |  105 +-
+ .../google/pprof/internal/report/source_html.go    |    3 +-
+ .../github.com/ianlancetaylor/demangle/README.md   |    2 +-
+ .../github.com/ianlancetaylor/demangle/ast.go      |  982 +++++-
+ .../github.com/ianlancetaylor/demangle/demangle.go |  574 +++-
+ .../github.com/ianlancetaylor/demangle/rust.go     | 1069 +++++++
+ src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |    9 +-
+ .../vendor/golang.org/x/sys/unix/syscall_darwin.go |   40 +-
+ .../golang.org/x/sys/unix/syscall_illumos.go       |    8 +
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  |   82 +-
+ .../golang.org/x/sys/unix/syscall_linux_386.go     |   38 -
+ .../golang.org/x/sys/unix/syscall_linux_amd64.go   |   48 -
+ .../golang.org/x/sys/unix/syscall_linux_arm.go     |   42 -
+ .../golang.org/x/sys/unix/syscall_linux_arm64.go   |   51 -
+ .../golang.org/x/sys/unix/syscall_linux_mips64x.go |   39 -
+ .../golang.org/x/sys/unix/syscall_linux_mipsx.go   |   35 -
+ .../golang.org/x/sys/unix/syscall_linux_ppc.go     |   38 -
+ .../golang.org/x/sys/unix/syscall_linux_ppc64x.go  |   38 -
+ .../golang.org/x/sys/unix/syscall_linux_riscv64.go |   51 -
+ .../golang.org/x/sys/unix/syscall_linux_s390x.go   |   36 -
+ .../golang.org/x/sys/unix/syscall_linux_sparc64.go |   37 -
+ .../vendor/golang.org/x/sys/unix/sysvshm_linux.go  |   21 +
+ .../vendor/golang.org/x/sys/unix/sysvshm_unix.go   |   61 +
+ .../golang.org/x/sys/unix/sysvshm_unix_other.go    |   14 +
+ .../golang.org/x/sys/unix/zerrors_darwin_amd64.go  | 3126 ++++++++++----------
+ .../golang.org/x/sys/unix/zerrors_darwin_arm64.go  | 3126 ++++++++++----------
+ .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |   16 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.go |   59 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.s  |   24 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.go |   59 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.s  |   24 +
+ .../vendor/golang.org/x/sys/unix/zsyscall_linux.go |   69 +-
+ .../golang.org/x/sys/unix/zsyscall_linux_386.go    |   53 -
+ .../golang.org/x/sys/unix/zsyscall_linux_amd64.go  |   53 -
+ .../golang.org/x/sys/unix/zsyscall_linux_arm.go    |   53 -
+ .../golang.org/x/sys/unix/zsyscall_linux_mips.go   |   55 -
+ .../golang.org/x/sys/unix/zsyscall_linux_mips64.go |   32 -
+ .../x/sys/unix/zsyscall_linux_mips64le.go          |   32 -
+ .../golang.org/x/sys/unix/zsyscall_linux_mipsle.go |   55 -
+ .../golang.org/x/sys/unix/zsyscall_linux_ppc.go    |   53 -
+ .../golang.org/x/sys/unix/zsyscall_linux_ppc64.go  |   53 -
+ .../x/sys/unix/zsyscall_linux_ppc64le.go           |   53 -
+ .../golang.org/x/sys/unix/zsyscall_linux_s390x.go  |   43 -
+ .../x/sys/unix/zsyscall_linux_sparc64.go           |   42 -
+ .../golang.org/x/sys/unix/ztypes_darwin_amd64.go   |  127 +
+ .../golang.org/x/sys/unix/ztypes_darwin_arm64.go   |  127 +
+ .../golang.org/x/sys/unix/ztypes_freebsd_386.go    |    2 +
+ .../golang.org/x/sys/unix/ztypes_freebsd_amd64.go  |    2 +
+ .../golang.org/x/sys/unix/ztypes_freebsd_arm.go    |    2 +
+ .../golang.org/x/sys/unix/ztypes_freebsd_arm64.go  |    2 +
+ .../golang.org/x/sys/unix/ztypes_illumos_amd64.go  |    2 +
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |   33 +
+ .../golang.org/x/sys/unix/ztypes_linux_386.go      |   33 +
+ .../golang.org/x/sys/unix/ztypes_linux_amd64.go    |   30 +
+ .../golang.org/x/sys/unix/ztypes_linux_arm.go      |   33 +
+ .../golang.org/x/sys/unix/ztypes_linux_arm64.go    |   30 +
+ .../golang.org/x/sys/unix/ztypes_linux_mips.go     |   32 +
+ .../golang.org/x/sys/unix/ztypes_linux_mips64.go   |   30 +
+ .../golang.org/x/sys/unix/ztypes_linux_mips64le.go |   30 +
+ .../golang.org/x/sys/unix/ztypes_linux_mipsle.go   |   32 +
+ .../golang.org/x/sys/unix/ztypes_linux_ppc.go      |   34 +
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64.go    |   29 +
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64le.go  |   29 +
+ .../golang.org/x/sys/unix/ztypes_linux_riscv64.go  |   30 +
+ .../golang.org/x/sys/unix/ztypes_linux_s390x.go    |   29 +
+ .../golang.org/x/sys/unix/ztypes_linux_sparc64.go  |   29 +
+ .../golang.org/x/sys/windows/memory_windows.go     |   11 +
+ .../golang.org/x/sys/windows/syscall_windows.go    |   10 +
+ .../golang.org/x/sys/windows/types_windows.go      |   14 +
+ .../golang.org/x/sys/windows/zsyscall_windows.go   |   90 +
+ src/cmd/vendor/modules.txt                         |    8 +-
+ src/go.mod                                         |    2 +-
+ src/go.sum                                         |    4 +-
+ src/vendor/modules.txt                             |    2 +-
+ 76 files changed, 7006 insertions(+), 4384 deletions(-)

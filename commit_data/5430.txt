@@ -1,0 +1,16 @@
+commit 23c0aa3916ef65bde60db5ec3a48df226cd4cc49
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 3 13:24:39 2010 -0700
+
+    runtime/arm: fix build
+    
+    Import _mulv from Inferno again, change R9 to R2.
+    Not sure what the other differences were for, but
+    they weren't working.
+    
+    TBR=kaib
+    CC=golang-dev
+    https://golang.org/cl/1079041
+
+ src/pkg/runtime/arm/vlop.s | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

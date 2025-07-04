@@ -1,0 +1,12 @@
+commit 6f8acd5fb93f26f59739343d945c6e26021cce57
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 2 15:55:21 2013 +1000
+
+    cmd/go: change error message to refer to correct bootstrap command
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12317043
+
+ src/cmd/go/build.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

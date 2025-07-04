@@ -1,0 +1,29 @@
+commit 6355d6c7e2e8f4ea4cfd3fed8da6677106937f66
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Oct 21 07:29:46 2017 -0400
+
+    cmd/link, plugin: always encode path
+    
+    Both the linker and the plugin package were inconsistent
+    about when they applied the path encoding defined in
+    objabi.PathToPrefix. As a result, only some symbols from
+    a package path that required encoding were being found.
+    
+    So always encoding the path.
+    
+    Fixes #22295
+    
+    Change-Id: Ife86c79ca20b2e9307008ed83885e193d32b7dc4
+    Reviewed-on: https://go-review.googlesource.com/72390
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/src/issue22295.pkg/main.go   | 28 ++++++++++++++++++++
+ misc/cgo/testplugin/src/issue22295.pkg/plugin.go | 16 ++++++++++++
+ misc/cgo/testplugin/test.bash                    |  5 ++++
+ src/cmd/link/internal/ld/data.go                 |  3 ++-
+ src/cmd/link/internal/ld/deadcode.go             |  2 +-
+ src/cmd/link/internal/ld/symtab.go               |  2 +-
+ src/plugin/plugin_dlopen.go                      | 33 +-----------------------
+ 7 files changed, 54 insertions(+), 35 deletions(-)

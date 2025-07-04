@@ -1,0 +1,24 @@
+commit 390656affd8993ce6332dca3fa86d57659622fdf
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 8 16:44:16 2013 -0400
+
+    cmd/gc: fix stkptrsize calculation
+    
+    I moved the pointer block from one end of the frame
+    to the other toward the end of working on the last CL,
+    and of course that made the optimization no longer work.
+    
+    Now it works again:
+    
+    0030 (bug361.go:12) DATA    gclocals·0+0(SB)/4,$4
+    0030 (bug361.go:12) DATA    gclocals·0+4(SB)/4,$3
+    0030 (bug361.go:12) GLOBL   gclocals·0+0(SB),8,$8
+    
+    Fixes arm build (this time for sure!).
+    
+    TBR=golang-dev
+    CC=cshapiro, golang-dev, iant
+    https://golang.org/cl/12627044
+
+ src/cmd/gc/pgen.c | 14 ++++----------
+ 1 file changed, 4 insertions(+), 10 deletions(-)

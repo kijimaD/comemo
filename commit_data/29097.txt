@@ -1,0 +1,31 @@
+commit a0cf021be5828f8726380f8fd10070eff30852ba
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Oct 26 18:03:32 2016 +0200
+
+    os: consider only files from #M as regular on Plan 9
+    
+    TestRemoveDevNull was added in CL 31657. However, this test
+    was failing on Plan 9, because /dev/null was considered as
+    a regular file.
+    
+    On Plan 9, there is no special mode to distinguish between
+    device files and regular files.
+    
+    However, files are served by different servers. For example,
+    /dev/null is served by #c (devcons), while /bin/cat is served
+    by #M (devmnt).
+    
+    We chose to consider only the files served by #M as regular
+    files. All files served by different servers will be considered
+    as device files.
+    
+    Fixes #17598.
+    
+    Change-Id: Ibb1c3357d742cf2a7de15fc78c9e436dc31982bb
+    Reviewed-on: https://go-review.googlesource.com/32152
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/stat_plan9.go | 4 ++++
+ 1 file changed, 4 insertions(+)

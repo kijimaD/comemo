@@ -1,0 +1,27 @@
+commit 3cebfb678bf27ed30844512c0d78329d0b0ded53
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Apr 25 10:12:28 2025 +0200
+
+    os: test overlapped pipes deadlines on Windows
+    
+    NewFile recently added support for overlapped I/O on Windows,
+    which allows us to set deadlines on them, but the test coverage for
+    this new feature is not exhaustive.
+    
+    Modify the existing pipe deadline tests to also exercise named
+    overlapped pipes.
+    
+    Updates #19098.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-race,gotip-windows-amd64-longtest,gotip-windows-arm64
+    Change-Id: I86d284d9fb054c24959045a922cf84feeda5b5f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668095
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+
+ src/os/timeout_test.go         | 759 +++++++++++++++++++++--------------------
+ src/os/timeout_unix_test.go    |  65 ++++
+ src/os/timeout_windows_test.go |  24 ++
+ 3 files changed, 472 insertions(+), 376 deletions(-)

@@ -1,0 +1,16 @@
+commit 6e8b4920c1ce5853d4b1ceb2b7b1149f0a2ba203
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 13 23:20:53 2014 -0500
+
+    cmd/link: fix build
+    
+    The golden file for link.hello.darwin.amd64
+    was a little ahead of the checked-in code.
+    
+    R=iant
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/51870043
+
+ src/cmd/link/testdata/link.hello.darwin.amd64 | 54 ++++++++-------------------
+ 1 file changed, 16 insertions(+), 38 deletions(-)

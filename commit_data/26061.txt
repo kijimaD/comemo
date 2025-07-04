@@ -1,0 +1,22 @@
+commit 1716162a9a17873448427b7aca28efd151b5af07
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 4 11:29:55 2016 -0800
+
+    runtime: fix off-by-one error finding module for PC
+    
+    Also fix compiler-invoked panics to avoid a confusing "malloc deadlock"
+    crash if they are invoked while executing the runtime.
+    
+    Fixes #14599.
+    
+    Change-Id: I89436abcbf3587901909abbdca1973301654a76e
+    Reviewed-on: https://go-review.googlesource.com/20219
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/crash_cgo_test.go             |  8 ++++++
+ src/runtime/panic.go                      | 17 +++++++++++
+ src/runtime/symtab.go                     |  2 +-
+ src/runtime/testdata/testprogcgo/aprof.go | 48 +++++++++++++++++++++++++++++++
+ 4 files changed, 74 insertions(+), 1 deletion(-)

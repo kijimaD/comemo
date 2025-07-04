@@ -1,0 +1,12 @@
+commit 379096de053b989dc1d28428557eb15303762dfb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 30 17:39:58 2013 -0700
+
+    doc/go1.2.txt: add compress/gzip and database/sql lines
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13316044
+
+ doc/go1.2.txt | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

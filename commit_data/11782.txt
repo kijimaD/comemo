@@ -1,0 +1,24 @@
+commit fbab6d8512c876dcef65e85f7a400117bc1f08f3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Feb 11 08:47:19 2012 +1100
+
+    os,syscall: fix windows build
+    
+    make syscall.ProcAttr.Files be []uintptr
+    
+    all.bash passes on Linux.
+    things seem to compile on GOOS={darwin,windows}
+    
+    R=golang-dev, mattn.jp, alex.brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/5653055
+
+ src/pkg/net/sendfile_windows.go | 2 +-
+ src/pkg/os/exec/exec_test.go    | 5 ++---
+ src/pkg/os/exec_posix.go        | 2 +-
+ src/pkg/os/file_windows.go      | 6 +++---
+ src/pkg/syscall/exec_bsd.go     | 6 ++++--
+ src/pkg/syscall/exec_linux.go   | 5 ++++-
+ src/pkg/syscall/exec_unix.go    | 6 +++---
+ src/pkg/syscall/exec_windows.go | 2 +-
+ 8 files changed, 19 insertions(+), 15 deletions(-)

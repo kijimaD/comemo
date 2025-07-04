@@ -1,0 +1,20 @@
+commit e8f49aa80e659ca3308665b950ee3ce6e2268326
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Sat Aug 18 15:11:06 2018 -0400
+
+    cmd/go/internal/modload: ignore directories when looking for go.mod file in Plan 9
+    
+    This fixes builds in Plan 9 under /n. Since directories in /n are
+    automatically created, /n/go.mod always exists.
+    
+    Fixes #27074
+    
+    Change-Id: Ie9a1155b7c316bdc27655f5b99172550b413838d
+    Reviewed-on: https://go-review.googlesource.com/129804
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/init.go            |  5 +--
+ src/cmd/go/internal/modload/init_plan9_test.go | 42 ++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 2 deletions(-)

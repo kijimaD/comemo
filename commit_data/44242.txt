@@ -1,0 +1,21 @@
+commit 626ef0812739ac7bb527dbdf4b0ed3a436c90901
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 12 16:02:12 2021 -0500
+
+    doc: remove install.html and install-source.html
+    
+    These live in x/website/content/doc now.
+    The copies here just attract edits that have no actual effect.
+    
+    For #40496.
+    For #41861.
+    
+    Change-Id: I2fdd7375e373949eb9a88f4cdca440b6a5d45eea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291709
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ README.md               |  10 +-
+ doc/install-source.html | 777 ------------------------------------------------
+ doc/install.html        | 315 --------------------
+ 3 files changed, 4 insertions(+), 1098 deletions(-)

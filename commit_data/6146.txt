@@ -1,0 +1,13 @@
+commit 825e0deecef6e797d59c824a5a974e0175b56fe5
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Tue Aug 31 19:07:40 2010 -0700
+
+    template: fixed documentation formatting
+    What was meant to be a list appeared as a paragraph with dashes.
+    
+    R=golang-dev, gri1, gri
+    CC=golang-dev
+    https://golang.org/cl/2100041
+
+ src/pkg/template/template.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

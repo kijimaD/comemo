@@ -1,0 +1,17 @@
+commit e11bcc88f5796a872249e3968a07f79c5c517b37
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Sep 3 18:08:16 2010 +1000
+
+    revert accidental submit of builder.go
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2121042
+
+ misc/dashboard/builder/Makefile |  14 ---
+ misc/dashboard/builder/doc.go   |  61 ----------
+ misc/dashboard/builder/exec.go  |  45 -------
+ misc/dashboard/builder/hg.go    |  56 ---------
+ misc/dashboard/builder/http.go  |  71 -----------
+ misc/dashboard/builder/main.go  | 259 ----------------------------------------
+ 6 files changed, 506 deletions(-)

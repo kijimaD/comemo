@@ -1,0 +1,55 @@
+commit 3a2fee0389e8459e482e987a98f226a71c2ad5fb
+Author: Samuel Tan <samueltan@google.com>
+Date:   Mon Apr 17 16:10:54 2017 -0700
+
+    html/template: allow safe usage of predefined escapers in pipelines
+    
+    Allow the predefined escapers "html", "urlquery", and "js" to be used
+    in pipelines when they have no potential to affect the correctness or
+    safety of the escaped pipeline output. Specifically:
+    - "urlquery" may be used if it is the last command in the pipeline.
+    - "html" may be used if it is the last command in the pipeline, and
+      the pipeline does not occur in an unquoted HTML attribute value
+      context.
+    - "js" may be used in any pipeline, since it does not affect the
+      merging of contextual escapers.
+    
+    This change will loosens the restrictions on predefined escapers
+    introduced in golang.org/cl/37880, which will hopefully ease the
+    upgrade path for existing template users.
+    
+    This change brings back the escaper-merging logic, and associated
+    unit tests, that were removed in golang.org/cl/37880. However, a
+    few notable changes have been made:
+    - "_html_template_nospaceescaper" is no longer considered
+      equivalent to "html", since the former escapes spaces, while
+      the latter does not (see #19345). This change should not silently
+      break any templates, since pipelines where this substituion will
+      happen will already trigger an explicit error.
+    - An "_eval_args_" internal directive has been added to
+      handle pipelines containing a single explicit call to a
+      predefined escaper, e.g. {{html .X}} (see #19353).
+    
+    Also, the HTMLEscape function called by the predefined
+    text/template "html" function now escapes the NULL character as
+    well. This effectively makes it as secure as the internal
+    html/template HTML escapers (see #19345). While this change is
+    backward-incompatible, it will only affect illegitimate uses
+    of this escaper, since the NULL character is always illegal in
+    valid HTML.
+    
+    Fixes #19952
+    
+    Change-Id: I9b5570a80a3ea284b53901e6a1f842fc59b33d3a
+    Reviewed-on: https://go-review.googlesource.com/40936
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/html/template/doc.go         |   4 +-
+ src/html/template/error.go       |  27 +++++----
+ src/html/template/escape.go      | 118 ++++++++++++++++++++++++++++++++-----
+ src/html/template/escape_test.go | 122 ++++++++++++++++++++++++++++++++++-----
+ src/text/template/doc.go         |   5 +-
+ src/text/template/funcs.go       |   5 +-
+ 6 files changed, 240 insertions(+), 41 deletions(-)

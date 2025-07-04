@@ -1,0 +1,22 @@
+commit eed79f46c2791357a118e3f9f6be461b866e7f83
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 4 17:16:49 2018 +0000
+
+    net/http: ignore case of basic auth scheme in Request.BasicAuth
+    
+    RFC 2617, Section 1.2: "It uses an extensible, case-insensitive
+    token to identify the authentication scheme"
+    
+    RFC 7617, Section 2: "Note that both scheme and parameter names are
+    matched case-insensitively."
+    
+    Fixes #22736
+    
+    Change-Id: I825d6dbd4fef0f1c6add89f0cbdb56a03eae9443
+    Reviewed-on: https://go-review.googlesource.com/111516
+    Reviewed-by: Dmitri Shuralyov <dmitri@shuralyov.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go      | 3 ++-
+ src/net/http/request_test.go | 5 +++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

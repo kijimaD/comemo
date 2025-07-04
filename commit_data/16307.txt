@@ -1,0 +1,14 @@
+commit 3de593d94bd7c9c1e75afcc45f5ca89b629d5e64
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 15 15:34:47 2013 +1000
+
+    misc/cgo/test: add missing import
+    
+    Fixes windows build.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/9429043
+
+ misc/cgo/test/issue5337w.go | 2 ++
+ 1 file changed, 2 insertions(+)

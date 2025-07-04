@@ -1,0 +1,18 @@
+commit 541f9c0345d4ec52d9f4be5913bf8097f687e819
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Sep 25 22:19:47 2018 +0200
+
+    cmd/compile: update TestNexting golden file
+    
+    This change updates the expected output of the gdb debugging session
+    in the TestNexting internal/ssa test, aligning it with the changes
+    introduced in CL 134555.
+    
+    Fixes #27863
+    
+    Change-Id: I29e747930c7668b429e8936ad230c4d6aa24fdac
+    Reviewed-on: https://go-review.googlesource.com/137455
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ .../compile/internal/ssa/testdata/hist.gdb-opt.nexts | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

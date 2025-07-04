@@ -1,0 +1,19 @@
+commit 4692343cf401a5bbcc290d48fead12157754b8e5
+Author: kaxapi <kashimov@gmail.com>
+Date:   Mon Oct 14 10:12:05 2019 +0000
+
+    encoding/asn1: fix unmarshalling SEQUENCE OF SET
+    
+    Fixes #27426
+    
+    Change-Id: I34d4784658ce7b9e6130bae9717e80d0e9a290a2
+    GitHub-Last-Rev: 6de610cdcef11832f131b84a0338b68af16b10da
+    GitHub-Pull-Request: golang/go#30059
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160819
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+
+ src/encoding/asn1/asn1_test.go | 19 +++++++++++++++++++
+ src/encoding/asn1/common.go    |  3 +++
+ 2 files changed, 22 insertions(+)

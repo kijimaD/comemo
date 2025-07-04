@@ -1,0 +1,21 @@
+commit daa7c607d269e4779b74174032639b552174868f
+Author: Sina Siadat <siadat@gmail.com>
+Date:   Thu Sep 8 11:39:12 2016 +0430
+
+    net/http/httputil: remove custom hop-by-hop headers from response in ReverseProxy
+    
+    Hop-by-hop headers (explicitly mentioned in RFC 2616) were already
+    removed from the response. This removes the custom hop-by-hop
+    headers listed in the "Connection" header of the response.
+    
+    Updates #16875
+    
+    Change-Id: I6b8f261d38b8d72040722f3ded29755ef0303427
+    Reviewed-on: https://go-review.googlesource.com/28810
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 12 +++++++++++-
+ src/net/http/httputil/reverseproxy_test.go |  9 +++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

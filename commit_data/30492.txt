@@ -1,0 +1,16 @@
+commit 2f5aea7c1305158a6d87ea356f0ed2a8186bc73d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 2 18:46:00 2017 +0000
+
+    Revert "Revert "cmd/vet/all: remove pprof from the whitelist""
+    
+    This reverts commit 9bd1cc3fa1145182e9ce041d0e96bd2051cd7fcf.
+    
+    Reason for revert: New fixes in from upstream. Try this again.
+    
+    Change-Id: Iea46f32857e8467f8d5a49b31e20a52fda8bce60
+    Reviewed-on: https://go-review.googlesource.com/37693
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/all/main.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,0 +1,13 @@
+commit e7e159ef4d05b9578e41ef71d109035ba9df006b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 18 11:00:55 2012 -0700
+
+    A+C: Add Anthony Eufemio (Individual CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6524045
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

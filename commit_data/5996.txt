@@ -1,0 +1,15 @@
+commit 9d5da464ff21b48a812e051efd0ec341f7ef4a24
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 10 17:38:28 2010 -0700
+
+    libbio: fix Bprint bug
+    
+    Make Bprint work even when the amount of output
+    exceeds the available buffer space.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1968041
+
+ src/libbio/bprint.c | 70 +++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 49 insertions(+), 21 deletions(-)

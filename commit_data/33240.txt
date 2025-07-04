@@ -1,0 +1,19 @@
+commit 4aa28896b7703dcb153f0effae4007dd098b6c06
+Author: Adam Thomason <athomason@gmail.com>
+Date:   Wed Oct 25 14:36:23 2017 -0700
+
+    cmd/go: add -shift to go vet's flag whitelist
+    
+    CL 40112 intended to allow full flag processing in go vet, but missed
+    vet's -shift flag; this corrects the omission.
+    
+    Fixes #22442
+    
+    Change-Id: I47525018306bd8b9aa452fb378d0d45319f8cf11
+    Reviewed-on: https://go-review.googlesource.com/73553
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/vet/vetflag.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,24 @@
+commit 2bbf383774952c8ddc309a45c024af76b47ea1fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 10:53:48 2021 -0500
+
+    net/mail: improve detection of charset errors
+    
+    The detection of the "unknown charset" case was too tailored
+    to one specific address parser. Make it generalize, so that custom
+    address parsers behave the same way as the default one
+    for character sets they do not handle.
+    
+    Fixes #41625.
+    
+    Change-Id: I347d4bb6844d0a1f23e908b776d21e8be5af3874
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283632
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/mail/message.go      | 36 ++++++++++++++++++++++++++++++------
+ src/net/mail/message_test.go | 11 +++++++++++
+ 2 files changed, 41 insertions(+), 6 deletions(-)

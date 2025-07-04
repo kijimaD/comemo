@@ -1,0 +1,24 @@
+commit 9cb2ee0ff2efb3ec281718c6e301db695f9a0870
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 3 16:45:21 2017 -0800
+
+    cmd/internal/obj: move STEXT-only LSym fields into new FuncInfo struct
+    
+    Shrinks LSym somewhat for non-STEXT LSyms, which are much more common.
+    
+    While here, switch to tracking Automs in a slice instead of a linked
+    list. (Previously, this would have made LSyms larger.)
+    
+    Passes toolstash-check.
+    
+    Change-Id: I082e50e1d1f1b544c9e06b6e412a186be6a4a2b5
+    Reviewed-on: https://go-review.googlesource.com/37872
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/pgen.go | 13 ++++++++++--
+ src/cmd/internal/obj/link.go        | 18 ++++++++++------
+ src/cmd/internal/obj/objfile.go     | 41 +++++++++++++++----------------------
+ src/cmd/internal/obj/pcln.go        |  3 +--
+ src/cmd/internal/obj/plist.go       |  3 +++
+ src/cmd/internal/obj/sizeof_test.go |  2 +-
+ 6 files changed, 44 insertions(+), 36 deletions(-)

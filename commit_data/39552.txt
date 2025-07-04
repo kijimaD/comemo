@@ -1,0 +1,15 @@
+commit 1ad64fafc889cb17041b03b10f8af30ae534dfeb
+Author: David Ndungu <dnjuguna@gmail.com>
+Date:   Sat Jul 27 13:56:22 2019 -0700
+
+    net/http: improve Request.Form and Request.PostForm documentation
+    
+    Request.PostForm gets populated with form data for PATCH, POST, or PUT
+    http verbs.
+    
+    Change-Id: I33065aa78a8470c4e9490aac830aa6f5963c61cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187821
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/request.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

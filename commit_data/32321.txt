@@ -1,0 +1,15 @@
+commit 6a34ffa0738e53c60de506a3a3976c6ce9d2ef93
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 16 14:58:19 2017 -0400
+
+    bytes: avoid overflow in (*Buffer).Grow and ReadFrom
+    
+    fixes #21481
+    
+    Change-Id: I26717876a1c0ee25a86c81159c6b3c59563dfec6
+    Reviewed-on: https://go-review.googlesource.com/56230
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bytes/buffer.go      | 17 +++++++++++++----
+ src/bytes/buffer_test.go | 12 ++++++++++++
+ 2 files changed, 25 insertions(+), 4 deletions(-)

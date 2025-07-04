@@ -1,0 +1,15 @@
+commit 287045085dedfb241a4af111b690bc424b74b166
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Nov 30 16:58:59 2010 -0500
+
+    crypto/elliptic: use a Jacobian transform
+    
+    (Speeds up the code about 25x)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3359042
+
+ src/pkg/crypto/elliptic/elliptic.go      | 219 +++++++++++++++++++++----------
+ src/pkg/crypto/elliptic/elliptic_test.go |  29 ++++
+ 2 files changed, 180 insertions(+), 68 deletions(-)

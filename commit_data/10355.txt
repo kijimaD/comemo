@@ -1,0 +1,14 @@
+commit 9192548f803eb9eceee2fcef16fbfdc0947eb468
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 11 17:30:52 2011 -0800
+
+    godoc: document -templates flag
+    
+    Fixes #2441.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5376078
+
+ src/cmd/godoc/doc.go | 4 ++++
+ 1 file changed, 4 insertions(+)

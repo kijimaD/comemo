@@ -1,0 +1,17 @@
+commit a152dd0438c7064edbe64d7d4b18e6a9e5c87760
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 22 16:08:43 2019 -0700
+
+    cmd/compile: respect -newescape in genwrapper
+    
+    Noticed while preparing a CL for Go 1.14 to remove esc.go.
+    
+    Change-Id: Ic12be33f5b16c8424d85f373fa450247be086078
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173298
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/esc.go  | 9 ++++++---
+ src/cmd/compile/internal/gc/subr.go | 2 +-
+ 2 files changed, 7 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit e62e595e7a376740c894f281948e305ba2c0ffd1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 22 15:21:50 2011 -0700
+
+    godoc/zip.go: fix another zip file system bug
+    
+    Don't report that a directory was found just because we found
+    the list index where the directory would be if it were there...
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/4812051
+
+ src/cmd/godoc/zip.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

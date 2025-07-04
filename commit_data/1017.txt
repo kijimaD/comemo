@@ -1,0 +1,16 @@
+commit 42ae5270d8c1680bac1921725a83a92969b24f7d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 31 14:27:34 2008 -0700
+
+    - handle field tags in pretty printer
+    
+    R=r
+    OCL=18264
+    CL=18264
+
+ usr/gri/pretty/parser.go                     | 28 ++++++++++++++--------------
+ usr/gri/pretty/printer.go                    |  2 +-
+ usr/gri/pretty/selftest0.go                  | 11 +++++++++++
+ usr/gri/pretty/{selftest.go => selftest1.go} |  0
+ usr/gri/pretty/test.sh                       |  8 ++++----
+ 5 files changed, 30 insertions(+), 19 deletions(-)

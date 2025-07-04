@@ -1,0 +1,20 @@
+commit c0914d5df3f12449f52e26eb0aaa58661ad92250
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 20 15:09:41 2018 -0800
+
+    os: add SyscallConn method for os.File
+    
+    Fixes #24331
+    
+    Change-Id: I119c09a4259d852cdf8ea31b3e03e6f09a5f7bda
+    Reviewed-on: https://go-review.googlesource.com/c/155517
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/file.go            |  9 +++++++
+ src/os/file_plan9.go      | 18 +++++++++++++
+ src/os/os_unix_test.go    |  3 +++
+ src/os/os_windows_test.go |  3 +++
+ src/os/rawconn.go         | 47 ++++++++++++++++++++++++++++++++++
+ src/os/rawconn_test.go    | 65 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/syscall/net.go        |  2 +-
+ 7 files changed, 146 insertions(+), 1 deletion(-)

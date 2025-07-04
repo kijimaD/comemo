@@ -1,0 +1,17 @@
+commit 593daf785f5afc8106dd0b17fcad84c9627e5fae
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Feb 22 14:12:06 2024 +0000
+
+    cmd/compiler/internal/ssagen: refactor code to sort stack vars
+    
+    Minor refactoring of the code that sorts stack variables to move
+    from sort.Stable to sort.SliceStable. No change in semantics; this
+    is intended to lay the groundwork for a future change.
+    
+    Change-Id: I9eb920e3b3029a734fbe0e0e88c0d57ea3452599
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566176
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssagen/pgen.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

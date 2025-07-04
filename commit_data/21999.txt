@@ -1,0 +1,12 @@
+commit 0ff7c3ea458dc9162333efa5ffd1ff9dccfd4fe8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 4 15:02:07 2015 -0800
+
+    math/big: make validate a method of Float (cleanup)
+    
+    Change-Id: If38f45acffd352ed95f32f3a36edd91a1fb33d0c
+    Reviewed-on: https://go-review.googlesource.com/6850
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go | 50 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 25 insertions(+), 25 deletions(-)

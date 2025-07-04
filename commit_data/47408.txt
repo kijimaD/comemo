@@ -1,0 +1,20 @@
+commit d76b1ac3e1919bd863e7e906202ae085cb20f595
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Nov 11 07:06:24 2021 -0500
+
+    net: skip new testpoint TestUDPIPVersionReadMsg on plan9
+    
+    Skip TestUDPIPVersionReadMsg on plan9, since it does things
+    not supported on that OS.
+    
+    Change-Id: Icd1716fb5ed4e8877e57acb8c851ec3be72e83e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363354
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/udpsock_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

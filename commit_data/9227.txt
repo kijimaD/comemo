@@ -1,0 +1,19 @@
+commit 5ea413e2a0414c4bd6dbf9d00d760b6ed8b156ec
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 27 15:54:23 2011 -0700
+
+    unicode: fix case-mapping for roman numerals!!
+    Hurray!
+    Also fix the mystical U+0345 COMBINING GREEK YPOGEGRAMMENI,
+    so everyone is satisfied.
+    Also add a -local flag to use local files for faster turnaround
+    when debugging.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4825054
+
+ src/pkg/unicode/letter_test.go |  4 ++
+ src/pkg/unicode/maketables.go  | 84 ++++++++++++++++++++++++--------------
+ src/pkg/unicode/tables.go      | 91 +++---------------------------------------
+ 3 files changed, 65 insertions(+), 114 deletions(-)

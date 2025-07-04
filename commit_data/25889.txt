@@ -1,0 +1,14 @@
+commit d44088f173efab62a25be9cf1f26c29982fc2617
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Feb 19 02:10:56 2016 -0800
+
+    net/http: refactored internal shouldClose for readability
+    
+    Change-Id: Ie89c0945a4cc3aebfa9f7ad7f107bc7ab59ab61c
+    Reviewed-on: https://go-review.googlesource.com/19685
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transfer.go | 26 ++++++++++++--------------
+ 1 file changed, 12 insertions(+), 14 deletions(-)

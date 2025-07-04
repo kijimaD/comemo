@@ -1,0 +1,15 @@
+commit 4edcbe0d40ec54e92cf7e8d662e11635e173b933
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 15 11:41:12 2014 -0700
+
+    fmt: fix size returned on fast path of ReadRune
+    Fixes #8512.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/130090043
+
+ src/pkg/fmt/scan.go      |  1 +
+ src/pkg/fmt/scan_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

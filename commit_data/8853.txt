@@ -1,0 +1,18 @@
+commit 9dd354c63f2a7b46c399d45b1d4c0bdbbe8d7518
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 27 12:03:19 2011 -0400
+
+    5l, 6l, 8l: drop use of ed during build
+    
+    build runs with chmod 0 /bin/ed now
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4635071
+
+ doc/install.html  |  4 ++--
+ src/cmd/5l/mkenam | 30 +++++++++++++++---------------
+ src/cmd/6l/mkenam | 30 +++++++++++++++---------------
+ src/cmd/8l/mkenam | 30 +++++++++++++++---------------
+ src/env.bash      |  1 -
+ 5 files changed, 47 insertions(+), 48 deletions(-)

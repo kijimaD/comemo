@@ -1,0 +1,13 @@
+commit 65675a3e24931dda1812cf5090ef7334dca8891e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Feb 9 17:20:59 2014 +0900
+
+    syscall: add missing include statement to bootstrap error code and signal generator
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/54300054
+
+ src/pkg/syscall/mkerrors.sh | 1 +
+ 1 file changed, 1 insertion(+)

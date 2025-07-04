@@ -1,0 +1,13 @@
+commit caf15f855de1d2a167c14bbe6fc1bc7c51899c4e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 20 11:19:16 2009 -0800
+
+    codereview: handle UTF-8 in message descriptions
+    
+    what a terrible way to implement strings
+    
+    R=r
+    https://golang.org/cl/156116
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

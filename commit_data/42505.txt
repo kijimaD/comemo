@@ -1,0 +1,14 @@
+commit e92be18fd8b525b642ca25bdb3e2056b35d9d73c
+Author: Rodolfo Carvalho <rhcarvalho@gmail.com>
+Date:   Wed Jun 10 13:30:42 2020 +0000
+
+    runtime: fix typo in FuncForPC doc
+    
+    Change-Id: I04037e13b131e79ebc5af84896bfeda49ddc0eaa
+    GitHub-Last-Rev: b0d0de930862e4f163e158876cba70d81ed2d52e
+    GitHub-Pull-Request: golang/go#39500
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237220
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/symtab.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

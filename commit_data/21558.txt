@@ -1,0 +1,16 @@
+commit 950aa9f1bcdea247660a2393bf91506af249b539
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 10 11:49:54 2015 -0800
+
+    math/big: When result prec == 0, use at least prec == 64 for SetInt, SetRat.
+    
+    This avoids surprises.
+    
+    Change-Id: Iaae67da2d12e29c4e797ad6313e0895f7ce80cb1
+    Reviewed-on: https://go-review.googlesource.com/4480
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 13 ++++++-------
+ src/math/big/float_test.go | 33 +++++++++++++++++++++++++++++----
+ 2 files changed, 35 insertions(+), 11 deletions(-)

@@ -1,0 +1,12 @@
+commit e7af3b8e058b7dfa1e647656c34d742897c11c55
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 8 14:56:20 2009 -0700
+
+    comment change
+    
+    R=r
+    OCL=31359
+    CL=31359
+
+ src/pkg/io/utils.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit 39c476cbf874c1936e82731abd4511bb8364c00c
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Sat Feb 23 11:39:01 2013 -0800
+
+    archive/tar: simplify use of constants in test case.
+    
+    Replace setsid with c_ISGID since the constant is already defined.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7403048
+
+ src/pkg/archive/tar/tar_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

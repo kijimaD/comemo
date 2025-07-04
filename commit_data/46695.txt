@@ -1,0 +1,15 @@
+commit f19b2d50c6d9918c1c121ccd8cb2a4f4a2d3f30b
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Fri Oct 1 21:58:51 2021 +0800
+
+    go/types: remove Environment type
+    
+    Change-Id: Id53633477d1c07bce0c5fcbcab079da51076cdf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353351
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/context.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,0 +1,19 @@
+commit e726e2a6087683eb21afe79ef8b5a1dbef80b0f1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 26 13:28:23 2021 -0500
+
+    cmd/go: suppress errors for 'go get' of module paths that are also constrained-out packages
+    
+    Fixes #33526
+    
+    Change-Id: Iedd2d6dbe440499bf074ac632513319a22f2d648
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297009
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modget/get.go              | 25 +++++++++++++++---
+ src/cmd/go/internal/modload/load.go            | 36 ++++++++++++++++++--------
+ src/cmd/go/testdata/script/mod_get_pkgtags.txt | 14 ++++++++++
+ 3 files changed, 60 insertions(+), 15 deletions(-)

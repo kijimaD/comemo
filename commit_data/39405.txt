@@ -1,0 +1,12 @@
+commit 832959ffcc1d99f8364e75b02d433cb72de63fc1
+Author: Andrew <andybons@golang.org>
+Date:   Tue Jun 18 13:32:04 2019 -0400
+
+    doc/go1.13: add release notes for the testing package
+    
+    Change-Id: I4ddbe22061579383ca47e14d0b64a74365fb3d19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182797
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ doc/go1.13.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

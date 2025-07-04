@@ -1,0 +1,22 @@
+commit 0a129dbca6b76e919041d759e8d9a23fc075e6d5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 20 14:43:17 2018 -0700
+
+    misc/cgo/testcshared: use file descriptor 30 for TestUnexportedSymbols
+    
+    We were using file descriptor 100, which requires the Linux kernel to
+    grow the fdtable size. That step may sometimes require a long time,
+    causing the test to fail. Switch to file descriptor 30, which should
+    not require growing the fdtable.
+    
+    Fixes #23784
+    
+    Change-Id: I3ac40d6f8569c70d34b470cfca34eff149bf8229
+    Reviewed-on: https://go-review.googlesource.com/108537
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ misc/cgo/testcshared/main2.c              | 2 +-
+ misc/cgo/testcshared/src/libgo2/libgo2.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

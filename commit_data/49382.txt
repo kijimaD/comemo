@@ -1,0 +1,21 @@
+commit a32a592c8c14927c20ac42808e1fb2e55b2e9470
+Author: mstmdev <mstmdev@gmail.com>
+Date:   Sat Jun 4 19:32:04 2022 +0000
+
+    database/sql/driver: fix typo in driver.go
+    
+    ExecerContext -> ExecContext
+    QueryerContext -> QueryContext
+    
+    Change-Id: Id3b1f44de5aa47372d59696523b4379e1fbfc11c
+    GitHub-Last-Rev: 571d01f8052cef27bd5f91a5e95c0735ddf2e327
+    GitHub-Pull-Request: golang/go#53235
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410415
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/database/sql/driver/driver.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

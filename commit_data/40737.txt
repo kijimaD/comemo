@@ -1,0 +1,32 @@
+commit 70be4819a47263055040d6beb5c0b1b31487f52c
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Nov 8 13:05:56 2019 -0500
+
+    cmd/go: fix windows test failures
+    
+    search.CleanPatterns now preserves backslash separators in absolute
+    paths in Windows. These had resulted in inconsistent error messages.
+    
+    search.MatchPackagesInFS is now more accepting of patterns with
+    backslashes. It was inconsistent before.
+    
+    Several tests are fixed to work with Windows (mostly to match slashes
+    or backslashes).
+    
+    Fixes #25300
+    
+    Change-Id: Ibbf9ccd145353f7e3d345205c6fcc01d7066d1c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206144
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/git_test.go  |  11 ++-
+ src/cmd/go/internal/search/search.go               |  64 ++++++++-----
+ src/cmd/go/testdata/script/build_trimpath.txt      | 102 ++++++++++++++-------
+ src/cmd/go/testdata/script/mod_getx.txt            |   1 +
+ src/cmd/go/testdata/script/mod_list_dir.txt        |   4 +-
+ .../go/testdata/script/mod_prefer_compatible.txt   |   1 +
+ src/cmd/go/testdata/script/mod_sumdb_file_path.txt |   2 +-
+ src/cmd/go/testdata/script/mod_vendor_auto.txt     |   6 +-
+ src/cmd/go/testdata/script/version.txt             |   5 +
+ 9 files changed, 130 insertions(+), 66 deletions(-)

@@ -1,0 +1,19 @@
+commit ad4e6370fe801c7d7b97e893b87c7f3d5b05f955
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 3 10:16:03 2018 -0700
+
+    cmd/link: remove -rdynamic if -static appears in cgo LDFLAGS
+    
+    We already remove -rdynamic if -static appears in -extldflags.
+    Extend that to apply to CGO_LDFLAGS and #cgo LDFLAGS as well.
+    
+    Updates #26197
+    
+    Change-Id: Ibb62d1b20726916a12fd889acb05c1c559a5ace2
+    Reviewed-on: https://go-review.googlesource.com/122135
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 36 +++++++++++++++++++++---------------
+ 1 file changed, 21 insertions(+), 15 deletions(-)

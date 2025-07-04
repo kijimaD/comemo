@@ -1,0 +1,14 @@
+commit 4c462e6fd719861e03cab1a7c5c892b7db7baa11
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 26 15:58:01 2011 -0700
+
+    gob: protect against invalid message length
+    Fixes #2301.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5134048
+
+ src/pkg/gob/decoder.go      |  6 ++++++
+ src/pkg/gob/encoder_test.go | 10 ++++++++++
+ 2 files changed, 16 insertions(+)

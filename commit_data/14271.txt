@@ -1,0 +1,17 @@
+commit e4cef96be6f03aa3e7e4979f1d55f8e66289904b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 1 12:55:21 2012 -0400
+
+    cmd/gc: avoid %#x of 0
+    
+    Plan 9 and Go's lib9/fmt disagree on whether %#x includes the 0x prefix
+    when printing 0, because ANSI C gave bad advice long ago.
+    
+    Avoiding that case makes binaries compiled on different systems compatible.
+    
+    R=ken2
+    CC=akumar, golang-dev
+    https://golang.org/cl/6814066
+
+ src/cmd/gc/esc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

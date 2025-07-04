@@ -1,0 +1,30 @@
+commit c69f5c0d7632381dfc6dc78f0af4f54e7673176d
+Author: Michael Munday <mike.munday@lowrisc.org>
+Date:   Thu Sep 9 23:47:14 2021 +0100
+
+    cmd/compile: add support for Abs and Copysign intrinsics on riscv64
+    
+    Also, add the FABSS and FABSD pseudo instructions to the assembler.
+    The compiler could use FSGNJX[SD] directly but there doesn't seem
+    to be much advantage to doing so and the pseudo instructions are
+    easier to understand.
+    
+    Change-Id: Ie8825b8aa8773c69cc4f07a32ef04abf4061d80d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348989
+    Trust: Michael Munday <mike.munday@lowrisc.org>
+    Run-TryBot: Michael Munday <mike.munday@lowrisc.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+
+ src/cmd/asm/internal/asm/testdata/riscv64.s    |  2 ++
+ src/cmd/compile/internal/riscv64/ssa.go        |  5 +++--
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 ++++
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 29 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go |  6 ++++++
+ src/cmd/compile/internal/ssagen/ssa.go         |  4 ++--
+ src/cmd/internal/obj/riscv/anames.go           |  2 ++
+ src/cmd/internal/obj/riscv/cpu.go              |  2 ++
+ src/cmd/internal/obj/riscv/obj.go              | 10 +++++++++
+ test/codegen/math.go                           |  4 ++++
+ 11 files changed, 66 insertions(+), 4 deletions(-)

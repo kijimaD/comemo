@@ -1,0 +1,12 @@
+commit cd40cd243535e1662dda14f238adf59535cc045c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 19 12:18:44 2008 -0800
+
+    fix new(bool) error message
+    
+    R=ken
+    OCL=21616
+    CL=21616
+
+ src/cmd/gc/walk.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

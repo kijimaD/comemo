@@ -1,0 +1,12 @@
+commit dcf1ab316760e362f3ae52107510b9d9a151155d
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Mar 15 17:23:02 2015 -0400
+
+    doc/go1.5: correct archive/zip change
+    
+    Change-Id: I7bac7b659b7ff425c6f896c286d0f89f05eff6bd
+    Reviewed-on: https://go-review.googlesource.com/7601
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ doc/go1.5.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 9ccf39bd684d5d6384259cedd9ee0f567796225b
+Author: Rob Pike <r@golang.org>
+Date:   Sat Dec 20 17:25:43 2008 -0800
+
+    update to new regime.
+    lines marked BUG are rewrites working around 6g bug.
+    
+    R=rsc
+    DELTA=161  (42 added, 2 deleted, 117 changed)
+    OCL=21689
+    CL=21689
+
+ src/lib/Makefile       |   6 +--
+ src/lib/bignum.go      | 131 ++++++++++++++++++++++++++-----------------------
+ src/lib/bignum_test.go |  99 ++++++++++++++++++++++++-------------
+ 3 files changed, 138 insertions(+), 98 deletions(-)

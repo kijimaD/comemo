@@ -1,0 +1,21 @@
+commit 5db80c30e6b360ef18159332b3ff19234f911f36
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Sep 21 12:53:25 2016 +0900
+
+    runtime: revert CL 18835; don't install new signal stack unconditionally on dragonfly
+    
+    This change reverts CL 18835 which is a workaroud for older DragonFly
+    BSD kernels, and fixes #14051, #14052 and #14067 in a more general way
+    the same as other platforms except NetBSD.
+    
+    This change also bumps the minimum required version of DragonFly BSD
+    kernel to 4.4.4.
+    
+    Fixes #16329.
+    
+    Change-Id: I0b44b6afa675f5ed9523914226bd9ec4809ba5ae
+    Reviewed-on: https://go-review.googlesource.com/29491
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_dragonfly.go | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)

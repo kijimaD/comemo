@@ -1,0 +1,15 @@
+commit 8373f729fdc63e6d85f23318e1e62c11c5a8bca5
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 13 08:00:01 2013 +0800
+
+    net: require of both -external and -ipv6 flags to run IPv6 multicast tests
+    
+    On BSD variants, the tests need surely constructed IPv6
+    routing table.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7776043
+
+ src/pkg/net/multicast_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

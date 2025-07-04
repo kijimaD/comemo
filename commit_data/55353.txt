@@ -1,0 +1,36 @@
+commit 8eaa7935db8c8b901f4dbb7d224a347bb3c33d7f
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sat Dec 2 15:11:36 2023 +0000
+
+    net: clarify maxListenerBacklog windows implementation
+    
+    The previous TODO comments were somewhat ambiguous. This aims to
+    provide a clearer understanding of the behavior on Windows.
+    
+    Windows does not offer a way to peek at the current backlog length, this
+    is explicitly stated in the winapi for `listen`.
+    
+    When set to `syscall.SOMAXCONN`, the OS dynamically adjusts the
+    backlog to a maximum reasonable value. It goes as far as the dotnet
+    runtime itself introducing a new version of `listen` that does not accept a
+    backlog parameter to help eliminate the confusion when comparing the
+    behavior with UNIXes.
+    
+    The docs also mention that `SOMAXCONN_HINT(N)` can be used, and that
+    it clips the final computed value between (200, 65535), which suggests
+    windows might use a `uint16` to back this number. Either way it does not
+    matter since windows will adjust this value anyway, so I removed the
+    wrapping TODO as well.
+    
+    See https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-listen
+    
+    Change-Id: I7b2e7cb547467c4bfc572ef0477a58de8c772521
+    GitHub-Last-Rev: 34e74abffe8792c8709c73db4d7a5fa05f64b1d0
+    GitHub-Pull-Request: golang/go#63549
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535475
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/sock_windows.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

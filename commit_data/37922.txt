@@ -1,0 +1,17 @@
+commit c00595cec55526f30b84903d9472d7f63f9c447d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 28 10:45:26 2019 -0800
+
+    doc: mention init traceback change in Go 1.12 release notes
+    
+    Updates #29919
+    
+    Change-Id: Ibf92c9957f71394f08c1203a29eae35a12021585
+    Reviewed-on: https://go-review.googlesource.com/c/159877
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ doc/go1.12.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

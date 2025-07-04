@@ -1,0 +1,19 @@
+commit c8dee2770d435cbe6ec3e24a3b3ed70e48b0e933
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 4 17:24:25 2008 -0700
+
+    acid.  works only on Linux for now
+    
+    R=r
+    DELTA=7031  (6906 added, 113 deleted, 12 changed)
+    OCL=13847
+    CL=13852
+
+ src/libmach_amd64/8db.c    |   3 +-
+ src/libmach_amd64/Makefile |   1 +
+ src/libmach_amd64/access.c |  75 +------
+ src/libmach_amd64/darwin.c |  66 ++++++
+ src/libmach_amd64/linux.c  | 541 +++++++++++++++++++++++++++++++++++++++++++++
+ src/libmach_amd64/map.c    |  82 +++----
+ src/runtime/Makefile       |   8 +-
+ 7 files changed, 651 insertions(+), 125 deletions(-)

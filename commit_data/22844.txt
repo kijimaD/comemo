@@ -1,0 +1,15 @@
+commit 10f6d30315536703065cec19ef48d51561a5219a
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon May 4 10:37:34 2015 +1000
+
+    cmd/go: Update alldocs.go header to point to the correct shell script.
+    
+    The script was renamed in b3000b6.
+    
+    Change-Id: I45ecafff7400e4bff14f31906278609abf2bcb9f
+    Reviewed-on: https://go-review.googlesource.com/9667
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/alldocs.go | 4 ++--
+ src/cmd/go/main.go    | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

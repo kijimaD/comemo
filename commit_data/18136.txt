@@ -1,0 +1,15 @@
+commit ff006982c355bef55fb7b36944a1cc661bacf287
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Dec 30 17:17:19 2013 -0800
+
+    text/template: don't panic when using AddParseTree with an unparsed template
+    
+    Fixes #7032.
+    
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/43960045
+
+ src/pkg/text/template/multi_test.go | 12 ++++++++++++
+ src/pkg/text/template/template.go   |  2 +-
+ 2 files changed, 13 insertions(+), 1 deletion(-)

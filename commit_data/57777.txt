@@ -1,0 +1,20 @@
+commit 6dc99aa7eb26e7cf9af0d2cab74c5027fec8cde2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 24 21:50:29 2024 -0700
+
+    cmd/link: for asan align coverage counter section to 8 bytes
+    
+    Fixes #66966
+    
+    Change-Id: I92777a7d7d8afaa82ffcd605aa3e607289b645f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622477
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/internal/testsanitizers/asan_test.go   | 100 +++++++++++----------
+ .../testsanitizers/testdata/asan_fuzz_test.go      |  30 +++++++
+ src/cmd/link/internal/ld/data.go                   |   6 ++
+ 3 files changed, 91 insertions(+), 45 deletions(-)

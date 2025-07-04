@@ -1,0 +1,20 @@
+commit e7c7f3326335649d6fcae8cba297808fc60ed388
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Jan 9 04:21:37 2023 +1100
+
+    cmd/internal/obj/arm64: factor out code generation for addition of 12 bit immediates
+    
+    Factor out and simplify code that generates the addition of a 12 bit immediate
+    (the addition of a negative value is still handled via subtraction). This also
+    fixes the mishandling of the case where v is 0.
+    
+    Change-Id: I6040f33d2fec87b772272531b3bf02390ae7f200
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461141
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm64/asm7.go | 56 ++++++++++++++++----------------------
+ 1 file changed, 23 insertions(+), 33 deletions(-)

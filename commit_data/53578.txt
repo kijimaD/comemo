@@ -1,0 +1,20 @@
+commit cf7ae4f1364efa0e9b93bedf127ba1ccc7664fcb
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Jun 15 09:50:03 2023 +0000
+
+    compress/bzip2: fix typo
+    
+    Remove redundant "this".
+    
+    Change-Id: Ia845e44119bf5ba1862f62da335466219a37c325
+    GitHub-Last-Rev: f0cdaf03285da8b053b71cc2911f5ab5beff580b
+    GitHub-Pull-Request: golang/go#60807
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503655
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/compress/bzip2/bit_reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

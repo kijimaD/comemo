@@ -1,0 +1,32 @@
+commit 6fa7669fd7d9994ef20e40f41a9771d664d00c5e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 4 15:11:03 2018 -0800
+
+    cmd/compile: unify duplicate const detection logic
+    
+    Consistent logic for handling both duplicate map keys and case values,
+    and eliminates ad hoc value hashing code.
+    
+    Also makes cmd/compile consistent with go/types's handling of
+    duplicate constants (see #28085), which is at least an improvement
+    over the status quo even if we settle on something different for the
+    spec.
+    
+    As a side effect, this also suppresses cmd/compile's warnings about
+    duplicate nils in (non-interface expression) switch statements, which
+    was technically never allowed by the spec anyway.
+    
+    Updates #28085.
+    Updates #28378.
+    
+    Change-Id: I176a251e770c3c5bc11c2bf8d1d862db8f252a17
+    Reviewed-on: https://go-review.googlesource.com/c/152544
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/const.go     | 63 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/swt.go       | 78 +++++---------------------------
+ src/cmd/compile/internal/gc/typecheck.go | 65 ++------------------------
+ test/fixedbugs/issue28085.go             | 29 ++++++++++++
+ 4 files changed, 107 insertions(+), 128 deletions(-)

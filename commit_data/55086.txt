@@ -1,0 +1,23 @@
+commit ebca52eeb77f24f44c9b556b99508a9a6fada743
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Aug 15 19:54:51 2023 +0800
+
+    cmd/compile/internal: add register info for loong64 regABI
+    
+    Update #40724
+    
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: Ifd7d94147b01e4fc83978b53dca2bcc0ad1ac4e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521779
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+
+ src/cmd/compile/internal/loong64/ssa.go         | 2 ++
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go | 4 ++--
+ src/cmd/compile/internal/ssa/config.go          | 2 ++
+ src/cmd/compile/internal/ssa/opGen.go           | 4 ++--
+ 4 files changed, 8 insertions(+), 4 deletions(-)

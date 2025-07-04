@@ -1,0 +1,17 @@
+commit 4633b2db4bec605d7920295322d19f895ae89964
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 1 20:25:48 2021 -0700
+
+    cmd/go, internal/cpu: use internal/godebug in tests
+    
+    Change-Id: Ifdf67e778e88ee70780428aa5479d2e091752a3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360605
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go            | 11 ++++++-----
+ src/internal/cpu/cpu_test.go     |  3 ++-
+ src/internal/cpu/cpu_x86_test.go |  4 ++--
+ 3 files changed, 10 insertions(+), 8 deletions(-)

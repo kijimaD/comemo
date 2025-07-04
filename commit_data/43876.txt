@@ -1,0 +1,23 @@
+commit ef603bead5d336e81954f890e20efa0261581792
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed Nov 25 19:12:13 2020 +0100
+
+    cmd/dist: restore GOARM=7 default for android/arm
+    
+    Fixes the android/arm builder. Without it, the builder reported
+    unexpected stale targets during bootstrap:
+    
+    https://build.golang.org/log/b951f1171be54cf4a12c2a0720ffaf07f8a11377
+    
+    Tighten the GOARM=7 default in cmd/internal/objabi while here.
+    
+    Change-Id: I944744910193e72e91bc37b5bf0783076b45e579
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273167
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Elias Naur <mail@eliasnaur.com>
+
+ src/cmd/dist/util.go            | 6 ++++++
+ src/cmd/internal/objabi/util.go | 4 ++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

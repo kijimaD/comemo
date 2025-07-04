@@ -1,0 +1,12 @@
+commit 4e6f951e6bbb6dba96b7d88c7f959b08440457ac
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Sep 14 20:03:21 2011 +0200
+
+    exp/norm: added normregtest to .hgignore.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5009045
+
+ .hgignore | 1 +
+ 1 file changed, 1 insertion(+)

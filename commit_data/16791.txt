@@ -1,0 +1,18 @@
+commit 85a7c090c4f831b6d29556c36bbe0a6cd8e8da6d
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed Jul 17 11:04:34 2013 +0200
+
+    cmd/8g: Make clearfat non-interleaved with pointer calculations.
+    
+    clearfat (used to zero initialize structures) will use AX for x86 block ops. If we write to AX while calculating the dest pointer, we will fill the structure with incorrect values.
+    Since 64-bit arithmetic uses AX to synthesize a 64-bit register, getting an adress by indexing with 64-bit ops can clobber the register.
+    
+    Fixes #5820.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/11383043
+
+ src/cmd/8g/ggen.c           |  2 +-
+ test/fixedbugs/issue5820.go | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 0fd7de4971c89e782434a402dbb69c5fd17457f9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 16 17:41:42 2017 -0700
+
+    os: fix handling of ErrShortWrite in (*File).Write
+    
+    Restore the handling of io.ErrShortWrite in (*File).Write:
+    if we write less than the requested amount, and there is no error from
+    the syscall, then return io.ErrShortWrite.
+    
+    I can't figure out how to write a test for this. It would require a
+    non-pollable file (not a pipe) on a device that is almost but not
+    quite entirely full. The original code (https://golang.org/cl/36800043,
+    committed as part of https://golang.org/cl/36930044) does not have a test.
+    
+    Fixes #20386.
+    
+    Change-Id: Ied7b411e621e1eaf49f864f8db90069f276256f5
+    Reviewed-on: https://go-review.googlesource.com/43558
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/file.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

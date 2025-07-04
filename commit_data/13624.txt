@@ -1,0 +1,21 @@
+commit 3df0545a8b0f3ae1b7638474c986142fa9462c93
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 14 11:26:30 2012 -0700
+
+    go/scanner: faster scanning
+    
+    Optimize some common cases.
+    
+    benchmark            old ns/op    new ns/op    delta
+    BenchmarkScanFile       718907       667960   -7.09%
+    
+    benchmark             old MB/s     new MB/s  speedup
+    BenchmarkScanFile        23.03        25.51    1.11x
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6454150
+
+ src/pkg/go/scanner/scanner.go      | 38 ++++++++++++++++++++++++++++----------
+ src/pkg/go/scanner/scanner_test.go | 26 +++++++++++++++++++++++++-
+ 2 files changed, 53 insertions(+), 11 deletions(-)

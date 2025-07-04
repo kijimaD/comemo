@@ -1,0 +1,12 @@
+commit ce65b7250805253367cce756e03cda7c7f77df43
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sun Mar 6 17:05:12 2011 -0500
+
+    websocket: use httptest.Server for tests
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4266044
+
+ src/pkg/websocket/websocket_test.go | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

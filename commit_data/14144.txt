@@ -1,0 +1,16 @@
+commit 1f31598e863addd9fe0ddb09f11d2420996cc292
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Oct 15 13:28:30 2012 +1100
+
+    image/jpeg: re-organize the processSOS code.
+    
+    This is a straight copy/paste, and the deletion of a TODO. There are
+    no other changes.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6687049
+
+ src/pkg/image/jpeg/reader.go | 318 ------------------------------------------
+ src/pkg/image/jpeg/scan.go   | 321 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 321 insertions(+), 318 deletions(-)

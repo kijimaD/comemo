@@ -1,0 +1,13 @@
+commit 27c4e7e74e5601b33f3f95357cb1d04b54179760
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 1 14:12:09 2009 -0700
+
+    catch package net import "net" for release
+    
+    R=ken
+    OCL=34205
+    CL=34207
+
+ src/cmd/gc/go.y                   | 10 ++++++++++
+ test/fixedbugs/bug133.dir/bug2.go |  2 +-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

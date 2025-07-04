@@ -1,0 +1,16 @@
+commit 4af8ef65191146a72ab36e70667f639b2946963a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 20 11:58:07 2008 -0800
+
+    new flags to 6cov
+    
+            -s      print source lines
+            -n x    don't print about sections < x lines long.
+    
+    R=r
+    DELTA=69  (57 added, 1 deleted, 11 changed)
+    OCL=19697
+    CL=19708
+
+ src/cmd/cov/main.c | 78 ++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 67 insertions(+), 11 deletions(-)

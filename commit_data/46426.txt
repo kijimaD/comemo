@@ -1,0 +1,23 @@
+commit 146e8d4994052ee4a58bec7e2cf37e568ce1e4e5
+Author: Nevkontakte <aleks@nevkontakte.com>
+Date:   Mon Sep 13 22:40:30 2021 +0000
+
+    reflect: use Value.Len instead of conversion to slice header
+    
+    This change is functionally equivalent, but reduces reliance on unsafe
+    features. This would allow GopherJS to avoid an additional patch to the
+    standard library we'd have to maintain in order to remain compatible
+    with Go 1.17+.
+    
+    Change-Id: I4f113db0c572ec0b81ebfecf5a137145f6c8c41d
+    GitHub-Last-Rev: 94ebb393bac93579b6455555822691c0d69e2d42
+    GitHub-Pull-Request: golang/go#48346
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349469
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/reflect/value.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

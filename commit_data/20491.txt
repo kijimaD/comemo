@@ -1,0 +1,18 @@
+commit 182d1316dd975f426451cee34ba2e3e0953e084f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 19 13:51:06 2014 -0400
+
+    cmd/go, testing: add TestMain support
+    
+    Fixes #8202.
+    
+    LGTM=r, bradfitz
+    R=r, josharian, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/148770043
+
+ doc/go1.4.txt               |  1 +
+ src/cmd/go/test.go          | 46 +++++++++++++++++++++++++++++++++++--
+ src/testing/testing.go      | 56 +++++++++++++++++++++++++++++++++++++++++----
+ src/testing/testing_test.go | 18 +++++++++++++++
+ 4 files changed, 114 insertions(+), 7 deletions(-)

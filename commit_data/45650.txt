@@ -1,0 +1,16 @@
+commit 8b0901fd32aa9c29a1fa4ed8cd517914920a1509
+Author: Jeff Widman <jeff@jeffwidman.com>
+Date:   Tue May 18 06:09:20 2021 +0000
+
+    doc/go1.17: fix typo "avoding" -> "avoiding"
+    
+    Change-Id: Ice4a6e7ec8175caf3f049ac1ca39929059f90e9c
+    GitHub-Last-Rev: a2d59d55511ac7825cbeca6651a79b1060d90de3
+    GitHub-Pull-Request: golang/go#46227
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320729
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ doc/go1.17.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

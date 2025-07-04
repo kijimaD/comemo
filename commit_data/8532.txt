@@ -1,0 +1,15 @@
+commit da32ed7bf18919f5397e620b794afe30a7c1dd37
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun May 29 09:32:36 2011 -0700
+
+    http: let Transport use a custom net.Dial function
+    
+    Permits the use of SOCKS proxy dialer with
+    the transport.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4536091
+
+ src/pkg/http/transport.go | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)

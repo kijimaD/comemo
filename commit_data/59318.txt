@@ -1,0 +1,15 @@
+commit 3cefe69c5a5ad687f220696d4f8a2fe4d59241dd
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun Apr 13 17:48:48 2025 +0100
+
+    crypto/rand: add and update examples
+    
+    Change-Id: I77406c22b82c9f8bc57323c783f63c4897486e7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/665096
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/rand/example_test.go | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)

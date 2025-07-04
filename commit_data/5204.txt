@@ -1,0 +1,13 @@
+commit b12007c4ed6c5617a0d77db5be0bcf7fbba7a1b9
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 31 17:57:50 2010 -0700
+
+    testing/regexp: use recover.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/816042
+
+ src/pkg/regexp/regexp.go  |  4 +--
+ src/pkg/testing/regexp.go | 89 +++++++++++++++++------------------------------
+ 2 files changed, 32 insertions(+), 61 deletions(-)

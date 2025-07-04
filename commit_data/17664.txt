@@ -1,0 +1,12 @@
+commit f70116102b03ea864ae13245716344ee2f2a8b88
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Sun Sep 22 07:28:52 2013 +1000
+
+    doc/go1.2.html: Go 1.2, not Go1.2
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/13735044
+
+ doc/go1.2.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

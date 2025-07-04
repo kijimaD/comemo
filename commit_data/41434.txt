@@ -1,0 +1,13 @@
+commit 80e67324f0a722950cbf5b3ece461101996cc781
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Tue Feb 25 11:05:35 2020 -0500
+
+    doc: add Go 1.14 to release history
+    
+    Change-Id: I02afbd08ce9e0cd2af8953693b9c3066f6465914
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220900
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/contrib.html | 1 +
+ 1 file changed, 1 insertion(+)

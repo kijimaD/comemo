@@ -1,0 +1,26 @@
+commit 83dfc3b001245f0b725afdc94c0b540fe1952d21
+Author: Keith Randall <khr@google.com>
+Date:   Mon Sep 17 12:25:36 2018 -0700
+
+    runtime: ignore races between close and len/cap
+    
+    They aren't really races, or at least they don't have any
+    observable effect. The spec is silent on whether these are actually
+    races or not.
+    
+    Fix this problem by not using the address of len (or of cap)
+    as the location where channel operations are recorded to occur.
+    Use a random other field of hchan for that.
+    
+    I'm not 100% sure we should in fact fix this. Opinions welcome.
+    
+    Fixes #27070
+    
+    Change-Id: Ib4efd4b62e0d1ef32fa51e373035ef207a655084
+    Reviewed-on: https://go-review.googlesource.com/135698
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/chan.go                    | 23 ++++++++++++++++-------
+ src/runtime/race/testdata/chan_test.go | 30 ++++++++++++++++++++++--------
+ src/runtime/select.go                  |  4 ++--
+ 3 files changed, 40 insertions(+), 17 deletions(-)

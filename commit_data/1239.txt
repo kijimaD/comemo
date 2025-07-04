@@ -1,0 +1,14 @@
+commit bbe9bb65c72b4ccfe07fb696472d9e441a2b2bcc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 24 15:18:29 2008 -0800
+
+    add hash to build; rm pkg/* in clean.bash
+    
+    R=r
+    DELTA=3  (3 added, 0 deleted, 0 changed)
+    OCL=19935
+    CL=19937
+
+ src/clean.bash   | 1 +
+ src/lib/Makefile | 2 ++
+ 2 files changed, 3 insertions(+)

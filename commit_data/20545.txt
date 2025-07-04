@@ -1,0 +1,16 @@
+commit 9c3fc838ba982571e704c1674e9f97678f8a6e93
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 25 15:18:25 2014 -0700
+
+    encoding/gob: error rather than panic when decoding enormous slices
+    Fixes #8084.
+    
+    LGTM=ruiu
+    R=golang-codereviews, ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/142710043
+
+ src/encoding/gob/decode.go       | 12 +++++++++++-
+ src/encoding/gob/decoder.go      |  9 ++++++---
+ src/encoding/gob/encoder_test.go | 22 ++++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 4 deletions(-)

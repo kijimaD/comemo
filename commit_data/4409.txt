@@ -1,0 +1,11 @@
+commit 8793f622e649aa4b19273e8ad1090d7dede1c9da
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 14 09:14:00 2009 -0800
+
+    don't show semicolons anymore with godoc
+    
+    R=rsc
+    https://golang.org/cl/174078
+
+ src/cmd/godoc/godoc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

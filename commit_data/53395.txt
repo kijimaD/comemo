@@ -1,0 +1,18 @@
+commit 8870c05b60d80c0f1f984ac365eff3fd8f95982a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 30 15:15:43 2023 -0700
+
+    doc/go1.21: mention directive handling in go/{ast,build}
+    
+    For #56986
+    For #59033
+    
+    Change-Id: I7d03fe34d418aff97a551b236b5d43506e402871
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499415
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.21.html | 31 +++++++++++++++++++++----------
+ 1 file changed, 21 insertions(+), 10 deletions(-)

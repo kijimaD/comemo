@@ -1,0 +1,12 @@
+commit 302b0ff942378bbb1d2940c8ee11326f5880d549
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 28 13:36:28 2010 -0700
+
+    go/parser: use append
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2720042
+
+ src/pkg/go/parser/parser.go | 216 ++++++++++++++------------------------------
+ 1 file changed, 67 insertions(+), 149 deletions(-)

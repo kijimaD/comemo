@@ -1,0 +1,12 @@
+commit f7b7338ec247ddd8f47f4747e74b882ac562c2d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 22:18:16 2011 -0400
+
+    net: update for error (linux)
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5303091
+
+ src/pkg/net/fd_linux.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit 060bd25310ff38b92dd57bc66c2f026a0b7ee765
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Mon Oct 28 23:10:31 2024 +0000
+
+    internal/runtime/atomic: add Xchg8 for arm
+    
+    For #69735
+    
+    Change-Id: I18c0ca15d94a9b1751c1e55459283e01dc114150
+    GitHub-Last-Rev: dd9a39a5551e5a3415ab765cf271fecdbbe89b4c
+    GitHub-Pull-Request: golang/go#69924
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-arm
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620855
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/runtime/atomic/atomic_arm.go | 21 +++++++++++++++++++++
+ src/internal/runtime/atomic/atomic_arm.s  | 31 +++++++++++++++++++++++++++++++
+ src/internal/runtime/atomic/xchg8_test.go | 22 +++++++++++++++++++++-
+ 3 files changed, 73 insertions(+), 1 deletion(-)

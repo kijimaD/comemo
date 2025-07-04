@@ -1,0 +1,19 @@
+commit b136f0c17bdd463207d43e73aef810fa1f14bdee
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 11 00:02:04 2020 -0400
+
+    cmd/compile: fix buggy AMD64 rewrite from CL 213058
+    
+    CL 213058's "bonus optimization I noticed while working on this"
+    turns out to be buggy. It would be correct for CMP, but not TEST.
+    Fix it to use TEST semantics instead.
+    
+    This was breaking compilation with the upcoming Spectre mode.
+    
+    Change-Id: If2d4c3798ed182f35f0244febe74e68c61e4c61b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222853
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  5 ++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 50 ++++++++++++++++++++++++++--
+ 2 files changed, 52 insertions(+), 3 deletions(-)

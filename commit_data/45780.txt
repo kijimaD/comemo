@@ -1,0 +1,32 @@
+commit aa5540cd82170f82c6fe11511e12de96aa58cbc1
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jun 8 20:09:49 2021 -0400
+
+    cmd/compile: make map.zero symbol content-addressable
+    
+    The compiler machinery that generates "map.zero" symbols marks them as
+    RODATA and DUPOK, which is problematic when a given application has
+    multiple map zero symbols (from different packages) with varying
+    sizes: the dupok path in the loader assumes that if two symbols have
+    the same name, it is safe to pick any of the versions. In the case of
+    map.zero, the link needs to select the largest symbol, not an
+    arbitrary sym.
+    
+    To fix this problem, mark map.zero symbols as content-addressable,
+    since the loader's content addressability processing path already
+    supports selection of the larger symbol in cases where there are dups.
+    
+    Fixes #46653.
+    
+    Change-Id: Iabd2feef01d448670ba795c7eaddc48c191ea276
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326211
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/obj.go       |  1 +
+ test/fixedbugs/issue46653.dir/bad/bad.go | 64 ++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue46653.dir/main.go    | 27 ++++++++++++++
+ test/fixedbugs/issue46653.go             | 10 +++++
+ 4 files changed, 102 insertions(+)

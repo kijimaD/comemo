@@ -1,0 +1,36 @@
+commit 6f31abd23a6f768c21c8b308f355f3a1bae521d2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Nov 21 16:58:55 2016 -0500
+
+    cmd/compile, cmd/link: weak relocation for ptrTo
+    
+    Introduce R_WEAKADDROFF, a "weak" variation of the R_ADDROFF relocation
+    that will only reference the type described if it is in some other way
+    reachable.
+    
+    Use this for the ptrToThis field in reflect type information where it
+    is safe to do so (that is, types that don't need to be included for
+    interface satisfaction, and types that won't cause the compiler to
+    recursively generate an endless series of ptr-to-ptr-to-ptr-to...
+    types).
+    
+    Also fix a small bug in reflect, where StructOf was not clearing the
+    ptrToThis field of new types.
+    
+    Fixes #17931
+    
+    Change-Id: I4d3b53cb9c916c97b3b16e367794eee142247281
+    Reviewed-on: https://go-review.googlesource.com/33427
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/obj.go     |  6 ++++++
+ src/cmd/compile/internal/gc/reflect.go | 13 ++++++++++---
+ src/cmd/internal/obj/data.go           | 16 ++++++++++++++++
+ src/cmd/internal/obj/link.go           |  5 +++++
+ src/cmd/link/internal/ld/data.go       | 10 +++++++++-
+ src/cmd/link/internal/ld/deadcode.go   |  6 ++++++
+ src/cmd/link/internal/ld/lib.go        |  2 +-
+ src/reflect/type.go                    |  1 +
+ 8 files changed, 54 insertions(+), 5 deletions(-)

@@ -1,0 +1,14 @@
+commit 3d56fe6d9411ace303b18bf930a0200518886ab6
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Wed Jan 14 22:31:59 2015 +0100
+
+    testing: pad benchmark names to align results
+    
+    Fixes #8780
+    
+    Change-Id: I09cf01ff9722eed49086992a12774f2de81d16f2
+    Reviewed-on: https://go-review.googlesource.com/2840
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/testing/benchmark.go | 34 +++++++++++++++++++++++++++-------
+ 1 file changed, 27 insertions(+), 7 deletions(-)

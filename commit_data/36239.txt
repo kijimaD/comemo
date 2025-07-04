@@ -1,0 +1,15 @@
+commit da1da23f11cba056992335517a29d1ec4a33706f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 9 17:38:32 2018 -0400
+
+    cmd/go: skip TestScript/mod_patterns on nocgo builders
+    
+    Updates #26906.
+    
+    Change-Id: I61b08180aefe9cfc109a1009ca251ee6970eb2df
+    Reviewed-on: https://go-review.googlesource.com/128879
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/testdata/script/mod_patterns.txt | 3 +++
+ 1 file changed, 3 insertions(+)

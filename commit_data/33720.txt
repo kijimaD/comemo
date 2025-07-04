@@ -1,0 +1,16 @@
+commit 04494f384357a10a3effe3f24286b1f29a68115e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 29 19:22:27 2017 +0000
+
+    net: skip unixpacket tests on netbsd/386
+    
+    Updates #22927
+    Updates #20852
+    
+    Change-Id: I3ac0f8d38375d58a77781ab0e4f78ca57b258de0
+    Reviewed-on: https://go-review.googlesource.com/80756
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/platform_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

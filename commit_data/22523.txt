@@ -1,0 +1,17 @@
+commit 69d9247705f0e9c7e4e6f11ab731ee6870291455
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 15 16:46:58 2015 -0700
+
+    compress/flate: add optional runtime sanity checks
+    
+    This code's test coverage is ad hoc at best, and it's easy to make
+    changes that accidentally regress invariants.  This CL adds a "sanity"
+    constant that can be changed to "true" during development to add extra
+    runtime checking that the Huffman decoder tables are sane.
+    
+    Change-Id: I0d0ca53ad7c9566be18046d9b255e1a30059f28b
+    Reviewed-on: https://go-review.googlesource.com/8974
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/compress/flate/inflate.go | 55 ++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 54 insertions(+), 1 deletion(-)

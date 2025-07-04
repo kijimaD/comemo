@@ -1,0 +1,15 @@
+commit 763766e9ab8ed095e8f845228d89b856337aadc0
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 16 12:17:10 2025 -0500
+
+    math/big: report allocs in BenchmarkNatMul, BenchmarkNatSqr
+    
+    Change-Id: I112f55c0e3ee3b75e615a06b27552de164565c04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650637
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/math/big/nat_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

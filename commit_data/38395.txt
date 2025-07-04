@@ -1,0 +1,14 @@
+commit 0a04c0430e9671bd531a2928a8416424da1e3dde
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 27 18:27:13 2019 -0800
+
+    cmd/compile: restore constant folding optimization within OADDSTR
+    
+    Change-Id: Ib55f2458c75aee49302f0dd4e2a819f9931a5ed3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166982
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/const.go | 11 -----------
+ 1 file changed, 11 deletions(-)

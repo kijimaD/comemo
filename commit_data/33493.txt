@@ -1,0 +1,20 @@
+commit 95322a3ac68b206c3394329cb00a0d511e77e0f9
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Nov 9 15:41:45 2017 -0500
+
+    cmd/go: avoid crashing on 'go test -n'
+    
+    Fix a buglet in the go command support for 'go test -n': check for
+    nil output buffer in action routine.
+    
+    Fixes #22644
+    
+    Change-Id: I2566e3bb3d53d0324c4ddd6fec5d30224bf290df
+    Reviewed-on: https://go-review.googlesource.com/76710
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go            | 9 +++++++++
+ src/cmd/go/internal/test/test.go | 6 ++++--
+ 2 files changed, 13 insertions(+), 2 deletions(-)

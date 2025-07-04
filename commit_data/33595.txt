@@ -1,0 +1,26 @@
+commit 1d47a145913f76f64414bbbc14bff3c95450535e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 16 10:29:50 2017 -0500
+
+    encoding/csv: restore Go 1.9 quoted \r\n handling in Reader
+    
+    CL 52810 changed Reader to interpret a quoted \r\n as a raw \r\n
+    when reading fields. This seems likely to break existing users, and
+    discussion on both #21201 (the original issue that triggered the change)
+    and #22746 (discussing whether to revert the change) failed to identify
+    a single motivating example for this change. To avoid breaking existing
+    users for no clear reason, revert the change.
+    
+    The Reader has been rewritten in the interim so this is not a git revert
+    but instead and adjustment (and slight simplification) of the new Reader.
+    
+    Fixes #22746.
+    
+    Change-Id: Ie857b2f4b1359a207d085b6d3c3a6d440a997d12
+    Reviewed-on: https://go-review.googlesource.com/78295
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/encoding/csv/reader.go      | 29 ++++++++++++++++++++---------
+ src/encoding/csv/reader_test.go |  4 ++--
+ src/encoding/csv/writer.go      |  2 +-
+ 3 files changed, 23 insertions(+), 12 deletions(-)

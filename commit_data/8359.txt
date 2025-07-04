@@ -1,0 +1,15 @@
+commit f58d911698e8e4690675fe276dac4795c39a9dfe
+Author: Lorenzo Stoakes <lstoakes@gmail.com>
+Date:   Wed May 11 23:41:59 2011 -0400
+
+    gc: fix type switch error message for invalid cases.
+    
+    Fixes #1606.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4532045
+
+ src/cmd/gc/swt.c         |  5 ++++-
+ test/fixedbugs/bug340.go | 17 +++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

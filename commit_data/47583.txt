@@ -1,0 +1,18 @@
+commit 7fbe2f4cc877a02465f36e10e7547e03bcb6e1af
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 22 12:21:12 2021 -0800
+
+    doc/go1.18: document compiler change for "declared but not used" errors
+    
+    Fixes #49214.
+    For #47694.
+    
+    Change-Id: Iba68ed17bfd81890309b6a6732087f87a03e1350
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366274
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

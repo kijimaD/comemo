@@ -1,0 +1,16 @@
+commit 7456b948532e752c0ea0ac98e56e6898271f4dcd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 22 12:33:11 2021 -0800
+
+    doc/go1.18: document new overflow error for some untyped arguments to print/ln
+    
+    Fixes #49216.
+    For #47694.
+    
+    Change-Id: Ib129d790c382ddcc9677d87db4ca827b7159856a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366275
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

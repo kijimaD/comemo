@@ -1,0 +1,31 @@
+commit d80e8de54ec633d018ccef94b67c796dda4e1944
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 24 13:05:10 2016 -0400
+
+    cmd/compile: avoid truncating fieldname var locations
+    
+    Don't include package path when creating LSyms for auto and param
+    variables during Prog generation, and update the DWARF emit routine
+    accordingly (remove the code that chops off package path from names in
+    DWARF var location expressions). Implementation suggested by mdempsky@.
+    
+    The intent of this change is to have saner location expressions in cases
+    where the variable corresponds to a structure field. For example, the
+    SSA compiler's "decompose" phase can take a slice value and break it
+    apart into three scalar variables corresponding to the fields (slice "X"
+    gets split into "X.len", "X.cap", "X.ptr"). In such cases we want the
+    name in the location expression to omit the package path but preserve
+    the original variable name (e.g. "X").
+    
+    Fixes #16338
+    
+    Change-Id: Ibc444e7f3454b70fc500a33f0397e669d127daa1
+    Reviewed-on: https://go-review.googlesource.com/31819
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/pgen.go |  1 +
+ src/cmd/internal/dwarf/dwarf.go     |  5 -----
+ src/runtime/runtime-gdb_test.go     | 18 +++++++++++++++++-
+ 3 files changed, 18 insertions(+), 6 deletions(-)

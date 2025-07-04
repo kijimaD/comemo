@@ -1,0 +1,19 @@
+commit 984004263d187240adda58fc72e2011a75d7930c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Sep 11 10:15:17 2015 +1000
+
+    runtime: skip CallbackGC test in short mode on linux/arm
+    
+    Fixes #11959
+    Fixes #12035
+    
+    Skip the CallbackGC test on linux/arm. This test takes between 30 and 60
+    seconds to run by itself, and is run 4 times over the course of ./run.bash
+    (once during the runtime test, three times more later in the build).
+    
+    Change-Id: I4e7d3046031cd8c08f39634bdd91da6e00054caf
+    Reviewed-on: https://go-review.googlesource.com/14485
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/crash_cgo_test.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

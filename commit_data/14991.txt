@@ -1,0 +1,12 @@
+commit 23c12c9d56fa6cfec64de604ae57e775b112e405
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jan 27 16:32:21 2013 -0800
+
+    CONTRIBUTORS: Add Gustavo Franco (Google CLA)
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7235047
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

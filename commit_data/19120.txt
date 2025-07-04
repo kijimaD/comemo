@@ -1,0 +1,29 @@
+commit 0d441a088d2cb23af32dae473aea989830d11055
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 14 10:58:49 2014 -0400
+
+    cmd/objdump: rewrite in Go
+    
+    Update cmd/dist not to build the C version.
+    Update cmd/go to install the Go version to the tool directory.
+    
+    Update #7452
+    
+    This is the basic logic needed for objdump, and it works well enough
+    to support the pprof list and weblist commands. A real disassembler
+    needs to be added in order to support the pprof disasm command
+    and the per-line assembly displays in weblist. That's still to come.
+    
+    Probably objdump will move to go.tools when the disassembler
+    is added, but it can stay here for now.
+    
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/87580043
+
+ src/cmd/dist/build.c    |   2 -
+ src/cmd/go/pkg.go       |   1 +
+ src/cmd/objdump/main.c  |  68 --------------------
+ src/cmd/objdump/main.go | 162 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 163 insertions(+), 70 deletions(-)

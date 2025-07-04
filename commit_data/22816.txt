@@ -1,0 +1,16 @@
+commit bc1410a4f9ee18750bbcb489631a2ddc84117b04
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 30 19:14:45 2015 -0700
+
+    cmd/cover: try once again to fix the build
+    
+    Forgot to update the references to the old cover package. No excuse.
+    
+    Change-Id: If17b7521f0bf70bc0c8da9c5adf246d90f644637
+    Reviewed-on: https://go-review.googlesource.com/9564
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/cover/cover   | Bin 6084208 -> 0 bytes
+ src/cmd/cover/func.go |   4 ++--
+ src/cmd/cover/html.go |   6 +++---
+ 3 files changed, 5 insertions(+), 5 deletions(-)

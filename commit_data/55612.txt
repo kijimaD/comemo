@@ -1,0 +1,18 @@
+commit cdd0ddaf45f0de162d4e52e8418bd0638a3dc800
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Dec 13 13:45:05 2023 -0800
+
+    internal/abi: get rid of itab blank field
+    
+    We don't need it anymore, as we're accessing all the field offsets
+    symbolically.
+    This won't affect 64-bit, but it makes itabs on 32-bit 4 bytes smaller.
+    
+    Change-Id: I7fb937813111476fd5ab03005b248ea7bb962cf6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549517
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/abi/iface.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit 6a0fb608665ed3ff69cc9adaad3d7d670156b24b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 18 23:16:22 2008 -0700
+
+    - added item to TODO list in go_spec
+    - filed a bug
+    
+    R=r
+    OCL=15517
+    CL=15517
+
+ doc/go_spec.txt     |  2 ++
+ test/bugs/bug103.go | 14 ++++++++++++++
+ 2 files changed, 16 insertions(+)

@@ -1,0 +1,18 @@
+commit ac8966aa581a4b5178d40bca36854461f234f85e
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Fri Oct 11 08:50:12 2019 -0700
+
+    cmd/compile/internal/ssa: fix block AuxIntType lookup
+    
+    Avoid an out-of-range error when calling LongString on a generic
+    block.
+    
+    Change-Id: I33ca88940d899bc71e3155bc63d2aa925cf83230
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200737
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/ssa/gen/main.go |  8 +++++---
+ src/cmd/compile/internal/ssa/opGen.go    | 20 ++++++++++++--------
+ 2 files changed, 17 insertions(+), 11 deletions(-)

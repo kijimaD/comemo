@@ -1,0 +1,14 @@
+commit 1ca39fb1fdce4d9371d5b95829234490ff9f8327
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 10 00:44:43 2010 -0800
+
+    gc: fix mkopnames and color grep interaction
+    
+    Fixes #406.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/207053
+
+ src/cmd/gc/mkopnames | 4 ++++
+ 1 file changed, 4 insertions(+)

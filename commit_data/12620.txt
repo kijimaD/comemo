@@ -1,0 +1,18 @@
+commit d724631a532017535133546776d444e698c67336
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 13 17:29:07 2012 -0700
+
+    all: various typos
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5820045
+
+ src/pkg/index/suffixarray/qsufsort.go | 4 ++--
+ src/pkg/math/big/nat.go               | 2 +-
+ src/pkg/math/erf.go                   | 4 ++--
+ src/pkg/net/interface_linux.go        | 2 +-
+ src/pkg/net/interface_stub.go         | 2 +-
+ src/pkg/net/interface_windows.go      | 2 +-
+ src/pkg/syscall/syscall_linux.go      | 2 +-
+ 7 files changed, 9 insertions(+), 9 deletions(-)

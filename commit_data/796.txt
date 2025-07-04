@@ -1,0 +1,20 @@
+commit f21e731c7112ab4d4de150fdd2fbea639eb4b810
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Oct 2 14:38:07 2008 -0700
+
+    added printn and panicn
+    prints that insert spaces and new line
+    
+    R=r
+    OCL=16370
+    CL=16370
+
+ src/cmd/gc/go.h        |   4 +-
+ src/cmd/gc/go.y        |  12 +-
+ src/cmd/gc/lex.c       |   2 +
+ src/cmd/gc/subr.c      |   2 +
+ src/cmd/gc/sys.go      |   4 +
+ src/cmd/gc/sysimport.c | 562 +++++++++++++++++++++++++------------------------
+ src/cmd/gc/walk.c      |  40 +++-
+ src/runtime/print.c    |  12 ++
+ 8 files changed, 351 insertions(+), 287 deletions(-)

@@ -1,0 +1,18 @@
+commit de2231888821add783305e7674bbb43d4d8453dc
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Sep 11 21:46:11 2017 +0200
+
+    text/template: check ignored error in a test
+    
+    Found with staticcheck. Not terribly important since the test would
+    likely fail anyway, but at least it will fail with a better explanation
+    now.
+    
+    Change-Id: Ic3f9a94a2152404b7873cc8cd47b6db79d78c2e6
+    Reviewed-on: https://go-review.googlesource.com/62990
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/text/template/multi_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

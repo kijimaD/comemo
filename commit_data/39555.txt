@@ -1,0 +1,15 @@
+commit fe8a86646478b11db5697108a4db0deeaca29595
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Tue Jul 30 17:46:36 2019 -0400
+
+    doc/go1.12: document change in syscall.Setrlimit behavior
+    
+    Fixes #30401
+    
+    Change-Id: I7b5035ffc7333c746d4e31563df26ff4f934dfc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188237
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ doc/go1.12.html | 4 ++++
+ 1 file changed, 4 insertions(+)

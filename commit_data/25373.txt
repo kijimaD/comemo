@@ -1,0 +1,16 @@
+commit d6a203ecabe5965c55f036c8c0479bdcd2a51683
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 18 14:21:41 2015 -0800
+
+    cmd/compile: const name and label name may match
+    
+    Fixes #13684.
+    
+    Change-Id: I3977119b6eb1d6b7dc2ea1e7d6656a8f0d421bc1
+    Reviewed-on: https://go-review.googlesource.com/18060
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go |  4 ++--
+ test/fixedbugs/issue13684.go          | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+), 2 deletions(-)

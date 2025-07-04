@@ -1,0 +1,25 @@
+commit 09ebbf408530b82f1a817e2f648e1c5618eeb1ab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 15 16:42:08 2017 -0700
+
+    runtime: add read/write mutex type
+    
+    This is a runtime version of sync.RWMutex that can be used by code in
+    the runtime package. The type is not quite the same, in that the zero
+    value is not valid.
+    
+    For future use by CL 43713.
+    
+    Updates #19546
+    
+    Change-Id: I431eb3688add16ce1274dab97285f555b72735bf
+    Reviewed-on: https://go-review.googlesource.com/45991
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/export_test.go  |  24 ++++++
+ src/runtime/rwmutex.go      |  80 +++++++++++++++++++
+ src/runtime/rwmutex_test.go | 183 ++++++++++++++++++++++++++++++++++++++++++++
+ src/sync/rwmutex.go         |   3 +
+ src/sync/rwmutex_test.go    |   3 +
+ 5 files changed, 293 insertions(+)

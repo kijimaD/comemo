@@ -1,0 +1,28 @@
+commit 529ea7c0de1f9e582280c73031ae870f868e7908
+Author: Mark Rushakoff <mark.rushakoff@gmail.com>
+Date:   Wed Nov 14 19:34:48 2018 +0000
+
+    cmd/go: don't panic when go run is passed ... under nonexistent dir
+    
+    Given a nonexistent directory above a wildcard:
+    
+        go run ./nonexistent/...
+    
+    Print this error instead of panicking:
+    
+        go run: no packages loaded from ./nonexistent/...
+    
+    Fixes #28696.
+    
+    Change-Id: Iaa3bc5c78b14ef858d931778e1bc55ca626c5571
+    GitHub-Last-Rev: bb1a80483ad26c8cf646cf0900d08cfe49aba535
+    GitHub-Pull-Request: golang/go#28703
+    Reviewed-on: https://go-review.googlesource.com/c/148821
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/cmd/go/internal/run/run.go              | 3 +++
+ src/cmd/go/testdata/script/run_wildcard.txt | 5 +++++
+ 2 files changed, 8 insertions(+)

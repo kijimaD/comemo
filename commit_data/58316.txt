@@ -1,0 +1,27 @@
+commit fb41d5eb51909e777cf6c82a8eff607d7c1456b0
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 30 17:50:31 2024 +0100
+
+    crypto/rsa: minor FIPS 186-5 compliance fixes
+    
+    None of these checks actually matter, and indeed we didn't have them
+    before, but they are required by FIPS 186-5.
+    
+    Fixes #69799
+    For #69536
+    
+    Change-Id: I5e866962a1b2a31a753053e5b9ec50a3f4c87394
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632535
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/fips140/bigmod/nat.go   | 59 ++++++++++++-------
+ src/crypto/internal/fips140/rsa/keygen.go   | 42 +++++++++++--
+ src/crypto/internal/fips140/rsa/pkcs1v15.go |  4 +-
+ src/crypto/internal/fips140/rsa/pkcs1v22.go |  8 ++-
+ src/crypto/internal/fips140/rsa/rsa.go      | 91 ++++++++++++++++++++++++-----
+ src/crypto/rsa/fips.go                      |  8 ++-
+ src/crypto/rsa/rsa.go                       |  3 +
+ 7 files changed, 171 insertions(+), 44 deletions(-)

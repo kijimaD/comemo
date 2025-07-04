@@ -1,0 +1,16 @@
+commit b8fcae02b076cdef0bbef5bce5de090409858fba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 3 15:13:26 2015 -0800
+
+    math/big: fix %b format so it matches strconf %b format for non-zero values
+    
+    (For zero values the strconv %b format prints the bias-adjusted exponent;
+    there's no bias in Float.)
+    
+    Change-Id: I6f4dda9c3a50d02eac375cfe2c927c1540aae865
+    Reviewed-on: https://go-review.googlesource.com/3841
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/floatconv.go      |  12 ++---
+ src/math/big/floatconv_test.go | 106 ++++++++++++++++++++++-------------------
+ 2 files changed, 61 insertions(+), 57 deletions(-)

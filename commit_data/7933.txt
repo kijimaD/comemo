@@ -1,0 +1,12 @@
+commit 6b567d26b74e7b98c540a9779a798cd95334dc87
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 30 16:41:41 2011 +1100
+
+    godoc: remove errant space in HTML tag
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4277087
+
+ src/cmd/godoc/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

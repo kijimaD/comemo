@@ -1,0 +1,16 @@
+commit 3b1b84069956bc8f21be37c563d0ba8da93a87d1
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Wed Jul 16 13:06:11 2014 -0700
+
+    strconv: fix handling of BOMs in CanBackquote
+    
+    A byte order mark  (BOM) cannot be backquoted.
+    
+    LGTM=r
+    R=golang-codereviews, gobot, r
+    CC=golang-codereviews
+    https://golang.org/cl/112310043
+
+ src/pkg/strconv/quote.go      | 5 ++++-
+ src/pkg/strconv/quote_test.go | 4 ++--
+ 2 files changed, 6 insertions(+), 3 deletions(-)

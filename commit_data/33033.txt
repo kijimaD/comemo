@@ -1,0 +1,16 @@
+commit 0c53b4ec4f909fd12d4f39ddedd393f469f74ae4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 10 17:19:56 2017 -0700
+
+    cmd/compile: disable TestNexting in short mode
+    
+    Updates #22206
+    
+    Change-Id: If75feddc01f8f86f294929fa7081c70eb15e581d
+    Reviewed-on: https://go-review.googlesource.com/69790
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/ssa/debug_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

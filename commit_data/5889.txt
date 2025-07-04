@@ -1,0 +1,16 @@
+commit 9a442211c6972c2d35a64562db864bb499b5915e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 26 17:34:02 2010 -0700
+
+    6l: more invalid input files
+    
+    Fixes #963.
+    Fixes #964.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1874045
+
+ src/cmd/6l/obj.c | 21 ++++++++++++---------
+ src/cmd/ld/lib.c |  2 +-
+ 2 files changed, 13 insertions(+), 10 deletions(-)

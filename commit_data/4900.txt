@@ -1,0 +1,18 @@
+commit 666abfb64c6c61a215cea58092d0e1dd6c8e7c7b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 19 08:20:59 2010 -0800
+
+    dashboard: lots of caching to avoid datastore queries
+    
+    reorganize benchmark computation so that it is
+    incremental.  if it times out, it doesn't lose the
+    pieces it already computed, so that next time it
+    has a fighting chance to finish.
+    
+    R=agl1, agl
+    CC=golang-dev
+    https://golang.org/cl/216046
+
+ misc/dashboard/godashboard/gobuild.py | 235 ++++++++++++++++++----------------
+ misc/dashboard/godashboard/index.yaml |  26 ++--
+ 2 files changed, 143 insertions(+), 118 deletions(-)

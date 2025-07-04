@@ -1,0 +1,20 @@
+commit 5bbd4c2f1b9e45ebbdef29695d848a062b312fc7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 15 17:46:53 2009 -0700
+
+    publish semacquire and semrelease for use by sync.
+    
+    more enforcing package boundaries
+    
+    R=r
+    DELTA=46  (13 added, 15 deleted, 18 changed)
+    OCL=35806
+    CL=35806
+
+ src/pkg/Make.deps             |  2 +-
+ src/pkg/runtime/extern.go     | 11 +++++++++++
+ src/pkg/runtime/sema.cgo      |  6 +++---
+ src/pkg/sync/internal_test.go | 15 ---------------
+ src/pkg/sync/mutex.go         | 21 +++++++++++----------
+ src/pkg/sync/mutex_test.go    |  9 +++++----
+ 6 files changed, 31 insertions(+), 33 deletions(-)

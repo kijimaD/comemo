@@ -1,0 +1,14 @@
+commit 7d68093f935f9bb5cd6964b1718f2a53a58c04c4
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 21 19:47:52 2009 -0700
+
+    Fix typo in documentation.
+    
+    R=r
+    APPROVED=r
+    DELTA=2  (1 added, 0 deleted, 1 changed)
+    OCL=35977
+    CL=35977
+
+ src/pkg/encoding/pem/pem.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

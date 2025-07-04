@@ -1,0 +1,12 @@
+commit 8047e8e95a917f44ed0b12a0a382a6b144a8797f
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Feb 3 00:49:37 2013 +0800
+
+    src: add race.bat
+    
+    R=golang-dev, dave, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/7133064
+
+ src/race.bat | 52 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 52 insertions(+)

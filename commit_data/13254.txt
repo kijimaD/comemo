@@ -1,0 +1,30 @@
+commit 40af78c19eeceb38407c2b7c2a4d8b685249701f
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Sat Jun 2 22:50:57 2012 -0400
+
+    cmd/gc: inline slice[arr,str] in the frontend (mostly).
+    
+    R=rsc, ality, rogpeppe, minux.ma, dave
+    CC=golang-dev
+    https://golang.org/cl/5966075
+
+ src/cmd/5g/cgen.c          |  21 +++
+ src/cmd/5g/gg.h            |   1 -
+ src/cmd/5g/ggen.c          | 395 +-------------------------------------------
+ src/cmd/5g/gsubr.c         |  21 +++
+ src/cmd/6g/cgen.c          |  21 ++-
+ src/cmd/6g/gg.h            |   1 -
+ src/cmd/6g/ggen.c          | 365 +----------------------------------------
+ src/cmd/6g/gsubr.c         |  19 +++
+ src/cmd/8g/cgen.c          |  21 ++-
+ src/cmd/8g/gg.h            |   1 -
+ src/cmd/8g/ggen.c          | 400 +--------------------------------------------
+ src/cmd/8g/gsubr.c         |  19 +++
+ src/cmd/gc/builtin.c       |   3 -
+ src/cmd/gc/gen.c           |  60 +++++++
+ src/cmd/gc/go.h            |   2 +
+ src/cmd/gc/runtime.go      |   3 -
+ src/cmd/gc/walk.c          | 272 ++++++++++++++++++------------
+ src/pkg/runtime/slice.c    | 143 ----------------
+ src/pkg/runtime/string.goc |  25 ---
+ 19 files changed, 354 insertions(+), 1439 deletions(-)

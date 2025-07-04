@@ -1,0 +1,15 @@
+commit 592415d682232e96dda7c903d67dd24672649b76
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 23 16:26:42 2014 -0800
+
+    effective_go: move 'Type switch' section into 'Control structures' section.
+    Needs to be an h3, not an h2.
+    Thanks to Mingjie Xing for pointing it out.
+    
+    LGTM=dsymonds
+    R=golang-codereviews, dsymonds
+    CC=golang-codereviews
+    https://golang.org/cl/55980046
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

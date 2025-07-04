@@ -1,0 +1,12 @@
+commit 199d410df5f52926add3cb6e1ad972a1135b40b1
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Nov 22 11:30:16 2016 -0800
+
+    doc: fix typos in go1.8.html
+    
+    Change-Id: I51180e1c685e488f7ea4c51a63fd035148671b05
+    Reviewed-on: https://go-review.googlesource.com/33470
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)

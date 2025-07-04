@@ -1,0 +1,24 @@
+commit f3d4ff7ddc86d2e5f3318fbf8a897edae6da1379
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 13 14:47:45 2017 -0700
+
+    cmd/compile: omit ICE diagnostics after normal error messages
+    
+    After we detect errors, the AST is in a precarious state and more
+    likely to trip useless ICE failures. Instead let the user fix any
+    existing errors and see if the ICE persists.  This makes Fatalf more
+    consistent with how panics are handled by hidePanic.
+    
+    While here, also fix detection for release versions: release version
+    strings begin with "go" ("go1.8", "go1.9.1", etc), not "release".
+    
+    Fixes #22252.
+    
+    Change-Id: I1c400af62fb49dd979b96e1bf0fb295a81c8b336
+    Reviewed-on: https://go-review.googlesource.com/70850
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 28 +++++++++++++++-------------
+ 1 file changed, 15 insertions(+), 13 deletions(-)

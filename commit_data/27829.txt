@@ -1,0 +1,18 @@
+commit 1e94d79f9dbe032d9c8c0f461ca6fb96e20c0b85
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Aug 16 05:57:38 2016 -0400
+
+    cmd/compile: disable Duff's device on darwin/arm64
+    
+    Darwin linker does not support BR26 reloc with non-zero addend.
+    
+    Fixes #16724.
+    
+    Change-Id: I1b5b4dc7159141bde3e273490f435c08c583afaf
+    Reviewed-on: https://go-review.googlesource.com/27081
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/ssa/config.go | 1 +
+ 1 file changed, 1 insertion(+)

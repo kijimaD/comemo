@@ -1,0 +1,15 @@
+commit e7628bee6e8ddac41b213d9ed0b2d6e4051674e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 13 21:21:59 2017 -0500
+
+    bytes: make ExampleTrimLeft and ExampleTrimRight match
+    
+    ExampleTrimLeft was inexplicably complex.
+    
+    Change-Id: I13ca81bdeba728bdd632acf82e3a1101d29b9f39
+    Reviewed-on: https://go-review.googlesource.com/78111
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/bytes/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

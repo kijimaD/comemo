@@ -1,0 +1,23 @@
+commit c7f6bd795acf002d60f712f0f4e2701051e74e4a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 23:51:22 2014 -0400
+
+    runtime: rename SchedType to SchedT
+    
+    CL 144940043 renamed it from Sched to SchedType
+    to avoid a lowercasing conflict in the Go code with
+    the variable named sched.
+    We've been using just T resolve those conflicts, not Type.
+    
+    The FooType pattern is already taken for the kind-specific
+    variants of the runtime Type structure: ChanType, MapType,
+    and so on. SchedType isn't a Type.
+    
+    LGTM=bradfitz, khr
+    R=khr, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/145180043
+
+ src/runtime/proc.c    | 2 +-
+ src/runtime/runtime.h | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

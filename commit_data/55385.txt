@@ -1,0 +1,70 @@
+commit f5e475edafd4186c51aadf2e7fdf164eb365379f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jan 11 21:55:04 2024 +0000
+
+    runtime: make a much better effort to emit CPU profile in a trace
+    
+    Currently the new execution tracer's handling of CPU profile samples is
+    very best-effort. The same CPU profile buffer is used across
+    generations, leading to a high probability that CPU samples will bleed
+    across generations. Also, because the CPU profile buffer (not the trace
+    buffer the samples get written into) isn't guaranteed to be flushed when
+    we close out a generation, nor when tracing stops. This has led to test
+    failures, but can more generally just lead to lost samples.
+    
+    In general, lost samples are considered OK. The CPU profile buffer is
+    only read from every 100 ms, so if it fills up too much before then, old
+    samples will get overwritten. The tests already account for this, and in
+    that sense the CPU profile samples are already best-effort. But with
+    actual CPU profiles, this is really the only condition under which
+    samples are dropped.
+    
+    This CL aims to align CPU profiles better with traces by eliminating
+    all best-effort parts of the implementation aside from the possibility
+    of dropped samples from a full buffer.
+    
+    To achieve this, this CL adds a second CPU profile buffer and has the
+    SIGPROF handler pick which CPU profile buffer to use based on the
+    generation, much like every other part of the tracer. The SIGPROF
+    handler then reads the trace generation, but not before ensuring it
+    can't change: it grabs its own thread's trace seqlock. It's possible
+    that a SIGPROF signal lands while this seqlock is already held by the
+    thread. Luckily this is detectable and the SIGPROF handler can simply
+    elide the locking if this happens (the tracer will already wait until
+    all threads exit their seqlock critical section).
+    
+    Now that there are two CPU profile buffers written to, the read side
+    needs to change. Instead of calling traceAcquire/traceRelease for every
+    single CPU sample event, the trace CPU profile reader goroutine holds
+    this conceptual lock over the entirety of flushing a buffer. This means
+    it can pick the CPU profile buffer for the current generation to flush.
+    
+    With all this machinery in place, we're now at a point where all CPU
+    profile samples get divided into either the previous generation or the
+    current generation. This is good, since it means that we're able to
+    emit profile samples into the correct generation, avoiding surprises in
+    the final trace. All that's missing is to flush the CPU profile buffer
+    from the previous generation, once the runtime has moved on from that
+    generation. That is, when the generation counter updates, there may yet
+    be CPU profile samples sitting in the last generation's buffer. So,
+    traceCPUFlush now first flushes the CPU profile buffer, followed by any
+    trace buffers containing CPU profile samples.
+    
+    The end result of all this is that no sample gets left behind unless it
+    gets overwritten in the CPU profile buffer in the first place. CPU
+    profile samples in the trace will now also get attributed to the right
+    generation, since the SIGPROF handler now participates in the tracer's
+    synchronization across trace generations.
+    
+    Fixes #55317.
+    
+    Change-Id: I47719fad164c544eef0bb12f99c8f3c15358e344
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555495
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/trace2.go        |  9 +++--
+ src/runtime/trace2cpu.go     | 87 +++++++++++++++++++++++++++++++++-----------
+ src/runtime/trace2runtime.go |  7 +++-
+ 3 files changed, 77 insertions(+), 26 deletions(-)

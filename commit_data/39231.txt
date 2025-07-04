@@ -1,0 +1,36 @@
+commit 3e9d8e2e1bb94c3e302da8121f9cc018d86d1e71
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Fri May 17 17:25:07 2019 +0700
+
+    test/fixedbugs: fix some tests will not be run
+    
+    Currently, some tests under test/fixedbugs never run:
+    
+            $ for d in test/fixedbugs/*.dir; do
+              ! test -f "${d%.dir}.go" && echo "$d"
+            done
+            test/fixedbugs/issue15071.dir
+            test/fixedbugs/issue15609.dir
+            test/fixedbugs/issue29612.dir
+    
+    Because they missed the corresponding ".go" file, so "go run run.go"
+    will skip them.
+    
+    Add missing ".go" files for those tests to make sure they will be
+    collected and run.
+    
+    While at it, add another action "runindir", which does "go run ."
+    inside the t.goDirName then check the output.
+    
+    Change-Id: I88000b3663a6a615d90c1cf11844ea0377403e3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177798
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/issue15071.dir/{exp => }/exp.go |  0
+ test/fixedbugs/issue15071.go                   |  7 ++++++
+ test/fixedbugs/issue15609.go                   |  7 ++++++
+ test/fixedbugs/issue29612.go                   |  7 ++++++
+ test/run.go                                    | 31 +++++++++++++++++++++++---
+ 5 files changed, 49 insertions(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit b59b42cee8c1ca209dafd952da872fd493b77405
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 16 20:32:05 2018 +1000
+
+    doc: update Usage section of the FAQ
+    
+    This is close to a complete rewrite, as the content was pretty old.
+    
+    The CL includes links to the Wiki for information about companies
+    using Go, a new section about IDEs and editors¹, and a restatement
+    of the foreign function interface story. It also modernizes and
+    expands a little on the use of Go inside Google.
+    
+    ¹ Ed is the standard editor.
+    
+    Change-Id: I5e54aafa53d00d86297b2691960a376b40f6225b
+    Reviewed-on: https://go-review.googlesource.com/123922
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_faq.html | 105 +++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 88 insertions(+), 17 deletions(-)

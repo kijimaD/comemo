@@ -1,0 +1,15 @@
+commit f8225bdb350f5c7d249f8ed090cf7543901612fa
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 16 15:57:32 2014 -0800
+
+    net/rpc: fix inconsistency in documentation of Service.Register
+    Falsely claimed an old, no longer true condition that the first argument
+    must be a pointer.
+    Fixes #6697
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/53480043
+
+ src/pkg/net/rpc/server.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

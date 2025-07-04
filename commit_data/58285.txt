@@ -1,0 +1,18 @@
+commit 592da0ba474b94b6eceee62b5613f1c9c1ed9c89
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Jun 11 13:44:43 2024 -0700
+
+    net/http: run TestServerShutdownStateNew in a synctest bubble
+    
+    Took ~12s previously, ~0s now.
+    
+    Change-Id: I72580fbde73482a40142cf84cd3d78a50afb9f44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630382
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/net/http/async_test.go        |  52 +++++
+ src/net/http/clientserver_test.go |  32 +++
+ src/net/http/netconn_test.go      | 410 ++++++++++++++++++++++++++++++++++++++
+ src/net/http/serve_test.go        |  78 ++++----
+ 4 files changed, 528 insertions(+), 44 deletions(-)

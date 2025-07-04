@@ -1,0 +1,23 @@
+commit 53f485813e3900c4972337844b44f90f3ebd77d0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 9 09:34:55 2009 -0800
+
+    fix for nodeSize computation, used to determine if
+    a node fits on one line:
+    - for purposes of measuring the node size in text,
+      don't generate html or use a styler that could
+      generate html as it will lead to overly large
+      sizes
+    
+    A consequence of this bug is that source code displayed
+    with godoc may show functions that fit on one line in
+    the source on multiple lines.
+    
+    This change causes no difference to the gofmt formatting
+    of any files in src or misc.
+    
+    R=rsc
+    http://go/go-review/1026034
+
+ src/pkg/go/printer/nodes.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

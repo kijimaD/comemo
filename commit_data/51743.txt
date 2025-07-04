@@ -1,0 +1,23 @@
+commit 733ba921875ea11088f1f447cbca418f651aae5c
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jan 3 13:11:10 2023 -0500
+
+    cmd/compile: flag 'large' functions when -m=2+ in effect
+    
+    When -m=N (where N > 1) is in effect, include a note in the trace
+    output if a given function is considered "big" during inlining
+    analysis, since this causes the inliner to be less aggressive. If a
+    small change to a large function happens to nudge it over the large
+    function threshold, it can be confusing for developers, thus it's
+    probably worth including this info in the remark output.
+    
+    Change-Id: Id31a1b76371ab1ef9265ba28a377f97b0247d0a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460317
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/inline/inl.go | 3 +++
+ test/inline_big.go                     | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

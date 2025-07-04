@@ -1,0 +1,14 @@
+commit 136c04f71adf3611d94c33552aebb63290647580
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 8 16:39:05 2011 -0800
+
+    doc/go1: most of the simple language changes
+    
+    R=rsc, adg, r
+    CC=golang-dev
+    https://golang.org/cl/5477044
+
+ doc/go1.html     | 226 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ doc/go1.tmpl     | 182 +++++++++++++++++++++++++++++++++++++++++++-
+ doc/progs/go1.go |  74 ++++++++++++++++++
+ 3 files changed, 479 insertions(+), 3 deletions(-)

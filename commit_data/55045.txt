@@ -1,0 +1,29 @@
+commit 1c15291fa0efaeb14a76d0b0bcd8390665c9b97d
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu Oct 26 02:28:28 2023 +0000
+
+    hash: simplify binary operations
+    
+    We can not use encoding/binary in hash packages because of import cycles.
+    
+    So just keep the appendUint and readUint helper functions same as that
+    in the encoding/binary standard package.
+    
+    There is no notable performance impacts.
+    
+    Updates #63719
+    
+    Change-Id: If47a7faaf9d422d772f32bbe1fa2f2c8a16485f4
+    GitHub-Last-Rev: f334fee408eff6869a7cc5f306df525d4d55d2cf
+    GitHub-Pull-Request: golang/go#63746
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537796
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/hash/adler32/adler32.go | 15 +++++++++------
+ src/hash/crc32/crc32.go     | 15 +++++++++------
+ src/hash/crc64/crc64.go     | 23 +++++++++++++----------
+ src/hash/fnv/fnv.go         | 38 ++++++++++++++++++++++----------------
+ 4 files changed, 53 insertions(+), 38 deletions(-)

@@ -1,0 +1,11 @@
+commit 34691ccd10e4a27184ad80ad09fb7227f2e9644f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 13 12:55:37 2008 -0700
+
+    support symbol tables and line numbers in 6.out executables
+    
+    SVN=122700
+
+ src/libmach_amd64/executable.c | 49 +++++++++++++++++++++++++++++++++++++++++-
+ src/make.bash                  |  2 ++
+ 2 files changed, 50 insertions(+), 1 deletion(-)

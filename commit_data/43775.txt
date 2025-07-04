@@ -1,0 +1,17 @@
+commit 1948c00b6e49b4481ab1378247020786db1b7129
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Nov 4 12:40:35 2020 -0500
+
+    doc/go1.16: add release notes for darwin ports
+    
+    Updates #38485, #42100.
+    For #40700.
+    
+    Change-Id: I2caaa8482f13f9b79d4c2d2fdd242543981060cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267718
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

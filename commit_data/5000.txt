@@ -1,0 +1,16 @@
+commit ac499ed7a5b51b270815cf6aae05cce936dd53a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 5 15:35:09 2010 -0800
+
+    gc: better compilation of floating point +=
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/255042
+
+ src/cmd/5g/ggen.c | 26 +++++++++++++++++---------
+ src/cmd/6g/ggen.c | 26 +++++++++++++++++---------
+ src/cmd/8g/cgen.c |  2 +-
+ src/cmd/8g/ggen.c | 33 +++++++++++++++++++++++----------
+ src/cmd/gc/walk.c |  7 +++++--
+ 5 files changed, 63 insertions(+), 31 deletions(-)

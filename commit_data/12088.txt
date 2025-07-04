@@ -1,0 +1,12 @@
+commit dc19b94b21710a38858e32548cac74e0d406549d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 21 10:24:15 2012 +1100
+
+    net/http: add optional Server.TLSConfig field
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5688047
+
+ src/pkg/net/http/server.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

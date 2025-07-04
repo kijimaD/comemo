@@ -1,0 +1,22 @@
+commit a6df299e89f6ba56d71571f694fb7327294ae72e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 22 16:11:10 2017 -0400
+
+    cmd/go: detect Go assembly before assembling with gcc
+    
+    Avoids confusing errors from the GNU assembler
+    processing Go assembly source code.
+    
+    Fixes #19448.
+    
+    Change-Id: Ic2c68b2521847cca5a3d078a092e5c60ec340840
+    Reviewed-on: https://go-review.googlesource.com/46423
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go               | 13 +++++++++++++
+ src/cmd/go/internal/work/build.go   | 10 ++++++++++
+ src/cmd/go/testdata/src/cgoasm/p.go |  8 ++++++++
+ src/cmd/go/testdata/src/cgoasm/p.s  |  2 ++
+ 4 files changed, 33 insertions(+)

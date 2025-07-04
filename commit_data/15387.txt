@@ -1,0 +1,14 @@
+commit 66ba4a85e4f0fa31e5b033dcb70212d04dbee01d
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Fri Feb 22 15:32:54 2013 -0800
+
+    cmd/gc: mark LOCALS argument as a constant to print correctly
+    
+    Fixes #4875.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7376049
+
+ src/cmd/gc/pgen.c | 1 +
+ 1 file changed, 1 insertion(+)

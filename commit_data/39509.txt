@@ -1,0 +1,23 @@
+commit e831719469a5acfad7d8f73a976e2959815d0e27
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 11 11:57:31 2019 -0700
+
+    cmd/cgo: do not rewrite call if there are more args than parameters
+    
+    We already skipped rewriting the call if there were fewer args than
+    parameters. But we can also get a cgo crash if there are more args,
+    if at least one of the extra args uses a name qualified with "C.".
+    Skip the rewrite, since the build will fail later anyhow.
+    
+    Fixes #33061
+    
+    Change-Id: I62ff3518b775b502ad10c2bacf9102db4c9a531c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185797
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ misc/cgo/errors/errors_test.go         |  1 +
+ misc/cgo/errors/testdata/issue33061.go | 17 +++++++++++++++++
+ src/cmd/cgo/gcc.go                     |  6 +++---
+ 3 files changed, 21 insertions(+), 3 deletions(-)

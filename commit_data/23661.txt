@@ -1,0 +1,15 @@
+commit 1fff4bb156ae68e27c919bb5f1b153f4e197802a
+Author: Nevins Bartolomeo <nevins.bartolomeo@gmail.com>
+Date:   Wed Jun 3 16:55:41 2015 -0400
+
+    crypto: add SHA-512/224 and SHA-512/256 as described in FIPS 180-4
+    
+    Change-Id: Ifbab8203dea1eb0df4c834df22e12cb7c37c14fd
+    Reviewed-on: https://go-review.googlesource.com/10683
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/crypto/crypto.go             |  56 +++---
+ src/crypto/sha512/sha512.go      | 162 +++++++++++++----
+ src/crypto/sha512/sha512_test.go | 372 +++++++++++++++++++++++++++------------
+ 3 files changed, 419 insertions(+), 171 deletions(-)

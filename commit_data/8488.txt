@@ -1,0 +1,13 @@
+commit 831c6844346cbd405f6c83a7e657dfff0f1cb831
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 25 09:44:05 2011 -0400
+
+    5l: fix build
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4538095
+
+ src/cmd/5l/asm.c | 6 ++++++
+ src/cmd/ld/lib.h | 1 +
+ 2 files changed, 7 insertions(+)

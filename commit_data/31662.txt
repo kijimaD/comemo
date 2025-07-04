@@ -1,0 +1,12 @@
+commit 01f322316fa840404796266ed32d8581ebe44d52
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Wed May 24 11:05:04 2017 -0700
+
+    doc: document go1.8.3
+    
+    Change-Id: I5d55c3b1011dd10552d8e740fb65886306d91b5c
+    Reviewed-on: https://go-review.googlesource.com/44035
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,26 @@
+commit 5c2b43a761544a7b172971a91f2e3ceb40190f28
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Jun 27 10:03:55 2023 +0700
+
+    cmd/compile/internal/typecheck: cleanup code
+    
+    Removing a lot of functions/variables/constants which are un-unsed
+    anymore in Unified IR frontend.
+    
+    Change-Id: Iccf73754196bf4fa40fe701a6468f4c8a1a0c655
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506477
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/const.go    |  29 ------
+ src/cmd/compile/internal/typecheck/dcl.go      |  21 ----
+ src/cmd/compile/internal/typecheck/export.go   |  25 -----
+ src/cmd/compile/internal/typecheck/func.go     |  20 ----
+ src/cmd/compile/internal/typecheck/iexport.go  | 136 -------------------------
+ src/cmd/compile/internal/typecheck/subr.go     |   4 -
+ src/cmd/compile/internal/typecheck/universe.go |  20 ----
+ 7 files changed, 255 deletions(-)

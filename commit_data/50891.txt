@@ -1,0 +1,24 @@
+commit e56c93f07b445d1c123b1c46483db2d214af8cc3
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Wed Jun 8 10:55:42 2022 -0500
+
+    cmd/go: enable -msan on freebsd/amd64
+    
+    Enable -msan flag on freebsd/amd64 and amend PIE comment in
+    internal/work/init.go to indicate that MSAN requires PIE on all platforms
+    except linux/amd64.
+    
+    R=go1.20
+    
+    For #53298
+    
+    Change-Id: I93d94efa95d7f292c23c433fb1d3f4301d820bde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411275
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/alldocs.go              | 4 ++--
+ src/cmd/go/internal/work/build.go  | 4 ++--
+ src/cmd/go/internal/work/init.go   | 6 +++---
+ src/internal/platform/supported.go | 2 ++
+ 4 files changed, 9 insertions(+), 7 deletions(-)

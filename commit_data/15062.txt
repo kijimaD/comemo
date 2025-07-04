@@ -1,0 +1,12 @@
+commit d314e3a68e08fd0769847ca4eb6f9fef335266bd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 31 13:42:26 2013 -0800
+
+    doc/codewalk: gofmt pig.go
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7221079
+
+ doc/codewalk/pig.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

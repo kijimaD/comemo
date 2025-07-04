@@ -1,0 +1,30 @@
+commit ac40c9872f6e8ef095dcc6ee556236782eee4f76
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 13 09:17:22 2021 -0700
+
+    reflect: fix _faststr optimization
+    
+    CL 345486 introduced an optimization to reflect's map accesses
+    which is not quite correct. We can't use the optimized code if the
+    value type is >128 bytes.
+    
+    See cmd/compile/internal/walk/walk.go:mapfast
+    
+    Fixes #48357
+    
+    Change-Id: I8e3c7858693083dd4393a8de48ca5fa47bab66f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349593
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Martin Möhrmann <martin@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/reflect/value.go         |  4 ++--
+ test/fixedbugs/issue48357.go | 20 ++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

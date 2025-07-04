@@ -1,0 +1,21 @@
+commit fb3f152c196269d7a0fc9246226de478866073c1
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Oct 10 14:21:42 2015 +1100
+
+    net/url: make *url.Error implement net.Error
+    
+    Fixes #12866
+    
+    net/http.Client returns some errors wrapped in a *url.Error. To avoid
+    the requirement to unwrap these errors to determine if the cause was
+    temporary or a timeout, make *url.Error implement net.Error directly.
+    
+    Change-Id: I1ba84ecc7ad5147a40f056ff1254e60290152408
+    Reviewed-on: https://go-review.googlesource.com/15672
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client_test.go |  7 ++--
+ src/net/url/url.go          | 18 ++++++++++
+ src/net/url/url_test.go     | 83 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 104 insertions(+), 4 deletions(-)

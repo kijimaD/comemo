@@ -1,0 +1,12 @@
+commit e798cd857c355650304f55dea35c3d2220bc42c1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 4 08:56:11 2013 +1100
+
+    doc: mention godoc.org in "How to Write Go Code"
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8344043
+
+ doc/code.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

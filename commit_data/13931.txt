@@ -1,0 +1,23 @@
+commit 0bf46d0cf3c879d4001cfd4b9c3354f0f8ca3f62
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 14:59:09 2012 -0400
+
+    cmd/ld: prepare for 64-bit ints
+    
+    Use explicit IntSize constant instead of 4.
+    
+    This CL does not change the meaning of int, but it should make
+    the eventual change of the meaning of int on amd64 a bit
+    smoother.
+    
+    Update #2188.
+    
+    R=ken, dave
+    CC=golang-dev
+    https://golang.org/cl/6554076
+
+ src/cmd/5l/l.h         |  1 +
+ src/cmd/6l/l.h         |  1 +
+ src/cmd/8l/l.h         |  1 +
+ src/cmd/ld/decodesym.c | 16 ++++++++--------
+ 4 files changed, 11 insertions(+), 8 deletions(-)

@@ -1,0 +1,23 @@
+commit 185c3d46109fe067abf1d4ad4d4812006a55dbe2
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon May 18 16:49:04 2020 -0400
+
+    crypto/tls: remove version check when unmarshaling sessionState
+    
+    This was causing issues when fuzzing with
+    TestMarshalUnmarshal since the test would
+    occassionally set the version to VersionTLS13,
+    which would fail when unmarshaling. The check
+    doesn't add much in practice, and there is no
+    harm in removing it to de-flake the test.
+    
+    Fixes #38902
+    
+    Change-Id: I0906c570e9ed69c85fdd2c15f1b52f9e372c62e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234486
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/tls/ticket.go | 1 -
+ 1 file changed, 1 deletion(-)

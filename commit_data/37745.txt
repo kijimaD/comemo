@@ -1,0 +1,19 @@
+commit d063b7c6d342815f196c183693e2300ac3925334
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Nov 17 13:58:38 2018 -0500
+
+    cmd/dist: enable race detector test on Linux/ARM64
+    
+    CL 138675 added the race detector support on Linux/ARM64, but it
+    didn't enable the race detector tests in cmd/dist (therefore in
+    all.bash). Enable them.
+    
+    Updates #28848
+    
+    Change-Id: I4306dad2fb4167021d568436076b9f535d7f6e07
+    Reviewed-on: https://go-review.googlesource.com/c/149967
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

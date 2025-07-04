@@ -1,0 +1,25 @@
+commit 448246adff7feb868d66cfde82b36fcfd0e66b75
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 18 17:43:15 2016 -0700
+
+    cmd/compile: don't exit early because of hidden error messages
+    
+    Non-syntax errors are always counted to determine if to exit
+    early, but then deduplication eliminates them. This can lead
+    to situations which report "too many errors" and only one
+    error is shown.
+    
+    De-duplicate non-syntax errors early, at least the ones that
+    appear consecutively, and only count the ones actually being
+    shown. This doesn't work perfectly as they may not appear in
+    sequence, but it's cheap and good enough.
+    
+    Fixes #14136.
+    
+    Change-Id: I7b11ebb2e1e082f0d604b88e544fe5ba967af1d7
+    Reviewed-on: https://go-review.googlesource.com/23259
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/subr.go | 51 +++++++++++++++++++++----------------
+ test/fixedbugs/issue14136.go        | 19 ++++++++++++++
+ 2 files changed, 48 insertions(+), 22 deletions(-)

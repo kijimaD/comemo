@@ -1,0 +1,26 @@
+commit 6f7bb2cab6c9ac6b6ec530a87ffc854d19335a15
+Author: Michael Darakananda <pongad@gmail.com>
+Date:   Fri Aug 24 00:27:35 2018 -0700
+
+    time: optimize Sub
+    
+    This is primarily achieved by checking for arithmetic overflow
+    instead of using Add and Equal.
+    
+    It's a decent performance improvement even though
+    the function still isn't inlined.
+    
+    name   old time/op  new time/op  delta
+    Sub-6   242ns ± 0%   122ns ± 0%  -49.59%  (p=0.002 n=8+10)
+    
+    Updates #17858.
+    
+    Change-Id: I1469b618183c83ea8ea54d5ce277eb15f2ec0f11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/131196
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/time.go      | 33 +++++++++++++++++++++++++--------
+ src/time/time_test.go | 10 +++++++++-
+ 2 files changed, 34 insertions(+), 9 deletions(-)

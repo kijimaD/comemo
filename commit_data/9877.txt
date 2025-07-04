@@ -1,0 +1,12 @@
+commit cb65463edbcfc4c44f9b27277d87958cc2cda681
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 5 14:33:18 2011 -0700
+
+    tag release.r60.2
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5208041
+
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

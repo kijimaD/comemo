@@ -1,0 +1,30 @@
+commit 8b360d5fdaa2508dd37b1e0098ad16c9486c3617
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Mar 2 03:22:00 2016 -0800
+
+    compress/bzip2: prevent zero-length Huffman codes
+    
+    Unlike RFC 1951 (DEFLATE), bzip2 does not use zero-length Huffman codes
+    to indicate that the symbol is missing. Instead, bzip2 uses a sparse
+    bitmap to indicate which symbols are present. Thus, it is undefined what
+    happens when a length of zero is used. Thus, fix the parsing logic so that
+    the length cannot ever go below 1-bit similar to how the C logic does things.
+    
+    To confirm that the C bzip2 utility chokes on this data:
+            $ echo "425a6836314159265359b1f7404b000000400040002000217d184682ee48
+            a70a12163ee80960" | xxd -r -p | bzip2 -d
+    
+            bzip2: Data integrity error when decompressing
+    
+    For reference see:
+            bzip2-1.0.6/decompress.c:320
+    
+    Change-Id: Ic1568f8e7f80cdea51d887b4d712cc239c2fe85e
+    Reviewed-on: https://go-review.googlesource.com/20119
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/compress/bzip2/bzip2.go      | 6 +++---
+ src/compress/bzip2/bzip2_test.go | 9 +++++++++
+ 2 files changed, 12 insertions(+), 3 deletions(-)

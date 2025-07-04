@@ -1,0 +1,20 @@
+commit 0e47c75f605c5b695e2af4d2a13a12d522887483
+Author: Dean Prichard <dean.prichard@gmail.com>
+Date:   Fri Feb 5 01:40:58 2010 -0800
+
+    5a/6a/8a/5c/6c/8c: remove fixed-size arrays for -I and -D options
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/198044
+
+ src/cmd/5a/a.h     |  5 ++---
+ src/cmd/5a/lex.c   |  8 ++++++--
+ src/cmd/6a/a.h     |  5 ++---
+ src/cmd/6a/lex.c   |  8 ++++++--
+ src/cmd/8a/a.h     |  5 ++---
+ src/cmd/8a/lex.c   |  8 ++++++--
+ src/cmd/cc/cc.h    |  2 +-
+ src/cmd/cc/lex.c   | 23 ++++++++++++-----------
+ src/cmd/cc/lexbody |  9 ++++-----
+ 9 files changed, 41 insertions(+), 32 deletions(-)

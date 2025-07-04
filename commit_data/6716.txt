@@ -1,0 +1,15 @@
+commit 9f7f69d3002e585ace16c868d3cbf62f4d1203d6
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 5 10:36:27 2010 -0700
+
+    gob: when sending an interface value, indirect down to the
+    underlying type; otherwise encoding fails when sending
+    a pointer value.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2922041
+
+ src/pkg/gob/codec_test.go | 39 ++++++++++++++++++++++++++++++++++++++-
+ src/pkg/gob/encode.go     |  2 +-
+ 2 files changed, 39 insertions(+), 2 deletions(-)

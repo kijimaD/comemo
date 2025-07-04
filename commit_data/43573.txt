@@ -1,0 +1,20 @@
+commit 2414e1f17b2f82be10110513b17cdfa80c9937c6
+Author: David Chase <drchase@google.com>
+Date:   Mon Oct 26 19:06:39 2020 -0400
+
+    cmd/compile: make sure field offset is aligned for structure splitting
+    
+    Always use the aligned form -- the old code sometimes could
+    at least nominally use a misaligned field in an SSA-able struct,
+    even if not actually.
+    
+    Fixes #42181.
+    
+    Change-Id: Ibdce0985f9349da70921a37423054b85ee4200d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265277
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

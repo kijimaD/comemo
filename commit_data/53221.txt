@@ -1,0 +1,35 @@
+commit a6a25869f07beeca8d4a2098d9f896a8a10f5b1e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 23 12:37:01 2023 -0400
+
+    cmd/go: set default GOTOOLCHAIN in GOROOT/go.env
+    
+    As part of the work for #57179 we moved configurable defaults
+    to GOROOT/go.env, so that packagers don't have to modify
+    source code to change those defaults. Since packagers may want
+    to modify GOTOOLCHAIN's default, move it to go.env too.
+    
+    This CL modifies 'go env' to print GOTOOLCHAIN by default.
+    It also refines CL 496957 from yesterday to recognize any env
+    var in either go.env or the user go/env, not just the user go/env.
+    When I put GOTOOLCHAIN in go.env, but before I added it to
+    the default printing list, 'go env GOTOOLCHAIN' was printing
+    an empty string, and it was incredibly confusing.
+    
+    For #57001.
+    Fixes #60361 while we're here.
+    
+    Also includes a fix for a review comment on CL 497079 that I forgot to mail.
+    
+    Change-Id: I7b904d9202f05af789aaa33aed93f903b515aa28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497437
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ go.env                                     |  4 ++++
+ src/cmd/go/gotoolchain.go                  | 11 ++++++++++-
+ src/cmd/go/internal/cfg/cfg.go             |  5 +++++
+ src/cmd/go/internal/envcmd/env.go          | 14 +++++++++-----
+ src/cmd/go/testdata/script/gotoolchain.txt | 26 +++++++++++++++++---------
+ 5 files changed, 45 insertions(+), 15 deletions(-)

@@ -1,0 +1,15 @@
+commit 795004c6b5fc1defa60fdc2bfac534c4285e74ed
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 10 12:14:39 2008 -0700
+
+    rudimentary beginnings of soon-to-be-real os library
+    
+    R=gri
+    DELTA=76  (76 added, 0 deleted, 0 changed)
+    OCL=15086
+    CL=15088
+
+ src/lib/os/Makefile   | 28 ++++++++++++++++++++++++++++
+ src/lib/os/os.go      | 18 ++++++++++++++++++
+ src/lib/os/os_file.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 88 insertions(+)

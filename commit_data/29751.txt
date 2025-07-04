@@ -1,0 +1,17 @@
+commit ac9962fb236569d25e9cc7f2859ac5a23eea1534
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Dec 1 08:37:48 2016 -0800
+
+    doc: mention concurrent map write/iterate detector
+    
+    Mention that the best-effort race detector on maps
+    was upgraded to detect write/iterate races.
+    
+    Fixes #18137
+    
+    Change-Id: Ib6e0adde47e965126771ea712386031a2a55eba3
+    Reviewed-on: https://go-review.googlesource.com/33768
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

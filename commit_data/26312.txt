@@ -1,0 +1,19 @@
+commit 55567d37e9c0543347239df69888f5f321fc9d08
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 16 13:28:32 2016 +1100
+
+    path: fix up bizarre test
+    
+    The Join test was doing something remarkable and unnecessary instead of
+    just using ... on a slice. Maybe it was an editing relic.
+    
+    Fix it by deleting the monstrosity.
+    
+    Change-Id: I5b90c6d539d334a9c27e57d26dacd831721cfcfe
+    Reviewed-on: https://go-review.googlesource.com/20727
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/path/path_test.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

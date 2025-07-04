@@ -1,0 +1,27 @@
+commit 9e9556d328c53ed0a4d8b36feee949885d648ba8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 18 15:38:44 2023 -0400
+
+    cmd/go: find GOROOT using os.Executable when installed to GOROOT/bin/GOOS_GOARCH
+    
+    When running make.bash in a cross-compiled configuration
+    (for example, GOARCH different from GOHOSTARCH), cmd/go
+    is installed to GOROOT/bin/GOOS_GOARCH instead of GOROOT/bin.
+    
+    That means that we need to look for GOROOT in both ../.. and ../../..,
+    not just the former.
+    
+    Fixes #62119.
+    Updates #18678.
+    
+    Change-Id: I283c6a10c46df573ff44da826f870417359226a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521015
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/cfg/cfg.go                     | 38 ++++++---
+ src/cmd/go/testdata/script/goroot_executable.txt   |  8 +-
+ .../testdata/script/goroot_executable_trimpath.txt | 91 ++++++++++++++++++++++
+ 3 files changed, 125 insertions(+), 12 deletions(-)

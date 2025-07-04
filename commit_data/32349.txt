@@ -1,0 +1,21 @@
+commit fe08ebaebb09cb0c45e3728a96d494f7f9f5c1b3
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Aug 17 23:44:34 2017 -0700
+
+    math/big: use internal square for Rat
+    
+    updates #13745
+    
+    A squared rational is always positive and can not
+    be reduced since the numerator and denominator had
+    no previous common factors.  The nat multiplication
+    can be performed using the internal sqr method.
+    
+    Change-Id: I558f5b38e379bfd26ff163c9489006d7e5a9cfaa
+    Reviewed-on: https://go-review.googlesource.com/56776
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/big/rat.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

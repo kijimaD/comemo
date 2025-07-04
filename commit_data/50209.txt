@@ -1,0 +1,21 @@
+commit 59b15726d113324d0c91d8aae559e9fb7cb04495
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Wed Aug 31 04:06:45 2022 -0500
+
+    cmd/asm: fix condition check to work on ppc64
+    
+    A condition check was added to parse.go in CL 405542 to prevent
+    usage of scaled operands on ppc64. However while trying to improve
+    the error notification message, an if-condition was left out by
+    oversight. This CL corrects that.
+    
+    Change-Id: I8cef3dd194c75343354ffe888b5e639e694badde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426994
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Archana Ravindar <aravind5@in.ibm.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/parse.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

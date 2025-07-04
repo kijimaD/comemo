@@ -1,0 +1,14 @@
+commit 4c050fea0e17d5c66369e3cf254c30380c0ec6fe
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu May 28 15:14:58 2015 -0700
+
+    cmd/dist: only test packages and commands that have tests
+    
+    Change-Id: I7aeb9fef3739c17c03fdaadbe00cd945ec9c0d72
+    Reviewed-on: https://go-review.googlesource.com/10492
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

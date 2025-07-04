@@ -1,0 +1,24 @@
+commit f07910bd577f73b81e4f7117c7cfdf9cf7579028
+Author: Changkun Ou <hi@changkun.de>
+Date:   Wed Dec 28 15:04:58 2022 +0100
+
+    sync: document memory model for Swap/CompareAnd{Swap,Delete} in Map
+    
+    CL 381316 documented the memory model of Map's APIs. However, the newly
+    introduced Swap, CompareAndSwap, and CompareAndDelete are missing from
+    this documentation as CL 399094 did not add this info.
+    
+    This CL specifies the defined read/write operations of the new Map APIs.
+    
+    For #51972
+    
+    Change-Id: I519a04040a0b429a3f978823a183cd62e42c90ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459715
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Changkun Ou <mail@changkun.de>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/sync/map.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

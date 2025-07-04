@@ -1,0 +1,19 @@
+commit ea52c78a66562b70eeb180610922b3077e2ce1e4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Apr 20 11:09:16 2020 +0700
+
+    cmd/compile: remove useless nil check in symfmt
+    
+    This is followup of CL 228861, which remove another un-necessary nil
+    check for s.Pkg.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ide750beddd2594199af21b56ec6af734dfa55b9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228862
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

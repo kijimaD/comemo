@@ -1,0 +1,13 @@
+commit 68b35b0852eaa90fb61ac4b28c0a3700efc7f762
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 19 07:45:12 2012 +1100
+
+    templates: minor edits to the documentation
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5677084
+
+ src/pkg/text/template/doc.go         | 24 +++++++++++++++++++++++-
+ src/pkg/text/template/parse/parse.go |  6 ++++--
+ 2 files changed, 27 insertions(+), 3 deletions(-)

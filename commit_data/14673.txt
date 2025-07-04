@@ -1,0 +1,30 @@
+commit b7603cfc2cf8ffa261aca63dd59fb1e7d58180ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 17 14:32:26 2012 -0500
+
+    cmd/gc: add GOEXPERIMENT=zerostack to clear stack on function entry
+    
+    This is expensive but it might be useful in cases where
+    people are suffering from false positives during garbage
+    collection and are willing to trade the CPU time for getting
+    rid of the false positives.
+    
+    On the other hand it only eliminates false positives caused
+    by other function calls, not false positives caused by dead
+    temporaries stored in the current function call.
+    
+    The 5g/6g/8g changes were pulled out of the history, from
+    the last time we needed to do this (to work around a goto bug).
+    The code in go.h, lex.c, pgen.c is new but tiny.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6938073
+
+ src/cmd/5g/gsubr.c | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/6g/gsubr.c | 38 +++++++++++++++++++++++++++++++++++
+ src/cmd/8g/gsubr.c | 38 +++++++++++++++++++++++++++++++++++
+ src/cmd/gc/go.h    |  2 ++
+ src/cmd/gc/lex.c   |  1 +
+ src/cmd/gc/pgen.c  |  3 +++
+ 6 files changed, 140 insertions(+)

@@ -1,0 +1,14 @@
+commit 6716a54e368be250b3840fcdef3c2437886e02e6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 19 17:37:04 2016 +0900
+
+    net: make newLocalListener handle network argument correcly
+    
+    Change-Id: I8987e705af069846e6668e2f2104e0254e695139
+    Reviewed-on: https://go-review.googlesource.com/19706
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/mockserver_test.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

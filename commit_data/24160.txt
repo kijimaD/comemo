@@ -1,0 +1,14 @@
+commit d5e32ebf54411432f466bf578c1e305725af8063
+Author: Alexander Morozov <lk4d4math@gmail.com>
+Date:   Thu Sep 3 13:24:58 2015 -0700
+
+    syscall: fix formatting calls in tests
+    
+    Change-Id: I39a2c4101e6c59f4cd693cb0368f3567ea37ca5b
+    Reviewed-on: https://go-review.googlesource.com/14255
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/syscall_linux_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

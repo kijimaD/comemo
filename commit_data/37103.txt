@@ -1,0 +1,27 @@
+commit c942191c203c096637e1e8d27dfccc4968ce5436
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 15 08:21:44 2018 +0300
+
+    crypto/tls, net/http: reject HTTP requests to HTTPS server
+    
+    This adds a crypto/tls.RecordHeaderError.Conn field containing the TLS
+    underlying net.Conn for non-TLS handshake errors, and then uses it in
+    the net/http Server to return plaintext HTTP 400 errors when a client
+    mistakenly sends a plaintext HTTP request to an HTTPS server. This is the
+    same behavior as Apache.
+    
+    Also in crypto/tls: swap two error paths to not use a value before
+    it's valid, and don't send a alert record when a handshake contains a
+    bogus TLS record (a TLS record in response won't help a non-TLS
+    client).
+    
+    Fixes #23689
+    
+    Change-Id: Ife774b1e3886beb66f25ae4587c62123ccefe847
+    Reviewed-on: https://go-review.googlesource.com/c/143177
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/tls/conn.go     | 25 +++++++++++++++----------
+ src/net/http/serve_test.go | 26 ++++++++++++++++++++++++++
+ src/net/http/server.go     | 20 ++++++++++++++++++++
+ 3 files changed, 61 insertions(+), 10 deletions(-)

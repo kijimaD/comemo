@@ -1,0 +1,36 @@
+commit d75e186e2c013d04548940eae913824bae9d7c48
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 19 14:06:41 2022 +1000
+
+    fmt: add a function to recover the original format string given a State
+    
+    Sometimes when implementing a Formatter it's helpful to use the fmt
+    package without invoking the formatter. This new function, FormatString,
+    makes that easier in some cases by recreating the original formatting
+    directive (such as "%3.2f") that caused Formatter.Format to be
+    called.
+    
+    The original Formatter interface is probably not what we would
+    design today, but we're stuck with it. FormatString, although it
+    takes a State as an argument, compensates by making Formatter a
+    little more flexible.
+    
+    The State does not include the verb so (unlike in the issue), we
+    must provide it explicitly in the call to FormatString. Doing it there
+    minimizes allocations by returning the complete format string.
+    
+    Fixes #51668
+    Updates #51195
+    
+    Change-Id: Ie31c8256515864b2f460df45fbd231286b8b7a28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400875
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ api/next/51668.txt    |  1 +
+ src/fmt/print.go      | 26 +++++++++++++++++
+ src/fmt/state_test.go | 80 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 107 insertions(+)

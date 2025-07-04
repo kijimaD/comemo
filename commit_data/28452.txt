@@ -1,0 +1,35 @@
+commit 75ce89c20dab10857ab0b5102001b34767c45b6e
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 16 13:50:18 2016 -0700
+
+    cmd/compile: cache CFG-dependent computations
+    
+    We compute a lot of stuff based off the CFG: postorder traversal,
+    dominators, dominator tree, loop nest.  Multiple phases use this
+    information and we end up recomputing some of it.  Add a cache
+    for this information so if the CFG hasn't changed, we can reuse
+    the previous computation.
+    
+    Change-Id: I9b5b58af06830bd120afbee9cfab395a0a2f74b2
+    Reviewed-on: https://go-review.googlesource.com/29356
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/block.go         |  3 ++
+ src/cmd/compile/internal/ssa/check.go         |  3 +-
+ src/cmd/compile/internal/ssa/compile.go       |  7 ----
+ src/cmd/compile/internal/ssa/cse.go           |  6 ++--
+ src/cmd/compile/internal/ssa/cse_test.go      |  1 -
+ src/cmd/compile/internal/ssa/dom.go           |  8 +----
+ src/cmd/compile/internal/ssa/flagalloc.go     |  8 ++---
+ src/cmd/compile/internal/ssa/func.go          | 52 +++++++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/likelyadjust.go  |  9 +++--
+ src/cmd/compile/internal/ssa/loopbce.go       | 10 +++---
+ src/cmd/compile/internal/ssa/nilcheck.go      |  2 +-
+ src/cmd/compile/internal/ssa/nilcheck_test.go | 10 ------
+ src/cmd/compile/internal/ssa/passbm_test.go   |  2 --
+ src/cmd/compile/internal/ssa/phiopt.go        |  5 +--
+ src/cmd/compile/internal/ssa/prove.go         |  8 +++--
+ src/cmd/compile/internal/ssa/regalloc.go      |  4 +--
+ src/cmd/compile/internal/ssa/sparsetreemap.go |  2 +-
+ src/cmd/compile/internal/ssa/stackalloc.go    |  2 +-
+ 18 files changed, 83 insertions(+), 59 deletions(-)

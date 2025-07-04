@@ -1,0 +1,18 @@
+commit 7d91cc26abdcc213de83bb6122a929ff6449be8f
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Tue Aug 20 20:14:59 2024 +0000
+
+    cmd/go: support both .netrc and _netrc in windows
+    
+    For #66832
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: I58e20fe0b8e38dd9383d1df334acaa3a2abad756
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607237
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+
+ src/cmd/go/internal/auth/netrc.go               | 16 +++++++--
+ src/cmd/go/testdata/script/netrc_issue66832.txt | 48 +++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+), 3 deletions(-)

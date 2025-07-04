@@ -1,0 +1,12 @@
+commit 8374e67876b887c8a257f63f4e12ac1599ee793e
+Author: Hong Ruiqi <hongruiqi@gmail.com>
+Date:   Thu Apr 5 22:37:07 2012 +1000
+
+    doc/go_spec: fix typo
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5990043
+
+ doc/go_spec.html | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

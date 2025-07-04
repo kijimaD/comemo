@@ -1,0 +1,12 @@
+commit 3a2c0a9615b3000f99d42647f4e811b960af755b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 6 11:56:08 2008 -0800
+
+    - fixes to sprintf (by rob)
+    
+    R=r
+    OCL=18685
+    CL=18685
+
+ src/lib/fmt/print.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

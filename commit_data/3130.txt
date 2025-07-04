@@ -1,0 +1,17 @@
+commit d11a4b0dd4e310ef7307d372b2ff5bbe652332d3
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Aug 28 14:39:12 2009 -0700
+
+    Fix named types being defined to named types.  In general, the
+    code assumes that the definition of a named type is not a
+    named type, but some code paths could violate that.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=9  (5 added, 2 deleted, 2 changed)
+    OCL=34046
+    CL=34053
+
+ usr/austin/eval/scope.go | 6 ++----
+ usr/austin/eval/type.go  | 5 +++++
+ 2 files changed, 7 insertions(+), 4 deletions(-)

@@ -1,0 +1,44 @@
+commit 840965f8d7ccad5ac1782e208865e8120f5c080a
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 24 17:13:24 2015 -0400
+
+    runtime: always clear stack barriers on G exit
+    
+    Currently the runtime fails to clear a G's stack barriers in gfput if
+    the G's stack allocation is _FixedStack bytes. This causes the runtime
+    to panic if the following sequence of events happens:
+    
+    1) The runtime installs stack barriers on a G.
+    
+    2) The G exits by calling runtime.Goexit. Since this does not
+       necessarily return through the stack barriers installed on the G,
+       there may still be untriggered stack barriers left on the G's stack
+       in recorded in g.stkbar.
+    
+    3) The runtime calls gfput to add the exiting G to the free pool. If
+       the G's stack allocation is _FixedStack bytes, we fail to clear
+       g.stkbar.
+    
+    4) A new G starts and allocates the G that was just added to the free
+       pool.
+    
+    5) The new G begins to execute and overwrites the stack slots that had
+       stack barriers in them.
+    
+    6) The garbage collector enters mark termination, attempts to remove
+       stack barriers from the new G, and finds that they've been
+       overwritten.
+    
+    Fix this by clearing the stack barriers in gfput in the case where it
+    reuses the stack.
+    
+    Fixes #11256.
+    
+    Change-Id: I377c44258900e6bcc2d4b3451845814a8eeb2bcf
+    Reviewed-on: https://go-review.googlesource.com/11461
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/proc1.go         |  4 ++++
+ test/fixedbugs/issue11256.go | 53 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+)

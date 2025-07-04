@@ -1,0 +1,15 @@
+commit 3b189d8f9c243d594b8ab8db495da9c60bae5428
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 12 16:52:49 2011 -0400
+
+    crypto/tls: handle non-TLS more robustly
+    
+    Fixes #2253.
+    
+    R=agl
+    CC=golang-dev
+    https://golang.org/cl/4960066
+
+ src/pkg/crypto/tls/conn.go                  | 13 ++++++++
+ src/pkg/crypto/tls/handshake_server_test.go | 46 +++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+)

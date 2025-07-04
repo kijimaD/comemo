@@ -1,0 +1,14 @@
+commit bd329d47d9f4ebf6f627372ed28315030d05f7b7
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 16 20:48:56 2015 +1300
+
+    cmd/internal/obj, cmd/link: generate position independent loads of static data
+    
+    Change-Id: I0a8448c2b69f5cfa6f099d772f5eb3412f853045
+    Reviewed-on: https://go-review.googlesource.com/15969
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/link.go       | 10 ++++++++++
+ src/cmd/internal/obj/ppc64/asm9.go | 28 ++++++++++++++++++++++------
+ src/cmd/link/internal/ppc64/asm.go | 14 ++++++++++++++
+ 3 files changed, 46 insertions(+), 6 deletions(-)

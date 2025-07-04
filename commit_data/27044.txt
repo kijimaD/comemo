@@ -1,0 +1,20 @@
+commit 7e460e70d90295cf08ea627c0a0fff170aba5518
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Wed Apr 20 18:00:52 2016 +0200
+
+    runtime: use type int to specify size for newarray
+    
+    Consistently use type int for the size argument of
+    runtime.newarray, runtime.reflect_unsafe_NewArray
+    and reflect.unsafe_NewArray.
+    
+    Change-Id: Ic77bf2dde216c92ca8c49462f8eedc0385b6314e
+    Reviewed-on: https://go-review.googlesource.com/22311
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/chan.go    |  2 +-
+ src/runtime/hashmap.go |  4 ++--
+ src/runtime/malloc.go  | 10 +++++-----
+ 3 files changed, 8 insertions(+), 8 deletions(-)

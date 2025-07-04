@@ -1,0 +1,15 @@
+commit d8ecead73d5c2862df08ed601c65682978e4a6cd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 18 06:25:21 2008 -0800
+
+    The compiler should reject calling a const as though it were a
+    function.  Also update golden.out.
+    
+    R=r
+    DELTA=18  (18 added, 0 deleted, 0 changed)
+    OCL=19433
+    CL=19448
+
+ test/bugs/bug123.go | 14 ++++++++++++++
+ test/golden.out     |  9 +++++++++
+ 2 files changed, 23 insertions(+)

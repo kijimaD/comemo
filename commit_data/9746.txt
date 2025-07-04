@@ -1,0 +1,15 @@
+commit 80700eb817a099c74fd71a9a19c3e2a7445c19df
+Author: Dave Grijalva <dgrijalva@ngmoco.com>
+Date:   Mon Sep 19 11:41:09 2011 -0700
+
+    http: always include Content-Length header, even for 0
+    
+    fixes #2221
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4952052
+
+ src/pkg/http/requestwrite_test.go |  5 +++++
+ src/pkg/http/transfer.go          | 35 +++++++++++++++++++++++++++++------
+ 2 files changed, 34 insertions(+), 6 deletions(-)

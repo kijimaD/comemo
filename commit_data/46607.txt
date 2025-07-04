@@ -1,0 +1,13 @@
+commit b88a6882a5411d705e4f05d300668f157f476749
+Author: DQNEO <dqneoo@gmail.com>
+Date:   Sat Sep 18 23:24:07 2021 +0900
+
+    cmd/internal/obj: fix wording in a comment
+    
+    Change-Id: I9921ba5c29ada6ff06d147f6d9b46a29101c449c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350694
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: David Chase <drchase@google.com>
+
+ src/cmd/internal/obj/link.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

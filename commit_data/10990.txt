@@ -1,0 +1,15 @@
+commit 0f14ebf99350fd8e87653129c5e1337cb8de3957
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Dec 23 13:21:25 2011 +1100
+
+    dashboard: Don't highlight first heading row.
+    
+    The two heading rows were previously a little hard to pick out,
+    because they were alternately shaded like the commit rows.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5500074
+
+ misc/dashboard/app/build/ui.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

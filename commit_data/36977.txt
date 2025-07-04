@@ -1,0 +1,23 @@
+commit bb3bf5bb538df67d3939974854c99608be21e135
+Author: Akhil Indurti <aindurti@gmail.com>
+Date:   Thu Jul 26 23:46:38 2018 -0400
+
+    internal/cpu: expose ARM feature flags for FMA
+    
+    This change exposes feature flags needed to implement an FMA intrinsic
+    on ARM CPUs via auxv's HWCAP bits. Specifically, it exposes HasVFPv4 to
+    detect if an ARM processor has the fourth version of the vector floating
+    point unit. The relevant instruction for this CL is VFMA, emitted in Go
+    as FMULAD.
+    
+    Updates #26630.
+    
+    Change-Id: Ibbc04fb24c2b4d994f93762360f1a37bc6d83ff7
+    Reviewed-on: https://go-review.googlesource.com/c/126315
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/internal/cpu/cpu.go     | 1 +
+ src/internal/cpu/cpu_arm.go | 3 +++
+ 2 files changed, 4 insertions(+)

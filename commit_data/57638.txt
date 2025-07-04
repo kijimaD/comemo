@@ -1,0 +1,19 @@
+commit 356ba0f06586a833cd8de9c04af0d2adddf95851
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Oct 4 15:46:07 2024 +0000
+
+    net: detect EAI_ADDRFAMILY for cgo host lookup on FreeBSD
+    
+    For #61095.
+    
+    Change-Id: Iff9f19f6f2eada739967774b50d949f9c5893ee0
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_14,gotip-freebsd-amd64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618015
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/internal/syscall/unix/net_darwin.go | 13 +++++++------
+ src/net/cgo_unix.go                     | 11 +++++++++++
+ src/net/cgo_unix_cgo.go                 | 32 +++++++++++++++++++-------------
+ src/net/cgo_unix_syscall.go             | 27 ++++++++++++++-------------
+ 4 files changed, 51 insertions(+), 32 deletions(-)

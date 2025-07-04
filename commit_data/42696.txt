@@ -1,0 +1,25 @@
+commit f979d072d339a24e4938d46588c153587d61af19
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun May 3 16:26:05 2020 +0200
+
+    runtime: avoid memclr call for keys in mapdelete_fast
+    
+    Replace memclrHasPointers calls for keys in mapdelete_fast*
+    functions with direct writes since the key sizes are known
+    at compile time.
+    
+    name                     old time/op  new time/op  delta
+    MapDelete/Pointer/100    33.7ns ± 1%  23.7ns ± 2%  -29.68%  (p=0.000 n=7+9)
+    MapDelete/Pointer/1000   41.6ns ± 5%  34.9ns ± 4%  -16.01%  (p=0.000 n=9+10)
+    MapDelete/Pointer/10000  45.6ns ± 1%  38.2ns ± 2%  -16.34%  (p=0.000 n=8+10)
+    
+    Change-Id: Icaac43b520b93c2cf9fd192b822fae7203a7bbf7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231737
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/map_fast32.go |  8 ++++++--
+ src/runtime/map_fast64.go |  8 +++++++-
+ src/runtime/map_test.go   | 22 ++++++++++++++++++++++
+ 3 files changed, 35 insertions(+), 3 deletions(-)

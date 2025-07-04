@@ -1,0 +1,17 @@
+commit a4c825156d0a3817377a2b7e5b30ab50e11440ab
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Aug 5 10:14:40 2019 -0400
+
+    doc/go1.13.html: describe error-value additions
+    
+    A brief description at the top the Standard Library section of the
+    changes to support error wrapping.
+    
+    Fixes #33365.
+    
+    Change-Id: Id5a3b2fe148d9bfb949f2cfc9e5d8a1613a0e219
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188798
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.13.html | 34 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 33 insertions(+), 1 deletion(-)

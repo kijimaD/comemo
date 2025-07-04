@@ -1,0 +1,13 @@
+commit 6524b82fed01c37486c6e3c9d0c8ce8b8946b371
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 3 11:40:33 2008 -0800
+
+    ascii to unsigned integer
+    
+    R=rsc
+    DELTA=60  (35 added, 17 deleted, 8 changed)
+    OCL=18339
+    CL=18343
+
+ src/lib/strings.go | 56 ++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 37 insertions(+), 19 deletions(-)

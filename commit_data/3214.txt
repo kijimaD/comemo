@@ -1,0 +1,21 @@
+commit dcb1c5f5d44b280273f86093d5cc27ace735e28f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 3 16:20:49 2009 -0700
+
+    convert testing to World.
+    start on Decl, but not working yet
+    
+    R=austin
+    DELTA=762  (201 added, 205 deleted, 356 changed)
+    OCL=34335
+    CL=34349
+
+ usr/austin/eval/compiler.go  |   3 +-
+ usr/austin/eval/eval_test.go | 205 ++++++++++-------------------
+ usr/austin/eval/expr.go      |  47 +------
+ usr/austin/eval/expr_test.go | 198 ++++++++++++++--------------
+ usr/austin/eval/scope.go     |  29 ++---
+ usr/austin/eval/stmt.go      | 140 ++++++++++----------
+ usr/austin/eval/stmt_test.go | 303 ++++++++++++++++++++++---------------------
+ usr/austin/eval/world.go     | 159 ++++++++++++++++++-----
+ 8 files changed, 540 insertions(+), 544 deletions(-)

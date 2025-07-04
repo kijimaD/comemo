@@ -1,0 +1,66 @@
+commit ad943066f63c6945e92fa00c83c7cac6a78f793b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jun 7 16:57:34 2023 -0400
+
+    runtime: call wakep in gosched
+    
+    goschedImpl transitions the current goroutine from _Grunning to
+    _Grunnable and places it on the global run queue before calling into
+    schedule.
+    
+    It does _not_ call wakep after adding the global run queue. I believe
+    the intuition behind skipping wakep is that since we are immediately
+    calling the scheduler so we don't need to wake anything to run this
+    work. Unfortunately, this intuition is not correct, as it breaks
+    coordination with spinning Ms [1].
+    
+    Consider this example scenario:
+    
+    Initial conditions:
+    
+    M0: Running P0, G0
+    M1: Spinning, holding P1 and looking for work
+    
+    Timeline:
+    
+    M1: Fails to find work; drops P
+    M0: newproc adds G1 to P0 runq
+    M0: does not wakep because there is a spinning M
+    M1: clear mp.spinning, decrement sched.nmspinning (now in "delicate dance")
+    M1: check sched.runqsize -> no global runq work
+    M0: gosched preempts G0; adds G0 to global runq
+    M0: does not wakep because gosched doesn't wakep
+    M0: schedules G1 from P0 runq
+    M1: check P0 runq -> no work
+    M1: no work -> park
+    
+    G0 is stranded on the global runq with no M/P looking to run it. This is
+    a loss of work conservation.
+    
+    As a result, G0 will have unbounded* scheduling delay, only getting
+    scheduled when G1 yields. Even once G1 yields, we still won't start
+    another P, so both G0 and G1 will switch back and forth sharing one P
+    when they should start another.
+    
+    *The caveat to this is that today sysmon will preempt G1 after 10ms,
+    effectively capping the scheduling delay to 10ms, but not solving the P
+    underutilization problem. Sysmon's behavior here is theoretically
+    unnecessary, as our work conservation guarantee should allow sysmon to
+    avoid preemption if there are any idle Ps. Issue #60693 tracks changing
+    this behavior and the challenges involved.
+    
+    [1] It would be OK if we unconditionally entered the scheduler as a
+    spinning M ourselves, as that would require schedule to call wakep when
+    it finds work in case there is more work.
+    
+    Fixes #55160.
+    
+    Change-Id: I2f44001239564b56ea30212553ab557051d22588
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501976
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go | 4 ++++
+ 1 file changed, 4 insertions(+)

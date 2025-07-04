@@ -1,0 +1,14 @@
+commit 11ac72a1161921f61a8e36ed50474c1789b7ca1c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Dec 22 09:35:27 2015 +0900
+
+    net: fix race in TestTCPStress
+    
+    Fixes #13704.
+    
+    Change-Id: I7afef5058fa88b0de41213cf46219b684369f47f
+    Reviewed-on: https://go-review.googlesource.com/18111
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/tcp_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

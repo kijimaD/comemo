@@ -1,0 +1,24 @@
+commit 75055de84ab7ad0f36b4c93e5c851ea55b297c95
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 15 21:15:40 2016 -0800
+
+    runtime: sleep a bit to let a bad signal be delivered
+    
+    When we raise a signal that was delivered to C code, it's possible that
+    the kernel will not deliver it immediately. This is especially possible
+    on Darwin where we use send the signal to the entire process rather than
+    just the current thread. Sleep for a millisecond after sending the
+    signal to give it a chance to be delivered before we restore the Go
+    signal handler. In most real cases the program is going to crash at this
+    point, so sleeping is kind of irrelevant anyhow.
+    
+    Fixes #14809.
+    
+    Change-Id: Ib2c0d2c4e240977fb4535dc1dd2bdc50d430eb85
+    Reviewed-on: https://go-review.googlesource.com/33300
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/signal_unix.go | 5 +++++
+ 1 file changed, 5 insertions(+)

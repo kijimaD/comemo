@@ -1,0 +1,45 @@
+commit 01ddc8bd9ae903aea203dfe927bb072fe6bce24a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Oct 7 11:37:14 2012 +1100
+
+    cmd/5g: avoid temporary in slice bounds check
+    
+    before
+    
+    func addr(s[]int) *int {
+            return &s[2]
+       10c1c:       e28d0008        add     r0, sp, #8
+       10c20:       e5901004        ldr     r1, [r0, #4]
+       10c24:       e3a02002        mov     r2, #2
+       10c28:       e1510002        cmp     r1, r2
+       10c2c:       8a000000        bhi     10c34 <main.addr+0x34>
+       10c30:       eb0035e6        bl      1e3d0 <runtime.panicindex>
+       10c34:       e5900000        ldr     r0, [r0]
+       10c38:       e2800008        add     r0, r0, #8
+       10c3c:       e58d0014        str     r0, [sp, #20]
+       10c40:       e49df004        pop     {pc}            ; (ldr pc, [sp], #4)
+    
+    after
+    
+    func addr(s[]int) *int {
+            return &s[2]
+       10c1c:       e28d0008        add     r0, sp, #8
+       10c20:       e5901004        ldr     r1, [r0, #4]
+       10c24:       e3510002        cmp     r1, #2
+       10c28:       8a000000        bhi     10c30 <main.addr+0x30>
+       10c2c:       eb0035e6        bl      1e3cc <runtime.panicindex>
+       10c30:       e5900000        ldr     r0, [r0]
+       10c34:       e2800008        add     r0, r0, #8
+       10c38:       e58d0014        str     r0, [sp, #20]
+       10c3c:       e49df004        pop     {pc}            ; (ldr pc, [sp], #4)
+    
+    Also, relax gcmp restriction that 2nd operand must be a register. A followup
+    CL will address the remaining TODO items.
+    
+    R=rsc, remyoudompheng, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6620064
+
+ src/cmd/5g/cgen.c  | 7 ++-----
+ src/cmd/5g/gsubr.c | 2 +-
+ 2 files changed, 3 insertions(+), 6 deletions(-)

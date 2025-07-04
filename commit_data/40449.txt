@@ -1,0 +1,18 @@
+commit 31bfab4ac621e81100d7fc3bc8cf483c5d2d2fef
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sat Oct 26 22:41:31 2019 +0200
+
+    cmd/link: enable DEP for Windows executables
+    
+    There's no reason not to enable DEP in 2019, especially given Go's
+    minimum operating system level.
+    
+    RELNOTE=yes
+    
+    Change-Id: I9c3bbc5b05a1654876a218123dd57b9c9077b780
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203601
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/cmd/link/internal/ld/lib.go | 3 +++
+ src/cmd/link/internal/ld/pe.go  | 8 ++++++--
+ 2 files changed, 9 insertions(+), 2 deletions(-)

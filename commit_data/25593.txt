@@ -1,0 +1,17 @@
+commit aea4de80f9137915fa70b114d541833094b88a23
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jan 15 16:37:47 2016 +0900
+
+    runtime: readjust signal code for dragonfly-2.6 and above
+    
+    Also adds missing nosplit to unminit.
+    
+    Fixes #13964.
+    
+    Change-Id: I07d93a8c872a255a89f91f808b66c889f0a6a69c
+    Reviewed-on: https://go-review.googlesource.com/18658
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os1_dragonfly.go | 1 +
+ src/runtime/os2_dragonfly.go | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

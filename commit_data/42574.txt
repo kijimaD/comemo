@@ -1,0 +1,21 @@
+commit 152ffca82fa53008bd2872f7163c7a1885da880e
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Thu Jun 25 19:41:13 2020 -0400
+
+    net: add support for dialing from a custom local address on Plan 9
+    
+    Make use of the extra parameter on "connect" control message to set the
+    local IP address and port. The ip(3) man page doesn't document that the
+    local IP address is settable, but upon inspection of the source code,
+    it's clearly settable.
+    
+    Fixes #39747
+    
+    Change-Id: Ied3d60452f20d6e5af23d1c1dcb34774af0dbd5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240064
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/net/ipsock_plan9.go | 32 +++++++++++++++++++++++++++++++-
+ 1 file changed, 31 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 62b29b035948c08041e4218d0b176d057c8a6f6f
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 1 15:11:31 2021 -0400
+
+    go/types: generalize assignability to generic types
+    
+    This is a port of CL 357917 to go/types. Some error messages in
+    assignability.go2 had to be adjusted. I left a TODO to investigate
+    whether we should align error messages.
+    
+    Change-Id: Ia323ffe18bc08e82de62044f35b8b0f3edd7dc08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360476
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/check_test.go                         |   1 +
+ src/go/types/operand.go                            | 107 +++++++---
+ src/go/types/testdata/spec/assignability.go2       | 236 +++++++++++++++++++++
+ .../testdata/{examples => spec}/conversions.go2    |   0
+ 4 files changed, 318 insertions(+), 26 deletions(-)

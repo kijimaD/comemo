@@ -1,0 +1,19 @@
+commit de578dcdd682182c69efc8f9328c9bba500192b0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 12 11:25:58 2018 -0800
+
+    spec: be clearer about definition of string length
+    
+    Adjusted spec to explicitly define the string length as the
+    number of bytes of the string; the prose now matches the prose
+    for arrays. Made analogous change for slices.
+    
+    Fixes #28736.
+    
+    Change-Id: I47cab321c87de0a4c482f5466b819b2cc8993fd1
+    Reviewed-on: https://go-review.googlesource.com/c/149077
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,14 @@
+commit 80e4a053d77b8132a5f6c61cfffadab8e5b72cc3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 11:04:51 2009 -0700
+
+    update tests for new reflect
+    
+    R=r
+    DELTA=12  (0 added, 0 deleted, 12 changed)
+    OCL=31240
+    CL=31290
+
+ test/golden.out        |  4 ++--
+ test/interface/fake.go | 20 ++++++++++----------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

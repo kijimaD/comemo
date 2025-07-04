@@ -1,0 +1,13 @@
+commit e50d059862dbb14225a4e1a17df42be984b93404
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Tue Jul 8 13:43:02 2014 -0400
+
+    crypto/x509: skip test on android (no Go tool)
+    
+    LGTM=minux
+    R=golang-codereviews, minux
+    CC=golang-codereviews
+    https://golang.org/cl/111970043
+
+ src/pkg/crypto/x509/x509_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

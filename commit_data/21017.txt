@@ -1,0 +1,21 @@
+commit 2fc29a83ae265bba0f35e4cde44786b7e6fbd64c
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 16 14:15:49 2014 -0800
+
+    cmd/gc: resolve static addresses of the form &x.f at link time
+    
+    When we do y = &x for global variables x and y, y gets initialized
+    at link time.  Do the same for y = &x.f if x is a struct and y=&x[5]
+    if x is an array.
+    
+    fixes #9217
+    fixes #9355
+    
+    Change-Id: Iea3c0ce2ce1b309e2b760e345608fd95460b5713
+    Reviewed-on: https://go-review.googlesource.com/1691
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/gc/sinit.c                | 13 ++++------
+ test/fixedbugs/issue9355.dir/a.go | 16 ++++++++++++
+ test/fixedbugs/issue9355.go       | 51 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 72 insertions(+), 8 deletions(-)

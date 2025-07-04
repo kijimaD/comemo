@@ -1,0 +1,18 @@
+commit 40fa2dabe0ee3a163c338dab1ea6036037287507
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Jul 14 16:58:25 2022 -0400
+
+    runtime: convert pendingPreemptSignals to atomic type
+    
+    For #53821.
+    
+    Change-Id: I106adbcb00b7b887d54001c2d7d97345a13cc662
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419436
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go        | 6 +++---
+ src/runtime/signal_unix.go | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,20 @@
+commit 202ede1240d4f66a73f3e116660e1237c1bf16ac
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 8 16:47:32 2009 -0800
+
+    - properly align package synopses
+      (this was surprisingly hard to get right in HTML)
+    - show modification times in source directory listings
+    - various tweaks
+    
+    R=rsc
+    http://go/go-review/1024024
+
+ doc/style.css          |   1 -
+ lib/godoc/dirlist.html |   8 ++-
+ lib/godoc/dirs.html    |   6 --
+ lib/godoc/godoc.html   |   4 +-
+ lib/godoc/package.html |  22 ++++--
+ lib/godoc/package.txt  |   2 +-
+ src/cmd/godoc/godoc.go | 184 ++++++++++++++++++++++++++++++++++++++++---------
+ 7 files changed, 180 insertions(+), 47 deletions(-)

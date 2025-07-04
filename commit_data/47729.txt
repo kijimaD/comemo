@@ -1,0 +1,15 @@
+commit dc50d69119ca8070dd16fb968b46f21f854d89fb
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 7 14:37:37 2021 -0500
+
+    doc/go1.18: drop TODO for "Changes to the language"
+    
+    For #47694
+    
+    Change-Id: I142776001eecb451e8722163cfd3f2ecb0ecf35c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369980
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ doc/go1.18.html | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,0 +1,14 @@
+commit c18db5aa1869e8629f203f028341f23ce3593e4a
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Apr 21 19:38:58 2009 -0700
+
+    bug in shift of longer operand
+    by a shorter operand. the bits
+    in the difference were not cheared.
+    
+    R=r
+    OCL=27705
+    CL=27705
+
+ src/cmd/6g/gen.c | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

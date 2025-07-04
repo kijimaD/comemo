@@ -1,0 +1,10 @@
+commit 1401c110083a38fab5ab396ff2d8e33c40f70af2
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 15 15:27:31 2008 -0700
+
+    improve the examples in the section on iota
+    
+    SVN=127347
+
+ doc/go_lang.txt | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

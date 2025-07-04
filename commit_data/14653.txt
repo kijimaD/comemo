@@ -1,0 +1,15 @@
+commit 1947960a6f87437cb3da4fd9341c0d265ff71cf6
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Dec 15 19:37:59 2012 +0100
+
+    cmd/gc: fix defaultlit of shifts used in interface context.
+    
+    Fixes #4545.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6937058
+
+ src/cmd/gc/const.c          |  5 +++++
+ test/fixedbugs/issue4545.go | 19 +++++++++++++++++++
+ 2 files changed, 24 insertions(+)

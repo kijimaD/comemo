@@ -1,0 +1,20 @@
+commit ad53103aef09c002c41ea34292cfea359857ae5b
+Author: Tao Qingyun <qingyunha@gmail.com>
+Date:   Tue Oct 13 05:56:48 2020 +0000
+
+    io: add ErrBadWriteCount
+    
+    Fixes #39978
+    
+    Change-Id: Ib41459861ba9f7cf0bf1fc95b1479c358c4bdbd8
+    GitHub-Last-Rev: 19cbb1461ca04a8eb64f0c4f354d8fb81a70d4f3
+    GitHub-Pull-Request: golang/go#39989
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240740
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/io/io.go      | 11 +++++++++--
+ src/io/io_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 2 deletions(-)

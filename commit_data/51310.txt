@@ -1,0 +1,23 @@
+commit 8c17505da792755ea59711fc8349547a4f24b5c5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 16 10:17:17 2022 -0500
+
+    testing: in TestRacyOutput, ensure that the Run calls complete before cleanup
+    
+    Also tweak the failure message added in CL 352349.
+    
+    Updates #18741.
+    Updates #48515.
+    
+    Change-Id: I46ed84c6f498d7a68414cc3dab3c1cd55da69aa9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451215
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Changkun Ou <mail@changkun.de>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/testing/panic_test.go | 2 +-
+ src/testing/sub_test.go   | 4 ++--
+ src/testing/testing.go    | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

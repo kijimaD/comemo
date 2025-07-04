@@ -1,0 +1,12 @@
+commit 15580526de5419ae988f86cb807967f740b36f3d
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Aug 24 22:10:25 2011 -0300
+
+    version.bash: update VERSION on -save if already present
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4941047
+
+ src/version.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

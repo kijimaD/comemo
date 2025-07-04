@@ -1,0 +1,10 @@
+commit 30a39e8f29323912b6a67239483b00f3408f43cd
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 17 11:04:44 2008 -0700
+
+    compiler bug: infinite recursion in subtype()
+    
+    SVN=127822
+
+ test/bugs/bug071.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

@@ -1,0 +1,12 @@
+commit c8cbbd31f0ddfccb26a62d1c13696fce3b53e52c
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed Jun 6 16:54:02 2012 -0400
+
+    fmt: fix doc typo
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6308046
+
+ src/pkg/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

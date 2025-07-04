@@ -1,0 +1,14 @@
+commit 5d7dc23ec5fe47eb0520a2542c05383c8854c0af
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue Dec 8 02:18:57 2015 -0700
+
+    net/http: clientHeadContentLength test now in http2 mode
+    
+    Change-Id: If6cc1298ad550790ee981c1b5dc618a14947dc4a
+    Reviewed-on: https://go-review.googlesource.com/17526
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client_test.go | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

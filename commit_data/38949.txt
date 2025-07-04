@@ -1,0 +1,17 @@
+commit 2b8cbc384d092dc63e9dc18ec318d0682185611c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 29 17:14:23 2019 +0000
+
+    syscall: don't return EINVAL on zero Chmod mode on Windows
+    
+    Fixes #20858
+    
+    Change-Id: I45c397795426aaa276b20f5cbeb80270c95b920c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174320
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/file.go                 | 10 +++++-----
+ src/syscall/syscall_windows.go |  3 ---
+ 2 files changed, 5 insertions(+), 8 deletions(-)

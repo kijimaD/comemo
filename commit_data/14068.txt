@@ -1,0 +1,14 @@
+commit d749783f70843741d6469f6c7edc77bfd820c1a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Oct 7 16:35:45 2012 -0400
+
+    cmd/gc: skip over reported BOMs
+    
+    This keeps the BOM runes from causing other errors.
+    
+    R=golang-dev, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/6625062
+
+ src/cmd/gc/lex.c | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

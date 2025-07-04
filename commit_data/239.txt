@@ -1,0 +1,16 @@
+commit 66b240c7a45f438538797b15457c47102e9819d6
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 26 15:26:27 2008 -0700
+
+    make readfile work on darwin
+    parameterize the system interface a bit
+    
+    SVN=124981
+
+ src/runtime/Makefile           |  6 +++++-
+ src/runtime/amd64_darwin.h     | 43 ++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/amd64_linux.h      | 40 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/rt0_amd64_darwin.s |  9 +++++----
+ src/runtime/sys_file.c         | 34 +--------------------------------
+ src/runtime/sys_structs.h      | 13 +++++++++++++
+ 6 files changed, 107 insertions(+), 38 deletions(-)

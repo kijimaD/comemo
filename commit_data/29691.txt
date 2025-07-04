@@ -1,0 +1,14 @@
+commit b43384e8717c86d9d5051b6bc02047ce5ec2701f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 1 00:48:51 2016 +0000
+
+    encoding/binary: document the new bool support
+    
+    Updates #16856
+    
+    Change-Id: I57af6b0c0d5ecdaf19cf6f969b05ec9ec03058f1
+    Reviewed-on: https://go-review.googlesource.com/33756
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/binary/binary.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

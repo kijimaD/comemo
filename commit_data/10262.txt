@@ -1,0 +1,15 @@
+commit ea9e93862d9b6fc0c5b53cdb204204923d653b8a
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Sun Nov 6 22:14:15 2011 +0100
+
+    gc: Better error message for range over non-receive channel.
+    
+    Fixes #2354
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5346044
+
+ src/cmd/gc/range.c | 4 ++++
+ test/chan/perm.go  | 5 ++++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

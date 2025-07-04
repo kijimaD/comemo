@@ -1,0 +1,19 @@
+commit 018b78cc5b4b08447076f143271c249c0dde1297
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Mar 26 12:21:36 2022 -0700
+
+    test: fix inline test on noopt builder
+    
+    CL 394074 broke the noopt builder. Something about time.After's inlining
+    depends on the build flags to make.bash, not the build flags that run.go
+    passes.
+    
+    Change-Id: Ib284c66ea2008a4d32829c055d57c54a34ec3fb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396037
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ test/inline.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

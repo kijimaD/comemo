@@ -1,0 +1,19 @@
+commit b80fdd1e3beec5d70e3a7bd2bdf3bdd7153c38a3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 6 21:14:38 2009 -0700
+
+    an early 6g limitation forced the use of
+            string(b)[0:n]
+    instead of the more direct string(b[0:n]).
+    convert to the more direct form.
+    
+    R=r
+    DELTA=5  (0 added, 0 deleted, 5 changed)
+    OCL=27082
+    CL=27140
+
+ src/lib/bufio_test.go            | 2 +-
+ src/lib/fmt/format.go            | 2 +-
+ src/lib/syscall/errstr_darwin.go | 2 +-
+ src/lib/syscall/errstr_linux.go  | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,22 @@
+commit dd83fd8a70d324be96d2fcac753b202db0625538
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 19 12:10:38 2022 -0700
+
+    cmd/dist: pass a -test.timeout option to a host test
+    
+    For a host test we build the test using "go test -c" and then run the
+    test binary. A test binary run in this way has no default timeout.
+    This CL gives it a timeout of 5 minutes, scaled for the target.
+    We can adjust the timeout if necessary.
+    
+    For #52998
+    
+    Change-Id: Ib759142f3e71cbb37ec858182998fc5d4fba7ab6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407374
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

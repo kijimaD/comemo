@@ -1,0 +1,19 @@
+commit 5a447c0ae9f43b608314d0fd2f3141fa9c5146ff
+Author: Hanjun Kim <hallazzang@gmail.com>
+Date:   Sun Apr 12 13:41:46 2020 +0000
+
+    math/big: fix typo in documentation for Int.Exp
+    
+    Fixes #38304
+    
+    Also change `If m > 0, y < 0, ...` to `If m != 0, y < 0, ...` since `Exp` will return `nil`
+    whatever `m`'s sign is.
+    
+    Change-Id: I17d7337ccd1404318cea5d42a8de904ad185fd00
+    GitHub-Last-Rev: 23995103000505dbf35aa29a717470c4da638fda
+    GitHub-Pull-Request: golang/go#38390
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228000
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/int.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit de305a197f5c9ca3bb09da024e06ba7be0c7435d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 4 15:20:41 2015 -0400
+
+    cmd/go: read new non-ELF build ID in binaries
+    
+    Fixes #11048.
+    Fixes #11075.
+    
+    Change-Id: I81f5ef1e1944056ce5494c91aa4a4a63c758f566
+    Reviewed-on: https://go-review.googlesource.com/10709
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go     | 20 -------------
+ src/cmd/go/note_test.go | 11 ++++---
+ src/cmd/go/pkg.go       | 80 +++++++++++++++++++------------------------------
+ 3 files changed, 38 insertions(+), 73 deletions(-)

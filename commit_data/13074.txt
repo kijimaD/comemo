@@ -1,0 +1,15 @@
+commit 0b7bcb84e394755664562fb70cd48c033e61669c
+Author: Joel Sing <jsing@google.com>
+Date:   Wed May 16 03:33:37 2012 +1000
+
+    runtime: fix netbsd syscalls
+    
+    Use correct system calls/syscall numbers for NetBSD.
+    
+    R=golang-dev, for.go.yong, rsc
+    CC=golang-dev
+    https://golang.org/cl/6200070
+
+ src/pkg/runtime/sys_netbsd_386.s   | 28 ++++++++++++++--------------
+ src/pkg/runtime/sys_netbsd_amd64.s | 26 +++++++++++++-------------
+ 2 files changed, 27 insertions(+), 27 deletions(-)

@@ -1,0 +1,16 @@
+commit 76461c93a15c68044543391307bede2eeaa9aa0e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 11 15:22:24 2016 -0800
+
+    cmd/compile: move lexn and lexname into lex.go (cleanup)
+    
+    Missed these two declarations in the previous cleanup.
+    
+    Change-Id: I54ff3accd387dd90e12847daccf4477169797f81
+    Reviewed-on: https://go-review.googlesource.com/20603
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go  | 48 +++++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/main.go | 46 -----------------------------------
+ 2 files changed, 48 insertions(+), 46 deletions(-)

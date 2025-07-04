@@ -1,0 +1,12 @@
+commit 99f54911cdd38dc2c94f17086c2add4bd9eb1c34
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 18 12:45:34 2009 -0700
+
+    fix build - missing file
+    
+    TBR=r
+    OCL=34800
+    CL=34800
+
+ src/pkg/debug/dwarf/testdata/typedef.macho | Bin 0 -> 4608 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

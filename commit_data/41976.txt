@@ -1,0 +1,33 @@
+commit d4d298040d072ddacea0e0d6b55fb148fff18070
+Author: empijei <robclap8@gmail.com>
+Date:   Fri Mar 27 19:27:55 2020 +0100
+
+    html/template,text/template: switch to Unicode escapes for JSON compatibility
+    
+    The existing implementation is not compatible with JSON
+    escape as it uses hex escaping.
+    Unicode escape, instead, is valid for both JSON and JS.
+    This fix avoids creating a separate escaping context for
+    scripts of type "application/ld+json" and it is more
+    future-proof in case more JSON+JS contexts get added
+    to the platform (e.g. import maps).
+    
+    Fixes #33671
+    Fixes #37634
+    
+    Change-Id: Id6f6524b4abc52e81d9d744d46bbe5bf2e081543
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226097
+    Reviewed-by: Carl Johnson <me@carlmjohnson.net>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/html/template/content_test.go  | 70 +++++++++++++++++++-------------------
+ src/html/template/escape_test.go   |  6 ++--
+ src/html/template/example_test.go  |  6 ++--
+ src/html/template/js.go            | 70 +++++++++++++++++++++++---------------
+ src/html/template/js_test.go       | 68 ++++++++++++++++++------------------
+ src/html/template/template_test.go | 39 +++++++++++++++++++++
+ src/text/template/exec_test.go     |  6 ++--
+ src/text/template/funcs.go         |  8 ++---
+ 8 files changed, 163 insertions(+), 110 deletions(-)

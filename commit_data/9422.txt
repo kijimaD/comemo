@@ -1,0 +1,26 @@
+commit 72ddc87681630bac29060a6effd8289c873f31bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Aug 20 12:30:26 2011 -0700
+
+    godoc: remove uses of container/vector
+    
+    In the process, rewrite index.go to use slices instead
+    of vectors, rewrite for-loops into range loops, and
+    generally simplify code (this code was written before
+    the launch of go and showed its age).
+    
+    Also, fix a wrong import in appinit.go.
+    
+    No significant performance changes (improvements);
+    most of time is spent elsewhere (measured on an stand-
+    alone MacBook Pro with SSD disk, running standard
+    godoc settings: godoc -v -http=:7777 -index).
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4875056
+
+ src/cmd/godoc/appinit.go  |   2 +-
+ src/cmd/godoc/codewalk.go |   7 +-
+ src/cmd/godoc/index.go    | 183 +++++++++++++++++++++-------------------------
+ 3 files changed, 87 insertions(+), 105 deletions(-)

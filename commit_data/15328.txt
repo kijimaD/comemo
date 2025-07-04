@@ -1,0 +1,37 @@
+commit 55ad7b9bfe86c90cff55e0e8926fd8ff6b3b5182
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 20 12:14:31 2013 -0800
+
+    bufio: new Scanner interface
+    
+    Add a new, simple interface for scanning (probably textual) data,
+    based on a new type called Scanner. It does its own internal buffering,
+    so should be plausibly efficient even without injecting a bufio.Reader.
+    The format of the input is defined by a "split function", by default
+    splitting into lines. Other implemented split functions include single
+    bytes, single runes, and space-separated words.
+    
+    Here's the loop to scan stdin as a file of lines:
+    
+            s := bufio.NewScanner(os.Stdin)
+            for s.Scan() {
+                    fmt.Printf("%s\n", s.Bytes())
+            }
+            if s.Err() != nil {
+                    log.Fatal(s.Err())
+            }
+    
+    While we're dealing with spaces, define what space means to strings.Fields.
+    
+    Fixes #4802.
+    
+    R=adg, rogpeppe, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/7322088
+
+ src/pkg/bufio/bufio_test.go  |   2 +-
+ src/pkg/bufio/export_test.go |  27 ++++
+ src/pkg/bufio/scan.go        | 338 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/bufio/scan_test.go   | 370 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/strings/strings.go   |   3 +-
+ 5 files changed, 738 insertions(+), 2 deletions(-)

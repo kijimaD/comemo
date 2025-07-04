@@ -1,0 +1,12 @@
+commit 2fc0b4f01b8ef79c1cffc22080711f067cc072ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 21 13:06:39 2010 -0700
+
+    gc: include struct field tags in type equality
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1667048
+
+ src/cmd/gc/subr.c | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

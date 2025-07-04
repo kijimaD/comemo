@@ -1,0 +1,32 @@
+commit a683c385ad874b0066787dc010cacba8aaff894c
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Jan 29 16:16:03 2016 +0100
+
+    testing: add matching of subtest
+    
+    Allows passing regexps per subtest to --test.run and --test.bench
+    
+    Note that the documentation explicitly states that the split regular
+    expressions match the correpsonding parts (path components) of
+    the bench/test identifier. This is intended and slightly different
+    from the i'th RE matching the subtest/subbench at the respective
+    level.  Picking this semantics allows guaranteeing that a test or
+    benchmark identifier as printed by go test can be passed verbatim
+    (possibly quoted) to, respectively, -run or -bench: subtests and
+    subbenches might have a '/' in their name, causing a misaligment if
+    their ID is passed to -run or -bench as is.
+    This semantics has other benefits, but this is the main motivation.
+    
+    Fixes golang.go#15126
+    
+    Change-Id: If72e6d3f54db1df6bc2729ac6edc7ab3c740e7c3
+    Reviewed-on: https://go-review.googlesource.com/19122
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go     |  17 ++++---
+ src/cmd/go/test.go        |  17 ++++---
+ src/testing/match.go      |  71 ++++++++++++++++++++++++----
+ src/testing/match_test.go | 118 ++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 199 insertions(+), 24 deletions(-)

@@ -1,0 +1,33 @@
+commit 59b0e147603e4a3a6170b56e30383a94e157e37a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 21 16:04:41 2016 -0400
+
+    cmd/go: diagnose non-canonical import paths before compilation
+    
+    If we leave it for compilation sometimes the error appears first
+    in derived vendor paths, without any indication where they came from.
+    This is better.
+    
+    $ go1.7 build canonical/d
+    cmd/go/testdata/src/canonical/a/a.go:3: non-canonical import path "canonical/a//vendor/c" (should be "canonical/a/vendor/c")
+    cmd/go/testdata/src/canonical/a/a.go:3: can't find import: "canonical/a//vendor/c"
+    
+    $ go build canonical/d
+    package canonical/d
+            imports canonical/b
+            imports canonical/a/: non-canonical import path: "canonical/a/" should be "canonical/a"
+    $
+    
+    Fixes #16954.
+    
+    Change-Id: I315ccec92a00d98a08c139b3dc4e17dbc640edd0
+    Reviewed-on: https://go-review.googlesource.com/31668
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/cmd/go/go_test.go                             | 10 ++++++++++
+ src/cmd/go/pkg.go                                 | 17 +++++++++++++++++
+ src/cmd/go/testdata/src/canonical/a/a.go          |  3 +++
+ src/cmd/go/testdata/src/canonical/a/vendor/c/c.go |  1 +
+ src/cmd/go/testdata/src/canonical/b/b.go          |  3 +++
+ src/cmd/go/testdata/src/canonical/d/d.go          |  3 +++
+ 6 files changed, 37 insertions(+)

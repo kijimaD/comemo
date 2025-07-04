@@ -1,0 +1,16 @@
+commit a0b2ccf9f49bbd4171a047ac60b16f7d92a1d60a
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 2 13:16:43 2008 -0700
+
+    vector cleanup:
+    - change Delete to Remove
+    - return deleted element in Remove
+    - remove range checking (runtime does this for you)
+    
+    R=gri
+    OCL=14714
+    CL=14714
+
+ src/lib/container/vector.go | 33 ++++++++-------------------------
+ test/vectors.go             |  2 +-
+ 2 files changed, 9 insertions(+), 26 deletions(-)

@@ -1,0 +1,17 @@
+commit 3be7f28e821a2852f4149c260d40124942f6b113
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 27 10:44:43 2015 -0400
+
+    cmd/compile: remove Node.Nname, now unused
+    
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 160
+    $
+    
+    Change-Id: Ib0bd4230c8547f36972b2a9d81ba3eca81496e39
+    Reviewed-on: https://go-review.googlesource.com/10537
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/syntax.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit ac9d833c1e09a938c629ac272f39fd34c31bb66c
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 23 18:09:44 2009 -0700
+
+    half of bug193
+    
+    R=ken
+    OCL=33730
+    CL=33730
+
+ src/cmd/gc/const.c     | 14 ++++++++++++--
+ src/cmd/gc/typecheck.c |  5 +++++
+ test/golden.out        |  4 +---
+ 3 files changed, 18 insertions(+), 5 deletions(-)

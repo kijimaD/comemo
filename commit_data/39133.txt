@@ -1,0 +1,20 @@
+commit 23f3ea82b998e60c500e711dab340852c967ec41
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat May 11 20:26:18 2019 -0400
+
+    cmd/compile: correct the argument type in SETXXstore -> MOVBstore rules on AMD64
+    
+    MOVBstore's value argument is a value, not a flag. We are storing
+    a byte so just use UInt8.
+    
+    Fixes #31915.
+    
+    Change-Id: Id799e5f44efc3a9c3d8480f6f25ad032c2a631bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176719
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 118 +++----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 510 ++++++++++++++-------------
+ test/fixedbugs/issue31915.go                 |  23 ++
+ 3 files changed, 342 insertions(+), 309 deletions(-)

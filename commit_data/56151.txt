@@ -1,0 +1,20 @@
+commit ae0a08dee964772fbb36008f03a5f082a405e219
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 8 23:02:34 2024 +0000
+
+    runtime: use maxprocs instead of stwprocs for GC CPU pause time metrics
+    
+    Currently we use stwprocs as the multiplier for the STW CPU time
+    computation, but this isn't the same as GOMAXPROCS, which is used for
+    the total time in the CPU metrics. The two numbers need to be
+    comparable, so this change switches to using maxprocs to make it so.
+    
+    Change-Id: I423e3c441d05b1bd656353368cb323289661e302
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570256
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/mgc.go    | 15 ++++++++++++---
+ src/runtime/mstats.go |  6 +++---
+ 2 files changed, 15 insertions(+), 6 deletions(-)

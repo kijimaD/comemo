@@ -1,0 +1,35 @@
+commit 6113dacf32db7a996bc53fa7ca0db314cd3e7378
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 17 09:56:21 2021 -0400
+
+    cmd/compile: make -memprofilerate work
+    
+    There are multiple things preventing the -memprofilerate flag from
+    working right now:
+    
+    - CmdFlags.MemProfileRate has type int64, which is currently not
+      supported by the compiler's reflection-based registerFlags.
+      Unfortunately, rather than letting you know this, registerFlags
+      simply ignores this field.
+    
+    - Nothing consumes CmdFlags.MemProfileRate anyway. startProfile
+      instead uses a package-local memprofilerate variable that is never
+      set to anything.
+    
+    Fix this by making CmdFlags.MemProfileRate an int (that's what
+    runtime.MemProfileRate is anyway) and using it in startProfile. While
+    we're here, prevent similar flag parsing bugs in the future by making
+    registerFlags panic if it encounters a flag field of unsupported type.
+    
+    Change-Id: Ib9a1fcd8f4c5e9d7175a4fabc375f31e79774f9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359955
+    Trust: Austin Clements <austin@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/base/flag.go | 4 +++-
+ src/cmd/compile/internal/gc/util.go   | 9 +++------
+ 2 files changed, 6 insertions(+), 7 deletions(-)

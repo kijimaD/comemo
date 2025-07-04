@@ -1,0 +1,14 @@
+commit ac1cb992ea3ff1d0dd9ddc2af9da4dd1354f7761
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 18 18:27:20 2018 +0000
+
+    doc/go1.11: remove unnecessary absolute link
+    
+    This doesn't auto-deploy to golang.org, only tip.golang.org.
+    
+    Change-Id: I112743ada2c1393e21edcc9075127f40da9e6270
+    Reviewed-on: https://go-review.googlesource.com/124755
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.11.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

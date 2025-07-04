@@ -1,0 +1,34 @@
+commit 0f4132c907d9749a1a41a20af7856065ee10de9e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 13:28:13 2015 -0400
+
+    all: build and use go tool compile, go tool link
+    
+    This CL fixes the build to use the newly created go tool compile
+    and go tool link in place of go tool 5g, go tool 5l, and so on.
+    
+    See golang-dev thread titled "go tool compile, etc" for background.
+    
+    Although it was not a primary motivation, this conversion does
+    reduce the wall clock time and cpu time required for make.bash
+    by about 10%.
+    
+    Change-Id: I79cbbdb676cab029db8aeefb99a53178ff55f98d
+    Reviewed-on: https://go-review.googlesource.com/10288
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/dist/build.go           | 16 ++++------------
+ src/cmd/dist/buildtool.go       | 28 +++++++++++++++-------------
+ src/cmd/go/build.go             | 10 +++++-----
+ src/cmd/pack/pack_test.go       | 10 +++++-----
+ src/debug/gosym/pclntab_test.go |  2 +-
+ test/bench/shootout/timing.sh   |  4 ++--
+ test/fixedbugs/bug248.go        | 10 +++++-----
+ test/fixedbugs/bug302.go        |  4 ++--
+ test/fixedbugs/bug345.go        |  4 ++--
+ test/fixedbugs/bug369.go        |  8 ++++----
+ test/fixedbugs/issue9355.go     |  2 +-
+ test/nosplit.go                 |  2 +-
+ test/run.go                     | 15 +++++----------
+ test/sinit_run.go               |  2 +-
+ 14 files changed, 53 insertions(+), 64 deletions(-)

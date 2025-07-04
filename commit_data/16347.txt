@@ -1,0 +1,14 @@
+commit 910bd157c94ce893ec4f092c065954c8842ac6f4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon May 20 21:53:16 2013 +0400
+
+    test: do not run the test that relies on precise GC on 32-bits
+    Currently most of the 32-bit builder are broken.
+    Fixes #5516.
+    
+    R=golang-dev, dave, iant
+    CC=golang-dev
+    https://golang.org/cl/9573043
+
+ test/fixedbugs/issue5493.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

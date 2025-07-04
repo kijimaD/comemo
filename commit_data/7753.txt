@@ -1,0 +1,18 @@
+commit 3479bb6c12a38552cc3ebf0398b238f1a5c0cb67
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Mar 12 16:05:07 2011 -0800
+
+    ioutil: add NopCloser
+    
+    R=rsc, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4278044
+
+ src/pkg/archive/zip/reader.go      |  9 ++-------
+ src/pkg/http/cgi/child.go          | 10 ++--------
+ src/pkg/http/client.go             | 11 +++--------
+ src/pkg/http/dump.go               |  4 ++--
+ src/pkg/http/requestwrite_test.go  |  5 +++--
+ src/pkg/http/responsewrite_test.go |  7 ++++---
+ src/pkg/io/ioutil/ioutil.go        | 12 ++++++++++++
+ 7 files changed, 28 insertions(+), 30 deletions(-)

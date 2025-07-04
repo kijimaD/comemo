@@ -1,0 +1,15 @@
+commit 1e3b9524d2e86ccf051cc23c41fd66855156d051
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Dec 16 16:04:01 2010 -0500
+
+            crypto/elliptic: add serialisation and key pair generation.
+    
+            This is a prerequisite to ECDHE support in crypto/tls.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/3685043
+
+ src/pkg/crypto/elliptic/elliptic.go      | 67 ++++++++++++++++++++++++++++++--
+ src/pkg/crypto/elliptic/elliptic_test.go | 20 ++++++++++
+ 2 files changed, 84 insertions(+), 3 deletions(-)

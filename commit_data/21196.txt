@@ -1,0 +1,46 @@
+commit d5e4c4061b019a36ed3ac954c98f6535b7e78189
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jan 6 16:42:48 2015 -0800
+
+    runtime: remove size argument from hash and equal algorithms
+    
+    The equal algorithm used to take the size
+       equal(p, q *T, size uintptr) bool
+    With this change, it does not
+       equal(p, q *T) bool
+    Similarly for the hash algorithm.
+    
+    The size is rarely used, as most equal functions know the size
+    of the thing they are comparing.  For instance f32equal already
+    knows its inputs are 4 bytes in size.
+    
+    For cases where the size is not known, we allocate a closure
+    (one for each size needed) that points to an assembly stub that
+    reads the size out of the closure and calls generic code that
+    has a size argument.
+    
+    Reduces the size of the go binary by 0.07%.  Performance impact
+    is not measurable.
+    
+    Change-Id: I6e00adf3dde7ad2974adbcff0ee91e86d2194fec
+    Reviewed-on: https://go-review.googlesource.com/2392
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/builtin.c        |  10 ++--
+ src/cmd/gc/go.h             |   1 +
+ src/cmd/gc/reflect.c        |  63 ++++++++++++++------
+ src/cmd/gc/runtime.go       |  10 ++--
+ src/cmd/gc/subr.c           |  62 +++++++++++---------
+ src/cmd/gc/walk.c           |  12 ++--
+ src/runtime/alg.go          | 136 +++++++++++++++++++++++++-------------------
+ src/runtime/asm_386.s       |  73 +++++++++++++++++-------
+ src/runtime/asm_amd64.s     |  75 +++++++++++++++++-------
+ src/runtime/asm_amd64p32.s  |  31 ++++++++++
+ src/runtime/asm_arm.s       |  36 ++++++++++++
+ src/runtime/asm_ppc64x.s    |  36 ++++++++++++
+ src/runtime/hash32.go       |   4 +-
+ src/runtime/hash64.go       |   4 +-
+ src/runtime/hashmap.go      |  30 +++++-----
+ src/runtime/hashmap_fast.go |  12 ++--
+ src/runtime/runtime2.go     |   2 +-
+ 17 files changed, 412 insertions(+), 185 deletions(-)

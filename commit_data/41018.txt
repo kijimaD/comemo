@@ -1,0 +1,23 @@
+commit 7cab55dfd38ca24c327a648907d6befbf828447e
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 4 02:31:37 2019 +1100
+
+    cmd/internal/obj/riscv: handle call, jmp and branch
+    
+    Also provide REG_LR to more clearly define the link register.
+    
+    Based on the riscv-go port.
+    
+    Updates #27532
+    
+    Change-Id: I0805f373682f93b3918a01c21d4ef34eb3817c75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204627
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/riscvenc.s |  15 ++
+ src/cmd/internal/obj/riscv/asm_test.go       |  79 +++++++++
+ src/cmd/internal/obj/riscv/cpu.go            |   1 +
+ src/cmd/internal/obj/riscv/obj.go            | 238 ++++++++++++++++++++++++++-
+ 4 files changed, 331 insertions(+), 2 deletions(-)

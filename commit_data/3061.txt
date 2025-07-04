@@ -1,0 +1,16 @@
+commit fd6cdbd8076b8b2dcfc4d915eda7d4e135f2e237
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 23 18:03:14 2009 -0700
+
+    linker work
+      * more elf constants from FreeBSD
+      * simple relocation demo
+    
+    R=r
+    DELTA=410  (354 added, 49 deleted, 7 changed)
+    OCL=33689
+    CL=33729
+
+ src/cmd/6l/asm.c | 122 ++++++++++++-----------
+ src/cmd/ld/elf.h | 295 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 361 insertions(+), 56 deletions(-)

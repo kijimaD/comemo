@@ -1,0 +1,13 @@
+commit 91f2a34ddcc07ee9f6bd11ba55d891dafb9eda5f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 7 11:19:01 2012 -0700
+
+    faq: mercurial vs. git
+    Fixes #4052.
+    
+    R=golang-dev, bradfitz, iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/6490092
+
+ doc/go_faq.html | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

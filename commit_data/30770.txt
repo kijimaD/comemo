@@ -1,0 +1,19 @@
+commit 10fdf769f07fdbc51cb50965a5de1674892057d6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 21 09:57:47 2017 -0700
+
+    cmd/compile: remove function-name-based debuglive tweaks
+    
+    It's easier to grep output than recompile the compiler anyway.
+    
+    For concurrent compilation.
+    
+    Updates #15756
+    
+    Change-Id: I151cb5dc77056469cd9019d516f86454e931a197
+    Reviewed-on: https://go-review.googlesource.com/38424
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/plive.go | 12 ------------
+ 1 file changed, 12 deletions(-)

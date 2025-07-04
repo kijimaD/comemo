@@ -1,0 +1,19 @@
+commit 6713b5dbbc4b3bbfa2022538501c7f8104f1e5fd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Dec 18 15:54:38 2021 -0800
+
+    cmd/doc: don't log on constraint type elements
+    
+    Fixes #50256
+    
+    Change-Id: I2327a0b28f8173c801ed2946bec8083967667027
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373314
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/doc/doc_test.go     | 13 +++++++++++++
+ src/cmd/doc/pkg.go          |  8 +++++++-
+ src/cmd/doc/testdata/pkg.go | 12 ++++++++++++
+ 3 files changed, 32 insertions(+), 1 deletion(-)

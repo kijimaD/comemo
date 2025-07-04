@@ -1,0 +1,19 @@
+commit 1ed060cf87ec887ad76c51e3f7a2148cc2a7bf9b
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 21 11:11:13 2021 -0400
+
+    testing: reference benchmark format spec
+    
+    This updates the testing package documentation to reference the
+    specification for the benchmark format, and points users to our
+    standard tools for working with benchmark data. (It's somewhat
+    remarkable how widely used benchstat appears to be given that we don't
+    mention it anywhere!)
+    
+    Change-Id: Idbb4416d2fde9606ea7e6c15595f3b9e6a38f3b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357589
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/testing.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

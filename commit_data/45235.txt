@@ -1,0 +1,15 @@
+commit 24875e3880c1ef7aca6c844c5b28cf32aea5c418
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Apr 19 17:49:30 2021 -0400
+
+    cmd/compile/internal/types2: fix some typos in rawLookupFieldOrMethod
+    
+    Change-Id: Ibc04a82b1d618deeb9bc168ba518dbf1d752fba7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311456
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/lookup.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

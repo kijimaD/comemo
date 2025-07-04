@@ -1,0 +1,27 @@
+commit b44b2feb914d866250f2efb744b24de0ce8c161a
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Tue Nov 14 08:53:56 2017 -0800
+
+    database/sql: allow OpenConnector in a driver.Driver interface
+    
+    While driver.Connector was previously added to allow non-string
+    connection arguments and access to the context, most users of
+    the sql package will continue to rely on a string DSN.
+    
+    Allow drivers to implement a string DSN to Connector interface
+    that both allows a single parsing of the string DSN and uses
+    the Connector interface which passes available context to
+    the driver dialer.
+    
+    Fixes #22713
+    
+    Change-Id: Ia0b862262f4c4670effe2538d0d6d43733fea18d
+    Reviewed-on: https://go-review.googlesource.com/77550
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/database/sql/driver/driver.go | 11 +++++++++++
+ src/database/sql/fakedb_test.go   | 10 ++++++++++
+ src/database/sql/sql.go           |  8 ++++++++
+ src/database/sql/sql_test.go      | 13 +++++++++++++
+ 4 files changed, 42 insertions(+)

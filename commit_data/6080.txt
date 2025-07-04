@@ -1,0 +1,13 @@
+commit d7736413a6942f93fcc4892ad782758d9bbb7e33
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 25 13:07:08 2010 +1000
+
+    scanner: change package comment to be clearer about its functionality.
+    No semantic changes.
+    
+    R=gri, rsc1
+    CC=golang-dev
+    https://golang.org/cl/1998045
+
+ src/pkg/scanner/scanner.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

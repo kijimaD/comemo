@@ -1,0 +1,18 @@
+commit f31fcc75385bc8037b46aea7f05022520d8c8148
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Apr 19 20:40:30 2024 +0800
+
+    doc: make symbol links simpler for relnotes
+    
+    This is a follow-up to CL 578195.
+    
+    Change-Id: I6466ff8753f05a9424a8098cd88490aab6b236c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580277
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ doc/next/6-stdlib/99-minor/go/types/65772.md | 7 +++----
+ doc/next/6-stdlib/99-minor/net/http/46443.md | 6 +++---
+ 2 files changed, 6 insertions(+), 7 deletions(-)

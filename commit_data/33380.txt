@@ -1,0 +1,24 @@
+commit 1e83f883c54a37f637c557287b0ae8062cef3930
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Fri Oct 13 16:06:39 2017 +0300
+
+    cmd/internal/obj: make it possible to have all AVX1/2 insts
+    
+    Current AllowedOpCodes is 1024, which is not enough for modern x86.
+    Changed limit to 2048 (though AVX512 will exceed this).
+    
+    Additional Z-cases and ytab tables are added to make it possible
+    to handle missing AVX1 and AVX2 instructions.
+    
+    This CL is required by x86avxgen to work properly:
+    https://go-review.googlesource.com/c/arch/+/66972
+    
+    Change-Id: I290214bbda554d2cba53349f50dcd34014fe4cee
+    Reviewed-on: https://go-review.googlesource.com/70650
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/internal/obj/link.go     |   4 +-
+ src/cmd/internal/obj/x86/asm6.go | 174 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 176 insertions(+), 2 deletions(-)

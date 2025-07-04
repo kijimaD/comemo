@@ -1,0 +1,24 @@
+commit 98a1e207e29359dba86769877021838bb77b12c3
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Sep 16 19:54:26 2014 -0700
+
+    sync/atomic: add Value
+    A Value provides an atomic load and store of a consistently typed value.
+    It's intended to be used with copy-on-write idiom (see the example).
+    
+    Performance:
+    BenchmarkValueRead      50000000                21.7 ns/op
+    BenchmarkValueRead-2    200000000                8.63 ns/op
+    BenchmarkValueRead-4    300000000                4.33 ns/op
+    
+    TBR=rsc
+    R=golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/136710045
+
+ src/runtime/thunk.s           |   6 ++
+ src/sync/atomic/norace.go     |  17 ++++
+ src/sync/atomic/race.go       |  22 +++++
+ src/sync/atomic/value.go      |  91 ++++++++++++++++++++
+ src/sync/atomic/value_test.go | 195 ++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 331 insertions(+)

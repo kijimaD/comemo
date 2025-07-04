@@ -1,0 +1,20 @@
+commit bc04d4afa28c867d43869c92179b62f84b36da54
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 23 16:10:52 2023 -0400
+
+    cmd/go: log more information about leaked temp files
+    
+    Previously, we were only logging the top-level names of leaked
+    directories, which doesn't provide much information for debugging.
+    
+    For #55260.
+    
+    Change-Id: I845d158135d67b5d7fdeb16ab7031a061535e643
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479055
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 31 ++++++++++++++++++++++++-------
+ 1 file changed, 24 insertions(+), 7 deletions(-)

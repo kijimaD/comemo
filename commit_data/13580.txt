@@ -1,0 +1,12 @@
+commit 1df9ee0322e33a19a10ed531020c199eb3b49e61
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 6 14:56:39 2012 +1000
+
+    test/run: ignore all but .go file during compiledir action
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6454091
+
+ test/run.go | 3 +++
+ 1 file changed, 3 insertions(+)

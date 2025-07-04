@@ -1,0 +1,18 @@
+commit 19034fa855783d78cc4c40d3708bcc01a8900a1d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 8 16:47:13 2021 -0400
+
+    cmd/objdump: update test with register ABI
+    
+    With register ABI, the disassembly of the function may not
+    contain a "movq" instruction (which used to be e.g. storing
+    arguments to stack). Look for "jmp" instruction instead. This is
+    also in consistent with the test for Go assembly syntax.
+    
+    Change-Id: Ifc9e48bbc4f85c4e4aace5981b3a0f8ae925f6d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308652
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/objdump/objdump_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

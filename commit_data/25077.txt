@@ -1,0 +1,23 @@
+commit e18cd34c76892cd62f4857e56ffbbe503acd508a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 27 15:27:14 2015 -0800
+
+    cmd/compile: use correct line number for := (LCOLAS)
+    
+    - use same local variable name (lno) for line number for LCOLAS everywhere
+    - remove now unneeded assignment of line number to yylval.i in lexer
+    
+    Fix per suggestion of mdempsky.
+    
+    Fixes #13415.
+    
+    Change-Id: Ie3c7f5681615042a12b81b26724b3a5d8a979c25
+    Reviewed-on: https://go-review.googlesource.com/17248
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go    |  1 -
+ src/cmd/compile/internal/gc/parser.go |  7 ++++---
+ test/fixedbugs/issue13415.go          | 19 +++++++++++++++++++
+ 3 files changed, 23 insertions(+), 4 deletions(-)

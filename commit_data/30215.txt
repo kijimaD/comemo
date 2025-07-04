@@ -1,0 +1,31 @@
+commit 948b21a3d7419ba42c574bde89c199b522221dc6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Feb 10 11:44:19 2017 -0800
+
+    testing: only call ReadMemStats if necessary when benchmarking
+    
+    When running benchmarks with -cpuprofile,
+    the entire process gets profiled,
+    and ReadMemStats is surprisingly expensive.
+    Running the sort benchmarks right now with
+    -cpuprofile shows almost half of all execution
+    time in ReadMemStats.
+    
+    Since ReadMemStats is not required if the benchmark
+    does not need allocation stats, simply skip it.
+    This will make cpu profiles nicer to read
+    and significantly speed up the process of running benchmarks.
+    It might also make sense to toggle cpu profiling
+    on/off as we begin/end individual benchmarks,
+    but that wouldn't get us the time savings of
+    skipping ReadMemStats, so this CL is useful in itself.
+    
+    Change-Id: I425197b1ee11be4bc91d22b929e2caf648ebd7c5
+    Reviewed-on: https://go-review.googlesource.com/36791
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/benchmark.go | 29 ++++++++++++++++++++---------
+ src/testing/sub_test.go  | 10 ++++++++--
+ 2 files changed, 28 insertions(+), 11 deletions(-)

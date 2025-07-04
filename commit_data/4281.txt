@@ -1,0 +1,12 @@
+commit f6c0eba741d57030cd9bba6025fb33d6d8868169
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 2 10:25:14 2009 -0800
+
+    test that arrays work properly.
+    can't mix slices and arrays now; perhaps that should be a TODO
+    
+    R=rsc
+    https://golang.org/cl/164079
+
+ src/pkg/gob/encoder_test.go | 26 ++++++++++++++++++++++----
+ 1 file changed, 22 insertions(+), 4 deletions(-)

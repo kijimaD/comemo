@@ -1,0 +1,35 @@
+commit 1736f3a126ce0980e2584aebb35c94e8b33b1bfb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 1 15:48:17 2019 -0400
+
+    cmd/go: automatically check and use vendored packages
+    
+    This implements the proposal described in
+    https://golang.org/issue/33848#issuecomment-537222782.
+    
+    Fixes #33848
+    
+    Change-Id: Ia34d6500ca396b6aa644b920233716c6b83ef729
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198319
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.14.html                                    |  30 ++-
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go/internal/modcmd/vendor.go               |  63 +++++-
+ src/cmd/go/internal/modload/import.go              |   2 +-
+ src/cmd/go/internal/modload/init.go                | 148 ++++++++++--
+ src/cmd/go/internal/modload/load.go                | 115 +++++++---
+ src/cmd/go/internal/work/init.go                   |   4 +-
+ .../go/testdata/script/mod_ambiguous_import.txt    |   2 +-
+ src/cmd/go/testdata/script/mod_internal.txt        |  12 +-
+ src/cmd/go/testdata/script/mod_test_files.txt      |   1 +
+ src/cmd/go/testdata/script/mod_vendor.txt          |  10 +-
+ src/cmd/go/testdata/script/mod_vendor_auto.txt     | 248 +++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_vendor_build.txt    |   2 +-
+ src/cmd/go/testdata/script/mod_vendor_unused.txt   |  67 ++++++
+ src/cmd/vendor/modules.txt                         |   6 +
+ src/go.mod                                         |   2 +-
+ src/vendor/modules.txt                             |   4 +
+ 17 files changed, 632 insertions(+), 86 deletions(-)

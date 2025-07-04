@@ -1,0 +1,12 @@
+commit 868bb5d2f28909fa88c7d467aac655d014e50893
+Author: James Neve <jamesoneve@gmail.com>
+Date:   Thu Apr 20 18:26:05 2017 +0900
+
+    doc: escape some HTML in Effective Go code examples
+    
+    Change-Id: I4204e268c7220a50ceb270432067850ec2b5af80
+    Reviewed-on: https://go-review.googlesource.com/41230
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

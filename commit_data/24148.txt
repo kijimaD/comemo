@@ -1,0 +1,21 @@
+commit 43a7a9cf43319b2a473c9c3f604a694965e78903
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 31 14:36:36 2015 -0700
+
+    cmd/vet: diagnose using Printf on a function value
+    
+    Printing a function value is nearly useless outside of debugging, but
+    can occur by mistake when one forgets to call it. Diagnose this.
+    
+    I did this myself just the other day and it arose in cl/14031.
+    Easy to fix and seems worthwhile.
+    
+    Fixes #12295.
+    
+    Change-Id: Ice125a84559f0394f7fa7272b5d31ae602b07f83
+    Reviewed-on: https://go-review.googlesource.com/14122
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/vet/print.go          | 19 ++++++++++++++++++-
+ src/cmd/vet/testdata/print.go | 11 +++++++++--
+ 2 files changed, 27 insertions(+), 3 deletions(-)

@@ -1,0 +1,18 @@
+commit 5f3354d1bf2e6a61e4b9e1e31ee04b99dfe7de35
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 3 12:52:17 2020 -0700
+
+    time, runtime: only call resetTimer from (*Timer).Reset
+    
+    Previously we stopped the timer and then reset it. With the current
+    timer implementation that is no longer required.
+    
+    Change-Id: Ie7aba61ad53ce835f6fcd0b6bce7fe0a15b10e24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227180
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/time.go | 19 ++++++++++++++-----
+ src/time/sleep.go   |  6 ++----
+ 2 files changed, 16 insertions(+), 9 deletions(-)

@@ -1,0 +1,12 @@
+commit 534ddf741f6a5fc38fb0bb3e3547d3231c51a7be
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Jun 15 18:46:45 2018 +0900
+
+    mime: add .wasm for builtin
+    
+    Change-Id: I9d9189ae7882164246abcc4b22d49c26d4a3f201
+    Reviewed-on: https://go-review.googlesource.com/118937
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/type.go | 1 +
+ 1 file changed, 1 insertion(+)

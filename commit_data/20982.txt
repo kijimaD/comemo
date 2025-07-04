@@ -1,0 +1,14 @@
+commit 9b71417495b8fe4ef4b2a30855a4cf32bf947a4d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Dec 15 09:30:53 2014 +1100
+
+    encoding/json: mention that the "string" tag applies to booleans
+    
+    Fixes #9284
+    
+    Change-Id: I0410a9ed82b861686a0a986c9ca4eeeacac8f296
+    Reviewed-on: https://go-review.googlesource.com/1534
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/encode.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 52e9080d56d79820953e420fdd5287b4e88faa18
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Oct 18 20:20:30 2008 -0700
+
+    - simplified parsing of composite literals and slices by
+      treating ":" as lowest-level binary operator
+    - more precise error message for composites
+    - added flag -columns (false) - when set, prints precise error column
+    - a few more tests
+    
+    R=r
+    OCL=17428
+    CL=17428
+
+ usr/gri/pretty/parser.go   | 83 ++++++++++++++++++++--------------------------
+ usr/gri/pretty/pretty.go   |  3 +-
+ usr/gri/pretty/scanner.go  | 22 +++++-------
+ usr/gri/pretty/selftest.go | 10 +++++-
+ 4 files changed, 56 insertions(+), 62 deletions(-)

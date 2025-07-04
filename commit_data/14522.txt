@@ -1,0 +1,20 @@
+commit 25dd00295c54fa23a545bfdd27824ac403ceba84
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 29 11:46:25 2012 -0800
+
+    spec: clarify use of built-ins in go/defer statements
+    
+    1) Built-ins are restricted like for expression statements.
+       This documents the status quo.
+    
+    2) Calls cannot be parenthesized. The spec is not clear. gccgo
+       permits it already, gc doesn't. Be explicit in the spec.
+    
+     Fixes #4462.
+    
+    R=rsc, iant, r, ken, lvd
+    CC=golang-dev
+    https://golang.org/cl/6861043
+
+ doc/go_spec.html | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

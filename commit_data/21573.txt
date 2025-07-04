@@ -1,0 +1,15 @@
+commit cdc2b0568feac1867377dddccf6eafa45cd27352
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 11 23:20:15 2015 -0800
+
+    runtime: remove obsolete SELinux execmem comment
+    
+    We don't have executable memory anymore.
+    
+    Change-Id: I9835f03a7bcd97d809841ecbed8718b3048bfb32
+    Reviewed-on: https://go-review.googlesource.com/4681
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/runtime/mem_linux.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,15 @@
+commit dec5d99b71ed8693ddecf2a979735a7f907a3490
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Tue Apr 16 01:51:14 2019 +0700
+
+    cmd/compile: remove outdate comment of treecopy
+    
+    Since golang.org/cl/32487, treecopy does not handle non-iota ONONAME and
+    iota ONONAME anymore.
+    
+    Change-Id: Icd5a81333a0d4d04adef2dbc58db92ce67aa0860
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172038
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/subr.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

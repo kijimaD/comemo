@@ -1,0 +1,14 @@
+commit fe3446bda29ceadc5ffcd70874532484927b5ae7
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 6 00:02:30 2015 +0900
+
+    syscall: fix TestSCMCredentials
+    
+    Fixes #10703.
+    
+    Change-Id: I55c0f07625a0847fb27defa9891af6db6eb21f82
+    Reviewed-on: https://go-review.googlesource.com/9714
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/creds_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

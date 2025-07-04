@@ -1,0 +1,27 @@
+commit 266b349b2d28bf69f778320adb7e8ecc6bf848cd
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Aug 26 10:33:34 2016 -0400
+
+    cmd/internal/obj/s390x: add atomic operation instructions
+    
+    Adds the following s390x instructions from the interlocked access
+    facility:
+    
+     * LAA(G)  - load and add
+     * LAAL(G) - load and add logical
+     * LAN(G)  - load and and
+     * LAX(G)  - load and exclusive or
+     * LAO(G)  - load and or
+    
+    These instructions can be used for atomic arithmetic/logical
+    operations. The atomic packages will be updated in future CLs.
+    
+    Change-Id: Idc850ac6749b3e778fda3da66bcd864f6b1df375
+    Reviewed-on: https://go-review.googlesource.com/27871
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/s390x.s | 11 ++++++++
+ src/cmd/internal/obj/s390x/a.out.go       | 12 ++++++++
+ src/cmd/internal/obj/s390x/anames.go      | 10 +++++++
+ src/cmd/internal/obj/s390x/asmz.go        | 46 +++++++++++++++++++++++++++++++
+ 4 files changed, 79 insertions(+)

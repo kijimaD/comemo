@@ -1,0 +1,14 @@
+commit 825f8c147ad0ff0ea44192d6f9e8db5f5f4e0603
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 25 19:22:46 2011 -0400
+
+    net: move internal string manipulation routines to parse.go
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4968044
+
+ src/pkg/net/interface.go | 12 ------------
+ src/pkg/net/ip.go        | 36 +-----------------------------------
+ src/pkg/net/parse.go     | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+), 47 deletions(-)

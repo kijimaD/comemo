@@ -1,0 +1,17 @@
+commit 3f700ce4d2f9674e9091f5a33fa8860f9106d5c8
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Nov 8 09:55:54 2023 -0500
+
+    cmd/link/internal/loader: remove some dead code
+    
+    Get rid of a couple of unused methods in the loader and symbol
+    builder.
+    
+    Change-Id: I3822891757dc56356295a9bc99545b725d485eac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540260
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/loader/loader.go        | 8 --------
+ src/cmd/link/internal/loader/symbolbuilder.go | 4 ----
+ 2 files changed, 12 deletions(-)

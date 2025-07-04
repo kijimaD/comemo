@@ -1,0 +1,17 @@
+commit 42b93b7fe616b685e9ea41514b15bc9c26d3eac8
+Author: yah01 <kagaminehuan@gmail.com>
+Date:   Wed Feb 26 08:17:14 2020 +0000
+
+    fmt: do not remove trailing zeros for %g and %G with #(sharp) flag
+    
+    Fixes #36562
+    
+    Change-Id: Id98ae9f7362cfb825b306c36649d505692d6d60e
+    GitHub-Last-Rev: 405d51b12eb04da8cc3559c92f1546e69a8c1a19
+    GitHub-Pull-Request: golang/go#36588
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215001
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go |  9 +++++++++
+ src/fmt/format.go   | 13 ++++++++++++-
+ 2 files changed, 21 insertions(+), 1 deletion(-)

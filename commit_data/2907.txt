@@ -1,0 +1,30 @@
+commit b648716ee92f688cabc5cc655ef4d94763ce509b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 7 12:50:26 2009 -0700
+
+    forward declarations not necessary.
+    still to do:
+            * initializer cycle detection
+            * nicer error for type checking cycles
+    
+    R=ken
+    OCL=32855
+    CL=32880
+
+ src/cmd/gc/Makefile    |   2 +-
+ src/cmd/gc/align.c     |  29 +-
+ src/cmd/gc/closure.c   | 194 +++++++++++++
+ src/cmd/gc/const.c     |   1 +
+ src/cmd/gc/dcl.c       | 755 +++++++++++++++++++++++--------------------------
+ src/cmd/gc/export.c    |  48 +---
+ src/cmd/gc/gen.c       | 106 ++++++-
+ src/cmd/gc/go.h        |  43 ++-
+ src/cmd/gc/go.y        | 162 +++++------
+ src/cmd/gc/init.c      |  28 +-
+ src/cmd/gc/lex.c       |   6 +-
+ src/cmd/gc/reflect.c   |   1 +
+ src/cmd/gc/sinit.c     |   6 +
+ src/cmd/gc/subr.c      | 121 ++------
+ src/cmd/gc/typecheck.c |  93 +++++-
+ src/cmd/gc/walk.c      |  63 ++++-
+ 16 files changed, 990 insertions(+), 668 deletions(-)

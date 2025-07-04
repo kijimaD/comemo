@@ -1,0 +1,17 @@
+commit 19e2f26b21a8bb5f9cfed1808d25534d8fe88c47
+Author: James David Chalfant <james.chalfant@gmail.com>
+Date:   Fri Dec 14 09:00:33 2012 -0800
+
+    database/sql: adds test for fix in issue 4433.
+    
+    Tests that here should be automatic retries if a database
+    driver's connection returns ErrBadConn on Begin. See
+    "TestTxErrBadConn" in sql_test.go
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6942050
+
+ src/pkg/database/sql/fakedb_test.go | 32 +++++++++++++++++++++++++++-----
+ src/pkg/database/sql/sql_test.go    | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+), 5 deletions(-)

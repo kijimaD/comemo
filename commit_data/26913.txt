@@ -1,0 +1,28 @@
+commit 44f80f6d4925ae59b519ced3a626170099258904
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Apr 6 11:07:12 2016 -0500
+
+    syscall:  fix epoll_event struct for ppc64le/ppc64
+    
+    The existing epoll_event structure used by many of
+    the epoll_* syscalls was defined incorrectly
+    for use with ppc64le & ppc64 in the syscall
+    directory.  This resulted in the caller getting
+    incorrect information on return from these
+    syscalls.  This caused failures in fsnotify as
+    well as builds with upstream Docker.  The
+    structure is defined correctly in gccgo.
+    
+    This adds a pad field that is expected for
+    these syscalls on ppc64le, ppc64.
+    Fixes #15135
+    
+    Change-Id: If7e8ea9eb1d1ca5182c8dc0f935b334127341ffd
+    Reviewed-on: https://go-review.googlesource.com/21582
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/types_linux.go          | 3 +++
+ src/syscall/ztypes_linux_ppc64.go   | 7 ++++---
+ src/syscall/ztypes_linux_ppc64le.go | 7 ++++---
+ 3 files changed, 11 insertions(+), 6 deletions(-)

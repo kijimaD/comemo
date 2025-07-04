@@ -1,0 +1,21 @@
+commit b5af5c0834a57751fae78fefc922f5e9f5b50941
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Feb 15 13:22:45 2022 -0500
+
+    runtime: enable sigPerThreadSyscall handling on android
+    
+    CL 383434 forgot to enable these paths for android, which is still linux
+    just not via GOOS.
+    
+    Fixes #51213.
+    
+    Change-Id: I102e53e8671403ded6edb4ba04789154d7a0730b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385954
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/signal_unix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit bf3f7689554b62917f8ea16e33386a87e3717135
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Tue Feb 8 15:42:52 2011 -0500
+
+    windows: replace remaining __MINGW32__ instances with _WIN32
+    
+    R=rsc, brainman
+    CC=golang-dev
+    https://golang.org/cl/4146041
+
+ include/libc.h | 2 +-
+ include/u.h    | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

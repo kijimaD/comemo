@@ -1,0 +1,30 @@
+commit e5f6051e77b207561dd11ae72cc7451e5ab8bcf3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Nov 3 18:14:37 2017 +0000
+
+    cmd/go: skip "exclude all Go files" error in fmt
+    
+    Otherwise, one can't run "go fmt" on a directory containing Go files if
+    none of them are buildable (e.g. because of build tags). This is
+    counter-intuitive, as fmt will format all Go files anyway.
+    
+    If we encounter such a load error, ignore it and carry on. All other
+    load errors, such as when a package can't be found, should still be
+    shown to the user.
+    
+    Add a test for the two kinds of load errors. Use fmt -n so that any
+    changes to the formatting of the files in testdata don't actually get
+    applied. The load errors still occur with -n, so the test does its job.
+    
+    Fixes #22183.
+    
+    Change-Id: I99d0c0cdd29015b6a3f5286a9bbff50757c78e0d
+    Reviewed-on: https://go-review.googlesource.com/75930
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/deps.go              |  1 +
+ src/cmd/go/go_test.go             |  8 ++++++++
+ src/cmd/go/internal/fmtcmd/fmt.go | 12 +++++++++++-
+ 3 files changed, 20 insertions(+), 1 deletion(-)

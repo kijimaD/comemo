@@ -1,0 +1,25 @@
+commit 01b9ae22ed3c0f9c9ea29adbcd23bd97de6d18dd
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Feb 6 23:25:04 2022 -0800
+
+    cmd/compile: constant-fold switches early in compilation
+    
+    So that the inliner knows all the other cases are dead and doesn't
+    accumulate any cost for them.
+    
+    The canonical case for this is switching on runtime.GOOS, which occurs
+    several places in the stdlib.
+    
+    Fixes #50253
+    
+    Change-Id: I44823aaebb6c1b03c9b0c12d10086db81954350f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399694
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/deadcode/deadcode.go | 80 +++++++++++++++++++++++++++
+ test/inline.go                                | 45 +++++++++++++++
+ 2 files changed, 125 insertions(+)

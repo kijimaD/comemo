@@ -1,0 +1,22 @@
+commit 7b0f3caa26a46f2d8ef277ff677efec899618871
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 28 09:34:26 2011 -0700
+
+    strings: add Replacer, NewReplacer
+    
+    This is just a new API to do many replacements at once.
+    
+    While the point of this API is to be faster than doing replacements one
+    at a time, the implementation in this CL has the optimizations removed
+    and may actually be slower.
+    
+    Future CLs will bring back & add optimizations.
+    
+    R=r, rsc, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/5081042
+
+ src/pkg/strings/Makefile        |  1 +
+ src/pkg/strings/replace.go      | 84 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/strings/replace_test.go | 75 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 160 insertions(+)

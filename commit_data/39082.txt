@@ -1,0 +1,17 @@
+commit f766b68023c7fa4076d61824d631b3fe2cc697d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 30 14:00:07 2019 -0400
+
+    cmd/asm: accept TEXT f+0(SB) in -gensymabis mode
+    
+    f+0(SB) is a non-standard but acceptable alias for f(SB).
+    
+    Fixes #30968.
+    
+    Change-Id: I499ccee4d3ff3ab4e47f75d99407aace858e59aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174537
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/asm/internal/asm/operand_test.go |  9 +++++----
+ src/cmd/asm/internal/asm/parse.go        | 13 ++++++++++---
+ 2 files changed, 15 insertions(+), 7 deletions(-)

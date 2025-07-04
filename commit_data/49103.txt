@@ -1,0 +1,24 @@
+commit 90a11e921ba3b928706854655bd010f309a96458
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon May 9 12:57:31 2022 -0400
+
+    cmd/compile: more fix on boolean ops on ARM64
+    
+    Following CL 405114, the extension rule is also wrong. It is safe
+    to drop the extension if the value is from a boolean-generating
+    instruction, but not a boolean-typed Value in general (e.g. a Phi
+    or a in-register parameter). Fix it.
+    
+    Updates #52788.
+    
+    Change-Id: Icf3028fe8e90806f9f57fbe2b38d47da27a97e2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405115
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |   4 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 148 ++++++++++++++++++++++++++-
+ test/fixedbugs/issue52788a.go                |  29 ++++++
+ test/fixedbugs/issue52788a.out               |   1 +
+ 4 files changed, 177 insertions(+), 5 deletions(-)

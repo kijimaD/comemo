@@ -1,0 +1,23 @@
+commit a1762c2cc67822d86cb37747a56f0d4a07d24ced
+Author: eric fang <eric.fang@arm.com>
+Date:   Wed May 13 06:38:39 2020 +0000
+
+    unicode/utf8: refactor benchmarks for FullRune function
+    
+    BenchmarkFullASCIIRune tests the performance of function utf8.FullRune,
+    which will be inlined in BenchmarkFullASCIIRune. Since the return value
+    of FullRune is not referenced, it will be removed as dead code.
+    
+    This CL makes the FullRune functions return value referenced by a global
+    variable to avoid this point. In addition, this CL adds one more benchmark
+    to cover more code paths, and puts them together as sub benchmarks of
+    BenchmarkFullRune.
+    
+    Change-Id: I6e79f4c087adf70e351498a4b58d7482dcd1ec4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233979
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/unicode/utf8/utf8_test.go | 30 +++++++++++++++++++-----------
+ 1 file changed, 19 insertions(+), 11 deletions(-)

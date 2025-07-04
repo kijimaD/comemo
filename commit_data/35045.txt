@@ -1,0 +1,21 @@
+commit 236c567ba9b7767b6f1ebe32eb2d8f0018de8780
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Sun Apr 8 12:36:30 2018 +0000
+
+    cmd/internal/obj/arm64: refactor the extended/shifted register encoding to the backend
+    
+    The current code encodes the register and the shift/extension into a.Offset
+    field and this is done in the frontend. The CL refactors it to have the
+    frontend record the register/shift/extension information in a.Reg or a.Index
+    and leave the encoding stuff for the backend.
+    
+    Change-Id: I600f456aec95377b7b79cd58e94afcb30aca5d19
+    Reviewed-on: https://go-review.googlesource.com/106815
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/arch/arm64.go | 30 ---------------
+ src/cmd/internal/obj/arm64/asm7.go | 76 ++++++++++++++++++++++++++++++++++----
+ src/cmd/internal/obj/util.go       | 12 +-----
+ 3 files changed, 70 insertions(+), 48 deletions(-)

@@ -1,0 +1,24 @@
+commit 56fb2cff9f127a2a7dad0b44bb5522785aa06ddf
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 00:28:49 2022 +0800
+
+    crypto: use bytes.Clone
+    
+    Change-Id: I92e110023739c6f8f7815c7e47ad7639c4e8812d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435279
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
+
+ src/crypto/cipher/cbc.go                         | 3 ++-
+ src/crypto/cipher/cipher.go                      | 8 --------
+ src/crypto/cipher/ctr.go                         | 3 ++-
+ src/crypto/ed25519/ed25519.go                    | 4 +---
+ src/crypto/internal/boring/aes.go                | 4 ++--
+ src/crypto/internal/boring/hmac.go               | 4 ++--
+ src/crypto/x509/internal/macos/corefoundation.go | 5 ++---
+ src/crypto/x509/root_windows.go                  | 4 ++--
+ 8 files changed, 13 insertions(+), 22 deletions(-)

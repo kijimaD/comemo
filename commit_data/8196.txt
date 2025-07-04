@@ -1,0 +1,12 @@
+commit 361e4e5f6406b1caedf05a9a96d5b511880eba49
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Apr 22 15:46:49 2011 -0400
+
+    crypto/rsa: add file that I forgot to add last time.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4452041
+
+ src/pkg/crypto/rsa/pkcs1v15_test.go | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

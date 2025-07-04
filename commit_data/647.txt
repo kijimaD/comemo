@@ -1,0 +1,12 @@
+commit 5d5e9f74cb365bcfc6fc14703d1b2e526233b679
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Sep 15 15:03:10 2008 -0700
+
+    bug - divide and mod of a byte
+    
+    R=r
+    OCL=15370
+    CL=15370
+
+ src/cmd/6g/gen.c | 22 +++++++++++++++-------
+ 1 file changed, 15 insertions(+), 7 deletions(-)

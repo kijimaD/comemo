@@ -1,0 +1,20 @@
+commit cbe777b2c70320f52f85c6c8f1242b35dd45b341
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Mar 14 10:07:51 2014 -0400
+
+    cmd/gc: replace '·' as '.' in ELF/Mach-O symbol tables
+    
+    Old versions of DTrace (as those shipped in OS X and FreeBSD)
+    don't support unicode characters in symbol names.  Replace '·'
+    to '.' to make DTrace happy.
+    
+    Fixes #7493
+    
+    LGTM=aram, rsc
+    R=aram, rsc, gobot, iant
+    CC=golang-codereviews
+    https://golang.org/cl/72280043
+
+ src/cmd/ld/macho.c  | 17 ++++++++++++++++-
+ src/cmd/ld/symtab.c | 16 ++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

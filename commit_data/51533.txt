@@ -1,0 +1,22 @@
+commit b9747e0e6b82c6de1ebe020841087e8fb1eabccc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 7 13:27:22 2022 -0800
+
+    os/user: on AIX getpwuid_r seems to return -1 on overflow
+    
+    The getpwuid_r function is expected to return ERANGE on overflow.
+    Accept -1 on AIX as we see that in practice.
+    
+    This problem was uncovered by, but not caused by, CL 455815,
+    which introduced a test that forced a buffer overflow.
+    
+    Change-Id: I3ae94faf1257d2c73299b1478e49769bb807fc4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456075
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/user/cgo_lookup_unix.go | 4 ++++
+ 1 file changed, 4 insertions(+)

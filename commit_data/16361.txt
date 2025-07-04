@@ -1,0 +1,29 @@
+commit 509a1173a33d4fd914409cd941470d440fd5eed3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 21 14:32:09 2013 -0700
+
+    time: remove Time.FormatAppend
+    
+    undo CL 8478044 / 0d28fd55e721
+    
+    Lack of consensus.
+    
+    ««« original CL description
+    time: add Time.FormatAppend
+    
+    This is a version of Time.Format that doesn't require allocation.
+    
+    Fixes #5192
+    Update #5195
+    
+    R=r
+    CC=gobot, golang-dev
+    https://golang.org/cl/8478044
+    »»»
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/9462049
+
+ src/pkg/time/format.go | 27 ++++++++++-----------------
+ 1 file changed, 10 insertions(+), 17 deletions(-)

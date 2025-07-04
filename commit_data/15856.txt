@@ -1,0 +1,12 @@
+commit 5ae4012b64024c3861f3c9e0f6139a145e31a80f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 20 15:03:30 2013 -0700
+
+    go/parser: use method values
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7858045
+
+ src/pkg/go/parser/parser.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

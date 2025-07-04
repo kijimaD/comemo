@@ -1,0 +1,17 @@
+commit d934d10a0b6dcc4a0f4a90a5250b059d3b2a7073
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 3 11:37:06 2015 -0800
+
+    math/big: introduce Undef Accuracy, use for NaN operands/results
+    
+    This change represents Accuracy as a bit pattern rather than
+    an ordered value; with a new value Undef which is both Below
+    and Above.
+    
+    Change-Id: Ibb96294c1417fb3cf2c3cf2374c993b0a4e106b3
+    Reviewed-on: https://go-review.googlesource.com/6650
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 62 ++++++++++++++++++++++------------------------
+ src/math/big/float_test.go | 49 ++++++++++++++++++++----------------
+ 2 files changed, 57 insertions(+), 54 deletions(-)

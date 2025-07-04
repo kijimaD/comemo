@@ -1,0 +1,13 @@
+commit 538a58bb75ea86be27ba24597c4f45f0e84969ea
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 1 13:54:09 2012 -0700
+
+    misc/cgo/test: changes to pass when using gccgo
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6821067
+
+ misc/cgo/test/backdoor/runtime.c       |  2 ++
+ misc/cgo/test/backdoor/runtime_gccgo.c | 18 ++++++++++++++++++
+ 2 files changed, 20 insertions(+)

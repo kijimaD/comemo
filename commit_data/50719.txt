@@ -1,0 +1,19 @@
+commit 1d65566148d0b214fcf9667535ecc1d43ed4f7ee
+Author: cui fliter <imcusg@gmail.com>
+Date:   Wed Sep 28 08:47:08 2022 +0000
+
+    cmd/fix: use strings.Cut
+    
+    Change-Id: Ibee86b4c5dc9a18df9bdc65b0ec8339ee1cac7a9
+    GitHub-Last-Rev: 336580707cd58f2c17ec4c686d54982417d1a4b4
+    GitHub-Pull-Request: golang/go#55911
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435739
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/fix/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

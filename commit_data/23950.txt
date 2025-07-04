@@ -1,0 +1,12 @@
+commit a65fa20541d7cc423e1e3c5b20114b04f77fb957
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Mon Aug 3 16:32:28 2015 -0700
+
+    cmd/go: documented default value of the -timeout testflag
+    
+    Change-Id: I4dc75065038a9cfd06f61c0deca1c86c70713d3a
+    Reviewed-on: https://go-review.googlesource.com/13091
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/test.go | 1 +
+ 1 file changed, 1 insertion(+)

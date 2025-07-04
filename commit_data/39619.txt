@@ -1,0 +1,13 @@
+commit 739123c3a36f30af06c294741f74a26e54ee21ad
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Jun 28 19:20:04 2019 -0400
+
+    errors: add example showing a custom error with Unwrap
+    
+    Change-Id: I2bddee9b460d3875911859b49528a00d318f37fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184237
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/errors/example_unwrap_test.go | 56 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 56 insertions(+)

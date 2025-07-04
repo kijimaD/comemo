@@ -1,0 +1,14 @@
+commit 443ec4f44deea0bd85d77ee6703eca2a8f317cec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 14 08:14:03 2015 -0700
+
+    doc/go1.5.html: fix typo.
+    
+    Fixes #11704.
+    
+    Change-Id: If103f8eca7e53b0120885e2ec086db12176ea078
+    Reviewed-on: https://go-review.googlesource.com/12155
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.5.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

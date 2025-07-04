@@ -1,0 +1,16 @@
+commit a0514459aa06df8edd2a904242733cf1d5151baf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 3 12:09:44 2010 +1000
+
+    codelab/wiki: switch edit/view, as they were backwards
+    
+    Fixes #757.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1064041
+
+ doc/codelab/wiki/final-template.go |  4 ++--
+ doc/codelab/wiki/index.html        |  4 ++--
+ doc/codelab/wiki/wiki.html         | 15 +++++++++------
+ 3 files changed, 13 insertions(+), 10 deletions(-)

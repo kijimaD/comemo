@@ -1,0 +1,12 @@
+commit ba22172832a971f0884106a5a8ff26a98a65623c
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Jun 2 07:43:21 2016 +0200
+
+    runtime: fix typo in comment
+    
+    Change-Id: I82e35770b45ccd1433dfae0af423073c312c0859
+    Reviewed-on: https://go-review.googlesource.com/23680
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/runtime/traceback.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit ed7cd2546eb997e976534f0542816e12448f34d5
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 14 12:17:44 2016 +0900
+
+    net: make use of internal/testenv package
+    
+    Change-Id: I6644081df495cb92b3d208f867066f9acb08946f
+    Reviewed-on: https://go-review.googlesource.com/22074
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial_test.go           | 29 ++++++++++++---------------
+ src/net/dnsclient_unix_test.go | 21 ++++++--------------
+ src/net/external_test.go       | 11 +++++------
+ src/net/listen_test.go         | 19 ++++++++++++------
+ src/net/lookup_test.go         | 45 +++++++++++++++++++++++++-----------------
+ src/net/lookup_windows_test.go | 17 +++++-----------
+ src/net/main_test.go           |  2 --
+ src/net/platform_test.go       |  3 ++-
+ src/net/tcpsock_test.go        | 10 ++++------
+ src/net/udpsock_test.go        | 10 ++++------
+ 10 files changed, 79 insertions(+), 88 deletions(-)

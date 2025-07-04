@@ -1,0 +1,25 @@
+commit 25d22d9abae4345c24cd2ae7f26de1846888faa4
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sat Feb 10 20:10:26 2018 -0800
+
+    cmd/compile: report the struct type in invalid number of initializer values
+    
+    Fixes #23732
+    
+    Disambiguate "too few" or "too many" values in struct
+    initializer messages by reporting the name of the literal.
+    
+    After:
+    issue23732.go:27:3: too few values in Foo literal
+    issue23732.go:34:12: too many values in Bar literal
+    issue23732.go:40:6: too few values in Foo literal
+    issue23732.go:40:12: too many values in Bar literal
+    
+    Change-Id: Ieca37298441d907ac78ffe960c5ab55741a362ef
+    Reviewed-on: https://go-review.googlesource.com/93277
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go |  4 +--
+ test/fixedbugs/issue23732.go             | 42 ++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 2 deletions(-)

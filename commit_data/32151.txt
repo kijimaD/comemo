@@ -1,0 +1,25 @@
+commit d401c427b29f48d5cbc5092e62c20aa8524ce356
+Author: Michael McLoughlin <mmcloughlin@gmail.com>
+Date:   Sat Jul 15 18:21:26 2017 -0600
+
+    crypto/rand: batch large calls to linux getrandom
+    
+    The linux getrandom system call returns at most 33554431 = 2^25-1 bytes per
+    call. The existing behavior for larger reads is to report a failure, because
+    there appears to have been an unexpected short read. In this case the system
+    falls back to reading from "/dev/urandom".
+    
+    This change performs reads of 2^25 bytes or more with multiple calls to
+    getrandom.
+    
+    Fixes #20877
+    
+    Change-Id: I618855bdedafd86cd11219fe453af1d6fa2c88a7
+    Reviewed-on: https://go-review.googlesource.com/49170
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/rand/rand_linux.go      | 25 ++++++++++++++++++++++-
+ src/crypto/rand/rand_linux_test.go | 42 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 1 deletion(-)

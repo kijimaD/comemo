@@ -1,0 +1,16 @@
+commit 1d6a499cc02012275b3c172dc98a143e49fb8ddc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 3 14:34:51 2017 -0400
+
+    encoding/pem: yet another fuzz fake failure
+    
+    Fixes #19829.
+    
+    Change-Id: I8500fd73c37b504d6ea25f5aff7017fbc0718570
+    Reviewed-on: https://go-review.googlesource.com/39314
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/pem/pem_test.go | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)

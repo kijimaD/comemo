@@ -1,0 +1,15 @@
+commit 0919fd70682ee07e58eed6f95ff1f55541d3fecb
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Dec 16 09:58:06 2016 +0100
+
+    cmd/go: fix doc about examples with empty Output
+    
+    Fixes #18191
+    
+    Change-Id: Ic2bac9d2a6f42d14e780c74d9c842ee344ab030a
+    Reviewed-on: https://go-review.googlesource.com/34512
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go | 3 ++-
+ src/cmd/go/test.go    | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit 34706ac974105e12c5127da4e226d85eaa5a1715
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 15 16:52:11 2010 -0400
+
+    libmach: fix build on arm host
+    
+    Fixes #1079.
+    
+    R=r, trufae, fgergo
+    CC=golang-dev
+    https://golang.org/cl/2103048
+
+ src/libmach/8db.c | 51 ++++++++++++++++++++++++++-------------------------
+ 1 file changed, 26 insertions(+), 25 deletions(-)

@@ -1,0 +1,17 @@
+commit 701fa1c5ed8df2cde01487729c0e29c924e08050
+Author: Johnny Luo <johnnyluo1980@gmail.com>
+Date:   Fri Nov 24 21:21:44 2017 +1100
+
+    net/smtp: return error from SendMail when required AUTH not available
+    
+    Return an error if an Auth is passed to SendMail but the server does not support authentication.
+    
+    Fixes #22145
+    
+    Change-Id: I49a37259c47bbe5145e30fa8a2d05444e60cb378
+    Reviewed-on: https://go-review.googlesource.com/79776
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/smtp/smtp.go      |  9 ++++----
+ src/net/smtp/smtp_test.go | 52 +++++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 51 insertions(+), 10 deletions(-)

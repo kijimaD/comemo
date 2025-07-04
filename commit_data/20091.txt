@@ -1,0 +1,15 @@
+commit 651d0cf204da51eddec88c32c039d750ef7edbbd
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Aug 24 11:50:37 2014 +0400
+
+    runtime: convert sigqueue to Go
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, khr
+    https://golang.org/cl/132090043
+
+ src/pkg/runtime/runtime.h                    |  1 +
+ src/pkg/runtime/{sigqueue.goc => sigqueue.c} | 66 ++++++++++++++++++----------
+ src/pkg/runtime/sigqueue.go                  | 42 ++++++++++++++++++
+ 3 files changed, 85 insertions(+), 24 deletions(-)

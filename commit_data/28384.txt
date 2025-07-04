@@ -1,0 +1,44 @@
+commit 82703f84e4e2ab5b68d43825e0f046a5ad990612
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Sep 15 14:34:20 2016 +1000
+
+    cmd/compile/internal/gc: unexport helper functions
+    
+    After the removal of the old backend many types are no longer referenced
+    outside internal/gc. Make these functions private so that tools like
+    honnef.co/go/unused can spot when they become dead code. In doing so
+    this CL identified several previously public helpers which are no longer
+    used, so removes them.
+    
+    Change-Id: Idc2d485f493206de9d661bd3cb0ecb4684177b32
+    Reviewed-on: https://go-review.googlesource.com/29133
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go       |  4 +-
+ src/cmd/compile/internal/gc/align.go     | 19 -------
+ src/cmd/compile/internal/gc/bimport.go   |  8 +--
+ src/cmd/compile/internal/gc/const.go     |  6 +--
+ src/cmd/compile/internal/gc/dcl.go       |  4 +-
+ src/cmd/compile/internal/gc/esc.go       |  2 +-
+ src/cmd/compile/internal/gc/export.go    |  2 +-
+ src/cmd/compile/internal/gc/gen.go       |  8 +--
+ src/cmd/compile/internal/gc/gsubr.go     | 60 ++--------------------
+ src/cmd/compile/internal/gc/init.go      |  8 +--
+ src/cmd/compile/internal/gc/magic.go     |  4 +-
+ src/cmd/compile/internal/gc/order.go     |  4 +-
+ src/cmd/compile/internal/gc/parser.go    |  2 +-
+ src/cmd/compile/internal/gc/plive.go     |  4 +-
+ src/cmd/compile/internal/gc/racewalk.go  |  4 +-
+ src/cmd/compile/internal/gc/range.go     | 18 +++----
+ src/cmd/compile/internal/gc/reflect.go   |  4 +-
+ src/cmd/compile/internal/gc/select.go    |  8 +--
+ src/cmd/compile/internal/gc/sinit.go     | 20 ++++----
+ src/cmd/compile/internal/gc/subr.go      | 69 ++++++-------------------
+ src/cmd/compile/internal/gc/swt.go       |  6 +--
+ src/cmd/compile/internal/gc/swt_test.go  |  2 +-
+ src/cmd/compile/internal/gc/type.go      |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 42 ++++++++--------
+ src/cmd/compile/internal/gc/walk.go      | 86 ++++++++++++++++----------------
+ 25 files changed, 143 insertions(+), 253 deletions(-)

@@ -1,0 +1,23 @@
+commit 92998cde5a642c9db42efa51c4077b70609d55d6
+Author: Ville Skyttä <ville.skytta@iki.fi>
+Date:   Sat May 7 06:37:07 2022 +0000
+
+    mime: skip globs2 entries that are not simple file extensions
+    
+    The entries in globs2 can be globs beyond simple *.ext ones. We support only simple extension based matching, so skip entries that do not represent them.
+    
+    Change-Id: Id5d089cb4067e53beb2471a5e67a59c13880a017
+    GitHub-Last-Rev: f725a910547ec52d12605760563f158dfb72e4b0
+    GitHub-Pull-Request: golang/go#51156
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385256
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/mime/testdata/test.types.globs2 |  3 +++
+ src/mime/type_unix.go               | 14 +++++++++++++-
+ src/mime/type_unix_test.go          | 17 ++++++++++-------
+ 3 files changed, 26 insertions(+), 8 deletions(-)

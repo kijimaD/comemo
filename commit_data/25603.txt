@@ -1,0 +1,20 @@
+commit c40a73d80c38eacc27e8cb9cf25c2bacaee60a3d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 19 05:10:58 2016 +0000
+
+    net/http: make hidden http2 Transport respect remaining Transport fields
+    
+    Updates x/net/http2 to git rev 72aa00c6 for https://golang.org/cl/18721
+    (but actually at https://golang.org/cl/18722 now)
+    
+    Fixes #14008
+    
+    Change-Id: If05d5ad51ec0ba5ba7e4fe16605c0a83f0484bc8
+    Reviewed-on: https://go-review.googlesource.com/18723
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/clientserver_test.go |  31 +++++++-
+ src/net/http/h2_bundle.go         | 163 +++++++++++++++++++++++++++++---------
+ 2 files changed, 155 insertions(+), 39 deletions(-)

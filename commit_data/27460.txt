@@ -1,0 +1,29 @@
+commit 79ba1e44c7c2d7ff186f9ac142a85869f352f0f6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 19 10:07:41 2016 -0700
+
+    cmd/cgo: mark stub functions as no_sanitize_thread
+    
+    When the generated stub functions write back the results to the stack,
+    they can in some cases be writing to the same memory on the g0 stack.
+    There is no race here (assuming there is no race in the Go code), but
+    the thread sanitizer does not know that.  Turn off the thread sanitizer
+    for the stub functions to prevent false positive warnings.
+    
+    Current clang suggests the no_sanitize("thread") attribute, but that
+    does not work with clang 3.6 or GCC.  clang 3.6, GCC, and current clang
+    all support the no_sanitize_thread attribute, so use that
+    unconditionally.
+    
+    The test case and first version of the patch are from Dmitriy Vyukov.
+    
+    Change-Id: I80ce92824c6c8cf88ea0fe44f21cf50cf62474c9
+    Reviewed-on: https://go-review.googlesource.com/23252
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testsanitizers/test.bash | 10 ++++++++++
+ misc/cgo/testsanitizers/tsan3.go  | 40 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/out.go                |  8 +++++++-
+ 3 files changed, 57 insertions(+), 1 deletion(-)

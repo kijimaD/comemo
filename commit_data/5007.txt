@@ -1,0 +1,12 @@
+commit 520621d24cec520fab9bfa9ae67c4d43405520a6
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Sun Mar 7 11:17:36 2010 -0800
+
+    regex: Remove unneeded imports from test.
+    
+    R=rsc, adg, r
+    CC=golang-dev
+    https://golang.org/cl/264041
+
+ src/pkg/regexp/all_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,0 +1,12 @@
+commit 8eb05b38434ddd5ee07e2ea564192b91599f4239
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Aug 24 14:15:55 2012 +1000
+
+    exp/html: remove unused forTag function.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/6480051
+
+ src/pkg/exp/html/node.go | 13 -------------
+ 1 file changed, 13 deletions(-)

@@ -1,0 +1,38 @@
+commit 872d7181f4084461441787c70ffd1354314987af
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Oct 6 20:53:27 2023 -0400
+
+    runtime/cgo: avoid taking the address of crosscall2 in code
+    
+    Currently, set_crosscall2 takes the address of crosscall2 without
+    using the GOT, which, on some architectures, results in a
+    PC-relative relocation (e.g. R_AARCH64_ADR_PREL_PG_HI21 on ARM64)
+    to the crosscall2 symbol. But crosscall2 is dynamically exported,
+    so the C linker thinks it may bind to a symbol from a different
+    DSO. Some C linker may not like a PC-relative relocation to such a
+    symbol. Using a local trampoline to avoid taking the address of a
+    dynamically exported symbol.
+    
+    It may be possible to not dynamically export crosscall2. But this
+    CL is safer for backport. Later we may remove the trampolines
+    after unexport crosscall2, if they are not needed.
+    
+    Fixes #62556.
+    
+    Change-Id: Id28457f65ef121d3f87d8189803abc65ed453283
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533535
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/cgo/internal/testcarchive/carchive_test.go | 32 ++++++++++++++++++++++
+ src/runtime/cgo/asm_386.s                          |  7 ++++-
+ src/runtime/cgo/asm_amd64.s                        |  7 ++++-
+ src/runtime/cgo/asm_arm.s                          |  7 ++++-
+ src/runtime/cgo/asm_arm64.s                        |  7 ++++-
+ src/runtime/cgo/asm_loong64.s                      |  7 ++++-
+ src/runtime/cgo/asm_mips64x.s                      |  7 ++++-
+ src/runtime/cgo/asm_mipsx.s                        |  7 ++++-
+ src/runtime/cgo/asm_ppc64x.s                       |  7 ++++-
+ src/runtime/cgo/asm_riscv64.s                      |  7 ++++-
+ src/runtime/cgo/asm_s390x.s                        |  7 ++++-
+ 11 files changed, 92 insertions(+), 10 deletions(-)

@@ -1,0 +1,19 @@
+commit 903d28bd1e5b27dcbd68575d5952ffcbe8605296
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 8 16:39:19 2009 -0700
+
+    ANY is already checked separately,
+    so remove code from go.y.
+    
+    show original types in badtype; don't remove pointers.
+    not sure why this was here but it confuses things
+    if the bad part involves two named pointer types
+    with different names but the same pointed-at type.
+    
+    R=ken
+    OCL=31369
+    CL=31369
+
+ src/cmd/gc/go.y   |  4 ----
+ src/cmd/gc/subr.c | 15 ---------------
+ 2 files changed, 19 deletions(-)

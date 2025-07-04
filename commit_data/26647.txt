@@ -1,0 +1,30 @@
+commit aecfcd827edb4a7ab6248668f7329a330e1f0e4a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 31 05:36:20 2016 -0700
+
+    net/http: clean up the Client redirect code, document Body.Close rules more
+    
+    Issue #8633 (and #9134) noted that we didn't document the rules about
+    closing the Response.Body when Client.Do returned both a non-nil
+    *Response and a non-nil error (which can only happen when the user's
+    CheckRedirect returns an error).
+    
+    In the process of investigating, I cleaned this code up a bunch, but
+    no user-visible behavior should have changed, except perhaps some
+    better error messages in some cases.
+    
+    It turns out it's always been the case that when a CheckRedirect error
+    occurs, the Response.Body is already closed. Document that.
+    
+    And the new code makes that more obvious too.
+    
+    Fixes #8633
+    
+    Change-Id: Ibc40cc786ad7fc4e0cf470d66bb559c3b931684d
+    Reviewed-on: https://go-review.googlesource.com/21364
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/client.go | 179 ++++++++++++++++++++++++++-----------------------
+ 1 file changed, 94 insertions(+), 85 deletions(-)

@@ -1,0 +1,16 @@
+commit 27920c8ddc609662540deaf5a3d3b4fce03abeea
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 28 13:51:58 2017 -0400
+
+    internal/trace: flags for what to include in GC utilization
+    
+    Change-Id: I4ba963b003cb25b39d7575d423f17930d84f3f69
+    Reviewed-on: https://go-review.googlesource.com/c/60796
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/trace/mmu.go                |  2 +-
+ src/internal/traceparser/gc.go      | 48 ++++++++++++++++++++++++++++++-------
+ src/internal/traceparser/gc_test.go |  4 ++--
+ 3 files changed, 43 insertions(+), 11 deletions(-)

@@ -1,0 +1,51 @@
+commit 1a53915c6b905ae5d0a4398362cc655a1406cf06
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu May 16 11:26:40 2019 +0100
+
+    cmd/compile: initial rulegen rewrite
+    
+    rulegen.go produces plaintext Go code directly, which was fine for a
+    while. However, that's started being a bottleneck for making code
+    generation more complex, as we can only generate code directly one line
+    at a time.
+    
+    Some workarounds were used, like multiple layers of buffers to generate
+    chunks of code, to then use strings.Contains to see whether variables
+    need to be defined or not. However, that's error-prone, verbose, and
+    difficult to work with.
+    
+    A better approach is to generate an intermediate syntax tree in memory,
+    which we can inspect and modify easily. For example, we could run a
+    number of "passes" on the syntax tree before writing to disk, such as
+    removing unused variables, simplifying logic, or moving declarations
+    closer to their uses.
+    
+    This is the first step in that direction, without changing any of the
+    generated code. We didn't use go/ast directly, as it's too complex for
+    our needs. In particular, we only need a few kinds of simple statements,
+    but we do want to support arbitrary expressions. As such, define a
+    simple set of statement structs, and add thin layers for printer.Fprint
+    and ast.Inspect.
+    
+    A nice side effect of this change, besides removing some buffers and
+    string handling, is that we can now avoid passing so many parameters
+    around. And, while we add over a hundred lines of code, the tricky
+    pieces of code are now a bit simpler to follow.
+    
+    While at it, apply some cleanups, such as replacing isVariable with
+    token.IsIdentifier, and consistently using log.Fatalf.
+    
+    Follow-up CLs will start improving the generated code, also simplifying
+    the rulegen code itself. I've added some TODOs for the low-hanging fruit
+    that I intend to work on right after.
+    
+    Updates #30810.
+    
+    Change-Id: Ic371c192b29c85dfc4a001be7fbcbeec85facc9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177539
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 814 ++++++++++++++++------------
+ 1 file changed, 479 insertions(+), 335 deletions(-)

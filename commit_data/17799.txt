@@ -1,0 +1,26 @@
+commit 9aee98def8e6c6ce6af36ffab1348c1f9356e316
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Oct 15 14:37:43 2013 -0400
+
+    undo CL 14231047 / 2f4c2dde2756
+    
+    undone because the change slows down profile collection
+    significantly and unpredictable at times (see comments
+    at https://golang.org/cl/14231047 for details)
+    
+    ««« original CL description
+    runtime: collect profiles even while on g0 stack
+    
+    Fixes #6417
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/14231047
+    »»»
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/14535046
+
+ src/pkg/runtime/os_windows.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit ad7448fe982d83de15deec9c55c56d0cd9261c6c
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sun Apr 10 17:32:35 2016 +0200
+
+    runtime: speed up makeslice by avoiding divisions
+    
+    Only compute the number of maximum allowed elements per slice once.
+    
+    name         old time/op  new time/op  delta
+    MakeSlice-2  55.5ns ± 1%  45.6ns ± 2%  -17.88%  (p=0.000 n=99+100)
+    
+    Change-Id: I951feffda5d11910a75e55d7e978d306d14da2c5
+    Reviewed-on: https://go-review.googlesource.com/21801
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/append_test.go |  8 ++++++++
+ src/runtime/slice.go       | 14 +++++++++++---
+ 2 files changed, 19 insertions(+), 3 deletions(-)

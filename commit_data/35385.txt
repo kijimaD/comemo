@@ -1,0 +1,39 @@
+commit 7bac2a95f65418ec18d1fb5f30ae47e91980f30c
+Author: David Chase <drchase@google.com>
+Date:   Mon Apr 30 23:52:14 2018 -0400
+
+    cmd/compile: plumb prologueEnd into DWARF
+    
+    This marks the first instruction after the prologue for
+    consumption by debuggers, specifically Delve, who asked
+    for it.  gdb appears to ignore it, lldb appears to use it.
+    
+    The bits for end-of-prologue and beginning-of-epilogue
+    are added to Pos (reducing maximum line number by 4x, to
+    1048575).  They're added in cmd/internal/obj/<ARCH>.go
+    (currently x86 only), so the compiler-proper need not
+    deal with them.
+    
+    The linker currently does nothing with beginning-of-epilogue,
+    but the plumbing exists to make it easier in the future.
+    
+    This also upgrades the line number table to DWARF version 3.
+    
+    This CL includes a regression in the coverage for
+    testdata/i22558.gdb-dbg.nexts, this appears to be a gdb
+    artifact but the fix would be in the preceding CL in the
+    stack.
+    
+    Change-Id: I3bda5f46a0ed232d137ad48f65a14835c742c506
+    Reviewed-on: https://go-review.googlesource.com/110416
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/obj/pcln.go      | 26 +++++++++++++++++++------
+ src/cmd/internal/obj/x86/obj6.go  | 10 ++++++++++
+ src/cmd/internal/src/pos.go       | 40 +++++++++++++++++++++++++++++++++------
+ src/cmd/internal/src/pos_test.go  | 40 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/src/xpos.go      |  6 ++++++
+ src/cmd/link/internal/ld/dwarf.go | 21 ++++++++++++++++----
+ 6 files changed, 127 insertions(+), 16 deletions(-)

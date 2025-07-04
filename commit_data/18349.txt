@@ -1,0 +1,14 @@
+commit ce8045f3936a957f32755a62235ca71a3cdbff9c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Jan 25 20:11:16 2014 +0400
+
+    sync: support Pool under race detector
+    Fixes #7203.
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/53020044
+
+ src/pkg/sync/pool.go      | 12 ++++++++++++
+ src/pkg/sync/pool_test.go |  3 +++
+ 2 files changed, 15 insertions(+)

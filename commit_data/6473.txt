@@ -1,0 +1,15 @@
+commit 7eb13b95a39300b50c02dde0cf32c76d992dcab7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 7 06:45:40 2010 -0400
+
+    runtime: fix argument dump in traceback
+    
+    Was printing words at SP instead of at FP
+    after shuffle due to nascent flag.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2316044
+
+ src/pkg/runtime/amd64/traceback.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

@@ -1,0 +1,25 @@
+commit 4671aa5d06811176b964519fbef066f03d4bf884
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 18 12:21:01 2022 -0700
+
+    go/parser: remove import path string syntax checking
+    
+    The validity of an import path string is checked by the type checker
+    (and possibly other tools); it doesn't need to be done by the parser.
+    Remove the respective code and tests.
+    
+    Also, adjust a corresponding go/types test which resolves a TODO.
+    
+    For #54511.
+    
+    Change-Id: Id1fc80df4e3e83be3ef123da3946ccb8f759779f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424855
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/parser/parser.go                            | 17 --------
+ src/go/parser/parser_test.go                       | 45 ----------------------
+ .../testdata/check/importdecl0/importdecl0b.go     |  9 ++---
+ 3 files changed, 3 insertions(+), 68 deletions(-)

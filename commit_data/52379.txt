@@ -1,0 +1,23 @@
+commit 48d61a46e28076bf0e41f50459fe0875ec5f4010
+Author: Huang Qiqi <huangqiqi@loongson.cn>
+Date:   Mon Mar 13 18:52:43 2023 +0800
+
+    runtime: save and restore fcc registers in async preempt on loong64
+    
+    During the context switch of goroutine scheduling, the value of the
+    fcc0 register needs to be saved on the stack.
+    
+    Fixs #59000.
+    
+    Change-Id: Ie80dbae738f60df6c11a3fe31fc57de817d76afc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475577
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+
+ src/runtime/mkpreempt.go      |  6 ++++++
+ src/runtime/preempt_loong64.s | 12 ++++++++----
+ 2 files changed, 14 insertions(+), 4 deletions(-)

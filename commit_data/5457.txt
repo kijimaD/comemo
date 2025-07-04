@@ -1,0 +1,13 @@
+commit b541921b66a57b887efcf4a696835b4917de85d5
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 7 13:30:13 2010 -0700
+
+    gob: bug fix: errors encoding the payload were not
+    returned to caller.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1164041
+
+ src/pkg/gob/encoder.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

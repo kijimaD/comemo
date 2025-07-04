@@ -1,0 +1,12 @@
+commit 0fd00c8bb7ae67cc625cf8b2d04efb21f6958648
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 14 21:33:34 2010 -0700
+
+    scanner: implement Peek() to look at the next char w/o advancing
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/840045
+
+ src/pkg/scanner/scanner.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,0 +1,20 @@
+commit 3660b532ac9f2393629744a9494aadffd8aee4c0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 26 11:50:29 2013 -0700
+
+    reflect: add garbage collection info in ChanOf, MapOf, PtrTo, SliceOf
+    
+    ArrayOf will remain unexported (and therefore unused) for Go 1.1.
+    
+    Fixes #4375.
+    
+    R=0xe2.0x9a.0x9b, r, iant
+    CC=golang-dev
+    https://golang.org/cl/7716048
+
+ src/cmd/gc/reflect.c        |   7 ++
+ src/pkg/reflect/all_test.go | 183 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/reflect/type.go     | 173 +++++++++++++++++++++++++++++++++++++----
+ src/pkg/runtime/hashmap.c   |   7 ++
+ src/pkg/runtime/mgc0.h      |   3 +
+ 5 files changed, 359 insertions(+), 14 deletions(-)

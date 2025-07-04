@@ -1,0 +1,13 @@
+commit a73817716a25c3e7584daf378c72d14c7a33ba18
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Mar 22 18:41:17 2011 -0700
+
+    chan: allocate a new chan with one
+    malloc rather than nelements + 1.
+    
+    R=rob
+    CC=golang-dev
+    https://golang.org/cl/4291064
+
+ src/pkg/runtime/chan.c | 24 ++++++++++++++++++++----
+ 1 file changed, 20 insertions(+), 4 deletions(-)

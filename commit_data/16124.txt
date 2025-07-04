@@ -1,0 +1,14 @@
+commit 487721fd0dda2a2c6b7dad4d6a4865a6b808df7c
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Sun Apr 7 23:33:40 2013 +0200
+
+    reflect: use unsafe.Pointer in StringHeader and SliceHeader
+    
+    Relates to issue 5193.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/8363045
+
+ src/pkg/reflect/value.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

@@ -1,0 +1,34 @@
+commit bd275b238179cdaca2c01a0bf1ac60a16fbf5a98
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 8 14:36:39 2014 -0800
+
+    math/big: multi-precision Floats (starting point)
+    
+    Implemented:
+    - +, -, *, /, and some unary ops
+    - all rounding modes
+    - basic conversions
+    - string to float conversion
+    - tests
+    
+    Missing:
+    - float to string conversion, formatting
+    - handling of +/-0 and +/-inf (under- and overflow)
+    - various TODOs and cleanups
+    
+    With precision set to 24 or 53, the results match
+    float32 or float64 operations exactly (excluding
+    NaNs and denormalized numbers which will not be
+    supported).
+    
+    Change-Id: I3121e90fc4b1528e40bb6ff526008da18b3c6520
+    Reviewed-on: https://go-review.googlesource.com/1218
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 1086 ++++++++++++++++++++++++++++++++++++++++++++
+ src/math/big/float_test.go |  772 +++++++++++++++++++++++++++++++
+ src/math/big/int.go        |   26 +-
+ src/math/big/nat.go        |   40 +-
+ src/math/big/nat_test.go   |   40 ++
+ src/math/big/rat.go        |  108 +++--
+ 6 files changed, 2028 insertions(+), 44 deletions(-)

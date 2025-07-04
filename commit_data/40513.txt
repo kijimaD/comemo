@@ -1,0 +1,29 @@
+commit a9b37ae02604e03d2356b6143679d2a71bdd32a7
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 24 09:00:27 2019 -0400
+
+    runtime: fully initialize span in alloc_m
+    
+    Currently, several important fields of a heap span are set by
+    heapBits.initSpan, which happens after the span has already been
+    published and returned from the locked region of alloc_m. In
+    particular, allocBits is set very late, which makes mspan.isFree
+    unsafe even if you were to lock the heap because it tries to access
+    allocBits.
+    
+    This CL fixes this by populating these fields in alloc_m. The next CL
+    builds on this to only publish the span once it is fully initialized.
+    Together, they'll make it safe to check allocBits even if there is a
+    race with alloc_m.
+    
+    For #10958, #24543, but a good fix in general.
+    
+    Change-Id: I7fde90023af0f497e826b637efa4d19c32840c08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203285
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mbitmap.go | 16 +++-------------
+ src/runtime/mheap.go   | 27 +++++++++++++++++++++++++--
+ 2 files changed, 28 insertions(+), 15 deletions(-)

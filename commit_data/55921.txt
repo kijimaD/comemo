@@ -1,0 +1,31 @@
+commit 74a0e3160d969fac27a65cd79a76214f6d1abbf5
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 10 23:41:33 2024 -0400
+
+    time: clean up benchmarks
+    
+    Comparing BenchmarkStop against very old commits like
+    CL 13094043, I was very confused about how timers had
+    gotten almost 10X slower since 2013.
+    
+    It turns out that CL 68060043 introduced a factor of 1000
+    in the benchmark cost, by counting batches of 1000 as 1 op
+    instead of 1000 ops, and timers have actually gotten
+    dramatically faster since 2013, with the addition of per-P
+    timer heaps and other optimizations.
+    
+    This CL rewrites the benchmarks to use testing.PB directly,
+    so that the factor of 1000 disappears, and "/op" really means "/op".
+    In the few tests that need to run in batches for one reason or
+    another, add "1000" to the name to make clear that batches
+    are being run.
+    
+    Change-Id: I27ed74d1e420934982e4205aad4f218cdfc42509
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570495
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/time/sleep_test.go | 116 ++++++++++++++++++++++++++-----------------------
+ src/time/tick_test.go  |  12 ++---
+ 2 files changed, 67 insertions(+), 61 deletions(-)

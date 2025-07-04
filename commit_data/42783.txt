@@ -1,0 +1,26 @@
+commit ea51acbabc687a2270438b05bf765ada2968b69a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Jun 28 16:28:52 2020 +1000
+
+    cmd/internal/objfile: use pe.FileHeader.Machine to reliably determine GOARCH
+    
+    Current peFile.goarch looks for symbols like "_rt0_386_windows" to
+    determine GOARCH. But "_rt0_386_windows" is not present in executables
+    built with cgo.
+    
+    Use pe.FileHeader.Machine instead. This should work with any Windows
+    executable, not just with Go built executable.
+    
+    Fixes #39682
+    
+    Change-Id: Ie0ffce664f4b8b8fed69b2ecc482425b042a38d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240957
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/cmd/internal/objfile/pe.go          | 14 ++++++--------
+ src/cmd/objdump/objdump_test.go         | 31 ++++++++++++++++++++-----------
+ src/cmd/objdump/testdata/fmthellocgo.go | 21 +++++++++++++++++++++
+ 3 files changed, 47 insertions(+), 19 deletions(-)

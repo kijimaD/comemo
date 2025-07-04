@@ -1,0 +1,14 @@
+commit 8382ccb0bcc57b5d4240bb662bc1e68c5d921b4c
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Jun 24 19:04:15 2019 -0400
+
+    doc/go1.13: binary-only package are no longer supported
+    
+    Change-Id: Ieb4a78730a0685627b4730381b72cbd01031c8fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183633
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.13.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

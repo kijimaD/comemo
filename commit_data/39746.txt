@@ -1,0 +1,20 @@
+commit 4219aec60ab473fa00f1092034ca801218a5dbe9
+Author: micnncim <micnncim@gmail.com>
+Date:   Fri Aug 30 19:27:55 2019 +0000
+
+    syscall: fix duplicate comments
+    
+    Removed repetitions of "the" in some comments.
+    
+    Change-Id: I36a6f51609765076de32e1b97398c4c08743aafc
+    GitHub-Last-Rev: 4d06aea6a787cfca40eda10845897ff149fff62c
+    GitHub-Pull-Request: golang/go#33797
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191497
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/syscall/syscall_js.go      | 2 +-
+ src/syscall/syscall_nacl.go    | 2 +-
+ src/syscall/syscall_plan9.go   | 2 +-
+ src/syscall/syscall_unix.go    | 2 +-
+ src/syscall/syscall_windows.go | 2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)

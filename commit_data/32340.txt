@@ -1,0 +1,30 @@
+commit 455775dae63eb1277227cbde9e99dc67a3fdb0ea
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Aug 12 14:37:19 2017 +0200
+
+    runtime: improve makechan memory checks and allocation calls
+    
+    Use mallogc instead of newarray to save some overhead since
+    makechan already checks for _MaxMem constraints.
+    
+    Flattens the if else construct that determines if buf and hchan struct
+    should be allocated in one mallocgc call and where buf should point to.
+    
+    Uses maxSliceCap to avoid divisions similar to makeslice.
+    
+    name                old time/op  new time/op  delta
+    MakeChan/Byte       82.0ns ± 8%  81.4ns ± 7%    ~     (p=0.643 n=10+10)
+    MakeChan/Int        97.9ns ± 2%  96.6ns ± 2%  -1.40%  (p=0.009 n=10+10)
+    MakeChan/Ptr         128ns ± 3%   120ns ± 1%  -6.63%  (p=0.000 n=10+10)
+    MakeChan/Struct/0   66.7ns ± 4%  66.4ns ± 2%    ~     (p=0.697 n=10+10)
+    MakeChan/Struct/32   136ns ± 1%   130ns ± 0%  -4.42%  (p=0.000 n=10+10)
+    MakeChan/Struct/40   150ns ± 1%   150ns ± 1%    ~     (p=0.725 n=10+10)
+    
+    Change-Id: Ibb5675d0843a072aae2bfa58ecd39cf4cd926533
+    Reviewed-on: https://go-review.googlesource.com/55132
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/chan.go | 36 ++++++++++++++++++++----------------
+ 1 file changed, 20 insertions(+), 16 deletions(-)

@@ -1,0 +1,17 @@
+commit c759ec228435e387a5c863b6b886b49a055fa80a
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 7 16:29:21 2021 -0500
+
+    doc/go1.18: clarify additions to net package API
+    
+    For #47694.
+    
+    Updates #46518.
+    
+    Change-Id: Ife3a8d3d6a1c50f55b5ab15730d5a6bd3ec512e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370134
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ doc/go1.18.html | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

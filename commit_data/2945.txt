@@ -1,0 +1,120 @@
+commit 3b864e41957d11314baf236eeda1e27c6a91bcf8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 12 13:18:37 2009 -0700
+
+    convert low-level (used by testing) packages to
+    whole-package compilation.  new Makefiles,
+    tests now in separate package
+    
+            bytes
+            flag
+            fmt
+            io
+            math
+            once
+            os
+            reflect
+            strconv
+            sync
+            time
+            utf8
+    
+    delete import "xxx" in package xxx.
+    
+    inside package xxx, xxx is not declared
+    anymore so s/xxx.//g
+    
+    delete file and package level forward declarations.
+    
+    note the new internal_test.go and sync
+    and strconv to provide public access to
+    internals during testing.  the installed version
+    of the package omits that file and thus does
+    not open the internals to all clients.
+    
+    R=r
+    OCL=33065
+    CL=33097
+
+ src/pkg/bytes/Makefile                            |  60 +-----------
+ src/pkg/bytes/buffer.go                           |   1 -
+ src/pkg/bytes/buffer_test.go                      |   4 +-
+ src/pkg/bytes/bytes_test.go                       |   6 +-
+ src/pkg/flag/Makefile                             |  57 +----------
+ src/pkg/flag/flag.go                              |   2 +-
+ src/pkg/flag/flag_test.go                         |  48 ++++-----
+ src/pkg/fmt/Makefile                              |  66 +------------
+ src/pkg/fmt/fmt_test.go                           |   4 +-
+ src/pkg/fmt/print.go                              |   4 -
+ src/pkg/io/Makefile                               |  69 ++-----------
+ src/pkg/io/pipe.go                                |   1 -
+ src/pkg/io/pipe_test.go                           |  13 ++-
+ src/pkg/io/utils.go                               |   1 -
+ src/pkg/io/utils_test.go                          |   4 +-
+ src/pkg/math/Makefile                             | 114 +++++-----------------
+ src/pkg/math/all_test.go                          |   4 +-
+ src/pkg/math/asin.go                              |   1 -
+ src/pkg/math/atan.go                              |   1 -
+ src/pkg/math/atan2.go                             |   1 -
+ src/pkg/math/exp.go                               |   1 -
+ src/pkg/math/floor.go                             |   1 -
+ src/pkg/math/fmod.go                              |   1 -
+ src/pkg/math/log.go                               |   9 +-
+ src/pkg/math/pow.go                               |   1 -
+ src/pkg/math/sin.go                               |   1 -
+ src/pkg/math/sinh.go                              |   1 -
+ src/pkg/math/sqrt.go                              |   1 -
+ src/pkg/math/tan.go                               |   1 -
+ src/pkg/math/tanh.go                              |   1 -
+ src/pkg/once/Makefile                             |  57 +----------
+ src/pkg/once/once_test.go                         |   4 +-
+ src/pkg/os/Makefile                               | 103 +++----------------
+ src/pkg/os/dir_darwin_386.go                      |   7 +-
+ src/pkg/os/dir_darwin_amd64.go                    |   2 -
+ src/pkg/os/dir_linux_386.go                       |   2 -
+ src/pkg/os/dir_linux_amd64.go                     |   2 -
+ src/pkg/os/env.go                                 |   1 -
+ src/pkg/os/exec.go                                |   1 -
+ src/pkg/os/file.go                                |   8 --
+ src/pkg/os/getwd.go                               |   1 -
+ src/pkg/os/os_test.go                             |   4 +-
+ src/pkg/os/path.go                                |   1 -
+ src/pkg/os/path_test.go                           |   4 +-
+ src/pkg/os/proc.go                                |   1 -
+ src/pkg/os/stat_darwin_386.go                     |   3 +-
+ src/pkg/os/stat_darwin_amd64.go                   |   3 +-
+ src/pkg/os/stat_linux_386.go                      |   5 +-
+ src/pkg/os/stat_linux_amd64.go                    |   3 +-
+ src/pkg/os/sys_darwin.go                          |   5 +-
+ src/pkg/os/sys_linux.go                           |   1 -
+ src/pkg/os/time.go                                |   5 +-
+ src/pkg/reflect/Makefile                          |  77 ++-------------
+ src/pkg/reflect/all_test.go                       |  56 +++++------
+ src/pkg/reflect/deepequal.go                      |   1 -
+ src/pkg/reflect/{tostring.go => tostring_test.go} |   9 +-
+ src/pkg/reflect/type.go                           |   7 --
+ src/pkg/reflect/value.go                          |  14 +--
+ src/pkg/strconv/Makefile                          |  82 ++--------------
+ src/pkg/strconv/atof.go                           |   1 -
+ src/pkg/strconv/atof_test.go                      |  30 +++---
+ src/pkg/strconv/atoi.go                           |  12 +--
+ src/pkg/strconv/atoi_test.go                      |  34 +++----
+ src/pkg/strconv/decimal.go                        |  10 --
+ src/pkg/strconv/decimal_test.go                   |  19 ++--
+ src/pkg/strconv/fp_test.go                        |   3 +-
+ src/pkg/strconv/ftoa.go                           |  12 +--
+ src/pkg/strconv/ftoa_test.go                      |  14 +--
+ src/pkg/strconv/internal_test.go                  |  18 ++++
+ src/pkg/strconv/itoa_test.go                      |  52 +++++-----
+ src/pkg/strconv/quote_test.go                     |   4 +-
+ src/pkg/sync/Makefile                             |  57 +----------
+ src/pkg/sync/internal_test.go                     |  15 +++
+ src/pkg/sync/mutex_test.go                        |   8 +-
+ src/pkg/time/Makefile                             |  77 ++-------------
+ src/pkg/time/tick.go                              |   1 -
+ src/pkg/time/tick_test.go                         |   4 +-
+ src/pkg/time/time.go                              |   1 -
+ src/pkg/time/time_test.go                         |   4 +-
+ src/pkg/utf8/Makefile                             |  57 +----------
+ src/pkg/utf8/utf8_test.go                         |  34 +++----
+ 81 files changed, 332 insertions(+), 1083 deletions(-)

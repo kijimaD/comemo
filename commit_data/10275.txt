@@ -1,0 +1,12 @@
+commit 2547ad6b01a3a3701a219b2dda590805ba2182af
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 7 14:16:00 2011 -0500
+
+    lib9: fix windows build
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5362045
+
+ src/lib9/ctime.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit acae4d212c6af5f96677ea7d2ed827389bd7b819
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 17 07:11:40 2013 -0700
+
+    cmd/cgo: rearrange and update documentation
+    
+    In particular document that the Go tool will look for certain
+    file extensions and compile with them with either the C or the
+    C++ compiler.
+    
+    Fixes #6393.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13733043
+
+ src/cmd/cgo/doc.go | 78 ++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 49 insertions(+), 29 deletions(-)

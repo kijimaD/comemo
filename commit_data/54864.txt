@@ -1,0 +1,26 @@
+commit 547eb8d699a63512cf58c7eeae5517ead7debf50
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 2 10:29:08 2023 -0400
+
+    net/http: remove arbitrary timeouts in tests of Server.ErrorLog
+    
+    This also allows us to remove the chanWriter helper from the test,
+    using a simpler strings.Builder instead, relying on
+    clientServerTest.close for synchronization.
+    (I don't think this runs afoul of #38370, because the handler
+    functions themselves in these tests should never be executed,
+    let alone result in an asynchronous write to the error log.)
+    
+    Fixes #57599.
+    
+    Change-Id: I45c6cefca0bb218f6f9a9659de6bde454547f704
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539436
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/client_test.go | 46 ++++++++++++++++-----------------------------
+ src/net/http/serve_test.go  | 17 +++++++++--------
+ 2 files changed, 25 insertions(+), 38 deletions(-)

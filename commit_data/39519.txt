@@ -1,0 +1,26 @@
+commit 6bf2767cc87f9f6a1b85cdc18c656fade735f27f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 2 17:03:27 2019 -0400
+
+    cmd/go: tighten the check for pseudo-version base tags
+    
+    Do not allow a pseudo-version derived from a canonical tag to refer to
+    the same revision as the tag itself. It's unnecessary (because
+    canonical tags already have a total ordering) and confusing (the
+    pseudo-version appears to come after the tag, but actually refers to
+    the exact same revision).
+    
+    Updates #32879
+    Updates #27173
+    
+    Change-Id: I02befedbe89c8819bdd93e470783ce63fc813193
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184720
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.13.html                                    |  6 +++--
+ src/cmd/go/internal/modfetch/coderepo.go           | 30 ++++++++++++++++++----
+ src/cmd/go/internal/modfetch/coderepo_test.go      | 22 +++++++++++++++-
+ src/cmd/go/testdata/script/mod_invalid_version.txt | 18 ++++++++++---
+ 4 files changed, 64 insertions(+), 12 deletions(-)

@@ -1,0 +1,14 @@
+commit 633957bcce8567a6b6f86640810bc74216599405
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 6 13:23:20 2009 -0800
+
+    - documenting old "new()"
+    - adding "init()"
+    - fixing some bugs with slice documentation
+    
+    DELTA=118  (45 added, 7 deleted, 66 changed)
+    OCL=22084
+    CL=22136
+
+ doc/go_spec.txt | 160 +++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 99 insertions(+), 61 deletions(-)

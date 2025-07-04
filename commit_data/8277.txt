@@ -1,0 +1,14 @@
+commit 366986a3fea5e56470b8d853d047aa57c5241815
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Mon May 2 09:35:55 2011 +1000
+
+    syscall: add Windows file mapping functions and constants
+    
+    R=brainman, rsc1, rsc
+    CC=golang-dev
+    https://golang.org/cl/4375046
+
+ src/pkg/syscall/syscall_windows.go      |  6 +++
+ src/pkg/syscall/zsyscall_windows_386.go | 92 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/ztypes_windows_386.go   | 12 +++++
+ 3 files changed, 110 insertions(+)

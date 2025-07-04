@@ -1,0 +1,19 @@
+commit 9294fa2749ffee7edbbb817a0ef9fe633136fa9c
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Apr 19 10:00:32 2017 -0700
+
+    crypto/elliptic: fix carry bug in x86-64 P-256 implementation.
+    
+    Patch from Vlad Krasnov and confirmed to be under CLA.
+    
+    Fixes #20040.
+    
+    Change-Id: Ieb8436c4dcb6669a1620f1e0d257efd047b1b87c
+    Reviewed-on: https://go-review.googlesource.com/41070
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/elliptic/elliptic_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ src/crypto/elliptic/p256_asm_amd64.s | 10 +++++-----
+ 2 files changed, 41 insertions(+), 5 deletions(-)

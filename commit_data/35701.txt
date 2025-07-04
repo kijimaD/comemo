@@ -1,0 +1,14 @@
+commit 1e721cfc43c4f3c4e24a386c7e283d9fec59e2f4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 13 12:44:50 2018 -0700
+
+    bufio: clarify SplitFunc docs for nil token
+    
+    Fixes #25472
+    
+    Change-Id: Idb72ed06a3dc43c49ab984a80f8885352b036465
+    Reviewed-on: https://go-review.googlesource.com/118695
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/bufio/scan.go | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

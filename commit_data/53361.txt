@@ -1,0 +1,22 @@
+commit c2bb350d80fa6116094f819f48d83f1f34993295
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 26 14:25:45 2023 -0700
+
+    doc/go1.21: mention changes to the reflect package
+    
+    Added Value.Clear, deprecated SliceHeader and StringHeader.
+    
+    For #55002
+    For #56906
+    
+    Change-Id: Ib7497aff830d56fad90c31ec28596e71a448e9ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498757
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.21.html | 24 +++++++++++++++---------
+ 1 file changed, 15 insertions(+), 9 deletions(-)

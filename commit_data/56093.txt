@@ -1,0 +1,32 @@
+commit 0bf6071066cb075b8076962f590932e0caa526a7
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Mar 29 23:44:59 2024 +0000
+
+    Revert "cmd/compile/internal: merge stack slots for selected local auto vars"
+    
+    This reverts CL 553055.
+    
+    Reason for revert: causes crypto/ecdsa failures on linux ppc64/s390x builders
+    
+    Change-Id: I9266b030693a5b6b1e667a009de89d613755b048
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575236
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/base/debug.go             |   4 -
+ src/cmd/compile/internal/base/flag.go              |   4 -
+ src/cmd/compile/internal/base/hashdebug.go         |   7 +-
+ src/cmd/compile/internal/ir/name.go                |   3 -
+ src/cmd/compile/internal/liveness/mergelocals.go   | 691 ---------------------
+ src/cmd/compile/internal/liveness/plive.go         |  24 +-
+ src/cmd/compile/internal/ssa/check.go              |   5 +-
+ src/cmd/compile/internal/ssa/func.go               |  22 +-
+ src/cmd/compile/internal/ssagen/pgen.go            |  69 +-
+ src/cmd/compile/internal/ssagen/ssa.go             |   9 +-
+ src/cmd/compile/internal/test/mergelocals_test.go  | 184 ------
+ .../test/testdata/mergelocals/integration.go       |  83 ---
+ src/cmd/compile/internal/walk/temp.go              |   4 +-
+ test/fixedbugs/bug385_64.go                        | 625 +++++++------------
+ 14 files changed, 222 insertions(+), 1512 deletions(-)

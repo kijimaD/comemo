@@ -1,0 +1,21 @@
+commit def50f8e488dcfb12362d4b84feb38de3af5cadc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat May 21 00:25:48 2016 +0000
+
+    net/http: update bundled http2
+    
+    Updates x/net/http2 to git rev 0c607074 for https://golang.org/cl/23311,
+    "http2: prevent Server from sending status 100 header after anything else"
+    
+    New test is in the x/net/http2 package (not bundled to std).
+    
+    Fixes #14030
+    
+    Change-Id: Ifc6afa4a5fe35977135428f6d0e9f7c164767720
+    Reviewed-on: https://go-review.googlesource.com/23312
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

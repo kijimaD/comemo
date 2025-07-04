@@ -1,0 +1,14 @@
+commit d8efcdcd524b2352ac38ce8612a088c95dadef83
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Nov 1 15:04:46 2009 -0800
+
+    These files were moved to encoding/base64.  The directory was
+    already removed from the Makefile.
+    
+    R=rsc
+    http://go/go-review/1017006
+
+ src/pkg/base64/Makefile       |  11 --
+ src/pkg/base64/base64.go      | 334 ------------------------------------------
+ src/pkg/base64/base64_test.go | 201 -------------------------
+ 3 files changed, 546 deletions(-)

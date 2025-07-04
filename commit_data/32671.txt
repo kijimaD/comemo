@@ -1,0 +1,17 @@
+commit 8435a746f5ca03bfd53ddf099bb2e82e6854acbf
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Jan 17 16:16:42 2017 +0900
+
+    syscall: fix TestCloneNEWUSERAndRemapRootEnableSetgroups on linux
+    
+    Despite its name, it did the same thing as
+    TestCloneNEWUSERAndRemapRootDisableSetgroups in old code. So fix it.
+    
+    Change-Id: I21265e539179c51980e16f07a553a9bf5bb7903f
+    Reviewed-on: https://go-review.googlesource.com/35273
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/syscall/exec_linux_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

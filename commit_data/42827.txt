@@ -1,0 +1,25 @@
+commit 758ac371ab930734053ed226ac62681e62ab8eea
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Aug 15 21:15:35 2020 +0200
+
+    misc/wasm: make wasm_exec more robust against uncommon environments
+    
+    JavaScript environments are quite unpredictable because bundlers add
+    mocks for compatibility and libraries can polute the global namespace.
+    Detect more of such situations:
+    
+    - Add check that require("fs") returns an object.
+    - Fix check that require("fs") returns an non-empty object.
+    - Add check that "module" is defined.
+    
+    Fixes #40730
+    
+    Change-Id: I2ce65fc7db64bbbb0b60eec79a4cfe5c3fec99c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248758
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/wasm/wasm_exec.js | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,29 @@
+commit fa85a7206d46dc30d59cfd4e882b58a59a0a3d88
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 30 18:11:48 2015 -0700
+
+    math/big: remove NaN support - just not worth it
+    
+    NaNs make the API more complicated for no real good reasons.
+    There are few operations that produce NaNs with IEEE arithmetic,
+    there's no need to copy the behavior. It's easy to test for these
+    scenarios and avoid them (on the other hand, it's not easy to test
+    for overflow or underflow, so we want to keep +/-Inf).
+    
+    Also:
+    - renamed IsNeg -> Signbit (clearer, especially for x == -0)
+    - removed IsZero           (Sign() == 0 is sufficient and efficient)
+    - removed IsFinite         (now same as !IsInf)
+    
+    Change-Id: I3f3b4445c325d9bbb1bf46ce2e298a6aeb498e07
+    Reviewed-on: https://go-review.googlesource.com/8280
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/accuracy_string.go   |   7 +-
+ src/math/big/float.go             | 220 ++++++++++++++------------------------
+ src/math/big/float_test.go        | 195 ++++++++++++++-------------------
+ src/math/big/floatconv.go         |  11 +-
+ src/math/big/floatconv_test.go    |   2 +-
+ src/math/big/floatexample_test.go | 110 ++++++++-----------
+ src/math/big/ftoa.go              |   2 +-
+ 7 files changed, 210 insertions(+), 337 deletions(-)

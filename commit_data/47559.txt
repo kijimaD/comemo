@@ -1,0 +1,28 @@
+commit b31dda8a2ad833ea5ec3c807119372b27cc0e782
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Nov 18 13:43:04 2021 -0800
+
+    cmd/compile: handle `any` as alias like `byte` and `rune`
+    
+    `types.Types[types.TINTER]` is already used for `interface{}`, so we
+    can conveniently just extend the existing logic that substitutes
+    `byte` and `rune` with `uint8` and `int32` to also substitute `any`.
+    
+    Fixes #49665.
+    
+    Change-Id: I1ab1954699934150aab899b35037d5611c8ca47e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365354
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go |  5 +++--
+ src/cmd/compile/internal/types/fmt.go           |  4 ++--
+ src/cmd/compile/internal/types/identity.go      |  2 ++
+ src/cmd/compile/internal/types/type.go          | 13 ++++++++++---
+ src/cmd/compile/internal/types/universe.go      | 14 +++++++++-----
+ test/fixedbugs/issue49665.go                    | 18 ++++++++++++++++++
+ test/fixedbugs/issue49665.out                   |  2 ++
+ 7 files changed, 46 insertions(+), 12 deletions(-)

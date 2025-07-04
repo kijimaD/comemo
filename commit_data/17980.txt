@@ -1,0 +1,16 @@
+commit 52ecd2ce96c7635eaf731c1003fdd4507f4d08aa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 12 18:55:05 2013 -0800
+
+    debug/dwarf: remove unused field addrsize from Data
+    
+    The addrsize field is not a constant for an entire executable
+    file, and is now handled by the dataFormat interface when
+    reading the data.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/41620043
+
+ src/pkg/debug/dwarf/open.go | 1 -
+ 1 file changed, 1 deletion(-)

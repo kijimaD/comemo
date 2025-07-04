@@ -1,0 +1,12 @@
+commit 1693e14bc4eaef34877191bfc6c370f55deaa031
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Mon Mar 25 08:43:51 2013 -0700
+
+    math: modify a comment to the convention format.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8012043
+
+ src/pkg/math/tanh.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

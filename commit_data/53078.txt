@@ -1,0 +1,83 @@
+commit 865179164ec4ce5125df3e7378b8353975224216
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 12 18:55:25 2023 +0000
+
+    runtime: replace sysBlockTraced with tracedSyscallEnter
+    
+    sysBlockTraced is a subtle and confusing flag.
+    
+    Currently, it's only used in one place: a condition around whether to
+    traceGoSysExit when a goroutine is about to start running. That condition
+    looks like "gp.syscallsp != 0 && gp.trace.sysBlockTraced".
+    
+    In every case but one, "gp.syscallsp != 0" is equivalent to
+    "gp.trace.sysBlockTraced."
+    
+    That one case is where a goroutine is running without a P and racing
+    with trace start (world is stopped). It switches itself back to
+    _Grunnable from _Gsyscall before the trace start goroutine notices, such
+    that the trace start goroutine fails to emit a EvGoInSyscall event for
+    it (EvGoInSyscall or EvGoSysBlock must precede any EvGoSysExit event).
+    sysBlockTraced is set unconditionally on every syscall entry and the
+    trace start goroutine clears it if there was no EvGoInSyscall event
+    emitted (i.e. did not observe _Gsyscall on the goroutine). That way when
+    the goroutine-without-a-P wakes up and gets scheduled, it only emits
+    EvGoSysExit if the flag is set, i.e. trace start didn't _clear_ the
+    flag.
+    
+    What makes this confusing is the fact that the flag is set
+    unconditionally and the code relies on it being *cleared*. Really, all
+    it's trying to communicate is whether the tracer is aware of a
+    goroutine's syscall at the point where a goroutine that lost its P
+    during a syscall is trying to run again.
+    
+    Therefore, we can replace this flag with a less subtle one:
+    tracedSyscallEnter. It is set when GoSysCall is traced, indicating on
+    the goroutine that the tracer is aware of the syscall. Later, if
+    traceGoSysExit is called, the tracer knows its safe to emit an event
+    because the tracer is aware of the syscall.
+    
+    This flag is then also set at trace start, when it emits EvGoInSyscall,
+    which again, lets the goroutine know the tracer is aware of its syscall.
+    
+    The flag is cleared by GoSysExit to indicate that the tracer is no
+    longer aware of any syscalls on the goroutine. It's also cleared by
+    trace start. This is necessary because a syscall may have been started
+    while a trace was stopping. If the GoSysExit isn't emitted (because it
+    races with the trace end STW) then the flag will be left set at the
+    start of the next trace period, which will result in an erroneous
+    GoSysExit. Instead, the flag is cleared in the same way sysBlockTraced
+    is today: if the tracer doesn't notice the goroutine is in a syscall, it
+    makes that explicit to the goroutine.
+    
+    A more direct flag to use here would be one that explicitly indicates
+    whether EvGoInSyscall or EvGoSysBlock specifically were already emitted
+    for a goroutine. The reason why we don't just do this is because setting
+    the flag when EvGoSysBlock is emitted would be racy: EvGoSysBlock is
+    emitted by whatever thread is stealing the P out from under the
+    syscalling goroutine, so it would need to synchronize with the goroutine
+    its emitting the event for.
+    
+    The end result of all this is that the new flag can be managed entirely
+    within trace.go, hiding another implementation detail about the tracer.
+    
+    Tested with `stress ./trace.test -test.run="TestTraceStressStartStop"`
+    which was occasionally failing before the CL in which sysBlockTraced was
+    added (CL 9132). I also confirmed also that this test is still sensitive
+    to `EvGoSysExit` by removing the one use of sysBlockTraced. The result
+    is about a 5% error rate. If there is something very subtly wrong about
+    how this CL emits `EvGoSysExit`, I would expect to see it as a test
+    failure. Instead:
+    
+        53m55s: 200434 runs so far, 0 failures
+    
+    Change-Id: If1d24ee6b6926eec7e90cdb66039a5abac819d9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494715
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go  |  5 +----
+ src/runtime/trace.go | 25 ++++++++++++++++++++-----
+ 2 files changed, 21 insertions(+), 9 deletions(-)

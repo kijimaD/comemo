@@ -1,0 +1,12 @@
+commit f21ee1e1d8a70abd130d0435eb1a1d2e95c88129
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 8 10:35:44 2015 -0800
+
+    README: emphasize that we don't accept pull requests
+    
+    Change-Id: Ie31f957f6b60b0a9405147c7a0af789df01a4b02
+    Reviewed-on: https://go-review.googlesource.com/2550
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ README.md | 2 ++
+ 1 file changed, 2 insertions(+)

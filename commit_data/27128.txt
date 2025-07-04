@@ -1,0 +1,14 @@
+commit 17db07f9b5034f22851f32f7700649ac61c44e8f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 26 14:11:38 2016 -0700
+
+    cmd/compile: don't discard inlineable but empty functions with binary export format
+    
+    Change-Id: I0f016fa000f949d27847d645b4cdebe68a8abf20
+    Reviewed-on: https://go-review.googlesource.com/22474
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

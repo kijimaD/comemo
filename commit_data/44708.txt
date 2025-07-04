@@ -1,0 +1,16 @@
+commit 5423f6023cff995f1077ac83e132705893a8af79
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 16 21:24:09 2021 -0700
+
+    test: add bug that failed when run with gccgo
+    
+    Change-Id: Ie52d70d2ae8a21acacf0745a4093650b03ac43f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302371
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/fixedbugs/bug512.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 52 insertions(+)

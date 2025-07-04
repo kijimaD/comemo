@@ -1,0 +1,22 @@
+commit f368abb46e15419c95d3f5933e9344476e1efc2a
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Dec 8 12:53:26 2022 -0500
+
+    doc/go1.20: correct test binary -v flag value for test2json
+    
+    The -v flag value is "test2json", not "json", since it emits output
+    in a custom format that the cmd/test2json tool interprets.
+    The cmd/test2json documentation and implementation have this right.
+    
+    For #54202.
+    
+    Change-Id: I2b52861d926e14488aa9fc89fff8c26da32ca710
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456124
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/go1.20.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

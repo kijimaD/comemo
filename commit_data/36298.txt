@@ -1,0 +1,15 @@
+commit 5403b8ecebc37da227dae170f01b6004a66bf2e6
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Sat Jul 28 00:26:42 2018 +0300
+
+    cmd/compile: remove empty branches
+    
+    Change-Id: Id87d9f55d1714fc553f5b1a9cba0f2fe348dad3e
+    Reviewed-on: https://go-review.googlesource.com/126396
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/debug.go           | 5 -----
+ src/cmd/compile/internal/ssa/redblack32_test.go | 2 --
+ 2 files changed, 7 deletions(-)

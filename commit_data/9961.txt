@@ -1,0 +1,22 @@
+commit d1bafffa4b3d34e4f9b77d02c5c5af1d03f86689
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 13 15:54:23 2011 -0400
+
+    runtime: run goroutines during init
+    
+    Fixes #583.
+    Fixes #1776.
+    Fixes #2001.
+    Fixes #2112.
+    
+    R=golang-dev, bradfitz, r, gri
+    CC=golang-dev
+    https://golang.org/cl/5265044
+
+ doc/go_spec.html            |  6 ------
+ src/pkg/runtime/386/asm.s   |  1 -
+ src/pkg/runtime/amd64/asm.s |  1 -
+ src/pkg/runtime/arm/asm.s   |  1 -
+ src/pkg/runtime/proc.c      | 33 ++-------------------------------
+ test/init1.go               | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 46 insertions(+), 40 deletions(-)

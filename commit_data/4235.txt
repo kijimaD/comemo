@@ -1,0 +1,13 @@
+commit 1dc65e3acaecdf9ccbd9b814d8b7bd8549019ea3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 30 10:28:31 2009 -0800
+
+    AUTHORS/CONTRIBUTORS: two more names
+    
+    R=r, SnakE
+    CC=fhs, pts
+    https://golang.org/cl/162054
+
+ AUTHORS      | 2 ++
+ CONTRIBUTORS | 3 +++
+ 2 files changed, 5 insertions(+)

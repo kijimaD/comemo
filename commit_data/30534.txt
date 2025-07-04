@@ -1,0 +1,20 @@
+commit de3669901a6c9551067071ab410775e57e3b26c2
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Mar 5 13:37:33 2017 +0100
+
+    strconv: remove unused append rune width param
+    
+    Found by github.com/mvdan/unparam. Small performance win when the
+    utf8.RuneLen call is removed.
+    
+    name               old time/op    new time/op    delta
+    AppendQuoteRune-4    21.7ns ± 0%    21.4ns ± 0%  -1.38%  (p=0.008 n=5+5)
+    
+    Change-Id: Ieb3b3e1148db7a3d854c81555a491edeff549f43
+    Reviewed-on: https://go-review.googlesource.com/37831
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/strconv/quote.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

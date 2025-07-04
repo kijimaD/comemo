@@ -1,0 +1,12 @@
+commit d00248980be23b5c889601cf749f5738a5dc8724
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 2 10:50:18 2009 -0800
+
+    do not emit USED for global x when compiling "_ = x;"
+    
+    R=ken@golang.org
+    CC=r
+    http://go/go-review/1018019
+
+ src/cmd/gc/gen.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,31 @@
+commit c9af2bd21e86a218622b9c753cddfb5bba46d780
+Author: Katie Hockman <katie@golang.org>
+Date:   Mon Sep 27 16:12:05 2021 -0400
+
+    cmd/go: prevent necessary GCFlag from being removed
+    
+    There are special flags that must be passed to the
+    compiler at build time in order to instrument the
+    testing binary for fuzzing.
+    One potential option would be to add these flags to
+    p.Internal.Gcflags inside cmd/go/internal/test. However,
+    future calls to setToolFlags can cause these flags to
+    get cleared about before the build starts, removing
+    virtually all coverage guidance. This change moves the
+    logic to add the flag deeper down the call stack,
+    preventing it from being cleared.
+    
+    Change-Id: I40eadb0cacc18f29cee75379cd9380f9e73bb8da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352511
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/load/pkg.go  |  1 +
+ src/cmd/go/internal/test/test.go | 10 ++++------
+ src/cmd/go/internal/work/exec.go |  5 +++++
+ src/cmd/go/internal/work/gc.go   |  3 +++
+ src/cmd/go/internal/work/init.go | 15 ++++++++-------
+ 5 files changed, 21 insertions(+), 13 deletions(-)

@@ -1,0 +1,23 @@
+commit ad102e143c9ad6be22ca1ea067daf9bd1ba296fc
+Author: David Anderson <danderson@google.com>
+Date:   Wed Mar 9 05:58:47 2011 -0800
+
+    syscall: implement Mount and Unmount for linux.
+    
+    Note that, while the final argument of mount(2) is a void*, in
+    practice all filesystem implementations treat it as a string
+    of comma-separated mount options.
+    
+    R=bradfitzgo, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4247070
+
+ src/pkg/syscall/mkerrors.sh             |  2 ++
+ src/pkg/syscall/syscall_linux.go        |  2 ++
+ src/pkg/syscall/zerrors_linux_386.go    | 22 ++++++++++++++++++++++
+ src/pkg/syscall/zerrors_linux_amd64.go  | 22 ++++++++++++++++++++++
+ src/pkg/syscall/zerrors_linux_arm.go    | 22 ++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_386.go   | 16 ++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_amd64.go | 16 ++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_arm.go   | 16 ++++++++++++++++
+ 8 files changed, 118 insertions(+)

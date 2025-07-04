@@ -1,0 +1,16 @@
+commit 6a3859f4331b2039142673e9beac8ffdd7d2628a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 20 14:01:07 2013 -0700
+
+    spec: removed old or invalid TODOs
+    
+    Several old TODOs are either resolved now (e.g. when is a return
+    needed), or are from a time the language wasn't frozen (^ for uints
+    only). Consolidated the others.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9599044
+
+ doc/go_spec.html | 31 +------------------------------
+ 1 file changed, 1 insertion(+), 30 deletions(-)

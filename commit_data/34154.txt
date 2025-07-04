@@ -1,0 +1,18 @@
+commit 9558ba293f9ea1c9241eba99858eee449ba882d2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 31 17:12:29 2018 -0800
+
+    reflect: add embedded field test
+    
+    Gccgo failed this test.
+    
+    Updates #23620
+    
+    Change-Id: I3979a6d3b87d2d014850accf9cb7f356349e6195
+    Reviewed-on: https://go-review.googlesource.com/91138
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/reflect/all_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

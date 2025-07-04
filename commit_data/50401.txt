@@ -1,0 +1,33 @@
+commit dfdf55158dcfc3ef1bd436b3b9ed6daa20801fdb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 6 19:30:30 2022 -0700
+
+    cmd/compile/internal/noder: fix type switch case vars package
+    
+    When naming case variables, the unified frontend was using
+    typecheck.Lookup, which uses the current package, rather than
+    localIdent, which uses the package the variable was originally
+    declared in. When inlining across package boundaries, this could cause
+    the case variables to be associated with the wrong package.
+    
+    In practice, I don't believe this has any negative consequences, but
+    it's inconsistent and triggered an ICE in typecheck.ClosureType, which
+    expected all captured variables to be declared in the same package.
+    
+    Easy fix is to ensure case variables are declared in the correct
+    package by using localIdent.
+    
+    Fixes #54912.
+    
+    Change-Id: I7a429c708ad95723f46a67872cb0cf0c53a6a0d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428918
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ src/cmd/compile/internal/noder/reader.go   | 2 +-
+ src/cmd/compile/internal/noder/writer.go   | 4 ++++
+ src/cmd/compile/internal/typecheck/func.go | 2 +-
+ test/run.go                                | 2 --
+ 4 files changed, 6 insertions(+), 4 deletions(-)

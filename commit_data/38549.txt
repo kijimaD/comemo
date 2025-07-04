@@ -1,0 +1,26 @@
+commit c4f87ed26ffc17e6cf326d33e49f639d9bf7cf86
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 25 16:34:19 2019 -0700
+
+    cmd/compile: fix "append outside assignment" ICE
+    
+    Some special-case code paths in order.go didn't expect OCALLFUNC to
+    have Ninit; in particular, OAS2FUNC and ODEFER/OGO failed to call
+    o.init on their child OCALLFUNC node. This resulted in not all of the
+    AST being properly ordered.
+    
+    This was noticed because order is responsible for introducing an
+    invariant around how OAPPEND is used, which is enforced by walk.
+    However, there were perhaps simpler cases (e.g., simple order of
+    evaluation) that were being silently miscompiled.
+    
+    Fixes #31010.
+    
+    Change-Id: Ib928890ab5ec2aebd8e30a030bc2b404387f9123
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169257
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/order.go |  6 ++++++
+ test/fixedbugs/issue31010.go         | 24 ++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

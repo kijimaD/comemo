@@ -1,0 +1,20 @@
+commit ed92862522d5630074e7830334d37af56c6264dc
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Mar 24 20:52:11 2015 -0400
+
+    misc/ios: timeout and continue waiting for getwd
+    
+    Split out from cl/8024 for clarity and improved approach.
+    
+    Rarely, "stop reason = breakpoint" does not appear in the lldb stop
+    text. However the program is ready to proceed. To be a little more
+    robust about those cases, we wait for two seconds, and if that text
+    doesn't appear but a prompt does we continue and hope for the best.
+    Worst case, this results in a harder to read failure message.
+    
+    Change-Id: Ib20aa92564cdccefd2b7260417c647cd44122b66
+    Reviewed-on: https://go-review.googlesource.com/8080
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ misc/ios/go_darwin_arm_exec.go | 55 +++++++++++++++++++++++++++++++++---------
+ 1 file changed, 43 insertions(+), 12 deletions(-)

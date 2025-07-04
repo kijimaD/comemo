@@ -1,0 +1,13 @@
+commit 3cbc2716a94e836097f40dd3d7dd7b46f0fbbe50
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 1 18:26:21 2013 +0400
+
+    runtime: remove unused var
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12249043
+
+ src/pkg/runtime/traceback_arm.c | 2 --
+ src/pkg/runtime/traceback_x86.c | 2 --
+ 2 files changed, 4 deletions(-)

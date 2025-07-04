@@ -1,0 +1,14 @@
+commit 34466a14911163fadcc54725143b04c47d4080aa
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Nov 13 20:58:51 2011 -0500
+
+    exp/ssh: add client functional tests
+    
+    Requires CL 5373055
+    
+    R=rsc, agl, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/5320053
+
+ src/pkg/exp/ssh/client_func_test.go | 61 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)

@@ -1,0 +1,90 @@
+commit 45ca9f7a9efdf5d191f1f23e08cb719edf3a8fe9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 15 15:41:46 2009 -0800
+
+    1) Change default gofmt default settings for
+       parsing and printing to new syntax.
+    
+       Use -oldparser to parse the old syntax,
+       use -oldprinter to print the old syntax.
+    
+    2) Change default gofmt formatting settings
+       to use tabs for indentation only and to use
+       spaces for alignment. This will make the code
+       alignment insensitive to an editor's tabwidth.
+    
+       Use -spaces=false to use tabs for alignment.
+    
+    3) Manually changed src/exp/parser/parser_test.go
+       so that it doesn't try to parse the parser's
+       source files using the old syntax (they have
+       new syntax now).
+    
+    4) gofmt -w src misc test/bench
+    
+    5th and last set of files.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/180050
+
+ src/pkg/syslog/syslog.go              |   82 +-
+ src/pkg/syslog/syslog_test.go         |   64 +-
+ src/pkg/tabwriter/tabwriter.go        |  246 +-
+ src/pkg/tabwriter/tabwriter_test.go   |   82 +-
+ src/pkg/template/format.go            |   42 +-
+ src/pkg/template/template.go          |  520 ++--
+ src/pkg/template/template_test.go     |  194 +-
+ src/pkg/testing/benchmark.go          |   88 +-
+ src/pkg/testing/iotest/logger.go      |   22 +-
+ src/pkg/testing/iotest/reader.go      |   34 +-
+ src/pkg/testing/iotest/writer.go      |   16 +-
+ src/pkg/testing/quick/quick.go        |  188 +-
+ src/pkg/testing/quick/quick_test.go   |  114 +-
+ src/pkg/testing/regexp.go             |  680 ++---
+ src/pkg/testing/regexp_test.go        |  122 +-
+ src/pkg/testing/script/script.go      |  190 +-
+ src/pkg/testing/script/script_test.go |   42 +-
+ src/pkg/testing/testing.go            |   94 +-
+ src/pkg/time/sleep.go                 |    6 +-
+ src/pkg/time/tick.go                  |   30 +-
+ src/pkg/time/tick_test.go             |   26 +-
+ src/pkg/time/time.go                  |  272 +-
+ src/pkg/time/time_test.go             |   46 +-
+ src/pkg/time/zoneinfo.go              |  136 +-
+ src/pkg/unicode/digit.go              |    4 +-
+ src/pkg/unicode/digit_test.go         |    4 +-
+ src/pkg/unicode/letter.go             |  104 +-
+ src/pkg/unicode/letter_test.go        |   16 +-
+ src/pkg/unicode/maketables.go         |  456 +--
+ src/pkg/unicode/script_test.go        |   22 +-
+ src/pkg/unicode/tables.go             |  316 +--
+ src/pkg/utf8/utf8.go                  |  150 +-
+ src/pkg/utf8/utf8_test.go             |   90 +-
+ src/pkg/websocket/client.go           |   76 +-
+ src/pkg/websocket/server.go           |   40 +-
+ src/pkg/websocket/websocket.go        |   74 +-
+ src/pkg/websocket/websocket_test.go   |   48 +-
+ src/pkg/xgb/example.go                |   64 +-
+ src/pkg/xgb/xgb.go                    |  282 +-
+ src/pkg/xgb/xproto.go                 | 4912 ++++++++++++++++-----------------
+ src/pkg/xml/read.go                   |  134 +-
+ src/pkg/xml/read_test.go              |   50 +-
+ src/pkg/xml/xml.go                    |  498 ++--
+ src/pkg/xml/xml_test.go               |   42 +-
+ test/bench/binary-tree-freelist.go    |   66 +-
+ test/bench/binary-tree.go             |   36 +-
+ test/bench/chameneosredux.go          |   96 +-
+ test/bench/fannkuch.go                |   52 +-
+ test/bench/fasta.go                   |   88 +-
+ test/bench/k-nucleotide.go            |   90 +-
+ test/bench/mandelbrot.go              |   62 +-
+ test/bench/meteor-contest.go          |  242 +-
+ test/bench/nbody.go                   |  120 +-
+ test/bench/pidigits.go                |   66 +-
+ test/bench/regex-dna.go               |   38 +-
+ test/bench/reverse-complement.go      |   44 +-
+ test/bench/spectral-norm-parallel.go  |   48 +-
+ test/bench/spectral-norm.go           |   38 +-
+ test/bench/threadring.go              |   30 +-
+ 59 files changed, 5917 insertions(+), 5917 deletions(-)

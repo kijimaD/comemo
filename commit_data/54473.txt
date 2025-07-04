@@ -1,0 +1,19 @@
+commit 743121c45c0d8d6322046f2b14c1d17b39b612f1
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Sep 14 14:02:47 2023 -0400
+
+    cmd/link: clean up some unnecessary casts
+    
+    In CL 527822, the type of FlagRound is changed to *int64, so casts
+    to int64 are no longer necessary. Remove them.
+    
+    Change-Id: I68a89f6e51e0ae3813cb79959b8062ca6bea4980
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528575
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/ld/data.go                | 14 +++++++-------
+ src/cmd/link/internal/ld/macho.go               | 10 +++++-----
+ src/cmd/link/internal/ld/macho_combine_dwarf.go |  4 ++--
+ src/cmd/link/internal/ld/xcoff.go               |  2 +-
+ 4 files changed, 15 insertions(+), 15 deletions(-)

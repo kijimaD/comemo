@@ -1,0 +1,14 @@
+commit b78aaec22feac690e3327d5153870560d88403ee
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Mon Jun 24 13:18:50 2013 -0700
+
+    net/rpc: call client.Close() when test exit
+    
+    Fixes #5768.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/10503043
+
+ src/pkg/net/rpc/server_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

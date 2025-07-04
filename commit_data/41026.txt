@@ -1,0 +1,16 @@
+commit 4f757179543e06daec58df6af5884516f8bceb86
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 23 15:27:46 2019 -0800
+
+    io: show ErrUnexpectedEOF in ExampleReadAtLeast
+    
+    Fixes #36245
+    
+    Change-Id: I10ce50b0cc28b15f4e7be85b8f12cf9d0e4fac96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212404
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/io/example_test.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

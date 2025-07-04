@@ -1,0 +1,15 @@
+commit 4274d074dcf06fc67318d11962994ea19b2aff6b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 12 20:40:50 2013 -0400
+
+    encoding/json: add more tests for UTF-8 coercion
+    
+    Suggested by Rob in CL 11211045, but the mail arrived
+    moments after hg submit completed.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/11138045
+
+ src/pkg/encoding/json/decode_test.go | 21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)

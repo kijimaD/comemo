@@ -1,0 +1,20 @@
+commit d9c47cd8c8887ea1bb81a60f9df2bdd963b2eafd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 12 17:22:21 2010 -0700
+
+    container/vector: rename Data() -> Copy()
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1814043
+
+ src/pkg/container/vector/Makefile             | 4 ++--
+ src/pkg/container/vector/intvector.go         | 4 ++--
+ src/pkg/container/vector/intvector_test.go    | 6 +++---
+ src/pkg/container/vector/stringvector.go      | 4 ++--
+ src/pkg/container/vector/stringvector_test.go | 6 +++---
+ src/pkg/container/vector/vector.go            | 4 ++--
+ src/pkg/container/vector/vector_test.go       | 6 +++---
+ src/pkg/exp/iterable/iterable.go              | 6 +++---
+ src/pkg/exp/iterable/iterable_test.go         | 2 +-
+ 9 files changed, 21 insertions(+), 21 deletions(-)

@@ -1,0 +1,16 @@
+commit 2642c6e24dd3d935d01270a0fa0a89de3d3dae69
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 13 16:16:05 2013 -0400
+
+    sync/atomic: update comment for ARM 64-bit atomics
+    
+    They don't work on older chips, just like the x86-32 64-bit atomics.
+    
+    Update #6134
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12880043
+
+ src/pkg/sync/atomic/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

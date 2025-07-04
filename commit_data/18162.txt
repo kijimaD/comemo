@@ -1,0 +1,12 @@
+commit c136197ca8a536b6fd93f0ee2a7de6c6541c0124
+Author: Jeff Sickel <jas@corpus-callosum.com>
+Date:   Sat Jan 4 10:53:22 2014 -0800
+
+    runtime: plan 9 does have /dev/random
+    
+    R=golang-codereviews, r, aram
+    CC=0intro, golang-codereviews, rsc
+    https://golang.org/cl/43420045
+
+ src/pkg/runtime/os_plan9.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

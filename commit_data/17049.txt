@@ -1,0 +1,26 @@
+commit 82f5ca1ef05970fc271dc7e1cacaed8e27f65910
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 6 21:49:03 2013 +1000
+
+    runtime: change int32 to intgo in findnull and findnullw
+    
+    Update #6046.
+    This CL just does findnull and findnullw. There are other functions
+    to fix but doing them a few at a time will help isolate any (unlikely)
+    breakages these changes bring up in architectures I can't test
+    myself.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/12520043
+
+ src/pkg/runtime/env_plan9.c      | 3 ++-
+ src/pkg/runtime/env_posix.c      | 3 ++-
+ src/pkg/runtime/os_plan9.c       | 3 ++-
+ src/pkg/runtime/os_plan9_386.c   | 2 +-
+ src/pkg/runtime/os_plan9_amd64.c | 2 +-
+ src/pkg/runtime/print.c          | 2 +-
+ src/pkg/runtime/runtime.c        | 2 +-
+ src/pkg/runtime/runtime.h        | 4 ++--
+ src/pkg/runtime/string.goc       | 8 ++++----
+ 9 files changed, 16 insertions(+), 13 deletions(-)

@@ -1,0 +1,12 @@
+commit 2acb80b5e57f5c42c6f474616253d4be80187527
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 14 14:26:52 2013 -0700
+
+    cmd/gc: fix comment about performing indexing at compile time.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/14441070
+
+ src/cmd/gc/walk.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

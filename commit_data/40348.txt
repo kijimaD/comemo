@@ -1,0 +1,16 @@
+commit 7f98c0eb031d678687a3c07f5e1f11cac12d4171
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 22 00:54:22 2019 -0700
+
+    os/exec: skip possible netpoll pipe in known FDs in test
+    
+    Fixes #35045
+    
+    Change-Id: I90ac29882c7d03936c98c4116a8bccdd2ecbf76b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202445
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/exec/exec_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

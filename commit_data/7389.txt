@@ -1,0 +1,15 @@
+commit 1b8d373463194723e29ca261e39cf7c411770e7d
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Feb 7 21:40:33 2011 -0500
+
+    crypto/openpgp/packet: add UserId packet type
+    
+    This was split from CL 4124054
+    
+    R=bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4126057
+
+ src/pkg/crypto/openpgp/packet/userid.go      | 105 +++++++++++++++++++++++++++
+ src/pkg/crypto/openpgp/packet/userid_test.go |  42 +++++++++++
+ 2 files changed, 147 insertions(+)

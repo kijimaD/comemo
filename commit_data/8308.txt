@@ -1,0 +1,16 @@
+commit d6dd80b65e5fde57b8a4a27c8da56c023cfe61fb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 3 13:55:50 2011 -0400
+
+    doc: release.r57
+    
+    R=golang-dev, r, adg, r2
+    CC=golang-dev
+    https://golang.org/cl/4457049
+
+ doc/all.css            |    5 +-
+ doc/devel/index.html   |    3 +-
+ doc/devel/release.html | 3054 +++---------------------------------------------
+ doc/devel/roadmap.html |   10 +-
+ doc/devel/weekly.html  | 2944 ++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 3096 insertions(+), 2920 deletions(-)

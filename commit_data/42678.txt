@@ -1,0 +1,21 @@
+commit 441b52f5660ccde7848f034ba345d2f0088ea383
+Author: kakulisen <lziqiang1@gmail.com>
+Date:   Thu May 14 16:20:58 2020 +0800
+
+    math: simplify the code
+    
+    Simplifying some code without compromising performance.
+    My CPU is Intel Xeon Gold 6161, 2.20GHz, 64-bit operating system.
+    The memory is 8GB. This is my test environment, I hope to help you judge.
+    
+    Benchmark:
+    
+    name      old time/op    new time/op    delta
+    Log1p-4    21.8ns ± 5%    21.8ns ± 4%   ~     (p=0.973 n=20+20)
+    
+    Change-Id: Icd8f96f1325b00007602d114300b92d4c57de409
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233940
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/log1p.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

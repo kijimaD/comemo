@@ -1,0 +1,20 @@
+commit b0155e34241ccd437ba39cc5bdf8c887b5107772
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Jul 6 10:46:37 2018 +0200
+
+    cmd/go: skip gitrepo tests on Plan 9
+    
+    CL 118095 added gitrepo tests. These tests are failing on Plan 9
+    since they expect a full-featured git command, while the git tool
+    has been emulated as a simple rc script on Plan 9.
+    
+    Fixes #25938.
+    
+    Change-Id: I262a89d0ce83168c550d9af3e832ed3a1e3c43f6
+    Reviewed-on: https://go-review.googlesource.com/122455
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/modfetch/gitrepo/fetch_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

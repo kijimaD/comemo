@@ -1,0 +1,16 @@
+commit fb1fd6aee6af655a54193d961d5f11ff16580e6a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 31 16:38:17 2017 -0700
+
+    time: improve comments about valid layouts being invalid Parse values
+    
+    Updates #9346
+    Updates #22135
+    
+    Change-Id: I7039c9f7d49600e877e35b7255c341fea35890e2
+    Reviewed-on: https://go-review.googlesource.com/74890
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/time/example_test.go | 4 ++--
+ src/time/format.go       | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

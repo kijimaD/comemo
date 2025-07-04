@@ -1,0 +1,27 @@
+commit e511f153752ab1f17b2862aa47bb149c0ed79990
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 12 07:42:20 2018 -0700
+
+    debug/gosym: intern LineTable strings
+    
+    This cuts the allocated space while executing
+    
+    go tool objdump -S `go tool -n compile`
+    
+    by over 10%.
+    
+    It also speeds it up slightly:
+    
+    name              old time/op       new time/op       delta
+    ObjdumpSCompiler        9.03s ± 1%        8.88s ± 1%  -1.59%  (p=0.000 n=20+20)
+    
+    Updates #24725
+    
+    Change-Id: Ic6ef8e273ede589334ab6e07099ac2e5bdf990c9
+    Reviewed-on: https://go-review.googlesource.com/106798
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/debug/gosym/pclntab.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

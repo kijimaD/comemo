@@ -1,0 +1,12 @@
+commit 804e562a62bed963fe96571d442d468a608e7207
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jul 2 20:10:31 2012 +0400
+
+    net/http: fix comment
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6348062
+
+ src/pkg/net/http/serve_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

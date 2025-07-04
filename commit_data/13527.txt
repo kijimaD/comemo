@@ -1,0 +1,12 @@
+commit e53351013df40af9a56380dc979762ce13851fa0
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jul 30 14:13:12 2012 +1000
+
+    misc/dashboard/codereview: switch to using gobot to update CL reviewer info.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6453063
+
+ misc/dashboard/codereview/dashboard/cl.go | 36 ++++++++++---------------------
+ 1 file changed, 11 insertions(+), 25 deletions(-)

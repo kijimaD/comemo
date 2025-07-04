@@ -1,0 +1,15 @@
+commit 2e5a720647c1acb9b8b057bad46dca661f506bd8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 16 15:30:39 2009 -0800
+
+    Add roadmap document.
+    
+    Also adds Development heading on navbar, with Roadmap being
+    the only current entry.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/180069
+
+ doc/devel/roadmap.html | 105 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 105 insertions(+)

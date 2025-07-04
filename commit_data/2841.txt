@@ -1,0 +1,13 @@
+commit 07a497fee0a407da15d1df30695cb97f608081ce
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 30 16:57:46 2009 -0700
+
+    fix a long-standing typo
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=32540
+    CL=32545
+
+ src/pkg/fmt/print.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

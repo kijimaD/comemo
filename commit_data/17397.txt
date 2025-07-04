@@ -1,0 +1,17 @@
+commit 264b73b3f24b56ac1db5c65e9cfaa267d0a41f48
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Aug 27 09:47:58 2013 -0400
+
+    misc/emacs: allow users to customize path of 'go' tool.
+    
+    Some users have multiple Go development trees and invoke the
+    'go' tool via a wrapper that sets GOROOT and GOPATH based on
+    the current directory.  Such users should customize go-command
+    to point to the wrapper script.
+    
+    R=dominik.honnef
+    CC=golang-dev
+    https://golang.org/cl/13233043
+
+ misc/emacs/go-mode.el | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

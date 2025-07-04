@@ -1,0 +1,12 @@
+commit 8527f49e24b1145a7c6e3020d4a7d8aa51625b17
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jun 5 16:57:26 2008 -0700
+
+    goos and goarch
+    
+    SVN=121349
+
+ src/cmd/6a/lex.c | 3 ++-
+ src/cmd/6c/swt.c | 2 +-
+ src/cmd/6g/obj.c | 2 +-
+ 3 files changed, 4 insertions(+), 3 deletions(-)

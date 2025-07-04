@@ -1,0 +1,12 @@
+commit e9741e7dbd241c53e53dfb29292030e4393a473b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 16 18:08:16 2008 -0800
+
+    fix syntax error (syntax accepted by 6g, but not by pretty printer)
+    
+    R=r
+    OCL=21385
+    CL=21385
+
+ usr/gri/pretty/universe.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

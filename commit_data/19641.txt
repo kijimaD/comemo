@@ -1,0 +1,11 @@
+commit ed5b694721b96ebb69ba177b956b6364636eeeba
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 1 09:22:55 2014 -0700
+
+    doc/go1.4.txt: delete editor and shell support
+    
+    CC=golang-codereviews
+    https://golang.org/cl/101590043
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

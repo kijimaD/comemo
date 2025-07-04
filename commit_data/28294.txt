@@ -1,0 +1,23 @@
+commit 0e435347b1ed888f51706d5467fabb829292a5ff
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Sep 10 14:05:31 2016 -0700
+
+    cmd: fix format strings used with obj.Headtype
+    
+    Found by vet. Introduced by CL 28853.
+    
+    Change-Id: I3199e0cbdb1c512ba29eb7e4d5c1c98963f5a954
+    Reviewed-on: https://go-review.googlesource.com/28957
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go    | 8 ++++----
+ src/cmd/link/internal/amd64/obj.go  | 2 +-
+ src/cmd/link/internal/arm/obj.go    | 2 +-
+ src/cmd/link/internal/arm64/obj.go  | 2 +-
+ src/cmd/link/internal/ld/data.go    | 2 +-
+ src/cmd/link/internal/ld/sym.go     | 2 +-
+ src/cmd/link/internal/mips64/obj.go | 2 +-
+ src/cmd/link/internal/ppc64/obj.go  | 2 +-
+ src/cmd/link/internal/x86/obj.go    | 2 +-
+ 9 files changed, 12 insertions(+), 12 deletions(-)

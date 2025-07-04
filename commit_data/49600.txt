@@ -1,0 +1,23 @@
+commit c177d9d98a7bfb21346f6309c115d0a2bf3167e3
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Jun 29 11:30:47 2022 -0700
+
+    crypto/x509: restrict CRL number to <=20 octets
+    
+    Similar to certificate serial numbers, RFC 5280 restricts the length of
+    the CRL number field to no more than 20 octets. Enforce this in
+    CreateRevocationList.
+    
+    Fixes #53543
+    
+    Change-Id: If392ef6b0844db716ae9ee6ef317135fceab039c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415134
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/x509/x509.go      |  4 ++++
+ src/crypto/x509/x509_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+)

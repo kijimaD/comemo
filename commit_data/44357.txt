@@ -1,0 +1,20 @@
+commit e5159b2a2f0fdd47c644d1655f5a7b57ec7dd509
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jan 6 13:27:17 2021 -0500
+
+    cmd/internal/dwarf: minor cleanups
+    
+    Remove a stale comment, demote PutInlinedFunc from public to private,
+    and remove an unused interface originally used for sorting vars.
+    No change in functionality.
+    
+    Change-Id: I5ee1ad2b10b78b158e2223c6979bab830202db95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295009
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/internal/dwarf/dwarf.go | 20 +++++---------------
+ 1 file changed, 5 insertions(+), 15 deletions(-)

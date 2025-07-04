@@ -1,0 +1,24 @@
+commit 92f8acd192dc2dc9191cc633666c26137c12a6cd
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Jun 11 22:34:03 2018 +0200
+
+    cmd/nm: fix TestGoExec on Plan 9
+    
+    CL 115975 changed TestGoExec to check symbol types.
+    However, this test is failing on Plan 9, because
+    there is no read-only data segment symbol on Plan 9.
+    
+    This change fixes TestGoExec to replace the check
+    of read-only data segment symbol (R) by data segment
+    symbol (D) on Plan 9.
+    
+    Fixes #25820.
+    
+    Change-Id: I7164cd9056fa1dfcd1dc1b0f87653290c14c85fa
+    Reviewed-on: https://go-review.googlesource.com/118035
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/nm/nm_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

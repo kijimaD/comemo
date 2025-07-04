@@ -1,0 +1,21 @@
+commit 590f5283762a6e80796c3ae2bde410319162cb45
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 6 09:57:46 2014 +1100
+
+    bufio: don't loop generating empty tokens
+    
+    The new rules for split functions mean that we are exposed
+    to the common bug of a function that loops forever at EOF.
+    Pick these off by shutting down the scanner if too many
+    consecutive empty tokens are delivered.
+    
+    Fixes #9020.
+    
+    LGTM=rsc, adg
+    R=golang-codereviews, rsc, adg, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/169970043
+
+ src/bufio/scan.go      | 12 +++++++++++
+ src/bufio/scan_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+)

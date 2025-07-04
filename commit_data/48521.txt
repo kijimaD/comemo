@@ -1,0 +1,22 @@
+commit 8ab42a945aef7c09189a60263c4450a65bc00a47
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue Nov 3 17:31:04 2020 +0800
+
+    cmd/compile: merge ANDconst and UBFX into UBFX on arm64
+    
+    Add a new rewrite rule to merge ANDconst and UBFX into
+    UBFX.
+    
+    Add test cases.
+    
+    Change-Id: I24d6442d0c956d7ce092c3a3858d4a3a41771670
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377054
+    Trust: Fannie Zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  6 ++++-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 36 ++++++++++++++++++++++++++++
+ test/codegen/bitfield.go                     |  6 +++++
+ 3 files changed, 47 insertions(+), 1 deletion(-)

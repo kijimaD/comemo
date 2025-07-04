@@ -1,0 +1,22 @@
+commit 3622ad9705983b799aa189e052bdd38dd0755965
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jun 12 11:51:34 2024 -0400
+
+    doc/next: reword map iterator function notes
+    
+    The notes don't define identifiers m and seq. Describe in words
+    instead.
+    
+    While here, rename 3-structs.md to 4-structs.md.
+    
+    For #65614.
+    
+    Change-Id: I6690f552903d1870c70e28673c87ac84b7c5c041
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592195
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/6-stdlib/3-iter.md                      | 10 +++++-----
+ doc/next/6-stdlib/{3-structs.md => 4-structs.md} |  0
+ 2 files changed, 5 insertions(+), 5 deletions(-)

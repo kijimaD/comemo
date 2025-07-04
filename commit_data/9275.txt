@@ -1,0 +1,14 @@
+commit b0ef0294d2b0080b1b9bfa073e61d1e7c509eb3b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Aug 1 19:17:23 2011 -0700
+
+    go/build: use GOBIN as binary path for GOROOT
+    
+    Fixes #2106.
+    
+    R=golang-dev, dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/4836047
+
+ src/pkg/go/build/path.go | 5 +++++
+ 1 file changed, 5 insertions(+)

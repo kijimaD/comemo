@@ -1,0 +1,27 @@
+commit d42903119b1d9540b4d8546b7f19bc93d29cadf8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 13 15:19:53 2010 -0400
+
+    5l, 6l, 8l: indent, outdent
+    
+    This is entirely adding and removing tabs.
+    It looks weird but will make the diffs for the
+    next change easier to read.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2490041
+
+ src/cmd/5l/asm.c       |   74 +--
+ src/cmd/5l/noop.c      | 1342 ++++++++++++++++++++++++------------------------
+ src/cmd/5l/pass.c      |  130 ++---
+ src/cmd/5l/softfloat.c |   78 +--
+ src/cmd/5l/span.c      |  248 ++++-----
+ src/cmd/6l/asm.c       |   60 +--
+ src/cmd/6l/pass.c      |  438 ++++++++--------
+ src/cmd/6l/span.c      |   88 ++--
+ src/cmd/8l/asm.c       |   96 ++--
+ src/cmd/8l/pass.c      |  524 +++++++++----------
+ src/cmd/8l/span.c      |   76 +--
+ src/cmd/ld/lib.c       |  110 ++--
+ 12 files changed, 1632 insertions(+), 1632 deletions(-)

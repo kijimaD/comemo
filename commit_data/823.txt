@@ -1,0 +1,16 @@
+commit 7abfcd981f0e333e12cf615e3532a05ffb5bc346
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 7 17:14:30 2008 -0700
+
+    - precise scope rules
+    - forward decls for interface and struct types
+    - complete & incomplete types
+    - optional semicolons
+    
+    R=r
+    DELTA=216  (95 added, 15 deleted, 106 changed)
+    OCL=16465
+    CL=16687
+
+ doc/go_spec.txt | 298 +++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 189 insertions(+), 109 deletions(-)

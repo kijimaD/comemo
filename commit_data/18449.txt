@@ -1,0 +1,13 @@
+commit c4b279ba5ac2226a36434a6d715f2d7713e987e1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 11 16:27:14 2014 +1100
+
+    archive/zip: use correct test, fix 32-bit build
+    
+    LGTM=dsymonds
+    R=dsymonds
+    CC=golang-codereviews
+    https://golang.org/cl/61070047
+
+ src/pkg/archive/zip/reader_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

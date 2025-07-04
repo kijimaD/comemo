@@ -1,0 +1,17 @@
+commit ffe8a3c5e2996d3c017c5eb74e94515382b204a5
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri May 24 13:55:19 2013 -0700
+
+    build: fix make.rc on Plan 9
+    
+    Set $status as null to prevent rc from exiting
+    on the last --no-banner argument checking when
+    used with rc -e. It allows all.rc to not exit
+    before executing run.rc
+    
+    R=golang-dev, lucio.dere, rsc
+    CC=golang-dev
+    https://golang.org/cl/9611045
+
+ src/make.rc | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,36 @@
+commit 6304b401e4bcfc1d61dd687bb5b7df13fd71033b
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 6 08:25:01 2021 -0400
+
+    internal/goexperiment,cmd: consolidate GOEXPERIMENTs into a new package
+    
+    Currently there's knowledge about the list of GOEXPERIMENTs in a few
+    different places. This CL introduces a new package and consolidates
+    the list into one place: the internal/goexperiment.Flags struct type.
+    
+    This package gives us a central place to document the experiments as
+    well as the GOEXPERIMENT environment variable itself. It will also
+    give us a place to put built-time constants derived from the enabled
+    experiments.
+    
+    Now the objabi package constructs experiment names by reflecting over
+    this struct type rather than having a separate list of these names
+    (this is similar to how the compiler handles command-line flags and
+    debug options). We also expose a better-typed API to the toolchain for
+    propagating enabled experiments.
+    
+    Change-Id: I06e026712b59fe2bd7cd11a869aedb48ffe5a4b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307817
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/asm/internal/lex/input.go  |  23 ++---
+ src/cmd/dist/buildtool.go          |   1 +
+ src/cmd/go/internal/work/exec.go   |   8 +-
+ src/cmd/go/internal/work/init.go   |   3 +-
+ src/cmd/internal/objabi/exp.go     | 132 +++++++++++++++++++++++++++
+ src/cmd/internal/objabi/util.go    | 179 -------------------------------------
+ src/internal/goexperiment/flags.go |  72 +++++++++++++++
+ 7 files changed, 215 insertions(+), 203 deletions(-)

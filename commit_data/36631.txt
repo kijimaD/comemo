@@ -1,0 +1,68 @@
+commit 95a11c7381e01fdaaf34e25b82db0632081ab74e
+Author: Ian Davis <nospam@iandavis.com>
+Date:   Mon Sep 10 12:13:09 2018 +0100
+
+    net/url: remove an allocation for short strings in escape
+    
+    Use a 64 byte array to avoid an allocation on the assumption that
+    most url escaping is performed on short strings. Also adds a fast
+    path for escaping strings whose only replacements are spaces which
+    is common in query components.
+    
+    Adds benchmarks for QueryEscape, PathEscape, QueryUnescape and
+    PathUnescape but no optimizations are include for the unescape functions
+    so I don't include those benchmark results here.
+    
+    Reduces allocations by 10% in the existing String benchmark with a
+    modest performance increase.
+    
+    name               old time/op    new time/op    delta
+    QueryEscape/#00-8    64.6ns ± 1%    43.8ns ± 0%  -32.14%  (p=0.000 n=9+9)
+    QueryEscape/#01-8     276ns ± 3%     249ns ± 0%   -9.62%  (p=0.000 n=10+7)
+    QueryEscape/#02-8     176ns ± 2%     155ns ± 3%  -12.21%  (p=0.000 n=10+10)
+    QueryEscape/#03-8     388ns ± 1%     362ns ± 0%   -6.55%  (p=0.000 n=10+8)
+    QueryEscape/#04-8    2.32µs ± 2%    2.27µs ± 2%   -2.26%  (p=0.001 n=10+10)
+    PathEscape/#00-8     78.0ns ± 3%    63.4ns ± 1%  -18.69%  (p=0.000 n=10+10)
+    PathEscape/#01-8      276ns ± 2%     260ns ± 0%   -6.01%  (p=0.000 n=10+10)
+    PathEscape/#02-8      175ns ± 0%     153ns ± 0%  -12.53%  (p=0.000 n=8+10)
+    PathEscape/#03-8      389ns ± 2%     361ns ± 0%   -7.21%  (p=0.000 n=10+9)
+    PathEscape/#04-8     2.30µs ± 2%    2.27µs ± 1%   -1.33%  (p=0.001 n=9+10)
+    String-8             3.56µs ± 4%    3.42µs ± 7%   -4.00%  (p=0.003 n=10+10)
+    
+    name               old alloc/op   new alloc/op   delta
+    QueryEscape/#00-8     16.0B ± 0%      8.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    QueryEscape/#01-8      128B ± 0%       64B ± 0%  -50.00%  (p=0.000 n=10+10)
+    QueryEscape/#02-8     64.0B ± 0%     32.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    QueryEscape/#03-8      128B ± 0%       64B ± 0%  -50.00%  (p=0.000 n=10+10)
+    QueryEscape/#04-8      832B ± 0%      832B ± 0%     ~     (all equal)
+    PathEscape/#00-8      32.0B ± 0%     16.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    PathEscape/#01-8       128B ± 0%       64B ± 0%  -50.00%  (p=0.000 n=10+10)
+    PathEscape/#02-8      64.0B ± 0%     32.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    PathEscape/#03-8       128B ± 0%       64B ± 0%  -50.00%  (p=0.000 n=10+10)
+    PathEscape/#04-8       704B ± 0%      704B ± 0%     ~     (all equal)
+    String-8             1.84kB ± 0%    1.66kB ± 0%   -9.57%  (p=0.000 n=10+10)
+    
+    name               old allocs/op  new allocs/op  delta
+    QueryEscape/#00-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    QueryEscape/#01-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    QueryEscape/#02-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    QueryEscape/#03-8      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    QueryEscape/#04-8      2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    PathEscape/#00-8       2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    PathEscape/#01-8       2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    PathEscape/#02-8       2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    PathEscape/#03-8       2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    PathEscape/#04-8       2.00 ± 0%      2.00 ± 0%     ~     (all equal)
+    String-8               69.0 ± 0%      61.0 ± 0%  -11.59%  (p=0.000 n=10+10)
+    
+    Updates #17860
+    
+    Change-Id: I45c5e9d40b242f874c61f6ccc73bf94c494bb868
+    Reviewed-on: https://go-review.googlesource.com/134296
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/url.go      |  21 +++++++++-
+ src/net/url/url_test.go | 103 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 123 insertions(+), 1 deletion(-)

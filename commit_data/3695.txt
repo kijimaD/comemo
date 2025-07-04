@@ -1,0 +1,43 @@
+commit fd1add2768e552361f20d0a16a67573d0c73f5fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 1 11:13:27 2009 -0800
+
+    syscall cleanup.
+     * rename PORT.sh -> mkall.sh (hopefully more obvious),
+       change behavior: run commands by default.
+     * pull more constants out of #defines automatically,
+       instead of editing large lists by hand.
+     * add Recvfrom, Sendto
+    
+    add os.O_EXCL.
+    
+    R=r
+    http://go/go-review/1017009
+
+ src/cmd/godefs/main.c                    |   4 +-
+ src/pkg/os/file.go                       |   2 +-
+ src/pkg/syscall/exec.go                  |   2 +-
+ src/pkg/syscall/{PORT.sh => mkall.sh}    |  27 +-
+ src/pkg/syscall/mkerrors.sh              |  99 +++--
+ src/pkg/syscall/syscall_darwin.go        |  28 +-
+ src/pkg/syscall/syscall_linux.go         |  42 +-
+ src/pkg/syscall/syscall_linux_386.go     |  25 +-
+ src/pkg/syscall/syscall_linux_amd64.go   |   2 +
+ src/pkg/syscall/types_darwin.c           | 153 ++------
+ src/pkg/syscall/types_linux.c            | 175 +--------
+ src/pkg/syscall/types_nacl.c             |   3 +-
+ src/pkg/syscall/zerrors_darwin_386.go    | 644 +++++++++++++++++++++++-------
+ src/pkg/syscall/zerrors_darwin_amd64.go  | 643 +++++++++++++++++++++++-------
+ src/pkg/syscall/zerrors_linux_386.go     | 646 +++++++++++++++++++++++--------
+ src/pkg/syscall/zerrors_linux_amd64.go   | 646 +++++++++++++++++++++++--------
+ src/pkg/syscall/zsyscall_darwin_386.go   |  21 +
+ src/pkg/syscall/zsyscall_darwin_amd64.go |  21 +
+ src/pkg/syscall/zsyscall_linux_386.go    |  36 +-
+ src/pkg/syscall/zsyscall_linux_amd64.go  |  57 ++-
+ src/pkg/syscall/zsysnum_darwin_386.go    |  26 +-
+ src/pkg/syscall/zsysnum_darwin_amd64.go  |  26 +-
+ src/pkg/syscall/ztypes_darwin_386.go     | 150 +++----
+ src/pkg/syscall/ztypes_darwin_amd64.go   | 153 ++++----
+ src/pkg/syscall/ztypes_linux_386.go      | 141 ++-----
+ src/pkg/syscall/ztypes_linux_amd64.go    | 135 ++-----
+ 26 files changed, 2493 insertions(+), 1414 deletions(-)

@@ -1,0 +1,14 @@
+commit 841c18a95ac78769a3c6a4349e6a545ade8f0985
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 21:39:55 2009 -0800
+
+    gofmt-ify unicode
+    
+    R=r
+    http://go/go-review/1018051
+
+ src/pkg/unicode/digit_test.go  |   4 +-
+ src/pkg/unicode/letter_test.go |   4 +-
+ src/pkg/unicode/maketables.go  | 231 ++++++++---------
+ src/pkg/unicode/tables.go      | 572 ++++++++++++++++++++---------------------
+ 4 files changed, 402 insertions(+), 409 deletions(-)

@@ -1,0 +1,12 @@
+commit 9387d11aa6bfae7930342d8175d160c7538e9f56
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Feb 12 15:59:21 2012 +0900
+
+    net: fix windows build
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5653066
+
+ src/pkg/net/sockopt_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

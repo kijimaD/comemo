@@ -1,0 +1,16 @@
+commit 64770f642fe4b2f3af6f30d1e058e934e73d0b9b
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 9 11:29:34 2016 -0400
+
+    runtime: use conventional shift style for gcBitsChunkBytes
+    
+    The convention for writing something like "64 kB" is 64<<10, since
+    this is easier to read than 1<<16. Update gcBitsChunkBytes to follow
+    this convention.
+    
+    Change-Id: I5b5a3f726dcf482051ba5b1814db247ff3b8bb2f
+    Reviewed-on: https://go-review.googlesource.com/23132
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mheap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit db042d2d42e1009bb9d6c12a7a018108638e1dae
+Author: Samuel Tan <samueltan@gmail.com>
+Date:   Mon Jun 10 22:18:56 2019 -0700
+
+    html/template: handle nil Error values in context.String
+    
+    Add a special case to print a generic nil error when context.err is
+    nil.
+    
+    Previously, this case was unchecked, leading to a call to (*Error).Error
+    with a nil receiver, which was triggering a nil pointer access. However,
+    this bug was masked by the panic-recovery code in package fmt.
+    
+    I tested this change by running `dlv test` in src/html/template, running
+    the `continue` command, and verifying that no "bad access" errors are
+    returned.
+    
+    Fixes #28854
+    
+    Change-Id: I0b637b943de003d9efc294f6f1e49b793668d037
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181579
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/html/template/context.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 761f946617eb12630095954b436ab11e2cd1f05f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Feb 26 14:46:22 2012 -0800
+
+    net/http/cgi: add an empty response test
+    
+    New test for http://code.google.com/p/go/source/detail?r=a73ba18
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5701046
+
+ src/pkg/net/http/cgi/host_test.go       |  1 +
+ src/pkg/net/http/cgi/matryoshka_test.go | 21 ++++++++++++++++++++-
+ 2 files changed, 21 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 293c8f8c6566ee5c0a667a4b4ccee2541b21e3a8
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 15 17:54:07 2009 -0800
+
+    casify tutorial examples
+    will bring document in line in a later CL, which may include revisiting some of the names
+    
+    R=rsc
+    DELTA=58  (0 added, 0 deleted, 58 changed)
+    OCL=22906
+    CL=22908
+
+ doc/progs/cat_rot13.go    | 20 ++++++++++----------
+ doc/progs/echo.go         |  8 ++++----
+ doc/progs/fd.go           | 10 +++++-----
+ doc/progs/print_string.go |  6 +++---
+ doc/progs/server1.go      | 22 +++++++++++-----------
+ doc/progs/sieve.go        |  8 ++++----
+ doc/progs/sieve1.go       | 12 ++++++------
+ doc/progs/sortmain.go     | 30 +++++++++++++++---------------
+ 8 files changed, 58 insertions(+), 58 deletions(-)

@@ -1,0 +1,15 @@
+commit 6990bc124fdc7e129968855ab6b81fce94b0e26a
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 31 14:41:36 2011 -0800
+
+    doc/progs: make sure all programs compile and run
+    
+    Fixes #1455.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4079055
+
+ doc/progs/run        | 4 ++--
+ doc/progs/strings.go | 1 -
+ 2 files changed, 2 insertions(+), 3 deletions(-)

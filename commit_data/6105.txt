@@ -1,0 +1,38 @@
+commit e3ac0b5d3fcc196712fb8e9db8b1147f40d12411
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 26 16:27:42 2010 -0400
+
+    codereview: print status when hung
+    
+    After 30 seconds, start printing status updates,
+    so that we can see whether hg is making progress.
+    
+    $ hg upload 1983051
+    Thu Aug 26 15:06:15 2010 running gofmt
+    Thu Aug 26 15:06:30 2010 inspecting src/pkg/big/int_test.go
+    Thu Aug 26 15:06:45 2010 inspecting src/pkg/cmath/conj.go
+    Thu Aug 26 15:07:00 2010 inspecting src/pkg/expvar/expvar.go
+    Thu Aug 26 15:07:15 2010 inspecting src/pkg/os/env_unix.go
+    Thu Aug 26 15:07:30 2010 inspecting src/pkg/os/sys_bsd.go
+    Thu Aug 26 15:07:45 2010 inspecting src/pkg/rand/rand_test.go
+    Thu Aug 26 15:08:00 2010 inspecting src/pkg/runtime/sig.go
+    Thu Aug 26 15:08:15 2010 inspecting src/pkg/time/time_test.go
+    Thu Aug 26 15:08:30 2010 inspecting src/pkg/websocket/websocket.go
+    Thu Aug 26 15:08:45 2010 uploading src/pkg/utf8/utf8.go
+    Thu Aug 26 15:09:00 2010 uploading src/pkg/unicode/letter_test.go
+    Thu Aug 26 15:09:15 2010 uploading src/pkg/xml/embed_test.go
+    Thu Aug 26 15:09:30 2010 uploading src/pkg/time/tick.go
+    Thu Aug 26 15:09:45 2010 uploading src/pkg/big/rat_test.go
+    Thu Aug 26 15:10:00 2010 uploading src/pkg/time/sleep_test.go
+    Thu Aug 26 15:10:15 2010 uploading src/pkg/patch/patch_test.go
+    Thu Aug 26 15:10:30 2010 uploading src/pkg/rand/rand.go
+    https://golang.org/cl/1983051
+    
+    $
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/2020045
+
+ lib/codereview/codereview.py | 49 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 49 insertions(+)

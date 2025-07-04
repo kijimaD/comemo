@@ -1,0 +1,24 @@
+commit f338d942857333917af7220cd53910e3a2ad16b9
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 25 13:17:54 2015 -0700
+
+    cmd/go: add $DOLLAR to the predefined variables for go generate
+    
+    Without some hook like this, it's impossible to get a $ into the generate
+    command, which is necessary if you're trying to do some shell scripting
+    or regular expressions.
+    
+    We could use backslash escaping but that's already tricky enough
+    because the strings are processed as Go strings. Using $ like this
+    means we need no more mechanism, just a predefined variable.
+    
+    We may need to revisit this but I hope we can avoid new quoting rules.
+    
+    Change-Id: Ieb478c8cc767a866765282472239ed3c1e5669a8
+    Reviewed-on: https://go-review.googlesource.com/8091
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/generate.go      | 4 ++++
+ src/cmd/go/generate_test.go | 1 +
+ 2 files changed, 5 insertions(+)

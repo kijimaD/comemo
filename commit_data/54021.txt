@@ -1,0 +1,19 @@
+commit e95ca9154a6d326248357e87caa4e24368bcb68b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 14 14:15:23 2023 -0700
+
+    go/types, types2: move emode computation closer to use (cleanup)
+    
+    Follow-up on https://go.dev/cl/519435.
+    
+    Change-Id: I8febf5544f28acb87607331ff8be8454470328ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519436
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/unify.go | 14 +++++++-------
+ src/go/types/unify.go                    | 14 +++++++-------
+ 2 files changed, 14 insertions(+), 14 deletions(-)

@@ -1,0 +1,19 @@
+commit 9cc0f9cba2f2db97f5ba6c2c482bafaaa34c0381
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Feb 10 01:25:05 2024 +0000
+
+    internal/xcoff: change zeroReaderAt to nobitsSectionReader for .bss with all 0s
+    
+    Fixes #63337
+    
+    Change-Id: I239315047e6e4325e2f471108fd764f8dbb7d5b2
+    GitHub-Last-Rev: cacdf0a279451ab97e6e6ce3fe0d3a025f5ce3aa
+    GitHub-Pull-Request: golang/go#64952
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553616
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/internal/xcoff/file.go | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)

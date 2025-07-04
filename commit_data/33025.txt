@@ -1,0 +1,20 @@
+commit b80029ccf422cfdfa758838fd18a219901cda839
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 9 11:06:52 2017 -0700
+
+    cmd/compile: simplify mkinlcall1
+    
+    mkinlcall1 already guards against recursively inlining functions into
+    themselves, so there's no need to clear and restore fn.Func.Inl during
+    recursive inlining.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I8bf0c8dea8788d94d3ea5670610b4acb1d26d2fb
+    Reviewed-on: https://go-review.googlesource.com/69310
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)

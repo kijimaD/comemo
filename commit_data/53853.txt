@@ -1,0 +1,18 @@
+commit f32e0c30e4a002cda2dbb5e628a7f1047e304e01
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Aug 1 20:22:13 2023 +0000
+
+    encoding/json: replace "between or" with "between and" in comment
+    
+    Change-Id: Id19a15f9367de10e08a9ec22a8cb50c58d517906
+    GitHub-Last-Rev: f413d71c9ad0f2efc0b4811c7188cc2caa9c1de0
+    GitHub-Pull-Request: golang/go#61701
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514976
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/json/encode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 9a7ce41d6c74ef30af361677d2077ad8dd0e92b7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 14 18:03:26 2016 +0000
+
+    bytes: cut 10 seconds off the race builder's benchmark test
+    
+    Don't benchmark so many sizes during the race builder's benchmark run.
+    
+    This package doesn't even use goroutines.
+    
+    Cuts off 10 seconds.
+    
+    Updates #17104
+    
+    Change-Id: Ibb2c7272c18b9014a775949c656a5b930f197cd4
+    Reviewed-on: https://go-review.googlesource.com/29158
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/bytes/bytes_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

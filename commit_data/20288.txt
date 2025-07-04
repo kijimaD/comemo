@@ -1,0 +1,14 @@
+commit b1d01529975d2d87921c88891f85f3faa65e8cea
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Sep 4 08:36:18 2014 +0200
+
+    runtime: fix Plan 9 build
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/138050043
+
+ src/pkg/runtime/os_plan9.c  | 6 ------
+ src/pkg/runtime/os_plan9.go | 4 ++++
+ 2 files changed, 4 insertions(+), 6 deletions(-)

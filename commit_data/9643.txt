@@ -1,0 +1,12 @@
+commit dc9ee812ba831c19e0e2ac9f6dc42f3a19c9d27a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 8 18:27:26 2011 -0700
+
+    godoc: fine tuning of template file
+    
+    R=r, adg
+    CC=golang-dev
+    https://golang.org/cl/4995041
+
+ lib/godoc/search.txt | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit 8047093e5b7e8eaf8fad5825b6e761124004a1ed
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 27 10:19:17 2015 +0100
+
+    net: reenable a previously skipped test
+    
+    Update #8859
+    
+    Change-Id: I5b0005b308e83954a495f06d27b7d8d30e813820
+    Reviewed-on: https://go-review.googlesource.com/8193
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/tcp_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

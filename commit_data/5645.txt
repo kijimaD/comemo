@@ -1,0 +1,19 @@
+commit fe43325b3021eee80ebc3afb328b5a6f9fedf2f9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 11 13:41:49 2010 -0700
+
+    Pad Go symbol table out to page boundary when linking dynamically.
+    
+    This avoids a crash when using cgo where glibc's malloc thinks
+    that it can use some of the memory following the symbol table.
+    This fails because the symbol table is mapped read-only, which
+    affects the whole page.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1616042
+
+ src/cmd/5l/asm.c | 6 ++++--
+ src/cmd/6l/asm.c | 6 ++++--
+ src/cmd/8l/asm.c | 6 +++---
+ 3 files changed, 11 insertions(+), 7 deletions(-)

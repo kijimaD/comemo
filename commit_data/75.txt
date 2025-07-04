@@ -1,0 +1,11 @@
+commit aa533738c156b2077e226ce746977bf2c88e6903
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 8 21:21:09 2008 -0700
+
+    - changed compound type -> composite type
+    - eliminated 'structured type' terminology
+    
+    SVN=118200
+
+ doc/go_lang.txt | 29 +++++++++++++++--------------
+ 1 file changed, 15 insertions(+), 14 deletions(-)

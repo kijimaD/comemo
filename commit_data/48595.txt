@@ -1,0 +1,19 @@
+commit ebe624dd30f7be1479a2224b60a0da1b152ec851
+Author: Shang Ding <sding3@ncsu.edu>
+Date:   Wed Feb 23 19:35:21 2022 -0600
+
+    net: clean up redundant if branch in dial
+    
+    Dialer.DialContext no longer performs a redundant check on the length
+    of the fallback slice, because dialParallel already handles the
+    situation where the fallback slice is empty or nil.
+    
+    Change-Id: Ibb16f4813fc55dec2939c54c10e665ff35bfe163
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387795
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/net/dial.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

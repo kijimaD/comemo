@@ -1,0 +1,53 @@
+commit 0a15d95091f4d7db396da018e49653fbb3b19a53
+Author: Michael Matloob <matloob@golang.org>
+Date:   Sun Aug 21 18:25:28 2016 -0400
+
+    cmd/link: use standard library flag package where possible
+    
+    The obj library's flag functions are (mostly) light wrappers
+    around the standard library flag package. Use the flag package
+    directly where possible.
+    
+    Most uses of the 'count'-type flags (except for -v) only check
+    against 0, so they can safely be replaced by bools. Only -v
+    and the flagfns haven't been replaced.
+    
+    Debug has been turned into a slice of bools rather than ints.
+    There was a copy of the -v verbosity in ctxt.Debugvlog, so don't use
+    Debug['v'] and just use ctxt.Debugvlog.
+    
+    Updates #16818
+    
+    Change-Id: Icf6473a4823c9d35513bbd0c34ea02d5676d782a
+    Reviewed-on: https://go-review.googlesource.com/27471
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go   | 24 +++++------
+ src/cmd/link/internal/amd64/obj.go   |  2 +-
+ src/cmd/link/internal/arm/asm.go     | 16 ++++----
+ src/cmd/link/internal/arm/obj.go     |  4 +-
+ src/cmd/link/internal/arm64/asm.go   | 16 ++++----
+ src/cmd/link/internal/arm64/obj.go   |  2 +-
+ src/cmd/link/internal/ld/ar.go       |  2 +-
+ src/cmd/link/internal/ld/data.go     | 20 ++++-----
+ src/cmd/link/internal/ld/deadcode.go |  8 ++--
+ src/cmd/link/internal/ld/dwarf.go    | 12 +++---
+ src/cmd/link/internal/ld/elf.go      | 18 ++++----
+ src/cmd/link/internal/ld/go.go       | 16 ++++----
+ src/cmd/link/internal/ld/ldelf.go    |  2 +-
+ src/cmd/link/internal/ld/ldpe.go     |  2 +-
+ src/cmd/link/internal/ld/lib.go      | 60 +++++++++++++--------------
+ src/cmd/link/internal/ld/link.go     |  2 +-
+ src/cmd/link/internal/ld/macho.go    |  6 +--
+ src/cmd/link/internal/ld/pcln.go     |  2 +-
+ src/cmd/link/internal/ld/pe.go       |  4 +-
+ src/cmd/link/internal/ld/pobj.go     | 80 +++++++++++++++++-------------------
+ src/cmd/link/internal/ld/symtab.go   |  2 +-
+ src/cmd/link/internal/mips64/asm.go  | 16 ++++----
+ src/cmd/link/internal/ppc64/asm.go   | 16 ++++----
+ src/cmd/link/internal/ppc64/obj.go   |  2 +-
+ src/cmd/link/internal/s390x/asm.go   | 18 ++++----
+ src/cmd/link/internal/x86/asm.go     | 16 ++++----
+ 26 files changed, 181 insertions(+), 187 deletions(-)

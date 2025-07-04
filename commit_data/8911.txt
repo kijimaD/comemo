@@ -1,0 +1,14 @@
+commit 4dfdacd2bdfd3acd8686c1d0fa0f872b3ec66c8b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 30 15:39:00 2011 +1000
+
+    build: make version.bash aware of branches
+    
+    Fixes #2026.
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4645074
+
+ src/version.bash | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

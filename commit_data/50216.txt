@@ -1,0 +1,20 @@
+commit 971373f56a5e47e523c7ac7f097349b83f5d31b5
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Aug 28 06:08:02 2022 +1000
+
+    cmd/compile: remove NEG when used with SEQZ/SNEZ on riscv64
+    
+    The negation does not change the comparison to zero.
+    
+    Also remove unnecessary x.Uses == 1 condition from equivalent BEQZ/BNEZ rules.
+    
+    Change-Id: I62dd8e383e42bfe5c46d11bbf78d8e5ff862a1d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426262
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules | 10 +++--
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 62 ++++++++++++++++++--------
+ 2 files changed, 51 insertions(+), 21 deletions(-)

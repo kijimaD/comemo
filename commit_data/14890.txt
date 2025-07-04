@@ -1,0 +1,16 @@
+commit 399a36a634d58f14f1945b83a84b884c9dfb72da
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jan 15 19:25:16 2013 +1100
+
+    doc: fix various fragment links
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7094058
+
+ doc/articles/c_go_cgo.html           | 4 ++--
+ doc/articles/go_command.html         | 2 +-
+ doc/articles/laws_of_reflection.html | 2 +-
+ doc/code.html                        | 4 ++--
+ doc/go_faq.html                      | 4 ++--
+ 5 files changed, 8 insertions(+), 8 deletions(-)

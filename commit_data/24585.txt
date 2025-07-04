@@ -1,0 +1,29 @@
+commit 0c69f1303f3dbd4515f1cab0602aaafc3364a946
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 21 07:04:10 2015 -0700
+
+    cmd/compile: add -msan option
+    
+    The -msan option causes the compiler to add instrumentation for the
+    C/C++ memory sanitizer.  Every memory read/write will be preceded by
+    a call to msanread/msanwrite.
+    
+    This CL passes tests but is not usable by itself.  The actual
+    implementation of msanread/msanwrite in the runtime package, and support
+    for -msan in the go tool and the linker, and tests, will follow in
+    subsequent CLs.
+    
+    Change-Id: I3d517fb3e6e65d9bf9433db070a420fd11f57816
+    Reviewed-on: https://go-review.googlesource.com/16160
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/doc.go                         |  2 ++
+ src/cmd/compile/internal/gc/builtin.go         |  2 ++
+ src/cmd/compile/internal/gc/builtin/runtime.go |  4 +++
+ src/cmd/compile/internal/gc/go.go              |  4 +++
+ src/cmd/compile/internal/gc/lex.go             | 12 +++++++
+ src/cmd/compile/internal/gc/racewalk.go        | 50 ++++++++++++++++----------
+ src/cmd/compile/internal/gc/reflect.go         |  3 ++
+ src/cmd/compile/internal/gc/subr.go            |  2 +-
+ src/cmd/compile/internal/gc/walk.go            |  2 +-
+ 9 files changed, 61 insertions(+), 20 deletions(-)

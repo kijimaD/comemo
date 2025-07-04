@@ -1,0 +1,18 @@
+commit 8a413752fb414929f252c288efb58a29ff8e101a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 27 16:06:22 2015 -0700
+
+    test: reenable syntax tests
+    
+    These were fixed a little while ago, but overlooked when reenabling
+    disabled tests.
+    
+    Update #9968.
+    
+    Change-Id: I301ef587e580c517a170ad08ff897118b58cedec
+    Reviewed-on: https://go-review.googlesource.com/9347
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ test/run.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

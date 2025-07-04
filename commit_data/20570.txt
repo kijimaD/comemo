@@ -1,0 +1,18 @@
+commit e7e3b3ec1037669c90851670e2dc608b80d499d6
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Mon Sep 29 12:13:22 2014 -0700
+
+    cmd/ld: close outfile before cleanup
+    
+    This prevents the temporary directory from being leaked when
+    the linker is run on a FUSE filesystem.
+    
+    Fixes #8684.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/141840043
+
+ src/cmd/ld/lib.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

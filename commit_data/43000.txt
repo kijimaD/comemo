@@ -1,0 +1,31 @@
+commit 42b023d7b9cb8229e3035fa3d36bce41a1ef0c43
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 26 14:17:35 2020 -0700
+
+    cmd/cgo: use go:notinheap for anonymous structs
+    
+    They can't reasonably be allocated on the heap. Not a huge deal, but
+    it has an interesting and useful side effect.
+    
+    After CL 249917, the compiler and runtime treat pointers to
+    go:notinheap types as uintptrs instead of real pointers (no write
+    barrier, not processed during stack scanning, ...). That feature is
+    exactly what we want for cgo to fix #40954. All the cases we have of
+    pointers declared in C, but which might actually be filled with
+    non-pointer data, are of this form (JNI's jobject heirarch, Darwin's
+    CFType heirarchy, ...).
+    
+    Fixes #40954
+    
+    Change-Id: I44a3b9bc2513d4287107e39d0cbbd0efd46a3aae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250940
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/gcc.go           | 15 +++++++++++++++
+ src/cmd/cgo/main.go          |  3 ++-
+ src/cmd/cgo/out.go           |  3 +++
+ test/fixedbugs/issue40954.go | 35 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 55 insertions(+), 1 deletion(-)

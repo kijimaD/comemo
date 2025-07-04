@@ -1,0 +1,12 @@
+commit c1c136d0c4c2057f33f2ce66c7f9ed60e3c2548d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 5 22:46:28 2012 +0100
+
+    cmd/godoc: use normal gofmt printer settings for playground fmt
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/6815081
+
+ src/cmd/godoc/play.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

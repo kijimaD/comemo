@@ -1,0 +1,16 @@
+commit e62622b1b1a51471f85d13119f0dbff76bdac4b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 30 13:42:14 2011 -0500
+
+    os: fix path/filepath test on Windows
+    
+    This is not the right fix, but it is what used to happen
+    before the FileInfo conversion, and it should get the
+    build working again (at least that part).
+    
+    TBR=brainman
+    CC=golang-dev
+    https://golang.org/cl/5434090
+
+ src/pkg/os/stat_windows.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 6bff372594a0c9c30f3bc2a14a551b2600db0066
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jul 27 13:50:54 2008 -0700
+
+    update tests
+    
+    R=ken
+    OCL=13507
+    CL=13507
+
+ test/bugs/bug034.go                | 12 -----------
+ test/{bugs => fixedbugs}/bug025.go |  2 +-
+ test/{bugs => fixedbugs}/bug052.go |  0
+ test/{bugs => fixedbugs}/bug063.go |  0
+ test/golden.out                    | 44 ++++++++++++--------------------------
+ 5 files changed, 15 insertions(+), 43 deletions(-)

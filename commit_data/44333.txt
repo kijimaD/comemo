@@ -1,0 +1,18 @@
+commit 094048b93845c08e0f2db8639764f9564e64835b
+Author: cui <cuiweixie@gmail.com>
+Date:   Thu Feb 18 17:51:24 2021 +0000
+
+    cmd/compile/internal: loop opt
+    
+    Change-Id: I5fe767237b8046934e9b0f33bd3dafabdb727dd6
+    GitHub-Last-Rev: 94fea3d57279e8b2d62f7f6be4301698dc8841e3
+    GitHub-Pull-Request: golang/go#44384
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293809
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/types/size.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

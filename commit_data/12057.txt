@@ -1,0 +1,13 @@
+commit 72fb81eeb6a58a781ccfd3092f3657bddaa8cae3
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Sun Feb 19 19:26:05 2012 +0100
+
+    doc: Fixed type in documentation for FormatFloat.
+    
+    R=r, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5656108
+
+ doc/go1.html | 2 +-
+ doc/go1.tmpl | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

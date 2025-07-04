@@ -1,0 +1,32 @@
+commit 5b5473c6bf0b91fef76e21493c70754144ff0214
+Author: Keith Randall <khr@google.com>
+Date:   Wed Jun 13 14:39:36 2018 -0700
+
+    runtime: move semaphore ops from system calls to libc calls on Darwin
+    
+    This CL removes the last of the direct system calls in the runtime package.
+    This is the last CL for 1.11.
+    
+    Use libcCall instead of asmcgocall in a few places I accidentally used
+    the wrong one.
+    
+    For 1.12, we need to think about whether/how the syscall package
+    should be moved over to libc.
+    
+    Update #17490
+    
+    Change-Id: I4f0bd9cd6023f662f2e29588266fdfae5233898f
+    Reviewed-on: https://go-review.googlesource.com/118736
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/vet/all/whitelist/darwin_386.txt |   1 -
+ src/runtime/defs_darwin.go               |  50 +----
+ src/runtime/defs_darwin_386.go           |  93 +++------
+ src/runtime/defs_darwin_amd64.go         |  94 +++------
+ src/runtime/os_darwin.go                 | 324 +++++--------------------------
+ src/runtime/sys_darwin.go                |  75 ++++++-
+ src/runtime/sys_darwin_386.s             | 164 +++++++++-------
+ src/runtime/sys_darwin_amd64.s           | 143 ++++++--------
+ src/runtime/vlrt.go                      |   1 +
+ 9 files changed, 329 insertions(+), 616 deletions(-)

@@ -1,0 +1,22 @@
+commit 07717247d8decf5a5793f04c368eab3f43fad44f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 29 16:25:54 2019 -0500
+
+    strconv: parse hex floats
+    
+    This CL updates ParseFloat to recognize
+    standard hexadecimal floating-point constants.
+    See golang.org/design/19308-number-literals for background.
+    
+    For #29008.
+    
+    Change-Id: I45f3b0c36b5d92c0e8a4b35c05443a83d7a6d4b3
+    Reviewed-on: https://go-review.googlesource.com/c/160241
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/strconv/atof.go      | 205 ++++++++++++++++++++++++++++++++++++-----------
+ src/strconv/atof_test.go | 176 ++++++++++++++++++++++++++++++++++++++++
+ src/strconv/atoi.go      |   8 ++
+ 3 files changed, 341 insertions(+), 48 deletions(-)

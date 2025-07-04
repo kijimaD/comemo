@@ -1,0 +1,18 @@
+commit a8e2966eb01f175c330f6669f838e83af2cb73e3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 22 20:55:38 2020 -0400
+
+    cmd/go/internal/fsys: rewrite non-idiomatic if statements
+    
+    https://golang.org/doc/effective_go.html#if
+    
+    Change-Id: I4d868e05c7827638f45b3b06d8762f5a298d56f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264537
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/fsys/fsys.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

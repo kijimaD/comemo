@@ -1,0 +1,20 @@
+commit 0fd7be7ee5f36215b5d6b8f23f35d60bf749805a
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Nov 23 06:47:14 2022 -0500
+
+    testing: remove stale builder names from windows tests
+    
+    A couple of the windows runtime tests were being gated by "if
+    testenv.Builder() == ..." guards that referred to builders that have
+    long since been obsoleted (e.g. "windows-amd64-gce"). Use a more
+    generic guard instead, checking for windows-<goarch> prefix.
+    
+    Change-Id: Ibdb9ce2b0cfe10bba986bd210a5b8ce5c1b1d675
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453035
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/syscall_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

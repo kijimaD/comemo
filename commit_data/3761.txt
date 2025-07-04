@@ -1,0 +1,16 @@
+commit c8c3f1d5ded998e28330e2f0e3a73a82cb1d0edf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 10:58:54 2009 -0800
+
+    - respect source line breaks in grouped declarations
+    - made ast.Spec nodes implement Node interface
+    - added extra test cases
+    
+    R=rsc
+    http://go/go-review/1016038
+
+ src/pkg/go/ast/ast.go                           | 18 +++++++++++
+ src/pkg/go/printer/nodes.go                     | 34 +++++++++----------
+ src/pkg/go/printer/testdata/declarations.go     | 42 ++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/declarations.golden | 43 +++++++++++++++++++++++++
+ 4 files changed, 120 insertions(+), 17 deletions(-)

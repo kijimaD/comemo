@@ -1,0 +1,11 @@
+commit b74fd8ecb17c1959bbf2dbba6ccb8bae6bfabeb8
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Oct 23 12:43:01 2009 -0700
+
+    fix build issue cause by transition to hg
+    
+    R=rsc
+    http://go/go-review/1013012
+
+ src/make-arm.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

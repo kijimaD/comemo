@@ -1,0 +1,13 @@
+commit 7bd6ebb104acb150263774d7fa054c1f93c67806
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 13 23:39:56 2012 +1100
+
+    spec: strings are more slices than arrays
+    Thanks to Aaron Kemp for noticing.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5645097
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

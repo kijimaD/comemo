@@ -1,0 +1,21 @@
+commit 7bfd681c2f11918c6245ad2906b2efc12eda2914
+Author: Clément Chigot <chigot.c@gmail.com>
+Date:   Thu Apr 1 10:06:05 2021 +0200
+
+    runtime/pprof: skip tests for AIX
+    
+    Most of the time, the pprof tests are passing, except
+    for the builder. The reason is still unknown but I'd rather release
+    the builder to avoid missing other more important bugs.
+    
+    Updates #45170
+    
+    Change-Id: I667543ee1ae309b7319c5b3676a0901b4d0ecf2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306489
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/runtime/pprof/pprof_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 32b31342bd097c34cf216d37c88169d02ffac798
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 30 14:48:33 2010 -0400
+
+    fix arm build on darwin leopard
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/2333043
+
+ src/libcgo/Makefile | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

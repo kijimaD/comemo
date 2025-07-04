@@ -1,0 +1,26 @@
+commit 8740bdc5afd07cf62722907644f65411cc52fa1c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 30 13:24:05 2020 -0700
+
+    strconv: fix for parseFloatPrefix
+    
+    parseFloatPrefix accepts a string if it has a valid floating-point
+    number as prefix. Make sure that "infi", "infin", ... etc. are
+    accepted as valid numbers "inf" with suffix "i", "in", etc. This
+    is important for parsing complex numbers such as "0+infi".
+    
+    This change does not affect the correctness of ParseFloat because
+    ParseFloat rejects strings that contain a suffix after a valid
+    floating-point number.
+    
+    Updates #36771.
+    
+    Change-Id: Ie1693a8ca2f8edf07b57688e0b35751b7100d39d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231237
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/strconv/atof.go      | 6 +++++-
+ src/strconv/atof_test.go | 5 +++--
+ 2 files changed, 8 insertions(+), 3 deletions(-)

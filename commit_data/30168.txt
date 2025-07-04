@@ -1,0 +1,24 @@
+commit 3c22e5ca271ca4ad17b34d965e6a9baf7b5cf94d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 8 17:56:41 2017 -0800
+
+    cmd/compile/internal/parser: improved syntax error for incorrect if/for/switch header
+    
+    Starting the error message with "expecting" rather than "missing"
+    causes the syntax error mechanism to add additional helpful info
+    (it recognizes "expecting" but not "missing").
+    
+    Fixes #17328.
+    
+    Change-Id: I8482ca5e5a6a6b22e0ed0d831b7328e264156334
+    Reviewed-on: https://go-review.googlesource.com/36637
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/syntax/parser.go |  2 +-
+ test/fixedbugs/issue17328.go              | 13 +++++++++++++
+ test/syntax/semi1.go                      |  2 +-
+ test/syntax/semi3.go                      |  2 +-
+ test/syntax/semi4.go                      |  4 ++--
+ 5 files changed, 18 insertions(+), 5 deletions(-)

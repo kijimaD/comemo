@@ -1,0 +1,14 @@
+commit 48e4d67b23d6e602697a32025b4b21996ff13921
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 13 10:29:41 2010 +1000
+
+    websocket: fix comment indentation
+    To make code samples formatted correctly by godoc.
+    
+    R=r, ukai, rsc
+    CC=golang-dev, gri
+    https://golang.org/cl/1738048
+
+ src/pkg/websocket/client.go | 31 +++++++++++++++----------------
+ src/pkg/websocket/server.go | 13 +++++++------
+ 2 files changed, 22 insertions(+), 22 deletions(-)

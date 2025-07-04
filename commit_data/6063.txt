@@ -1,0 +1,13 @@
+commit 46427089846193265ef4d9e725cd0d26aa517a6d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Aug 23 12:04:15 2010 +1000
+
+    io: prevent ReadAtLeast spinloop if min > len(buf)
+    
+    R=r, heresy.mc
+    CC=golang-dev
+    https://golang.org/cl/2017042
+
+ src/pkg/io/io.go      | 10 ++++++++--
+ src/pkg/io/io_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+), 2 deletions(-)

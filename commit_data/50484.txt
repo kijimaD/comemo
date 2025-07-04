@@ -1,0 +1,24 @@
+commit 501df45199e82cfbd2eb7422c8bfe35688712402
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 20:36:49 2022 +0800
+
+    cmd/go: use strings.Builder
+    
+    Change-Id: I0db93b7bdcd622ce9e23df183de4737744e6d6ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428294
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+
+ src/cmd/go/go_test.go                  | 2 +-
+ src/cmd/go/internal/bug/bug.go         | 2 +-
+ src/cmd/go/internal/help/help.go       | 3 +--
+ src/cmd/go/internal/modload/load.go    | 3 +--
+ src/cmd/go/internal/work/build_test.go | 3 +--
+ src/cmd/go/internal/work/buildid.go    | 4 ++--
+ src/cmd/go/internal/work/exec.go       | 2 +-
+ 7 files changed, 8 insertions(+), 11 deletions(-)

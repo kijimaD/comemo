@@ -1,0 +1,15 @@
+commit 3d0a85785a7680663fa40d55e8c92c008dffcbfc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 18 11:09:59 2010 -0400
+
+    5l: data-relocatable code layout
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2479043
+
+ src/cmd/5l/asm.c  | 46 +++++++++++++++++++++-------------------------
+ src/cmd/5l/l.h    |  2 +-
+ src/cmd/5l/obj.c  |  2 +-
+ src/cmd/5l/span.c | 52 ++++++++++++++++++++++++++++++++++++++++------------
+ 4 files changed, 63 insertions(+), 39 deletions(-)

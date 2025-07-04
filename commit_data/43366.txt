@@ -1,0 +1,20 @@
+commit 5647d01ab724a19793ac7002776b0dec03fa35f5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 19 18:03:51 2020 +0000
+
+    Revert "net/http: test that ParseMultipartForm returns an error for int overflow"
+    
+    This reverts CL 254977.
+    
+    Reason for revert: introduced test failures on longtest builders.
+    
+    Change-Id: I75e868245f980189ad85dd4103d9178989e06ecf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263658
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/http/request_test.go | 36 ------------------------------------
+ 1 file changed, 36 deletions(-)

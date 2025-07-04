@@ -1,0 +1,18 @@
+commit 13147f744c4ed7900ef9b1c1ffb8bf674f06b052
+Author: John Bampton <jbampton@gmail.com>
+Date:   Tue May 17 19:29:03 2022 +0000
+
+    runtime: fix code span element
+    
+    Change-Id: I99c593573b3bec560ab3af49ac2f486ee442ee1c
+    GitHub-Last-Rev: e399ec50f9dde9229e05f801fd752694cc661822
+    GitHub-Pull-Request: golang/go#52946
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406837
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/HACKING.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

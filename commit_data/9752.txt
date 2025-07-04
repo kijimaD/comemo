@@ -1,0 +1,17 @@
+commit 3a013f117566fa58300a6f1c8f6e5d0b481315ec
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Mon Sep 19 20:52:14 2011 -0700
+
+    exp/template/html: change transition functions to return indices
+    
+    Formulaic changes to transition functions in preparation for CL 5074041.
+    This should be completely semantics preserving.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5091041
+
+ src/pkg/exp/template/html/escape.go     |  29 ++--
+ src/pkg/exp/template/html/html.go       |  29 ++--
+ src/pkg/exp/template/html/transition.go | 232 ++++++++++++++++----------------
+ 3 files changed, 147 insertions(+), 143 deletions(-)

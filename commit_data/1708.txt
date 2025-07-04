@@ -1,0 +1,12 @@
+commit 6ddc48b84aa15d70643ebb500db59cd7f78c0adf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 23 17:16:55 2009 -0800
+
+    - fixed a bug with //-comment parsing
+    
+    R=r
+    OCL=25343
+    CL=25343
+
+ usr/gri/pretty/scanner.go | 1 -
+ 1 file changed, 1 deletion(-)

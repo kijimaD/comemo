@@ -1,0 +1,13 @@
+commit 2195f1aa047d0a57e3a542fa90f8c63dafc2002e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Mar 30 14:04:03 2012 +0800
+
+    doc/go_spec: fix broken link
+            Part of issue 3424
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5955049
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

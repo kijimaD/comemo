@@ -1,0 +1,12 @@
+commit c2faeac8c4be9fa116be01c975518ffa299bf89a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 15 15:47:15 2009 -0700
+
+    fixed typo (slipped in with previous submit)
+    
+    TBR=rsc
+    OCL=30300
+    CL=30300
+
+ src/pkg/go/parser/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

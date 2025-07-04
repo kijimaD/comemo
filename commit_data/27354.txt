@@ -1,0 +1,20 @@
+commit 9780bf2a9587b6aa0c92526cc1d6d6d1ed4c7210
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 10 14:27:32 2016 -0700
+
+    os/user: don't create C function mygetgrouplist
+    
+    Instead of exporting the C function mygetgrouplist as a global symbol to
+    conflict with other symbols of the same name, use trivial Go code and a
+    static C function.
+    
+    Change-Id: I98dd667814d0a0ed8f7b1d4cfc6483d5a6965b26
+    Reviewed-on: https://go-review.googlesource.com/23008
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .../user/{getgrouplist_darwin.c => getgrouplist_darwin.go}   | 11 +++++++++--
+ src/os/user/{getgrouplist_unix.c => getgrouplist_unix.go}    | 12 ++++++++++--
+ src/os/user/listgroups_unix.go                               |  6 ++----
+ 3 files changed, 21 insertions(+), 8 deletions(-)

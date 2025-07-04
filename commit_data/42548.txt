@@ -1,0 +1,24 @@
+commit f2bba30e4068695fcb08ddf5006e776c1fd38eca
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jun 18 18:05:10 2020 -0400
+
+    cmd/link: use sym.Symbol in addpersrc
+    
+    addpersrc is called very late, after we have converted to
+    sym.Symbols and various fields in loader representation have been
+    dropped. Use the Symbol representation there.
+    
+    Fixes #39658.
+    
+    Change-Id: I616e838655b6f01554644171317e2cc5cefabf39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238779
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/link/internal/ld/pe.go             |  13 ++++++-----
+ src/cmd/link/link_test.go                  |  34 +++++++++++++++++++++++++++++
+ src/cmd/link/testdata/testPErsrc/main.go   |  19 ++++++++++++++++
+ src/cmd/link/testdata/testPErsrc/rsrc.syso | Bin 0 -> 228 bytes
+ 4 files changed, 60 insertions(+), 6 deletions(-)

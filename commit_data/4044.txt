@@ -1,0 +1,15 @@
+commit a09997c3aad020cebecf292bc502a5e95616da19
+Author: Môshe van der Sterre <moshevds@gmail.com>
+Date:   Sat Nov 14 14:42:15 2009 -0800
+
+    Adding my name to CONTRIBUTORS and AUTHORS
+    As Adam Langley mentioned, this should go in with
+    https://golang.org/cl/152141
+    
+    R=rsc
+    CC=agl1
+    https://golang.org/cl/154138
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

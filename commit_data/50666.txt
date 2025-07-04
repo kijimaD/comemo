@@ -1,0 +1,21 @@
+commit 190973eb603614eef33e0a22f420217fc13a2e0a
+Author: cui fliter <imcusg@gmail.com>
+Date:   Wed Sep 28 02:34:31 2022 +0000
+
+    all: fix some typos
+    
+    Change-Id: I8b28aebbb9494b2c877139a4584a5a42253e3bea
+    GitHub-Last-Rev: e3703fd3a50b811785df75751472aa3ab098b3d1
+    GitHub-Pull-Request: golang/go#55902
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435617
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules | 2 +-
+ src/cmd/compile/internal/typecheck/iimport.go  | 2 +-
+ src/cmd/link/internal/ppc64/asm.go             | 2 +-
+ src/internal/coverage/defs.go                  | 2 +-
+ src/net/http/request_test.go                   | 2 +-
+ src/os/exec/lp_linux_test.go                   | 2 +-
+ src/runtime/libfuzzer_amd64.s                  | 2 +-
+ 7 files changed, 7 insertions(+), 7 deletions(-)

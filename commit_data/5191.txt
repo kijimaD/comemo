@@ -1,0 +1,25 @@
+commit 4e2b7f8f41a8ab58489354ff0e2c10a867a4a354
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 30 17:51:03 2010 -0700
+
+    Unicode: provide an ability to supplement the case-mapping tables
+    in character and string case mapping routines.
+    
+    Add a custom mapper for Turkish and Azeri.
+    
+    A more general solution for deriving the case information from Unicode's
+    SpecialCasing.txt will require more work.
+    
+    Fixes #703.
+    
+    R=rsc, rsc1
+    CC=golang-dev, mdakin
+    https://golang.org/cl/824043
+
+ src/pkg/strings/strings.go      | 18 +++++++++++++++
+ src/pkg/strings/strings_test.go | 22 ++++++++++++++++++
+ src/pkg/unicode/Makefile        |  1 +
+ src/pkg/unicode/casetables.go   | 21 +++++++++++++++++
+ src/pkg/unicode/letter.go       | 50 ++++++++++++++++++++++++++++++++++++-----
+ src/pkg/unicode/letter_test.go  | 26 +++++++++++++++++++++
+ 6 files changed, 133 insertions(+), 5 deletions(-)

@@ -1,0 +1,19 @@
+commit 0b6ea6bb04e49e5eba614d39bb1334c87fff4f62
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Aug 19 07:52:34 2023 +0000
+
+    net: return "cannot unmarshal" error while parsing DNS messages
+    
+    Change-Id: I407f5d3d3a3e8b3d43ff154f731d885e831971e9
+    GitHub-Last-Rev: d6a400d1ba6a09e726c9b4e4774a7e8a611611e8
+    GitHub-Pull-Request: golang/go#62155
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520980
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+
+ src/net/dnsclient_unix.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

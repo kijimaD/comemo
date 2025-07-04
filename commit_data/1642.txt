@@ -1,0 +1,14 @@
+commit 56003374d348ac367dc1c6852e18f0171697d7d9
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Feb 7 13:31:34 2009 -0800
+
+    change array padding in structures
+    to pad to size of element rather
+    than size of array.
+    
+    R=r
+    OCL=24641
+    CL=24641
+
+ src/cmd/6g/align.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

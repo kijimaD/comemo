@@ -1,0 +1,22 @@
+commit 5a83f06c216c6a7e69975a81533ad06d603eeba8
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Apr 5 17:00:14 2015 +0900
+
+    net: deflake dual IP stack tests
+    
+    This change deflakes TestDialerDualStackFDLeak, TestDialerDualStack,
+    TestResolve{TCP,UDP,IP}Addr by removing external dependencies.
+    
+    Fixes #8764.
+    
+    Change-Id: I5cca0a93776cf05652e0e6a4a4ff4af392ccb885
+    Reviewed-on: https://go-review.googlesource.com/8485
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial_test.go   | 142 ++++++++++++++++++-------------------------------
+ src/net/ipraw_test.go  |  41 +++++++-------
+ src/net/lookup_test.go |  15 ++++--
+ src/net/main_test.go   |  40 ++++++++++++++
+ src/net/tcp_test.go    |  54 +++++++------------
+ src/net/udp_test.go    |  57 ++++++++++++++------
+ 6 files changed, 183 insertions(+), 166 deletions(-)

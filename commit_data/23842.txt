@@ -1,0 +1,19 @@
+commit cc6ed285e58be9c3c16ab2f2bc34d61687dfc3ff
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 20 15:48:53 2015 -0400
+
+    runtime: remove # from gctrace line
+    
+    Whenever someone pastes gctrace output into GitHub, it helpfully turns
+    the GC cycle number into a link to some unrelated issue. Prevent this
+    by removing the pound before the cycle number. The fact that this is a
+    cycle number is probably more obvious at a glance than most of the
+    other numbers.
+    
+    Change-Id: Ifa5fc7fe6c715eac50e639f25bc36c81a132ffea
+    Reviewed-on: https://go-review.googlesource.com/12413
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 0f2659a3235d388153e8d0d259800318f5fa7476
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 30 14:53:48 2012 +1100
+
+    builder: drop recover blocks
+    
+    The one time they recovered from anything they obscured a useful stack
+    trace. We're better off just crashing hard.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5577073
+
+ misc/dashboard/builder/main.go | 58 ++++++++++--------------------------------
+ 1 file changed, 14 insertions(+), 44 deletions(-)

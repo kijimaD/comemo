@@ -1,0 +1,12 @@
+commit a11d5aecb828384b422088c08b75f1621e896a0e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 20 12:51:18 2008 -0700
+
+    - removed double-declaration of len()
+    
+    R=r
+    OCL=17463
+    CL=17463
+
+ usr/gri/gosrc/globals.go | 5 -----
+ 1 file changed, 5 deletions(-)

@@ -1,0 +1,19 @@
+commit ecff9c9335584a58ff6c45e71876ba60d982676c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Jan 8 02:03:30 2023 +1100
+
+    cmd/internal/obj/arm64: invert SP check
+    
+    Check for REGSP use before checking for invalid instructions. This simplifies
+    the code and avoids duplicated op generation.
+    
+    Change-Id: I302e3b54a29742f2c48024b25162200f5966cfaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461138
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm64/asm7.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

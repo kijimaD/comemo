@@ -1,0 +1,24 @@
+commit d6054fcd88e04e0c7bd0bae92f51883d4f5e3e08
+Author: Yves Junqueira <yves.junqueira@gmail.com>
+Date:   Fri Jan 15 13:43:14 2010 -0800
+
+    Use /etc/hosts when resolving names.
+    
+    http://code.google.com/p/go/issues/detail?id=313
+    
+    This conflics with Chris' patch at:
+    https://golang.org/cl/181063
+    
+    But I believe this is more complete since it has a simple caching and proper tests.
+    
+    R=cw, rsc
+    CC=golang-dev
+    https://golang.org/cl/183066
+
+ src/pkg/net/Makefile       |  1 +
+ src/pkg/net/dnsclient.go   |  9 ++++--
+ src/pkg/net/hosts.go       | 78 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/hosts_test.go  | 48 ++++++++++++++++++++++++++++
+ src/pkg/net/hosts_testdata | 10 ++++++
+ src/pkg/net/ip.go          |  4 +++
+ 6 files changed, 148 insertions(+), 2 deletions(-)

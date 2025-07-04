@@ -1,0 +1,15 @@
+commit 93831d25db1db7e1c09888346a8723671293f91c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 29 22:16:53 2009 -0700
+
+    rename variables for clarity.
+    add test for structure alignment/offset.
+    
+    R=gri
+    DELTA=49  (35 added, 0 deleted, 14 changed)
+    OCL=28068
+    CL=28068
+
+ src/lib/reflect/all_test.go | 37 ++++++++++++++++++++++++++++++++++++-
+ src/lib/reflect/type.go     | 24 ++++++++++++------------
+ 2 files changed, 48 insertions(+), 13 deletions(-)

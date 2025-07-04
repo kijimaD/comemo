@@ -1,0 +1,19 @@
+commit d6899463029d8ab0d73c992ccf6639f095435b84
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 6 20:54:35 2018 -0800
+
+    cmd/cover: avoid repeating positions
+    
+    When using //line directives and unformatted code it is possible for
+    positions to repeat. Increment the final column position to avoid that.
+    
+    Fixes #27350
+    
+    Change-Id: I2faccc31360075e9814d4a024b0f98b117f8ce97
+    Reviewed-on: https://go-review.googlesource.com/c/153061
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/cover/cover.go      | 20 +++++++++++++
+ src/cmd/cover/cover_test.go | 68 +++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 80 insertions(+), 8 deletions(-)

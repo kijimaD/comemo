@@ -1,0 +1,10 @@
+commit 498ed5006158c7ce40ce3dce1fe4e4e2eba8c232
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jun 6 15:01:02 2008 -0700
+
+    code gen bug calling i2s
+    
+    SVN=121497
+
+ src/cmd/6g/gen.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

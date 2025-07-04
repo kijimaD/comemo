@@ -1,0 +1,17 @@
+commit 0d668259dc408742a0a10ac020b58add4fef6bab
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 18 17:24:58 2009 -0800
+
+    gc: method expressions on concrete types
+    
+    R=ken2
+    https://golang.org/cl/180092
+
+ src/cmd/gc/dcl.c       |  4 ++--
+ src/cmd/gc/go.h        |  1 +
+ src/cmd/gc/reflect.c   | 18 +++++++++---------
+ src/cmd/gc/subr.c      |  4 ++--
+ src/cmd/gc/typecheck.c | 30 +++++++++++++++++++++++++-----
+ test/method.go         | 10 +++++++++-
+ test/method3.go        |  8 +++++++-
+ 7 files changed, 55 insertions(+), 20 deletions(-)

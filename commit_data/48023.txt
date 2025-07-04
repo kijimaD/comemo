@@ -1,0 +1,23 @@
+commit b2dc66c64db933120c34d2223e670e8594543bd9
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Nov 1 10:03:36 2021 -0700
+
+    internal/fuzz: centralize corpus entry addition
+    
+    Adds an addCorpusEntry method to coordinator which manages checking for
+    duplicate entries, writing entries to the cache directory, and adding
+    entries to the corpus. Also moves readCache to be a method on the
+    coordinator.
+    
+    Fixes #50606
+    
+    Change-Id: Id6721384a2ad1cfb4c5471cf0cd0a7510d250a6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360394
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/fuzz/fuzz.go | 81 +++++++++++++++++++++++++----------------------
+ 1 file changed, 44 insertions(+), 37 deletions(-)

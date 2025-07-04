@@ -1,0 +1,29 @@
+commit fcb9d6b5d0ba6f5606c2b5dfc09f75e2dc5fc1e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 09:56:43 2020 -0400
+
+    io/fs: add FS, File, ReadDirFile; move DirEntry from os
+    
+    These are the core interfaces for the io/fs design.
+    See #41190 and https://golang.org/s/draft-iofs-design for details.
+    
+    DirEntry was left behind in the previous move from os
+    but is needed for ReadDirFile, so it moves in this commit.
+    
+    Also apply a couple comment changes suggested in
+    the review of CL 261540.
+    
+    For #41190.
+    
+    Change-Id: I087741545139ed30b9ba5db728a0bad71129500b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243908
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/io/fs/fs.go      | 112 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/io/fs/fs_test.go |  48 ++++++++++++++++++++++
+ src/os/dir.go        |  24 ++---------
+ 3 files changed, 163 insertions(+), 21 deletions(-)

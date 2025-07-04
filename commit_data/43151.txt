@@ -1,0 +1,21 @@
+commit b8ec1d5f49ec5f9350f2b0bd99560e4aadfcb70c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 30 17:37:24 2020 -0700
+
+    internal/poll: use ignoringEINTR in Darwin Fsync
+    
+    Also add comment explaining why we don't use ignoringEINTR around
+    call to close.
+    
+    Fixes #41115
+    
+    Change-Id: Ia7bbe01eaf26003f70d184b7e82803efef2b2c18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258542
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/internal/poll/fd_fsync_darwin.go | 7 ++++---
+ src/internal/poll/fd_unix.go         | 7 +++++++
+ 2 files changed, 11 insertions(+), 3 deletions(-)

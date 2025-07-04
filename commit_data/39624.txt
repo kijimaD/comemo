@@ -1,0 +1,16 @@
+commit 89f02eb8370e31907d33e88f3e25de5176fe84f0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 13 12:56:51 2019 -0700
+
+    go/types: add -halt flag to ease debugging in test mode
+    
+    Specifying -halt in `go test -run Check$ -halt` causes a panic
+    upon encountering the first error. The stack trace is useful to
+    determine what code path issued the error.
+    
+    Change-Id: I2e17e0014ba87505b01786980b98565f468065bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190257
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/types/check_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

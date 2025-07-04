@@ -1,0 +1,19 @@
+commit c4f902bef4c7edb9b051cec6c3da6690dc045203
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 17 10:41:03 2016 -0500
+
+    net/http: update bundle command
+    
+    This is the bundle command's new usage and new output header,
+    after CL 19428.
+    
+    Actually running this command would work but would bring in
+    a newer x/net/http2 that we don't want yet.
+    
+    Change-Id: Ic6082ca00102a2df1f7632eebf9aca41fdcdb444
+    Reviewed-on: https://go-review.googlesource.com/19551
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ src/net/http/h2_bundle.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

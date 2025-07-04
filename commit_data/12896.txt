@@ -1,0 +1,19 @@
+commit 99fc28174369621cfe7a445cc4718fba0148745d
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Apr 17 02:35:41 2012 +1000
+
+    runtime: update defs for openbsd
+    
+    Update runtime defs for openbsd. Add struct __tfork, which will be
+    needed by an upcoming change.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6007050
+
+ src/pkg/runtime/defs_openbsd.go        |  15 +-
+ src/pkg/runtime/defs_openbsd_386.h     | 246 +++++++++++++++---------------
+ src/pkg/runtime/defs_openbsd_amd64.h   | 271 +++++++++++++++++----------------
+ src/pkg/runtime/signal_openbsd_386.c   |   2 +-
+ src/pkg/runtime/signal_openbsd_amd64.c |   2 +-
+ 5 files changed, 269 insertions(+), 267 deletions(-)

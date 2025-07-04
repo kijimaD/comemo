@@ -1,0 +1,21 @@
+commit ded2c65db3cf8c7f03e42d315b22a6b734246a32
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Sep 28 20:17:59 2017 +0100
+
+    cmd/compile: simplify a few bits of the code
+    
+    Remove an unused type, a few redundant returns and replace a few slice
+    append loops with a single append.
+    
+    Change-Id: If07248180bae5631b5b152c6051d9635889997d5
+    Reviewed-on: https://go-review.googlesource.com/66851
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/bexport.go            |  4 +---
+ src/cmd/compile/internal/gc/sinit.go              |  1 -
+ src/cmd/compile/internal/gc/typecheck.go          |  1 -
+ src/cmd/compile/internal/ssa/loopreschedchecks.go |  2 --
+ src/cmd/compile/internal/ssa/regalloc.go          | 14 ++------------
+ 5 files changed, 3 insertions(+), 19 deletions(-)

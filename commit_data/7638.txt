@@ -1,0 +1,24 @@
+commit 11695596588172331984de8a443eedbd44c56bd5
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Mar 5 14:24:44 2011 -0500
+
+    cgo: use correct frame size for 0 arguments
+    
+    Passing a frame size of 1 was causing the cgo callback
+    to push 1 byte of arguments onto the stack, making
+    the stack pointer misaligned, which had the effect of
+    hiding all the pointers on the stack from the garbage
+    collector.
+    
+    SWIG only wraps calls to C++ virtual methods, so it
+    always has at least 1 argument, so SWIG does not need
+    to be fixed too.
+    
+    Fixes #1328.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/4261046
+
+ src/cmd/cgo/out.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

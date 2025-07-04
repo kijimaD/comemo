@@ -1,0 +1,20 @@
+commit 5534f04498cfa71a69a78b9065e7f9138b48f05f
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu May 11 08:21:21 2023 +0000
+
+    net: use and assert correct res state size at compile time when cgo available on darwin
+    
+    Change-Id: I961bb18604dd1568ea21431545f43aa6a417b3d9
+    GitHub-Last-Rev: 735f3364a4f2182f3e3e1b84f39a042e86987967
+    GitHub-Pull-Request: golang/go#60046
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493415
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/internal/syscall/unix/net_darwin.go |  2 +-
+ src/net/cgo_unix_cgo_darwin.go          | 21 +++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

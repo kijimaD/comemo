@@ -1,0 +1,12 @@
+commit 4101469cccd68e7c04a9b4d04f5399fa8f22d68d
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Feb 13 16:43:55 2013 +1100
+
+    doc: adjust indentation in Effective Go commentary example.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7225080
+
+ doc/effective_go.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit 8ec35ab66ae4abdb98b3b0d7c3ca4522601c7168
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Jul 10 04:54:37 2018 +1000
+
+    runtime: correct new thread stack for openbsd MAP_STACK
+    
+    OpenBSD 6.4 will require the stack pointer to be pointing at an area that is
+    marked as MAP_STACK when entering and exiting syscalls. Adjust the stack pointer
+    used for a new thread such that it points within the stack, not at the top of
+    it (i.e. outside).
+    
+    Fixes #26142
+    
+    Change-Id: I905bd8e5be3dfc325392e7ac490fb56a7c71b3aa
+    Reviewed-on: https://go-review.googlesource.com/122735
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_openbsd.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 2a5f0c67ca4d5123120885edf85498b5af483956
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 10:23:12 2009 -0800
+
+    spec: document that built-ins cannot be used as func values
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/164088
+
+ doc/go_spec.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

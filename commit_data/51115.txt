@@ -1,0 +1,18 @@
+commit a72e133422d3eb2f24ca6f5d834c622137f0ccd2
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 3 20:33:34 2022 -0400
+
+    cmd/compile/internal/pgo: remove some unused fields
+    
+    We intentionally don't use file path so it is resilient to code
+    moving. OrigName and Objfile are also not used currently. Remove
+    them. (We can add them back if it turns out to be useful.)
+    
+    Change-Id: I7975d78c874bc21475b9119301088452a4426cb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447801
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/pgo/graph.go | 39 ++++++++---------------------------
+ 1 file changed, 9 insertions(+), 30 deletions(-)

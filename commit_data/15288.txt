@@ -1,0 +1,12 @@
+commit f1037f0e86d6f02fd29fe859ff0b5ed2ded6ecf5
+Author: Georg Reinke <guelfey@gmail.com>
+Date:   Sun Feb 17 02:06:59 2013 +1100
+
+    runtime: fix build on openbsd
+    
+    R=golang-dev, jsing
+    CC=golang-dev
+    https://golang.org/cl/7312104
+
+ src/pkg/runtime/thread_openbsd.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

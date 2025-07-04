@@ -1,0 +1,15 @@
+commit 6e03ed32c7044ceae083b0042132e1c68f197d99
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 17 16:33:26 2011 -0500
+
+    gc: interface error message fixes
+    
+    Fixes #1526.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4190051
+
+ src/cmd/gc/subr.c      | 8 ++++++--
+ src/cmd/gc/typecheck.c | 4 ++--
+ 2 files changed, 8 insertions(+), 4 deletions(-)

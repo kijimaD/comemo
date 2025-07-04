@@ -1,0 +1,18 @@
+commit 2abef5976a5a7c761579b19e10680347968caef2
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Sun Aug 27 23:17:12 2017 -0400
+
+    cmd/go/internal/load: fix IsMetaPackage function name in doc
+    
+    The IsMetaPackage function was made exported when it was moved from
+    cmd/go to cmd/go/internal/load in CL 36196. Its documentation wasn't
+    updated accordingly. This change fixes that, resolving a golint issue.
+    
+    Updates #18653.
+    
+    Change-Id: Icf89461000754d0f09e6617b11c838e4c050d5a6
+    Reviewed-on: https://go-review.googlesource.com/59430
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/go/internal/load/search.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

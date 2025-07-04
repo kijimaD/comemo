@@ -1,0 +1,22 @@
+commit 96a96a9058004af531db56dee26d82af08321cdb
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Mar 4 12:09:04 2021 -0800
+
+    cmd/compile: remove types2.(*Selection).TArgs(), now that instance bug seems fixed
+    
+    Previously, we would sometimes see an internal (*instance) type for a
+    receiver of a types2 method, which was a bug. To deal with that, we put
+    in an extra (*Selection).TArgs() method. However, that (*instance) type
+    is no longer showing up for receivers, so we can remove the types2
+    method we added and do the work with existing types2 API methods.
+    
+    Change-Id: I03e68f5bbaaf82fe706b6efecbb02e951bbd3cd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298869
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/expr.go       | 15 ++++++++++++++-
+ src/cmd/compile/internal/types2/selection.go | 16 ----------------
+ 2 files changed, 14 insertions(+), 17 deletions(-)

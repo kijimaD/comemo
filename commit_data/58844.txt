@@ -1,0 +1,19 @@
+commit 7194caf11b5b62778618ddb87e5adea5b04654bf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 24 14:47:30 2025 -0800
+
+    go/types, types2: remove another coreType call in type checking range clause
+    
+    For #70128.
+    
+    Change-Id: I5949bccbfaaebc435ae8ac7c70580d9740de6f00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652136
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/stmt.go   | 9 +++++++--
+ src/go/types/stmt.go                      | 9 +++++++--
+ src/internal/types/testdata/spec/range.go | 5 +++++
+ 3 files changed, 19 insertions(+), 4 deletions(-)

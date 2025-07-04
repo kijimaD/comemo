@@ -1,0 +1,30 @@
+commit efa9efe8e4d998e0ed7c917446cc62ff5cb76762
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 20 11:01:43 2017 -0700
+
+    cmd/compile: silence unnecessary unsafe error
+    
+    If n.Type==nil after typechecking, then we should have already
+    reported a more useful error somewhere else. Just return 0 in
+    evalunsafe without trying to do anything else that's likely to cause
+    problems.
+    
+    Also, further split out issue7525.go into more test files, because
+    cmd/compile reports at most one typechecking loop per compilation
+    unit.
+    
+    Fixes #22351.
+    
+    Change-Id: I3ebf505f72c48fcbfef5ec915606224406026597
+    Reviewed-on: https://go-review.googlesource.com/72251
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/unsafe.go |  4 +++-
+ test/fixedbugs/issue22351.go          | 11 +++++++++++
+ test/fixedbugs/issue7525.go           |  4 +---
+ test/fixedbugs/issue7525d.go          | 15 +++++++++++++++
+ test/fixedbugs/issue7525e.go          | 15 +++++++++++++++
+ 5 files changed, 45 insertions(+), 4 deletions(-)

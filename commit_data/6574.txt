@@ -1,0 +1,14 @@
+commit 6096fc83cd117b0690c3b3017778757e4389982f
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Oct 20 13:18:00 2010 -0700
+
+    code gen error for *(complex)++
+    includes array[i]++ and slice[i]++
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2614041
+
+ src/cmd/5g/ggen.c  |  5 +++--
+ src/cmd/5g/gsubr.c | 14 ++++++++++----
+ 2 files changed, 13 insertions(+), 6 deletions(-)

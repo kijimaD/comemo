@@ -1,0 +1,13 @@
+commit 6f7b66db5008722a91a81b659fd9bb8dbdee050a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 8 17:14:44 2012 -0700
+
+    A+C: added Robin Eklind (individual CLA)
+    
+    R=alex.brainman, r
+    CC=golang-dev
+    https://golang.org/cl/6643045
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

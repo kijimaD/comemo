@@ -1,0 +1,14 @@
+commit 8bd8cede03e32c55844cfc433f66fc6da0564c8a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 14 10:40:16 2014 -0500
+
+    cmd/gc: add -live flag for debugging liveness maps
+    
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/51820043
+
+ src/cmd/gc/go.h    |  1 +
+ src/cmd/gc/lex.c   |  1 +
+ src/cmd/gc/plive.c | 92 ++++++++++++++++++++++++++++++++++++------------------
+ 3 files changed, 63 insertions(+), 31 deletions(-)

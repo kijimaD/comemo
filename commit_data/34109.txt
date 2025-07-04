@@ -1,0 +1,21 @@
+commit 245310883dcae717bb662b22d5b1fd07fdd59b76
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jan 15 00:00:02 2018 -0500
+
+    runtime: eliminate all writebarrierptr* calls
+    
+    Calls to writebarrierptr can simply be actual pointer writes. Calls to
+    writebarrierptr_prewrite need to go through the write barrier buffer.
+    
+    Updates #22460.
+    
+    Change-Id: I92cee4da98c5baa499f1977563757c76f95bf0ca
+    Reviewed-on: https://go-review.googlesource.com/92704
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/atomic_pointer.go | 31 ++++++++++++++++++++++++++-----
+ src/runtime/chan.go           |  2 ++
+ src/runtime/hashmap_fast.go   |  6 ++++--
+ src/runtime/mbitmap.go        | 11 +++++++++--
+ 4 files changed, 41 insertions(+), 9 deletions(-)

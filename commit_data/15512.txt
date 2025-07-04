@@ -1,0 +1,13 @@
+commit 17d12d6cb648d57b3a2094004e6eacc5473bc8f1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Mar 1 11:22:13 2013 +1100
+
+    doc: fix root.html styles
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/7442045
+
+ doc/root.html | 6 +++---
+ doc/style.css | 2 ++
+ 2 files changed, 5 insertions(+), 3 deletions(-)

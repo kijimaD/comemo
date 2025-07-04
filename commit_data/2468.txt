@@ -1,0 +1,15 @@
+commit 3b576a770413e799d487e861e3a75027f59ee81c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 17 14:31:33 2009 -0700
+
+    fix for incorrect type switch clause:
+    - nil is not a keyword
+    - type -> Type
+    
+    R=rsc
+    DELTA=10  (4 added, 0 deleted, 6 changed)
+    OCL=30433
+    CL=30435
+
+ doc/go_spec.html | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

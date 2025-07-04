@@ -1,0 +1,26 @@
+commit 057a34a281a52b474184614ac63b808974e22549
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri Aug 11 19:46:45 2017 +0200
+
+    runtime: fix crashing with foreign signal handlers on Darwin
+    
+    The dieFromSignal runtime function attempts to forward crashing
+    signals to a signal handler registered before the runtime was
+    initialized, if any. However, on Darwin, a special signal handler
+    trampoline is invoked, even for non-Go signal handlers.
+    
+    Clear the crashing signal's handlingSig entry to ensure sigtramp
+    forwards the signal.
+    
+    Fixes the darwin/386 builder.
+    
+    Updates #20392
+    Updates #19389
+    
+    Change-Id: I441a3d30c672cdb21ed6d8f1e1322d7c0e5b9669
+    Reviewed-on: https://go-review.googlesource.com/55032
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/signal_unix.go | 3 +++
+ 1 file changed, 3 insertions(+)

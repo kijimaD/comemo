@@ -1,0 +1,13 @@
+commit c691ae6764a862567e9157791f1ed84914ee0e57
+Author: Jonathan Hseu <jhseu@google.com>
+Date:   Tue May 14 17:14:59 2013 -0700
+
+    testing/quick: fix for aliased types, delete duplicate uint8 test, and fix randFloat64() to give random numbers from (-math.MaxFloat64, math.MaxFloat64).
+    
+    R=r, agl
+    CC=agl, bradfitz, golang-dev
+    https://golang.org/cl/9296046
+
+ src/pkg/testing/quick/quick.go      |  66 +++++++++++-----------
+ src/pkg/testing/quick/quick_test.go | 107 +++++++++++++++++++++++++++++++++++-
+ 2 files changed, 137 insertions(+), 36 deletions(-)

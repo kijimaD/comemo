@@ -1,0 +1,16 @@
+commit 1ddedbae316b90a50f17d8d7e8e726755a5dd26a
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 8 11:26:49 2011 -0800
+
+    tmpltohtml: put a DO NOT EDIT mark automatically in the output
+    
+    R=r, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5469045
+
+ doc/effective_go.html |  5 +++++
+ doc/effective_go.tmpl |  1 +
+ doc/go_tutorial.html  |  6 ++++++
+ doc/go_tutorial.tmpl  |  2 ++
+ doc/tmpltohtml.go     | 12 +++++++++++-
+ 5 files changed, 25 insertions(+), 1 deletion(-)

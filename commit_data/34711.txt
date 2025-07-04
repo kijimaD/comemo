@@ -1,0 +1,22 @@
+commit 2d8181e7b5ffe685847a6bb922170c4bbe1c97f6
+Author: Austin Clements <austin@google.com>
+Date:   Sun Mar 25 12:20:57 2018 -0400
+
+    cmd/compile: clarify unsigned interpretation of AuxInt
+    
+    The way Value.AuxInt represents unsigned numbers is currently
+    documented in genericOps.go, which is not the most obvious place for
+    it. Move that documentation to Value.AuxInt. Furthermore, to make it
+    harder to use incorrectly, introduce a Value.AuxUnsigned accessor that
+    returns the zero-extended value of Value.AuxInt.
+    
+    Change-Id: I85030c3c68761404058a430e0b1c7464591b2f42
+    Reviewed-on: https://go-review.googlesource.com/102597
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  2 --
+ src/cmd/compile/internal/ssa/prove.go          | 14 ++------------
+ src/cmd/compile/internal/ssa/value.go          | 23 +++++++++++++++++++++++
+ 3 files changed, 25 insertions(+), 14 deletions(-)

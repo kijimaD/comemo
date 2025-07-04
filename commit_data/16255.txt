@@ -1,0 +1,12 @@
+commit 83feea5af85c18fdea9d4038026bb8e06eab1149
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 1 14:31:42 2013 -0700
+
+    cmd/cgo: correct pragma name in comment
+    
+    R=rsc, alexb, minux.ma, bradfitz, i.caught.air
+    CC=golang-dev
+    https://golang.org/cl/9082043
+
+ src/cmd/cgo/doc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

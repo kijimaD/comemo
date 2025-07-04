@@ -1,0 +1,16 @@
+commit e495351ff752bba2fcb20ff2d1448ae2b18e2300
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 21 12:42:33 2010 -0700
+
+    spec: struct tags must be identical for types to be identical
+    
+    We didn't mention this explicitly during our discussions,
+    but I think it fits the "identical types are spelled identically"
+    rule that we used.
+    
+    R=gri, iant, ken2, r, rsc1
+    CC=golang-dev
+    https://golang.org/cl/1698043
+
+ doc/go_spec.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

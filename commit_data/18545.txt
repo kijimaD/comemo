@@ -1,0 +1,13 @@
+commit 2be94b1ba650d6ce106ca131a966150454708595
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Mon Feb 17 14:33:00 2014 +1100
+
+    crypto/md5: add example for Sum
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/64820044
+
+ src/pkg/crypto/md5/example_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

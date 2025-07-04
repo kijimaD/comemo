@@ -1,0 +1,26 @@
+commit 103cc661f1906837d02133e9c65d0475ac49799c
+Author: Josh Powers <jpowers@influxdata.com>
+Date:   Fri Jun 17 18:22:12 2022 +0000
+
+    cmd/go/internal/modfetch: prevent duplicate hashes in go.sum
+    
+    To write go.sum, each module and then each hash is looped through. The
+    hashes are kept in a slice and there is no check to ensure that hashes
+    were not added or already exist in the file. Therefore, unique the
+    hashes of each module before writing to prevent duplicates.
+    
+    Fixes: #28456
+    
+    Change-Id: I1cf7e7cdee3e7530a0ee605cd76d738627be1e0d
+    GitHub-Last-Rev: 0ed02e9591e966fe5f6ba275635c3974daa2656e
+    GitHub-Pull-Request: golang/go#53291
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411154
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/fetch.go              |  1 +
+ src/cmd/go/testdata/script/mod_tidy_duplicates.txt | 38 ++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

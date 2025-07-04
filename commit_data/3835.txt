@@ -1,0 +1,13 @@
+commit 39fd52d3a0dc58897c774c2360251523349d1cc0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 17:35:40 2009 -0800
+
+    gofmt'ed missing regexp file
+    (one-line functions will be re-established once we have all
+    formatted uniformly)
+    
+    R=r
+    http://go/go-review/1023004
+
+ src/pkg/regexp/regexp.go | 324 +++++++++++++++++++++++++++--------------------
+ 1 file changed, 187 insertions(+), 137 deletions(-)

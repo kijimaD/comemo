@@ -1,0 +1,17 @@
+commit c22781cb3319fa4befc7944b0a8e00fbd6632115
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 11 15:55:17 2023 -0500
+
+    doc/go1.22: remove compiler TODO
+    
+    For #61422.
+    
+    Change-Id: Id4eed9affde20857d6b60c0b6d7d1443ea5e460b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548938
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ doc/go1.22.html | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,0 +1,53 @@
+commit b505ff6279fbd8a70c8155fdd612be1c48b9a68a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 21 16:38:57 2013 -0400
+
+    crypto/rc4: faster amd64 implementation
+    
+    XOR key into data 128 bits at a time instead of 64 bits
+    and pipeline half of state loads. Rotate loop to allow
+    single-register indexing for state[i].
+    
+    On a MacBookPro10,2 (Core i5):
+    
+    benchmark           old ns/op    new ns/op    delta
+    BenchmarkRC4_128          412          224  -45.63%
+    BenchmarkRC4_1K          3179         1613  -49.26%
+    BenchmarkRC4_8K         25223        12545  -50.26%
+    
+    benchmark            old MB/s     new MB/s  speedup
+    BenchmarkRC4_128       310.51       570.42    1.84x
+    BenchmarkRC4_1K        322.09       634.48    1.97x
+    BenchmarkRC4_8K        320.97       645.32    2.01x
+    
+    For comparison, on the same machine, openssl 0.9.8r reports
+    its rc4 speed as somewhat under 350 MB/s for both 1K and 8K
+    (it is operating 64 bits at a time).
+    
+    On an Intel Xeon E5520:
+    
+    benchmark           old ns/op    new ns/op    delta
+    BenchmarkRC4_128          418          259  -38.04%
+    BenchmarkRC4_1K          3200         1884  -41.12%
+    BenchmarkRC4_8K         25173        14529  -42.28%
+    
+    benchmark            old MB/s     new MB/s  speedup
+    BenchmarkRC4_128       306.04       492.48    1.61x
+    BenchmarkRC4_1K        319.93       543.26    1.70x
+    BenchmarkRC4_8K        321.61       557.20    1.73x
+    
+    For comparison, on the same machine, openssl 1.0.1
+    reports its rc4 speed as 587 MB/s for 1K and 601 MB/s for 8K.
+    
+    R=agl
+    CC=golang-dev
+    https://golang.org/cl/7865046
+
+ src/cmd/6l/optab.c             |   7 +-
+ src/pkg/crypto/rc4/rc4.go      |   6 +-
+ src/pkg/crypto/rc4/rc4_386.s   |  10 +--
+ src/pkg/crypto/rc4/rc4_amd64.s | 159 +++++++++++++++++++++++++++++------------
+ src/pkg/crypto/rc4/rc4_arm.s   |  10 +--
+ src/pkg/crypto/rc4/rc4_asm.go  |   2 +-
+ src/pkg/crypto/rc4/rc4_test.go |  21 ++++++
+ 7 files changed, 156 insertions(+), 59 deletions(-)

@@ -1,0 +1,22 @@
+commit 93dde6b0e6c0de50a47f9dc5f3ac7205c36742aa
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jun 28 09:43:01 2011 -0400
+
+    sync: add fast path to Once
+    The implementation does not grab the lock,
+    if Once is already initalized.
+    Benchmark results on HP Z600 (2 x Xeon E5620, 8 HT cores, 2.40GHz)
+    are as follows:
+    benchmark                                        old ns/op    new ns/op    delta
+    sync_test.BenchmarkOnce                             187.00        14.00  -92.51%
+    sync_test.BenchmarkOnce-2                           909.00        21.40  -97.65%
+    sync_test.BenchmarkOnce-4                          3684.00        20.90  -99.43%
+    sync_test.BenchmarkOnce-8                          5987.00        23.00  -99.62%
+    sync_test.BenchmarkOnce-16                         5051.00        21.60  -99.57%
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4641066
+
+ src/pkg/sync/once.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

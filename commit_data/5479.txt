@@ -1,0 +1,25 @@
+commit 2db47c908318b855fc81c2c44d64d4d1fcadb1fc
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Tue May 18 16:29:24 2010 -0700
+
+        Trivial optimization.
+            Cached string indexing in inner loop of Btoui64.
+    
+        Before:
+        strconv_test.BenchmarkAtoi   5000000           309 ns/op
+        strconv_test.BenchmarkAtoiNeg    5000000           325 ns/op
+        strconv_test.BenchmarkAtoi64     5000000           465 ns/op
+        strconv_test.BenchmarkAtoi64Neg  5000000           469 ns/op
+    
+        After:
+        strconv_test.BenchmarkAtoi  10000000           182 ns/op
+        strconv_test.BenchmarkAtoiNeg   10000000           193 ns/op
+        strconv_test.BenchmarkAtoi64    10000000           251 ns/op
+        strconv_test.BenchmarkAtoi64Neg 10000000           258 ns/op
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/1227042
+
+ src/pkg/strconv/atoi.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

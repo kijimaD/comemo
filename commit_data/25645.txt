@@ -1,0 +1,17 @@
+commit 3415d0c49ddb6c48a90919eb023c71c7e82c3189
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 18 21:23:33 2016 -0800
+
+    cmd/go: fix handling of asm files for -compiler=gccgo
+    
+    Pass -c to generate an object.  Pass GOPKGPATH as a symbol, not a
+    string.  Pass -xassembler-with-cpp so that the preprocessor is run.
+    
+    Change-Id: I84690a73cc580bb05724ed07c120cec9cfd5e48b
+    Reviewed-on: https://go-review.googlesource.com/18733
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

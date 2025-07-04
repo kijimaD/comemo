@@ -1,0 +1,30 @@
+commit d1cae6358ccf27bc2c864b09aad49fd8a67ac264
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 23 20:00:10 2015 -0400
+
+    runtime: fix check for pending GC work
+    
+    When findRunnable considers running a fractional mark worker, it first
+    checks if there's any work to be done; if there isn't there's no point
+    in running the worker because it will just reschedule immediately.
+    However, currently findRunnable just checks work.full and
+    work.partial, whereas getfull can *also* draw work from m.currentwbuf.
+    As a result, findRunnable may not start a worker even though there
+    actually is work.
+    
+    This problem manifests itself in occasional failures of the
+    test/init1.go test. This test is unusual because it performs a large
+    amount of allocation without executing any write barriers, which means
+    there's nothing to force the pointers in currentwbuf out to the
+    work.partial/full lists where findRunnable can see them.
+    
+    This change fixes this problem by making findRunnable also check for a
+    currentwbuf. This aligns findRunnable with trygetfull's notion of
+    whether or not there's work.
+    
+    Change-Id: Ic76d22b7b5d040bc4f58a6b5975e9217650e66c4
+    Reviewed-on: https://go-review.googlesource.com/9299
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

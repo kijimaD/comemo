@@ -1,0 +1,24 @@
+commit 7dd7d70c034a24ac98e52bd4e6dac3ce35c60271
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Mar 17 12:11:42 2025 +0000
+
+    runtime: skip TestCgoCallbackPprof on platforms with broken profiling
+    
+    CL 658035 added TestCgoCallbackPprof, which is consistently failing on
+    solaris. runtime/pprof maintains a list of platforms where CPU profiling
+    does not work properly. Since this test requires CPU profiling, skip the
+    this test on those platforms.
+    
+    For #72870.
+    Fixes #72876.
+    
+    Change-Id: I6a6a636cbf6b16abcbba8771178fe1d001be9d9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658415
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/testenv/testenv.go | 23 +++++++++++++++++++++++
+ src/runtime/crash_cgo_test.go   |  3 +++
+ src/runtime/pprof/pprof_test.go | 23 +----------------------
+ 3 files changed, 27 insertions(+), 22 deletions(-)

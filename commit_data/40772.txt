@@ -1,0 +1,16 @@
+commit 4d0ed149ffc94af16156307f08418b65ca084185
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 29 17:25:56 2019 -0400
+
+    cmd/compile: enable optimizer logging for inline-related events
+    
+    Change-Id: I72de8cb5e1df7a73e46a4b7e5b4e7290fcca4bc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204162
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/inl.go             | 25 +++++++++++++++++++---
+ src/cmd/compile/internal/gc/syntax.go          | 29 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/logopt/logopt_test.go |  3 +++
+ 3 files changed, 54 insertions(+), 3 deletions(-)

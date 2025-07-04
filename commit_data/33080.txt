@@ -1,0 +1,18 @@
+commit 862fb86c6e2b84dc08c65d3692e7758bcc120ba8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Oct 11 18:23:30 2017 +1100
+
+    internal/poll: only call SetFileCompletionNotificationModes for sockets
+    
+    CL 36799 made SetFileCompletionNotificationModes to be called for
+    file handles. I don't think it is correct. Revert that change.
+    
+    Fixes #22024
+    Fixes #22207
+    
+    Change-Id: I26260e8a727131cffbf60958d79eca2457495554
+    Reviewed-on: https://go-review.googlesource.com/69871
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/fd_windows.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

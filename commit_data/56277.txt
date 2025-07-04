@@ -1,0 +1,22 @@
+commit 0304d035cd1a35762b0d1e394f13345e29107b63
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Apr 22 15:24:42 2024 +0000
+
+    runtime: switch to systemstack before throw in casgstatus
+    
+    CL 580255 increased the frame size of entersyscall and reentersyscall,
+    which is causing the x/sys repository to fail to build for
+    windows/arm64 because of an overflow of the nosplit stack reservation.
+    
+    Fix this by wrapping the other call to throw in casgstatus in a system
+    stack switch. This is a fatal throw anyway indicating a core runtime
+    invariant is broken, so this path is basically never taken. This cuts
+    off the nosplit frame chain and allows x/sys to build.
+    
+    Change-Id: I00b16c9db3a7467413ed48953c7f8a9a750f000a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580775
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/proc.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

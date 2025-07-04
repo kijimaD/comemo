@@ -1,0 +1,25 @@
+commit 322cd4e8078efc3c903aab2ab6fd1e0f200b282b
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Nov 1 14:20:05 2023 -0400
+
+    cmd/compile/internal/inline: refactor call site scoring
+    
+    Rework the call site scoring process to relocate the code that looks
+    for interesting actual expressions at callsites (e.g. passing a
+    constant, passing a function pointer, etc) back into the original
+    callsite analysis phase, as opposed to trying to do the analysis at
+    scoring time. No changes to heuristics functionality; this doesn't
+    have much benefit here, but will make it easier later on (in a future
+    ptahc) to reduce ir.StaticValue calls.
+    
+    Change-Id: I0e946f9589310a405951cb41835a819d38158e45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539317
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ .../inline/inlheur/actualexprpropbits_string.go    | 58 ++++++++++++++++++++
+ .../inline/inlheur/analyze_func_callsites.go       | 64 ++++++++++++++++++----
+ .../compile/internal/inline/inlheur/callsite.go    | 23 ++++++--
+ src/cmd/compile/internal/inline/inlheur/scoring.go | 44 +++++++++------
+ .../inline/inlheur/testdata/props/calls.go         |  2 +-
+ 5 files changed, 156 insertions(+), 35 deletions(-)

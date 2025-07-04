@@ -1,0 +1,15 @@
+commit 7743ffead4d8e89256931649dd04912121833f51
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 28 14:05:34 2009 -0700
+
+    disallow interface { x, y() }
+    
+    R=ken
+    OCL=35042
+    CL=35044
+
+ src/cmd/gc/go.y          | 19 +++++++++----------
+ test/fixedbugs/bug121.go |  5 ++++-
+ test/ken/embed.go        | 12 ++++++------
+ test/ken/interfun.go     |  3 ++-
+ 4 files changed, 21 insertions(+), 18 deletions(-)

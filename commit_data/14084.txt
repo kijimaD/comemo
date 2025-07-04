@@ -1,0 +1,15 @@
+commit c7cc894ef5978746dce145227808287fee627dc0
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Oct 9 08:10:32 2012 +1100
+
+    net/url: report first error from ParseQuery.
+    
+    Fixes #4175.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6610068
+
+ src/pkg/net/url/url.go      |  8 ++++++--
+ src/pkg/net/url/url_test.go | 11 +++++++++++
+ 2 files changed, 17 insertions(+), 2 deletions(-)

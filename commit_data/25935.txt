@@ -1,0 +1,21 @@
+commit 52d9479e3be6cc94256f3ad07a0bd71df2aa4f60
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 26 13:33:48 2016 -0800
+
+    cmd/compile: convert Func.Cvars from *NodeList to *[]*Node
+    
+    Passes toolstash -cmp.
+    
+    Update #14473.
+    
+    Change-Id: I7285175b1992a29033fdc9e81d6f30545e5cc30d
+    Reviewed-on: https://go-review.googlesource.com/19967
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go | 28 ++++++++--------------------
+ src/cmd/compile/internal/gc/dcl.go     |  2 +-
+ src/cmd/compile/internal/gc/esc.go     |  4 +---
+ src/cmd/compile/internal/gc/order.go   |  2 +-
+ src/cmd/compile/internal/gc/sinit.go   |  2 +-
+ src/cmd/compile/internal/gc/syntax.go  | 27 ++++++++++++++++++++++++---
+ 6 files changed, 36 insertions(+), 29 deletions(-)

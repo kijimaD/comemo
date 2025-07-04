@@ -1,0 +1,21 @@
+commit d6504b80973a22edbb5045e98c53901776101d18
+Author: David Chase <drchase@google.com>
+Date:   Sat Feb 27 17:11:36 2021 -0500
+
+    cmd/compile: tweak offset-generator to elide more +0 offsets
+    
+    this caused a problem in write barrier code when a spurious
+    zero-offset prevented a write barrier elision.
+    
+    removed cache after instrumenting it and discovering
+    zero safe hits (one value must dominate the other, else
+    unsafe).
+    
+    Change-Id: I42dfdb4d38ebfe158b13e766a7fabfc514d773f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297349
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 42 +++++++++++-----------------
+ 1 file changed, 17 insertions(+), 25 deletions(-)

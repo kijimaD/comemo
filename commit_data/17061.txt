@@ -1,0 +1,22 @@
+commit b29d035fe61e32d55fffe19be0abc95baa9078ae
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 7 06:15:50 2013 +0900
+
+    net: add dial, listenStream and listenDatagram methods to netFD
+    
+    This CL refactors the existing listenerSockaddr function into several
+    methods on netFD.
+    
+    This is in preparation for runtime-integrated network pollster for BSD
+    variants.
+    
+    Update #5199
+    
+    R=golang-dev, dave, alex.brainman, dvyukov, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/12023043
+
+ src/pkg/net/sock_posix.go   | 154 ++++++++++++++++++++++++++++++--------------
+ src/pkg/net/sock_unix.go    |  36 -----------
+ src/pkg/net/sock_windows.go |  27 --------
+ 3 files changed, 105 insertions(+), 112 deletions(-)

@@ -1,0 +1,20 @@
+commit 5a69935a3c439568fbc7f955fb91e0d05d6e3f91
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Sep 29 12:15:24 2009 -0700
+
+    Add crypto/rc4.
+    
+    RC4 is a common stream cipher. This adds a pure-go C implementation.
+    
+    R=r
+    APPROVED=r
+    DELTA=139  (138 added, 0 deleted, 1 changed)
+    OCL=35056
+    CL=35092
+
+ src/pkg/Make.deps              |  3 +-
+ src/pkg/Makefile               |  1 +
+ src/pkg/crypto/rc4/Makefile    | 11 +++++++
+ src/pkg/crypto/rc4/rc4.go      | 66 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/rc4/rc4_test.go | 59 +++++++++++++++++++++++++++++++++++++
+ 5 files changed, 139 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 07c01e396894cc2b6d2528fe6b00e910d24a9384
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sun Oct 8 16:53:18 2017 +0200
+
+    misc/cgo/testcarchive: skip flaky SIGPROF test on darwin
+    
+    Updates #19320.
+    
+    Change-Id: Id38df033e3f0873986e668c8ff3855b6e08407a9
+    Reviewed-on: https://go-review.googlesource.com/69114
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

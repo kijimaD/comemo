@@ -1,0 +1,62 @@
+commit ec732632c2c26dadf424462ac42ebd32dce3ee88
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 1 19:00:33 2019 -0400
+
+    crypto/tls: refactor certificate and signature algorithm logic
+    
+    This refactors a lot of the certificate support logic to make it cleaner
+    and reusable where possible. These changes will make the following CLs
+    much simpler.
+    
+    In particular, the heavily overloaded pickSignatureAlgorithm is gone.
+    That function used to cover both signing and verifying side, would work
+    both for pre-signature_algorithms TLS 1.0/1.1 and TLS 1.2, and returned
+    sigalg, type and hash.
+    
+    Now, TLS 1.0/1.1 and 1.2 are differentiated at the caller, as they have
+    effectively completely different logic. TLS 1.0/1.1 simply use
+    legacyTypeAndHashFromPublicKey as they employ a fixed hash function and
+    signature algorithm for each public key type. TLS 1.2 is instead routed
+    through selectSignatureScheme (on the signing side) or
+    isSupportedSignatureAlgorithm (on the verifying side) and
+    typeAndHashFromSignatureScheme, like TLS 1.3.
+    
+    On the signing side, signatureSchemesForCertificate was already version
+    aware (for PKCS#1 v1.5 vs PSS support), so selectSignatureScheme just
+    had to learn the Section 7.4.1.4.1 defaults for a missing
+    signature_algorithms to replace pickSignatureAlgorithm.
+    
+    On the verifying side, pickSignatureAlgorithm was also checking the
+    public key type, while isSupportedSignatureAlgorithm +
+    typeAndHashFromSignatureScheme are not, but that check was redundant
+    with the one in verifyHandshakeSignature.
+    
+    There should be no major change in behavior so far. A few minor changes
+    came from the refactor: we now correctly require signature_algorithms in
+    TLS 1.3 when using a certificate; we won't use Ed25519 in TLS 1.2 if the
+    client didn't send signature_algorithms; and we don't send
+    ec_points_format in the ServerHello (a compatibility measure) if we are
+    not doing ECDHE anyway because there are no mutually supported curves.
+    
+    The tests also got simpler because they test simpler functions. The
+    caller logic switching between TLS 1.0/1.1 and 1.2 is tested by the
+    transcript tests.
+    
+    Updates #32426
+    
+    Change-Id: Ice9dcaea78d204718f661f8d60efdb408ba41577
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205061
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/tls/auth.go                   | 147 +++++++++++++++-------------
+ src/crypto/tls/auth_test.go              | 158 +++++++++++++++++++-----------
+ src/crypto/tls/cipher_suites.go          |  20 +++-
+ src/crypto/tls/common.go                 |  69 +++++--------
+ src/crypto/tls/handshake_client.go       |  37 ++++---
+ src/crypto/tls/handshake_client_tls13.go |  18 +---
+ src/crypto/tls/handshake_server.go       | 160 +++++++++++++++----------------
+ src/crypto/tls/handshake_server_test.go  |   2 +-
+ src/crypto/tls/handshake_server_tls13.go |  27 ++----
+ src/crypto/tls/key_agreement.go          |  91 +++++++++++-------
+ src/crypto/tls/tls_test.go               |  17 ----
+ 11 files changed, 398 insertions(+), 348 deletions(-)

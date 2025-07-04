@@ -1,0 +1,16 @@
+commit 32a0cbb88187deecfcbcf62f11056ca09fe4a4a0
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Mon Jun 25 16:00:35 2012 -0400
+
+    encoding/csv, encoding/xml: report write errors
+    
+    Fixes #3773.
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/6327053
+
+ src/pkg/encoding/csv/writer.go       |  5 ++--
+ src/pkg/encoding/xml/marshal.go      | 26 +++++++++++-------
+ src/pkg/encoding/xml/marshal_test.go | 52 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 70 insertions(+), 13 deletions(-)

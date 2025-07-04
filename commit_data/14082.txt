@@ -1,0 +1,15 @@
+commit 156d85c3e901d7bd7d03183fd4c986386db12446
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Oct 8 22:24:41 2012 +1100
+
+    doc: update text about hgrc and environment variables.
+    
+    Mercurial has supported environment variables in hgrc files since
+    version 1.4 (released November 2009).
+    
+    R=golang-dev, dave, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6619067
+
+ doc/contribute.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

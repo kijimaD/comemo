@@ -1,0 +1,18 @@
+commit d53287d0c37de1e624648dc9a1b1be356a2acf13
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 25 18:07:19 2016 -0700
+
+    cmd/compile: simplify keydup
+    
+    Use a type switch instead of calling Val.Ctype (which in turn just
+    uses a type switch anyway).
+    
+    Use continue statements to simplify the control flow.
+    
+    Change-Id: I65c139d706d4d78e5b4ce09d1b1505a3e424496b
+    Reviewed-on: https://go-review.googlesource.com/21173
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/go.go        |  1 -
+ src/cmd/compile/internal/gc/typecheck.go | 49 ++++++++++++++------------------
+ 2 files changed, 21 insertions(+), 29 deletions(-)

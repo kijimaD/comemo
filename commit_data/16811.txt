@@ -1,0 +1,14 @@
+commit b6f841733bd00267074d5cc0e2043a382e920eef
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu Jul 18 21:28:00 2013 +0200
+
+    regexp/syntax: update documentation for Parse.
+    
+    Syntax description was moved to the top level comment of this package.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/11536043
+
+ src/pkg/regexp/syntax/parse.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

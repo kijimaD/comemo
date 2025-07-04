@@ -1,0 +1,22 @@
+commit e1c309e79251a07ba9a84567aff302fa51815ced
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Feb 9 13:20:25 2013 -0500
+
+    crypto/x509: allow MS/NS SCG key usage as ServerAuth.
+    
+    By default, crypto/x509 assumes that users wish to validate
+    certificates for ServerAuth. However, due to historical reasons,
+    COMODO's intermediates don't specify ServerAuth as an allowed key
+    usage.
+    
+    Rather NSS and CryptoAPI both allow these SGC OIDs to be equivalent to
+    ServerAuth.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7312070
+
+ src/pkg/crypto/x509/verify.go      |  8 ++++
+ src/pkg/crypto/x509/verify_test.go | 97 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/x509/x509.go        | 26 ++++++----
+ 3 files changed, 121 insertions(+), 10 deletions(-)

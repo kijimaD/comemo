@@ -1,0 +1,13 @@
+commit c3a0cee6849aacf0120319c4354dae9314b19275
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 8 16:52:55 2010 -0800
+
+    A+C: add Conrad Meyer (individual CLA)
+    
+    R=r
+    CC=cemeyer, golang-dev
+    https://golang.org/cl/313041
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,18 @@
+commit d6aa162f30d63f21f5f4db75e302dbb90595bbe2
+Author: 徐志伟 <juwan.xu@qq.com>
+Date:   Tue Apr 6 04:56:32 2021 +0000
+
+    embed, testing/fstest: small optimization for ReadDir
+    
+    Change-Id: If8dc6d917b55119b5662ce5b0b87328d220d684d
+    GitHub-Last-Rev: cc9a1d5a7e2599ee7f98c61d35b2450b9b6a92c3
+    GitHub-Pull-Request: golang/go#45388
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307250
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/embed/embed.go          | 6 +++---
+ src/testing/fstest/mapfs.go | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

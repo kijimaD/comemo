@@ -1,0 +1,19 @@
+commit 8c557962de06deff625dfe200b80ea4583b51ba4
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 24 07:17:49 2009 +1100
+
+    make 6prof (sic) architecture-independent.
+    for now, it's amd64 and 386 only but it's trivial to add more.
+    
+    Fixes #385.
+    
+    (why couldn't it have been issue 386?)
+    
+    tested for amd64 and 386 on darwin.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/182043
+
+ src/cmd/prof/main.c | 230 +++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 192 insertions(+), 38 deletions(-)

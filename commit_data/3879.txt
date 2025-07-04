@@ -1,0 +1,25 @@
+commit 3317697df4ae2d0e97dc06fb08adad7fd7e90adf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 7 13:01:52 2009 -0800
+
+    - blank before opening { for multi-line composite literals (as preferred by r)
+    - blank padding around composite literal contents for a less dense look
+      (most if not all composite literals were written in that style before gofmt
+      ran through them)
+    - corresponding (internal) flag: compositeLitBlank
+    
+    - don't print a semi after a one-statement statement list (as preferred by r)
+    - corresponding (internal flag): fewerSemis
+    
+    - the number of changes in nodes.go is huge because of the removed semis;
+      hg mail requires that I gofmt the file before
+    
+    With both flags set to false, this CL causes no gofmt formatting change. We
+    can turn them on if we like it (and then remove the flags). Will submit with
+    flags disabled.
+    
+    R=rsc, r
+    http://go/go-review/1025015
+
+ src/pkg/go/printer/nodes.go | 51 ++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 37 insertions(+), 14 deletions(-)

@@ -1,0 +1,14 @@
+commit 2ee538bc27602bf4d18e35238a2649961924d3eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 8 08:32:52 2012 -0500
+
+    time: mention receiver in Unix, UnixNano docs
+    
+    Fixes #3248.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5784052
+
+ src/pkg/time/time.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

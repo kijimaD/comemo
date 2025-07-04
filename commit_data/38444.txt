@@ -1,0 +1,23 @@
+commit bedb6a18d855d1968a685ccd90c81a43b3def9fa
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Mar 17 16:01:27 2019 +0100
+
+    os: only fallback to root directory if $HOME fails for UserHomeDir
+    
+    UserHomeDir always returns "/" for platforms where the home directory
+    is not always well defined. However, the user might set HOME before
+    running a Go program on those platforms and on at least iOS, HOME
+    is actually set to something useful (the root of the app specific
+    writable directory).
+    
+    This CL changes UserHomeDir to use the root directory "/" only if
+    $HOME is empty.
+    
+    Change-Id: Icaa01de53cd585d527d9a23b1629375d6b7f67e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167802
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/file.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

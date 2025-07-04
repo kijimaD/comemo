@@ -1,0 +1,20 @@
+commit 83fe0e093d5ceebd8320bfeacd2254a2546b2eb9
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Sep 2 00:15:13 2023 +0000
+
+    encoding/gob: add comma in field comment of userTypeInfo for consistency
+    
+    Change-Id: I80c494a357195dad3ade98fcce0a6883303777ce
+    GitHub-Last-Rev: a30615f3733fb0a43628cc81df7ad286e789b445
+    GitHub-Pull-Request: golang/go#62422
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524998
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/gob/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

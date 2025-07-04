@@ -1,0 +1,38 @@
+commit b7e53038b8abb4d82cf25cb844395af602150a29
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Sep 11 02:00:38 2016 +0000
+
+    net/http: make Transport support international domain names
+    
+    This CL makes code like this work:
+    
+         res, err := http.Get("https://фу.бар/баз")
+    
+    So far, IDNA support is limited to the http1 and http2 Transports.
+    The http package is currently responsible for converting domain names
+    into Punycode before calling the net layer. The http package also has
+    to Punycode-ify the hostname for the Host & :authority headers for
+    HTTP/1 and HTTP/2, respectively.
+    
+    No automatic translation from Punycode back to Unicode is performed,
+    per Go's historical behavior. Docs are updated where relevant.  No
+    changes needed to the Server package. Things are already in ASCII
+    at that point.
+    
+    No changes to the net package, at least yet.
+    
+    Updates x/net/http2 to git rev 57c7820 for https://golang.org/cl/29071
+    
+    Updates #13835
+    
+    Change-Id: I1e9a74c60d00a197ea951a9505da5c3c3187099b
+    Reviewed-on: https://go-review.googlesource.com/29072
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/http_test.go      |  4 +++
+ src/net/http/request.go        | 33 +++++++++++++++++---
+ src/net/http/transport.go      | 13 +++++---
+ src/net/http/transport_test.go | 70 ++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 111 insertions(+), 9 deletions(-)

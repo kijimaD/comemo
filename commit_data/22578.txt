@@ -1,0 +1,16 @@
+commit 7df2854f7087bc19ad4d23a1eed2fdfa8161b1ed
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 17 11:37:08 2015 -0700
+
+    doc/articles/go_command.html: mention go generate
+    
+    Fix some out-of-date remarks.
+    
+    Fixes #10489.
+    
+    Change-Id: I8f0cce2588828052a5d013e7bac6bcfeb220579d
+    Reviewed-on: https://go-review.googlesource.com/9008
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/articles/go_command.html | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

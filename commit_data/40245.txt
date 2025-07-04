@@ -1,0 +1,21 @@
+commit 19e0799ba049bf26e770d150d4c296f247e1de5c
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Fri Oct 11 20:27:33 2019 -0400
+
+    net/http: fix and lock-in Client.Do docs on request cancelation
+    
+    Fixes the docs to correctly match the implementation
+    and also adds a test locking-in the behavior to prevent
+    any accidental future regressions on the docs.
+    
+    Fixes #33545
+    
+    Change-Id: I6fdac6048cce8ac99beaa2db0dfc81d0dccc10f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200798
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client.go      |  4 ++--
+ src/net/http/client_test.go | 55 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 2 deletions(-)

@@ -1,0 +1,46 @@
+commit 6977a3b257dbf28494f43539908e65b229c315d3
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Dec 5 18:02:10 2017 -0500
+
+    runtime/trace: implement annotation API
+    
+    This implements the annotation API proposed in golang.org/cl/63274.
+    
+    traceString is updated to protect the string map with trace.stringsLock
+    because the assumption that traceString is called by a single goroutine
+    (either at the beginning of tracing and at the end of tracing when
+    dumping all the symbols and function names) is no longer true.
+    
+    traceString is used by the annotation apis (NewContext, StartSpan, Log)
+    to register frequently appearing strings (task and span names, and log
+    keys) after this change.
+    
+    NewContext -> one or two records (EvString, EvUserTaskCreate)
+    end function -> one record (EvUserTaskEnd)
+    StartSpan -> one or two records (EvString, EvUserSpan)
+    span end function -> one or two records (EvString, EvUserSpan)
+    Log -> one or two records (EvString, EvUserLog)
+    
+    EvUserLog record is of the typical record format written by traceEvent
+    except that it is followed by bytes that represents the value string.
+    
+    In addition to runtime/trace change, this change includes
+    corresponding changes in internal/trace to parse the new record types.
+    
+    Future work to improve efficiency:
+      More efficient unique task id generation instead of atomic. (per-P
+      counter).
+      Instead of a centralized trace.stringsLock, consider using per-P
+      string cache or something more efficient.
+    
+    R=go1.11
+    
+    Change-Id: Iec9276c6c51e5be441ccd52dec270f1e3b153970
+    Reviewed-on: https://go-review.googlesource.com/71690
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/internal/trace/parser.go         | 163 +++++++++++++++++++++++------------
+ src/runtime/trace.go                 | 125 +++++++++++++++++++++++----
+ src/runtime/trace/annotation.go      |  11 ++-
+ src/runtime/trace/annotation_test.go |  86 ++++++++++++++++++
+ 4 files changed, 309 insertions(+), 76 deletions(-)

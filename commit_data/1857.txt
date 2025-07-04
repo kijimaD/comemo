@@ -1,0 +1,15 @@
+commit 7d443bb67acad4313ad38f297890620ce8cf7d1d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 20 14:22:59 2009 -0700
+
+    make 8l generate Darwin Mach-O and Linux ELF binaries
+    
+    R=ken
+    OCL=26584
+    CL=26589
+
+ src/cmd/8l/asm.c  | 602 ++++++++++++++++++++++++++++++++++++++++++++++++++----
+ src/cmd/8l/l.h    |  10 +-
+ src/cmd/8l/obj.c  |  66 ++++--
+ src/cmd/8l/span.c |   2 +-
+ 4 files changed, 624 insertions(+), 56 deletions(-)

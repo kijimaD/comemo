@@ -1,0 +1,15 @@
+commit 51c3ac7e3fabaaeb551bb1d287c840d5208e5be4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 8 20:06:37 2009 -0800
+
+    bug046 and bug080 are fixed
+    
+    R=r
+    DELTA=72  (30 added, 42 deleted, 0 changed)
+    OCL=22373
+    CL=22378
+
+ test/{bugs => fixedbugs}/bug046.go |  0
+ test/{bugs => fixedbugs}/bug080.go |  0
+ test/golden.out                    | 12 ------------
+ 3 files changed, 12 deletions(-)

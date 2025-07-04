@@ -1,0 +1,22 @@
+commit 7148abc1b900555199998aac25af11783a9eb41c
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 5 16:44:29 2020 -0400
+
+    runtime: simplify heapBitsSetType doubleCheck
+    
+    The heapBitsSetType function has a slow doubleCheck debugging mode
+    that checks the bitmap written out by the rest of the function using
+    far more obvious logic. But even this has some surprisingly complex
+    logic in it. Simplify it a bit. This also happens to fix the logic on
+    32-bit.
+    
+    Fixes #40335.
+    
+    Change-Id: I5cee482ad8adbd01cf5b98e35a270fe941ba4940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244538
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mbitmap.go | 28 ++++++++++++++++------------
+ 1 file changed, 16 insertions(+), 12 deletions(-)

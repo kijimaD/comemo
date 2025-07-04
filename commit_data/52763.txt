@@ -1,0 +1,27 @@
+commit d5fea5078b5d2b9f3c4da0f7cd4292f80806ca4b
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu Sep 9 16:07:38 2021 +0800
+
+    cmd/compile: support -buildmode=c-shared on linux/mips64{,le}
+    
+    The modification of these rules is optimization to load/store global
+    variables. If there are a sequence of loads/stores nearby a global
+    variable address, the address can only be loaded from GOT once instead
+    of every time.
+    
+    For #43264
+    
+    Change-Id: Idedaf6c81f085955371320f51bca148ffb42a2d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348732
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/base/flag.go          |   2 +-
+ src/cmd/compile/internal/liveness/plive.go     |   2 +-
+ src/cmd/compile/internal/ssa/_gen/MIPS64.rules | 139 +++++++++++++------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 184 +++++++++++++++----------
+ 4 files changed, 208 insertions(+), 119 deletions(-)

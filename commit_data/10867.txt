@@ -1,0 +1,12 @@
+commit c4227f5bb0089bf506c6dcab40376be9f88c40e4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Dec 19 17:30:14 2011 +1100
+
+    io/ioutil: close file in TestWriteFile before deleting it
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5495086
+
+ src/pkg/io/ioutil/ioutil_test.go | 1 +
+ 1 file changed, 1 insertion(+)

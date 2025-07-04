@@ -1,0 +1,18 @@
+commit f862280e30300017292b24a0fca088628d7b8065
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Jun 7 13:54:53 2022 -0400
+
+    cmd/go: properly call PackageModuleRoot to get modroot for index
+    
+    PackageModuleRoot needs to be called with the package's path, not
+    its directory on disk.
+    
+    Change-Id: I080fe8ce2aeb72e1466624db81595a00915606bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410820
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/load/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

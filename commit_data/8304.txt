@@ -1,0 +1,16 @@
+commit 8ef56f7e92445327c93e1ac7e71aa87a4f69f0f0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 3 07:10:48 2011 -0700
+
+    net: don't crash on unexpected DNS SRV responses
+    
+    Fixes #1350
+    
+    R=rsc, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4432089
+
+ src/pkg/net/dnsclient.go   |  28 ++++++-------
+ src/pkg/net/dnsmsg.go      |  35 ++++++++++------
+ src/pkg/net/dnsmsg_test.go | 100 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 137 insertions(+), 26 deletions(-)

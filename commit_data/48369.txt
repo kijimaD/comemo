@@ -1,0 +1,18 @@
+commit 471d319fb2497aa7239943eb1a6d5cfbad503a2a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 10 15:28:10 2022 -0500
+
+    debug/buildinfo: use testenv.GoToolPath in tests instead of resolving "go" from $PATH
+    
+    Updates #37475.
+    
+    Change-Id: I8c3237438da3e9521ce3be26a0b5d5ca36944b17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391803
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+
+ src/debug/buildinfo/buildinfo_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

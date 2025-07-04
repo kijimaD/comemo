@@ -1,0 +1,21 @@
+commit 312ea5bf8ff76d8ea4ea0b92df29de5204446b46
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Feb 1 18:41:27 2017 +0100
+
+    misc/ios: allow exit code 0 to mean test success
+    
+    Tests that use TestMain might never call m.Run(), and simply return
+    from TestMain. In that case, the iOS test harness never sees the
+    PASS from the testing framework and assumes the test failed.
+    
+    Allow an exit with exit code 0 to also mean test success, thereby
+    fixing the objdump test on iOS.
+    
+    Change-Id: I1fe9077b05931aa0905e41b88945cd153c5b35b6
+    Reviewed-on: https://go-review.googlesource.com/36065
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

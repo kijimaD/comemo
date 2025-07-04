@@ -1,0 +1,13 @@
+commit e3a773479dd59e4722108377078c2c8404e9234c
+Author: Sam Thorogood <thorogood@google.com>
+Date:   Wed Jul 13 10:15:00 2011 -0700
+
+    exp/regexp/syntax: add Prog.NumCap
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4662083
+
+ src/pkg/exp/regexp/syntax/compile.go | 4 ++++
+ src/pkg/exp/regexp/syntax/prog.go    | 5 +++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)

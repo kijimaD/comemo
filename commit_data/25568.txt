@@ -1,0 +1,20 @@
+commit 4a0eee2faa3c54dd267c76fe8d8c332cb6badc80
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 09:59:16 2016 -0500
+
+    cmd/link: add LC_VERSION_MIN_MACOSX to linkmode=internal OS X binaries
+    
+    This makes lldb willing to debug them.
+    The minimum version is hard-coded at OS X 10.7,
+    because that is the minimum that Go requires.
+    For more control over the version, users can
+    use linkmode=external and pass the relevant flags to the host linker.
+    
+    Fixes #12941.
+    
+    Change-Id: I20027be8aa034d07dd2a3326828f75170afe905f
+    Reviewed-on: https://go-review.googlesource.com/18588
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/macho.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

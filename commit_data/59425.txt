@@ -1,0 +1,28 @@
+commit 4d0f955a5e2a7c3310f15983b643ff5bf5fc1351
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Tue Apr 22 09:21:30 2025 -0700
+
+    runtime: blame unlocker for mutex delay
+    
+    Correct how the mutex contention profile reports on runtime-internal
+    mutex values, to match sync.Mutex's semantics.
+    
+    Decide at the start of unlock2 whether we'd like to collect a contention
+    sample. If so: Opt in to a slightly slower unlock path which avoids
+    accidentally accepting blame for delay caused by other Ms. Release the
+    lock before doing an O(N) traversal of the stack of waiting Ms, to
+    calculate the total delay to those Ms that our critical section caused.
+    Report that, with the current callstack, in the mutex profile.
+    
+    Fixes #66999
+    
+    Change-Id: I561ed8dc120669bd045d514cb0d1c6c99c2add04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667615
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/lock_spinbit.go | 119 +++++++++++++++++++++++++++---
+ src/runtime/mprof.go        | 175 +++++++++++++++-----------------------------
+ 2 files changed, 165 insertions(+), 129 deletions(-)

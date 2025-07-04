@@ -1,0 +1,16 @@
+commit 26b2c9a62043c40f3cdfd294ad2cea11edeea658
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Nov 8 14:07:46 2022 +0100
+
+    reflect: use unsafe.String in name.name and name.tag
+    
+    Change-Id: I9f54f1463b0682d0d76cd57e5fef318565883a87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448675
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/reflect/type.go | 17 +++++------------
+ 1 file changed, 5 insertions(+), 12 deletions(-)

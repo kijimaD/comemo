@@ -1,0 +1,18 @@
+commit f3563bc55c7029473aeaf228171ecd06f1317532
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 16 20:45:59 2022 -0700
+
+    debug/pe: fetch section size directly in (*Section).Data
+    
+    Change-Id: Idc1f8b3fb6b4b2fdcc6dade048cc14c53715319f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424197
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/debug/pe/section.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

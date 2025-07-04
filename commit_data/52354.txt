@@ -1,0 +1,28 @@
+commit 9eba17ff90963cdbbe47af887fb3152c0c4d1ebb
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 13 14:02:16 2023 -0400
+
+    runtime: for deep stacks, print both the top 50 and bottom 50 frames
+    
+    This is relatively easy using the new traceback iterator.
+    
+    Ancestor tracebacks are now limited to 50 frames. We could keep that
+    at 100, but the fact that it used 100 before seemed arbitrary and
+    unnecessary.
+    
+    Fixes #7181
+    Updates #54466
+    
+    Change-Id: If693045881d84848f17e568df275a5105b6f1cb0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475960
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ doc/go1.21.html               |   8 ++
+ src/runtime/export_test.go    |   3 +
+ src/runtime/proc.go           |   2 +-
+ src/runtime/runtime2.go       |   3 -
+ src/runtime/traceback.go      | 173 ++++++++++++++++++++++++++++++++++--------
+ src/runtime/traceback_test.go | 146 ++++++++++++++++++++++++++++++++---
+ 6 files changed, 291 insertions(+), 44 deletions(-)

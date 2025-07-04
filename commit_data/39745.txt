@@ -1,0 +1,19 @@
+commit 8d5197d818b21290cfbf0ded381309ac1456cf60
+Author: Ben Shi <powerman1st@163.com>
+Date:   Fri Aug 30 06:24:58 2019 +0000
+
+    cmd/compile: optimize 386's math.bits.TrailingZeros16
+    
+    This CL reverts CL 192097 and fixes the issue in CL 189277.
+    
+    Change-Id: Icd271262e1f5019a8e01c91f91c12c1261eeb02b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192519
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go         |  2 +-
+ src/cmd/compile/internal/ssa/gen/386.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewrite386.go | 31 ++++++++++++++++++++++++++++++
+ test/codegen/mathbits.go                   |  1 +
+ 4 files changed, 36 insertions(+), 1 deletion(-)

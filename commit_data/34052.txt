@@ -1,0 +1,22 @@
+commit 3b6abd8a4501d816e80b4d46e6fda4df486ccb66
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Feb 12 20:09:58 2018 +0000
+
+    Revert "[release-branch.go1.10] all: merge master into release-branch.go1.10"
+    
+    This reverts commit b83d7f72537bdc0cec2e949d73ae40fbd42b7c63.
+    
+    Reason for revert: wrong branch
+    
+    Change-Id: I28ebb121f7b3e331729e8a6a00961b876f3dd0f2
+    Reviewed-on: https://go-review.googlesource.com/93455
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ .github/PULL_REQUEST_TEMPLATE |  7 +++++++
+ CONTRIBUTING.md               |  5 +++++
+ README.md                     |  7 ++++---
+ doc/devel/release.html        | 13 -------------
+ doc/diagnostics.html          |  2 +-
+ doc/go1.10.html               |  3 +--
+ src/cmd/fix/cftype.go         |  2 +-
+ 7 files changed, 19 insertions(+), 20 deletions(-)

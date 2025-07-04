@@ -1,0 +1,17 @@
+commit 15dcd671be2ea2c21bfdd27f031d5b40debdc73e
+Author: Michael Gehring <mg@ebfe.org>
+Date:   Wed Jan 22 10:39:10 2014 -0800
+
+    syscall: add syscall.Termios on dragonfly, openbsd
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/55720043
+
+ src/pkg/syscall/types_dragonfly.go        |  5 +++++
+ src/pkg/syscall/types_openbsd.go          |  5 +++++
+ src/pkg/syscall/ztypes_dragonfly_386.go   | 10 ++++++++++
+ src/pkg/syscall/ztypes_dragonfly_amd64.go | 10 ++++++++++
+ src/pkg/syscall/ztypes_openbsd_386.go     | 10 ++++++++++
+ src/pkg/syscall/ztypes_openbsd_amd64.go   | 10 ++++++++++
+ 6 files changed, 50 insertions(+)

@@ -1,0 +1,19 @@
+commit f40dd8f1d9a1c2ed2e7160702b7466df5d9ccb5b
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Jan 13 11:25:48 2014 +1100
+
+    syscall: include mmap constants in openbsd zerror* files
+    
+    Include the <sys/mman.h> header for OpenBSD mkerrors.sh. This brings
+    in constants used with madvise(2), mmap(2), msync(2) and mlockall(2).
+    
+    Fixes #4929
+    
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/50930043
+
+ src/pkg/syscall/mkerrors.sh              |  1 +
+ src/pkg/syscall/zerrors_openbsd_386.go   | 33 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_openbsd_amd64.go | 33 ++++++++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+)

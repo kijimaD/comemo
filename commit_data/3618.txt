@@ -1,0 +1,13 @@
+commit 2cf9dae134631e4fa24003b225356d9a82ed7c60
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 21 23:05:56 2009 -0700
+
+    drop a couple of semicolons for consistency
+    
+    R=rsc
+    DELTA=4  (0 added, 0 deleted, 4 changed)
+    OCL=35983
+    CL=35983
+
+ doc/effective_go.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

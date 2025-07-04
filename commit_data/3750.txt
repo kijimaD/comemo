@@ -1,0 +1,11 @@
+commit c6dd8c18f0e5697fb193851bb1c0108dc56c6d72
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 3 22:19:56 2009 -0800
+
+    document ebnflint
+    
+    R=gri
+    http://go/go-review/1016034
+
+ src/cmd/ebnflint/doc.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

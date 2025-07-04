@@ -1,0 +1,16 @@
+commit 343059930624b1e5b54fae8a092819db95b40cca
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Feb 16 14:47:14 2012 +1100
+
+    debug/gosym: Remove Makefile, rewrite test using go tool.
+    
+    Update #2573.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5656071
+
+ src/pkg/debug/gosym/Makefile                       | 19 --------------
+ .../debug/gosym/{pclinetest.s => pclinetest.asm}   |  2 --
+ src/pkg/debug/gosym/pclntab_test.go                | 30 ++++++++++++++++++----
+ 3 files changed, 25 insertions(+), 26 deletions(-)

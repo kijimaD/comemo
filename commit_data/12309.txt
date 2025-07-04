@@ -1,0 +1,15 @@
+commit 986df83e0de4b762b66f9cd6f4af3d8ad5f25bf5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 1 21:26:08 2012 +0400
+
+    sync: remove old WaitGroup example
+    The docs look awkward - there is a paragraph
+    "For example:" with a plain text example,
+    and straight below it a real Example.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5717048
+
+ src/pkg/sync/waitgroup.go | 15 ---------------
+ 1 file changed, 15 deletions(-)

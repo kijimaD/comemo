@@ -1,0 +1,21 @@
+commit 1ed725d7cd4dc5073a6c8de08eda995da63476d4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 18 14:59:16 2009 -0700
+
+    - changed parser to return os.Error, removed ErrorHandler
+    - added IsValid predicate to token.Position
+    - updated pretty, godoc, gobuild
+    - updated/expanded test cases
+    
+    R=rsc
+    DELTA=265  (97 added, 78 deleted, 90 changed)
+    OCL=28961
+    CL=29005
+
+ src/cmd/gobuild/util.go          |  11 ++-
+ src/lib/go/parser/parser.go      | 151 ++++++++++++++++++++++++---------------
+ src/lib/go/parser/parser_test.go |  67 +++++++++++------
+ src/lib/go/token/token.go        |   8 +++
+ usr/gri/pretty/godoc.go          |  63 +++++-----------
+ usr/gri/pretty/pretty.go         |  45 ++++--------
+ 6 files changed, 182 insertions(+), 163 deletions(-)

@@ -1,0 +1,14 @@
+commit 883e08a3968f8def93ece35cc7957c66f0596fc6
+Author: Sergey Semin <gray12511@gmail.com>
+Date:   Mon Oct 23 16:49:38 2017 +0400
+
+    log: Remove unnecessary else
+    
+    Change-Id: I868f5101dd44f427d6504a8dbb198c06107be00e
+    Reviewed-on: https://go-review.googlesource.com/72380
+    Run-TryBot: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/log/syslog/syslog_unix.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

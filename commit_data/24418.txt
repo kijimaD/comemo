@@ -1,0 +1,16 @@
+commit f80ff56a7d7044940ba85ead49215a1f0fd2af4e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 2 07:04:34 2015 -0700
+
+    misc/cgo/testsanitizers: skip test for version of clang before 3.6
+    
+    I've tested with clang 3.6.  The builder is running 3.5, and fails.
+    
+    Fixes #12814.
+    
+    Change-Id: I087fb75c3a24bed7f7fa5e9d7a1444590a316d63
+    Reviewed-on: https://go-review.googlesource.com/15259
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testsanitizers/test.bash | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)

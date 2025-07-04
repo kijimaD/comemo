@@ -1,0 +1,13 @@
+commit 22140a17a061fed02e3adab761d9b67fbc654155
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 19 13:24:24 2009 -0700
+
+    start of a rewrite with a different tone
+    
+    R=rsc
+    DELTA=131  (61 added, 6 deleted, 64 changed)
+    OCL=33488
+    CL=33532
+
+ doc/effective_go.html | 145 ++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 100 insertions(+), 45 deletions(-)

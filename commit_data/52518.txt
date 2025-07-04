@@ -1,0 +1,24 @@
+commit 6991f63d9e97b2a76f29170450f40b5ac6bb87f3
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Sat Apr 1 20:19:37 2023 -0400
+
+    runtime/trace: Fix TestTraceSymbolize on solaris and illumos
+    
+    Fix a regression caused by CL 463835. Unlike most platforms, solaris and
+    illumos don't use a libc_read_trampoline, so we need to skip one frame
+    less when using frame pointer unwinding in traceGoSysCall.
+    
+    The solution is a bit hacky, so it might make sense to implement
+    gp.syscallbp if this causes more test failures in the future.
+    
+    Fixes #59350
+    
+    Change-Id: I0f0b08f36efe8a492eb4a535e752c03636857057
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481336
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/trace.go | 27 +++++++++++++++++----------
+ 1 file changed, 17 insertions(+), 10 deletions(-)

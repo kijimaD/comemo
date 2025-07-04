@@ -1,0 +1,16 @@
+commit 3cd890dd5a8e5be33ce6f65ab7690ba0e1c235ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 00:06:31 2012 -0400
+
+    test: minor fixes in run and testlib
+    
+    Can tell this doesn't get run very often, but it is still important
+    for when you've broken everything else.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6547065
+
+ test/run     | 2 ++
+ test/testlib | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

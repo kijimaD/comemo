@@ -1,0 +1,23 @@
+commit 40ed3591829f67e7a116180aec543dd15bfcf5f9
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Feb 14 17:25:48 2023 -0800
+
+    cmd/compile: schedule SP earlier
+    
+    The actual scheduling of SP early doesn't really matter, but lots of
+    early spills (of arguments) depend on SP so they can't schedule until
+    SP does.
+    
+    Fixes #58482
+    
+    Change-Id: Ie581fba7cb173d665c11f797f39d824b1c040a2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468455
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/debug_lines_test.go | 2 +-
+ src/cmd/compile/internal/ssa/schedule.go         | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

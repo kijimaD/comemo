@@ -1,0 +1,19 @@
+commit f55e7e104bbef911f1495b39c3c2ff366ad3be4d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jun 12 13:46:08 2023 -0400
+
+    cmd/link: don't generate DYSYMTAB when external linking on Mach-O
+    
+    When external linking, the external linker will generate it.
+    
+    Updates #60694.
+    For #61229.
+    
+    Change-Id: I086a7628dd9baa84b46315641746fc3640473f2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502617
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/macho.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

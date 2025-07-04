@@ -1,0 +1,25 @@
+commit 0e8de61d7311d6bc74fc244de44df9be452a112b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 14 13:20:51 2014 -0400
+
+    liblink, cmd/link: add version number to object file
+    
+    There are changes we know we want to make, but not before Go 1.3
+    Add a version number so that we can make them more easily later.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/87670043
+
+ src/cmd/link/testdata/Makefile                |  15 ++++++++++-----
+ src/cmd/link/testdata/autosection.6           | Bin 909 -> 912 bytes
+ src/cmd/link/testdata/autoweak.6              | Bin 428 -> 431 bytes
+ src/cmd/link/testdata/dead.6                  | Bin 1062 -> 1065 bytes
+ src/cmd/link/testdata/hello.6                 | Bin 269 -> 272 bytes
+ src/cmd/link/testdata/layout.6                | Bin 431 -> 434 bytes
+ src/cmd/link/testdata/link.hello.darwin.amd64 |   4 ++--
+ src/cmd/link/testdata/pclntab.6               | Bin 4604 -> 4607 bytes
+ src/liblink/objfile.c                         |   6 +++++-
+ src/pkg/debug/goobj/read.go                   |   5 +++++
+ 10 files changed, 22 insertions(+), 8 deletions(-)

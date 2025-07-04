@@ -1,0 +1,32 @@
+commit 77fc03f4cd7f6ea0b142bd17ea172205d5f45cff
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sat Apr 11 12:05:21 2015 +0800
+
+    cmd/internal/ld, runtime: abort on shared library ABI mismatch
+    
+    This:
+    
+    1) Defines the ABI hash of a package (as the SHA1 of the __.PKGDEF)
+    2) Defines the ABI hash of a shared library (sort the packages by import
+       path, concatenate the hashes of the packages and SHA1 that)
+    3) When building a shared library, compute the above value and define a
+       global symbol that points to a go string that has the hash as its value.
+    4) When linking against a shared library, read the abi hash from the
+       library and put both the value seen at link time and a reference
+       to the global symbol into the moduledata.
+    5) During runtime initialization, check that the hash seen at link time
+       still matches the hash the global symbol points to.
+    
+    Change-Id: Iaa54c783790e6dde3057a2feadc35473d49614a5
+    Reviewed-on: https://go-review.googlesource.com/8773
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ misc/cgo/testshared/test.bash | 30 ++++++++++++++-
+ src/cmd/internal/ld/data.go   | 16 ++++++++
+ src/cmd/internal/ld/ld.go     |  4 +-
+ src/cmd/internal/ld/lib.go    | 85 +++++++++++++++++++++++++------------------
+ src/cmd/internal/ld/link.go   | 10 ++++-
+ src/cmd/internal/ld/symtab.go | 63 ++++++++++++++++++++++++++++++++
+ src/runtime/symtab.go         | 20 ++++++++++
+ 7 files changed, 186 insertions(+), 42 deletions(-)

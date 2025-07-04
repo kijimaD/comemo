@@ -1,0 +1,12 @@
+commit 68ec347c16a7dd0b05bcc60ba683c219c60a47a6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 12 10:40:15 2011 -0800
+
+    net/http: make test remove temporary file and directory
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5486044
+
+ src/pkg/net/http/filetransport_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

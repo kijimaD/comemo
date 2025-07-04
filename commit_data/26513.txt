@@ -1,0 +1,27 @@
+commit 967b9940b4695f4d21e1f8484cbc7a5b89cce076
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Fri Mar 25 12:50:35 2016 +0000
+
+    runtime: avoid fork/exit race in plan9
+    
+    There's a race between runtime.goexitsall killing all OS processes
+    of a go program in order to exit, and runtime.newosproc forking a
+    new one.  If the new process has been created but not yet stored
+    its pid in m.procid, it will not be killed by goexitsall and
+    deadlock results.
+    
+    This CL prevents the race by making the newly forked process
+    check whether the program is exiting.  It also prevents a
+    potential "shoot-out" if multiple goroutines call Exit at
+    the same time, which could possibly lead to two processes
+    killing each other and leaving the rest deadlocked.
+    
+    Change-Id: I3170b4a62d2461f6b029b3d6aad70373714ed53e
+    Reviewed-on: https://go-review.googlesource.com/21135
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/runtime/os1_plan9.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

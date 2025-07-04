@@ -1,0 +1,17 @@
+commit f265f5db5d71f120eb6e2cec25ab6dfc3fb249f3
+Author: Carl Mastrangelo <carl.mastrangelo@gmail.com>
+Date:   Mon Jul 3 15:38:55 2017 -0700
+
+    archive/zip, crypto/tls: use rand.Read instead of casting ints to bytes
+    
+    Makes tests run ~1ms faster.
+    
+    Change-Id: Ida509952469540280996d2bd9266724829e53c91
+    Reviewed-on: https://go-review.googlesource.com/47359
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Run-TryBot: Filippo Valsorda <hi@filippo.io>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/zip/writer_test.go            | 8 ++++----
+ src/crypto/tls/handshake_messages_test.go | 4 ++--
+ 2 files changed, 6 insertions(+), 6 deletions(-)

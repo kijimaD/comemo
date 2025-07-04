@@ -1,0 +1,20 @@
+commit 80e5c3b8b556c9c8010c0efd4e8d40f595743ee6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 16 22:05:35 2020 -0700
+
+    cmd/compile: remove superfluous SetBounded call
+    
+    The call does nothing when applied to an OLSH node.
+    It would be unnecessary anyway, since we're shifting by a small constant.
+    
+    Passes toolstash-check.
+    
+    Change-Id: If858711f1704f44637fa0f6a4c66cbaad6db24b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228699
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/gc/walk.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,115 @@
+commit 16a2af03f17e5b2bcf468442e66ef7a99ae55c70
+Merge: 0ebf6ce087 243d51f05e
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Thu Jul 21 12:38:13 2016 -0700
+
+    all: merge master into release-branch.go1.7
+    
+    Change-Id: I2511c3f7583887b641c9b3694aae54789fbc5342
+
+ doc/devel/release.html                             |   8 ++
+ doc/effective_go.html                              |  14 ++-
+ doc/go1.7.html                                     |  43 ++++++++-
+ misc/trace/trace_viewer_lean.html                  |   2 +-
+ src/cmd/api/goapi.go                               |   2 +-
+ .../internal/gc/sparselocatephifunctions.go        |   5 +-
+ src/cmd/compile/internal/ssa/compile.go            |   1 +
+ src/cmd/compile/internal/ssa/sparsetreemap.go      | 104 ++++++++++++---------
+ src/cmd/compile/internal/ssa/tighten.go            |  23 +++++
+ src/cmd/go/build.go                                |  10 +-
+ src/cmd/gofmt/gofmt.go                             |   1 -
+ src/fmt/scan.go                                    |   6 +-
+ src/fmt/scan_test.go                               | 101 +++++++++-----------
+ src/go/build/build_test.go                         |   8 +-
+ src/go/build/deps_test.go                          |   8 +-
+ src/math/rand/race_test.go                         |  47 ++++++++++
+ src/math/rand/rand.go                              |  42 ++++++++-
+ src/net/dial_test.go                               |   5 +
+ src/net/http/h2_bundle.go                          |   4 +-
+ src/net/http/http.go                               |   2 +-
+ src/net/http/server.go                             |   7 +-
+ src/net/http/transfer.go                           |   2 +-
+ src/net/http/transport.go                          |   2 +-
+ src/net/interface_bsd.go                           |   2 +-
+ src/net/interface_bsdvar.go                        |   2 +-
+ src/net/interface_darwin.go                        |   2 +-
+ src/net/interface_freebsd.go                       |   2 +-
+ src/net/smtp/smtp.go                               |   5 +
+ src/reflect/all_test.go                            |   2 +
+ src/reflect/type.go                                |   3 +
+ src/runtime/cgocall.go                             |   5 +-
+ src/runtime/internal/atomic/asm_386.s              |   6 +-
+ src/runtime/internal/atomic/asm_amd64.s            |   2 +-
+ src/runtime/internal/atomic/asm_amd64p32.s         |   4 +-
+ src/runtime/internal/atomic/asm_arm.s              |   6 +-
+ src/runtime/internal/atomic/asm_arm64.s            |   4 +-
+ src/runtime/internal/atomic/asm_ppc64x.s           |   2 +-
+ src/runtime/mbarrier.go                            |   4 +-
+ src/runtime/mem_linux.go                           |  22 +++--
+ src/runtime/mfinal.go                              |   2 +-
+ src/runtime/mheap.go                               |   5 +
+ src/runtime/os_nacl.go                             |   2 +-
+ src/runtime/pprof/pprof.go                         |   5 +-
+ src/runtime/pprof/pprof_test.go                    |   4 +
+ src/runtime/proc.go                                |  28 +++++-
+ src/runtime/race/README                            |   2 +-
+ src/runtime/race/race_darwin_amd64.syso            | Bin 341304 -> 326172 bytes
+ src/runtime/race/race_freebsd_amd64.syso           | Bin 399904 -> 404216 bytes
+ src/runtime/race/race_linux_amd64.syso             | Bin 371032 -> 376048 bytes
+ src/runtime/race/race_test.go                      |  18 ++++
+ src/runtime/race/race_windows_amd64.syso           | Bin 363595 -> 367717 bytes
+ src/runtime/signal1_unix.go                        |   2 +-
+ src/runtime/signal_darwin.go                       |   4 +-
+ src/runtime/signal_freebsd.go                      |   4 +-
+ src/runtime/signal_openbsd.go                      |   4 +-
+ src/runtime/signal_sigtramp.go                     |   4 +-
+ src/runtime/stubs.go                               |   4 +-
+ src/runtime/sys_darwin_amd64.s                     |   1 +
+ src/syscall/exec_linux_test.go                     |   1 +
+ .../x/net/http2/hpack/encode.go                    |   0
+ .../x/net/http2/hpack/encode_test.go               |   0
+ .../x/net/http2/hpack/hpack.go                     |   0
+ .../x/net/http2/hpack/hpack_test.go                |   0
+ .../x/net/http2/hpack/huffman.go                   |   0
+ .../x/net/http2/hpack/tables.go                    |   0
+ .../x/net/lex/httplex/httplex.go                   |   0
+ .../x/net/lex/httplex/httplex_test.go              |   0
+ .../x/net/route/address.go                         |   0
+ .../x/net/route/address_darwin_test.go             |   0
+ .../x/net/route/address_test.go                    |   0
+ .../x/net/route/binary.go                          |   0
+ .../x/net/route/defs_darwin.go                     |   0
+ .../x/net/route/defs_dragonfly.go                  |   0
+ .../x/net/route/defs_freebsd.go                    |   0
+ .../x/net/route/defs_netbsd.go                     |   0
+ .../x/net/route/defs_openbsd.go                    |   0
+ .../x/net/route/interface.go                       |   0
+ .../x/net/route/interface_announce.go              |   0
+ .../x/net/route/interface_classic.go               |   0
+ .../x/net/route/interface_freebsd.go               |   0
+ .../x/net/route/interface_multicast.go             |   0
+ .../x/net/route/interface_openbsd.go               |   0
+ .../x/net/route/message.go                         |   0
+ .../x/net/route/message_darwin_test.go             |   0
+ .../x/net/route/message_freebsd_test.go            |   0
+ .../x/net/route/message_test.go                    |   0
+ .../x/net/route/route.go                           |   0
+ .../x/net/route/route_classic.go                   |   0
+ .../x/net/route/route_openbsd.go                   |   0
+ .../x/net/route/route_test.go                      |   0
+ .../{golang.org => golang_org}/x/net/route/sys.go  |   0
+ .../x/net/route/sys_darwin.go                      |   0
+ .../x/net/route/sys_dragonfly.go                   |   0
+ .../x/net/route/sys_freebsd.go                     |   0
+ .../x/net/route/sys_netbsd.go                      |   0
+ .../x/net/route/sys_openbsd.go                     |   0
+ .../x/net/route/syscall.go                         |   0
+ .../x/net/route/syscall.s                          |   0
+ .../x/net/route/zsys_darwin.go                     |   0
+ .../x/net/route/zsys_dragonfly.go                  |   0
+ .../x/net/route/zsys_freebsd_386.go                |   0
+ .../x/net/route/zsys_freebsd_amd64.go              |   0
+ .../x/net/route/zsys_freebsd_arm.go                |   0
+ .../x/net/route/zsys_netbsd.go                     |   0
+ .../x/net/route/zsys_openbsd.go                    |   0
+ 105 files changed, 419 insertions(+), 191 deletions(-)

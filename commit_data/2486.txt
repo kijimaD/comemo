@@ -1,0 +1,14 @@
+commit efc4088ccd5434f1536f46e7fdab48e2fc3565ed
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 19 16:03:59 2009 -0700
+
+    make IP address available
+    
+    R=rsc
+    DELTA=30  (30 added, 0 deleted, 0 changed)
+    OCL=30536
+    CL=30536
+
+ src/pkg/net/fd.go  | 10 ++++++++++
+ src/pkg/net/net.go | 20 ++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

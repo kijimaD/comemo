@@ -1,0 +1,14 @@
+commit 0e7995c02f540527e1285997a9f90aba69e72ee3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 23 14:40:24 2011 +1100
+
+    net: refactor windows code
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4185054
+
+ src/pkg/net/fd_windows.go             | 657 ++++++++++++++++------------------
+ src/pkg/syscall/syscall_windows.go    |  20 --
+ src/pkg/syscall/ztypes_windows_386.go |   1 +
+ 3 files changed, 310 insertions(+), 368 deletions(-)

@@ -1,0 +1,17 @@
+commit 0622e13b4daa6231dc0de9da6c7f45e29c0774da
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jul 9 17:00:54 2014 +0400
+
+    runtime: grow heap by 64K instead of 128K
+    When we've switched to 8K pages,
+    heap started to grow by 128K instead of 64K,
+    because it was implicitly assuming that pages are 4K.
+    Fix that and make the code more robust.
+    
+    LGTM=khr
+    R=golang-codereviews, dave, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/106450044
+
+ src/pkg/runtime/mheap.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

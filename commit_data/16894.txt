@@ -1,0 +1,19 @@
+commit b7c3d06a1fbad0df04773e8b6825689ae6bde41b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Jul 29 01:25:51 2013 +0200
+
+    all: move examples into package *_test.
+    
+    Fixes #5677.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/11992043
+
+ src/pkg/crypto/des/des_test.go      | 18 ------------------
+ src/pkg/crypto/des/example_test.go  | 25 +++++++++++++++++++++++++
+ src/pkg/crypto/md5/example_test.go  | 19 +++++++++++++++++++
+ src/pkg/crypto/md5/md5_test.go      |  8 --------
+ src/pkg/crypto/sha1/example_test.go | 18 ++++++++++++++++++
+ src/pkg/crypto/sha1/sha1_test.go    |  7 -------
+ 6 files changed, 62 insertions(+), 33 deletions(-)

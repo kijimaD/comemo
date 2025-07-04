@@ -1,0 +1,22 @@
+commit e0948d825d8dab1a685bcb94bfc9ad69b9b6c075
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 25 18:00:10 2023 -0700
+
+    cmd/compile: use type hash from itab field instead of type field
+    
+    It is one less dependent load away, and right next to another
+    field in the itab we also load as part of the type switch or
+    type assert.
+    
+    Change-Id: If7aaa7814c47bd79a6c7ed4232ece0bc1d63550e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533117
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ir/stmt.go     | 26 +++++++++++++----------
+ src/cmd/compile/internal/ssagen/ssa.go  | 17 +++++++++------
+ src/cmd/compile/internal/walk/switch.go |  2 +-
+ test/codegen/switch.go                  | 37 +++++++++++++++++++++++++++------
+ 4 files changed, 58 insertions(+), 24 deletions(-)

@@ -1,0 +1,28 @@
+commit 219fe9d547d09d3de1b024c6c8b8314dd0bf12e4
+Author: unbyte <i@shangyes.net>
+Date:   Tue Jun 15 17:11:05 2021 +0000
+
+    cmd/go: ignore UTF8 BOM when reading source code
+    
+    Fix the problem that UTF8 BOM can cause the parsing of import path and directives to fail.
+    
+    Fixes #46198
+    Fixes #46290
+    Fixes #35726
+    
+    Change-Id: I2d9995ee82b094bcfa5583f0cb4e8547cb973077
+    GitHub-Last-Rev: 98abf91377f155266fa60505c0c12beccad38eeb
+    GitHub-Pull-Request: golang/go#46643
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325990
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/imports/read.go                | 18 +++++++++--
+ src/cmd/go/internal/imports/read_test.go           | 26 ++++++++++++++++
+ .../testdata/script/build_ignore_leading_bom.txt   | 27 ++++++++++++++++
+ src/go/build/read.go                               | 13 +++++++-
+ src/go/build/read_test.go                          | 36 ++++++++++++++++++++++
+ 5 files changed, 117 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit d2d990cc0ab85e09bd2c58bd12b34491201f8bd3
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jun 6 08:18:55 2012 +1000
+
+    cmd/5c, cmd/5g, cmd/5l: fix array indexing warning under Clang 3.1
+    
+    This should be the last of them.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6297043
+
+ src/cmd/5c/list.c | 2 +-
+ src/cmd/5g/list.c | 2 +-
+ src/cmd/5l/list.c | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

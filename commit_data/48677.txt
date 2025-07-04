@@ -1,0 +1,16 @@
+commit 11ec59a60e0d18e805b7f0c3a2c5ee8c10481877
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 31 20:41:12 2022 -0700
+
+    unsafe: document that Sizeof includes field alignment
+    
+    Fixes #52018
+    
+    Change-Id: I6d06d5b5279b9bdc899b0ad43488577d3c0b94be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397516
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/unsafe/unsafe.go | 1 +
+ 1 file changed, 1 insertion(+)

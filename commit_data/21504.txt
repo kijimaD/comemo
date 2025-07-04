@@ -1,0 +1,16 @@
+commit 5b806e58e2665ca18439ec89fdc47630eaa8606c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 26 01:20:29 2014 -0500
+
+    misc/cgo/test: skip test7978 when using unsupported compilers
+    
+    On Darwin/ARM, because libSystem doesn't provide functions for
+    __sync_fetch_and_add, and only clang can inline that function,
+    skip the test when building with GCC.
+    
+    Change-Id: Id5e9d8f9bbe1e6bcb2f381f0f66cf68aa95277c7
+    Reviewed-on: https://go-review.googlesource.com/2125
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/issue7978.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

@@ -1,0 +1,23 @@
+commit 01c979dabef2c8edb3fffd99e1f89781b4d2c159
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Nov 14 13:17:44 2017 -0500
+
+    doc: correct supported gdb version info
+    
+    GDB 7.5 recognizes DWARF4 by default.
+    
+    GDB 7.5 release note does not explicitly mention DWARF4 support
+    but according to GCC 4.8 release note
+     https://gcc.gnu.org/gcc-4.8/changes.html
+    
+     "DWARF4 is now the default when generating DWARF debug
+     information. ...
+     GDB 7.5, Valgrind 3.8.0 and elfutils 0.154 debug information
+     consumers support DWARF4 by default."
+    
+    Change-Id: I56b011c7c38fbc103bbd366ceaea3b709c66ab7f
+    Reviewed-on: https://go-review.googlesource.com/77570
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ doc/debugging_with_gdb.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

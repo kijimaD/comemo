@@ -1,0 +1,42 @@
+commit 26ad5d4ff021e7784dca22e76c43494e76913911
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 12 17:19:02 2014 -0400
+
+    cmd/gc: fix liveness vs regopt mismatch for input variables
+    
+    The inputs to a function are marked live at all times in the
+    liveness bitmaps, so that the garbage collector will not free
+    the things they point at and reuse the pointers, so that the
+    pointers shown in stack traces are guaranteed not to have
+    been recycled.
+    
+    Unfortunately, no one told the register optimizer that the
+    inputs need to be preserved at all call sites. If a function
+    is done with a particular input value, the optimizer will stop
+    preserving it across calls. For single-word values this just
+    means that the value recorded might be stale. For multi-word
+    values like slices, the value recorded could be only partially stale:
+    it can happen that, say, the cap was updated but not the len,
+    or that the len was updated but not the base pointer.
+    Either of these possibilities (and others) would make the
+    garbage collector misinterpret memory, leading to memory
+    corruption.
+    
+    This came up in a real program, in which the garbage collector's
+    'slice len ≤ slice cap' check caught the inconsistency.
+    
+    Fixes #7944.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews, khr
+    https://golang.org/cl/100370045
+
+ src/cmd/5g/opt.h            |  1 +
+ src/cmd/5g/reg.c            | 21 +++++++++++++--------
+ src/cmd/6g/opt.h            |  1 +
+ src/cmd/6g/reg.c            | 21 +++++++++++++--------
+ src/cmd/8g/opt.h            |  1 +
+ src/cmd/8g/reg.c            | 21 +++++++++++++--------
+ test/fixedbugs/issue7944.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 82 insertions(+), 24 deletions(-)

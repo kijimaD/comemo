@@ -1,0 +1,13 @@
+commit 5eb9e0621bec9f0253da5475cc27b50bfeb770a8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 19 09:39:09 2008 -0700
+
+    avoid dereferencing nil type on undefined name.
+    
+    R=ken
+    DELTA=12  (12 added, 0 deleted, 0 changed)
+    OCL=15506
+    CL=15528
+
+ src/cmd/gc/walk.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

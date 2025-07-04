@@ -1,0 +1,22 @@
+commit 0a27a458960ffb0adff2f9491eca68c72b79967c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jan 30 17:51:32 2023 +0000
+
+    doc: move Go 1.20 release notes to x/website
+    
+    Now that the development of the Go 1.20 release is almost done, its
+    release notes are moved to their eventual long-term home in x/website
+    in CL 464075. Delete the initial development copy here.
+    
+    For golang/go#54202.
+    
+    Change-Id: Ia402d1abd4539fbce415e2a7dffd6709186f08a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464055
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.20.html | 1246 -------------------------------------------------------
+ 1 file changed, 1246 deletions(-)

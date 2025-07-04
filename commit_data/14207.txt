@@ -1,0 +1,23 @@
+commit 7c03cd32b6612f153cf6362ead27e86af6e65336
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 22 11:28:21 2012 -0700
+
+    exp/type/staging: implemented recent spec changes
+    
+    Also:
+    - type-checking receivers
+    - get rid of some multiple errors at the same position
+    
+    R=rsc, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6709061
+
+ src/pkg/exp/types/staging/builtins.go           |  16 ++-
+ src/pkg/exp/types/staging/check.go              |   3 +-
+ src/pkg/exp/types/staging/expr.go               |  58 +++++-----
+ src/pkg/exp/types/staging/testdata/builtins.src | 141 ++++++++++++------------
+ src/pkg/exp/types/staging/testdata/decls0.src   |   4 +-
+ src/pkg/exp/types/staging/testdata/decls1.src   |   6 +-
+ src/pkg/exp/types/staging/testdata/decls2a.src  |   7 +-
+ src/pkg/exp/types/staging/testdata/expr3.src    |   5 +
+ 8 files changed, 134 insertions(+), 106 deletions(-)

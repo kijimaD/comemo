@@ -1,0 +1,19 @@
+commit 7234c90352e5ea7769c02808017fb20043ea8210
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Sep 4 05:23:07 2022 +1000
+
+    cmd/compile: combine operations with immediate on riscv64
+    
+    Replace two immediate operations with one, where possible.
+    
+    Change-Id: Idc00e868155c9ca1d872aaaf70ea1f73e9eac4d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428497
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  5 +++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 46 ++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)

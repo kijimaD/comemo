@@ -1,0 +1,14 @@
+commit 6afabe2768830940a9b02d45911563e51d287224
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 28 16:49:27 2019 +0000
+
+    doc/go1.14: document that Go 1.14 is likely last to support darwin/arm
+    
+    Fixes #34751
+    
+    Change-Id: I5ae1bb2bfddaa05245b364556d2b999b158a4cc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203879
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.14.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,0 +1,25 @@
+commit 8a5845e4e34c046758af3729acf9221b8b6c01ae
+Author: teivah <t.harsanyi@thebeat.co>
+Date:   Tue May 3 09:54:48 2022 +0000
+
+    encoding/base32: decoder output depends on chunking of underlying reader
+    
+    After an analysis, I figured that a way to do it could be to check, after
+    the call to readEncodedData whether the decoder already saw the end or not.
+    
+    Fixes #38657
+    
+    Change-Id: I06fd718ea4ee6ded2cb26c2866b28581ad86e271
+    GitHub-Last-Rev: d0b7bb38e4301a2ae9b8e588944488dbd88b39c4
+    GitHub-Pull-Request: golang/go#52631
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403315
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/base32/base32.go      |  3 +++
+ src/encoding/base32/base32_test.go | 52 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+)

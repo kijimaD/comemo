@@ -1,0 +1,24 @@
+commit bcc0247331a77015053d3fa28f458d0c639d6730
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 2 09:47:43 2016 -0700
+
+    cmd/compile: avoid double export of aliased objects
+    
+    Instead of writing out the original object for each alias, ensure we
+    export the original object before any aliases. This allows the aliases
+    to simply refer back to the original object by qualified name.
+    
+    Fixes #17636.
+    
+    Change-Id: If80fa8c66b8fee8344a00b55d25a8aef22abd859
+    Reviewed-on: https://go-review.googlesource.com/32575
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 15 ++++------
+ src/cmd/compile/internal/gc/bimport.go | 33 ++++++++++------------
+ src/cmd/compile/internal/gc/export.go  |  7 ++++-
+ src/go/internal/gcimporter/bimport.go  | 51 +++++++++++++---------------------
+ 4 files changed, 47 insertions(+), 59 deletions(-)

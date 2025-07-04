@@ -1,0 +1,15 @@
+commit ae6c098f482f74a077ee690082e4b785d4689999
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 28 17:48:40 2025 +0000
+
+    doc/next: add release note for riscv64 plugin build mode
+    
+    Change-Id: I9df20038cc1d6bf86f789e962903766856555a13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676956
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ doc/next/7-ports.md | 5 +++++
+ doc/next/9-todo.md  | 3 ---
+ 2 files changed, 5 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit b0ef6aeff961053b4351cc103e3d4e4f72542e10
+Author: Kamil Kisiel <kamil@kamilkisiel.net>
+Date:   Tue Sep 24 16:32:23 2013 -0700
+
+    math/big: Fix variable name in documentation for *Int.Bytes and BitLen.
+    
+    R=golang-dev, iant, gri
+    CC=golang-dev
+    https://golang.org/cl/13869043
+
+ src/pkg/math/big/int.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

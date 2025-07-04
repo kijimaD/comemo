@@ -1,0 +1,22 @@
+commit 11cf5da0e3166bc21dfbf37169b69fdc9e9f0652
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Nov 8 11:45:04 2015 +0100
+
+    net/http: update bundled http2 revision
+    
+    Updates to git rev 042ba42f (https://golang.org/cl/16734)
+    
+    This moves all the code for glueing the HTTP1 and HTTP2 transports
+    together out of net/http and into x/net/http2 where others can use it,
+    and where it has tests.
+    
+    Change-Id: I143ac8bb61eed36c87fd838b682ebb37b81b8c2c
+    Reviewed-on: https://go-review.googlesource.com/16735
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/h2_bundle.go | 87 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/transport.go | 62 +++------------------------------
+ 2 files changed, 92 insertions(+), 57 deletions(-)

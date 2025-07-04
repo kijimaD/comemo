@@ -1,0 +1,19 @@
+commit 050d4d3b9e1b022e1020dea4ffca5ffabf15ad7e
+Author: zikaeroh <zikaeroh@gmail.com>
+Date:   Thu Jul 20 17:41:06 2023 -0700
+
+    log/slog: fix comment above log levels
+    
+    This extra newline causes pkg.go.dev and gopls to only show the bottom
+    half of this comment; I'm pretty sure this entire thing is meant to be
+    in the docs.
+    
+    Change-Id: I5bbf081fb2072d9d773d5a995bc3693dc44f65ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511855
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/log/slog/level.go | 1 -
+ 1 file changed, 1 deletion(-)

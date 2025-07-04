@@ -1,0 +1,14 @@
+commit 61da0e92d06137dec73c736ab93213ac652a06fe
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Oct 28 11:43:15 2015 +1300
+
+    cmd/compile, cmd/compile/internal/x86: do not let regopt use CX in position independent code
+    
+    We might be able to do better than this, but it's a start.
+    
+    Change-Id: I80ebce9094e084a4746039106ccf1ad9c4b8bb7c
+    Reviewed-on: https://go-review.googlesource.com/16384
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/x86/reg.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

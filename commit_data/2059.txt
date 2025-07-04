@@ -1,0 +1,14 @@
+commit d88fb9f0f6863202b6926338df03030bd9b49031
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Apr 20 00:43:10 2009 -0700
+
+    Oops, forgot to commit this change.
+    
+    R=r
+    APPROVED=r
+    DELTA=3  (1 added, 0 deleted, 2 changed)
+    OCL=27624
+    CL=27626
+
+ src/lib/container/iterable.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

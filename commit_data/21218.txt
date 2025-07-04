@@ -1,0 +1,15 @@
+commit 7b2524217e1128e8d8a7b9f9c253bf5b86dc301e
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 8 13:34:05 2015 -0800
+
+    runtime: fix 32-bit build
+    
+    In 32-bit worlds, 8-byte objects are only aligned to 4-byte boundaries.
+    
+    Change-Id: I91469a9a67b1ee31dd508a4e105c39c815ecde58
+    Reviewed-on: https://go-review.googlesource.com/2581
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/export_test.go  | 2 ++
+ src/runtime/runtime_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)

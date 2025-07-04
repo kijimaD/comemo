@@ -1,0 +1,18 @@
+commit 6cc001c31254bccdb0e0b40c271b09504f97df28
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 18 17:12:07 2008 -0800
+
+    return *os.Error instead of bool from strconv.ato*
+    
+    R=r
+    DELTA=137  (56 added, 4 deleted, 77 changed)
+    OCL=19505
+    CL=19522
+
+ src/lib/strconv/atof.go | 57 +++++++++++++++++-------------
+ src/lib/strconv/atoi.go | 93 +++++++++++++++++++++++++++++++++++--------------
+ test/bugs/bug120.go     |  6 ++--
+ test/chan/goroutines.go |  7 ++--
+ test/golden.out         |  5 +--
+ test/stringslib.go      | 22 ++++++------
+ 6 files changed, 121 insertions(+), 69 deletions(-)

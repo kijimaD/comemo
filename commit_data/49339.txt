@@ -1,0 +1,19 @@
+commit ec9258029e40f7952051f5762b036b9d7f4f91f9
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Thu May 26 19:38:02 2022 +0800
+
+    internal/cpu: fix cpu cacheLineSize for loong64
+    
+    We choose 64 because the L1 Dcache of Loongson 3A5000 CPU is
+    4-way 256-line 64-byte-per-line.
+    
+    Change-Id: Ifb9a9f993dd6f75b5adb4ff6e4d93e945b1b2a98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408854
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/cpu/cpu_loong64.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

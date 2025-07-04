@@ -1,0 +1,16 @@
+commit 936ae27b9c89ffa7ffe6ebb33376bc55b82e5ccd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 5 13:53:39 2016 -0700
+
+    cmd/compile: untyped arrays bounds representable as integers are valid
+    
+    Fixes #13485.
+    
+    Change-Id: I11dd15c7d14fc19d42a3b48427a4cc1208b18e6a
+    Reviewed-on: https://go-review.googlesource.com/30456
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go | 24 ++++++++----------------
+ test/fixedbugs/bug255.go                 |  2 +-
+ test/fixedbugs/issue13485.go             | 18 ++++++++++++++++++
+ 3 files changed, 27 insertions(+), 17 deletions(-)

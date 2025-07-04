@@ -1,0 +1,18 @@
+commit 22c2b476a84f541a6a6818f4d3dbf30cb0802867
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 28 23:05:16 2009 -0700
+
+    first cut at case mapping tables and library.
+    next cut will do the optimization for alternating sequences.
+    
+    R=rsc
+    DELTA=1658  (1620 added, 9 deleted, 29 changed)
+    OCL=34072
+    CL=34075
+
+ src/pkg/unicode/digit_test.go  |    4 +-
+ src/pkg/unicode/letter.go      |   90 ++-
+ src/pkg/unicode/letter_test.go |  176 +++++-
+ src/pkg/unicode/maketables.go  |  203 ++++++-
+ src/pkg/unicode/tables.go      | 1208 +++++++++++++++++++++++++++++++++++++++-
+ 5 files changed, 1646 insertions(+), 35 deletions(-)

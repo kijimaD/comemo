@@ -1,0 +1,22 @@
+commit 3abf1177042e9015bcaba96860513c282263126f
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 13 10:52:35 2017 -0800
+
+    cmd/compile: add test for array decomposition
+    
+    This test fails on 1.9.2, but is ok on tip.
+    CL 77331 has both the 1.9.2 fix and this test, and is on the 1.9 release branch.
+    This CL is just the test, and is on HEAD.  The buggy code doesn't exist on tip.
+    
+    Update #22683
+    
+    Change-Id: I04a24bd6c2d3068e18ca81da3347e2c1366f4447
+    Reviewed-on: https://go-review.googlesource.com/77332
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue22683.go  | 30 ++++++++++++++++++++++++++++++
+ test/fixedbugs/issue22683.out |  1 +
+ 2 files changed, 31 insertions(+)

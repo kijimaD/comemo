@@ -1,0 +1,11 @@
+commit 401c0b3b46a286e698da948129fae64fd9de0523
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 13 11:29:05 2009 -0700
+
+    get this out of the way
+    
+    OCL=33178
+    CL=33180
+
+ doc/effective_go.html | 179 +++++++++++++++++++++++++++-----------------------
+ 1 file changed, 96 insertions(+), 83 deletions(-)

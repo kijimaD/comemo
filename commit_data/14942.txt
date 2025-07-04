@@ -1,0 +1,16 @@
+commit bee148bf23701f1b82d4d1d1187e3ef60ba724d7
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jan 22 02:48:40 2013 +0800
+
+    text/template/parse: don't show itemType in error messages
+    so that the user don't need to decipher something like this:
+    template: main:1: expected %!s(parse.itemType=14) in end; got "|"
+    now they get this:
+    template: main:1: unexpected "|" in end
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7128054
+
+ src/pkg/text/template/parse/parse.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

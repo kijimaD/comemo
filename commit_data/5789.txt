@@ -1,0 +1,15 @@
+commit 36560d2b4a916f8461ef9ee5a5a7c193878046a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 12 16:48:49 2010 -0700
+
+    pem: print \n after 1 header line too
+    rearrange to make reason for if clear.
+    
+    Fixes #911.
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/1774044
+
+ src/pkg/encoding/pem/pem.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

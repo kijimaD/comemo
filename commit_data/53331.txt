@@ -1,0 +1,24 @@
+commit aa99c4d2925e3628460482db8657765880e6836c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 24 07:10:17 2023 -0400
+
+    cmd/go: handle queries properly in go install m@v
+    
+    The original code only handled go install m@v1.0.0
+    but not queries like go install m@v1 or m@master.
+    Handle those by invoking more of the module machinery.
+    
+    For #57001.
+    
+    Change-Id: I7d54fc3dd65072e5906a17ff95b407b0f7feac69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497879
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/gotoolchain.go                         | 62 +++++++----------------
+ src/cmd/go/internal/modload/init.go               | 14 +++++
+ src/cmd/go/testdata/mod/rsc.io_fortune_v0.0.1.txt |  4 ++
+ src/cmd/go/testdata/script/gotoolchain.txt        | 13 +++++
+ 4 files changed, 50 insertions(+), 43 deletions(-)

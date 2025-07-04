@@ -1,0 +1,12 @@
+commit 0d3dd3c9500e490f63f5a2e30ceba1ba4cb392e9
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 4 11:33:43 2009 -0800
+
+    document godoc and gofmt
+    
+    R=rsc
+    http://go/go-review/1018036
+
+ src/cmd/godoc/doc.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofmt/doc.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 84 insertions(+)

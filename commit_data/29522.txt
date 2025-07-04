@@ -1,0 +1,16 @@
+commit afa68b36cc225075e87b53e2f9c2edc9dfb73b9e
+Author: Thordur Bjornsson <thorduri@secnorth.net>
+Date:   Sat Nov 12 17:05:17 2016 +0100
+
+    encoding/hex: Document DecodedLen.
+    
+    Mention that it specifically returns x / 2, and do the same for
+    EncodedLen.
+    
+    Change-Id: Ie334f5abecbc487caf4965abbcd14442591bef2a
+    Change-Id: Idfa413faad487e534489428451bf736b009293d6
+    Reviewed-on: https://go-review.googlesource.com/33191
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/hex/hex.go | 3 +++
+ 1 file changed, 3 insertions(+)

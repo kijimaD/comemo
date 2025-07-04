@@ -1,0 +1,14 @@
+commit eeb2a11eeac2174590cd281c5f48cbec1717e4e6
+Author: Rodolfo Rodriguez <rodolfobgibson@gmail.com>
+Date:   Thu Aug 30 18:14:09 2018 -0600
+
+    fmt: add Println example
+    
+    Change-Id: Ifd509c0c6a6ea41094b6ae1f4931414325b152fd
+    Reviewed-on: https://go-review.googlesource.com/132475
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/fmt/example_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

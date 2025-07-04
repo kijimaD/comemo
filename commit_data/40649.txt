@@ -1,0 +1,25 @@
+commit 39e8cb0faac7785f89b21246a45e8cf8d5bc7d95
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Aug 14 16:32:12 2019 +0000
+
+    runtime: add new page allocator core
+    
+    This change adds a new bitmap-based allocator to the runtime with tests.
+    It does not yet integrate the page allocator into the runtime and thus
+    this change is almost purely additive.
+    
+    Updates #35112.
+    
+    Change-Id: Ic3d024c28abee8be8797d3918116a80f901cc2bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190622
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/export_test.go      |  84 +++++
+ src/runtime/mpagealloc.go       | 764 +++++++++++++++++++++++++++++++++++++++-
+ src/runtime/mpagealloc_32bit.go |  86 +++++
+ src/runtime/mpagealloc_64bit.go | 122 +++++++
+ src/runtime/mpagealloc_test.go  | 658 ++++++++++++++++++++++++++++++++++
+ src/runtime/mpallocbits_test.go |   4 +-
+ 6 files changed, 1716 insertions(+), 2 deletions(-)

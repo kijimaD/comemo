@@ -1,0 +1,12 @@
+commit 1da07a783ee31a25980f13d7d483be8afe70da95
+Author: Vega Garcia Luis Alfonso <vegacom@gmail.com>
+Date:   Sun Jan 27 21:36:47 2013 -0800
+
+    go/ast: Fix typo for the godoc of ObjKind
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7232045
+
+ src/pkg/go/ast/scope.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

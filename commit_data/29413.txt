@@ -1,0 +1,12 @@
+commit f815499fab5f650f3eba12d48c53ec01d1362265
+Author: Joe Farrell <joe2farrell@gmail.com>
+Date:   Mon Nov 7 18:43:13 2016 +0000
+
+    doc: fix broken links in 1.7 release docs
+    
+    Change-Id: Ibf73ee7be4591393f4e08d464edfa325c3ec2c11
+    Reviewed-on: https://go-review.googlesource.com/32798
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.7.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

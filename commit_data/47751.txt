@@ -1,0 +1,21 @@
+commit bb9b20a15d637667614ec4a312f216bd4c67b76a
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Dec 8 15:29:12 2021 -0500
+
+    cmd/api: run half as many go list calls in parallel
+    
+    We currently run one 'go list' invocation per GOMAXPROC. Since the go
+    command uses memory and has its own internal parallelism, that's
+    unlikely to be an efficient use of resources. Run half as many. I
+    suspect that's still too many but this should fix our OOMs.
+    
+    For #49957.
+    
+    Change-Id: Id06b6e0f0d96387a2a050e400f38bde6ba71aa60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370376
+    Trust: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/api/goapi.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

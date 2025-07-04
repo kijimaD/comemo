@@ -1,0 +1,20 @@
+commit 4768408e5f9ef7ec42aba7e850c4727b0f16ddbe
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Sep 11 10:39:40 2017 -0700
+
+    cmd/go: fix regexp
+    
+    The regular expression "A-za-z" is most likely a typo and
+    the intent seems to be "A-Za-z" instead.
+    
+    Using "A-z" matches certain characters like: [\]^_`
+    
+    Updates #10010
+    
+    Change-Id: If2d064c56ef613f2e46285d8d4e5998e83aed43a
+    Reviewed-on: https://go-review.googlesource.com/62910
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
+
+ src/cmd/go/internal/get/vcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

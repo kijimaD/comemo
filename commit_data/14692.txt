@@ -1,0 +1,13 @@
+commit d0283ab62ab692ee4c28e31d85740a5804b5540a
+Author: Joakim Sernbrant <serbaut@gmail.com>
+Date:   Wed Dec 19 16:24:38 2012 -0800
+
+    net/http: only call client SetCookie when needed
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6968049
+
+ src/pkg/net/http/client.go      | 4 +++-
+ src/pkg/net/http/client_test.go | 8 ++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

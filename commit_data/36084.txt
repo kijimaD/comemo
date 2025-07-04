@@ -1,0 +1,19 @@
+commit 9092511cf795dd82713cd328403a106fc3e6870c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 19 18:01:10 2018 +0000
+
+    net/http: update bundled http2
+    
+    Updates http2 to x/net/http2 git rev a680a1efc54 for:
+    
+       http2: reject large SETTINGS frames or those with duplicates
+       https://golang.org/cl/124735
+    
+    Change-Id: I2168d1d1eef9c63b1a9c06b514b77fae16f920ed
+    Reviewed-on: https://go-review.googlesource.com/125036
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/h2_bundle.go | 69 +++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 55 insertions(+), 14 deletions(-)

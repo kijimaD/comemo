@@ -1,0 +1,22 @@
+commit 731e6fc34ec1c99a72ac7c66db7a87786d918edf
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Aug 20 09:03:41 2019 +0000
+
+    cmd/compile: generate Select on WASM
+    
+    This CL performs the branchelim optimization on WASM with its
+    select instruction. And the total size of pkg/js_wasm decreased
+    about 80KB by this optimization.
+    
+    Change-Id: I868eb146120a1cac5c4609c8e9ddb07e4da8a1d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190957
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/branchelim.go  |  2 +-
+ src/cmd/compile/internal/ssa/gen/Wasm.rules |  2 ++
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 19 +++++++++++++++++++
+ test/codegen/condmove.go                    | 11 +++++++++++
+ 4 files changed, 33 insertions(+), 1 deletion(-)

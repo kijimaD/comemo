@@ -1,0 +1,16 @@
+commit ccc927b8f6550cb638e78fd63eebf422fc3c3d8a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 8 13:37:34 2021 -0700
+
+    cmd/compile/internal/types2: move typeHash to environment.go
+    
+    This is a clean port of CL 347560.
+    
+    Change-Id: I0d56f5a818df1a66e603415d5198d909b0aef228
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348573
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/environment.go | 37 ++++++++++++++++++++++++--
+ src/cmd/compile/internal/types2/subst.go       | 36 +------------------------
+ 2 files changed, 36 insertions(+), 37 deletions(-)

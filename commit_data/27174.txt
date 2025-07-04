@@ -1,0 +1,24 @@
+commit 80e9a7f0797c73b27471eb4b371baa1c7ccb427b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 27 22:04:49 2016 -0700
+
+    cmd/compile: have all or no parameter named in exported signatures
+    
+    Binary export format only.
+    
+    Make sure we don't accidentally export an unnamed parameter
+    in signatures which expect all named parameters; otherwise
+    we crash during import. Appears to happen for _ (blank)
+    parameter names, as observed in method signatures such as
+    the one at: x/tools/godoc/analysis/analysis.go:76.
+    
+    Fixes #15470.
+    
+    TBR=mdempsky
+    
+    Change-Id: I1b1184bf08c4c09d8a46946539c4b8c341acdb84
+    Reviewed-on: https://go-review.googlesource.com/22543
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go | 37 ++++++++++++++++++++++------------
+ 1 file changed, 24 insertions(+), 13 deletions(-)

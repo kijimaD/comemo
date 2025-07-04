@@ -1,0 +1,13 @@
+commit 88cbe09202d54b6cd3f4d8c0fa8b50e13c7372cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 24 21:05:12 2015 -0800
+
+    math/big: permit passing of an *Int to Float.Int to avoid allocation
+    
+    Change-Id: I50e83248357928e56c94b88a8764de828f4f5c76
+    Reviewed-on: https://go-review.googlesource.com/5890
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 26 +++++++++++++++++---------
+ src/math/big/float_test.go | 13 +++++++++++--
+ 2 files changed, 28 insertions(+), 11 deletions(-)

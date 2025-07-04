@@ -1,0 +1,14 @@
+commit 158f3f6440e152d363f7f24321e292eef90d0860
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 5 18:44:49 2009 -0700
+
+    parallel spectral-norm
+    
+    R=rsc
+    DELTA=85  (84 added, 1 deleted, 0 changed)
+    OCL=32810
+    CL=32810
+
+ test/bench/spectral-norm-parallel.go | 111 +++++++++++++++++++++++++++++++++++
+ test/bench/timing.log                |   2 +-
+ 2 files changed, 112 insertions(+), 1 deletion(-)

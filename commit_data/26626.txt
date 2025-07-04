@@ -1,0 +1,22 @@
+commit b81f2f106f68b771518f40390a69f834717f17d1
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Mar 28 21:45:33 2016 -0700
+
+    cmd/compile: place combined loads at the location of the last byte load
+    
+    We need to make sure all the bounds checks pass before issuing
+    a load which combines several others.  We do this by issuing the
+    combined load at the last load's block, where "last" = closest to
+    the leaf of the dominator tree.
+    
+    Fixes #15002
+    
+    Change-Id: I7358116db1e039a072c12c0a73d861f3815d72af
+    Reviewed-on: https://go-review.googlesource.com/21246
+    Reviewed-by: Todd Neal <todd@tneal.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  58 ++--
+ src/cmd/compile/internal/ssa/rewrite.go      |  50 ++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 430 ++++++++++++++-------------
+ test/fixedbugs/issue15002.go                 | 132 ++++++++
+ 4 files changed, 435 insertions(+), 235 deletions(-)

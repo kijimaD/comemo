@@ -1,0 +1,17 @@
+commit b6e2d6b778aa63d10db72feb3b03fb0becac38da
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 17 12:00:12 2012 -0800
+
+    go/doc: move Example code from go/ast to go/doc.
+    
+    Fixes #3048.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5672081
+
+ src/cmd/dist/build.c               |  2 ++
+ src/cmd/go/test.go                 |  3 ++-
+ src/cmd/godoc/godoc.go             |  8 ++++----
+ src/pkg/go/{ast => doc}/example.go | 17 +++++++++--------
+ 4 files changed, 17 insertions(+), 13 deletions(-)

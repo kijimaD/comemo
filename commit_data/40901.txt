@@ -1,0 +1,33 @@
+commit 27e50a1a25607fcf0a24e76dcbaa1fdac5267626
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Nov 26 11:27:25 2019 -0500
+
+    cmd: update golang.org/x/mod and vendor
+    
+    This CL pulls in a fix to golang.org/x/mod/modfile. No change needed
+    to cmd/go.
+    
+    Fixes #35737
+    
+    Change-Id: I7ca1bb46d2923b01587042f0f312d3c3df54c425
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208977
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go.mod                                         |  4 ++--
+ src/cmd/go.sum                                         |  8 ++++----
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go        | 18 +++++++++++-------
+ src/cmd/vendor/golang.org/x/mod/module/module.go       |  6 +++++-
+ src/cmd/vendor/golang.org/x/mod/zip/zip.go             | 10 ++++++++++
+ .../x/tools/go/analysis/passes/asmdecl/asmdecl.go      |  4 +++-
+ .../x/tools/go/analysis/passes/bools/bools.go          |  4 +++-
+ .../x/tools/go/analysis/passes/buildtag/buildtag.go    |  4 +++-
+ .../x/tools/go/analysis/passes/cgocall/cgocall.go      |  4 ++--
+ .../x/tools/go/analysis/passes/errorsas/errorsas.go    |  4 ++--
+ .../tools/go/analysis/passes/lostcancel/lostcancel.go  |  4 ++--
+ .../x/tools/go/analysis/passes/printf/printf.go        |  4 ++--
+ .../x/tools/go/analysis/passes/shift/shift.go          |  4 +++-
+ .../x/tools/go/analysis/passes/unmarshal/unmarshal.go  |  4 ++--
+ src/cmd/vendor/modules.txt                             |  4 ++--
+ 15 files changed, 56 insertions(+), 30 deletions(-)

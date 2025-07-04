@@ -1,0 +1,18 @@
+commit 077d51909d3d7bc2d52afd47c9be1de8ee4f0756
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 11 14:02:28 2024 -0800
+
+    internal/poll: in SendFile treat ENOTSUP like EOPNOTSUPP
+    
+    Fixes #70763
+    
+    Change-Id: Ifb79b5b0529f7977df0fe1b59d224b8b31df2c9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635396
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/sendfile_unix.go | 10 ++++-
+ src/net/sendfile_unix_test.go      | 86 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 95 insertions(+), 1 deletion(-)

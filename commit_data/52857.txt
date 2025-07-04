@@ -1,0 +1,40 @@
+commit c486f74eeb77548d74fd09b624d4a1cf1b3ab9c4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 2 15:55:03 2023 -0700
+
+    go/types, types2: use version data type instead of major,minor ints
+    
+    Also, move version type declaration and associated operations to
+    the top of version.go.
+    
+    Change-Id: I1e6e27c58f97fb2a2ac441dcb97bb7decf8dce71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491795
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/builtins.go    |  12 +-
+ src/cmd/compile/internal/types2/call.go        |  18 +--
+ src/cmd/compile/internal/types2/conversions.go |   4 +-
+ src/cmd/compile/internal/types2/decl.go        |   4 +-
+ src/cmd/compile/internal/types2/errors.go      |   4 +-
+ src/cmd/compile/internal/types2/expr.go        |   2 +-
+ src/cmd/compile/internal/types2/instantiate.go |   2 +-
+ src/cmd/compile/internal/types2/resolver.go    |   4 +-
+ src/cmd/compile/internal/types2/typeset.go     |   8 +-
+ src/cmd/compile/internal/types2/typexpr.go     |   4 +-
+ src/cmd/compile/internal/types2/version.go     | 164 ++++++++++++++-----------
+ src/go/types/builtins.go                       |  12 +-
+ src/go/types/call.go                           |  18 +--
+ src/go/types/conversions.go                    |   4 +-
+ src/go/types/decl.go                           |   4 +-
+ src/go/types/errors.go                         |   4 +-
+ src/go/types/expr.go                           |   2 +-
+ src/go/types/instantiate.go                    |   2 +-
+ src/go/types/resolver.go                       |   4 +-
+ src/go/types/typeset.go                        |   8 +-
+ src/go/types/typexpr.go                        |   4 +-
+ src/go/types/version.go                        | 138 ++++++++++++---------
+ 22 files changed, 229 insertions(+), 197 deletions(-)

@@ -1,0 +1,19 @@
+commit 5e423ed8553b8eec01273597f7eb89ce73f47b86
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Nov 21 11:27:20 2017 -0800
+
+    cmd/link: fix export data truncation bug
+    
+    Similar fix as in CL 60773 for fixing cmd/pack.
+    
+    Fixes #21703.
+    
+    Change-Id: I457ed8a3be828fd458abc5c8c1cc766a9f7aab13
+    Reviewed-on: https://go-review.googlesource.com/79135
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 20 +++++++++++++++++--
+ src/cmd/link/link_test.go       | 44 ++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 61 insertions(+), 3 deletions(-)

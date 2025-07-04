@@ -1,0 +1,15 @@
+commit 486d9eb48ef42d78d1673254a52275fc8ada9c0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 2 18:53:25 2010 -0800
+
+    test: fix 386 build (missing complex)
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/223106
+
+ test/golden.out   | 6 ------
+ test/ken/cplx0.go | 2 ++
+ test/ken/cplx1.go | 2 +-
+ test/ken/cplx2.go | 2 +-
+ 4 files changed, 4 insertions(+), 8 deletions(-)

@@ -1,0 +1,16 @@
+commit 9300d223a3986b4419372bcd58c6cce7c845e8ae
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 11 09:02:46 2018 -0400
+
+    runtime: document philosophy behind runtime atomic usage
+    
+    Based on Dmitry Vyukov's comments in CL 65210.
+    
+    Change-Id: I5dce7286b0d180cd43cad3aaf70f537fafcda588
+    Reviewed-on: https://go-review.googlesource.com/123275
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/HACKING.md | 41 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)

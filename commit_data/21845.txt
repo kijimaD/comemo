@@ -1,0 +1,25 @@
+commit 612dd6c26274d7183b21d38120bc98c45dcf2736
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Fri Feb 27 10:46:42 2015 -0800
+
+    build: run cgo tests with -pie if the external linker supports it.
+    
+    PIE binaries can be built by the Go compiler in external link mode with
+    extldflags="-pie". These binaries support ASLR (address space layout
+    randomization) when executed on systems with appropriate kernel/dynamic
+    linker support.
+    
+    This CL enables some cgo tests to run with -pie as a sanity check (in
+    addition to the other linker flag combinations they already test).
+    
+    I have tested this functionality more thoroughly by building the full
+    compiler testsuite (test/...) and standard library tests with -pie
+    and executing them remotely on ChromeOS devices for all three linux
+    architectures (linux_amd64, linux_386, and linux_arm).
+    
+    Change-Id: I3f644a72e94c3341f3360dfee58db5ec3a591e26
+    Reviewed-on: https://go-review.googlesource.com/6280
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/run.bash | 7 +++++++
+ 1 file changed, 7 insertions(+)

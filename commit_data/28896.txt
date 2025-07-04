@@ -1,0 +1,15 @@
+commit 1188569534fb65fb5e9f0e3eea6b20edc996e983
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 23:30:38 2016 -0400
+
+    testing: fix flag usage messages
+    
+    Fixes #16404.
+    
+    Change-Id: Iabaeeef3eff2fff6e5ed2d6bc9ef9c2f6d1cb5e7
+    Reviewed-on: https://go-review.googlesource.com/31332
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/benchmark.go |  4 ++--
+ src/testing/testing.go   | 24 ++++++++++++------------
+ 2 files changed, 14 insertions(+), 14 deletions(-)

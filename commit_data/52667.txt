@@ -1,0 +1,66 @@
+commit 74b52d9519f4060514e897e90bfc5a50e049bc78
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Apr 13 14:51:05 2023 +0700
+
+    cmd/compile: better code generation for constant-fold switch
+    
+    CL 399694 added constant-fold switch early in compilation. So function:
+    
+    func f() string {
+        switch intSize {
+        case 32:
+            return "32"
+        case 64:
+            return "64"
+        default:
+            panic("unreachable")
+        }
+    }
+    
+    will be constant-fold to:
+    
+    func f() string {
+        switch intSize {
+        case 64:
+            return "64"
+        }
+    }
+    
+    When this function get inlined, there is a check whether we can delay
+    declaring the result parameter until the "return" statement. For the
+    original function, we can't delay the result, because there's more than
+    one return statement. However, the constant-fold one can, because
+    there's on one return statement in the body now. The result parameter
+    ~R0 ends up declaring inside the switch statement scope.
+    
+    Now, when walking the switch statement, it's re-written into if-else
+    statement. Without typecheck.EvalConst, the if condition "if 64 == 64"
+    is passed as-is to the ssa generation pass. Because "64 == 64" is not a
+    constant, the ssagen creates normal blocks for branching the results.
+    This confuses the liveness analysis, because ~R0 is only live inside the
+    if block. With typecheck.EvalConst, "64 == 64" is evaluated to "true",
+    so ssagen can branch the result without emitting conditional blocks.
+    
+    Instead, the constant-fold can be re-written as:
+    
+    switch {
+    case true:
+        // Body
+    }
+    
+    So it does not depend on the delay results check during inlining. Adding
+    a test, which will fail when typecheck.EvalConst is removed, so we can
+    do the cleanup without breaking things.
+    
+    Change-Id: I638730bb147140de84260653741431b807ff2f15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484316
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/deadcode/deadcode.go |  8 ++++----
+ src/cmd/compile/internal/inline/inl.go        |  2 +-
+ test/inline.go                                | 14 ++++++++++++++
+ 3 files changed, 19 insertions(+), 5 deletions(-)

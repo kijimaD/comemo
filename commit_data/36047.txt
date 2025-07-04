@@ -1,0 +1,14 @@
+commit 96b5f6dd1d933cdfac82b323131f5b8a8785a088
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Jul 18 15:04:02 2018 -0400
+
+    doc: update go1.11 release notes
+    
+    Update text/scanner and text/template sections.
+    
+    Change-Id: I1a273e99ff400870053cca63cea68fb7a9b56764
+    Reviewed-on: https://go-review.googlesource.com/124705
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.11.html | 26 +++++++++++++++++++-------
+ 1 file changed, 19 insertions(+), 7 deletions(-)

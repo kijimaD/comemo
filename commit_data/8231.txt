@@ -1,0 +1,15 @@
+commit 839e9eada0300387f678013f9dc50c47a277639b
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Tue Apr 26 06:41:19 2011 -0700
+
+    syscall: Mlock, Munlock, Mlockall, Munlockall on Linux.
+    
+    R=rsc, bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4433070
+
+ src/pkg/syscall/syscall_linux.go        | 13 +++++-----
+ src/pkg/syscall/zsyscall_linux_386.go   | 44 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_amd64.go | 44 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_arm.go   | 44 +++++++++++++++++++++++++++++++++
+ 4 files changed, 138 insertions(+), 7 deletions(-)

@@ -1,0 +1,17 @@
+commit b581ca5956e4cf60de2e32f91b51524054efb29c
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Jan 26 11:26:55 2015 +0300
+
+    cmd/gc: allow map index expressions in for range statements
+    
+    Fixes #9691.
+    
+    Change-Id: I22bfc82e05497e91a7b18a668913aed6c723365d
+    Reviewed-on: https://go-review.googlesource.com/3282
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/go.h             |  1 +
+ src/cmd/gc/range.c          |  2 ++
+ src/cmd/gc/typecheck.c      |  3 +--
+ test/fixedbugs/issue9691.go | 21 +++++++++++++++++++++
+ 4 files changed, 25 insertions(+), 2 deletions(-)

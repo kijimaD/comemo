@@ -1,0 +1,21 @@
+commit 83e8bf2e7d9a7037fcafa90d3ee2730f8dd1ad90
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Sep 24 14:36:34 2020 +0200
+
+    cmd/compile: more amd64 typed aux rules
+    
+    Passes
+    
+      gotip build -toolexec 'toolstash -cmp' -a std
+    
+    Change-Id: Id9da1240ca810fe07f23c56b36900b6e35a10a6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257037
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  160 ++--
+ src/cmd/compile/internal/ssa/op.go           |    7 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 1268 +++++++++++++-------------
+ 3 files changed, 721 insertions(+), 714 deletions(-)

@@ -1,0 +1,12 @@
+commit 54045e6bcd67f866b152a462a3ca9e59c35e2782
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 22 17:11:44 2011 +1000
+
+    pkg/http: fix a couple of error messages
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4805048
+
+ src/pkg/http/fs_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

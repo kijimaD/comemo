@@ -1,0 +1,19 @@
+commit d6143914e42e9373fbc02d08b224516b12807269
+Author: Ou Changkun <hi@changkun.us>
+Date:   Fri Aug 16 13:50:07 2019 +0000
+
+    runtime: remove outdated comment in select sortkey
+    
+    This CL removes an outdated comment regarding converting a pointer to `uintptr`.
+    The comment was introduced in Go 1.4 and runtime GC was under the consideration of major revisions. According to the current situation, Go runtime memory allocator has no fragmentation issue. Therefore compact GC won't be implemented in the near future.
+    
+    Change-Id: I5c336d81d810cf57b76797f05428421bb39a5b9f
+    GitHub-Last-Rev: 2ab4be3885d3f48abbcb59af3f74bc95501ff23f
+    GitHub-Pull-Request: golang/go#33685
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190520
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/select.go | 2 --
+ 1 file changed, 2 deletions(-)

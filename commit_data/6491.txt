@@ -1,0 +1,14 @@
+commit 054be1b6c34c2d142c9b0fbe1d7e62d08dd615e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 11 16:21:03 2010 -0400
+
+    ld: be less picky about bad line number info
+    
+    Fixes #1175.
+    
+    R=lvd
+    CC=golang-dev
+    https://golang.org/cl/2439041
+
+ src/cmd/ld/dwarf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,28 @@
+commit 350f71f4cb52dd6c4a9a84225153d9fafe7b4d40
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 10 11:04:29 2019 -0400
+
+    cmd/go: in tests, don't assume that the 'git' binary is present
+    
+    Add a helper-function to testenv to make these skips more ergonomic.
+    Also update a few existing skips in cmd/go/... to use it.
+    
+    Updates #25300
+    
+    Change-Id: I4205b4fb2b685dfac1cff3c999f954bff7b0f3c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181538
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go                              | 92 ++++++++++++----------
+ src/cmd/go/internal/modfetch/coderepo_test.go      | 57 +++++++++++++-
+ src/cmd/go/internal/modload/import_test.go         |  1 +
+ src/cmd/go/internal/modload/query_test.go          |  1 +
+ src/cmd/go/testdata/script/get_404_meta.txt        |  1 +
+ .../go/testdata/script/get_insecure_redirect.txt   |  1 +
+ src/cmd/go/testdata/script/mod_get_hash.txt        |  2 +-
+ src/cmd/go/testdata/script/mod_gonoproxy.txt       |  1 +
+ src/cmd/go/testdata/script/mod_gopkg_unstable.txt  |  1 +
+ src/cmd/go/testdata/script/mod_sumdb_golang.txt    |  1 +
+ src/cmd/go/vendor_test.go                          |  9 +++
+ src/internal/testenv/testenv.go                    | 19 +++++
+ 12 files changed, 141 insertions(+), 45 deletions(-)

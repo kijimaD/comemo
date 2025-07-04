@@ -1,0 +1,15 @@
+commit 05a1eb1ab0650b465b23f01ca0ea5944735fa63b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 01:12:02 2009 -0800
+
+    gc: recursive type error
+    
+    Fixes #245.
+    
+    R=ken2
+    https://golang.org/cl/164094
+
+ src/cmd/gc/align.c       |  3 +++
+ src/cmd/gc/typecheck.c   |  2 ++
+ test/fixedbugs/bug224.go | 10 ++++++++++
+ 3 files changed, 15 insertions(+)

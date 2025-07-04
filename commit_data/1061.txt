@@ -1,0 +1,40 @@
+commit 6f07ec721a47a98e643c9e91e043545c930dae12
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 5 13:05:01 2008 -0800
+
+    new interface error messages
+    
+            package main
+            func main() {
+                    var i interface { } = 1;
+                    a := i.(*[]byte);
+            }
+    
+    interface { } is int, not *[]uint8
+    throw: interface conversion
+    
+            package main
+            func main() {
+                    var i interface { };
+                    a := i.(*[]byte);
+            }
+    
+    interface is nil, not *[]uint8
+    throw: interface conversion
+    
+            package main
+            func main() {
+                    i := sys.unreflect(0, "*bogus");
+                    a := i.(*[]byte);
+            }
+    
+    interface { } is *bogus, not *[]uint8
+    throw: interface conversion
+    
+    R=r
+    DELTA=30  (24 added, 2 deleted, 4 changed)
+    OCL=18548
+    CL=18565
+
+ src/runtime/iface.c | 34 ++++++++++++++++++++++++++++------
+ 1 file changed, 28 insertions(+), 6 deletions(-)

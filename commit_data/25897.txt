@@ -1,0 +1,21 @@
+commit 1e91e2a25a0058cc25b3836b59a0954c6c75a62c
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 15 16:50:12 2016 -0500
+
+    runtime: document non-obvious requirement on sudog.elem
+    
+    The channel code must not allow stack splits between when it assigns a
+    potential stack pointer to sudog.elem (or sudog.selectdone) and when
+    it makes the sudog visible to copystack by putting it on the g.waiting
+    list. We do get this right everywhere, but add a comment about this
+    subtlety for future eyes.
+    
+    Change-Id: I941da150437167acff37b0e56983c793f40fcf79
+    Reviewed-on: https://go-review.googlesource.com/19632
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/chan.go   | 4 ++++
+ src/runtime/select.go | 2 ++
+ 2 files changed, 6 insertions(+)

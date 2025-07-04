@@ -1,0 +1,18 @@
+commit baa9ca032bf257eb931f3fe82897650e21206093
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 22 22:39:09 2013 -0700
+
+    net/http: respect tls.Config.ServerName in Transport
+    
+    When making an HTTPS client request, respect the
+    ServerName field in the tls.Config.
+    
+    Fixes #5829
+    
+    R=golang-dev, agl, adg
+    CC=golang-dev
+    https://golang.org/cl/11691043
+
+ src/pkg/net/http/client_test.go | 30 ++++++++++++++++++++++++++++++
+ src/pkg/net/http/transport.go   |  4 ++--
+ 2 files changed, 32 insertions(+), 2 deletions(-)

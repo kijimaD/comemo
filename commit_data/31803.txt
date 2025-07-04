@@ -1,0 +1,22 @@
+commit 0253299ab39c45f5694d35a233b83b23c69ec97f
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Jun 10 07:47:32 2017 +0900
+
+    go/printer: handle associated comments for CommentedNode
+    
+    Current CommentedNode cannot handle associated comments which satisfy
+        node.End() < comment.Pos()
+    
+    This CL solves it.
+    
+    Fixes #20635
+    
+    Change-Id: I58e2e3703999bb38a6ce37112e986c4b1b2eace0
+    Reviewed-on: https://go-review.googlesource.com/45292
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/printer/printer.go      | 27 ++++++++++++++++++++++
+ src/go/printer/printer_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 78 insertions(+)

@@ -1,0 +1,13 @@
+commit cae5213b913b2237d79fe19fa6e2b8974f335e1a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jul 20 16:09:30 2013 +1000
+
+    libmach,lib9: override unused parameter warnings (fixes netbsd and openbsd builds)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/11623043
+
+ src/libmach/netbsd.c  | 10 ++++++++++
+ src/libmach/openbsd.c | 10 ++++++++++
+ 2 files changed, 20 insertions(+)

@@ -1,0 +1,19 @@
+commit 8132f1d016807c0cc89c02fa80efd11ee72bb6de
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 13:53:07 2010 -0500
+
+    6l, 8l: minor changes & cleanup
+    
+    R=ken2, ken3
+    CC=golang-dev
+    https://golang.org/cl/3505041
+
+ src/cmd/6l/obj.c   |  5 +++--
+ src/cmd/6l/pass.c  | 20 ++++++++++++--------
+ src/cmd/6l/span.c  | 18 +-----------------
+ src/cmd/8l/obj.c   |  1 +
+ src/cmd/8l/pass.c  | 25 ++++++++++++++++---------
+ src/cmd/8l/span.c  | 22 +++++-----------------
+ src/cmd/ld/dwarf.c |  7 +++++--
+ src/cmd/ld/elf.h   |  2 +-
+ 8 files changed, 44 insertions(+), 56 deletions(-)

@@ -1,0 +1,14 @@
+commit 9f70cd8223fd1570075a888e596759774c0cb66d
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Thu Jul 9 15:08:39 2015 +0200
+
+    net/mail: add example to package
+    
+    Change-Id: I912cafc66463f81cde839afc8f06b7eadcbf6f57
+    Reviewed-on: https://go-review.googlesource.com/11992
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/mail/example_test.go | 77 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 77 insertions(+)

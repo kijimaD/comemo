@@ -1,0 +1,13 @@
+commit f182a6eec895a6d916ed61e9d6f50a84fd970e69
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Mar 21 18:13:23 2014 +0100
+
+    runtime: skip stack growth test in short mode
+    
+    LGTM=dvyukov
+    R=dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/78410043
+
+ src/pkg/runtime/stack_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

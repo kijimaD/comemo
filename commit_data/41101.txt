@@ -1,0 +1,22 @@
+commit 8b774103d3f833775e7e214bf51a37b3cfa39615
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jan 9 10:23:25 2020 -0500
+
+    src/go.mod: update x/crypto to drop broken poly1305 arm assembly
+    
+    This imports CL 213880.
+    
+    Fixes #35511
+    
+    Change-Id: I55d18713bdac8fa556ba5a2aced922f80d1ac970
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214078
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go.mod                                         |   2 +-
+ src/go.sum                                         |   4 +-
+ src/vendor/golang.org/x/crypto/poly1305/sum_arm.go |  19 -
+ src/vendor/golang.org/x/crypto/poly1305/sum_arm.s  | 427 ---------------------
+ .../golang.org/x/crypto/poly1305/sum_noasm.go      |   2 +-
+ src/vendor/modules.txt                             |   2 +-
+ 6 files changed, 5 insertions(+), 451 deletions(-)

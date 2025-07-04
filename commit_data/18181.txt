@@ -1,0 +1,15 @@
+commit f30392125192124450c2831a08416e875ab5baf0
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jan 7 13:26:48 2014 +0100
+
+    cmd/gc: do not omit wrapper for expression (interface{...}).F
+    
+    Fixes #6723.
+    
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/41570047
+
+ src/cmd/gc/reflect.c     | 5 ++---
+ test/method4.dir/prog.go | 9 ++++++++-
+ 2 files changed, 10 insertions(+), 4 deletions(-)

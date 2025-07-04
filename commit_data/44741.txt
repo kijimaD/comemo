@@ -1,0 +1,23 @@
+commit 67048432026062a98a3937a865aeb05a398148c5
+Author: Tao Qingyun <qingyunha@gmail.com>
+Date:   Thu Mar 18 00:10:38 2021 +0000
+
+    testing: update helperNames just before checking it
+    
+    parent's helperNames has not been set when frameSkip called, moving
+    helperNames initilazing to frameSkip.
+    
+    Fixes #44887
+    
+    Change-Id: I5107c5951033e5e47d1ac441eac3ba5344a7bdc0
+    GitHub-Last-Rev: 44b90b2e2eeca8e2bb4a2084ec6fdd279c88f76d
+    GitHub-Pull-Request: golang/go#45071
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302469
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/testing/helper_test.go | 32 ++++++++++++++++++++++++++++++++
+ src/testing/testing.go     | 15 +++++++--------
+ 2 files changed, 39 insertions(+), 8 deletions(-)

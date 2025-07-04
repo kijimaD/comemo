@@ -1,0 +1,19 @@
+commit 459293388ceb74d9cf61c930f02325645cd0cb7d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 28 20:54:45 2021 -0400
+
+    cmd/go: document that tests must not write to their source modules
+    
+    Fixes #28386
+    Updates #48495
+    
+    Change-Id: I76186077c7bbe3f8f608026ee1865de83fe169b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359574
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go            | 6 +++++-
+ src/cmd/go/internal/test/test.go | 6 +++++-
+ 2 files changed, 10 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit a016081f435d2cee1de3d3d09d085a8eb213b35a
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu May 21 13:46:07 2009 -0700
+
+    added key:val extension to
+    structure and array literals
+    
+    R=r
+    OCL=29190
+    CL=29190
+
+ src/cmd/6g/gen.c    |   4 +
+ src/cmd/gc/Makefile |   1 +
+ src/cmd/gc/const.c  |  23 ++++
+ src/cmd/gc/dcl.c    | 232 -----------------------------------
+ src/cmd/gc/go.h     |   7 ++
+ src/cmd/gc/go.y     |  12 +-
+ src/cmd/gc/sinit.c  | 346 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/walk.c   | 112 ++++++++++++-----
+ 8 files changed, 473 insertions(+), 264 deletions(-)

@@ -1,0 +1,14 @@
+commit 94ff47939a1f8d83e9a5241add2de8aa3295439d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 21 10:10:17 2015 -0800
+
+    misc/cgo/testcarchive: skip test4 on darwin/{arm,arm64}
+    
+    Fixes #13701.
+    
+    Change-Id: I9825864d23aeba1971cf5f581e1e59ac4c9b87fd
+    Reviewed-on: https://go-review.googlesource.com/18090
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/testcarchive/test.bash | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)

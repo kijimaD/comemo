@@ -1,0 +1,12 @@
+commit e0bf0374ca11e4a51315500a5b08cda492eb715b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Jan 9 22:03:41 2013 +0100
+
+    go/types: don't parse imported packages multiple times.
+    
+    R=dave, golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7068044
+
+ src/pkg/go/types/check.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

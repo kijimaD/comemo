@@ -1,0 +1,12 @@
+commit 253d7f0460e6547788d707a2f4e5e5b0c0301b2d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 29 14:27:07 2012 -0700
+
+    net/http: better comment in hasToken
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6249065
+
+ src/pkg/net/http/header.go | 5 +++++
+ 1 file changed, 5 insertions(+)

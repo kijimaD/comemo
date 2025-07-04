@@ -1,0 +1,16 @@
+commit fa7be65bc0661a05946fefb5486370945b608e7d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 13 19:29:38 2009 -0700
+
+    template bug
+    
+    --- FAIL: template.TestAll
+            for "{.section data}{.end} {header}\n": expected " 77\n" got " {header}\n"
+    
+    R=r
+    DELTA=20  (14 added, 0 deleted, 6 changed)
+    OCL=27395
+    CL=27402
+
+ src/lib/template/template_test.go | 26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)

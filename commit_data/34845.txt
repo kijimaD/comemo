@@ -1,0 +1,64 @@
+commit 9357bb9eba45fbd82e113671267ee8e74ea70139
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Apr 4 14:35:05 2018 +0200
+
+    cmd/compile: stack-allocate worklist in ReachableBlocks
+    
+    Stack-allocate a local worklist in the deadcode pass. A size of 64 for
+    the pre-allocation is enough for >99% of the ReachableBlocks call in
+    a typical package.
+    
+    name      old time/op       new time/op       delta
+    Template        281ms ± 3%        278ms ± 2%  -1.03%  (p=0.049 n=20+20)
+    Unicode         135ms ± 6%        134ms ± 6%    ~     (p=0.273 n=18+17)
+    GoTypes         882ms ± 3%        880ms ± 2%    ~     (p=0.925 n=20+20)
+    Compiler        4.01s ± 1%        4.02s ± 2%    ~     (p=0.640 n=20+20)
+    SSA             9.61s ± 1%        9.75s ± 1%  +1.39%  (p=0.000 n=20+19)
+    Flate           186ms ± 5%        185ms ± 7%    ~     (p=0.758 n=20+20)
+    GoParser        219ms ± 5%        218ms ± 4%    ~     (p=0.149 n=20+20)
+    Reflect         568ms ± 4%        562ms ± 1%    ~     (p=0.154 n=19+19)
+    Tar             258ms ± 2%        257ms ± 3%    ~     (p=0.428 n=19+20)
+    XML             316ms ± 2%        317ms ± 3%    ~     (p=0.901 n=20+19)
+    
+    name      old user-time/op  new user-time/op  delta
+    Template        398ms ± 6%        388ms ± 6%  -2.55%  (p=0.007 n=20+20)
+    Unicode         217ms ± 5%        213ms ± 6%  -1.90%  (p=0.036 n=17+20)
+    GoTypes         1.21s ± 3%        1.20s ± 3%  -0.89%  (p=0.022 n=19+20)
+    Compiler        5.56s ± 3%        5.53s ± 5%    ~     (p=0.779 n=20+20)
+    SSA             13.9s ± 5%        14.0s ± 4%    ~     (p=0.529 n=20+20)
+    Flate           248ms ±10%        252ms ± 4%    ~     (p=0.409 n=20+18)
+    GoParser        305ms ± 4%        299ms ± 5%  -1.87%  (p=0.007 n=19+20)
+    Reflect         754ms ± 2%        747ms ± 3%    ~     (p=0.107 n=20+19)
+    Tar             360ms ± 5%        362ms ± 3%    ~     (p=0.534 n=20+18)
+    XML             425ms ± 6%        429ms ± 4%    ~     (p=0.496 n=20+19)
+    
+    name      old alloc/op      new alloc/op      delta
+    Template       38.8MB ± 0%       38.7MB ± 0%  -0.15%  (p=0.000 n=20+20)
+    Unicode        29.1MB ± 0%       29.1MB ± 0%  -0.03%  (p=0.000 n=20+20)
+    GoTypes         115MB ± 0%        115MB ± 0%  -0.13%  (p=0.000 n=20+20)
+    Compiler        491MB ± 0%        490MB ± 0%  -0.15%  (p=0.000 n=18+19)
+    SSA            1.40GB ± 0%       1.40GB ± 0%  -0.16%  (p=0.000 n=20+20)
+    Flate          24.9MB ± 0%       24.8MB ± 0%  -0.17%  (p=0.000 n=20+20)
+    GoParser       30.7MB ± 0%       30.6MB ± 0%  -0.16%  (p=0.000 n=20+20)
+    Reflect        77.1MB ± 0%       77.0MB ± 0%  -0.11%  (p=0.000 n=19+20)
+    Tar            39.0MB ± 0%       39.0MB ± 0%  -0.14%  (p=0.000 n=20+20)
+    XML            44.6MB ± 0%       44.5MB ± 0%  -0.13%  (p=0.000 n=17+19)
+    
+    name      old allocs/op     new allocs/op     delta
+    Template         379k ± 0%         378k ± 0%  -0.45%  (p=0.000 n=20+17)
+    Unicode          336k ± 0%         336k ± 0%  -0.08%  (p=0.000 n=20+20)
+    GoTypes         1.18M ± 0%        1.17M ± 0%  -0.37%  (p=0.000 n=20+20)
+    Compiler        4.58M ± 0%        4.56M ± 0%  -0.38%  (p=0.000 n=20+20)
+    SSA             11.4M ± 0%        11.4M ± 0%  -0.39%  (p=0.000 n=20+20)
+    Flate            233k ± 0%         232k ± 0%  -0.51%  (p=0.000 n=20+20)
+    GoParser         313k ± 0%         312k ± 0%  -0.48%  (p=0.000 n=19+20)
+    Reflect          946k ± 0%         943k ± 0%  -0.31%  (p=0.000 n=20+20)
+    Tar              388k ± 0%         387k ± 0%  -0.40%  (p=0.000 n=20+20)
+    XML              411k ± 0%         409k ± 0%  -0.35%  (p=0.000 n=17+20)
+    
+    Change-Id: Iaec0b9471ded61be5eb3c9d1074e804672307644
+    Reviewed-on: https://go-review.googlesource.com/104675
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/ssa/deadcode.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

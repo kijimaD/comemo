@@ -1,0 +1,12 @@
+commit a5fe54aa2bb457e850d260f9bbf3ed2819980652
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 19 11:33:11 2010 -0700
+
+    tabwriter: fix a comment to fix godoc output
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1857043
+
+ src/pkg/tabwriter/tabwriter.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

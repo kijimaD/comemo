@@ -1,0 +1,21 @@
+commit e2103adb6cf4e7d7d0905e513852407355967638
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 7 14:14:47 2016 -0700
+
+    crypto/*, runtime: nacl asm fixes
+    
+    Found by vet.
+    
+    Updates #11041
+    
+    Change-Id: I5217b3e20c6af435d7500d6bb487b9895efe6605
+    Reviewed-on: https://go-review.googlesource.com/27493
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/md5/md5block_amd64p32.s   |  2 +-
+ src/crypto/sha1/sha1block_amd64p32.s |  2 +-
+ src/runtime/asm_amd64p32.s           | 28 ++++++++++++++--------------
+ src/runtime/sys_nacl_amd64p32.s      |  4 ++--
+ src/runtime/sys_nacl_arm.s           |  4 ++--
+ 5 files changed, 20 insertions(+), 20 deletions(-)

@@ -1,0 +1,26 @@
+commit bd71dee2b4c0a44f9c32e9eb23d990b54ce06bae
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Mar 10 12:16:33 2022 -0800
+
+    internal/fuzz: don't use dirty coverage maps during minimization
+    
+    When minimizing a value, if the value cannot be minimized (i.e. it is
+    the final value is the same value as was sent for minimization) return
+    the initial coverage map, rather than the coverageSnapshot, which is
+    actually the coverage map for the final minimization step and may not
+    accurately reflect whether the input actually expands the coverage set
+    or not.
+    
+    Updates #48326
+    
+    Change-Id: I01f0eebe5841e808b6799647d2e5fe3aa45cd2e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391614
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ .../script/test_fuzz_minimize_dirty_cov.txt        | 84 ++++++++++++++++++++++
+ src/internal/fuzz/worker.go                        | 13 +++-
+ 2 files changed, 96 insertions(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 1b9374450bbf3372f18915deb58ed11a072eef4a
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Wed Sep 12 12:22:42 2018 -0600
+
+    runtime: regression test for semasleep indefinite hang
+    
+    A regression test in which: for a program that invokes semasleep,
+    we send non-terminal signals such as SIGIO.
+    Since the signal wakes up pthread_cond_timedwait_relative_np,
+    after CL 133655, we should only re-spin for the amount of
+    time left, instead of re-spinning with the original duration
+    which would cause an indefinite spin.
+    
+    Updates #27520
+    
+    Change-Id: I744a6d04cf8923bc4e13649446aff5e42b7de5d8
+    Reviewed-on: https://go-review.googlesource.com/135015
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/semasleep_test.go | 88 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 88 insertions(+)

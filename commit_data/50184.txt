@@ -1,0 +1,20 @@
+commit 7d574466a9bd001feea4717933adb6ab78acd05f
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Tue Aug 9 23:08:57 2022 +0800
+
+    cmd/internal/obj/loong64: add ROTR, ROTRV instructions support
+    
+    Reference: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    
+    Change-Id: I29adb84eb70bffd963c79ed6957a5197896fb2bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422316
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |  8 ++++++++
+ src/cmd/internal/obj/loong64/a.out.go           |  2 ++
+ src/cmd/internal/obj/loong64/anames.go          |  2 ++
+ src/cmd/internal/obj/loong64/asm.go             | 14 +++++++++++++-
+ 4 files changed, 25 insertions(+), 1 deletion(-)

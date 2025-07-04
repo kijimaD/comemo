@@ -1,0 +1,31 @@
+commit 73f329f47236c6952235db395802810156a7bd65
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 21 11:04:42 2015 -0700
+
+    runtime, syscall: add calls to msan functions
+    
+    Add explicit memory sanitizer instrumentation to the runtime and syscall
+    packages.  The compiler does not instrument the runtime package.  It
+    does instrument the syscall package, but we need to add a couple of
+    cases that it can't see.
+    
+    Change-Id: I2d66073f713fe67e33a6720460d2bb8f72f31394
+    Reviewed-on: https://go-review.googlesource.com/16164
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/chan.go            |  3 +++
+ src/runtime/hashmap.go         | 13 +++++++++++++
+ src/runtime/iface.go           |  6 ++++++
+ src/runtime/malloc.go          |  3 +++
+ src/runtime/mbarrier.go        |  4 ++++
+ src/runtime/mgcsweep.go        |  3 +++
+ src/runtime/proc.go            |  3 +++
+ src/runtime/select.go          | 19 +++++++++++++++++++
+ src/runtime/slice.go           | 10 ++++++++++
+ src/runtime/stack.go           |  6 ++++++
+ src/runtime/string.go          |  9 +++++++++
+ src/syscall/msan.go            | 22 ++++++++++++++++++++++
+ src/syscall/msan0.go           | 19 +++++++++++++++++++
+ src/syscall/syscall_unix.go    |  6 ++++++
+ src/syscall/syscall_windows.go |  6 ++++++
+ 15 files changed, 132 insertions(+)

@@ -1,0 +1,24 @@
+commit 92221fe8bc73ec6d487bd479f9739fdddb6fcada
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 14 17:09:54 2016 -0700
+
+    math/big: slightly faster float->decimal conversion
+    
+    Inspired by Alberto Donizetti's observations in
+    https://go-review.googlesource.com/#/c/30099/.
+    
+    name                 old time/op  new time/op  delta
+    DecimalConversion-8   138µs ± 1%   136µs ± 2%  -1.85%  (p=0.000 n=10+10)
+    
+    10 runs each, measured on a Mac Mini, 2.3 GHz Intel Core i7.
+    
+    Performance improvements varied between -1.25% to -4.4%; -1.85% is
+    about in the middle of the observed improvement. The generated code
+    is slightly shorter in the inner loops of the conversion code.
+    
+    Change-Id: I10fb3b2843da527691c39ad5e5e5bd37ed63e2fa
+    Reviewed-on: https://go-review.googlesource.com/31250
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/decimal.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit d7ba1d276be37989cfbcf3dc17a17e2ee9c5382d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 8 09:52:37 2021 -0700
+
+    go/types: rename rparamMap to recvTParamMap to match types2
+    
+    See also CL 354693.
+    
+    Change-Id: Id7579c5f7d486652a5b53b29663a6573a493121f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354694
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/check.go     | 10 +++++-----
+ src/go/types/signature.go |  8 ++++----
+ src/go/types/typexpr.go   |  4 ++--
+ 3 files changed, 11 insertions(+), 11 deletions(-)

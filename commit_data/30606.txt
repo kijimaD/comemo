@@ -1,0 +1,25 @@
+commit 4210930a2861c8938baabaa5b8097e8b28d92934
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 7 18:50:52 2017 -0500
+
+    runtime/cgo: return correct sa_flags
+    
+    A typo in the previous revision ("act" instead of "oldact") caused us
+    to return the sa_flags from the new (or zeroed) sigaction rather than
+    the old one.
+    
+    In the presence of a signal handler registered before
+    runtime.libpreinit, this caused setsigstack to erroneously zero out
+    important sa_flags (such as SA_SIGINFO) in its attempt to re-register
+    the existing handler with SA_ONSTACK.
+    
+    Change-Id: I3cd5152a38ec0d44ae611f183bc1651d65b8a115
+    Reviewed-on: https://go-review.googlesource.com/37852
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testsanitizers/test.bash      | 23 ++++++++++++-
+ misc/cgo/testsanitizers/tsan_shared.go | 63 ++++++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_sigaction.c        |  4 +--
+ 3 files changed, 87 insertions(+), 3 deletions(-)

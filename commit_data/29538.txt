@@ -1,0 +1,20 @@
+commit 9be14c4058287f88dc927ea847e3d6d57ff4047b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 15 03:31:47 2016 +0000
+
+    net: add test that TCP Close unblocks blocked Reads
+    
+    I guess this was fixed at some point. Remove a skipped test in
+    net/http and add an explicit test in net.
+    
+    Fixes #17695
+    
+    Change-Id: Idb9f3e236b726bb45098474b830c95c1fce57529
+    Reviewed-on: https://go-review.googlesource.com/33242
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/serve_test.go |  3 ---
+ src/net/net_test.go        | 19 +++++++++++++++++++
+ 2 files changed, 19 insertions(+), 3 deletions(-)

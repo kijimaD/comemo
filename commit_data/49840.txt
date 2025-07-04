@@ -1,0 +1,25 @@
+commit 72a857a2802a60ae99000efa2cf6e629d75deb4c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 11 10:20:09 2022 -0700
+
+    test: relax fixedbugs/issue20250.go expectations
+    
+    With GOEXPERIMENT=unified, the order variables are printed in "live at
+    entry to f.func1" is sensitive to whether regabi is enabled for some
+    reason. The order shouldn't matter to correctness, but it is odd.
+    
+    For now, this CL just relaxes the test expectation order to unblock
+    enabling GOEXPERIMENT=unified by default. I've filed #54402 to
+    investigate further to confirm this a concern.
+    
+    Updates #54402.
+    
+    Change-Id: Iddfbb12c6cf7cc17b2aec8102b33761abd5f93ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422975
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ test/fixedbugs/issue20250.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

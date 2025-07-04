@@ -1,0 +1,16 @@
+commit 7aabf2d9b1bef5bc1c5c71710a79fcab2b57166a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 13 10:16:46 2009 -0700
+
+    Add os.Link, os.Symlink, os.Readlink.
+    
+    R=r,rsc
+    DELTA=161  (161 added, 0 deleted, 0 changed)
+    OCL=28745
+    CL=28747
+
+ src/lib/os/file.go             | 27 ++++++++++++
+ src/lib/os/os_test.go          | 94 ++++++++++++++++++++++++++++++++++++++++++
+ src/lib/syscall/file_darwin.go | 20 +++++++++
+ src/lib/syscall/file_linux.go  | 20 +++++++++
+ 4 files changed, 161 insertions(+)

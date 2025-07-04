@@ -1,0 +1,17 @@
+commit d7172084d09b845a5decdbe97ee39f02cfe1cd03
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jan 31 19:41:38 2012 +0100
+
+    cmd/go: fix handling of gccgo standard library.
+    
+    The previous logic was mainly non-working. It only needs to
+    ensure that the go tool doesn't try to build the standard
+    library with gccgo.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5580051
+
+ src/cmd/go/build.go | 6 ++++++
+ src/cmd/go/pkg.go   | 8 --------
+ 2 files changed, 6 insertions(+), 8 deletions(-)

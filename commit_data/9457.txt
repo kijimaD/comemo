@@ -1,0 +1,18 @@
+commit 33e9d24ad9007d0dd4eec90b1c755aac7d1a9cbb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 23 13:13:27 2011 -0400
+
+    runtime: fix void warnings
+    
+    Add -V flag to 6c command line to keep them fixed.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4930046
+
+ src/pkg/runtime/Makefile  |  2 +-
+ src/pkg/runtime/chan.c    |  2 +-
+ src/pkg/runtime/proc.c    |  2 +-
+ src/pkg/runtime/runtime.c | 28 ++++++++++++++--------------
+ src/pkg/runtime/runtime.h |  4 ++--
+ 5 files changed, 19 insertions(+), 19 deletions(-)

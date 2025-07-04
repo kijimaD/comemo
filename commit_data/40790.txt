@@ -1,0 +1,22 @@
+commit 49e05d4f91771fc6f090238a6a8c5f1796b01afe
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 13 12:25:09 2019 -0500
+
+    misc/cgo/testgodefs: convert test from bash to Go
+    
+    The bash version of the test wrote intermediate files to its testdata directory.
+    
+    Updates #28387
+    Updates #30316
+    Fixes #35536
+    
+    Change-Id: Ib81b547d3c43e90df713a2172c8f399fefb53c68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206901
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testgodefs/test.bash          | 24 ----------
+ misc/cgo/testgodefs/testgodefs_test.go | 83 ++++++++++++++++++++++++++++++++++
+ src/cmd/dist/test.go                   |  6 +--
+ 3 files changed, 85 insertions(+), 28 deletions(-)

@@ -1,0 +1,23 @@
+commit 3aad2d0765b9f652e1964a8261d6ef0035d9535f
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Apr 22 16:16:30 2024 -0500
+
+    cmd/internal/obj/ppc64: fix incorrect int to int64 conversion when checking MOVD opcodes
+    
+    A type conversion from int to int64 was done in the wrong place causing
+    some MOVD $const, Rx operations to be incorrectly transformed on 32 bit
+    hosts cross-compiling for ppc64x.
+    
+    Fixes #66955
+    
+    Change-Id: I023ba267a8dac6d6bd22f8146c0d9d2d473bc5c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580796
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 4 ++++
+ src/cmd/internal/obj/ppc64/obj9.go        | 4 ++--
+ 2 files changed, 6 insertions(+), 2 deletions(-)

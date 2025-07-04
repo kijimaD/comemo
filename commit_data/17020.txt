@@ -1,0 +1,16 @@
+commit af8426eebe6c1681f4a3e7a6619f9e3abe9704e8
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 5 10:53:46 2013 +1000
+
+    time: match month and day names only when not followed immediately by a lower-case letter
+    Avoids seeing "Janet" as "Januaryet".
+    
+    Fixes #6020.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/12448044
+
+ src/pkg/time/format.go    | 18 ++++++++++++++++--
+ src/pkg/time/time_test.go |  4 ++++
+ 2 files changed, 20 insertions(+), 2 deletions(-)

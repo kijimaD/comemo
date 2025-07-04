@@ -1,0 +1,22 @@
+commit 2cc347382f4df3fb40d8d81ec9331f0748b1c394
+Author: Jordan Liggitt <liggitt@google.com>
+Date:   Thu Mar 28 23:37:54 2019 -0400
+
+    net/http/httputil: make ReverseProxy flush headers on FlushInterval
+    
+    A regression was introduced in CL 137335 (5440bfc) that caused FlushInterval
+    to not be honored until the first Write() call was encountered. This change
+    starts the flush timer as part of setting up the maxLatencyWriter.
+    
+    Fixes #31125
+    Fixes #31126
+    
+    Change-Id: I75325bd926652922219bd1457b2b00ac6d0d41b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170066
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      |  5 ++++
+ src/net/http/httputil/reverseproxy_test.go | 42 ++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+)

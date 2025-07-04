@@ -1,0 +1,25 @@
+commit 6cf6067d4eb20dfb3d31c0a8ccdbfdf0bf304b72
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 26 12:35:57 2023 -0400
+
+    net/http: add extra synchronization for a Logf call in TestTransportAndServerSharedBodyRace
+    
+    This race was reported in
+    https://build.golang.org/log/6f043170946b665edb85b50804a62db68348c52f.
+    
+    As best as I can tell, it is another instance of #38370. The deferred
+    call to backend.close() ought to be enough to ensure that the t.Logf
+    happens before the end of the test, but in practice it is not, and
+    with enough scheduling delay we can manage to trip the race detector
+    on a call to Logf after the test function has returned.
+    
+    Updates #38370.
+    
+    Change-Id: I5ee45df45c6bfad3239d665df65a138f1c4573a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531195
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/serve_test.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

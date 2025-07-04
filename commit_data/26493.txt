@@ -1,0 +1,17 @@
+commit 44532f1a9defb9cc4f48e74a7fa1ffd1dfa67022
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Mar 24 01:55:42 2016 +0100
+
+    runtime: fix inconsistency in slice.go
+    
+    Fixes #14938.
+    
+    Additionally some simplifications along the way.
+    
+    Change-Id: I2c5fb7e32dcc6fab68fff36a49cb72e715756abe
+    Reviewed-on: https://go-review.googlesource.com/21046
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/slice.go | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

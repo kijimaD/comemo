@@ -1,0 +1,13 @@
+commit b767556dd751bd99cc57a528df6d9f3ec7df4b18
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Mar 3 19:10:59 2013 +0900
+
+    net: fix windows build
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7429049
+
+ src/pkg/net/protoconn_test.go | 13 +++++++++++++
+ src/pkg/net/unix_test.go      | 13 -------------
+ 2 files changed, 13 insertions(+), 13 deletions(-)

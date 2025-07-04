@@ -1,0 +1,16 @@
+commit 97a7defed437ce80534424cd8584eb97aff0e829
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 25 12:14:38 2012 +1000
+
+    vet: check values for named constants as well as literals.
+    As in:
+            const format = "%s"
+            fmt.Printf(format, "hi")
+    Also fix a couple of bugs by rewriting the routine.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6099057
+
+ src/cmd/vet/print.go | 57 +++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 43 insertions(+), 14 deletions(-)

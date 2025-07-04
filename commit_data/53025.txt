@@ -1,0 +1,29 @@
+commit 4b6a542048be59fae3b01950ff0359de913d1201
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri May 12 10:33:14 2023 -0400
+
+    cmd/compile/internal/pgo: remove node weights from IRNode
+    
+    Actual PGO operation doesn't use these weights at all. They are
+    theoretically used when printing a dot graph for debugging, but that
+    doesn't actually work because these weights are always zero.
+    
+    These fields are initialized by looking for a NodeMap entry with key
+    {CallerName: sym, CalleeName: "", CallSiteOffset: 0}. These entries will
+    never exist, as we never put entries in NodeMap without CalleeName.
+    
+    Since they aren't really used and don't work, just remove them entirely,
+    which offers nice simplification.
+    
+    This leaves IRNode with just a single field. I keep the type around as a
+    future CL will make the *ir.Func optional, allowing nodes with a name
+    but no IR.
+    
+    Change-Id: I1646654cad1d0779ce071042768ffad2a7e6ff49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494616
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/pgo/irgraph.go | 98 +++++++++++----------------------
+ 1 file changed, 32 insertions(+), 66 deletions(-)

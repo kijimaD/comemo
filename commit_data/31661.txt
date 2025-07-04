@@ -1,0 +1,14 @@
+commit 4aa5d2eede522567b183f11fd201e5d257fe652a
+Author: Nicholas Maniscalco <nicholas@maniscalco.com>
+Date:   Tue Apr 11 13:27:41 2017 -0700
+
+    time: update docs to clarify goroutine-safety expectations of Time
+    
+    Fixes #19935
+    
+    Change-Id: I28e4cd6924f1b965a429a6a5ebfc4c0f952e8ae6
+    Reviewed-on: https://go-review.googlesource.com/40390
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/time.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

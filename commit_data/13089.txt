@@ -1,0 +1,14 @@
+commit a2004546a9ec3b4c9e60fb916a5ecd94f81f718e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu May 17 18:08:28 2012 +1000
+
+          api: undo go1.txt additions made by 27d0a516b7eb
+    
+    We don't change go1.txt.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6206080
+
+ api/go1.txt | 1 -
+ 1 file changed, 1 deletion(-)

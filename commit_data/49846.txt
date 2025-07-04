@@ -1,0 +1,21 @@
+commit 0293a1f308b805035e50c9c40af29f72389e4b73
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 11 11:56:11 2022 -0400
+
+    runtime: avoid large object stack copy in traceStackTable.dump
+    
+    Following up on the previous CL, this CL removes a unnecessary stack
+    copy of a large object in a range loop. This drops another 64 KiB from
+    (*traceStackTable).dump's stack frame so it is now roughly 80 bytes
+    depending on architecture, which will easily fit on the system stack.
+    
+    For #53979.
+    
+    Change-Id: I16f642f6f1982d0ed0a62371bf2e19379e5870eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422955
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/trace.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

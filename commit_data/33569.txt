@@ -1,0 +1,15 @@
+commit 4f6035ae13eba54051e5e46eb3c337b162f400ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 14 12:26:50 2017 -0500
+
+    doc/contrib.html: add Go 1.10 to release list
+    
+    Apparently we maintain this list by hand (for example, CL 52351).
+    
+    Change-Id: I0a0b346cf2b7b547729cb1d0fa1642de447f7bba
+    Reviewed-on: https://go-review.googlesource.com/78117
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/contrib.html | 1 +
+ 1 file changed, 1 insertion(+)

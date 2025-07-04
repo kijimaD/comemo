@@ -1,0 +1,14 @@
+commit b40421f32c37064f5eb9b00f4f5aebe7243be6cd
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 7 16:43:11 2015 +1000
+
+    cmd/dist: add misc/cgo/test with -linkmode=auto
+    
+    Change-Id: I5939524f75f8fbbd67bd54b7c9e4b8c162337e9d
+    Reviewed-on: https://go-review.googlesource.com/8525
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

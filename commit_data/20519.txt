@@ -1,0 +1,18 @@
+commit 43c4287b25da53b2e8cb0de64d40689c56eb42bd
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 24 16:53:34 2014 -0400
+
+    cmd/gc: fix import of package with var func returning _
+    
+    Fixes #8280.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews, r
+    https://golang.org/cl/146240043
+
+ src/cmd/gc/fmt.c                  | 15 +++++----------
+ test/fixedbugs/issue8280.dir/a.go |  3 +++
+ test/fixedbugs/issue8280.dir/b.go |  5 +++++
+ test/fixedbugs/issue8280.go       |  9 +++++++++
+ 4 files changed, 22 insertions(+), 10 deletions(-)

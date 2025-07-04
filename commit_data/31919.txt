@@ -1,0 +1,16 @@
+commit 0d33a896d9eeacd96035c3b22f3698c8f51a09aa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 26 19:43:56 2017 +0000
+
+    doc: add FMA mention to Go 1.9 release notes
+    
+    Fixes #20795
+    Updates #17895
+    Updates #20587
+    
+    Change-Id: Iea375f3a6ffe3f51e3ffdae1fb3fd628b6b3316c
+    Reviewed-on: https://go-review.googlesource.com/46717
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.9.html | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)

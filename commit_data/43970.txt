@@ -1,0 +1,15 @@
+commit ae9b442df2436b3d65ef765572681bf9aacdfbbb
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 8 14:35:41 2020 -0800
+
+    doc: add description of new framepointer vet check
+    
+    Update #43014
+    
+    Change-Id: I5fbfaa16e6acb8859fd0b1188f532f5a225f6349
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276373
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

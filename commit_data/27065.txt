@@ -1,0 +1,13 @@
+commit 70184087239482331a9e4a66627e4458ffe48933
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 21 15:55:50 2016 -0700
+
+    flag: update test case (fix build)
+    
+    Change-Id: I2275dc703be4fda3feedf76483148eab853b43b8
+    Reviewed-on: https://go-review.googlesource.com/22360
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/flag/flag_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

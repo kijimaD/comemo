@@ -1,0 +1,12 @@
+commit c8d7d0d9f117cfd3d7e13f4061e8a69b8d5afbf5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 23 11:21:19 2015 -0800
+
+    go/printer: update golden file (fix build)
+    
+    Change-Id: I897a09a1c54f6d68c5dc68e189cb25dc72bb7590
+    Reviewed-on: https://go-review.googlesource.com/3240
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/printer/testdata/declarations.golden | 3 +++
+ 1 file changed, 3 insertions(+)

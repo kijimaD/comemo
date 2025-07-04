@@ -1,0 +1,27 @@
+commit 693859542e71fdd9186fff759bf121e9df197fed
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Mar 31 22:06:30 2021 +0000
+
+    runtime: rename gcpercent, readgogc, and heapminimum to match Go style
+    
+    Generated with:
+    
+    rf 'mv gcpercent gcPercent'
+    rf 'mv readgogc readGOGC'
+    rf 'mv heapminimum heapMinimum'
+    
+    After this, comments referencing these symbols were updated via a simple
+    sed command.
+    
+    For #44167.
+    
+    Change-Id: I6bb01597c2130686c01f967d0f106b06860ad2db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306597
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgc.go      | 10 +++++-----
+ src/runtime/mgcpacer.go | 52 ++++++++++++++++++++++++-------------------------
+ 2 files changed, 31 insertions(+), 31 deletions(-)

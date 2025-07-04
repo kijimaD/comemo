@@ -1,0 +1,29 @@
+commit 2e196b15b94e48009369aae25299a59cbc7d45f4
+Author: Klaus Post <klauspost@gmail.com>
+Date:   Sat Oct 22 18:50:02 2016 +0200
+
+    compress/flate: level 1 (best speed) match across blocks
+    
+    This change makes deflate level 1 (best speed) match across
+    block boundaries. This comes at a small speed penalty,
+    but improves compression on almost all output.
+    
+    Sample numbers on various content types:
+    
+    enwik9:            391052014 ->  382578469 bytes, 77.59 -> 74.28 MB/s
+    adresser.001:       57269799 ->   47756095 bytes, 287.84 -> 357.86 MB/s
+    10gb:             5233055166 -> 5198328382 bytes, 105.85 -> 96.99 MB/s
+    rawstudio-mint14: 3972329211 -> 3927423364 bytes, 100.07 -> 94.22 MB/s
+    sites:             165556800 ->  163178702 bytes, 72.31 -> 70.15 MB/s
+    objectfiles:       115962472 ->  111649524 bytes, 132.60 -> 128.05 MB/s
+    sharnd.out:        200015283 ->  200015283 bytes, 221.50 -> 218.83 MB/s
+    
+    Change-Id: I62a139e5c06976e803439a4268acede5139b8cfc
+    Reviewed-on: https://go-review.googlesource.com/31640
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/compress/flate/deflate.go      |  12 ++-
+ src/compress/flate/deflate_test.go | 117 +++++++++++++++++++++++
+ src/compress/flate/deflatefast.go  | 186 ++++++++++++++++++++++++++++---------
+ 3 files changed, 267 insertions(+), 48 deletions(-)

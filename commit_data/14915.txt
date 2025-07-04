@@ -1,0 +1,12 @@
+commit e985d5464b45a116825603b0f72d07bbc7ae5ec5
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Jan 19 04:57:31 2013 +0800
+
+    time: add note about Parse()'s choice of default year
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7101046
+
+ src/pkg/time/format.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

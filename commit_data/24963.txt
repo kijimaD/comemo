@@ -1,0 +1,14 @@
+commit 431c23284243477cd587ee47d7e2c4a9ee8ec5e9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 18 13:09:14 2015 -0800
+
+    cmd/compile/internal/gc: address TODO (better comment)
+    
+    For #13243.
+    
+    Change-Id: I544a8c44971fad126103157575e983ab528309bf
+    Reviewed-on: https://go-review.googlesource.com/17044
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

@@ -1,0 +1,15 @@
+commit 882f9d6d7a74a9701b2c07b210b5555c5caefed3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 11 11:22:47 2011 -0800
+
+    ld: Permit an Mach-O symbol to be exported in the dynamic symbol table.
+    
+    Submitting TBR to fix Darwin build.
+    
+    R=rsc
+    TBR=rsc
+    CC=golang-dev
+    https://golang.org/cl/3912043
+
+ src/cmd/ld/ldmacho.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

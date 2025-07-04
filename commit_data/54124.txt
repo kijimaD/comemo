@@ -1,0 +1,19 @@
+commit e7a1eb066bf6b2e349eeb875ec46561c6928a284
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 7 17:06:23 2023 -0400
+
+    cmd/compile: move racewalk comment to walk/race.go
+    
+    This comment got left behind in some refactoring and now refers to
+    code "below" that is no longer below. Move it to be with the code it's
+    referring to.
+    
+    Change-Id: I7f7bf0cf8b22c1f6e05ff12b8be71d18fb3359d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521177
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Bypass: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/base/base.go | 20 --------------------
+ src/cmd/compile/internal/walk/race.go | 20 ++++++++++++++++++++
+ 2 files changed, 20 insertions(+), 20 deletions(-)

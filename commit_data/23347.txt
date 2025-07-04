@@ -1,0 +1,18 @@
+commit 48d865ace1cf3b95bfa9e9525ee51bb18738b10c
+Author: Michael Gehring <mg@ebfe.org>
+Date:   Sat Jun 13 11:38:34 2015 +0200
+
+    archive/zip: fix returned error on truncated data descriptor
+    
+    Return io.ErrUnexpectedEOF instead of io.EOF when reading a truncated
+    data descriptor.
+    
+    Fixes #11146.
+    
+    Change-Id: Ia1905955165fd38af3c557d1fa1703ed8be893e2
+    Reviewed-on: https://go-review.googlesource.com/11070
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/archive/zip/reader.go      |  6 +++++-
+ src/archive/zip/reader_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

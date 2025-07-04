@@ -1,0 +1,24 @@
+commit 217ed955887bd59780313bb468862a697b75decd
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Nov 17 10:06:50 2022 -0800
+
+    path/filepath: detect Windows CONIN$ and CONOUT$ paths in IsLocal
+    
+    CreateFile creates a handle to the console input or screen buffer
+    when opening a file named CONIN$ or CONOUT$:
+    
+    https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea#consoles
+    
+    Detect these paths as non-local.
+    
+    For #56219.
+    
+    Change-Id: Ib09e76a110d6ec09aef8038074b9bcbae09d00d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451657
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/path/filepath/path_test.go    |  5 +++++
+ src/path/filepath/path_windows.go | 13 ++++++++++++-
+ 2 files changed, 17 insertions(+), 1 deletion(-)

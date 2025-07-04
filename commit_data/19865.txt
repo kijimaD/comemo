@@ -1,0 +1,22 @@
+commit 668a55a882c97a520662843afe6871fc84be4690
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 1 14:38:56 2014 -0700
+
+    runtime: move constants from map header to map type
+    
+    A good cleanup anyway, and it makes some room for an additional
+    field needed for issue 8412.
+    
+    Update #8412
+    
+    LGTM=iant
+    R=iant, khr
+    CC=golang-codereviews
+    https://golang.org/cl/112700043
+
+ src/cmd/gc/reflect.c            |  22 +++--
+ src/pkg/reflect/type.go         |  32 ++++++--
+ src/pkg/runtime/hashmap.go      | 172 ++++++++++++++++++----------------------
+ src/pkg/runtime/hashmap_fast.go |  88 ++++++++++----------
+ src/pkg/runtime/type.h          |   9 ++-
+ 5 files changed, 172 insertions(+), 151 deletions(-)

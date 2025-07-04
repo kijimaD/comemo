@@ -1,0 +1,12 @@
+commit 0ca5f269d4cb04cccd0012cc6fc0cb52b0002728
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 16:28:18 2016 -0700
+
+    cmd/compile: remove fmt.go printer again, now that it's unused
+    
+    Change-Id: I9a6e5b9cbcfc264c61fd39ed65330ca737707e1f
+    Reviewed-on: https://go-review.googlesource.com/28340
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 58 ++------------------------------------
+ 1 file changed, 2 insertions(+), 56 deletions(-)

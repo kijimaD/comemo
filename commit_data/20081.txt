@@ -1,0 +1,16 @@
+commit f4485784f05908051e7ec1732a27f53241f48fc4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 22 21:27:25 2014 +0400
+
+    runtime: please vet
+    The current code is correct, but vet does not understand it:
+    asm_amd64.s:963: [amd64] invalid MOVL of ret+0(FP); int64 is 8-byte value
+    asm_amd64.s:964: [amd64] invalid offset ret+4(FP); expected ret+0(FP)
+    
+    LGTM=minux
+    R=golang-codereviews, minux
+    CC=golang-codereviews
+    https://golang.org/cl/125200044
+
+ src/pkg/runtime/asm_amd64.s | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

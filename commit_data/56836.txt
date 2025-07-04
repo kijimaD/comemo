@@ -1,0 +1,24 @@
+commit e8ee1dc4f9e2632ba1018610d1a1187743ae397f
+Author: Davis Goodin <dagood@microsoft.com>
+Date:   Fri Jun 21 16:44:44 2024 -0700
+
+    cmd/link/internal/ld: handle "\r" in MinGW "--print-prog-name" output
+    
+    Fix the "gcc --print-prog-name" output parser to handle "\r\n", not only
+    "\n". The MinGW compiler on Windows uses "\r\n" as line endings, causing
+    the existing parser to create paths like
+    ".../x86_64-w64-mingw32/bin/ar.exe\r", which is not correct. By trimming
+    the "\r\n" cutset, both types of line endings are handled correctly.
+    
+    Fixes #68121
+    
+    Change-Id: I04b8bf9b6a5b29a1e59a6aa07fa4faa4c5bdeee6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593916
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 5125a967100643cebc4501e3d626b44b5ab15747
+Author: Johnny Luo <johnnyluo1980@gmail.com>
+Date:   Thu Jul 20 17:20:46 2017 +1000
+
+    os: remove duplicate check from windows os.Stat
+    
+    Fixes #21075
+    
+    Change-Id: Idfe5002dfe17943844d9427e27f82ce894b92e80
+    Reviewed-on: https://go-review.googlesource.com/50270
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/stat_windows.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

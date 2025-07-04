@@ -1,0 +1,38 @@
+commit da6f9a54edb85365bb345b057cdc26e2527401c8
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Tue Sep 28 06:18:30 2021 -0700
+
+    sort: use a different codegen strategy
+    
+    The existing codegen strategy in sort.go relied on parsing the sort.go source
+    with go/ast and a combination of an AST rewrite + code text rewrite with regexes
+    to generate zfuncversion -- the same sort functionality with a different variant
+    of data.
+    
+    In preparation for implementing #47619, we need a more robust codegen
+    strategy. To generate variants required for the generic sort functions
+    in the slices package, we'd need significanly more complicated AST
+    rewrites, which would make genzfunc.go much heavier.
+    
+    Instead, redo the codegen strategy to use text/template instead of AST rewrites.
+    gen_sort_variants.go now contains the code for the underlying sort functions,
+    and generates multiple versions of them based on Variant configuration structs.
+    With this approach, adding new variants to generate generic sort functions for
+    the slices package becomes trivial.
+    
+    See the discussion in #47619 for more details on the design decisions.
+    
+    Change-Id: I8af784c41b1dc8ef92aaf6321359e8faa5fe106c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353069
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
+
+ src/sort/gen_sort_variants.go | 526 ++++++++++++++++++++++++++++++++++++++++++
+ src/sort/genzfunc.go          | 127 ----------
+ src/sort/sort.go              | 337 +--------------------------
+ src/sort/zfuncversion.go      | 265 ---------------------
+ src/sort/zsortfunc.go         | 342 +++++++++++++++++++++++++++
+ src/sort/zsortinterface.go    | 342 +++++++++++++++++++++++++++
+ 6 files changed, 1211 insertions(+), 728 deletions(-)

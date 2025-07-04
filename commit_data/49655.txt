@@ -1,0 +1,23 @@
+commit df38614bd7f233f36a3f5ac07f0ec9029043243f
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jul 19 15:35:51 2022 -0700
+
+    test: use go tool from tree, not path
+    
+    Some of our tests do exec.Command("go", "tool", "compile", ...) or
+    similar. That "go" is selected from PATH. When run.go is started
+    from the command line (but not from all.bash), the first "go" is whatever
+    happens to be first in the user's path (some random older version than
+    tip). We really want all these tests to use the "go" tool from the
+    source tree under test. Add GOROOT/bin to the front of the path to
+    ensure that the tools we use come from the source tree under test.
+    
+    Change-Id: I609261a4add8cd5cb228316752d52b5499aec963
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418474
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ test/run.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

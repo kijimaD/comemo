@@ -1,0 +1,17 @@
+commit f6f02a69aeb37ad193b107375be184bbf8999866
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Aug 31 09:29:38 2013 -0700
+
+    syscall: z* files for dragonfly/386
+    
+    Add generated z* files for dragonfly/386.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13303046
+
+ src/pkg/syscall/zerrors_dragonfly_386.go  | 1523 +++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_dragonfly_386.go | 1303 ++++++++++++++++++++++++
+ src/pkg/syscall/zsysnum_dragonfly_386.go  |  303 ++++++
+ src/pkg/syscall/ztypes_dragonfly_386.go   |  429 ++++++++
+ 4 files changed, 3558 insertions(+)

@@ -1,0 +1,12 @@
+commit 35d342b4fa749f7a3d45527580d3aa0c2a42e1f4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 2 16:07:18 2016 +0000
+
+    net/http: remove some TODOs
+    
+    Change-Id: Iaf200ba9a308bc8f511eec4a70dbeb014bf5fdc3
+    Reviewed-on: https://go-review.googlesource.com/22690
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/transport.go | 2 --
+ 1 file changed, 2 deletions(-)

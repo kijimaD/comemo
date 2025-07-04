@@ -1,0 +1,14 @@
+commit 60e4d5668e80457023a3432752b2889fb73b89bf
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Feb 14 11:24:41 2012 -0500
+
+    cmd/vet: give warning for construct 'Println(os.Stderr, ...)'
+            also fixes this bug in net/http/httptest.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5654083
+
+ src/cmd/vet/print.go                | 11 +++++++++++
+ src/pkg/net/http/httptest/server.go |  2 +-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

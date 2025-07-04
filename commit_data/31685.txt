@@ -1,0 +1,16 @@
+commit d10549fb5763d33667ab02c0713c22c14f90078c
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue May 30 12:11:04 2017 +0200
+
+    testing: clarify that subtests are run as goroutines
+    
+    Fixes #20394
+    
+    Change-Id: Iabb2a53fd1ddb783e7fb5b60ced8482c2e2569c4
+    Reviewed-on: https://go-review.googlesource.com/44377
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/testing.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,19 @@
+commit 6af887ec0303ade5ef5fde72fba5c28f72907685
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 2 09:16:31 2011 -0700
+
+    go spec: restricted expressions may still be parenthesized
+    
+    No language change.
+    
+    - added a few examples with parentheses
+    - added a corresponding sentence to assignments
+      (this explicitly permits: (_) = 0, currently allowed by 6g,
+      gofmt, but marked as an error by gccgo).
+    
+    R=rsc, r, iant
+    CC=golang-dev
+    https://golang.org/cl/4446071
+
+ doc/go_spec.html | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

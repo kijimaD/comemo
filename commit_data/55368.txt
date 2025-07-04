@@ -1,0 +1,61 @@
+commit b2dbfbfc2315557815e1d5de12f28ed57f60958a
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Dec 27 16:05:19 2023 +0100
+
+    crypto/rsa,crypto/internal/bigmod: improve verify/encrypt performance
+    
+    Most libraries don't consider N secret, but it's arguably useful for
+    privacy applications. However, E should generally be fixed, and there is
+    a lot of performance to be gained by using variable-time exponentiation.
+    
+    The threshold trick is from BoringSSL.
+    
+    goos: linux
+    goarch: amd64
+    pkg: crypto/rsa
+    cpu: Intel(R) Core(TM) i5-7400 CPU @ 3.00GHz
+                           │     old      │                 new                 │
+                           │    sec/op    │   sec/op     vs base                │
+    DecryptPKCS1v15/2048-4    1.398m ± 0%   1.396m ± 4%        ~ (p=0.853 n=10)
+    DecryptPKCS1v15/3072-4    3.640m ± 0%   3.652m ± 1%        ~ (p=0.063 n=10)
+    DecryptPKCS1v15/4096-4    7.756m ± 0%   7.764m ± 0%        ~ (p=0.853 n=10)
+    EncryptPKCS1v15/2048-4   175.50µ ± 0%   39.37µ ± 0%  -77.57% (p=0.000 n=10)
+    DecryptOAEP/2048-4        1.375m ± 0%   1.371m ± 1%        ~ (p=0.089 n=10)
+    EncryptOAEP/2048-4       177.64µ ± 0%   41.17µ ± 1%  -76.82% (p=0.000 n=10)
+    SignPKCS1v15/2048-4       1.419m ± 0%   1.393m ± 1%   -1.84% (p=0.000 n=10)
+    VerifyPKCS1v15/2048-4    173.70µ ± 1%   38.28µ ± 2%  -77.96% (p=0.000 n=10)
+    SignPSS/2048-4            1.437m ± 1%   1.413m ± 0%   -1.64% (p=0.000 n=10)
+    VerifyPSS/2048-4         176.83µ ± 1%   43.08µ ± 5%  -75.64% (p=0.000 n=10)
+    
+    This finally makes everything in crypto/rsa faster than it was in Go 1.19.
+    
+    goos: linux
+    goarch: amd64
+    pkg: crypto/rsa
+    cpu: Intel(R) Core(TM) i5-7400 CPU @ 3.00GHz
+                           │ go1.19.txt  │              go1.20.txt               │              go1.21.txt               │               new.txt               │
+                           │   sec/op    │    sec/op     vs base                 │    sec/op     vs base                 │   sec/op     vs base                │
+    DecryptPKCS1v15/2048-4   1.458m ± 0%    1.597m ± 1%    +9.50% (p=0.000 n=10)    1.395m ± 1%    -4.30% (p=0.000 n=10)   1.396m ± 4%   -4.25% (p=0.002 n=10)
+    DecryptPKCS1v15/3072-4   4.023m ± 1%    5.332m ± 1%   +32.53% (p=0.000 n=10)    3.649m ± 1%    -9.30% (p=0.000 n=10)   3.652m ± 1%   -9.23% (p=0.000 n=10)
+    DecryptPKCS1v15/4096-4   8.710m ± 1%   11.937m ± 1%   +37.05% (p=0.000 n=10)    7.564m ± 1%   -13.16% (p=0.000 n=10)   7.764m ± 0%  -10.86% (p=0.000 n=10)
+    EncryptPKCS1v15/2048-4   51.79µ ± 0%   267.68µ ± 0%  +416.90% (p=0.000 n=10)   176.42µ ± 0%  +240.67% (p=0.000 n=10)   39.37µ ± 0%  -23.98% (p=0.000 n=10)
+    DecryptOAEP/2048-4       1.461m ± 0%    1.613m ± 1%   +10.37% (p=0.000 n=10)    1.415m ± 0%    -3.13% (p=0.000 n=10)   1.371m ± 1%   -6.18% (p=0.000 n=10)
+    EncryptOAEP/2048-4       54.24µ ± 0%   269.19µ ± 0%  +396.28% (p=0.000 n=10)   177.31µ ± 0%  +226.89% (p=0.000 n=10)   41.17µ ± 1%  -24.10% (p=0.000 n=10)
+    SignPKCS1v15/2048-4      1.510m ± 0%    1.705m ± 0%   +12.93% (p=0.000 n=10)    1.423m ± 1%    -5.78% (p=0.000 n=10)   1.393m ± 1%   -7.76% (p=0.000 n=10)
+    VerifyPKCS1v15/2048-4    50.87µ ± 0%   266.41µ ± 1%  +423.71% (p=0.000 n=10)   174.38µ ± 0%  +242.79% (p=0.000 n=10)   38.28µ ± 2%  -24.75% (p=0.000 n=10)
+    SignPSS/2048-4           1.513m ± 1%    1.709m ± 0%   +12.97% (p=0.000 n=10)    1.461m ± 0%    -3.42% (p=0.000 n=10)   1.413m ± 0%   -6.58% (p=0.000 n=10)
+    VerifyPSS/2048-4         53.45µ ± 1%   268.56µ ± 0%  +402.48% (p=0.000 n=10)   177.29µ ± 0%  +231.72% (p=0.000 n=10)   43.08µ ± 5%  -19.39% (p=0.000 n=10)
+    geomean                  514.6µ         1.094m       +112.65%                   801.6µ        +55.77%                  442.1µ       -14.08%
+    
+    Fixes #63516
+    
+    Change-Id: If40e596a2e4b3ab7a202ff34591cf9cffecfcc1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/552935
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/internal/bigmod/nat.go      | 75 +++++++++++++++++++++++-----------
+ src/crypto/internal/bigmod/nat_test.go |  2 +-
+ src/crypto/rsa/rsa.go                  | 12 +++---
+ 3 files changed, 59 insertions(+), 30 deletions(-)

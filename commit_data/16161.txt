@@ -1,0 +1,12 @@
+commit 88f9ab8926dc3bbd55ab37e053a780985a75e472
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 11 12:46:23 2013 -0700
+
+    encoding/json: documentation regarding anonymous fields.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/8545046
+
+ src/pkg/encoding/json/encode.go | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)

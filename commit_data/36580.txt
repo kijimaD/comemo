@@ -1,0 +1,31 @@
+commit 9c833831b2bdaa465349194797cf3894cb85f9c4
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Tue Apr 24 13:05:10 2018 +0200
+
+    cmd/link: move dwarf part of DWARF generation before type name mangling
+    
+    Splits part of dwarfgeneratedebugsyms into a new function,
+    dwarfGenerateDebugInfo which is called between deadcode elimination
+    and type name mangling.
+    This function takes care of collecting and processing the DIEs for
+    all functions and package-level variables and also generates DIEs
+    for all types used in the program.
+    
+    Fixes #23733
+    
+    Change-Id: I75ef0608fbed2dffc3be7a477f1b03e7e740ec61
+    Reviewed-on: https://go-review.googlesource.com/111237
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ misc/cgo/testplugin/src/checkdwarf/main.go | 106 ++++++++++
+ misc/cgo/testplugin/test.bash              |   4 +
+ src/cmd/link/internal/ld/data.go           |   2 +-
+ src/cmd/link/internal/ld/dwarf.go          | 320 ++++++++++++++---------------
+ src/cmd/link/internal/ld/lib.go            |   1 -
+ src/cmd/link/internal/ld/link.go           |   3 +
+ src/cmd/link/internal/ld/main.go           |   1 +
+ src/cmd/link/internal/objfile/objfile.go   |   2 +
+ src/cmd/link/internal/sym/symbol.go        |   1 +
+ 9 files changed, 276 insertions(+), 164 deletions(-)

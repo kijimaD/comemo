@@ -1,0 +1,12 @@
+commit 96ad9adef39662a800213bd32f38b1b6caf82b4d
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Jul 30 10:35:07 2010 +0300
+
+    arm: add gdb support to android launcher script
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1742050
+
+ misc/arm/a | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)

@@ -1,0 +1,14 @@
+commit cd8f8026bb3bf78889e406e3253aad047e49b2e4
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Jun 8 21:19:01 2020 -0400
+
+    doc/go1.15: add remaining release notes for net/http and net/http/httputil
+    
+    Updates #37419
+    
+    Change-Id: I3e37b650475aad4430aacd4655c02e5081ca6f5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237019
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

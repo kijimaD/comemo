@@ -1,0 +1,16 @@
+commit bbf480a8c5debced7439dfc0e7f5a69993d760fb
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Apr 19 21:12:04 2020 -0400
+
+    all.rc: pass arguments to make.rc
+    
+    all.bash passes argument to make.bash. Do the same for all.rc.
+    
+    Change-Id: Ic709c6b32c2986ca5acf16520be4ce7f1c058f5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228891
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/all.rc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

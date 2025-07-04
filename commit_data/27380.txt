@@ -1,0 +1,21 @@
+commit 7ae273923cdd5d00b72c293b57ade8a1e290a4a3
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue May 3 16:44:25 2016 +0200
+
+    cmd/trace: split large traces into parts
+    
+    Trace viewer cannot handle traces larger than 256MB (limit on js string size):
+    https://github.com/catapult-project/catapult/issues/627
+    And even that is problematic (chrome hangs and crashes).
+    Split large traces into 100MB parts. Somewhat clumsy, but I don't see any other
+    solution (other than rewriting trace viewer). At least it works reliably now.
+    
+    Fixes #15482
+    
+    Change-Id: I993b5f43d22072c6f5bd041ab5888ce176f272b2
+    Reviewed-on: https://go-review.googlesource.com/22731
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/trace/main.go  | 44 +++++++++++++++++++-----
+ src/cmd/trace/trace.go | 92 +++++++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 116 insertions(+), 20 deletions(-)

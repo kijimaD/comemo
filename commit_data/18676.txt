@@ -1,0 +1,15 @@
+commit e9ee0bf63c35c810afb1d820b04d4f41b2f4ff8b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 27 09:00:27 2014 -0800
+
+    cmd/gofmt: minor internal cleanups
+    
+    Reflect changes of reflect API.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/69240044
+
+ src/cmd/gofmt/rewrite.go | 27 ++++++++++++++-------------
+ 1 file changed, 14 insertions(+), 13 deletions(-)

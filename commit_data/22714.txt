@@ -1,0 +1,24 @@
+commit 2692f48330da001903bc74210cec5ff27fe663c2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 24 20:24:49 2015 -0700
+
+    cmd/internal/ld: remove pointless allocs
+    
+    Reduces allocs linking cmd/go and runtime.test
+    by ~13%. No functional changes.
+    
+    The most easily addressed sources of allocations
+    after this are expandpkg, rdstring, and symbuf
+    string conversion.
+    
+    These can be reduced by interning strings,
+    but that increases the overall memory footprint.
+    
+    Change-Id: Ifedefc9f2a0403bcc75460d6b139e8408374e058
+    Reviewed-on: https://go-review.googlesource.com/9391
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/internal/ld/dwarf.go   | 12 ++++++------
+ src/cmd/internal/ld/go.go      |  8 ++------
+ src/cmd/internal/ld/objfile.go | 18 +++++++++---------
+ 3 files changed, 17 insertions(+), 21 deletions(-)

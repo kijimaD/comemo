@@ -1,0 +1,24 @@
+commit c2079deb24c3dd5189f09a34f4ccbe7bf5cffa42
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Mon Dec 11 00:22:50 2023 +0000
+
+    cmd/cgo/internal/testsanitizers: check for go build and cgo in fuzzer and msan tests
+    
+    Make sure the platform we are running the tests on can compile programs
+    and has cgo support in order to run the fuzzer and msan tests. This is the
+    same approach used by the asan tests, which share the same requirements.
+    
+    Fixes #64626
+    
+    Change-Id: I7c0b912dabdd1b7d7d44437e4ade5e5994994796
+    GitHub-Last-Rev: 9fae6970f0f3b32a24893ef32fc4b38fa5a2a96d
+    GitHub-Pull-Request: golang/go#64640
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548715
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go | 3 +++
+ src/cmd/cgo/internal/testsanitizers/msan_test.go      | 3 +++
+ 2 files changed, 6 insertions(+)

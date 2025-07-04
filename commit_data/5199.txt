@@ -1,0 +1,12 @@
+commit f67c90f941aaef64cacbedf374e08b5da3caa5af
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 31 16:01:22 2010 -0700
+
+    tabwriter: use panic/recover to handle errors
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/864042
+
+ src/pkg/tabwriter/tabwriter.go | 97 ++++++++++++++++++++----------------------
+ 1 file changed, 47 insertions(+), 50 deletions(-)

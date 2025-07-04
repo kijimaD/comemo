@@ -1,0 +1,13 @@
+commit f95a11e27f8465435dd8a69ca6da67bbc6957270
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 5 15:56:31 2009 -0800
+
+    further pedagogy: a channel that satisfies the HTTP server interface
+    
+    R=rsc
+    DELTA=18  (18 added, 0 deleted, 0 changed)
+    OCL=24482
+    CL=24484
+
+ src/lib/http/triv.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

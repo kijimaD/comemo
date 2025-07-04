@@ -1,0 +1,38 @@
+commit e4c3925925d9bb93554cc60a29a4d728bb969296
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Oct 19 17:47:12 2019 +1100
+
+    cmd/link: use libmsvcrt.a during internal link
+    
+    When using recent versions of gcc with cgo, internal link fails with
+    
+    c:\>go test debug/pe
+    --- FAIL: TestInternalLinkerDWARF (0.94s)
+        file_test.go:394: building test executable for linktype 2 failed: exit status 2 # command-line-arguments
+            runtime/cgo(.text): relocation target __acrt_iob_func not defined for ABI0 (but is defined for ABI0)
+            runtime/cgo(.text): relocation target __acrt_iob_func not defined for ABI0 (but is defined for ABI0)
+            runtime/cgo(.text): relocation target __acrt_iob_func not defined for ABI0 (but is defined for ABI0)
+    FAIL
+    FAIL    debug/pe        4.572s
+    FAIL
+    
+    It appears that __acrt_iob_func is defined in libmsvcrt.a. And this
+    change adds libmsvcrt.a to the list of libraries always used byi
+    internal linker.
+    
+    libmsvcrt.a also implements __imp___acrt_iob_func. So this change
+    also prevents rewriting __imp___acrt_iob_func name into
+    __acrt_iob_func, otherwise we end up with duplicate __acrt_iob_func
+    symbol error.
+    
+    Fixes #23649
+    
+    Change-Id: Ie9864cd17e907501e9a8a3672bbc33e02ca20e5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197977
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go      |  5 +++++
+ src/cmd/link/internal/loadpe/ldpe.go | 23 ++++++++++++++++++++---
+ 2 files changed, 25 insertions(+), 3 deletions(-)

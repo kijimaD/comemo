@@ -1,0 +1,15 @@
+commit 2982253c42c7803670b0d32755a3da5578ef1c49
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Wed May 29 17:47:00 2024 +0800
+
+    test/codegen: add Rotate test for riscv64
+    
+    Change-Id: I7d996b8d46fbeef933943f806052a30f1f8d50c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588836
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ test/codegen/mathbits.go | 5 +++++
+ 1 file changed, 5 insertions(+)

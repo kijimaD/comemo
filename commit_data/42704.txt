@@ -1,0 +1,72 @@
+commit d19fedd180fceb6a60961e19387893ddb047e4e6
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 5 16:48:03 2020 -0400
+
+    runtime: move checkmarks to a separate bitmap
+    
+    Currently, the GC stores the object marks for checkmarks mode in the
+    heap bitmap using a rather complex encoding: for one word objects, the
+    checkmark is stored in the pointer/scalar bit since one word objects
+    must be pointers; for larger objects, the checkmark is stored in what
+    would be the scan/dead bit for the second word of the object. This
+    encoding made more sense when the runtime used the first scan/dead bit
+    as the regular mark bit, but we moved away from that long ago.
+    
+    This encoding and overloading of the heap bitmap bits causes a great
+    deal of complexity in many parts of the allocator and garbage
+    collector and leads to some subtle bugs like #15903.
+    
+    This CL moves the checkmarks mark bits into their own per-arena bitmap
+    and reclaims the second scan/dead bit as a regular scan/dead bit.
+    
+    I tested this by enabling doubleCheck mode in heapBitsSetType and
+    running in both regular and GODEBUG=gccheckmark=1 mode.
+    
+    Fixes #15903.
+    
+    No performance degradation. (Very slight improvement on a few
+    benchmarks, but it's probably just noise.)
+    
+    name                                old time/op            new time/op            delta
+    BiogoIgor                                      16.6s ± 1%             16.4s ± 1%  -0.94%  (p=0.000 n=25+24)
+    BiogoKrishna                                   19.2s ± 3%             19.2s ± 3%    ~     (p=0.638 n=23+25)
+    BleveIndexBatch100                             6.12s ± 5%             6.17s ± 4%    ~     (p=0.170 n=25+25)
+    CompileTemplate                                206ms ± 1%             205ms ± 1%  -0.43%  (p=0.005 n=24+24)
+    CompileUnicode                                82.2ms ± 2%            81.5ms ± 2%  -0.95%  (p=0.001 n=22+22)
+    CompileGoTypes                                 755ms ± 3%             754ms ± 4%    ~     (p=0.715 n=25+25)
+    CompileCompiler                                3.73s ± 1%             3.73s ± 1%    ~     (p=0.445 n=25+24)
+    CompileSSA                                     8.67s ± 1%             8.66s ± 1%    ~     (p=0.836 n=24+22)
+    CompileFlate                                   134ms ± 2%             133ms ± 1%  -0.66%  (p=0.001 n=24+23)
+    CompileGoParser                                164ms ± 1%             163ms ± 1%  -0.85%  (p=0.000 n=24+24)
+    CompileReflect                                 466ms ± 5%             466ms ± 3%    ~     (p=0.863 n=25+25)
+    CompileTar                                     182ms ± 1%             182ms ± 1%  -0.31%  (p=0.048 n=24+24)
+    CompileXML                                     249ms ± 1%             248ms ± 1%  -0.32%  (p=0.031 n=21+25)
+    CompileStdCmd                                  10.3s ± 1%             10.3s ± 1%    ~     (p=0.459 n=23+23)
+    FoglemanFauxGLRenderRotateBoat                 8.66s ± 1%             8.62s ± 1%  -0.47%  (p=0.000 n=23+24)
+    FoglemanPathTraceRenderGopherIter1             20.3s ± 3%             20.2s ± 2%    ~     (p=0.893 n=25+25)
+    GopherLuaKNucleotide                           29.7s ± 1%             29.8s ± 2%    ~     (p=0.421 n=24+25)
+    MarkdownRenderXHTML                            246ms ± 1%             247ms ± 1%    ~     (p=0.558 n=25+24)
+    Tile38WithinCircle100kmRequest                 779µs ± 4%             779µs ± 3%    ~     (p=0.954 n=25+25)
+    Tile38IntersectsCircle100kmRequest            1.02ms ± 3%            1.01ms ± 4%    ~     (p=0.658 n=25+25)
+    Tile38KNearestLimit100Request                  984µs ± 4%             986µs ± 4%    ~     (p=0.627 n=24+25)
+    [Geo mean]                                     552ms                  551ms       -0.19%
+    
+    https://perf.golang.org/search?q=upload:20200723.6
+    
+    Change-Id: Ic703f26a83fb034941dc6f4788fc997d56890dec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244539
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/reflect/all_test.go    |   5 +-
+ src/runtime/cgocall.go     |   2 +-
+ src/runtime/gcinfo_test.go |  19 +----
+ src/runtime/heapdump.go    |   2 +-
+ src/runtime/mbitmap.go     | 173 +++++++++------------------------------------
+ src/runtime/mcheckmark.go  | 100 ++++++++++++++++++++++++++
+ src/runtime/mgc.go         |   4 +-
+ src/runtime/mgcmark.go     |  70 +-----------------
+ src/runtime/mheap.go       |   4 ++
+ 9 files changed, 148 insertions(+), 231 deletions(-)

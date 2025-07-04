@@ -1,0 +1,18 @@
+commit f374dd30a05ed11a994d312ae4e128e731ee55a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 20 11:42:25 2014 -0400
+
+    test: test issue 7884 (already fixed)
+    
+    I don't know when the bug was fixed, but empirically it was.
+    Make sure it stays fixed by adding a test.
+    
+    Fixes #7884.
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/93500043
+
+ test/fixedbugs/issue7884.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

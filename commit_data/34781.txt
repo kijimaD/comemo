@@ -1,0 +1,17 @@
+commit 6734452554f639c63055e8e233a6bc1d2076c3ed
+Author: ajnirp <ajnirp@users.noreply.github.com>
+Date:   Fri Mar 30 23:21:50 2018 +0000
+
+    testing: fix testing flags link
+    
+    Fixed a broken link to a section in the documentation for the
+    test flags for the go command.
+    
+    Change-Id: Ic4bdd4965aac7856dd13a2adda9d774b9bae4113
+    GitHub-Last-Rev: 15bda340674c268a92f43a2820eca50482940de1
+    GitHub-Pull-Request: golang/go#24613
+    Reviewed-on: https://go-review.googlesource.com/103835
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

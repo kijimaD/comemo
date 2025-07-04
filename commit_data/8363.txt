@@ -1,0 +1,14 @@
+commit 5f6e1cfca7f50a51afef68135ddefb97934ea78c
+Author: Johan Euphrosine <proppy@google.com>
+Date:   Thu May 12 11:21:10 2011 -0400
+
+    doc/codelab: correct typo.
+    
+    s/Sprintf/Fprintf/
+    
+    R=golang-dev, rsc
+    CC=adg, golang-dev
+    https://golang.org/cl/4519053
+
+ doc/codelab/wiki/wiki.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

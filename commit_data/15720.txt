@@ -1,0 +1,43 @@
+commit a5d4024139231ca10b5347d17bbf702cfdf5fd5b
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 12 10:47:44 2013 -0700
+
+    runtime: faster & safer hash function
+    
+    Uses AES hardware instructions on 386/amd64 to implement
+    a fast hash function.  Incorporates a random key to
+    thwart hash collision DOS attacks.
+    Depends on CL#7548043 for new assembly instructions.
+    
+    Update #3885
+    Helps some by making hashing faster.  Go time drops from
+    0.65s to 0.51s.
+    
+    R=rsc, r, bradfitz, remyoudompheng, khr, dsymonds, minux.ma, elias.naur
+    CC=golang-dev
+    https://golang.org/cl/7543043
+
+ src/pkg/runtime/alg.c               |  35 +++++
+ src/pkg/runtime/asm_386.s           | 270 ++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/asm_amd64.s         | 174 +++++++++++++++++++++++
+ src/pkg/runtime/asm_arm.s           |  15 ++
+ src/pkg/runtime/mapspeed_test.go    |  96 +++++++++++++
+ src/pkg/runtime/runtime.c           |   5 +
+ src/pkg/runtime/runtime.h           |  20 ++-
+ src/pkg/runtime/signal_linux_386.c  |   8 +-
+ src/pkg/runtime/sys_darwin_386.s    |  15 ++
+ src/pkg/runtime/sys_darwin_amd64.s  |  22 +++
+ src/pkg/runtime/sys_freebsd_386.s   |  15 ++
+ src/pkg/runtime/sys_freebsd_amd64.s |  22 +++
+ src/pkg/runtime/sys_netbsd_386.s    |  15 ++
+ src/pkg/runtime/sys_netbsd_amd64.s  |  22 +++
+ src/pkg/runtime/sys_openbsd_386.s   |  15 ++
+ src/pkg/runtime/sys_openbsd_amd64.s |  22 +++
+ src/pkg/runtime/thread_darwin.c     |  16 +++
+ src/pkg/runtime/thread_freebsd.c    |  16 +++
+ src/pkg/runtime/thread_linux.c      |  30 +++-
+ src/pkg/runtime/thread_netbsd.c     |  16 +++
+ src/pkg/runtime/thread_openbsd.c    |  16 +++
+ src/pkg/runtime/thread_windows.c    |  24 ++++
+ src/pkg/runtime/vdso_linux_amd64.c  |  10 +-
+ 23 files changed, 891 insertions(+), 8 deletions(-)

@@ -1,0 +1,14 @@
+commit f437d4d356ad5a8701395bf3623aadee00b90acc
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 26 17:07:39 2010 -0700
+
+    gob: must register basic types to store them in interfaces.
+    Fixes #1230.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2750041
+
+ src/pkg/gob/codec_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/gob/type.go       | 23 +++++++++++++++++++++++
+ 2 files changed, 68 insertions(+)

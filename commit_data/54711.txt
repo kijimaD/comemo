@@ -1,0 +1,31 @@
+commit 5873bd1d7e87e0686390d71a840a44e2e2c3e11d
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Oct 5 06:16:18 2023 -0700
+
+    html/template: track brace depth for each nested expression
+    
+    We need to track the brace depth for each individual nested expression,
+    since a string interpolation expression may be nested inside of an
+    object.
+    
+    e.g. `${ {1:`${}`}}` has brace depths [1, 0] when inside of the inner
+    ${} expression. When we exit the inner expression, we need to reset to
+    the previous brace depth (1) so that we know that the following } closes
+    the object, but not the outer expression.
+    
+    Note that if you write a broken expression (i.e. `${ { }`) escaping will
+    clearly not work as expected (or depending on your interpretation, since
+    it is broken, it will work as expected). Since the JS parser doesn't
+    catch syntax errors, it's up to the user to write a valid template.
+    
+    Updates #61619
+    
+    Change-Id: I4c33723d12aff49facdcb1134d9ca82b7a0dffc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532995
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/html/template/context.go     | 23 +++++++++++++----------
+ src/html/template/escape_test.go | 14 +++++++++++++-
+ src/html/template/transition.go  | 30 +++++++++++-------------------
+ 3 files changed, 37 insertions(+), 30 deletions(-)

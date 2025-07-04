@@ -1,0 +1,15 @@
+commit 340e29257cda1b3e4519e27c0adfa9dbd585506e
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Fri Apr 24 16:57:07 2020 -0400
+
+    doc/go1.15: include changes in net/http/pprof and runtime/pprof
+    
+    net/http/pprof: delta profile support
+    runtime/pprof: profile labels plumbing for goroutine profiles
+    
+    Change-Id: I92e750dc894c8c6b3c3ba10f7be58bb541d3c289
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230023
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.15.html | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

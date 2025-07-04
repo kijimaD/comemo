@@ -1,0 +1,19 @@
+commit a22cb5cabe2bcc8ed02c43a66a1bd319cb28e89c
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed May 15 17:41:56 2024 -0400
+
+    runtime/debug: eliminate temporary variadicity from SetCrashOutput
+    
+    Updates #67182
+    
+    Change-Id: I33fc8c515f4a9d120262ba30f61aea80ede5e9f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585420
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ api/next/42888.txt                        | 2 +-
+ src/runtime/debug/example_monitor_test.go | 2 +-
+ src/runtime/debug/stack.go                | 9 +--------
+ src/runtime/debug/stack_test.go           | 3 ++-
+ src/runtime/traceback_system_test.go      | 2 +-
+ 5 files changed, 6 insertions(+), 12 deletions(-)

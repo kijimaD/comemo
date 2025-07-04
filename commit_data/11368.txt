@@ -1,0 +1,16 @@
+commit e7d513eab0b7a29698eb6057ec93818a10aae2a8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 24 16:36:20 2012 -0800
+
+    go/parser: Use explicit parser.Mode type.
+    
+    R=r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5574058
+
+ src/cmd/cgo/ast.go             |  2 +-
+ src/cmd/godoc/parser.go        |  2 +-
+ src/cmd/gofmt/gofmt.go         |  4 ++--
+ src/pkg/go/parser/interface.go | 15 ++++++++++-----
+ src/pkg/go/parser/parser.go    |  4 ++--
+ 5 files changed, 16 insertions(+), 11 deletions(-)

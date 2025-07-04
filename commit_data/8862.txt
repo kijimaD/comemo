@@ -1,0 +1,21 @@
+commit f795bdb979482d967aea05696b0b0229af74d79b
+Author: Graham Miller <graham.miller@gmail.com>
+Date:   Mon Jun 27 16:12:04 2011 -0400
+
+    bufio: do not cache Read errors
+    
+    Reader previously had cached an error from the underlying reader
+    and would return it on every subsequent call to Read.  The Reader
+    will now return the error only once, and subsequent calls will result
+    in a new Read call to the underlying Reader.
+    
+    Fixes #1934.
+    
+    R=bradfitz, rogpeppe, rsc
+    CC=golang-dev
+    https://golang.org/cl/4528133
+
+ src/pkg/bufio/bufio.go           | 22 ++++++++++++++--------
+ src/pkg/bufio/bufio_test.go      | 10 ++++++----
+ src/pkg/testing/iotest/reader.go | 21 ++++++++++++++++++++-
+ 3 files changed, 40 insertions(+), 13 deletions(-)

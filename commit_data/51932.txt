@@ -1,0 +1,23 @@
+commit 67d8916d551d22f5376e0be71d3922c9d63eaa6a
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Jan 31 09:14:16 2023 -0800
+
+    crypto/ecdh: explicitly reject mismatched curves in ECDH
+    
+    Return an explicit error when PrivateKey.ECDH is called with a PublicKey
+    which uses a different Curve. Also document this requirement, even
+    though it is perhaps obvious.
+    
+    Fixes #58131
+    
+    Change-Id: I739181a3f1283bed14fb5ee7eb78658b854d28d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464335
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/ecdh/ecdh.go      |  7 ++++++-
+ src/crypto/ecdh/ecdh_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 1 deletion(-)

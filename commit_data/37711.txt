@@ -1,0 +1,22 @@
+commit fd323a8cffc11c92366243c4d26cb3ead507dc84
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 14 16:59:04 2018 -0500
+
+    cmd/go/internal/cache: save more data from DefaultDir
+    
+    cmd/go/main.go sets GOCACHE explicitly, so if we don't save some
+    metadata about how DefaultDir arrived at its answer we will be unable
+    to reconstruct it later.
+    
+    Fixes #29243
+    
+    Change-Id: Ic8bb859ab045a29c91f6a4527e65aedabf874d53
+    Reviewed-on: https://go-review.googlesource.com/c/154309
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/cmd/go/internal/cache/default.go         | 53 ++++++++++++++++------------
+ src/cmd/go/testdata/script/build_nocache.txt | 24 ++++++++++---
+ 2 files changed, 50 insertions(+), 27 deletions(-)

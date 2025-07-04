@@ -1,0 +1,30 @@
+commit 66b69a1719040e05f8ccef8110aaff192968c29a
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Tue Feb 19 17:11:17 2013 -0800
+
+    net: Plan 9: open data file and set remote-addr properly
+    
+    The data file should be opened when a Conn is first
+    established, rather than waiting for the first Read or
+    Write.
+    
+    Upon Close, we now make sure to try to close both, the
+    ctl as well as data files and set both to nil, even in
+    the face of errors, instead of returning early.
+    
+    The Accept call was not setting the remote address
+    of the connection properly. Now, we read the correct
+    file.
+    
+    Make functions that establish Conn use newTCPConn
+    or newUDPConn.
+    
+    R=rsc, rminnich, ality, dave
+    CC=golang-dev
+    https://golang.org/cl/7228068
+
+ src/pkg/net/fd_plan9.go      | 27 +++++++--------------------
+ src/pkg/net/ipsock_plan9.go  | 20 ++++++++++++++------
+ src/pkg/net/tcpsock_plan9.go |  2 +-
+ src/pkg/net/udpsock_plan9.go | 29 ++++++++++++-----------------
+ 4 files changed, 34 insertions(+), 44 deletions(-)

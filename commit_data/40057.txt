@@ -1,0 +1,18 @@
+commit 490646e476aabf0cc146d2b203ab7a09e1d4847d
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Thu Sep 19 22:39:37 2019 +0200
+
+    cmd/compile: in poset, move all constants to the first DAG
+    
+    In poset, all constants are always related to each other, so they
+    are part of the same DAG. Currently, it can be any of the DAGs in
+    the forest. Since we're about to start visiting that DAG for the
+    task of calculating bounds, make sure that it's conventionally
+    always the first, so that we don't need to search for it.
+    
+    Change-Id: Ia7ca312b52336b4731b070d45cf0d768a0d6aeeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196599
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/poset.go | 30 +++++++++++++++++++++---------
+ 1 file changed, 21 insertions(+), 9 deletions(-)

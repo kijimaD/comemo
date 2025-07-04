@@ -1,0 +1,15 @@
+commit d0d8466aca634e30be22d4f1d809ab4c73b4a81e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 28 21:00:29 2016 +0000
+
+    net/http, net/http/httptest: cross-reference the two NewRequest funcs
+    
+    Updates #18082
+    
+    Change-Id: I2e65b115b809c1e1bf813f538989d1a1f96b2876
+    Reviewed-on: https://go-review.googlesource.com/33636
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/httptest/httptest.go |  3 +++
+ src/net/http/request.go           | 10 +++++-----
+ 2 files changed, 8 insertions(+), 5 deletions(-)

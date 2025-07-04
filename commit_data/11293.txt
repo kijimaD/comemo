@@ -1,0 +1,21 @@
+commit 4ec8fd1cece15967bffe668957e7e43138dd5944
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 20 13:34:25 2012 -0500
+
+    A+C: Berengar Lehr (individual CLA)
+    
+    Was added to CONTRIBUTORS file in:
+    
+    changeset:   7092:638ad4d7d280
+    user:        Berengar Lehr <Berengar.Lehr@gmx.de>
+    date:        Tue Jan 11 20:51:35 2011 -0500
+    summary:     crypto: add twofish package
+    
+    but never added to AUTHORS file.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5532107
+
+ AUTHORS | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,16 @@
+commit 51c1bd229b74d93bde9a388ad757dc9035ca3b92
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Nov 5 12:18:54 2009 -0800
+
+    godoc: style update.
+    
+    R=r, rsc
+    CC=go-dev
+    http://go/go-review/1017051
+
+ doc/go-logo-black.png | Bin 0 -> 8855 bytes
+ doc/root.html         |  13 +++++++++++--
+ doc/style.css         |  12 ++++++++----
+ doc/video-snap.jpg    | Bin 0 -> 3269 bytes
+ lib/godoc/godoc.html  |   9 +++++----
+ 5 files changed, 24 insertions(+), 10 deletions(-)

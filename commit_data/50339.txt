@@ -1,0 +1,21 @@
+commit 979956a7321e74f1441ae2a05c9dc6560d7fe84c
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Wed Aug 31 21:59:29 2022 +0800
+
+    os: delete unused errClosed
+    
+    errClosed was introduced by CL 163058 and was supposed to be removed by CL 243906,
+    but somehow it was left out, now we should get it deleted.
+    
+    Change-Id: I74c4b36b8bbc4844e1860acb022a16b0aa3272b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427035
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/error.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,0 +1,21 @@
+commit 9b4141807400ffd15575a4ab71967480bd5918f0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 21 19:55:43 2023 -0700
+
+    cmd/go/internal/cache: use internal/godebug for three GODEBUGs
+    
+    And register/document them.
+    
+    Change-Id: If0f1cf3c09230e0f63d03c52e56e51a030468ab2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487655
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/godebug.md                     |  6 ++++++
+ src/cmd/go/internal/cache/cache.go | 31 ++++++++++++++++++-------------
+ src/internal/godebugs/table.go     |  3 +++
+ src/runtime/metrics/doc.go         | 12 ++++++++++++
+ 4 files changed, 39 insertions(+), 13 deletions(-)

@@ -1,0 +1,15 @@
+commit e85016f81f91268e3155f9024702ae9205ad2dd1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 6 15:16:47 2013 -0700
+
+    database/sql: remove an unused field from Rows
+    
+    Found while debugging memory usage. Nobody accesses this field
+    anymore.
+    
+    R=golang-dev, i.caught.air, adg, r
+    CC=golang-dev
+    https://golang.org/cl/9108043
+
+ src/pkg/database/sql/sql.go | 4 ----
+ 1 file changed, 4 deletions(-)

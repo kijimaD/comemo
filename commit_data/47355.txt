@@ -1,0 +1,24 @@
+commit 15a54d627ca7a0bdf45a3d1862b35a892024cacc
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Nov 9 11:35:52 2021 -0500
+
+    runtime: add upper half and carry bit with zero
+    
+    https://golang.org/cl/246763 accidentally changed this from upper + 0 +
+    carry to upper + old vdsoSP + carry.
+    
+    The old value of vdsoPC is usually zero, so this typically works.
+    However, the reentrant case will have a non-zero value, resulting in a
+    bogus returned time.
+    
+    Fixes #49481
+    
+    Change-Id: I0110b84277bf911804cb0ff8097aebf1b7eb100a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362674
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/sys_linux_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

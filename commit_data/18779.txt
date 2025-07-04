@@ -1,0 +1,17 @@
+commit a76627774272c7278819f3e5a9990c7a00183882
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 6 10:35:05 2014 -0800
+
+    spec: clarify value passed for final parameter of variadic functions
+    
+    NOT A LANGUAGE CHANGE.
+    
+    Fixes #7073.
+    
+    LGTM=r
+    R=r, rsc, iant, ken
+    CC=golang-codereviews
+    https://golang.org/cl/68840045
+
+ doc/go_spec.html | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)

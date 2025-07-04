@@ -1,0 +1,26 @@
+commit 36ca5fde680faf1abd4b05b4ca1b96c488fcbdb8
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Jul 30 14:39:27 2009 -0700
+
+    Implement labels, goto, labeled break, and labeled continue.
+    Return checking is now done as a general flow check at the end
+    of function compilation, since break and goto complicated the
+    way I was doing return checking before.  Goto-over-declaration
+    checking is also done as a final flow check.
+    
+    Temporary variables used for effect extraction are now
+    actually temporary.  Otherwise "op=", "++", and "--" appear as
+    declarations that cannot be jumped over.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=421  (344 added, 38 deleted, 39 changed)
+    OCL=32527
+    CL=32535
+
+ usr/austin/eval/compiler.go |  33 +++-
+ usr/austin/eval/decls.go    |   2 +-
+ usr/austin/eval/expr.go     |   9 +-
+ usr/austin/eval/scope.go    |   4 +-
+ usr/austin/eval/stmt.go     | 406 +++++++++++++++++++++++++++++++++++++-------
+ 5 files changed, 380 insertions(+), 74 deletions(-)

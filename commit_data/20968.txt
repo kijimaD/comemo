@@ -1,0 +1,13 @@
+commit d708e926764381876e24e85ccf86ae39d7a85230
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 10 09:29:35 2014 +1100
+
+    [release-branch.go1.4] [release-branch.go1.4] doc: update contribution guidelines
+    
+    LGTM=minux, adg, rsc
+    R=rsc, r, dsymonds, minux, bradfitz, adg, dave, iant
+    CC=golang-codereviews
+    https://golang.org/cl/185190043
+
+ doc/contribute.html | 660 ++++++++++++++++++++++++++--------------------------
+ 1 file changed, 333 insertions(+), 327 deletions(-)

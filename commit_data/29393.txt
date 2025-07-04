@@ -1,0 +1,21 @@
+commit 039e60ce4e0763f5c67e11227858a4d508df1299
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 4 15:01:09 2016 -0700
+
+    go/types: revert user-visible changes related to aliases
+    
+    Reason: Decision to back out current alias implementation.
+    For #16339 (comment).
+    
+    Change-Id: Ie04f24e529db2d29c5dd2e36413f5f37f628df39
+    Reviewed-on: https://go-review.googlesource.com/32819
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/internal/gcimporter/bimport.go |  6 +++++-
+ src/go/types/api_test.go              |  6 +++---
+ src/go/types/check_test.go            |  2 +-
+ src/go/types/decl.go                  | 13 +++++++------
+ src/go/types/object.go                | 31 ++++++++++++++++---------------
+ src/go/types/resolver.go              | 11 ++++++-----
+ src/go/types/typexpr.go               | 15 ++++++++-------
+ 7 files changed, 46 insertions(+), 38 deletions(-)

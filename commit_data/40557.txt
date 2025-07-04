@@ -1,0 +1,29 @@
+commit d3660e8ef8adf91462d0be382a1ed8e696f0ee37
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 3 17:04:28 2019 -0500
+
+    cmd/link: enable PIE on darwin/arm
+    
+    We used to pass -no_pie to external linker on darwin/arm, which
+    is incompatible with -fembed-bitcode. CL 201358 attempted to
+    remove the -no_pie flag, but it resulted the darwin linker to
+    complain about absolute addressing in TEXT segment.
+    
+    On darwin/arm, we already get away from absolute addressing in
+    the TEXT section. The complained absolute addressing is in
+    RODATA, which was embedded in the TEXT segment. This CL moves
+    RODATA to the DATA segment, like what we already did on ARM64
+    and on AMD64 in c-archive/c-shared buildmodes for the same reason.
+    So there is no absolute addressing in the TEXT segment, which
+    allows us to remove -no_pie flag.
+    
+    Fixes #35252.
+    Updates #32963.
+    
+    Change-Id: Id6e3a594cb066d257d4f58fadb4a3ee4672529f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205060
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+
+ src/cmd/link/internal/ld/lib.go   | 4 +---
+ src/cmd/link/internal/ld/macho.go | 6 +++---
+ 2 files changed, 4 insertions(+), 6 deletions(-)

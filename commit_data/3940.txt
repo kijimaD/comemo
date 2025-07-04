@@ -1,0 +1,137 @@
+commit baba292998286e5d9011705a9b4173a2ec99c5e0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 9 21:13:17 2009 -0800
+
+            - replaced gofmt expression formatting algorithm with
+              rsc's algorithm
+            - applied gofmt -w misc src
+            - partial CL (remaining files in other CLs)
+    
+    R=rsc, r
+    http://go/go-review/1026036
+
+ src/pkg/compress/flate/deflate.go               |  60 ++---
+ src/pkg/compress/flate/deflate_test.go          |   2 +-
+ src/pkg/compress/flate/huffman_bit_writer.go    |  54 ++--
+ src/pkg/compress/flate/huffman_code.go          |  10 +-
+ src/pkg/compress/flate/inflate.go               |  44 ++--
+ src/pkg/compress/flate/reverse_bits.go          |   2 +-
+ src/pkg/compress/flate/token.go                 |  12 +-
+ src/pkg/compress/gzip/gunzip.go                 |  18 +-
+ src/pkg/compress/zlib/reader.go                 |   4 +-
+ src/pkg/compress/zlib/writer.go                 |   8 +-
+ src/pkg/container/heap/heap.go                  |   6 +-
+ src/pkg/container/ring/ring.go                  |   2 +-
+ src/pkg/container/ring/ring_test.go             |   6 +-
+ src/pkg/container/vector/vector.go              |  20 +-
+ src/pkg/container/vector/vector_test.go         |   8 +-
+ src/pkg/crypto/aes/aes_test.go                  |   4 +-
+ src/pkg/crypto/aes/block.go                     |  28 +--
+ src/pkg/crypto/aes/cipher.go                    |   2 +-
+ src/pkg/crypto/block/cfb.go                     |  10 +-
+ src/pkg/crypto/block/cipher.go                  |   4 +-
+ src/pkg/crypto/block/cmac.go                    |   4 +-
+ src/pkg/crypto/block/ctr.go                     |   2 +-
+ src/pkg/crypto/block/eax.go                     |   2 +-
+ src/pkg/crypto/block/ecb.go                     |  14 +-
+ src/pkg/crypto/block/ecb_test.go                |   6 +-
+ src/pkg/crypto/block/xor.go                     |   2 +-
+ src/pkg/crypto/block/xor_test.go                |   6 +-
+ src/pkg/crypto/hmac/hmac.go                     |   4 +-
+ src/pkg/crypto/md5/md5.go                       |  16 +-
+ src/pkg/crypto/md5/md5block.go                  |  30 +--
+ src/pkg/crypto/rc4/rc4.go                       |   2 +-
+ src/pkg/crypto/rsa/pkcs1v15.go                  |  10 +-
+ src/pkg/crypto/rsa/pkcs1v15_test.go             |   2 +-
+ src/pkg/crypto/rsa/rsa.go                       |  36 +--
+ src/pkg/crypto/sha1/sha1.go                     |  16 +-
+ src/pkg/crypto/sha1/sha1block.go                |  16 +-
+ src/pkg/crypto/subtle/constant_time.go          |  32 +--
+ src/pkg/crypto/tls/common.go                    |   2 +-
+ src/pkg/crypto/tls/handshake_messages.go        |  60 ++---
+ src/pkg/crypto/tls/handshake_messages_test.go   |   4 +-
+ src/pkg/crypto/tls/prf.go                       |   8 +-
+ src/pkg/crypto/tls/record_process.go            |  14 +-
+ src/pkg/crypto/tls/record_write.go              |  20 +-
+ src/pkg/debug/dwarf/buf.go                      |   6 +-
+ src/pkg/debug/dwarf/entry.go                    |  16 +-
+ src/pkg/debug/dwarf/type.go                     |   4 +-
+ src/pkg/debug/dwarf/unit.go                     |   2 +-
+ src/pkg/debug/elf/elf.go                        |  18 +-
+ src/pkg/debug/elf/elf_test.go                   |   4 +-
+ src/pkg/debug/elf/file.go                       |  24 +-
+ src/pkg/debug/gosym/pclntab.go                  |   6 +-
+ src/pkg/debug/gosym/pclntab_test.go             |   8 +-
+ src/pkg/debug/gosym/symtab.go                   |  16 +-
+ src/pkg/debug/macho/file.go                     |  14 +-
+ src/pkg/debug/macho/macho.go                    |   6 +-
+ src/pkg/debug/proc/proc_linux.go                |   2 +-
+ src/pkg/ebnf/ebnf.go                            |  10 +-
+ src/pkg/ebnf/parser.go                          |   6 +-
+ src/pkg/encoding/ascii85/ascii85.go             |  34 +--
+ src/pkg/encoding/ascii85/ascii85_test.go        |   2 +-
+ src/pkg/encoding/base64/base64.go               |  44 ++--
+ src/pkg/encoding/base64/base64_test.go          |   2 +-
+ src/pkg/encoding/binary/binary.go               |  44 ++--
+ src/pkg/encoding/git85/git.go                   |  36 +--
+ src/pkg/encoding/git85/git_test.go              |   2 +-
+ src/pkg/encoding/hex/hex.go                     |  22 +-
+ src/pkg/encoding/pem/pem.go                     |   4 +-
+ src/pkg/exec/exec.go                            |   6 +-
+ src/pkg/exp/4s/4s.go                            |   4 +-
+ src/pkg/exp/4s/xs.go                            |  74 +++---
+ src/pkg/exp/datafmt/datafmt.go                  |   8 +-
+ src/pkg/exp/datafmt/datafmt_test.go             |   2 +-
+ src/pkg/exp/datafmt/parser.go                   |  18 +-
+ src/pkg/exp/draw/color.go                       |  22 +-
+ src/pkg/exp/draw/draw.go                        |  26 +-
+ src/pkg/exp/eval/bridge.go                      |   8 +-
+ src/pkg/exp/eval/eval_test.go                   |   2 +-
+ src/pkg/exp/eval/expr.go                        |  10 +-
+ src/pkg/exp/eval/expr1.go                       | 246 +++++++++---------
+ src/pkg/exp/eval/expr_test.go                   |   6 +-
+ src/pkg/exp/eval/scope.go                       |   2 +-
+ src/pkg/exp/eval/stmt.go                        |   2 +-
+ src/pkg/exp/eval/type.go                        |   8 +-
+ src/pkg/exp/eval/value.go                       |   8 +-
+ src/pkg/exp/iterable/iterable_test.go           |   2 +-
+ src/pkg/exp/nacl/av/av.go                       |  20 +-
+ src/pkg/exp/nacl/av/event.go                    |   6 +-
+ src/pkg/exp/nacl/av/image.go                    |  24 +-
+ src/pkg/exp/nacl/srpc/client.go                 |   8 +-
+ src/pkg/exp/nacl/srpc/msg.go                    |  30 +--
+ src/pkg/exp/ogle/arch.go                        |   4 +-
+ src/pkg/exp/ogle/cmd.go                         |   2 +-
+ src/pkg/exp/ogle/event.go                       |   2 +-
+ src/pkg/exp/ogle/frame.go                       |   6 +-
+ src/pkg/exp/ogle/process.go                     |   2 +-
+ src/pkg/exp/ogle/rruntime.go                    |   2 +-
+ src/pkg/exp/ogle/rtype.go                       |   4 +-
+ src/pkg/exp/ogle/rvalue.go                      |   8 +-
+ src/pkg/exp/ogle/vars.go                        |   2 +-
+ src/pkg/exp/spacewar/pdp1.go                    |  72 +++---
+ src/pkg/exp/spacewar/spacewar.go                |  12 +-
+ src/pkg/flag/flag.go                            |   8 +-
+ src/pkg/fmt/fmt_test.go                         |   4 +-
+ src/pkg/fmt/format.go                           |  14 +-
+ src/pkg/fmt/print.go                            |  20 +-
+ src/pkg/go/ast/ast.go                           |   2 +-
+ src/pkg/go/ast/filter.go                        |   4 +-
+ src/pkg/go/doc/comment.go                       |  14 +-
+ src/pkg/go/doc/doc.go                           |   2 +-
+ src/pkg/go/parser/interface.go                  |   2 +-
+ src/pkg/go/parser/parser.go                     |  20 +-
+ src/pkg/go/printer/nodes.go                     | 315 +++++++++++++++---------
+ src/pkg/go/printer/printer.go                   |  28 +--
+ src/pkg/go/printer/printer_test.go              |   6 +-
+ src/pkg/go/printer/testdata/declarations.golden |   2 +-
+ src/pkg/go/printer/testdata/expressions.golden  | 118 +++++++--
+ src/pkg/go/printer/testdata/expressions.input   |  72 ++++++
+ src/pkg/go/printer/testdata/expressions.raw     | 118 +++++++--
+ src/pkg/go/printer/testdata/linebreaks.golden   |   2 +-
+ src/pkg/go/scanner/scanner.go                   |  24 +-
+ src/pkg/go/scanner/scanner_test.go              |   2 +-
+ src/pkg/gob/codec_test.go                       |  14 +-
+ src/pkg/gob/decode.go                           |   8 +-
+ src/pkg/gob/encode.go                           |  16 +-
+ 124 files changed, 1357 insertions(+), 1060 deletions(-)

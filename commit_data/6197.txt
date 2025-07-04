@@ -1,0 +1,16 @@
+commit 266016153389f79da6bfce129f722ce777430eeb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 8 13:57:12 2010 -0700
+
+    test: Match gccgo error messages.
+    
+    bug298.go:10:2: error: expected declaration
+    bug298.go:10:25: error: expected ‘;’ or newline after top level declaration
+    bug298.go:10:25: error: expected declaration
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2156046
+
+ test/fixedbugs/bug298.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 893fdbbe5dc2f9b887cd635a3d39283d444d8073
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Aug 9 10:44:38 2010 +1000
+
+    image: introduce Decode and RegisterFormat.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/1849054
+
+ src/pkg/image/Makefile       |  1 +
+ src/pkg/image/format.go      | 73 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/image/jpeg/reader.go |  4 +++
+ src/pkg/image/png/reader.go  |  4 +++
+ 4 files changed, 82 insertions(+)

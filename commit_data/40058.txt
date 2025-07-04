@@ -1,0 +1,16 @@
+commit 0a5116493c4892d6d107d17fa78e87bd3b18772d
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Sep 22 01:31:02 2019 +0200
+
+    cmd/compile: in poset, simplify usage of CheckIntegrity
+    
+    Instead of returning an error, just panic: the function is
+    used only for debugging purposes anyway.
+    
+    Change-Id: Ie81b2309daaf1efb9470992391534bce2141b3c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196779
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/poset.go      | 29 ++++++++---------------------
+ src/cmd/compile/internal/ssa/poset_test.go |  4 +---
+ 2 files changed, 9 insertions(+), 24 deletions(-)

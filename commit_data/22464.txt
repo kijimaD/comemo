@@ -1,0 +1,15 @@
+commit 0a81d31b66566cc62f028825612b9c1c858870ef
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:04:25 2015 -0400
+
+    runtime/pprof: skip fork test on darwin/arm64
+    
+    Just like darwin/arm.
+    
+    Change-Id: Ic75927bd6457d37cda7dd8279fd9b4cd52edc1d1
+    Reviewed-on: https://go-review.googlesource.com/8813
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 10 +++++++---
+ src/runtime/pprof/trace_test.go |  5 +++++
+ 2 files changed, 12 insertions(+), 3 deletions(-)

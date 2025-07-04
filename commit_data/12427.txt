@@ -1,0 +1,17 @@
+commit 73b8ccb0b0cd298da681df17ce1af7ac89c41798
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 7 07:40:21 2012 +1100
+
+    doc: add "The go command" article based on Russ' mail
+    
+    This is a philosophical document. We can soup it up at a later stage,
+    but for now it's nice to have a URL to point to that isn't a mailing
+    list post.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5676061
+
+ doc/articles/go_command.html | 265 +++++++++++++++++++++++++++++++++++++++++++
+ doc/docs.html                |   1 +
+ 2 files changed, 266 insertions(+)

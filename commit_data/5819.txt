@@ -1,0 +1,15 @@
+commit 691d765121a9da13629e26bc4a9641ca3eb7e69d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 15 15:05:56 2010 -0700
+
+    gc: bug274
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1742044
+
+ src/cmd/gc/go.h                    |  2 ++
+ src/cmd/gc/go.y                    | 27 +++++++++++++++++++++++++--
+ src/cmd/gc/lex.c                   |  6 ++++++
+ test/{bugs => fixedbugs}/bug274.go |  0
+ 4 files changed, 33 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit ad63c7e50beb5b148fae72e267f87f782769821a
+Author: Kamil Kisiel <kamil@kamilkisiel.net>
+Date:   Sat Jan 12 11:06:13 2013 +1100
+
+    text/template: Document that range can be used on chan types.
+    
+    Fixes #4640.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7082044
+
+ src/pkg/text/template/doc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

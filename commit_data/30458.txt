@@ -1,0 +1,16 @@
+commit 9bd1cc3fa1145182e9ce041d0e96bd2051cd7fcf
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 1 13:29:17 2017 +0000
+
+    Revert "cmd/vet/all: remove pprof from the whitelist"
+    
+    This reverts commit 12b6c18139233abd7b1af1fc0a07279d56df3642.
+    
+    Reason for revert: Broke vet builder. #19322 was not fully fixed.
+    
+    Change-Id: Id85131d4d0b8915480d65e3532da62b769463d70
+    Reviewed-on: https://go-review.googlesource.com/37625
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/vet/all/main.go | 3 +++
+ 1 file changed, 3 insertions(+)

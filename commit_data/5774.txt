@@ -1,0 +1,14 @@
+commit 7529d32ee12805591c067b4265ab0d65da6869b9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 9 13:02:32 2010 -0700
+
+    go/parser: require that '...' parameters are followed by a type
+    (matching latest syntax changes)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1762042
+
+ src/pkg/go/parser/parser.go      | 8 ++++++--
+ src/pkg/go/parser/parser_test.go | 2 +-
+ 2 files changed, 7 insertions(+), 3 deletions(-)

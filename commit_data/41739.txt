@@ -1,0 +1,23 @@
+commit 60a964ea45db28eb7a4ca291008473da7d3d2c70
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Mar 17 09:24:47 2020 -0400
+
+    cmd/internal/obj/ppc64: fix PCALIGN on ppc64le
+    
+    This fixes a potential issue with the previous implementation
+    of PCALIGN on ppc64. Previously PCALIGN was processed inside of
+    asmout and indicated the padding size by setting the value in
+    the optab, changing it back after the alignment instructions
+    were added. Now PCALIGN is processed outside of asmout, and optab
+    is not changed.
+    
+    Change-Id: I8b0093a0e2b7e06176af27e05150d04ae2c55d60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225198
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/ppc64/asm9.go     | 34 +++++---------
+ src/cmd/internal/obj/ppc64/asm_test.go | 81 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 93 insertions(+), 22 deletions(-)

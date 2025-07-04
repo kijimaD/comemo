@@ -1,0 +1,19 @@
+commit d516aa6bdceb4d0a0bf4f714ef4a432a3896c6d7
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Sep 15 19:57:36 2023 -0400
+
+    runtime: skip TestG0StackOverflow on iOS
+    
+    Apparently it falls into infinite printing loop. Skipping for now.
+    Will investigate.
+    
+    For #62671.
+    
+    Change-Id: I5be8e8c1d0f4f2eaa231d6bcdfe13e7f08c28b98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528403
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/runtime/crash_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

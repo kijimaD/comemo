@@ -1,0 +1,21 @@
+commit 923a74ce7710c1e3b24b4cc3220e2ba38d7673af
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 6 14:48:47 2016 -0700
+
+    cmd/compile: ignore contentEscapes for marking nodes as escaping
+    
+    We can still stack allocate and VarKill nodes which don't
+    escape but their content does.
+    
+    Fixes #16996
+    
+    Change-Id: If8aa0fcf2c327b4cb880a3d5af8d213289e6f6bf
+    Reviewed-on: https://go-review.googlesource.com/28575
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/esc.go |  2 +-
+ test/live.go                       | 10 ++++++++++
+ test/live_ssa.go                   |  8 ++++++++
+ 3 files changed, 19 insertions(+), 1 deletion(-)

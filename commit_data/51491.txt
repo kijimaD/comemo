@@ -1,0 +1,34 @@
+commit 1711f953e48c3de0f85726cb0299c0c0f0b928a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 23 13:45:56 2022 -0500
+
+    cmd/api: track deprecations
+    
+    Deprecating an API creates notices that go out to potentially
+    millions of Go developers encouraging them to update their code.
+    The choice to deprecate an API is as important as the choice to
+    add a new API. We should track those and make them explicit.
+    This will also ensure that deprecations go through proposal review.
+    
+    Change-Id: Ide9f60c32e5a88fb133e0dfedd984b8b0f70f510
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453259
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ api/go1.16.txt                             | 662 +++++++++++++++++++++++++++++
+ api/go1.17.txt                             |   7 +
+ api/go1.18.txt                             |  22 +-
+ api/go1.19.txt                             |  17 +
+ api/next/20661.txt                         |   1 +
+ api/next/56319.txt                         |   1 +
+ src/cmd/api/api.go                         | 170 +++++++-
+ src/cmd/api/api_test.go                    |   8 +-
+ src/cmd/api/testdata/src/pkg/p1/golden.txt |   8 +
+ src/cmd/api/testdata/src/pkg/p1/p1.go      |  10 +-
+ src/cmd/api/testdata/src/pkg/p2/golden.txt |   3 +
+ src/cmd/api/testdata/src/pkg/p2/p2.go      |   8 +-
+ src/cmd/api/testdata/src/pkg/p4/golden.txt |   1 +
+ src/cmd/api/testdata/src/pkg/p4/p4.go      |   1 +
+ 14 files changed, 894 insertions(+), 25 deletions(-)

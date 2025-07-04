@@ -1,0 +1,15 @@
+commit 16b1893600b4f367c6503b512832dea565f9621b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Feb 12 14:16:51 2022 -0800
+
+    test: add notinheap test that caused a gofrontend crash
+    
+    Change-Id: Ie949f2131845f9f9292caff798f6933648779122
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385434
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ test/fixedbugs/bug515.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

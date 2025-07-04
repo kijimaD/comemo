@@ -1,0 +1,16 @@
+commit 450c955bd973f153ba99c340022a424be5c75f73
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 3 06:29:30 2012 -0800
+
+    test: test slice beyond len
+    
+    When slicing a slice, the bounds may be > len as long as they
+    are <= cap.  Interestingly, gccgo got that wrong and still
+    passed the testsuite and all the library tests.
+    
+    R=golang-dev, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/5622053
+
+ test/ken/array.go | 3 +++
+ 1 file changed, 3 insertions(+)

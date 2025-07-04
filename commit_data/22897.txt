@@ -1,0 +1,15 @@
+commit a77fcb3f8d8973065313810bcb2edeb000fcde0d
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon Mar 23 21:33:08 2015 +0100
+
+    net: fix comment in sendFile
+    
+    Change-Id: Iacee13150b283f9d2867a7ca98f805900f7cbe50
+    Reviewed-on: https://go-review.googlesource.com/7943
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/net/sendfile_dragonfly.go | 2 +-
+ src/net/sendfile_freebsd.go   | 2 +-
+ src/net/sendfile_linux.go     | 2 +-
+ src/net/sendfile_solaris.go   | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

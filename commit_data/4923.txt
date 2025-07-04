@@ -1,0 +1,12 @@
+commit 2551cf9d1a8760c187540224c5ed796aef7f2f7b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 22 16:51:28 2010 -0800
+
+    go_mem: clarified unbuffered channel sync example
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/218063
+
+ doc/go_mem.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

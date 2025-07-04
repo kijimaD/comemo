@@ -1,0 +1,13 @@
+commit ab4d8bf16cc105be4c7a6ba0696924f1dc344af4
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Jan 10 13:15:52 2011 -0800
+
+    arm optimizer bug fixes
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3913043
+
+ src/cmd/5g/peep.c | 143 +++++++++++++++++++++++++++++++++---------------------
+ src/cmd/5g/reg.c  |  47 ++++++++----------
+ 2 files changed, 110 insertions(+), 80 deletions(-)

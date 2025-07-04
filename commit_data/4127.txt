@@ -1,0 +1,12 @@
+commit 57f62f6eae2cac513a65cb66e8eaa6d1aadab1b6
+Author: William Josephson <wjosephson@gmail.com>
+Date:   Wed Nov 18 09:17:47 2009 -0800
+
+    Update legal.
+    
+    R=rsc
+    https://golang.org/cl/156075
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

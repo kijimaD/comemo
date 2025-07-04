@@ -1,0 +1,12 @@
+commit a2014f104c47225052acd75d8b3bd265c7175235
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 26 16:16:51 2011 -0700
+
+    rpc: run benchmarks over HTTP as well as direct network connections.
+    
+    R=bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4442085
+
+ src/pkg/rpc/server_test.go | 38 +++++++++++++++++++++++++++++++-------
+ 1 file changed, 31 insertions(+), 7 deletions(-)

@@ -1,0 +1,15 @@
+commit 5d3666e1a48d0976718c75dddc2ef0232be835d8
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Wed Oct 21 10:59:22 2020 -0700
+
+    crypto/tls: document the ClientAuthType consts
+    
+    Fixes #34023
+    
+    Change-Id: Ib7552a8873a79a91e8d971f906c6d7283da7a80c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264027
+    Trust: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/tls/common.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

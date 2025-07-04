@@ -1,0 +1,15 @@
+commit 5b76f0ce3c705ffec0c22d38281a717de6f21af9
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon May 19 08:02:07 2014 -0700
+
+    doc/go1.3.html: minor tweak of Solaris wording
+    
+    Discussion here: https://golang.org/cl/100490044/#msg14
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/98350043
+
+ doc/go1.3.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

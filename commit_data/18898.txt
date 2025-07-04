@@ -1,0 +1,16 @@
+commit 8a908efd7462b4476d95a92498aef13c531cc8af
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Mar 19 17:22:56 2014 +0400
+
+    runtime: add stack growth tests
+    Also move generated code into a separate file,
+    because it's difficult to work with the file otherwise.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews
+    https://golang.org/cl/76080044
+
+ src/pkg/runtime/stack_gen_test.go | 1473 +++++++++++++++++++++++++++++++++
+ src/pkg/runtime/stack_test.go     | 1630 ++++---------------------------------
+ 2 files changed, 1623 insertions(+), 1480 deletions(-)

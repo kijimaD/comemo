@@ -1,0 +1,21 @@
+commit f8973fcafbb1172d2f1bf98cda5da5ddbe744aa3
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Feb 28 01:41:42 2018 +0000
+
+    cmd/link: revert CL 89535: "fix up location lists for dsymutil"
+    
+    This reverts commit 230b0bad1f9685e824c9096deb4badbe93377733.
+    
+    Reason for revert: breaking the build.
+    
+    Fixes #24165
+    
+    Change-Id: I9d8dda59f97a47e5c436f1c061b34ced82bde8ec
+    Reviewed-on: https://go-review.googlesource.com/97575
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 71 ---------------------------------------
+ 1 file changed, 71 deletions(-)

@@ -1,0 +1,17 @@
+commit 5dd922c935d28ded082f76a81e0c963938d7c3c3
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed May 25 14:54:41 2016 +0200
+
+    compress/lzw: use Run for benchmarks
+    
+    load file only once per group.
+    
+    Change-Id: I965661507055e6e100506bf14d37133ecdd2cc5e
+    Reviewed-on: https://go-review.googlesource.com/23423
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/compress/lzw/reader_test.go | 61 ++++++++++++++++++++---------------------
+ src/compress/lzw/writer_test.go | 55 +++++++++++++++++--------------------
+ 2 files changed, 54 insertions(+), 62 deletions(-)

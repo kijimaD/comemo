@@ -1,0 +1,11 @@
+commit dde666dab5350035cf1bab2d07ab652c72d56f68
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 1 18:46:07 2009 -0800
+
+    code review: avoid subject changes, fix http_proxy submit bug
+    
+    R=r
+    http://go/go-review/1016021
+
+ lib/codereview/codereview.py | 36 +++++++++++++++++++++++++-----------
+ 1 file changed, 25 insertions(+), 11 deletions(-)

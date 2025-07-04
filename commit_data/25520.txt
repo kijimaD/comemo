@@ -1,0 +1,14 @@
+commit 5e059d1c3111b4ce555effa072299a44fda96a32
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 8 11:33:17 2016 -0800
+
+    math/big: fix typo in comment
+    
+    Fixes #13875.
+    
+    Change-Id: Icbb85c858d0bc545499a2b31622e9e7abdd7e5f9
+    Reviewed-on: https://go-review.googlesource.com/18441
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/big/int.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 69fc74f3eefc3d08b9233992e47d660bf3d449a1
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Aug 13 16:20:48 2022 +0000
+
+    runtime: factor out mheap span initialization
+    
+    This change refactors span heap initialization. This change should just
+    be a no-op and just prepares for adding support for arenas.
+    
+    For #51317.
+    
+    Change-Id: Ie6f877ca10f86d26e7b6c4857b223589a351e253
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423364
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mheap.go | 112 +++++++++++++++++++++++++++------------------------
+ 1 file changed, 60 insertions(+), 52 deletions(-)

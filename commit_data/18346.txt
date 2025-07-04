@@ -1,0 +1,22 @@
+commit 9fa9613e0b63b47a1d19c1ba50a7118304dcebae
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jan 24 22:29:01 2014 +0400
+
+    runtime: do not zero terminate strings
+    On top of "tiny allocator" (cl/38750047), reduces number of allocs by 1% on json.
+    No code must rely on zero termination. So will also make debugging simpler,
+    by uncovering issues earlier.
+    
+    json-1
+    allocated                 7949686      7915766      -0.43%
+    allocs                      93778        92790      -1.05%
+    time                    100957795     97250949      -3.67%
+    rest of the metrics are too noisy.
+    
+    LGTM=r
+    R=golang-codereviews, r, bradfitz, iant
+    CC=golang-codereviews
+    https://golang.org/cl/40370061
+
+ src/pkg/runtime/string.goc | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

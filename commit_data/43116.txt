@@ -1,0 +1,23 @@
+commit 8ab020adb27089fa207d015f2f69600ef3d1d307
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Sat Sep 26 19:40:17 2020 +0000
+
+    runtime: netbsd-arm64 fixes
+    
+    Add missing declaration of crosscall1.
+    
+    Fix stack alignment for pipe2 return value.
+    
+    Work around kernel clobbering of r28 on aarch64 by reloading from ucontext.
+    https://nxr.netbsd.org/xref/src/sys/arch/aarch64/aarch64/sig_machdep.c#104
+    
+    Update #30824
+    
+    Change-Id: I7f9472939f4c02953f8c207308610118f5d3c54c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257645
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+
+ src/runtime/cgo/gcc_netbsd_arm64.c |  2 ++
+ src/runtime/sys_netbsd_arm64.s     | 11 +++++++++--
+ 2 files changed, 11 insertions(+), 2 deletions(-)

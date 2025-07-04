@@ -1,0 +1,13 @@
+commit 364301efc6d376836de4daab21d55af7bc15853d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 20 09:49:05 2009 -0700
+
+    exclude _test from godoc as well as _obj.
+    
+    R=gri
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=33586
+    CL=33590
+
+ src/cmd/godoc/godoc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

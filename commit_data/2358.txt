@@ -1,0 +1,38 @@
+commit 602a446b74083ac027f1d0740d1e724534222a10
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 1 22:14:57 2009 -0700
+
+    new syscall package: manually maintained files and scripts.
+    auto-generated files and deletions are in another CL.
+    
+    goals for new syscall:
+            * automate as much as possible
+            * do not let clients do unsafe things
+            * use simple types (int not int64)
+            * fewer files
+    
+    the files are renamed from foo_amd64_linux to foo_linux_amd64,
+    both because it reads better (all the linux are related, all the amd64 less so)
+    and because it made it easier to replace the existing ones.
+    
+    R=r
+    DELTA=2336  (2260 added, 6 deleted, 70 changed)
+    OCL=29709
+    CL=29723
+
+ src/lib/syscall/PORT                    | 120 ++++++
+ src/lib/syscall/errstr.go               |  30 ++
+ src/lib/syscall/exec.go                 | 122 +++---
+ src/lib/syscall/mkerrors                |  94 +++++
+ src/lib/syscall/mksyscall               | 170 ++++++++
+ src/lib/syscall/mksysnum_darwin         |  38 ++
+ src/lib/syscall/syscall.go              |  29 +-
+ src/lib/syscall/syscall_darwin.go       | 674 ++++++++++++++++++++++++++++++++
+ src/lib/syscall/syscall_darwin_amd64.go |  28 ++
+ src/lib/syscall/syscall_linux.go        | 636 ++++++++++++++++++++++++++++++
+ src/lib/syscall/syscall_linux_amd64.go  |  29 ++
+ src/lib/syscall/types_darwin.c          | 226 +++++++++++
+ src/lib/syscall/types_darwin_amd64.c    |   5 +
+ src/lib/syscall/types_linux.c           | 217 ++++++++++
+ src/lib/syscall/types_linux_amd64.c     |   5 +
+ 15 files changed, 2351 insertions(+), 72 deletions(-)

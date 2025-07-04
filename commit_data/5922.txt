@@ -1,0 +1,12 @@
+commit c44f95ff489b8a9b77c202d0a401c8803e3120cd
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Jul 30 10:53:26 2010 +0300
+
+    fix build
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1913042
+
+ test/zerodivide.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

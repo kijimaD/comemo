@@ -1,0 +1,26 @@
+commit a0c02df519afdb921288df9e57efcd4a7fdb735a
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Aug 4 16:30:40 2023 -0400
+
+    runtime/pprof: correct field alignment in machVMRegionBasicInfoData
+    
+    The type machVMRegionBasicInfoData is generated from C type
+    vm_region_basic_info_data_64_t, which is a packed struct with a
+    64-bit field at offset 20. We cannot use uint64 as the field type
+    in the Go struct, as that will be aligned at offset 24, which does
+    not match the C struct. Change back to [8]byte (which is what the
+    cgo command generates), but keep the name Offset.
+    
+    Updates #61707.
+    Updates #50891.
+    
+    Change-Id: I2932328d7f9dfe9d79cff89752666c794d4d3788
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516156
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/pprof/defs_darwin_amd64.go | 2 +-
+ src/runtime/pprof/defs_darwin_arm64.go | 2 +-
+ src/runtime/pprof/vminfo_darwin.go     | 7 ++++++-
+ 3 files changed, 8 insertions(+), 3 deletions(-)

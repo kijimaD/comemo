@@ -1,0 +1,18 @@
+commit 37db664c6cd480b578d6114854bc20c2bc3cddcd
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 17 14:25:06 2018 +1000
+
+    builtin: document when len and cap are constant
+    
+    The rules are subtle, but under some circumstances the result
+    can be constant. Mention this and refer to the appropriate
+    section of the specification.
+    
+    Fixes #27588.
+    
+    Change-Id: I4beaad036db87501378fb2ef48d216742d096933
+    Reviewed-on: https://go-review.googlesource.com/135519
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/builtin/builtin.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

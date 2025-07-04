@@ -1,0 +1,104 @@
+commit 7c04633e0c4babc8da4c8a582aee4f1754c9db12
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Aug 28 17:04:46 2016 -0700
+
+    all: fix obsolete inferno-os links
+    
+    Fixes #16911.
+    
+    Fix obsolete inferno-os links, since code.google.com shutdown.
+    This CL points to the right files by replacing
+    http://code.google.com/p/inferno-os/source/browse
+    with
+    https://bitbucket.org/inferno-os/inferno-os/src/default
+    
+    To implement the change I wrote and ran this script in the root:
+    $ grep -Rn 'http://code.google.com/p/inferno-os/source/browse' * \
+    | cut -d":" -f1 | while read F;do perl -pi -e \
+    's/http:\/\/code.google.com\/p\/inferno-os\/source\/browse/https:\/\/bitbucket.org\/inferno-os\/inferno-os\/src\/default/g'
+    $F;done
+    
+    I excluded any cmd/vendor changes from the commit.
+    
+    Change-Id: Iaaf828ac8f6fc949019fd01832989d00b29b6749
+    Reviewed-on: https://go-review.googlesource.com/27994
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/gsubr.go  | 2 +-
+ src/cmd/compile/internal/amd64/peep.go   | 2 +-
+ src/cmd/compile/internal/amd64/reg.go    | 2 +-
+ src/cmd/compile/internal/arm/gsubr.go    | 2 +-
+ src/cmd/compile/internal/arm/peep.go     | 2 +-
+ src/cmd/compile/internal/arm/reg.go      | 2 +-
+ src/cmd/compile/internal/arm64/gsubr.go  | 2 +-
+ src/cmd/compile/internal/arm64/peep.go   | 2 +-
+ src/cmd/compile/internal/arm64/reg.go    | 2 +-
+ src/cmd/compile/internal/gc/gsubr.go     | 2 +-
+ src/cmd/compile/internal/gc/popt.go      | 2 +-
+ src/cmd/compile/internal/gc/reg.go       | 2 +-
+ src/cmd/compile/internal/mips64/gsubr.go | 2 +-
+ src/cmd/compile/internal/mips64/peep.go  | 2 +-
+ src/cmd/compile/internal/mips64/reg.go   | 2 +-
+ src/cmd/compile/internal/ppc64/gsubr.go  | 2 +-
+ src/cmd/compile/internal/ppc64/peep.go   | 2 +-
+ src/cmd/compile/internal/ppc64/reg.go    | 2 +-
+ src/cmd/compile/internal/s390x/gsubr.go  | 2 +-
+ src/cmd/compile/internal/s390x/peep.go   | 2 +-
+ src/cmd/compile/internal/s390x/reg.go    | 2 +-
+ src/cmd/compile/internal/x86/gsubr.go    | 2 +-
+ src/cmd/compile/internal/x86/peep.go     | 2 +-
+ src/cmd/compile/internal/x86/reg.go      | 2 +-
+ src/cmd/internal/obj/arm/a.out.go        | 2 +-
+ src/cmd/internal/obj/arm/asm5.go         | 2 +-
+ src/cmd/internal/obj/arm/list5.go        | 2 +-
+ src/cmd/internal/obj/arm/obj5.go         | 2 +-
+ src/cmd/internal/obj/data.go             | 4 ++--
+ src/cmd/internal/obj/ld.go               | 4 ++--
+ src/cmd/internal/obj/link.go             | 2 +-
+ src/cmd/internal/obj/pass.go             | 2 +-
+ src/cmd/internal/obj/sym.go              | 4 ++--
+ src/cmd/internal/obj/x86/a.out.go        | 2 +-
+ src/cmd/internal/obj/x86/asm6.go         | 2 +-
+ src/cmd/internal/obj/x86/list6.go        | 2 +-
+ src/cmd/internal/obj/x86/obj6.go         | 2 +-
+ src/cmd/link/internal/amd64/asm.go       | 2 +-
+ src/cmd/link/internal/amd64/l.go         | 2 +-
+ src/cmd/link/internal/amd64/obj.go       | 2 +-
+ src/cmd/link/internal/arm/asm.go         | 2 +-
+ src/cmd/link/internal/arm/l.go           | 4 ++--
+ src/cmd/link/internal/arm/obj.go         | 2 +-
+ src/cmd/link/internal/arm64/asm.go       | 2 +-
+ src/cmd/link/internal/arm64/l.go         | 2 +-
+ src/cmd/link/internal/arm64/obj.go       | 2 +-
+ src/cmd/link/internal/ld/ar.go           | 2 +-
+ src/cmd/link/internal/ld/data.go         | 4 ++--
+ src/cmd/link/internal/ld/ld.go           | 4 ++--
+ src/cmd/link/internal/ld/lib.go          | 4 ++--
+ src/cmd/link/internal/ld/link.go         | 2 +-
+ src/cmd/link/internal/ld/main.go         | 2 +-
+ src/cmd/link/internal/ld/sym.go          | 4 ++--
+ src/cmd/link/internal/ld/symtab.go       | 2 +-
+ src/cmd/link/internal/mips64/asm.go      | 2 +-
+ src/cmd/link/internal/mips64/l.go        | 2 +-
+ src/cmd/link/internal/mips64/obj.go      | 2 +-
+ src/cmd/link/internal/ppc64/asm.go       | 2 +-
+ src/cmd/link/internal/ppc64/l.go         | 2 +-
+ src/cmd/link/internal/ppc64/obj.go       | 2 +-
+ src/cmd/link/internal/s390x/asm.go       | 2 +-
+ src/cmd/link/internal/s390x/l.go         | 2 +-
+ src/cmd/link/internal/s390x/obj.go       | 2 +-
+ src/cmd/link/internal/x86/asm.go         | 2 +-
+ src/cmd/link/internal/x86/l.go           | 2 +-
+ src/cmd/link/internal/x86/obj.go         | 2 +-
+ src/runtime/memclr_arm.s                 | 2 +-
+ src/runtime/memmove_386.s                | 2 +-
+ src/runtime/memmove_amd64.s              | 2 +-
+ src/runtime/memmove_arm.s                | 2 +-
+ src/runtime/memmove_plan9_386.s          | 2 +-
+ src/runtime/memmove_plan9_amd64.s        | 2 +-
+ src/runtime/vlop_386.s                   | 2 +-
+ src/runtime/vlop_arm.s                   | 2 +-
+ src/runtime/vlrt.go                      | 2 +-
+ 75 files changed, 83 insertions(+), 83 deletions(-)

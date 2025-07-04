@@ -1,0 +1,21 @@
+commit 25f5044e46f5d2c9e870e37c95a13bf01c63a6b7
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 21 23:25:32 2019 +0700
+
+    cmd/compile: hard fail if n.Opt() is not nil in walkCheckPtrArithmetic
+    
+    n.Opt() is used in walkCheckPtrArithmetic to prevent infinite loops. The
+    fact that it's used today because n.Opt() is not used for OCONVNOP
+    during walk.go. If that changes, then it's not safe to repalce it
+    anymore. So doing hard fail if that case happens, the author of new
+    changes will be noticed and must change the usage of n.Opt() inside
+    walkCheckPtrArithmetic, too.
+    
+    Change-Id: Ic7094baa1759c647fc10e82457c19026099a0d47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202497
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

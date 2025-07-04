@@ -1,0 +1,18 @@
+commit be3184c4059e1ed69f74ad4e28b49e32a836b126
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Nov 8 04:30:38 2022 +0100
+
+    internal/coverage/slicereader: use unsafe.String
+    
+    Change-Id: Ifd88315626e0ce5b9b8d3c66aa9dd9806f8407dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448555
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/internal/coverage/slicereader/slicereader.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

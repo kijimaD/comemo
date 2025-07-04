@@ -1,0 +1,27 @@
+commit d2c7dec183f0da628abf16848e9e92987feebe32
+Author: Aman Gupta <aman@tmm1.net>
+Date:   Mon Nov 6 23:02:21 2017 -0800
+
+    net: implement (*syscall.RawConn).Read/Write on Windows
+    
+    RawRead assumes the callback will perform either (a) a blocking read
+    and always return true, (b) a blocking read with a SO_RCVTIMEO set
+    returning false on WSAETIMEDOUT, or (c) a non-blocking read
+    returning false on WSAEWOULDBLOCK. In the latter two cases, it uses
+    a 0-byte overlapped read for notifications from the IOCP runtime
+    when the socket becomes readable before trying again.
+    
+    RawWrite assumes the callback will perform blocking write and will
+    always return true, and makes no effort to tie into the runtime loop.
+    
+    Change-Id: Ib10074e9d502c040294f41a260e561e84208652f
+    Reviewed-on: https://go-review.googlesource.com/76391
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/internal/poll/fd_windows.go                 | 36 ++++++++++++++++++++++--
+ src/internal/syscall/windows/syscall_windows.go |  1 +
+ src/net/rawconn.go                              |  3 --
+ src/net/rawconn_test.go                         |  2 +-
+ src/net/rawconn_windows_test.go                 | 37 +++++++++++++++++++++++--
+ 5 files changed, 71 insertions(+), 8 deletions(-)

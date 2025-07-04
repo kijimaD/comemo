@@ -1,0 +1,27 @@
+commit 511cd9b8af10de9cad86be38a22e5eb2e5d4cd8d
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 12 16:35:26 2022 -0400
+
+    runtime: switch gp when jumping stacks during traceback
+    
+    Currently, when traceback jumps from the system stack to a user stack
+    (e.g., during profiling tracebacks), it leaves gp pointing at the g0.
+    This is currently harmless since it's only used during profiling, so
+    the code paths in gentraceback that care about gp aren't used, but
+    it's really confusing and would certainly break if _TraceJumpStack
+    were ever used in a context other than profiling.
+    
+    Fix this by updating gp to point to the user g when we switch stacks.
+    
+    For #54466.
+    
+    Change-Id: I1541e004667a52e37671803ce45c91d8c5308830
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424257
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/traceback.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

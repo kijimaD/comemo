@@ -1,0 +1,22 @@
+commit f9e2dbbfc92fdc19c4e9412b318beb5294d91bff
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Apr 21 12:24:27 2021 +0200
+
+    syscall: use libc in Exec on openbsd/arm64
+    
+    Like on openbsd/amd64, use libc instead of direct syscalls on
+    openbsd/arm64.
+    
+    This was likely missed in CL 286815. A similar change was done for
+    openbsd/amd64 in CL 270380.
+    
+    Updates #36435
+    
+    Change-Id: Ie496a6130f1a43d30974502777db12217e65c551
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312229
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+
+ src/syscall/exec_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

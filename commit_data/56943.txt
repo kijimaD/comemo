@@ -1,0 +1,24 @@
+commit c18ff292959f18965ab6fa47d5dc7aeea1b2374f
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 25 14:56:11 2024 -0700
+
+    cmd/compile: make sync/atomic AND/OR operations intrinsic on amd64
+    
+    Update #61395
+    
+    Change-Id: I59a950f48efc587dfdffce00e2f4f3ab99d8df00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594738
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go         |  57 ++++++++++-
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules |   8 +-
+ src/cmd/compile/internal/ssa/_gen/AMD64Ops.go |  14 ++-
+ src/cmd/compile/internal/ssa/opGen.go         | 130 ++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/regalloc.go      |  11 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  | 140 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go        |  64 ++++++++++--
+ test/codegen/atomics.go                       |  68 +++++++++++++
+ 8 files changed, 478 insertions(+), 14 deletions(-)

@@ -1,0 +1,16 @@
+commit 85938714e9619e1db064ad11a94ac987d6c24ac0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 30 16:50:36 2015 -0700
+
+    mime/multipart: fix bug when body contains prefix of the boundary
+    
+    Fixes #10616
+    
+    Change-Id: I4ef25eb0be6ccf474976fdb5087dd2c62c66c510
+    Reviewed-on: https://go-review.googlesource.com/11811
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/multipart/multipart.go      | 35 +++++++++++++++++++++---
+ src/mime/multipart/multipart_test.go | 52 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 84 insertions(+), 3 deletions(-)

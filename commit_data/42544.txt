@@ -1,0 +1,23 @@
+commit 3dec253783e1211989102ac6abd34cddbf8ba0e6
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jun 18 12:51:35 2020 -0700
+
+    reflect: zero stack slots before writing to them with write barriers
+    
+    reflect.assignTo writes to the target using write barriers. Make sure
+    that the memory it is writing to is zeroed, so the write barrier does
+    not read pointers from uninitialized memory.
+    
+    Fixes #39541
+    
+    Change-Id: Ia64b2cacc193bffd0c1396bbce1dfb8182d4905b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238760
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/type.go          |  1 +
+ src/reflect/value.go         |  8 ++++++++
+ src/runtime/stack.go         |  1 +
+ test/fixedbugs/issue39541.go | 33 +++++++++++++++++++++++++++++++++
+ 4 files changed, 43 insertions(+)

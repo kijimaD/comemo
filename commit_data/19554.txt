@@ -1,0 +1,49 @@
+commit 5ce6d3e03e48cd453e414a0f64090004af9f319a
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 17 08:10:21 2014 -0700
+
+    undo CL 105260044 / afd6f214cc81
+    
+    The go:nosplit change wasn't the problem, reinstating.
+    
+    ««« original CL description
+    undo CL 93380044 / 7f0999348917
+    
+    Partial undo, just of go:nosplit annotation.  Somehow it
+    is breaking the windows builders.
+    
+    TBR=bradfitz
+    
+    ««« original CL description
+    runtime: implement string ops in Go
+    
+    Also implement go:nosplit annotation.  Not really needed
+    for now, but we'll definitely need it for other conversions.
+    
+    benchmark                 old ns/op     new ns/op     delta
+    BenchmarkRuneIterate      534           474           -11.24%
+    BenchmarkRuneIterate2     535           470           -12.15%
+    
+    LGTM=bradfitz
+    R=golang-codereviews, dave, bradfitz, minux
+    CC=golang-codereviews
+    https://golang.org/cl/93380044
+    »»»
+    
+    TBR=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/105260044
+    »»»
+    
+    TBR=bradfitz
+    R=bradfitz, golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/103490043
+
+ src/cmd/gc/fmt.c   | 2 +-
+ src/cmd/gc/go.h    | 2 ++
+ src/cmd/gc/go.y    | 2 ++
+ src/cmd/gc/lex.c   | 4 ++++
+ src/cmd/gc/pgen.c  | 2 ++
+ src/cmd/gc/y.tab.c | 2 ++
+ 6 files changed, 13 insertions(+), 1 deletion(-)

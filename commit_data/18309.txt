@@ -1,0 +1,15 @@
+commit 2a2a3baac435482697c1d848508c6aac675e4375
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 21 17:12:30 2014 -0500
+
+    cmd/link: add testdata/pclntab.6 (fix build)
+    
+    Sorry, "hg status" hides .6 files by default.
+    We should probably fix that.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/55290043
+
+ src/cmd/link/testdata/pclntab.6 | Bin 0 -> 4604 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

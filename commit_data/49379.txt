@@ -1,0 +1,19 @@
+commit fc66cae490a0cd8b8cefefbc0ace7c3fb030f779
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 4 09:44:11 2022 -0400
+
+    doc/go1.19: remove TODO about LimitedReader
+    
+    Rolled back in CL 410133.
+    
+    For #51115.
+    
+    Change-Id: I009c557acf98a98a9e5648fa82d998d41974ae60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410357
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.19.html | 4 ----
+ 1 file changed, 4 deletions(-)

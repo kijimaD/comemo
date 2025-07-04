@@ -1,0 +1,24 @@
+commit 281eabe46f638139b8d85d87a359880dc0f8ea81
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Oct 6 01:04:18 2015 -0700
+
+    archive/tar: add missing error checks to Reader.Next
+    
+    A recursive call to Reader.Next did not check the error before
+    trying to use the result, leading to a nil pointer panic.
+    This specific CL addresses the immediate issue, which is the panic,
+    but does not solve the root issue, which is due to an integer
+    overflow in the base-256 parser.
+    
+    Updates #12435
+    
+    Change-Id: Ia908671f0f411a409a35e24f2ebf740d46734072
+    Reviewed-on: https://go-review.googlesource.com/15437
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/reader.go               |  14 ++++++++++----
+ src/archive/tar/reader_test.go          |   8 ++++++++
+ src/archive/tar/testdata/issue12435.tar | Bin 0 -> 512 bytes
+ 3 files changed, 18 insertions(+), 4 deletions(-)

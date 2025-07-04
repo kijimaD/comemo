@@ -1,0 +1,35 @@
+commit 835c83b40dd9b94b51180898551b313a92892ffd
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 16 15:20:59 2015 -0500
+
+    runtime: clear tiny alloc cache in mark term, not sweep term
+    
+    The tiny alloc cache is maintained in a pointer from non-GC'd memory
+    (mcache) to heap memory and hence must be handled carefully.
+    
+    Currently we clear the tiny alloc cache during sweep termination and,
+    if it is assigned to a non-nil value during concurrent marking, we
+    depend on a write barrier to keep the new value alive. However, while
+    the compiler currently always generates this write barrier, we're
+    treading on thin ice because write barriers may not happen for writes
+    to non-heap memory (e.g., typedmemmove). Without this lucky write
+    barrier, the GC may free a current tiny block while it's still
+    reachable by the tiny allocator, leading to later memory corruption.
+    
+    Change this code so that, rather than depending on the write barrier,
+    we simply clear the tiny cache during mark termination when we're
+    clearing all of the other mcaches. If the current tiny block is
+    reachable from regular pointers, it will be retained; if it isn't
+    reachable from regular pointers, it may be freed, but that's okay
+    because there won't be any pointers in non-GC'd memory to it.
+    
+    Change-Id: I8230980d8612c35c2997b9705641a1f9f865f879
+    Reviewed-on: https://go-review.googlesource.com/16962
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mcache.go | 14 ++++++++++++++
+ src/runtime/mgc.go    | 11 -----------
+ 2 files changed, 14 insertions(+), 11 deletions(-)

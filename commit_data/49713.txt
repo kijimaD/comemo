@@ -1,0 +1,28 @@
+commit 1e3c19f3fee12e5e2b7802a54908a4d4d03960da
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri May 27 18:55:35 2022 +0200
+
+    runtime: support riscv64 SV57 mode
+    
+    riscv64 has SV57 mode when user-space VA is 56 bits.
+    Linux kernel recently got support for this mode and Go binaries started crashing as:
+    
+    runtime: lfstack.push invalid packing: node=0xffffff5908a940 cnt=0x1
+    packed=0xffff5908a9400001 -> node=0xffff5908a940
+    
+    Adjust lfstack code to use only 8 top bits of pointers on riscv64.
+    
+    For context see:
+    https://groups.google.com/g/syzkaller-bugs/c/lU0GQTZoNQQ/m/O_c3vmE3AAAJ
+    
+    Update #54104
+    
+    Change-Id: Ib5d3d6a79c0c6eddf11618d73fcc8bc1832a9c25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409055
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/lfstack_64bit.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,0 +1,25 @@
+commit a2c2f06cad8aa722120cb73e965d168bfcb4d977
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Aug 17 22:21:23 2022 +0200
+
+    internal/poll: remove detection of buggy splice on old Linux versions
+    
+    The splice syscall is buggy prior to Linux 2.6.29. CL 113999 added a
+    workaround to detect buggy versions and disable use of splice for these.
+    As of Go 1.18 the minumum Linux version is 2.6.32. Thus, a non-buggy
+    implementation of the splice syscall can be assumed.
+    
+    For #45964
+    Fixes #54505
+    
+    Change-Id: Ied3a3334da7a3f7fa1280b7c5b1dfb9030219336
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422979
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/internal/poll/splice_linux.go | 35 +++--------------------------------
+ 1 file changed, 3 insertions(+), 32 deletions(-)

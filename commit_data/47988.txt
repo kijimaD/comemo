@@ -1,0 +1,26 @@
+commit 19d819d49c73c8e47749b3c4cbbc2e58a259269a
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jan 24 09:27:31 2022 -0500
+
+    runtime: call fflush before exiting in C test
+    
+    Very, very rarely TestVectoredHandlerDontCrashOnLibrary fails because
+    the C subprocess exits with a 0 status code and no output. This
+    appears to happen because C does not actually guarantee that stdout
+    will be flushed on exit and somehow, very rarely, it is not flushed.
+    
+    Add explicit fflushes to fix this. This reduces the failure rate of
+    TestVectoredHandlerDontCrashOnLibrary from 0.0013% to 0% in 250,000
+    iterations.
+    
+    Fixes #49959.
+    
+    Change-Id: I892cf49a165ac91134c5da37588a2ab11e1f3f8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380494
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/testdata/testwinlib/main.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

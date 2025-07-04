@@ -1,0 +1,12 @@
+commit 3965519ae5fd7f51403669208deddcd103ebcdfc
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Jan 16 15:25:13 2011 -0800
+
+    arm reg bug with address(variable)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4047041
+
+ src/cmd/5g/reg.c | 34 +++++++---------------------------
+ 1 file changed, 7 insertions(+), 27 deletions(-)

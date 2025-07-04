@@ -1,0 +1,20 @@
+commit 8fb9fa36f5b7cf161d0694fdb418af7c83b946d5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 5 14:32:46 2019 -0400
+
+    cmd/go/internal/get: make the implementation of charsetReader match its comment
+    
+    The doc comment for charsetReader claims that it supports UTF-8,
+    but in practice it does not: instead, it is never invoked for UTF-8.
+    
+    We could update the comment to clarify that fact, but it seems simpler
+    to change the implementation to match the comment.
+    
+    Change-Id: I39b11395ccef3feff96480b9294e8f2a232728dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189777
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/get/discovery.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

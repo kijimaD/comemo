@@ -1,0 +1,15 @@
+commit c81705f13a5898e40e7e51e83086903cb55da5bf
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Apr 16 11:56:37 2012 +1000
+
+    time: parse fractional second with single digit
+    
+    Fixes #3487.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6011050
+
+ src/pkg/time/format.go    | 2 +-
+ src/pkg/time/time_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 5f49456465f53f96bee03ac8cbe0d564e31576c2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 2 14:12:53 2011 -0500
+
+    spec: additional composite literal shortenings per Go 1 plan
+    
+    R=golang-dev, gri, r, r
+    CC=golang-dev
+    https://golang.org/cl/5449067
+
+ doc/go_spec.html | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 1ca1e1befa0dd5876b0f4ad2d4c87bbaebfca322
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 2 11:21:01 2009 -0700
+
+    encoders and decoders for string, []uint8
+    
+    R=rsc
+    DELTA=165  (145 added, 6 deleted, 14 changed)
+    OCL=31051
+    CL=31056
+
+ src/pkg/gob/codec_test.go | 85 ++++++++++++++++++++++++++++++++++++++++-------
+ src/pkg/gob/decode.go     | 50 +++++++++++++++++++++++++---
+ src/pkg/gob/encode.go     | 44 +++++++++++++++++++++---
+ 3 files changed, 159 insertions(+), 20 deletions(-)

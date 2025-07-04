@@ -1,0 +1,12 @@
+commit edaeb88bd5f0efbac24acc73c18924257b336d1c
+Author: Anthony Starks <ajstarks@gmail.com>
+Date:   Sat Oct 30 22:15:59 2010 +1100
+
+    misc/bbedit: support append, other builtins
+    
+    R=golang-dev, PeterGo, adg
+    CC=golang-dev
+    https://golang.org/cl/2791042
+
+ misc/bbedit/Go.plist | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

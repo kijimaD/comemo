@@ -1,0 +1,26 @@
+commit ea5f9b666ccf7affca596be3ab0dc523ca4444fb
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Apr 28 21:30:57 2020 +0000
+
+    runtime: use offAddr in more parts of the runtime
+    
+    This change uses the new offAddr type in more parts of the runtime where
+    we've been implicitly switching from the default address space to a
+    contiguous view. The purpose of offAddr is to represent addresses in the
+    contiguous view of the address space, and to make direct computations
+    between real addresses and offset addresses impossible. This change thus
+    improves readability in the runtime.
+    
+    Updates #35788.
+    
+    Change-Id: I4e1c5fed3ed68aa12f49a42b82eb3f46aba82fc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230718
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgcscavenge.go |  14 ++---
+ src/runtime/mpagealloc.go  | 132 +++++++++++++++++++++------------------------
+ src/runtime/mpagecache.go  |  12 ++---
+ src/runtime/mranges.go     |  27 +++++++++-
+ 4 files changed, 99 insertions(+), 86 deletions(-)

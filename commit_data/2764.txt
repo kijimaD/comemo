@@ -1,0 +1,13 @@
+commit 39808db15a0b46b9e5adfa81f6cf51b98a85df1d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 20 23:26:03 2009 -0700
+
+    Make struct field names unique.
+    
+    R=rsc
+    DELTA=5  (0 added, 0 deleted, 5 changed)
+    OCL=31900
+    CL=31900
+
+ src/pkg/reflect/all_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

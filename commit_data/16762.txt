@@ -1,0 +1,13 @@
+commit 33b0e3c0d1897cf715955248b4091bd998bfdb67
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Jul 15 10:45:53 2013 +1000
+
+    A+C: Andrew Bonventre (individual CLA).
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/11256043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

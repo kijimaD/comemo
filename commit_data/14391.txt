@@ -1,0 +1,17 @@
+commit fc5e64cb8f790c559a6f6c8801a8e1f03aee21a5
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Nov 14 03:19:34 2012 +1100
+
+    syscall: regenerate z-files for openbsd/amd64
+    
+    Regenerate z-files for OpenBSD/amd64 on OpenBSD 5.2.
+    
+    R=golang-dev, bradfitz, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/6843045
+
+ src/pkg/syscall/zerrors_openbsd_amd64.go | 105 ++++++++++++++++++++++++++++---
+ src/pkg/syscall/zsysctl_openbsd.go       |   2 +
+ src/pkg/syscall/zsysnum_openbsd_amd64.go |   9 +--
+ src/pkg/syscall/ztypes_openbsd_amd64.go  |  50 ++++++++-------
+ 4 files changed, 128 insertions(+), 38 deletions(-)

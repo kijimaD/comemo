@@ -1,0 +1,31 @@
+commit 7d7bd5abc7f7ac901830b79496f63ce86895e262
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Aug 11 12:04:25 2020 -0400
+
+    cmd/internal/obj/ppc64: don't remove NOP in assembler
+    
+    Previously, the assembler removed NOPs from the Prog list in
+    obj9.go. NOPs shouldn't be removed if they were added as
+    an inline mark, as described in the issue below.
+    
+    Fixes #40689
+    
+    Once the NOPs were left in the Prog list, some instructions
+    were flagged as invalid because they had an operand which was
+    not represented in optab. In order to preserve the previous
+    assembler behavior, entries were added to optab for those
+    operand cases. They were not flagged as errors before because
+    the NOP instructions were removed before the code to check the
+    valid opcode/operand combinations.
+    
+    Change-Id: Iae5145f94459027cf458e914d7c5d6089807ccf8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247842
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/obj/ppc64/asm9.go |  3 +++
+ src/cmd/internal/obj/ppc64/obj9.go | 11 +++--------
+ 2 files changed, 6 insertions(+), 8 deletions(-)

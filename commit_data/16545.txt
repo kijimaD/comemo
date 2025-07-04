@@ -1,0 +1,24 @@
+commit ae5e791ed20076bf67e5da20fee769ec86a7a969
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 11 20:23:21 2013 -0700
+
+    cmd/gc: save local var list before inlining
+    
+    This avoids problems with inlining in genwrappers, which
+    occurs after functions have been compiled.  Compiling a
+    function may cause some unused local vars to be removed from
+    the list.  Since a local var may be unused due to
+    optimization, it is possible that a removed local var winds up
+    beingused in the inlined version, in which case hilarity
+    ensues.
+    
+    Fixes #5515.
+    
+    R=golang-dev, khr, dave
+    CC=golang-dev
+    https://golang.org/cl/10210043
+
+ src/cmd/gc/go.h             |  1 +
+ src/cmd/gc/inl.c            |  5 +++--
+ test/fixedbugs/issue5515.go | 34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 38 insertions(+), 2 deletions(-)

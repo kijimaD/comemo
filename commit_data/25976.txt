@@ -1,0 +1,18 @@
+commit d3b00a8cc463267b24ade4cf57aafdd02440e19c
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Mon Feb 29 11:49:49 2016 +0200
+
+    cmd/link: batch writing of bytes
+    
+    In best of 10, linking cmd/go shows a ~10% improvement.
+    
+    tip:              real  0m1.152s user  0m1.005s
+    this:             real  0m1.065s user  0m0.924s
+    
+    Change-Id: I303a20b94332feaedc1033c453247a0e4c05c843
+    Reviewed-on: https://go-review.googlesource.com/19978
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 48 +++++++++++++++++++++++-----------------
+ src/cmd/link/internal/ld/lib.go  |  4 ++++
+ 2 files changed, 32 insertions(+), 20 deletions(-)

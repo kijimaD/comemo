@@ -1,0 +1,52 @@
+commit 4039be00a9e77bd4080ac657a940472341fa088f
+Author: Ian Davis <nospam@iandavis.com>
+Date:   Sat Sep 22 14:23:38 2018 +0100
+
+    image: add benchmarks for At and Set methods
+    
+    Added in preparation for looking at some optimizations around bounds
+    checks.
+    
+    BenchmarkAt/rgba-8            100000000     18.5 ns/op      4 B/op   1 allocs/op
+    BenchmarkAt/rgba64-8          100000000     22.9 ns/op      8 B/op   1 allocs/op
+    BenchmarkAt/nrgba-8           100000000     18.8 ns/op      4 B/op   1 allocs/op
+    BenchmarkAt/nrgba64-8         100000000     22.1 ns/op      8 B/op   1 allocs/op
+    BenchmarkAt/alpha-8           100000000     14.6 ns/op      1 B/op   1 allocs/op
+    BenchmarkAt/alpha16-8         200000000     6.46 ns/op      0 B/op   0 allocs/op
+    BenchmarkAt/gray-8            100000000     14.3 ns/op      1 B/op   1 allocs/op
+    BenchmarkAt/gray16-8          200000000     6.45 ns/op      0 B/op   0 allocs/op
+    BenchmarkAt/paletted-8        300000000     4.28 ns/op      0 B/op   0 allocs/op
+    BenchmarkSet/rgba-8           50000000      39.2 ns/op      8 B/op   2 allocs/op
+    BenchmarkSet/rgba64-8         30000000      45.8 ns/op     16 B/op   2 allocs/op
+    BenchmarkSet/nrgba-8          50000000      39.3 ns/op      8 B/op   2 allocs/op
+    BenchmarkSet/nrgba64-8        30000000      45.6 ns/op     16 B/op   2 allocs/op
+    BenchmarkSet/alpha-8          50000000      34.5 ns/op      2 B/op   2 allocs/op
+    BenchmarkSet/alpha16-8        50000000      34.9 ns/op      4 B/op   2 allocs/op
+    BenchmarkSet/gray-8           100000000     20.3 ns/op      1 B/op   1 allocs/op
+    BenchmarkSet/gray16-8         50000000      36.2 ns/op      4 B/op   2 allocs/op
+    BenchmarkSet/paletted-8       50000000      39.5 ns/op      1 B/op   1 allocs/op
+    BenchmarkRGBAAt-8             500000000     3.74 ns/op
+    BenchmarkRGBASetRGBA-8        300000000     4.33 ns/op
+    BenchmarkRGBA64At-8           300000000     5.06 ns/op
+    BenchmarkRGBA64SetRGBA64-8    200000000     6.61 ns/op
+    BenchmarkNRGBAAt-8            500000000     3.69 ns/op
+    BenchmarkNRGBASetNRGBA-8      300000000     4.06 ns/op
+    BenchmarkNRGBA64At-8          300000000     4.98 ns/op
+    BenchmarkNRGBA64SetNRGBA64-8  200000000     6.62 ns/op
+    BenchmarkAlphaAt-8            2000000000    1.43 ns/op
+    BenchmarkAlphaSetAlpha-8      2000000000    1.55 ns/op
+    BenchmarkAlpha16At-8          1000000000    2.87 ns/op
+    BenchmarkAlphaSetAlpha16-8    500000000     3.27 ns/op
+    BenchmarkGrayAt-8             2000000000    1.43 ns/op
+    BenchmarkGraySetGray-8        2000000000    1.55 ns/op
+    BenchmarkGray16At-8           1000000000    2.87 ns/op
+    BenchmarkGraySetGray16-8      500000000     3.14 ns/op
+    
+    Updates #14884
+    
+    Change-Id: I349fb214ee75f13ecbc62ac22a40e3b337648f60
+    Reviewed-on: https://go-review.googlesource.com/136796
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/image/image_test.go | 210 ++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 195 insertions(+), 15 deletions(-)

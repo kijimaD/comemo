@@ -1,0 +1,20 @@
+commit c97778f4302bd0e39045c931941e32f178493f45
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 5 11:59:53 2014 -0800
+
+    spec: shadowed return parameters may be disallowed
+    
+    This documents the implemented behavior of both
+    gc and gccgo as an implementation restriction.
+    
+    NOT A LANGUAGE CHANGE.
+    
+    Fixes #5425.
+    
+    LGTM=rsc, r, iant
+    R=r, iant, rsc, ken
+    CC=golang-codereviews
+    https://golang.org/cl/71430043
+
+ doc/go_spec.html | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

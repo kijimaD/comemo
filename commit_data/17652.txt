@@ -1,0 +1,14 @@
+commit 3378f2473ce2236cc39cc643724672e13ef51055
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Sep 19 22:34:33 2013 +1000
+
+    untag go1.2rc1
+    
+    Looks like the dist tool really doesn't like tags.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13354049
+
+ .hgtags | 1 -
+ 1 file changed, 1 deletion(-)

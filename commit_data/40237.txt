@@ -1,0 +1,28 @@
+commit 46be01f4e06a2ef1d2450a81dd855671eac5b855
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Oct 12 16:05:34 2019 -0700
+
+    cmd/compile: remove Addable flag
+    
+    This flag is supposed to indicate whether the expression is
+    "addressable"; but in practice, we infer this from other
+    attributes about the expression (e.g., n.Op and n.Class()).
+    
+    Passes toolstash-check.
+    
+    Change-Id: I19352ca07ab5646e232d98e8a7c1c9aec822ddd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200897
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go     | 2 --
+ src/cmd/compile/internal/gc/esc.go     | 1 -
+ src/cmd/compile/internal/gc/fmt.go     | 4 ----
+ src/cmd/compile/internal/gc/reflect.go | 3 ---
+ src/cmd/compile/internal/gc/sinit.go   | 4 ++--
+ src/cmd/compile/internal/gc/ssa.go     | 1 -
+ src/cmd/compile/internal/gc/subr.go    | 1 -
+ src/cmd/compile/internal/gc/syntax.go  | 3 ---
+ src/cmd/compile/internal/gc/walk.go    | 1 -
+ 9 files changed, 2 insertions(+), 18 deletions(-)

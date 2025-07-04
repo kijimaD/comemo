@@ -1,0 +1,13 @@
+commit 640a57c8811c5bd45f519fc65ff10443e9f5a8a2
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Fri Sep 6 11:59:53 2013 -0700
+
+    misc/notepadplus: add interface to function list and use clang color in comments
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13587043
+
+ misc/notepadplus/functionList.xml   | 17 +++++++++++++++++
+ misc/notepadplus/userDefineLang.xml |  4 ++--
+ 2 files changed, 19 insertions(+), 2 deletions(-)

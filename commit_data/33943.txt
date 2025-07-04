@@ -1,0 +1,19 @@
+commit 23e68d7651a0017a6fc8223a964ec3d6db53d4bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 14 14:53:40 2017 -0500
+
+    cmd/go: fix caching of test -json outputs
+    
+    go test -json was inadvertently disabling caching. Fix that.
+    
+    Fixes #22984.
+    
+    Change-Id: Ic933a8c8ac00ce8253e934766954b1ccc6ac0cec
+    Reviewed-on: https://go-review.googlesource.com/84075
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go                |   3 +
+ src/cmd/go/internal/test/test.go     | 115 +++++++++++++++++++++--------------
+ src/cmd/go/internal/test/testflag.go |   2 +-
+ 3 files changed, 73 insertions(+), 47 deletions(-)

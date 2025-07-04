@@ -1,0 +1,16 @@
+commit 88442358a98bca7c93eec12be221b2a0f26e8277
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Jun 23 09:54:57 2011 +1000
+
+    net, syscall: interface for windows
+    
+    R=mikioh.mikioh, alex.brainman, rsc, vincent.vanackere
+    CC=golang-dev
+    https://golang.org/cl/4590050
+
+ src/pkg/net/Makefile                    |   2 +-
+ src/pkg/net/interface_windows.go        | 152 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_windows.go      |   3 +
+ src/pkg/syscall/zsyscall_windows_386.go |  32 ++++++-
+ src/pkg/syscall/ztypes_windows_386.go   |  93 +++++++++++++++++++
+ 5 files changed, 280 insertions(+), 2 deletions(-)

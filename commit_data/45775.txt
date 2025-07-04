@@ -1,0 +1,19 @@
+commit cb80937bf6b728fa56ee315d2c079f07c2f9f2a1
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 8 20:38:30 2021 +0000
+
+    Revert "doc/go1.17: mention block profile bias fix"
+    
+    This reverts CL 324471 (commit 689f4c7415acc8a135440574a483e0eeabba8b87).
+    
+    Reason for revert: break ~all builders. And it is not a doc-only change.
+    
+    Change-Id: Iadbdda34d2ca476a9f5e6c2d3a28592ed7ccb067
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326170
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ doc/go1.17.html                 | 10 ----------
+ src/runtime/pprof/pprof_test.go | 22 ----------------------
+ 2 files changed, 32 deletions(-)

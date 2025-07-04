@@ -1,0 +1,16 @@
+commit 1c445755300ddda23a8c2ad6aeee3a98f60f6077
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 22 13:46:53 2012 -0400
+
+    net/http: refactor body logic in test
+    
+    This just eliminates some duplication.
+    Also add a pointer to RFC 1122, in case
+    this comes up again.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6229044
+
+ src/pkg/net/http/serve_test.go | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

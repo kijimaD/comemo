@@ -1,0 +1,29 @@
+commit 72e043e48bf47ce03229b011d2468f46081055ad
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Tue Nov 12 00:52:57 2019 +0530
+
+    cmd/doc: show variables of unexported types for -all
+    
+    We use the typedValue map to prevent showing typed variables
+    and constants from appearing in the VARIABLES/CONSTANTS section
+    because they will be anyways shown in the TYPES section
+    for that type.
+    
+    However, when a type is unexported, but the variable is exported,
+    then unconditionally setting it to true in the map suppresses it
+    from being shown in the VARIABLES section. Thus, we set the
+    variable or constant in the typedValue map only when
+    the type name is exported.
+    
+    Fixes #31067
+    
+    Change-Id: Id3ec4b313c9ea7e3ce6fe279680d56f65451719f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206129
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/doc/doc_test.go     |  1 +
+ src/cmd/doc/pkg.go          | 20 ++++++++++----------
+ src/cmd/doc/testdata/pkg.go |  2 ++
+ 3 files changed, 13 insertions(+), 10 deletions(-)

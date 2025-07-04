@@ -1,0 +1,125 @@
+commit bca0320641000d842341637f22f140c262adb360
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 24 18:13:29 2017 -0800
+
+    compress/flate: use math/bits.Reverse8/16 instead of local implementation
+    
+    No measurable impact on performance (specifically, no degradation).
+    Reverse is used in Huffman en/de-coding. For completeness, here are
+    all the speed-related benchmark results:
+    
+    name                             old time/op    new time/op    delta
+    Decode/Digits/Huffman/1e4-8         181µs ± 0%     178µs ± 1%   ~             (p=0.100 n=3+3)
+    Decode/Digits/Huffman/1e5-8        1.60ms ± 3%    1.56ms ± 3%   ~             (p=0.400 n=3+3)
+    Decode/Digits/Huffman/1e6-8        15.7ms ± 1%    15.3ms ± 3%   ~             (p=0.700 n=3+3)
+    Decode/Digits/Speed/1e4-8           179µs ± 0%     180µs ± 0%   ~             (p=0.200 n=3+3)
+    Decode/Digits/Speed/1e5-8          1.68ms ± 0%    1.66ms ± 3%   ~             (p=0.700 n=3+3)
+    Decode/Digits/Speed/1e6-8          16.6ms ± 2%    16.6ms ± 5%   ~             (p=0.700 n=3+3)
+    Decode/Digits/Default/1e4-8         179µs ± 1%     178µs ± 1%   ~             (p=0.700 n=3+3)
+    Decode/Digits/Default/1e5-8        1.62ms ± 3%    1.62ms ± 4%   ~             (p=1.000 n=3+3)
+    Decode/Digits/Default/1e6-8        16.0ms ± 2%    16.0ms ± 3%   ~             (p=1.000 n=3+3)
+    Decode/Digits/Compression/1e4-8     179µs ± 1%     179µs ± 0%   ~             (p=0.200 n=3+3)
+    Decode/Digits/Compression/1e5-8    1.62ms ± 2%    1.62ms ± 3%   ~             (p=1.000 n=3+3)
+    Decode/Digits/Compression/1e6-8    16.1ms ± 3%    16.0ms ± 3%   ~             (p=1.000 n=3+3)
+    Decode/Twain/Huffman/1e4-8          205µs ± 2%     207µs ± 1%   ~             (p=1.000 n=3+3)
+    Decode/Twain/Huffman/1e5-8         1.77ms ± 2%    1.77ms ± 4%   ~             (p=0.700 n=3+3)
+    Decode/Twain/Huffman/1e6-8         17.4ms ± 2%    17.4ms ± 3%   ~             (p=1.000 n=3+3)
+    Decode/Twain/Speed/1e4-8            186µs ± 1%     186µs ± 1%   ~             (p=0.400 n=3+3)
+    Decode/Twain/Speed/1e5-8           1.53ms ± 2%    1.52ms ± 0%   ~             (p=0.700 n=3+3)
+    Decode/Twain/Speed/1e6-8           14.9ms ± 1%    14.8ms ± 1%   ~             (p=1.000 n=3+3)
+    Decode/Twain/Default/1e4-8          176µs ± 1%     174µs ± 0%   ~             (p=0.200 n=3+3)
+    Decode/Twain/Default/1e5-8         1.30ms ± 2%    1.31ms ± 1%   ~             (p=0.700 n=3+3)
+    Decode/Twain/Default/1e6-8         12.6ms ± 3%    12.5ms ± 0%   ~             (p=0.700 n=3+3)
+    Decode/Twain/Compression/1e4-8      177µs ± 0%     174µs ± 1%   ~             (p=0.100 n=3+3)
+    Decode/Twain/Compression/1e5-8     1.30ms ± 1%    1.31ms ± 0%   ~             (p=0.700 n=3+3)
+    Decode/Twain/Compression/1e6-8     12.5ms ± 1%    12.5ms ± 1%   ~             (p=1.000 n=3+3)
+    Encode/Digits/Huffman/1e4-8        47.4µs ± 1%    46.5µs ± 0%   ~             (p=0.100 n=3+3)
+    Encode/Digits/Huffman/1e5-8         453µs ± 2%     446µs ± 1%   ~             (p=0.700 n=3+3)
+    Encode/Digits/Huffman/1e6-8        4.44ms ± 3%    4.39ms ± 0%   ~             (p=1.000 n=3+3)
+    Encode/Digits/Speed/1e4-8           190µs ± 4%     185µs ± 0%   ~             (p=0.100 n=3+3)
+    Encode/Digits/Speed/1e5-8          1.78ms ± 5%    1.75ms ± 1%   ~             (p=1.000 n=3+3)
+    Encode/Digits/Speed/1e6-8          17.9ms ± 7%    17.3ms ± 1%   ~             (p=0.400 n=3+3)
+    Encode/Digits/Default/1e4-8         366µs ± 1%     361µs ± 0%   ~             (p=0.200 n=3+3)
+    Encode/Digits/Default/1e5-8        5.58ms ± 5%    5.44ms ± 1%   ~             (p=0.400 n=3+3)
+    Encode/Digits/Default/1e6-8        59.0ms ± 3%    58.2ms ± 1%   ~             (p=0.700 n=3+3)
+    Encode/Digits/Compression/1e4-8     369µs ± 3%     362µs ± 0%   ~             (p=0.100 n=3+3)
+    Encode/Digits/Compression/1e5-8    5.50ms ± 2%    5.47ms ± 1%   ~             (p=1.000 n=3+3)
+    Encode/Digits/Compression/1e6-8    59.4ms ± 2%    58.5ms ± 1%   ~             (p=0.400 n=3+3)
+    Encode/Twain/Huffman/1e4-8         64.4µs ± 3%    64.7µs ± 1%   ~             (p=0.700 n=3+3)
+    Encode/Twain/Huffman/1e5-8          526µs ± 1%     526µs ± 2%   ~             (p=1.000 n=3+3)
+    Encode/Twain/Huffman/1e6-8         5.18ms ± 2%    5.17ms ± 1%   ~             (p=0.700 n=3+3)
+    Encode/Twain/Speed/1e4-8            206µs ± 1%     204µs ± 0%   ~             (p=0.100 n=3+3)
+    Encode/Twain/Speed/1e5-8           1.73ms ± 2%    1.70ms ± 0%   ~             (p=0.100 n=3+3)
+    Encode/Twain/Speed/1e6-8           16.7ms ± 0%    16.7ms ± 1%   ~             (p=1.000 n=3+3)
+    Encode/Twain/Default/1e4-8          423µs ± 3%     418µs ± 1%   ~             (p=1.000 n=3+3)
+    Encode/Twain/Default/1e5-8         6.34ms ± 4%    6.23ms ± 0%   ~             (p=1.000 n=3+3)
+    Encode/Twain/Default/1e6-8         68.0ms ± 3%    67.5ms ± 0%   ~             (p=0.700 n=3+3)
+    Encode/Twain/Compression/1e4-8      435µs ± 3%     424µs ± 0%   ~             (p=0.700 n=3+3)
+    Encode/Twain/Compression/1e5-8     7.01ms ± 1%    6.92ms ± 0%   ~             (p=0.100 n=3+3)
+    Encode/Twain/Compression/1e6-8     77.1ms ± 4%    75.5ms ± 1%   ~             (p=0.400 n=3+3)
+    
+    name                             old speed      new speed      delta
+    Decode/Digits/Huffman/1e4-8      55.2MB/s ± 0%  56.2MB/s ± 1%   ~             (p=0.100 n=3+3)
+    Decode/Digits/Huffman/1e5-8      62.4MB/s ± 3%  64.1MB/s ± 3%   ~             (p=0.400 n=3+3)
+    Decode/Digits/Huffman/1e6-8      63.8MB/s ± 1%  65.3MB/s ± 3%   ~             (p=0.700 n=3+3)
+    Decode/Digits/Speed/1e4-8        55.8MB/s ± 0%  55.4MB/s ± 0%   ~             (p=0.200 n=3+3)
+    Decode/Digits/Speed/1e5-8        59.6MB/s ± 0%  60.3MB/s ± 3%   ~             (p=0.700 n=3+3)
+    Decode/Digits/Speed/1e6-8        60.1MB/s ± 2%  60.3MB/s ± 4%   ~             (p=0.700 n=3+3)
+    Decode/Digits/Default/1e4-8      55.8MB/s ± 1%  56.1MB/s ± 1%   ~             (p=0.700 n=3+3)
+    Decode/Digits/Default/1e5-8      61.8MB/s ± 3%  61.7MB/s ± 4%   ~             (p=1.000 n=3+3)
+    Decode/Digits/Default/1e6-8      62.4MB/s ± 2%  62.4MB/s ± 3%   ~             (p=1.000 n=3+3)
+    Decode/Digits/Compression/1e4-8  55.7MB/s ± 1%  56.0MB/s ± 0%   ~             (p=0.300 n=3+3)
+    Decode/Digits/Compression/1e5-8  61.7MB/s ± 2%  61.9MB/s ± 3%   ~             (p=1.000 n=3+3)
+    Decode/Digits/Compression/1e6-8  62.2MB/s ± 3%  62.6MB/s ± 3%   ~             (p=1.000 n=3+3)
+    Decode/Twain/Huffman/1e4-8       48.8MB/s ± 2%  48.4MB/s ± 1%   ~             (p=1.000 n=3+3)
+    Decode/Twain/Huffman/1e5-8       56.4MB/s ± 2%  56.6MB/s ± 4%   ~             (p=0.700 n=3+3)
+    Decode/Twain/Huffman/1e6-8       57.6MB/s ± 2%  57.5MB/s ± 3%   ~             (p=1.000 n=3+3)
+    Decode/Twain/Speed/1e4-8         53.7MB/s ± 1%  53.9MB/s ± 1%   ~             (p=0.400 n=3+3)
+    Decode/Twain/Speed/1e5-8         65.5MB/s ± 2%  65.6MB/s ± 0%   ~             (p=0.700 n=3+3)
+    Decode/Twain/Speed/1e6-8         66.9MB/s ± 1%  67.4MB/s ± 1%   ~             (p=1.000 n=3+3)
+    Decode/Twain/Default/1e4-8       56.9MB/s ± 1%  57.3MB/s ± 0%   ~             (p=0.200 n=3+3)
+    Decode/Twain/Default/1e5-8       77.2MB/s ± 2%  76.6MB/s ± 1%   ~             (p=0.700 n=3+3)
+    Decode/Twain/Default/1e6-8       79.3MB/s ± 3%  80.0MB/s ± 0%   ~             (p=0.700 n=3+3)
+    Decode/Twain/Compression/1e4-8   56.4MB/s ± 0%  57.5MB/s ± 1%   ~             (p=0.100 n=3+3)
+    Decode/Twain/Compression/1e5-8   76.8MB/s ± 1%  76.5MB/s ± 0%   ~             (p=0.700 n=3+3)
+    Decode/Twain/Compression/1e6-8   80.1MB/s ± 1%  79.8MB/s ± 1%   ~             (p=1.000 n=3+3)
+    Encode/Digits/Huffman/1e4-8       211MB/s ± 1%   215MB/s ± 0%   ~             (p=0.100 n=3+3)
+    Encode/Digits/Huffman/1e5-8       221MB/s ± 2%   224MB/s ± 1%   ~             (p=0.700 n=3+3)
+    Encode/Digits/Huffman/1e6-8       225MB/s ± 3%   228MB/s ± 0%   ~             (p=1.000 n=3+3)
+    Encode/Digits/Speed/1e4-8        52.8MB/s ± 4%  54.1MB/s ± 0%   ~             (p=0.100 n=3+3)
+    Encode/Digits/Speed/1e5-8        56.2MB/s ± 5%  57.0MB/s ± 1%   ~             (p=1.000 n=3+3)
+    Encode/Digits/Speed/1e6-8        56.0MB/s ± 6%  57.7MB/s ± 1%   ~             (p=0.400 n=3+3)
+    Encode/Digits/Default/1e4-8      27.3MB/s ± 1%  27.7MB/s ± 0%   ~             (p=0.200 n=3+3)
+    Encode/Digits/Default/1e5-8      17.9MB/s ± 4%  18.4MB/s ± 1%   ~             (p=0.400 n=3+3)
+    Encode/Digits/Default/1e6-8      17.0MB/s ± 3%  17.2MB/s ± 1%   ~             (p=0.500 n=3+3)
+    Encode/Digits/Compression/1e4-8  27.1MB/s ± 3%  27.6MB/s ± 0%   ~             (p=0.100 n=3+3)
+    Encode/Digits/Compression/1e5-8  18.2MB/s ± 2%  18.3MB/s ± 1%   ~             (p=1.000 n=3+3)
+    Encode/Digits/Compression/1e6-8  16.9MB/s ± 2%  17.1MB/s ± 1%   ~             (p=0.400 n=3+3)
+    Encode/Twain/Huffman/1e4-8        155MB/s ± 3%   155MB/s ± 1%   ~             (p=0.700 n=3+3)
+    Encode/Twain/Huffman/1e5-8        190MB/s ± 1%   190MB/s ± 2%   ~             (p=1.000 n=3+3)
+    Encode/Twain/Huffman/1e6-8        193MB/s ± 2%   193MB/s ± 1%   ~             (p=0.700 n=3+3)
+    Encode/Twain/Speed/1e4-8         48.5MB/s ± 1%  49.1MB/s ± 0%   ~             (p=0.100 n=3+3)
+    Encode/Twain/Speed/1e5-8         57.7MB/s ± 2%  59.0MB/s ± 0%   ~             (p=0.100 n=3+3)
+    Encode/Twain/Speed/1e6-8         59.7MB/s ± 0%  59.7MB/s ± 1%   ~             (p=1.000 n=3+3)
+    Encode/Twain/Default/1e4-8       23.6MB/s ± 3%  23.9MB/s ± 1%   ~             (p=1.000 n=3+3)
+    Encode/Twain/Default/1e5-8       15.8MB/s ± 4%  16.1MB/s ± 0%   ~             (p=1.000 n=3+3)
+    Encode/Twain/Default/1e6-8       14.7MB/s ± 3%  14.8MB/s ± 0%   ~             (p=0.700 n=3+3)
+    Encode/Twain/Compression/1e4-8   23.0MB/s ± 3%  23.6MB/s ± 0%   ~             (p=0.700 n=3+3)
+    Encode/Twain/Compression/1e5-8   14.3MB/s ± 1%  14.5MB/s ± 0%   ~             (p=0.100 n=3+3)
+    Encode/Twain/Compression/1e6-8   13.0MB/s ± 4%  13.2MB/s ± 1%   ~             (p=0.400 n=3+3)
+    
+    Measured on a "quiet" (no browser running) 2.3 GHz Intel Core i7, running macOS 10.12.3.
+    
+    See also #19279.
+    
+    Change-Id: Ice759eb34eb37442b543957447c264e0aadc1fa9
+    Reviewed-on: https://go-review.googlesource.com/37460
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/deps.go               | 37 +++++++++++++++--------------
+ src/compress/flate/huffman_code.go |  5 ++++
+ src/compress/flate/inflate.go      |  7 +++---
+ src/compress/flate/reverse_bits.go | 48 --------------------------------------
+ 4 files changed, 28 insertions(+), 69 deletions(-)

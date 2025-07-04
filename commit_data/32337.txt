@@ -1,0 +1,21 @@
+commit d5b0ec858b3760e93722c13958dea767ab8da34b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Sat May 13 00:01:50 2017 -0400
+
+    {net,os/user,plugin}: eliminate unnecessary C round-trips
+    
+    We're making two extra round-trips to C to malloc and free strings
+    that originate in Go and don't escape. Skip those round-trips by
+    allocating null-terminated slices in Go memory instead.
+    
+    Change-Id: I9e4c5ad999a7924ba50b82293c52073ec75518be
+    Reviewed-on: https://go-review.googlesource.com/56530
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/cgo_unix.go            | 20 +++++++++-----------
+ src/os/user/cgo_lookup_unix.go | 12 ++++++------
+ src/os/user/listgroups_unix.go |  9 ++++-----
+ src/plugin/plugin_dlopen.go    | 33 +++++++++++++++++++--------------
+ 4 files changed, 38 insertions(+), 36 deletions(-)

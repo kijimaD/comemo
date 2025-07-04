@@ -1,0 +1,14 @@
+commit f034ee8c22151039465826da0f8c35e9780a8d55
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 21 20:42:40 2015 -0500
+
+    cmd/dist: apply final edits from CL 18199.
+    
+    I broke the rule: never click the Submit button on the web.
+    
+    Change-Id: If81a5cc31c1f28664960bad124cc596f5cab1222
+    Reviewed-on: https://go-review.googlesource.com/18203
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit cbc565a80156a4dd4108ef5e1e170602415418a8
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Dec 19 15:15:24 2013 -0800
+
+    reflect: rewrite Value to separate out pointer vs. nonpointer info.
+    Needed for precise gc and copying stacks.
+    
+    reflect.Value now takes 4 words instead of 3.
+    
+    Still to do:
+     - un-iword-ify channel ops.
+     - un-iword-ify method receivers.
+    
+    R=golang-dev, iant, rsc, khr
+    CC=golang-dev
+    https://golang.org/cl/43040043
+
+ src/pkg/reflect/makefunc.go |   6 +-
+ src/pkg/reflect/type.go     |   4 +-
+ src/pkg/reflect/value.go    | 702 ++++++++++++++++++++++++++------------------
+ src/pkg/runtime/hashmap.c   | 140 +++------
+ 4 files changed, 466 insertions(+), 386 deletions(-)

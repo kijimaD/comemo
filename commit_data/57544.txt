@@ -1,0 +1,16 @@
+commit b7e4d2067c58a326426eddeece76634db0bb1e43
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Sep 26 19:44:00 2024 +0000
+
+    unique: clarify concurrent use of Make and Handle.Value
+    
+    Fixes #69637.
+    
+    Change-Id: Ie612b4df50f42f2786b22fb7a756949530f9178e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616235
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/unique/handle.go | 2 ++
+ 1 file changed, 2 insertions(+)

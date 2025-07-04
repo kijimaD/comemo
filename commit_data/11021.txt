@@ -1,0 +1,12 @@
+commit dfedd34d4f0ba624f1637a07653f2bb8a274a0c2
+Author: Paul Borman <borman@google.com>
+Date:   Wed Jan 4 11:31:51 2012 +1100
+
+    doc: Fix URL to the Xcode web page
+    
+    R=golang-dev, kevlar
+    CC=golang-dev
+    https://golang.org/cl/5504113
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

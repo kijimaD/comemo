@@ -1,0 +1,22 @@
+commit a5d61be040ed20b5774bff1b6b578c6d393ab332
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Mon Mar 28 17:02:43 2022 +0000
+
+    net/http: add MaxBytesError
+    
+    Fixes #30715
+    
+    Change-Id: Ia3712d248b6dc86abef71ccea6e705a571933d53
+    GitHub-Last-Rev: 6ae68402a5a7c57f7f18e945d48c69ba2b134078
+    GitHub-Pull-Request: golang/go#49359
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361397
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/30715.txt         |  3 +++
+ src/net/http/request.go    | 21 +++++++++++++++++----
+ src/net/http/serve_test.go |  7 +++++++
+ 3 files changed, 27 insertions(+), 4 deletions(-)

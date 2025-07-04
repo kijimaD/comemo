@@ -1,0 +1,16 @@
+commit cc5a3828027551aa5e79e9ac08746bd5662b0d8f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 14:28:19 2008 -0700
+
+    update Fmt interface: d=int, ud=uint, d32=int32, d64=int64, etc.
+    
+    R=r
+    DELTA=202  (60 added, 24 deleted, 118 changed)
+    OCL=18029
+    CL=18038
+
+ src/lib/flag.go       |   2 +-
+ src/lib/fmt/format.go | 161 ++++++++++++++++++++++++++++++--------------------
+ src/lib/fmt/print.go  |  30 +++++-----
+ test/fmt_test.go      |  71 +++++++++++-----------
+ 4 files changed, 150 insertions(+), 114 deletions(-)

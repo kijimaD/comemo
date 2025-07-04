@@ -1,0 +1,23 @@
+commit 8d11b1d1172817359d08231deaf29f72d315b762
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jun 8 15:53:08 2021 -0400
+
+    cmd/go: report the imports of CompiledGoFiles in ImportMap
+    
+    Ideally we should encode the load.PackageInternal data in a way that
+    doesn't rely on 1:1 correlations of slices, but this is a minimal fix
+    to unblock Go 1.17.
+    
+    Fixes #46462
+    
+    Change-Id: I6e029c69f757aadc54d4be02c01d6b294c217542
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326610
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/list/list.go                   | 14 ++++++--
+ src/cmd/go/internal/load/pkg.go                    |  4 +--
+ .../script/list_cgo_compiled_importmap.txt         | 38 ++++++++++++++++++++++
+ 3 files changed, 52 insertions(+), 4 deletions(-)

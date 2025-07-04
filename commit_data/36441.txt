@@ -1,0 +1,33 @@
+commit 37ea182660e31f4e21b2bc34d2438455269e5f78
+Author: Zachary Amsden <zach@thundertoken.com>
+Date:   Tue Jul 31 11:24:37 2018 -0700
+
+    runtime: catch concurrent stacks more often
+    
+    If two goroutines are racing on a map, one of them will exit
+    cleanly, clearing the hashWriting bit, and the other will
+    likely notice and panic.  If we use XOR instead of OR to
+    set the bit in the first place, even numbers of racers will
+    hopefully all see the bit cleared and panic simultaneously,
+    giving the full set of available stacks.  If a third racer
+    sneaks in, we are no worse than the current code, and
+    the generated code should be no more expensive.
+    
+    In practice, this catches most racing goroutines even in
+    very tight races.  See the demonstration program posted
+    on https://github.com/golang/go/issues/26703 for an example.
+    
+    Fixes #26703
+    
+    Change-Id: Idad17841a3127c24bd0a659b754734f70e307434
+    Reviewed-on: https://go-review.googlesource.com/126936
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/map.go         | 6 +++---
+ src/runtime/map_fast32.go  | 6 +++---
+ src/runtime/map_fast64.go  | 6 +++---
+ src/runtime/map_faststr.go | 4 ++--
+ 4 files changed, 11 insertions(+), 11 deletions(-)

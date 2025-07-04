@@ -1,0 +1,26 @@
+commit e7ee3c1fa87556245e38b662ea5b3002bbeb32b9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 30 07:27:24 2021 -0500
+
+    os: report Windows exit status in hex
+    
+    We print things like “exit status 3221225477”
+    but the standard Windows form is 0xc0000005.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: Iefe447d4d1781b53bef9619f68d386f2866b2934
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288792
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/exec_posix.go |  7 ++++++-
+ src/os/str.go        | 36 ++++++++++++++++++++++++++++++++++--
+ 2 files changed, 40 insertions(+), 3 deletions(-)

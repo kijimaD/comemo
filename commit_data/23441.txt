@@ -1,0 +1,59 @@
+commit 183cc0cd41f06f83cb7a2490a499e3f9101befff
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 9 12:09:12 2015 -0700
+
+    cmd/go: add preliminary support for vendor directories
+    
+    When GO15VENDOREXPERIMENT=1 is in the environment,
+    this CL changes the resolution of import paths according to
+    the Go 1.5 vendor proposal:
+    
+            If there is a source directory d/vendor, then,
+            when compiling a source file within the subtree rooted at d,
+            import "p" is interpreted as import "d/vendor/p" if that exists.
+    
+            When there are multiple possible resolutions,
+            the most specific (longest) path wins.
+    
+            The short form must always be used: no import path can
+            contain “/vendor/” explicitly.
+    
+            Import comments are ignored in vendored packages.
+    
+    The goal of these changes is to allow authors to vendor (copy) external
+    packages into their source trees without any modifications to the code.
+    This functionality has been achieved in tools like godep, nut, and gb by
+    requiring GOPATH manipulation. This alternate directory-based approach
+    eliminates the need for GOPATH manipulation and in keeping with the
+    go command's use of directory layout-based configuration.
+    
+    The flag allows experimentation with these vendoring semantics once
+    Go 1.5 is released, without forcing them on by default. If the experiment
+    is deemed a success, the flag will default to true in Go 1.6 and then be
+    removed in Go 1.7.
+    
+    For more details, see the original proposal by Keith Rarick at
+    https://groups.google.com/d/msg/golang-dev/74zjMON9glU/dGhnoi2IMzsJ.
+    
+    Change-Id: I2c6527e777d14ac6dc43c53e4b3ff24f3279216e
+    Reviewed-on: https://go-review.googlesource.com/10923
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/build.go                                |   8 +
+ src/cmd/go/pkg.go                                  | 219 ++++++++++++++++++++-
+ src/cmd/go/test.go                                 |  12 +-
+ src/cmd/go/testdata/src/vend/bad.go                |   3 +
+ src/cmd/go/testdata/src/vend/good.go               |   3 +
+ src/cmd/go/testdata/src/vend/hello/hello.go        |  10 +
+ src/cmd/go/testdata/src/vend/hello/hello_test.go   |  12 ++
+ src/cmd/go/testdata/src/vend/hello/hellox_test.go  |  12 ++
+ src/cmd/go/testdata/src/vend/subdir/bad.go         |   3 +
+ src/cmd/go/testdata/src/vend/subdir/good.go        |   3 +
+ src/cmd/go/testdata/src/vend/vendor/p/p.go         |   1 +
+ src/cmd/go/testdata/src/vend/vendor/q/q.go         |   1 +
+ src/cmd/go/testdata/src/vend/vendor/strings/msg.go |   3 +
+ src/cmd/go/testdata/src/vend/x/vendor/p/p.go       |   1 +
+ src/cmd/go/testdata/src/vend/x/vendor/r/r.go       |   1 +
+ src/cmd/go/testdata/src/vend/x/x.go                |   5 +
+ src/cmd/go/vendor_test.go                          | 117 +++++++++++
+ 17 files changed, 403 insertions(+), 11 deletions(-)

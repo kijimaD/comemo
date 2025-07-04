@@ -1,0 +1,18 @@
+commit 3120adc21294829c230005a89e9bb0ad63de606b
+Author: Joel Sing <jsing@google.com>
+Date:   Fri May 1 04:19:34 2015 +1000
+
+    cmd/internal: disable OSQRT on GOARM=5
+    
+    OSQRT currently produces incorrect results when used on arm with softfloat.
+    Disable it on GOARM=5 until the actual problem is found and fixed.
+    
+    Updates #10641
+    
+    Change-Id: Ia6f6879fbbb05cb24399c2feee93c1be21113e73
+    Reviewed-on: https://go-review.googlesource.com/9524
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/internal/gc/walk.go | 5 +++++
+ 1 file changed, 5 insertions(+)

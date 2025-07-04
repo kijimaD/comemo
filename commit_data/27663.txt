@@ -1,0 +1,27 @@
+commit 1bdf1c3024d75a3c4913d031d55257b311f0133f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 9 11:19:26 2016 -0700
+
+    cmd/cgo: fix use of unsafe argument in new deferred function
+    
+    The combination of https://golang.org/cl/23650 and
+    https://golang.org/cl/23675 did not work--they were tested separately
+    but not together.
+    
+    The problem was that 23650 introduced deferred argument checking, and
+    the deferred function loses the type that 23675 started requiring. The
+    fix is to go back to using an empty interface type in a deferred
+    argument check.
+    
+    No new test required--fixes broken build.
+    
+    Change-Id: I5ea023c5aed71d70e57b11c4551242d3ef25986d
+    Reviewed-on: https://go-review.googlesource.com/23961
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/cgo/gcc.go  | 28 +++++++++++++++++++++-------
+ src/cmd/cgo/main.go |  5 ++++-
+ src/cmd/cgo/out.go  |  8 +++++++-
+ 3 files changed, 32 insertions(+), 9 deletions(-)

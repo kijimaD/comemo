@@ -1,0 +1,15 @@
+commit 94e4aca3e6566671b1140192ab48d48de38ceda8
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Tue Aug 21 14:55:17 2018 +0200
+
+    doc: remove mentions of cloning from GitHub
+    
+    Complete CL117178 removing all references to GitHub, and leaving
+    a small note to make sure we remember that it's not supported.
+    
+    Change-Id: Id4257515a864875808fa7a67f002ed52cfd635a3
+    Reviewed-on: https://go-review.googlesource.com/130395
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ doc/contribute.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

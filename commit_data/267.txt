@@ -1,0 +1,22 @@
+commit 8e82a673db31cf98d808c7491819daf311055dd7
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 30 11:50:36 2008 -0700
+
+    Break runtime.c into separate pieces for maps, strings, print, etc.
+    
+    Share common assembler for amd64 runtime
+    
+    SVN=125317
+
+ src/runtime/Makefile           |    5 +
+ src/runtime/rt0_amd64.s        |  181 +++++++
+ src/runtime/rt0_amd64_darwin.s |  281 +---------
+ src/runtime/rt0_amd64_linux.s  |  285 +---------
+ src/runtime/runtime.c          | 1138 ----------------------------------------
+ src/runtime/runtime.h          |   11 +
+ src/runtime/runtime_map.c      |  827 +++++++++++++++++++++++++++++
+ src/runtime/runtime_print.c    |  108 ++++
+ src/runtime/runtime_string.c   |  220 ++++++++
+ src/runtime/sys_amd64_darwin.s |  110 ++++
+ src/runtime/sys_amd64_linux.s  |  114 ++++
+ 11 files changed, 1582 insertions(+), 1698 deletions(-)

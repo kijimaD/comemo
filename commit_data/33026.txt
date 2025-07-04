@@ -1,0 +1,19 @@
+commit d63de2871163dea94f3d5df83374f8b5e7e8677d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Oct 5 10:11:38 2017 -0400
+
+    cmd/compile: intrinsify atomics on MIPS64
+    
+    Change-Id: Ica65b7a52af9558a05d0a0e1dff0f9ec838f4117
+    Reviewed-on: https://go-review.googlesource.com/68830
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go            |  24 +-
+ src/cmd/compile/internal/mips64/ssa.go        | 205 +++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  22 ++
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |  63 +++++-
+ src/cmd/compile/internal/ssa/opGen.go         | 216 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 314 ++++++++++++++++++++++++++
+ test/intrinsic_atomic.go                      |   2 +-
+ 7 files changed, 832 insertions(+), 14 deletions(-)

@@ -1,0 +1,14 @@
+commit 774ae54777bcea815a6a0baf7ea6f62b0a1a3ad4
+Author: JBD <jbd@google.com>
+Date:   Wed Dec 13 16:03:19 2017 -0800
+
+    doc: add some links to the diagnostics page
+    
+    Updates #22027.
+    
+    Change-Id: I468348d2b000f146f88ef8b7cf450eea8d1c12a7
+    Reviewed-on: https://go-review.googlesource.com/83917
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/diagnostics.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

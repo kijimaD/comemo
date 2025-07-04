@@ -1,0 +1,21 @@
+commit f5026496cfbe4701b62c6a6942c8a0df48f1053e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Nov 28 14:23:07 2022 +0100
+
+    internal/coverage: use io.Seek* constants
+    
+    Use the io.Seek* constants instead of their deprecated os.SEEK_*
+    counterparts.
+    
+    Change-Id: Ie899f9cf286de7304a394d9a2a091a55937542ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453576
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/internal/coverage/decodecounter/decodecounterfile.go | 8 ++++----
+ src/internal/coverage/test/counter_test.go               | 4 ++--
+ 2 files changed, 6 insertions(+), 6 deletions(-)

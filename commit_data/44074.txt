@@ -1,0 +1,27 @@
+commit 20d0991b86f533a734cad96b2002678d9750e6d8
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Dec 30 17:18:55 2020 +0100
+
+    lib/time, time/tzdata: update tzdata to 2020f
+    
+    Changelog
+    
+     'make rearguard_tarballs' no longer generates a bad rearguard.zi,
+     fixing a 2020e bug.
+    
+    No actual changes to timezones data. See
+    
+      http://mm.icann.org/pipermail/tz-announce/2020-December/000064.html
+    
+    Updates #22487
+    
+    Change-Id: I78f7adba1c3c1d3489b0da870601117b9b8cb0d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280455
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ lib/time/update.bash       |    4 +-
+ lib/time/zoneinfo.zip      |  Bin 424205 -> 424205 bytes
+ src/time/tzdata/zipdata.go | 3878 ++++++++++++++++++++++----------------------
+ 3 files changed, 1941 insertions(+), 1941 deletions(-)

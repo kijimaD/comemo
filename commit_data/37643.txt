@@ -1,0 +1,22 @@
+commit 21da8e6022d1d148741ba3c08cdc555df500520e
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Dec 10 10:53:39 2018 +0100
+
+    internal/xcoff: add big archive support
+    
+    This commit adds support to read AIX big archive inside internal/xcoff
+    package.
+    
+    Change-Id: I4317b40824b24312a69c918dfc6438dc3aff7be7
+    Reviewed-on: https://go-review.googlesource.com/c/153398
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/xcoff/ar.go                 | 228 +++++++++++++++++++++++++++++++
+ src/internal/xcoff/ar_test.go            |  79 +++++++++++
+ src/internal/xcoff/testdata/bigar-empty  |   2 +
+ src/internal/xcoff/testdata/bigar-ppc64  | Bin 0 -> 2468 bytes
+ src/internal/xcoff/testdata/printbye.c   |   5 +
+ src/internal/xcoff/testdata/printhello.c |   5 +
+ 6 files changed, 319 insertions(+)

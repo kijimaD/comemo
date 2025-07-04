@@ -1,0 +1,37 @@
+commit 31c96fc2276b54f844bb5a83f2b4f817f956d976
+Author: Josselin Costanzi <josselin@costanzi.fr>
+Date:   Sat Jan 7 14:12:57 2017 +0100
+
+    encoding/base64: Optimize DecodeString
+    
+    Optimize DecodeString for the common case where most of the input isn't
+    a newline or a padding character.
+    Also add some testcases found when fuzzing this implementation against
+    upstream.
+    Change Decode benchmark to run with different input sizes.
+    
+    name                 old time/op    new time/op    delta
+    DecodeString/2-4       71.5ns ± 4%    70.0ns ± 6%     ~     (p=0.246 n=5+5)
+    DecodeString/4-4        112ns ±25%      91ns ± 2%     ~     (p=0.056 n=5+5)
+    DecodeString/8-4        136ns ± 5%     126ns ± 5%   -7.33%  (p=0.016 n=5+5)
+    DecodeString/64-4       872ns ±29%     652ns ±21%  -25.23%  (p=0.032 n=5+5)
+    DecodeString/8192-4    90.9µs ±21%    61.0µs ±13%  -32.87%  (p=0.008 n=5+5)
+    
+    name                 old speed      new speed      delta
+    DecodeString/2-4     56.0MB/s ± 4%  57.2MB/s ± 6%     ~     (p=0.310 n=5+5)
+    DecodeString/4-4     73.4MB/s ±23%  87.7MB/s ± 2%     ~     (p=0.056 n=5+5)
+    DecodeString/8-4     87.8MB/s ± 5%  94.8MB/s ± 5%   +7.98%  (p=0.016 n=5+5)
+    DecodeString/64-4     103MB/s ±24%   136MB/s ±19%  +32.63%  (p=0.032 n=5+5)
+    DecodeString/8192-4   122MB/s ±19%   180MB/s ±11%  +47.75%  (p=0.008 n=5+5)
+    
+    Improves #19636
+    
+    Change-Id: I39667f4fb682a12b3137946d017ad999553c5780
+    Reviewed-on: https://go-review.googlesource.com/34950
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/base64/base64.go      | 45 ++++++++++++++++++++------------------
+ src/encoding/base64/base64_test.go | 21 ++++++++++++++----
+ 2 files changed, 41 insertions(+), 25 deletions(-)

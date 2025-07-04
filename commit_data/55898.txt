@@ -1,0 +1,17 @@
+commit 3e1a6925a1a635ceb29139d2d9268584fae88173
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Mon Mar 11 05:03:53 2024 +0000
+
+    os: close pipe in test
+    
+    Change-Id: Ic8b06c6fd9fc6a30b26f4e4614aa40b5cad3a5e7
+    GitHub-Last-Rev: 8397a8b30cf11c00e53b35e528f82a8534a00e01
+    GitHub-Pull-Request: golang/go#66240
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570515
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/os/fifo_test.go | 1 +
+ 1 file changed, 1 insertion(+)

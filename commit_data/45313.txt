@@ -1,0 +1,39 @@
+commit 768a39975d8851f1c309b163a8eb4b7a5388aa24
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 23 01:13:50 2021 -0400
+
+    cmd/go/internal/modload: remove the addedModuleFor map
+    
+    At one point this map checked for infinite loops during package iteration.
+    The last write to the map was mistakenly removed in CL 251445.
+    
+    However, looking at the code before that change, the map-based
+    termination strategy was never quite right to begin with: it checked
+    whether we had ever added any module for the given package, not
+    whether we had already added the module being proposed right now. (For
+    packages within nested modules, we could try adding multiple different
+    modules for a given package without looping.)
+    
+    Moreover, the "looping trying to add package" failure message was only
+    marginally helpful. Users are capable of noticing that an invocation
+    of the 'go' command is taking too long, and will report a bug for an
+    infinite loop just as readily as a "looping trying to add package"
+    error.
+    
+    We could try to add this tracking back in, but it's no substitute for
+    a proper proof of convergence, and the code is simpler without it.
+    Instead I'm going to add a proper proof of convergence — or, barring
+    that, a more accurate and useful check for failure to converge. In the
+    meantime, this invariantly-empty map isn't doing anybody any good.
+    
+    For #36460
+    
+    Change-Id: I2c111d4b4bf59159af0d7e62d1c0ef4ce0a43a71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312929
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/load.go | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)

@@ -1,0 +1,16 @@
+commit a63ba85a9f0a96cdedc58ba8e97615972b555c44
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 5 11:05:35 2015 -0700
+
+    fmt: document that Scanf returns an error the same as Scan
+    
+    No semantic change.
+    
+    Fixes #8708.
+    
+    Change-Id: Ieda04a86a19bb69bfc2519d381a2f025e7cb8279
+    Reviewed-on: https://go-review.googlesource.com/9740
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/fmt/scan.go | 1 +
+ 1 file changed, 1 insertion(+)

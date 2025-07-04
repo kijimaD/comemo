@@ -1,0 +1,15 @@
+commit f5181ae9d7cf35894efc3e8d7b042dc0314dc86b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 15 14:29:59 2011 -0700
+
+    textproto: parse RFC 959 multiline responses correctly
+    
+    Fixes #2218
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5037041
+
+ src/pkg/net/textproto/reader.go      | 33 ++++++++++++++++------
+ src/pkg/net/textproto/reader_test.go | 53 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 78 insertions(+), 8 deletions(-)

@@ -1,0 +1,12 @@
+commit 827a8a56c607f4b9173ef9f5417b6e9e8674a826
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 7 11:59:52 2015 +0200
+
+    doc: add mime/quotedprintable to go1.5.txt
+    
+    Change-Id: Iace8941c947253b1141f4194c5d2010c420ec220
+    Reviewed-on: https://go-review.googlesource.com/8540
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

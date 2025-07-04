@@ -1,0 +1,12 @@
+commit ee1cb829ac6d3b3a79b4fe92d9cea1d19baf15bf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Mar 4 12:28:08 2011 +1100
+
+    doc: describe platform-specific conventions in code.html
+    
+    R=r, rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/4257049
+
+ doc/code.html | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

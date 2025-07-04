@@ -1,0 +1,13 @@
+commit f369fc09f41bcb9b7bfdfbc21332abe98f89059e
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Fri May 27 16:47:26 2011 -0700
+
+    go/scanner: don't allow "0x" and "0X" as integers
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4560047
+
+ src/pkg/go/scanner/scanner.go      | 4 ++++
+ src/pkg/go/scanner/scanner_test.go | 2 ++
+ 2 files changed, 6 insertions(+)

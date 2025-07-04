@@ -1,0 +1,22 @@
+commit 9e0ec5ef5945696e90d7749d3569471c6f8b68c5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 5 17:08:27 2018 -0800
+
+    go/types: better error messages for field lookup errors
+    
+    - follow wording of cmd/compile more closely
+    - only print base of a package path to avoid overly long error messages
+    
+    Fixes #26234.
+    
+    Change-Id: I47a8c64b3adcf73980cd296a24cf8ac721e5df06
+    Reviewed-on: https://go-review.googlesource.com/c/152764
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/call.go             | 11 +++++++----
+ src/go/types/errors.go           |  3 ++-
+ src/go/types/testdata/issues.src | 27 ++++++++++++++++++++++++++-
+ 3 files changed, 35 insertions(+), 6 deletions(-)

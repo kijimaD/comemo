@@ -1,0 +1,18 @@
+commit 7f5a3196c92c9fbe6d691d022202cbbda6e7a431
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 3 11:09:07 2020 -0500
+
+    cmd/go/internal/modload: rename constants to reflect that lazy loading is not yet implemented
+    
+    Updates #36460
+    Updates #42288
+    
+    Change-Id: I82a3b7e97a8e2f83bae2318ca9fb5c38c0c811cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275172
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/modfile.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

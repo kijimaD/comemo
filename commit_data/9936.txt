@@ -1,0 +1,13 @@
+commit 51057bda3f5c4956d7703444fca0ee20f59b4a83
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Wed Oct 12 13:36:45 2011 -0400
+
+    net: fix "unexpected socket family" error from WriteToUDP.
+    
+    R=rsc, iant, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/5128048
+
+ src/pkg/net/file.go      |  6 +++++-
+ src/pkg/net/file_test.go | 11 ++++++++---
+ 2 files changed, 13 insertions(+), 4 deletions(-)

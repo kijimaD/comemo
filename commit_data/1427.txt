@@ -1,0 +1,14 @@
+commit 4d194b90564e37e3d35ed682f5935e154338a995
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 6 20:17:58 2009 -0800
+
+    18 tests are behaving incorrectly
+    no more surprises - all caught up
+    
+    R=rsc
+    DELTA=4  (0 added, 0 deleted, 4 changed)
+    OCL=22194
+    CL=22194
+
+ test/complit.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

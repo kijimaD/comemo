@@ -1,0 +1,14 @@
+commit 0c0aed3c9f2c37523eaa7ba17432fdbe3d05ea52
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 7 07:53:55 2017 -0800
+
+    cmd/vet: change docs to prefer "go vet" over "go tool vet"
+    
+    Updates #22530
+    
+    Change-Id: I161b5e706483744321e6089f747bd761310774eb
+    Reviewed-on: https://go-review.googlesource.com/76390
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/doc.go | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

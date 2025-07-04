@@ -1,0 +1,17 @@
+commit 503bcd464e8974b3295177c1a0ed5a4ba5bc5a01
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 4 14:19:50 2014 -0400
+
+    runtime: use C for readgstatus, goroutine status values
+    
+    When this code was written, there was no way for Go to
+    reuse the C function and enum values. Now there is.
+    
+    LGTM=bradfitz
+    R=rlh, bradfitz
+    CC=dvyukov, golang-codereviews, iant, khr, r
+    https://golang.org/cl/139150045
+
+ src/pkg/runtime/proc.c  |  1 +
+ src/pkg/runtime/proc.go | 30 ++----------------------------
+ 2 files changed, 3 insertions(+), 28 deletions(-)

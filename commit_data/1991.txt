@@ -1,0 +1,15 @@
+commit 35a775d045c8ae625f1b0d78a0681d31351f81bc
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Apr 10 16:44:01 2009 -0700
+
+    Fixed optab to support SWI with long constant (the mode used
+    for linux system calls).
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=3  (3 added, 0 deleted, 0 changed)
+    OCL=27325
+    CL=27328
+
+ src/cmd/5l/optab.c | 3 +++
+ 1 file changed, 3 insertions(+)

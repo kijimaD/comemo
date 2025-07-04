@@ -1,0 +1,23 @@
+commit 8b1b81f463b949c81f42be528c88fd86d79d1b6f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 18 14:37:12 2015 -0500
+
+    cmd/compile: fix crash with -race on large expr containing string->[]byte conversion
+    
+    The assumption is that there are no nested function calls in complex expressions.
+    For the most part that assumption is true. It wasn't for these calls inserted during walk.
+    Fix that.
+    
+    I looked through all the calls to mkcall in walk and these were the only cases
+    that emitted calls, that could be part of larger expressions (like not delete),
+    and that were not already handled.
+    
+    Fixes #12225.
+    
+    Change-Id: Iad380683fe2e054d480e7ae4e8faf1078cdd744c
+    Reviewed-on: https://go-review.googlesource.com/17034
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/order.go         |  5 ++++-
+ src/runtime/race/testdata/issue12225_test.go | 13 +++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

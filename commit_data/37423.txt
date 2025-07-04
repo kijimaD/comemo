@@ -1,0 +1,18 @@
+commit b7ba5233550cadd2b06c4b98c702b45e7904f7ae
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 13 10:23:01 2018 -0500
+
+    doc/go_spec: tweak wording to avoid 'explicit assignment' misreading
+    
+    This text changed in CL 139099 to add "explicit" in front of "conversion".
+    But now "explicit conversion or assignment" reads like it might mean
+    "explicit [conversion or assignment]" when what is meant is
+    "[explicit conversion] or assignment". To make clear that explicit does
+    not apply to assignment, use "assignment or explicit conversion".
+    
+    Change-Id: I8ff7a5b3ecd9f562793502fa6808242f22264f28
+    Reviewed-on: https://go-review.googlesource.com/c/149340
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go_spec.html | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

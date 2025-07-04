@@ -1,0 +1,25 @@
+commit a1925076fe5436bf7316fd2ab30d5e716df46f28
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Dec 30 18:43:13 2018 +0100
+
+    cmd/go: add benchmark that execs 'go env GOARCH'
+    
+    'go env' is used for many quick operations, such as in go/packages to
+    query GOARCH and GOMOD. It often is a bottleneck; for example,
+    go/packages doesn't know whether or not to use Go modules until it has
+    queried GOMOD.
+    
+    As such, this go command should be fast. Right now it's slower than it
+    should be. This commit adds a simple benchmark with os/exec, since we're
+    particularly interested in the cost of cmd/go's large init function.
+    
+    Updates #29382.
+    
+    Change-Id: Ifee6fb9997b9b89565fbfc2739a00c86117b1d37
+    Reviewed-on: https://go-review.googlesource.com/c/155961
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/init_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

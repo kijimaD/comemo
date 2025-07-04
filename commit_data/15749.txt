@@ -1,0 +1,19 @@
+commit cb8aebf19d7291ec0acc7fcfc7d9fd0010f66cdc
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Wed Mar 13 14:53:03 2013 -0400
+
+    encoding/json: properly handle extra objects with fixed size arrays
+    
+    If a fixed size array is passed in as the decode target and the JSON
+    to decode has extra array elements that are objects, then previously
+    the decoder would return a "data changing underfoot" error.
+    
+    Fixes #3717.
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/7490046
+
+ src/pkg/encoding/json/decode.go      | 10 ++++++++++
+ src/pkg/encoding/json/decode_test.go | 13 +++++++++++++
+ 2 files changed, 23 insertions(+)

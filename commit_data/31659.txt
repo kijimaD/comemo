@@ -1,0 +1,22 @@
+commit 3b69c3bbed7f49eb2f69729c8edbe8fe2b6cc40a
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Apr 21 11:49:19 2017 -0600
+
+    net/http: deep copy Request.URL also in Request.WithContext's copy
+    
+    Despite the previously known behavior of Request.WithContext
+    shallow copying a request, usage of the request inside server.ServeHTTP
+    mutates the request's URL. This CL implements deep copying of the URL.
+    
+    Fixes #20068
+    
+    Change-Id: I86857d7259e23ac624d196401bf12dde401c42af
+    Reviewed-on: https://go-review.googlesource.com/41308
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy_test.go | 38 ++++++++++++++++++++++++++++++
+ src/net/http/request.go                    |  8 +++++++
+ src/net/http/request_test.go               | 16 +++++++++++++
+ 3 files changed, 62 insertions(+)

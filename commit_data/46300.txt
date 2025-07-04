@@ -1,0 +1,27 @@
+commit 17910ed4ff5a3cb3dcf4367d4af23ad5a7fe5809
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 11 10:54:39 2021 -0700
+
+    refect: rename Ptr Kind to Pointer (but keep Ptr)
+    
+    reflect.Ptr didn't match reflect.UnsafePointer or unsafe.Pointer
+    so rename it to reflect.Pointer. Keep reflect.Ptr for compatibility.
+    
+    Likewise with PtrTo.
+    
+    Change to use it in std will come in a subsequent CL.
+    
+    Fixes #47651
+    
+    Change-Id: I5d4abe2b2fe10948bd68bb12c557165bedffbcba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341333
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/internal/reflectlite/type.go  |  4 +++-
+ src/internal/reflectlite/value.go |  8 +++----
+ src/reflect/type.go               | 50 ++++++++++++++++++++++++---------------
+ 3 files changed, 38 insertions(+), 24 deletions(-)

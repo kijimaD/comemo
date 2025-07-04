@@ -1,0 +1,25 @@
+commit a696277243fdb8049de8e1b10ce6144a69b12c61
+Author: Tyler Bui-Palsulich <tpalsulich@google.com>
+Date:   Wed Sep 13 08:09:21 2017 -0700
+
+    container/heap: call t.Helper() in verify()
+    
+    I modified verify() to fail every time to test the change. Before adding
+    t.Helper() (line 37 is in verify()):
+    /.../go/src/container/heap/heap_test.go:37: forced failure
+    FAIL
+    
+    Afer adding t.Helper() (line 67 is where verify() is called):
+    /.../go/src/container/heap/heap_test.go:67: forced failure
+    FAIL
+    
+    Fixes #21863
+    
+    Change-Id: I46f0c8ec413cc664358c568fc53e48bb4a1d03d0
+    Reviewed-on: https://go-review.googlesource.com/63570
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/container/heap/heap_test.go | 1 +
+ 1 file changed, 1 insertion(+)

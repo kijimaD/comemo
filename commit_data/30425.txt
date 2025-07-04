@@ -1,0 +1,26 @@
+commit a38a2d02d5c26adb34ec18b495a1d698517c1735
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Feb 28 14:20:44 2017 +0100
+
+    crypto/sha512: fix checkAVX2
+    
+    The checkAVX2 test doesn't appear to be correct,
+    because it always returns the value of support_bmi2,
+    even if the value of support_avx2 is false.
+    
+    Consequently, checkAVX2 always returns true, as long
+    as BMI2 is supported, even if AVX2 is not supported.
+    
+    We change checkAVX2 to return false when support_avx2
+    is false.
+    
+    Fixes #19316.
+    
+    Change-Id: I2ec9dfaa09f4b54c4a03d60efef891b955d60578
+    Reviewed-on: https://go-review.googlesource.com/37590
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/sha512/sha512block_amd64.s | 1 +
+ 1 file changed, 1 insertion(+)

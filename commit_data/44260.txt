@@ -1,0 +1,18 @@
+commit 3b7277d3651b5c5856c5b0879ba3fb7a5f279508
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 4 10:59:17 2021 -0500
+
+    cmd/go: add a script test for artifacts resulting from 'go get -u'
+    
+    For #36460
+    
+    Change-Id: I4f8bf0fb8dfa508b346acb3868302452409ee9da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289696
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ .../go/testdata/script/mod_get_downup_artifact.txt | 165 +++++++++++++++++++++
+ 1 file changed, 165 insertions(+)

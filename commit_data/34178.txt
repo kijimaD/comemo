@@ -1,0 +1,20 @@
+commit d9fc1929e9716ac20ec0f9fc42df802f850384db
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 4 19:15:18 2018 -0800
+
+    test: add test for rounding to positive zero
+    
+    Per the language spec clarification in https://golang.org/cl/14727.
+    
+    Updates #12576
+    Updates #12621
+    
+    Change-Id: I1e459c3c11a571bd29582761faacaa9ca3178ba6
+    Reviewed-on: https://go-review.googlesource.com/91895
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue12621.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

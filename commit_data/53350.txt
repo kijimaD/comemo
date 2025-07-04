@@ -1,0 +1,18 @@
+commit 13be9fa7f896b876775f964e167cdd44166438eb
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 26 10:10:01 2023 -0400
+
+    doc: add release note on dead global map variable deletion
+    
+    Add a short release note blurb on linker dead-coding of global map
+    variables.
+    
+    Updates #58645.
+    
+    Change-Id: Ibfdd3e2b2b78517db4245b1d7eedd5e75a643b47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498575
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Bypass: Than McIntosh <thanm@google.com>
+
+ doc/go1.21.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

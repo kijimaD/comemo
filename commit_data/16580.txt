@@ -1,0 +1,15 @@
+commit 14e52c74bc7492098ea630bc84514fb427ef8bd9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 17 07:30:04 2013 -0700
+
+    crypto/cipher: StreamWriter.Closer docs + behavior change
+    
+    Don't panic when the underlying Writer isn't a Closer. And
+    document what Close does and clarify that it's not a Flush.
+    
+    R=golang-dev, agl
+    CC=golang-dev
+    https://golang.org/cl/10310043
+
+ src/pkg/crypto/cipher/io.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

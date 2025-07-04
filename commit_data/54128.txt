@@ -1,0 +1,24 @@
+commit 0b47b94a6275b0d0830e5ce7a03aaa99430f7f76
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 21 10:03:07 2023 -0700
+
+    cmd/compile: remove more extension ops when not needed
+    
+    If we're not using the upper bits, don't bother issuing a
+    sign/zero extension operation.
+    
+    For arm64, after CL 520916 which fixed a correctness bug with
+    extensions but as a side effect leaves many unnecessary ones
+    still in place.
+    
+    Change-Id: I5f4fe4efbf2e9f80969ab5b9a6122fb812dc2ec0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521496
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules |  5 ++
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 66 +++++++++++++++++++++++++++
+ test/codegen/noextend.go                      |  5 ++
+ 3 files changed, 76 insertions(+)

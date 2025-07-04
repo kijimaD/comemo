@@ -1,0 +1,26 @@
+commit ffab6ab87773e0d8c50f64a29555b0d529c1d43a
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue May 23 10:12:36 2017 +0000
+
+    cmd/asm/internal/asm: fix a bug in ARM assembly encoding test
+    
+    It is expected to test assembly code for ARMv5, ARMv6 and ARMv7
+    in cmd/asm/internal/asm/endtoend_test.go. But actually the loop
+    in "func TestARMEndToEnd(t *testing.T)" runs three times all
+    for ARMv5.
+    
+    This patch fixes that bug and adds a new armv6.s which is only tested
+    with GOARM=6.
+    
+    fixes #20465
+    
+    Change-Id: I5dbf00809a47ace2c195335e2c9bdd768479aada
+    Reviewed-on: https://go-review.googlesource.com/43930
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/endtoend_test.go | 22 +++++++++-------
+ src/cmd/asm/internal/asm/testdata/armv6.s | 44 +++++++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+), 10 deletions(-)

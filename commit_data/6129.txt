@@ -1,0 +1,13 @@
+commit cc9d2e2dfe6ba4701314408badb9e282a4c58b97
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Aug 30 14:57:23 2010 +1000
+
+    A+C: Vincent Ambo
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2048043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

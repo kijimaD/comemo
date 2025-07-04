@@ -1,0 +1,19 @@
+commit eb68c4af092aff2efa20f5fca92e674307784739
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Nov 11 16:30:35 2019 -0500
+
+    cmd/link: disable a DWARF testpoint on Windows pending investigation
+    
+    Disable a portion of the TestDWARF testpoint for Windows using
+    c-archive buildmode, pending investigation of the issue at hand, so as
+    to get the longtest builder unblocked.
+    
+    Updates #35512.
+    
+    Change-Id: Ib72d82ceaa674b9a51da220fb8e225231d5c3433
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206557
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/link/dwarf_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

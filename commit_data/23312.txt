@@ -1,0 +1,14 @@
+commit ab08f79af3d41e28bf2ccf2f8738024a1404aeac
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jun 9 16:16:42 2015 +1000
+
+    cmd/link: stop linker crashing with -s flag on windows
+    
+    Update #10254
+    
+    Change-Id: I3ddd26607813ca629e3ab62abf87dc5ab453e36f
+    Reviewed-on: https://go-review.googlesource.com/10835
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 31 ++++++++++++++++---------------
+ 1 file changed, 16 insertions(+), 15 deletions(-)

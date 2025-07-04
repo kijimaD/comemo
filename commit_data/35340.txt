@@ -1,0 +1,14 @@
+commit 337cc2915625728021eaf113fe54e83a5a05530e
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun May 6 20:18:52 2018 +0200
+
+    cmd/compile: simplify extendslice and isAppendOfMake
+    
+    Change-Id: Ia66361812837dde23aac09e916f058ba509a323c
+    Reviewed-on: https://go-review.googlesource.com/111737
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/walk.go | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

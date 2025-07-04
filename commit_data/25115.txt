@@ -1,0 +1,25 @@
+commit 0c516c16328575ab78a4cce49874955dd590efa2
+Author: INADA Naoki <songofacandy@gmail.com>
+Date:   Tue Mar 3 21:27:07 2015 +0900
+
+    database/sql: Add DB.SetConnMaxLifetime
+    
+    Long lived connections may make some DB operation difficult.
+    (e.g. retiring load balanced DB server.)
+    So SetConnMaxLifetime closes long lived connections.
+    
+    It can be used to limit maximum idle time, too.
+    Closing idle connections reduces active connections while application is idle
+    and avoids connections are closed by server side (cause errBadConn while querying).
+    
+    fixes #9851
+    
+    Change-Id: I2e8e824219c1bee7f4b885d38ed96d11b7202b56
+    Reviewed-on: https://go-review.googlesource.com/6580
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go      | 129 ++++++++++++++++++++++++++++++++++++++----
+ src/database/sql/sql_test.go | 131 +++++++++++++++++++++++++++++++++----------
+ 2 files changed, 219 insertions(+), 41 deletions(-)

@@ -1,0 +1,14 @@
+commit 6ee7fe58087ec5a15bf9ae7717d3fc13bdd407e7
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 11 17:28:36 2008 -0800
+
+    Implement a "full reader" wrapper for io.Read, guaranteeing that
+    either the buffer is full, zero bytes were read, or an error is returned.
+    
+    R=rsc
+    DELTA=44  (42 added, 0 deleted, 2 changed)
+    OCL=19027
+    CL=19047
+
+ src/lib/io.go | 46 ++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 44 insertions(+), 2 deletions(-)

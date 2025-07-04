@@ -1,0 +1,27 @@
+commit 0c2f87f23d72841544e372fac0bcf5168324d8c9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 8 13:23:04 2022 -0700
+
+    cmd/compile/internal/escape: support OITAB and OCHECKNIL
+    
+    For interface method values, we nil check the receiver value at the
+    point of evaluating the method value. Currently this is inserted by
+    the backend during walk, but in some cases it's useful to emit them
+    upfront instead.
+    
+    OITAB is essentially a field selection operation, like ODOT, OIDATA,
+    and OSPTR.
+    
+    OCHECKNIL is a statement that simply evaluates its unary operand, and
+    discards the result (after testing for nil).
+    
+    Change-Id: I583b5170539caa9a87aec661d5c293080fd87fbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422197
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/escape/expr.go | 2 +-
+ src/cmd/compile/internal/escape/stmt.go | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

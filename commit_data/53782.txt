@@ -1,0 +1,22 @@
+commit 67983c0f7810a1fd620c954923c90b5c61cbe325
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 17 10:21:07 2023 -0700
+
+    cmd/compile: add indexed SET* opcodes for amd64
+    
+    Update #61356
+    
+    Change-Id: I391af98563b1c068208784c80ea736c78c29639d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510435
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go           |   9 ++
+ src/cmd/compile/internal/ssa/_gen/AMD64Ops.go   |  31 +++--
+ src/cmd/compile/internal/ssa/addressingmodes.go |  11 ++
+ src/cmd/compile/internal/ssa/opGen.go           | 160 ++++++++++++++++++++++++
+ test/codegen/memops.go                          |   7 ++
+ 5 files changed, 208 insertions(+), 10 deletions(-)

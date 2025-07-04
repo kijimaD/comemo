@@ -1,0 +1,19 @@
+commit 86f5f7fdfae8ce24e1a47b326d9a1eee88a55248
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 28 10:32:31 2017 -0700
+
+    spec: clarify unsafe.Pointer conversions
+    
+    A pointer type of underlying type unsafe.Pointer can be used in
+    unsafe conversions. Document unfortunate status quo.
+    
+    Fixes #19306.
+    
+    Change-Id: I28172508a200561f8df366bbf2c2807ef3b48c97
+    Reviewed-on: https://go-review.googlesource.com/42132
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

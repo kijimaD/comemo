@@ -1,0 +1,35 @@
+commit 5fee159bc2e60736ce967560ee5be738fe5d5bd2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 21 23:02:51 2024 -0400
+
+    all: document legacy //go:linkname for modules with ≥50,000 dependents
+    
+    Note that this depends on the revert of CL 581395 to move zeroVal back.
+    
+    For #67401.
+    
+    Change-Id: I507c27c2404ad1348aabf1ffa3740e6b1957495b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587217
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/internal/cpu/badlinkname_linux_arm64.go | 15 ------
+ src/internal/cpu/cpu_arm64_hwcap.go         | 11 ++++
+ src/reflect/badlinkname.go                  | 25 ++++++---
+ src/reflect/type.go                         | 26 ++++++---
+ src/reflect/value.go                        |  1 +
+ src/runtime/badlinkname.go                  |  7 ---
+ src/runtime/malloc.go                       | 22 ++++++++
+ src/runtime/map.go                          | 84 +++++++++++++++++++++++++++++
+ src/runtime/map_fast32.go                   | 27 ++++++++++
+ src/runtime/map_fast64.go                   | 27 ++++++++++
+ src/runtime/map_faststr.go                  | 18 +++++++
+ src/runtime/mbarrier.go                     | 10 ++++
+ src/runtime/runtime.go                      |  8 +++
+ src/runtime/runtime1.go                     |  1 +
+ src/runtime/slice.go                        | 10 ++++
+ src/runtime/stubs.go                        | 15 ++++--
+ src/runtime/trace.go                        |  4 ++
+ src/runtime/tracetime.go                    |  8 ++-
+ 18 files changed, 277 insertions(+), 42 deletions(-)

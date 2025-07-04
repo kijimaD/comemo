@@ -1,0 +1,22 @@
+commit 79017aa56858f1109c5de30ac9f73d0da60a5339
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Apr 2 01:11:17 2010 -0700
+
+    syscall: implementing some mingw syscalls required by os package
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/770041
+
+ src/pkg/os/dir_mingw.go               |   9 ++
+ src/pkg/os/file.go                    |   6 +-
+ src/pkg/os/stat_mingw.go              |  15 +++
+ src/pkg/os/sys_mingw.go               |   7 ++
+ src/pkg/syscall/mksyscall_mingw.sh    |  20 +++-
+ src/pkg/syscall/syscall_mingw.go      | 201 +++++++++++++++++++++++++++++++---
+ src/pkg/syscall/syscall_mingw_386.go  |   4 +
+ src/pkg/syscall/syscall_unix.go       |   6 +
+ src/pkg/syscall/zerrors_mingw_386.go  | 125 +++++++++++++++++++++
+ src/pkg/syscall/zsyscall_mingw_386.go |  96 +++++++++++++++-
+ src/pkg/syscall/ztypes_mingw_386.go   | 111 +++++++++++++++++++
+ 11 files changed, 571 insertions(+), 29 deletions(-)

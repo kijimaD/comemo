@@ -1,0 +1,25 @@
+commit f229e46783a12b7604bf99f0b7329965d5a2b1f6
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Sat Apr 2 11:27:02 2016 -0300
+
+    cmd/compile: better error when assigning to struct field in map
+    
+    Identify this assignment case and instead of the more general error
+    
+        prog.go:6: cannot assign to students["sally"].age
+    
+    produce
+    
+        prog.go:6: cannot directly assign to struct field students["sally"].age in map
+    
+    that explains why the assignment is not possible.
+    
+    Fixes #13779.
+    
+    Change-Id: I90c10b445f907834fc1735aa66e44a0f447aa74f
+    Reviewed-on: https://go-review.googlesource.com/21462
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go |  5 +++++
+ test/fixedbugs/issue13779.go             | 15 +++++++++++++++
+ 2 files changed, 20 insertions(+)

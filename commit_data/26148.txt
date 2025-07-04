@@ -1,0 +1,14 @@
+commit 5011431295b647c2d1e4ae294c4e2cab626fc1f8
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 9 11:08:19 2016 +1100
+
+    doc: remove link to empty Go 1.5.3 milestone
+    
+    Fixes #14687
+    
+    Change-Id: I51fd8842d35c82db71cc5b28c4c0550871461eb6
+    Reviewed-on: https://go-review.googlesource.com/20421
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/devel/release.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

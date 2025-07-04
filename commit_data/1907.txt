@@ -1,0 +1,14 @@
+commit a2cbc2998d031fb1768c8a40037c558b5411b1e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 30 00:12:56 2009 -0700
+
+    don't write cmp's output to the c file.
+    cope better with p4 not found.
+    
+    R=r
+    DELTA=3  (0 added, 0 deleted, 3 changed)
+    OCL=26877
+    CL=26879
+
+ src/cmd/gc/mkbuiltin | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,24 @@
+commit 44dbeaf35600ae70f3e6296914ea31147d5f010c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 9 12:41:50 2020 -0400
+
+    cmd/compile: intrinsify runtime/internal/atomic.{And,Or} on AMD64
+    
+    These are identical to And8 and Or8, just using ANDL/ORL instead of
+    ANDB/ORB.
+    
+    Change-Id: I99cf90a8b0b5f211fb23325dddd55821875f0c8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263140
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go          |  2 +-
+ src/cmd/compile/internal/gc/ssa.go             | 12 +++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  6 ++--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  2 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go          | 48 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 34 ++++++++++++++++++
+ 7 files changed, 103 insertions(+), 3 deletions(-)

@@ -1,0 +1,22 @@
+commit 517781b39181e26cff880b656787fac65a63092c
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Fri Apr 8 17:33:50 2022 +0800
+
+    cmd/compile: add SARXQload and SARXLload
+    
+    Change-Id: I4e8dc5009a5b8af37d71b62f1322f94806d3e9d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399056
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go           |   7 +-
+ src/cmd/compile/internal/ssa/addressingmodes.go |   7 ++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules    |   1 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go    |   7 ++
+ src/cmd/compile/internal/ssa/opGen.go           | 136 ++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    |  44 ++++++++
+ test/codegen/bmi.go                             |  16 +++
+ 7 files changed, 216 insertions(+), 2 deletions(-)

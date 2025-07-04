@@ -1,0 +1,15 @@
+commit d1f4e0d14e4a86ca7d35d569e3d20555b14da4ab
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 11 14:46:46 2011 -0700
+
+    exec: closeAfterWait append bug
+    
+    Wasn't actually eager closing the fds as a result of the
+    copy/paste bug. (GC was doing it instead)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4671057
+
+ src/pkg/exec/exec.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

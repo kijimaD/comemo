@@ -1,0 +1,14 @@
+commit da705c621205163a1af0325578d99e04df58837f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 20 15:28:38 2010 +1000
+
+    netchan: provide a method (Importer.Errors()) to recover protocol errors.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2229044
+
+ src/pkg/netchan/export.go       |  2 +-
+ src/pkg/netchan/import.go       | 19 ++++++++++++++---
+ src/pkg/netchan/netchan_test.go | 45 ++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 61 insertions(+), 5 deletions(-)

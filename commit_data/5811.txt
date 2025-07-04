@@ -1,0 +1,12 @@
+commit e9bcbc539890020668cbd361a0d8edbb8f6ab8a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 14 17:25:46 2010 -0700
+
+    os: use /tmp again
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/1823041
+
+ src/pkg/os/os_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

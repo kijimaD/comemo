@@ -1,0 +1,29 @@
+commit b37de7387a32a707dad0ef0305ec686bc263ef24
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 12 14:40:29 2012 -0800
+
+    json: better error messages when the ,string option is misused
+    
+    Fixes #2331
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5544045
+
+ src/buildscript_darwin_386.sh        | 60 ++++++++++++++++++------------------
+ src/buildscript_darwin_amd64.sh      | 60 ++++++++++++++++++------------------
+ src/buildscript_freebsd_386.sh       | 60 ++++++++++++++++++------------------
+ src/buildscript_freebsd_amd64.sh     | 60 ++++++++++++++++++------------------
+ src/buildscript_linux_386.sh         | 60 ++++++++++++++++++------------------
+ src/buildscript_linux_amd64.sh       | 60 ++++++++++++++++++------------------
+ src/buildscript_linux_arm.sh         | 60 ++++++++++++++++++------------------
+ src/buildscript_netbsd_386.sh        | 60 ++++++++++++++++++------------------
+ src/buildscript_netbsd_amd64.sh      | 60 ++++++++++++++++++------------------
+ src/buildscript_openbsd_386.sh       | 60 ++++++++++++++++++------------------
+ src/buildscript_openbsd_amd64.sh     | 60 ++++++++++++++++++------------------
+ src/buildscript_plan9_386.sh         | 60 ++++++++++++++++++------------------
+ src/buildscript_windows_386.sh       | 40 ++++++++++++------------
+ src/buildscript_windows_amd64.sh     | 40 ++++++++++++------------
+ src/pkg/encoding/json/decode.go      | 35 ++++++++++++++++-----
+ src/pkg/encoding/json/decode_test.go |  9 ++----
+ 16 files changed, 431 insertions(+), 413 deletions(-)

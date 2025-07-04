@@ -1,0 +1,30 @@
+commit 1e1fa5903b760c6714ba17e50bf850b01f49135c
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Nov 10 15:54:12 2020 -0500
+
+    math/big: fix shift for recursive division
+    
+    The previous s value could cause a crash
+    for certain inputs.
+    
+    Will check in tests and documentation improvements later.
+    
+    Thanks to the Go Ethereum team and the OSS-Fuzz project for reporting this.
+    Thanks to Rémy Oudompheng and Robert Griesemer for their help
+    developing and validating the fix.
+    
+    Fixes CVE-2020-28362
+    
+    Change-Id: Ibbf455c4436bcdb07c84a34fa6551fb3422356d3
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/899974
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269657
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/math/big/nat.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

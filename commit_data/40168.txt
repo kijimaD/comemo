@@ -1,0 +1,50 @@
+commit e1446d9cee91af263af15efe8291644b590bb9ff
+Author: Ben Schwartz <bemasc@google.com>
+Date:   Mon Jun 10 12:29:23 2019 -0400
+
+    runtime: speed up receive on empty closed channel
+    
+    Currently, nonblocking receive on an open channel is about
+    700 times faster than nonblocking receive on a closed channel.
+    This change makes closed channels equally fast.
+    
+    Fixes #32529
+    
+    relevant benchstat output:
+    name                       old time/op    new time/op    delta
+    MakeChan/Byte-40            140ns ± 4%     137ns ± 7%   -2.38%  (p=0.023 n=17+19)
+    MakeChan/Int-40             174ns ± 5%     173ns ± 6%     ~     (p=0.437 n=18+19)
+    MakeChan/Ptr-40             315ns ±15%     301ns ±15%     ~     (p=0.051 n=20+20)
+    MakeChan/Struct/0-40        123ns ± 8%      99ns ±11%  -19.18%  (p=0.000 n=20+17)
+    MakeChan/Struct/32-40       297ns ± 8%     241ns ±18%  -19.13%  (p=0.000 n=20+20)
+    MakeChan/Struct/40-40       344ns ± 5%     273ns ±23%  -20.49%  (p=0.000 n=20+20)
+    ChanNonblocking-40         0.32ns ± 2%    0.32ns ± 2%   -1.25%  (p=0.000 n=19+18)
+    SelectUncontended-40       5.72ns ± 1%    5.71ns ± 2%     ~     (p=0.326 n=19+19)
+    SelectSyncContended-40     10.9µs ±10%    10.6µs ± 3%   -2.77%  (p=0.009 n=20+16)
+    SelectAsyncContended-40    1.00µs ± 0%    1.10µs ± 0%  +10.75%  (p=0.000 n=18+19)
+    SelectNonblock-40          1.22ns ± 2%    1.21ns ± 4%     ~     (p=0.141 n=18+19)
+    ChanUncontended-40          240ns ± 4%     233ns ± 4%   -2.82%  (p=0.000 n=20+20)
+    ChanContended-40           86.7µs ± 0%    82.7µs ± 0%   -4.64%  (p=0.000 n=20+19)
+    ChanSync-40                 294ns ± 7%     284ns ± 9%   -3.44%  (p=0.006 n=20+20)
+    ChanSyncWork-40            38.4µs ±19%    34.0µs ± 4%  -11.33%  (p=0.000 n=20+18)
+    ChanProdCons0-40           1.50µs ± 1%    1.63µs ± 0%   +8.53%  (p=0.000 n=19+19)
+    ChanProdCons10-40          1.17µs ± 0%    1.18µs ± 1%   +0.44%  (p=0.000 n=19+20)
+    ChanProdCons100-40          985ns ± 0%     959ns ± 1%   -2.64%  (p=0.000 n=20+20)
+    ChanProdConsWork0-40       1.50µs ± 0%    1.60µs ± 2%   +6.54%  (p=0.000 n=18+20)
+    ChanProdConsWork10-40      1.26µs ± 0%    1.26µs ± 2%   +0.40%  (p=0.015 n=20+19)
+    ChanProdConsWork100-40     1.27µs ± 0%    1.22µs ± 0%   -4.15%  (p=0.000 n=20+19)
+    SelectProdCons-40          1.50µs ± 1%    1.53µs ± 1%   +1.95%  (p=0.000 n=20+20)
+    ChanCreation-40            82.1ns ± 5%    81.6ns ± 7%     ~     (p=0.483 n=19+19)
+    ChanSem-40                  877ns ± 0%     719ns ± 0%  -17.98%  (p=0.000 n=18+19)
+    ChanPopular-40             1.75ms ± 2%    1.78ms ± 3%   +1.76%  (p=0.002 n=20+19)
+    ChanClosed-40               215ns ± 1%       0ns ± 6%  -99.82%  (p=0.000 n=20+18)
+    
+    Change-Id: I6d5ca4f1530cc9e1a9f3ef553bbda3504a036448
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181543
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/chan.go      | 76 ++++++++++++++++++++++++++++++++++++------------
+ src/runtime/chan_test.go | 14 +++++++++
+ 2 files changed, 71 insertions(+), 19 deletions(-)

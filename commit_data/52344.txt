@@ -1,0 +1,23 @@
+commit c7ea9969f8112721edc0a128277f8e5943e21a49
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 20 14:08:59 2023 -0700
+
+    internal/platform: pass race mode to DefaultPIE
+    
+    On Windows we default to PIE, except in race mode.
+    Pass isRace to platform.DefaultPIE to centralize that decision.
+    This is in preparation for adding another call to DefaultPIE.
+    
+    Change-Id: I91b75d307e7d4d260246a934f98734ddcbca372a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477916
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/init.go       | 12 ++++--------
+ src/cmd/link/internal/ld/dwarf_test.go |  2 +-
+ src/cmd/nm/nm_test.go                  |  2 +-
+ src/internal/platform/supported.go     | 12 +++++++++---
+ 4 files changed, 15 insertions(+), 13 deletions(-)

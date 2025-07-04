@@ -1,0 +1,23 @@
+commit 4c9e757daf813fcc02802d0ff014afa24df56f6e
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 14 09:00:14 2019 -0400
+
+    test: revise testcase for new gccgo compiler bug
+    
+    Add to the testcase originally created for issue 34577 so
+    as to also trigger the error condition for issue 34852 (the
+    two bugs are closely related).
+    
+    Updates #34577.
+    Updates #34852.
+    
+    Change-Id: I2347369652ce500184347606b2bb3e76d802b204
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201017
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue34577.dir/a.go | 13 +++++++++++++
+ test/fixedbugs/issue34577.dir/b.go |  4 ++++
+ 2 files changed, 17 insertions(+)

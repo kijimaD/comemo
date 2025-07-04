@@ -1,0 +1,20 @@
+commit 88fc3587ec24bf9890f9fbc1be33e313c5d99bbc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jul 5 09:15:11 2015 -0700
+
+    net/http: don't reuse conns after incomplete 100-continue requests
+    
+    If we receive an HTTP request with "Expect: 100-continue" and the
+    Handler never read to EOF, the conn is in an unknown state.
+    Don't reuse that connection.
+    
+    Fixes #11549
+    
+    Change-Id: I5be93e7a54e899d615b05f72bdcf12b25304bc60
+    Reviewed-on: https://go-review.googlesource.com/12262
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 23 ++++++++++++++++++++++-
+ 2 files changed, 65 insertions(+), 1 deletion(-)

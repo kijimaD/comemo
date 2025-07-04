@@ -1,0 +1,17 @@
+commit a41db4318d0e551e22d0766d6191e436ea9fa87b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 3 15:37:45 2010 -0400
+
+    goinstall: assume go binaries are in path
+    
+    (Following new convention.)
+    
+    Fixes #1063.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/2115042
+
+ src/cmd/goinstall/main.go | 4 ----
+ src/cmd/goinstall/make.go | 4 ++--
+ 2 files changed, 2 insertions(+), 6 deletions(-)

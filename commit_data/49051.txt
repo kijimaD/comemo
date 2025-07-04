@@ -1,0 +1,21 @@
+commit 2515a4214e2a70413392b4ce3767498ee26da10d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Mar 29 17:01:39 2022 +0200
+
+    crypto/elliptic: generate nistec group implementations from template
+    
+    For #52182
+    
+    Change-Id: I4dedd8ed9f57f6fc394c71cd20c3b27c3ea29a95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396414
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/elliptic/internal/nistec/generate.go | 370 ++++++++++++++++++++++++
+ src/crypto/elliptic/internal/nistec/nistec.go   |  15 +
+ src/crypto/elliptic/internal/nistec/p224.go     |  17 +-
+ src/crypto/elliptic/internal/nistec/p384.go     |  24 +-
+ src/crypto/elliptic/internal/nistec/p521.go     |  36 +--
+ 5 files changed, 405 insertions(+), 57 deletions(-)

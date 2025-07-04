@@ -1,0 +1,14 @@
+commit 0b62cb61ca6f2ba64acb57ab1571986fd511c2c1
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Mar 29 15:37:38 2008 -0700
+
+    fix bug30
+    automatic declaration leaking
+    from one function to another
+    
+    SVN=114252
+
+ src/c/dcl.c | 47 +++++++++++++++++++++++++++++++++++++++++------
+ src/c/go.h  |  6 ++++--
+ src/c/go.y  | 35 ++++++++++++++++++++---------------
+ 3 files changed, 65 insertions(+), 23 deletions(-)

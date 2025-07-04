@@ -1,0 +1,17 @@
+commit 452f40f8e04dfea421af21378c8579464ac66e5e
+Author: Jonathan Feinberg <feinberg@google.com>
+Date:   Wed Sep 26 14:39:31 2012 -0400
+
+    doc: add important info for would-be go contributors.
+    
+    Link to the "installing from source" docs instead of the "installing" docs.
+    
+    Remind would-be hacker to switch to the default branch from the release branch.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6559043
+
+ doc/contribute.html     |  2 +-
+ doc/install-source.html | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 7a2632e11d0214579a0c8041796687709f70e556
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jun 2 17:15:35 2020 -0400
+
+    doc/go1.15: add release notes for plugin
+    
+    Add a blurb to the release notes mentioning that the
+    linker now supports DWARF generation for -buildmode=plugin,
+    and that plugin builds work now for freebsd/amd64.
+    
+    Updates #37419.
+    
+    Change-Id: I84da7a52af84a9d765f73ca7ea525e7af8d64f05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236162
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

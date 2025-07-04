@@ -1,0 +1,20 @@
+commit af1232fe38b1decdeceaf7dc0050622a79c04b10
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Oct 12 17:40:02 2011 +0300
+
+    runtime: faster strings
+    Use FlagNoPointers and do not zeroize memory when allocate strings.
+    test/garbage/parser.out        old         new
+    run #1                     32.923s     32.065s
+    run #2                     33.047s     31.931s
+    run #3                     32.702s     31.841s
+    run #4                     32.718s     31.838s
+    run #5                     32.702s     31.868s
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5259041
+
+ src/cmd/prof/gopprof       |  1 -
+ src/pkg/runtime/string.goc | 49 +++++++++++++++++++++++++++-------------------
+ 2 files changed, 29 insertions(+), 21 deletions(-)

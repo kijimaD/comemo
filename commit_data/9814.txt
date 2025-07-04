@@ -1,0 +1,21 @@
+commit 71557713b0a7cf53c9c8a80986c89ae4036af74c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 27 16:21:28 2011 -0700
+
+    index/suffixarray: revert change from int -> int32
+    
+    CL 5040041 (https://golang.org/cl/5040041)
+    changed the use of []int to []int32 internally so
+    that encoding/binary could be used. This is no
+    longer needed (gobs can encode ints), and using
+    []int is more in sync w/ the semantics of the data
+    structure (the index elements are indices which are
+    ints). Changing it back.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5141049
+
+ src/pkg/index/suffixarray/qsufsort.go    | 38 ++++++++++++++++----------------
+ src/pkg/index/suffixarray/suffixarray.go | 10 ++++-----
+ 2 files changed, 23 insertions(+), 25 deletions(-)

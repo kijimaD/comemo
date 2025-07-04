@@ -1,0 +1,12 @@
+commit da167b00d68e098677840b7a3becb4200c0e8371
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 30 16:01:14 2015 +0000
+
+    doc: add log.SetOutput to go1.5.txt
+    
+    Change-Id: I257211f10b334eb4828be96cd434d588bfb1a378
+    Reviewed-on: https://go-review.googlesource.com/3605
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

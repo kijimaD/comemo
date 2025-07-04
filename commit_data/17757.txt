@@ -1,0 +1,16 @@
+commit 989a63eb0b1f692c7d2aa0a4d3deed97b4505d15
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Mon Oct 7 13:08:26 2013 -0400
+
+    misc/emacs: find unused imports where path and package name differ
+    
+    The Go compiler emits extra information for this case:
+    
+    imported and not used: "sandbox/foo_bar" as bar
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/14111043
+
+ misc/emacs/go-mode.el | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

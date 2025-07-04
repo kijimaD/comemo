@@ -1,0 +1,18 @@
+commit 99d29d5a43da0efde2ed9a137627d0d310e3baad
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu May 19 15:58:40 2016 +1000
+
+    path/filepath: fix globbing of c:\*dir\... pattern
+    
+    The problem was introduced by the recent filepath.Join change.
+    
+    Fixes #14949
+    
+    Change-Id: I7ee52f210e12bbb1369e308e584ddb2c7766e095
+    Reviewed-on: https://go-review.googlesource.com/23240
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/path/filepath/match.go      |  40 ++++++++--
+ src/path/filepath/match_test.go | 163 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 196 insertions(+), 7 deletions(-)

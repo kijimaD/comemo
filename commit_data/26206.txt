@@ -1,0 +1,18 @@
+commit 88a21ebb210a282626b6fccf562957db9bcd9bf4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 10 15:50:49 2016 -0800
+
+    cmd/compile: rework checkdupfields
+    
+    Use a map to detect duplicate symbols. Allows eliminating an otherwise
+    unneeded field from Sym and gets rid of a global variable.
+    
+    Change-Id: Ic004bca7e9130a1261a1cddbc17244529a2a1df4
+    Reviewed-on: https://go-review.googlesource.com/20552
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/dcl.go         | 35 +++++++++++++++---------------
+ src/cmd/compile/internal/gc/go.go          |  1 -
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ 3 files changed, 18 insertions(+), 20 deletions(-)

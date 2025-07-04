@@ -1,0 +1,12 @@
+commit 7e1ec1e9ccaaf52888799a10e1dfed2805ff4650
+Author: catatsuy <m.ddotx.f@gmail.com>
+Date:   Thu Dec 20 12:36:27 2018 +0900
+
+    net/http: fix the old url about deflate
+    
+    Change-Id: Iaa1468296fbc98389165a152cf8b591216c22489
+    Reviewed-on: https://go-review.googlesource.com/c/155217
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

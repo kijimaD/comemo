@@ -1,0 +1,21 @@
+commit e7b0559448dc81ddfcee965152d0794f25b95da0
+Author: Ludi Rehak <ludi317@gmail.com>
+Date:   Wed Mar 16 10:22:11 2022 -0700
+
+    regexp/syntax: fix typo in comment
+    
+    Fix typo in comment describing IsWordChar.
+    
+    Change-Id: Ia283813cf5662e218ee6d0411fb0c1b1ad1021f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393435
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/regexp/syntax/prog.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

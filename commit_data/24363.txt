@@ -1,0 +1,16 @@
+commit d08f34e744c77a7dc5f33516971e27b9ab390b30
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Sep 24 00:38:54 2015 +0200
+
+    cmd/compile/internal/gc: convert return values from int to bool
+    
+    Passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: I895350987661c1855803d1594dbab16068f8d1bc
+    Reviewed-on: https://go-review.googlesource.com/14873
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 88 ++++++++++++++++----------------
+ 1 file changed, 43 insertions(+), 45 deletions(-)

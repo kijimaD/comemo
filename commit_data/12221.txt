@@ -1,0 +1,16 @@
+commit c7482b919619b459cb68e3a0c681afa1c3425dc4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Feb 27 12:29:33 2012 +1100
+
+    os: implement sameFile on windows
+    
+    Fixes #2511.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5687072
+
+ src/pkg/os/file_windows.go |  14 +++-
+ src/pkg/os/os_test.go      |  35 ++++++++++
+ src/pkg/os/stat_windows.go | 165 +++++++++++++++++++++++++++++++++++++++------
+ 3 files changed, 193 insertions(+), 21 deletions(-)

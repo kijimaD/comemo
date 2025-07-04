@@ -1,0 +1,19 @@
+commit 1aa65fe8d4c0ebdd754480d281f378fcd1c42cea
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 25 08:37:04 2014 -0700
+
+    runtime: add load_g call in arm callback.
+    
+    Need to restore the g register.  Somehow this line vaporized from
+    CL 144130043.  Also cgo_topofstack -> _cgo_topofstack, that vaporized also.
+    
+    TBR=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/150940044
+
+ src/cmd/cgo/out.go          | 8 ++++----
+ src/runtime/asm_386.s       | 2 +-
+ src/runtime/asm_amd64.s     | 2 +-
+ src/runtime/asm_arm.s       | 3 ++-
+ src/runtime/cgo/callbacks.c | 4 ++--
+ 5 files changed, 10 insertions(+), 9 deletions(-)

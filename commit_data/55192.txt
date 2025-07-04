@@ -1,0 +1,16 @@
+commit 818de275c0170dce86f2e4c6b3c70fbbea99bf94
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 4 13:31:21 2023 -0500
+
+    doc: add release notes for PGO improvements
+    
+    For #61577.
+    For #61422.
+    
+    Change-Id: I575bf657fb36bd7103c73620bb2371d0f490af20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546935
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/go1.22.html | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 03d6637dbb7fc84536423f2c707f3130104567f1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Dec 31 13:46:58 2014 +1100
+
+    runtime: do not display Windows Error Reporting dialogue
+    
+    Fixes #9121
+    
+    Change-Id: Id6ca9f259260310c4c6cbdabbc8f2fead8414e6a
+    Reviewed-on: https://go-review.googlesource.com/2202
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/export_windows_test.go  |  9 +++++++++
+ src/runtime/os1_windows.go          | 13 +++++++++++++
+ src/runtime/os1_windows_386.go      |  8 +++++++-
+ src/runtime/os1_windows_amd64.go    |  6 ++++++
+ src/runtime/syscall_windows_test.go | 18 ++++++++++++++++++
+ 5 files changed, 53 insertions(+), 1 deletion(-)

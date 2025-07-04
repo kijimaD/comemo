@@ -1,0 +1,27 @@
+commit b6e81a51299f46b29ff7057dd043da8a42134eb0
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jul 26 13:41:12 2024 -0400
+
+    debug/buildinfo: read data in chunks
+    
+    Rather than reading the entire data segment into memory, read it in
+    smaller chunks to keep memory usage low.
+    
+    For typically Go binaries, this doesn't matter much. For those, we read
+    the .go.buildinfo section, which should be quite small. But for non-Go
+    binaries (or Go binaries with section headers stripped), we search the
+    entire loadable data segment, which could be quite large.
+    
+    This reduces the time for `go version` on a 2.5GB non-Go binary from
+    ~1.2s and 1GB RSS (!!) to ~1s and ~25MB RSS.
+    
+    Fixes #68592.
+    
+    Change-Id: I9218854c5b6f2aa1331f561ab0850a9fd62ef23b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601459
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/debug/buildinfo/buildinfo.go   | 136 +++++++++++++++++++++++++++-------
+ src/debug/buildinfo/search_test.go | 148 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 258 insertions(+), 26 deletions(-)

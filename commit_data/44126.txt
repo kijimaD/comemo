@@ -1,0 +1,28 @@
+commit 84e8a06f62e47bf3f126e6c7e5f39dd7ca82f421
+Author: Quim Muntal <quimmuntal@gmail.com>
+Date:   Thu Jan 14 21:29:49 2021 +0100
+
+    cmd/cgo: remove unnecessary space in cgo export header
+    
+    The cgo header has an unnecessary space in the exported function
+    definition on non-windows goos.
+    
+    This was introduced in go1.16 so it would be good to fix it before
+    release.
+    
+    Example:
+    
+    // Current behavior, notice there is an unecessary space
+    // between extern and void
+    extern  void Foo();
+    
+    // With this CL
+    extern void Foo();
+    
+    Change-Id: Ic2c21f8d806fe35a7be7183dbfe35ac605b6e4f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/283892
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+
+ src/cmd/cgo/out.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

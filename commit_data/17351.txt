@@ -1,0 +1,25 @@
+commit 06e686def67297a08ecb75e3543fde1284c1ee61
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 21 14:20:28 2013 +0400
+
+    cmd/5g, cmd/6g, cmd/8g: faster compilation
+    Replace linked list walk with memset.
+    This reduces CPU time taken by 'go install -a std' by ~10%.
+    Before:
+    real            user            sys
+    0m23.561s       0m16.625s       0m5.848s
+    0m23.766s       0m16.624s       0m5.846s
+    0m23.742s       0m16.621s       0m5.868s
+    after:
+    0m22.714s       0m14.858s       0m6.138s
+    0m22.644s       0m14.875s       0m6.120s
+    0m22.604s       0m14.854s       0m6.081s
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13084043
+
+ src/cmd/5g/peep.c | 17 ++++++++++++-----
+ src/cmd/6g/peep.c | 19 +++++++++++++------
+ src/cmd/8g/peep.c | 17 ++++++++++++-----
+ 3 files changed, 37 insertions(+), 16 deletions(-)

@@ -1,0 +1,15 @@
+commit dc492682b6b0fba963b7f44fde1526723518c708
+Author: Ben Shi <powerman1st@163.com>
+Date:   Sat Oct 6 03:00:31 2018 +0000
+
+    cmd/compile: combine 386 rules via regular expression
+    
+    This CL combines similar rules together via regular expression,
+    while does not impact generated 386 code.
+    
+    Change-Id: I2b26e7fc6adffa0fa10eeb04a4f3a76ddabc760b
+    Reviewed-on: https://go-review.googlesource.com/c/140297
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/386.rules | 76 +++++-------------------------
+ 1 file changed, 12 insertions(+), 64 deletions(-)

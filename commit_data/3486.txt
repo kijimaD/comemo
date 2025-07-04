@@ -1,0 +1,15 @@
+commit f0bde7c51bf6169043bf605798116b75b85615f5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 9 11:15:19 2009 -0700
+
+    fix nacl build
+    
+    R=r
+    DELTA=23  (5 added, 0 deleted, 18 changed)
+    OCL=35510
+    CL=35518
+
+ src/cmd/8l/asm.c |  2 +-
+ src/make.bash    | 35 ++++++++++++++++++++---------------
+ test/run-nacl    |  4 ++--
+ 3 files changed, 23 insertions(+), 18 deletions(-)

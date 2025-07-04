@@ -1,0 +1,18 @@
+commit 96678f9dc026648889830cd058cd34d9e7759426
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Feb 19 07:55:03 2014 +0100
+
+    cmd/gc: reject incorrect use of fallthrough.
+    
+    Fixes #6500.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/14920053
+
+ src/cmd/gc/go.y             |   2 +
+ src/cmd/gc/swt.c            |   2 +-
+ src/cmd/gc/y.tab.c          | 506 ++++++++++++++++++++++----------------------
+ test/fixedbugs/issue6500.go |  29 +++
+ 4 files changed, 286 insertions(+), 253 deletions(-)

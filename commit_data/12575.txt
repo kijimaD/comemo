@@ -1,0 +1,12 @@
+commit 4edd53e47b5a2e474f4e0b0399c272c48952d261
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 12 13:17:48 2012 -0700
+
+    os: document FileInfo.Size as system-dependent for irregular files
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5795059
+
+ src/pkg/os/types.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

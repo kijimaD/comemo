@@ -1,0 +1,20 @@
+commit 11972353a67456d776cf891a9e46873e8a1fe630
+Author: Ryan Leung <rleungx@gmail.com>
+Date:   Mon Nov 22 02:41:07 2021 +0000
+
+    cmd/go: allow a package that ends with _test having an internal test package
+    
+    Fixes #45477
+    
+    Change-Id: I2f1ed281515ec40d31fd07ce9f4901777691bfa7
+    GitHub-Last-Rev: 7894d9400c95b8d84efe88f401fa75c3dd01921a
+    GitHub-Pull-Request: golang/go#49673
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365534
+    Trust: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/test_issue45477.txt | 12 ++++++++++++
+ src/go/build/build.go                          |  2 +-
+ 2 files changed, 13 insertions(+), 1 deletion(-)

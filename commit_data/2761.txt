@@ -1,0 +1,14 @@
+commit fb6590636790873fade806039053d055bb5b1b34
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Mon Jul 20 16:14:48 2009 -0700
+
+    Fix typo.  MUL_ASSIGN is "*=", not "+=".
+    
+    R=gri
+    APPROVED=gri
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=31879
+    CL=31886
+
+ src/pkg/go/token/token.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

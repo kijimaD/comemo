@@ -1,0 +1,57 @@
+commit 2abd8aebc3cae9c5f4e31d6ab963a2ec77f27c7c
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Wed Jul 19 00:41:13 2017 -0400
+
+    net/http: improve signature of Redirect, NewRequest
+    
+    In CL https://golang.org/cl/4893043 (6 years ago), a new package named
+    "url" was created (it is currently known as "net/url"). During that
+    change, some identifier name collisions were introduced, and two
+    parameters in net/http were renamed to "urlStr".
+    
+    Since that time, Go has continued to put high emphasis on the quality
+    and readability of the documentation. Sometimes, that means making small
+    sacrifices in the implementation details of a package to ensure that
+    the godoc reads better, since that's what the majority of users interact
+    with. See https://golang.org/s/style#named-result-parameters:
+    
+    > Clarity of docs is always more important than saving a line or two
+    > in your function.
+    
+    I think the "urlStr" parameter name is suboptimal for godoc purposes,
+    and just "url" would be better.
+    
+    During the review of https://golang.org/cl/4893043, it was also noted
+    by @rsc that having to rename parameters named "url" was suboptimal:
+    
+    > It's unfortunate that naming the package url means
+    > you can't have a parameter or variable named url.
+    
+    However, at the time, the name of the url package was still being
+    decided, and uri was an alternative name under consideration.
+    The reason urlStr was chosen is because it was a lesser evil
+    compared to naming the url package uri instead:
+    
+    > Let's not get hung up on URI vs. URL, but I'd like s/uri/urlStr/ even for just
+    > that the "i" in "uri" looks very similar to the "l" in "url" in many fonts.
+    
+    > Please let's go with urlStr instead of uri.
+    
+    Now that we have the Go 1 compatibility guarantee, the name of the
+    net/url package is fixed. However, it's possible to improve the
+    signature of Redirect, NewRequest functions in net/http package
+    for godoc purposes by creating a package global alias to url.Parse,
+    and renaming urlStr parameter to url in the exported funcs. This CL
+    does so.
+    
+    Updates #21077.
+    
+    Change-Id: Ibcc10e3825863a663e6ad91b6eb47b1862a299a6
+    Reviewed-on: https://go-review.googlesource.com/49930
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go |  4 ++--
+ src/net/http/server.go  | 33 +++++++++++++++++++--------------
+ 2 files changed, 21 insertions(+), 16 deletions(-)

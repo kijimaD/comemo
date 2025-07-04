@@ -1,0 +1,36 @@
+commit d482c163be5ef83b9a4ff5b1f366ceb6cfff6ed7
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 14 17:16:35 2010 -0700
+
+    fmt.Print*: reimplement to switch on type first.
+    This shortens, simplifies and regularizes the code significantly.
+    (Improvements to reflect could make another step.)
+    Passes all.bash.
+    
+    One semantic change occurs: The String() method changes
+    behavior. It used to run only for string formats such as %s and %q.
+    Instead, it now runs whenever the item has the method and the
+    result is then processed by the format as a string. Besides the
+    regularization, this has three effects:
+    
+            1) width is honored for String() items
+            2) %x works for String() items
+            3) implementations of String that merely recur will recur forever
+    
+    Regarding point 3, example from the updated documentation:
+            type X int
+            func (x X) String() string { return Sprintf("%d", x) }
+    should cast the value before recurring:
+            func (x X) String() string { return Sprintf("%d", int(x)) }
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1613045
+
+ src/pkg/fmt/fmt_test.go      |  56 ++-
+ src/pkg/fmt/format.go        |  95 +----
+ src/pkg/fmt/print.go         | 875 +++++++++++++++++++------------------------
+ src/pkg/fmt/scan_test.go     |  25 +-
+ src/pkg/fmt/stringer_test.go |  30 +-
+ test/const3.go               |   2 +-
+ 6 files changed, 457 insertions(+), 626 deletions(-)

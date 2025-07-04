@@ -1,0 +1,21 @@
+commit 7f3eb6182ba72b1b45cf313a01b9c7d4b374255f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jan 7 17:11:41 2022 -0500
+
+    runtime: skip TestSegv traceback check on 386
+    
+    The VDSO (__kernel_vsyscall) is reachable via
+    asmcgocall(cgo_start_thread) on linux-386, which causes traceback to
+    throw.
+    
+    Fixes #49182.
+    For #50504.
+    
+    Change-Id: Idb78cb8de752203ce0ed63c2dbd2d12847338688
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376656
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/crash_cgo_test.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

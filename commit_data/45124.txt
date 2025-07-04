@@ -1,0 +1,20 @@
+commit 58fdac04e4534e53fd9ca7df0455efb4f1ddb82b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 13 11:01:13 2021 +0200
+
+    syscall: don't defer close raw Socketpair fds in tests
+    
+    The raw fds are successively wrapped using os.NewFile and will be closed
+    by (*os.File).Close. Avoids a double close, in the worst case closing an
+    unrelated fd.
+    
+    Change-Id: I86aabe5ed865eff43d264ddae1fb07c935868e97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309353
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/creds_test.go        | 9 +++++----
+ src/syscall/syscall_unix_test.go | 2 --
+ 2 files changed, 5 insertions(+), 6 deletions(-)

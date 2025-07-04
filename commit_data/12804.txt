@@ -1,0 +1,15 @@
+commit cb871ce3e0f573c51be58deaff7971daa6b5a9eb
+Author: Aaron Kemp <kemp.aaron@gmail.com>
+Date:   Fri Mar 30 17:51:24 2012 -0700
+
+    doc/effective_go.html: Add missing '...' for fmt.Sprintf()
+    
+    The '...' was missing on a call to fmt.Sprintf() which would result in
+    the slice being printed instead of the correct result.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5967051
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

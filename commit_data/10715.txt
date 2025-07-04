@@ -1,0 +1,15 @@
+commit d0cf3fa21ed7017eafa05f2e612c0b8f5cdcd20d
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Dec 12 16:08:29 2011 -0500
+
+    time: gob marshaler for Time
+    
+    Addresses issue 2526
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5448114
+
+ src/pkg/time/time.go      | 80 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/time/time_test.go | 70 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 150 insertions(+)

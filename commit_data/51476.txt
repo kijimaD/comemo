@@ -1,0 +1,35 @@
+commit 2ca32a5b99c37ac5851ecd5b994b3ba86f9766f7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 1 09:09:37 2022 -0800
+
+    Revert "go/types, types2: make the new comparable semantics the default"
+    
+    The CL below was accidentally submitted, while waiting for the freeze
+    exception. Reverting.
+    
+    This reverts commit 15e705ea963b5008112793507365e24b743606bc.
+    
+    Change-Id: I4dbf92dcb01fa9245a6e6a2d1514d8aa898d0048
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454476
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/base/flag.go              |  4 +--
+ src/cmd/compile/internal/noder/irgen.go            |  2 +-
+ src/cmd/compile/internal/types2/api.go             |  7 ++---
+ src/cmd/compile/internal/types2/check_test.go      |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go     | 33 ++++------------------
+ src/go/types/api.go                                |  7 ++---
+ src/go/types/check_test.go                         |  8 +++---
+ src/go/types/instantiate.go                        | 33 ++++------------------
+ src/internal/types/testdata/check/issues1.go       |  2 --
+ .../types/testdata/fixedbugs/issue50646.go         |  2 --
+ .../types/testdata/fixedbugs/issue51257.go         |  2 --
+ src/internal/types/testdata/spec/comparable.go     |  2 ++
+ src/internal/types/testdata/spec/comparable1.19.go | 28 ------------------
+ src/internal/types/testdata/spec/oldcomparable.go  | 28 ------------------
+ 14 files changed, 28 insertions(+), 132 deletions(-)

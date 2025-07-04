@@ -1,0 +1,19 @@
+commit e3b536a054603789ad8dc8481b88cf3c82eb4bf6
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Feb 26 03:17:01 2020 +1100
+
+    test: re-enable open-coded defer test on riscv64
+    
+    Open-coded defers were fixed and re-enabled on riscv64, however this test was
+    inadvertantly left disabled.
+    
+    Updates #36786
+    
+    Change-Id: I128fc84baa3d51f50d173e19e52051dc4d9a07c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220920
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/defererrcheck.go | 4 ----
+ 1 file changed, 4 deletions(-)

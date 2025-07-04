@@ -1,0 +1,28 @@
+commit e49b2460a40208d0c50922f898b58fdafa40eca0
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Sep 4 09:53:35 2015 +0000
+
+    Revert "cmd/internal/ld: put read-only relocated data into .data.rel.ro when making a shared object"
+    
+    This reverts commit 2c2cbb69c8dad1325f0a4b289417da73fd90f4b0.
+    
+    Broke darwin/arm64
+    
+    Change-Id: Ibd2dea475d6ce6a8b4b40e2da19a83fc0514025d
+    Reviewed-on: https://go-review.googlesource.com/14301
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcshared/test.bash         |   7 ---
+ misc/cgo/testshared/shared_test.go     |  39 -----------------
+ src/cmd/internal/obj/link.go           |  20 ---------
+ src/cmd/link/internal/ld/data.go       |  77 +++------------------------------
+ src/cmd/link/internal/ld/elf.go        |  33 ++++----------
+ src/cmd/link/internal/ld/lib.go        |  20 +--------
+ src/cmd/link/internal/ld/symtab.go     |  28 ++----------
+ src/cmd/newlink/testdata/autosection.6 | Bin 937 -> 897 bytes
+ src/cmd/newlink/testdata/autoweak.6    | Bin 386 -> 346 bytes
+ src/cmd/newlink/testdata/dead.6        | Bin 849 -> 809 bytes
+ src/cmd/newlink/testdata/hello.6       | Bin 229 -> 189 bytes
+ src/cmd/newlink/testdata/layout.6      | Bin 396 -> 356 bytes
+ src/cmd/newlink/testdata/pclntab.6     | Bin 3804 -> 3764 bytes
+ 13 files changed, 18 insertions(+), 206 deletions(-)

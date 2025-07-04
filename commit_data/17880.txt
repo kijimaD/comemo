@@ -1,0 +1,15 @@
+commit 0bdd90bc0a5bdd1844862b36ce69cc9283a9713f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 12 20:07:08 2013 -0800
+
+    src/cmd/?a: link to new assembler document
+    Blocked on 20930043, the CL the new text references.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/18430044
+
+ src/cmd/5a/doc.go | 4 ++++
+ src/cmd/6a/doc.go | 6 +++++-
+ src/cmd/8a/doc.go | 5 +++++
+ 3 files changed, 14 insertions(+), 1 deletion(-)

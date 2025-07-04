@@ -1,0 +1,16 @@
+commit fa2b4cbf4426556f36e0842a0d711ede6d30a913
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 30 12:31:47 2008 -0700
+
+    104, 107, 108: they are known to fail, so mark them appropriately.
+    update golden
+    add the "goroutines" test
+    
+    R=iant
+    DELTA=74  (36 added, 23 deleted, 15 changed)
+    OCL=16194
+    CL=16206
+
+ test/chan/goroutines.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ test/golden.out         | 45 +++++++++++----------------------------------
+ 2 files changed, 51 insertions(+), 34 deletions(-)

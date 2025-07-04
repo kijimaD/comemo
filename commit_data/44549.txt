@@ -1,0 +1,15 @@
+commit b0df92703c89e42592659ae99cded0d5b68382b7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jan 4 13:34:29 2021 -0800
+
+    math/big: add shrVU and shlVU benchmarks
+    
+    Change-Id: Id67d6ac856bd9271de99c3381bde910aa0c166e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296011
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/arith_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

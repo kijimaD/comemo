@@ -1,0 +1,12 @@
+commit 1a7c15fa6d5ce2d78d0f9f5050ee9dd1e29485df
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sat Aug 24 22:08:51 2019 -0600
+
+    doc/go1.13: fix bad URLs to strconv identifiers
+    
+    Change-Id: I7db3ad060773c9396fbe34e7bd52e7ccf6e5e52c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191797
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.13.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

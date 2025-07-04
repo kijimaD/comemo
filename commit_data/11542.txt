@@ -1,0 +1,19 @@
+commit 9fb24b944812fe555b09395ff341c9818d98e25b
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Feb 1 16:07:32 2012 -0200
+
+    cmd/go: fix including of _cgo_export.h
+    
+    This will add the temporary object directory into the lookup
+    path so that cgo-exported function declarations may be
+    included from C files.
+    
+    This was previously applied by CL 5600043, and apparently
+    removed by mistake on CL 5598045.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5610054
+
+ src/cmd/go/build.go | 3 +++
+ 1 file changed, 3 insertions(+)

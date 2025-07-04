@@ -1,0 +1,33 @@
+commit 04c7e32517faf6257986e7c4cdd3f5f03eeae37b
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Sep 30 16:34:47 2020 -0700
+
+    compress/flate: remove unneeded zeroing of bytes array in (*huffmanBitWriter).reset
+    
+    There is no correctness reason to zero out the w.bytes array in (w
+    *huffmanBitWriter).reset, since w.nbytes is correctly set to zero. The elements of
+    the bytes array are always written sequentially, with nbytes indicating how many
+    elements have been written, and are only read up to the current value of nybytes.
+    
+    We have a pprof profile of a web server that compresses its request/responses, and
+    the zeroing in reset() is taking up 2.6% of the CPU time of the server (and could
+    be causing more slowdowns elsewhere due to its effects on the cache). This
+    overhead may be showing up especially because there are many request/responses
+    that are all fairly small.
+    
+    I'm not sure if the zeroing of the bytes array was intended as extra protection of
+    data across reset uses in the same program, but no protection is needed as long as
+    the huffman_bit_writer code remains correct.
+    
+    Change-Id: I67f2b2f56cff9dcc38d8fc0aea885bb010aeedbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258577
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Run-TryBot: Joe Tsai <joetsai@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Klaus Post <klauspost@gmail.com>
+    Reviewed-by: Joe Tsai <joetsai@google.com>
+    Trust: Joe Tsai <joetsai@google.com>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/compress/flate/huffman_bit_writer.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

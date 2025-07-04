@@ -1,0 +1,30 @@
+commit 45c2e38b37e40c3b6bdc508065edce0643f79110
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Feb 24 09:12:51 2016 -0800
+
+    cmd/compile: Drop references to Prog structs after each function
+    
+    Don't accumulate a massive list of Prog structs during
+    compilation and write them all out at the end of compilation.
+    Instead, convert them to code+relocs (or data+relocs) after each
+    function is compiled.
+    
+    Track down a few other places that were keeping Progs alive
+    and nil them out so the Progs get GCd promptly.
+    
+    Saves ~20% in peak memory usage for the compiler.  Surprisingly not much
+    help speed-wise (only because we end up doing more GCs.  With a
+    compensating GOGC=120, it does help a bit), but this provides a base for
+    more changes (e.g. reusing a cache of Progs).
+    
+    Change-Id: I838e01017c228995a687a8110d0cd67bf8596407
+    Reviewed-on: https://go-review.googlesource.com/19867
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go   |  5 +++++
+ src/cmd/compile/internal/gc/gsubr.go | 12 ++++++++++++
+ src/cmd/internal/obj/objfile.go      | 16 +++++++++++-----
+ 3 files changed, 28 insertions(+), 5 deletions(-)

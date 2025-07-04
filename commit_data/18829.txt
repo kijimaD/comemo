@@ -1,0 +1,23 @@
+commit ef6c21d0e9158e8dcb95543f684c01219f56b193
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 12 10:32:46 2014 +0900
+
+    syscall, net: clean up socket stub for solaris
+    
+    Solaris doesn't have struct ip_mreqn, instead it uses struct ip_mreq
+    and struct group_req with struct sockaddr_storage.
+    
+    Also fixes incorrect SockaddrDatalink.
+    
+    Update #7399
+    
+    LGTM=aram, iant
+    R=golang-codereviews, aram, gobot, iant
+    CC=golang-codereviews
+    https://golang.org/cl/73920043
+
+ src/pkg/net/sockoptip_bsd.go       |  2 +-
+ src/pkg/net/sockoptip_posix.go     |  2 +-
+ src/pkg/net/sockoptip_stub.go      | 39 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_solaris.go | 26 ++-----------------------
+ 4 files changed, 43 insertions(+), 26 deletions(-)

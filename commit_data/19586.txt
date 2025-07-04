@@ -1,0 +1,12 @@
+commit 9bfb66e962b631c2faf831ccc29ba5d4018ccf04
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Jun 21 20:19:49 2014 +0400
+
+    doc: say that race detector is supported on freebsd
+    
+    R=golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/103520044
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

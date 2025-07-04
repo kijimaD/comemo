@@ -1,0 +1,37 @@
+commit 4381c61c58315dbdb8004bf56e54a5d2aa5d0498
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Thu May 26 22:42:16 2022 +0800
+
+    crypto/sha512: optimize ARM64 sha512 implemention
+    
+    This CL enable sha512 for arm64 and ~390% performance
+    improvement.
+    
+    Contributed under the Go License with permission of
+    Linaro by Carlos Eduardo Seo <carlos.seo@linaro.org>
+    
+    https://perf.golang.org/search?q=upload:20220526.18
+    
+    Hash8Bytes/New          16.0MB/s ± 0%   61.3MB/s ± 0%   +283.97% (p=0.000 n=9+9)
+    Hash8Bytes/Sum384       16.4MB/s ± 0%   64.8MB/s ± 0%   +295.31% (p=0.000 n=8+9)
+    Hash8Bytes/Sum512       16.3MB/s ± 0%   64.2MB/s ± 0%   +293.37% (p=0.000 n=10+10)
+    Hash1K/New              252MB/s ± 0%    1217MB/s ± 0%   +383.00% (p=0.000 n=9+10)
+    Hash1K/Sum384           253MB/s ± 0%    1237MB/s ± 0%   +389.25% (p=0.000 n=10+10)
+    Hash1K/Sum512           253MB/s ± 0%    1231MB/s ± 0%   +387.37% (p=0.000 n=10+8)
+    Hash8K/New              284MB/s ± 0%    1405MB/s ± 2%   +395.19% (p=0.000 n=9+8)
+    Hash8K/Sum384           284MB/s ± 0%    1413MB/s ± 0%   +397.76% (p=0.000 n=10+8)
+    Hash8K/Sum512           284MB/s ± 0%    1411MB/s ± 0%   +397.19% (p=0.000 n=10+10)
+    
+    Change-Id: I4476da23d8cd376bf1f75d946d6b0c58470df1b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180257
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Reviewed-by: Ard Biesheuvel <ardb@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/sha512/sha512block_arm64.go   |  18 +++++
+ src/crypto/sha512/sha512block_arm64.s    | 135 +++++++++++++++++++++++++++++++
+ src/crypto/sha512/sha512block_generic.go |   2 +-
+ 3 files changed, 154 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 1262f6bde78e92b2156a7ae8acfeb5ed81bfecdb
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Tue Sep 20 22:55:14 2011 -0700
+
+    exp/template/html: fix bug, '<' normalization for text nodes that change context
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5080042
+
+ src/pkg/exp/template/html/escape.go      | 13 +++++++++++--
+ src/pkg/exp/template/html/escape_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

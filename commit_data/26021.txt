@@ -1,0 +1,15 @@
+commit 0f9cc465fa88c41fc8bf3c36d4016f6fa1e97bf2
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 3 13:01:09 2016 +1100
+
+    math: delete unused function sqrtC
+    
+    It appears to be a trivial dreg. Unreferenced. Gone.
+    
+    Change-Id: I4a5ceed48e84254bc8a07fdb04487a18a0edf965
+    Reviewed-on: https://go-review.googlesource.com/20122
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/math/sqrt.go | 4 ----
+ 1 file changed, 4 deletions(-)

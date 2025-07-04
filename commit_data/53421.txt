@@ -1,0 +1,24 @@
+commit 0a87fdc06e9c4ae73b31cd08c26ed32c8a80923b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 26 14:48:22 2023 -0400
+
+    cmd/go/internal/toolchain: avoid importing modcmd
+    
+    modcmd is a high-level command, but toolchain is a low-level building
+    block. A dependency from toolchain on modcmd makes it very difficult
+    to call from other lower-level packages without creating an import
+    cycle.
+    
+    Instead, use modfetch.Download in place of modcmd.DownloadModule.
+    
+    For #57001.
+    
+    Change-Id: I9694706d7225b269f26dc68814894613a3329abb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499316
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/toolchain/toolchain.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

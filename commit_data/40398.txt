@@ -1,0 +1,16 @@
+commit 722b0e32babc95a4381b14e1e7640572a556fc24
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 24 12:17:30 2019 +0700
+
+    syscall: make convertFromDirents11 checkptr safe
+    
+    Fixes #35092
+    
+    Change-Id: I8f1ee2b79d42b2291548fd5645940a61f6d67582
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202878
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/syscall/syscall_freebsd.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

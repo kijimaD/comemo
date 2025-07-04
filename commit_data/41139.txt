@@ -1,0 +1,17 @@
+commit fb8cdb7e4b491088829d59839b15270fcbcb629b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Jan 19 02:19:06 2020 +1100
+
+    cmd/internal/obj/riscv: populate DWARF register mapping for riscv64
+    
+    Updates #27532
+    
+    Change-Id: If147242c45d5c2d5cdc5b0428db32eeec13a958a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215377
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/riscv/cpu.go | 71 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/riscv/obj.go |  3 --
+ 2 files changed, 71 insertions(+), 3 deletions(-)

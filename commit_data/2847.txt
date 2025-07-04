@@ -1,0 +1,15 @@
+commit 9299ae461d14b2e7564fbd3d82b0ad16d4993ac8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 30 19:39:47 2009 -0700
+
+    - don't call String method of AST nodes when converting them to text
+    - make token.Position.String more robust
+    
+    TBR=rsc
+    DELTA=20  (10 added, 6 deleted, 4 changed)
+    OCL=32564
+    CL=32564
+
+ src/cmd/godoc/godoc.go    |  8 +++++---
+ src/pkg/go/token/token.go | 16 +++++++++-------
+ 2 files changed, 14 insertions(+), 10 deletions(-)

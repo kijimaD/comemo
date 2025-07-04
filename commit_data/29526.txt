@@ -1,0 +1,27 @@
+commit 4a381e3ee3ad6104fc1e1bc255f29d6bf47d7969
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Nov 13 19:12:39 2016 +0100
+
+    net/http: enable timeout tests on Plan 9
+    
+    Deadlines have been implemented on Plan 9 in CL 31521.
+    
+    Enable the following tests:
+    
+     - TestServerTimeouts
+     - TestOnlyWriteTimeout
+     - TestTLSHandshakeTimeout
+     - TestIssue4191_InfiniteGetTimeout
+     - TestIssue4191_InfiniteGetToPutTimeout
+    
+    Updates #7237.
+    
+    Change-Id: If5e75cfaa9133dcf9ce6aac9fc2badafc1612b64
+    Reviewed-on: https://go-review.googlesource.com/33197
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go     | 9 ---------
+ src/net/http/transport_test.go | 6 ------
+ 2 files changed, 15 deletions(-)

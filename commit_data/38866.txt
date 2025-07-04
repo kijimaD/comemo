@@ -1,0 +1,27 @@
+commit 8515d9cf656dedce3dbcb09ac7dc00f036e454d3
+Author: Keith Randall <khr@google.com>
+Date:   Mon Apr 1 12:22:22 2019 -0700
+
+    runtime: randomize package initialization order in race mode
+    
+    This is one small step to force people to not depend on the order of
+    initialization of packages which are not explicitly ordered by import
+    directives. Similar to randomizing map iteration order, this makes
+    sure people aren't depending on the behavior of the current release,
+    so that we can change the order in future releases without breaking
+    everyone.
+    
+    Maybe one day we can randomize always, but for now we do it just in
+    race mode. (We would need to measure the impact on startup time before
+    we enabled it always.)
+    
+    RELNOTE=yes
+    
+    Change-Id: I99026394796125974c5f2c3660a88becb92c9df3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170318
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/runtime/proc.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

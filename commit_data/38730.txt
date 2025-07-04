@@ -1,0 +1,14 @@
+commit 90458ec80e545989634940629f7393eb45545315
+Author: Daniel Langner <s8572327@gmail.com>
+Date:   Fri Apr 12 12:21:16 2019 +0000
+
+    doc/go_faq: fix grammar
+    
+    Change-Id: Idbd6c97d754e3565aeade4d9e8011a76e8da19c2
+    GitHub-Last-Rev: 22e917e5ca429d76506346841e5b3c93c2a5f3fb
+    GitHub-Pull-Request: golang/go#31439
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171885
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go_faq.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

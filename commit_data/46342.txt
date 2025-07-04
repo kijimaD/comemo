@@ -1,0 +1,19 @@
+commit bab79dd3627a9c5d4b43ac3f3c2eba4a1f04b813
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 7 16:24:49 2021 -0700
+
+    reflect: add back signaling NaN test
+    
+    I was a little too agressive in CL 258957 (removing 387 support) in
+    removing a signaling NaN test that should probably still exist.
+    I should have just removed the 387 skip, not the entire test.
+    
+    Change-Id: I97ca53f190eb0de00e43b96629b2cae677e7dacb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348209
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/all_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

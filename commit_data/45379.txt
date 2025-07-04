@@ -1,0 +1,16 @@
+commit 30002e665658b4b2c147caaee6bf7734042952e8
+Author: SataQiu <shidaqiu2018@gmail.com>
+Date:   Thu Apr 15 23:39:30 2021 +0800
+
+    cmd/go/internal/modload: treat \ as a path separator instead of a shell special character
+    
+    According to the code comment, \ should be treated as a path separator.
+    See fileNameOK in golang.org/x/mod/module/module.go.
+    
+    Change-Id: I05e05246005191ecccfecf46848aba5cb1359956
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310429
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+
+ src/cmd/go/internal/modload/init.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

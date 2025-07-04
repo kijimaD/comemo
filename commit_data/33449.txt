@@ -1,0 +1,21 @@
+commit f3c46355d7a4c794228e4d8cd6bbaabbef23a345
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 5 16:22:02 2017 -0500
+
+    cmd/go: drop runtime, runtime/internal/sys, runtime/internal/atomic, unsafe as deps of everything
+    
+    This was a hack to make a new make.bash avoid reusing installed packages.
+    The new content-based staleness is precise enough not to need this hack;
+    now it's just causing unnecessary rebuilds: if a package doesn't import "runtime",
+    for example, it doesn't need to be recompiled when runtime changes.
+    (It does need to be relinked, and we still arrange that.)
+    
+    Change-Id: I4ddf6e16d754cf21b16e9db1ed52bddbf82e96c6
+    Reviewed-on: https://go-review.googlesource.com/76015
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/go_test.go              | 29 ++++++++++++-----------------
+ src/cmd/go/internal/load/pkg.go    | 25 +++----------------------
+ src/cmd/go/internal/work/action.go | 32 +++++++++++++++++++-------------
+ 3 files changed, 34 insertions(+), 52 deletions(-)

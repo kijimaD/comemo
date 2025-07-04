@@ -1,0 +1,25 @@
+commit 8105ea53c3d17546a35709d51e6e0993b1d0c261
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue May 13 14:28:01 2025 +0200
+
+    net: avoid windows hang in TestCloseWrite
+    
+    On Windows, reading from a socket at the same time as the other
+    end is closing it will occasionally hang. This is a Windows issue, not
+    a Go issue, similar to what happens in macOS (see #49352).
+    
+    Work around this condition by adding a brief sleep before the read.
+    
+    Fixes #73140.
+    
+    Change-Id: I24e457a577e507d0d69924af6ffa1aa24c4aaaa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671457
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/net_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

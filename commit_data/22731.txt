@@ -1,0 +1,12 @@
+commit 181e81cfe4afd21f1ae9de9c0028055fbfaaca2b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 27 16:23:43 2015 -0700
+
+    doc/go1.5.txt: go doc
+    
+    Change-Id: I883017b67e8fa76b6f123e8f9bcec3d6f820bbb3
+    Reviewed-on: https://go-review.googlesource.com/9348
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

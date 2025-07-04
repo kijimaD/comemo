@@ -1,0 +1,18 @@
+commit 07b72d91894a14c3bded9ba985d337705ccc71bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 29 10:37:05 2019 -0700
+
+    go/parser: use valid position when reporting an error (copy-paste bug)
+    
+    This is a follow-up on https://golang.org/cl/202581.
+    
+    Updates #33649.
+    
+    Change-Id: Ib078fed983792c5493bdbed6d33e21b86856894a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204041
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Rebecca Stambler <rstambler@golang.org>
+    Reviewed-by: Rebecca Stambler <rstambler@golang.org>
+
+ src/go/parser/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

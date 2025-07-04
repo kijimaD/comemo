@@ -1,0 +1,14 @@
+commit dbbe32ee53db2158ac5bcf2f4e1261762cb47937
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 20 11:20:12 2010 -0700
+
+    fix build
+    
+    Also: Copyright notices only need the year the file was created.
+    
+    R=rsc
+    CC=golang-dev, krasin
+    https://golang.org/cl/2021041
+
+ src/pkg/syscall/syscall_bsd.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

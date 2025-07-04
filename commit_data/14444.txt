@@ -1,0 +1,15 @@
+commit 4bf261f9e31cd8394df0c24ad4fffbdda3414ba2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 19 21:56:24 2012 -0800
+
+    exp/types: don't test importing types if using gccgo
+    
+    The exp/types packages does not support the gccgo export data
+    format.  At some point it should, but not yet.
+    
+    R=gri, bradfitz, r, iant, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6854068
+
+ src/pkg/exp/types/gcimporter_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

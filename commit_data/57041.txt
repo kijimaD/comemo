@@ -1,0 +1,20 @@
+commit 5ca7d4645ffcb01c9a8497ced818b25911ab3cbf
+Author: limeidan <limeidan@loongson.cn>
+Date:   Sat Jan 6 11:34:34 2024 +0800
+
+    cmd/internal/obj/loong64: remove case 17 in func asmout
+    
+    There is no relative optab item case 17, remove it.
+    
+    Change-Id: I3ceaa3283c3641afafd46362737ff847a1d80665
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565617
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/internal/obj/loong64/asm.go | 3 ---
+ 1 file changed, 3 deletions(-)

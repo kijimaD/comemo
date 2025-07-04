@@ -1,0 +1,16 @@
+commit b0b0921220b2584eec8ee31b40b213d9f9322fce
+Author: Peter Weinberger <pjw@google.com>
+Date:   Thu May 24 16:28:32 2018 +0000
+
+    Revert "internal/trace: change Less to make sorting events deterministice"
+    
+    This reverts commit 1764609b8b245323210eab39c4b586291d3a45a5.
+    
+    Reason for revert: It breaks the dragonfly trybot, in which there are sometimes (non-deterministically) Events with the same timestamp that have to occur in a specific order.
+    
+    Change-Id: I714e640c6ab5ccb23d5577e8aa98c7716ede7ad2
+    Reviewed-on: https://go-review.googlesource.com/114356
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/trace/order.go | 17 ++---------------
+ 1 file changed, 2 insertions(+), 15 deletions(-)

@@ -1,0 +1,42 @@
+commit d26144be298deeec4474796759073d743faf3bb4
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Nov 4 08:34:37 2011 +1100
+
+    gofix: make fix order implicit by date.
+    
+    This partially undoes 8fd7e6d070c8, but preserves its semantics.
+    More importantly, it results in the data about each fix being
+    decentralised, which makes it easier for new fixes to be added,
+    and other gofix users to slot new fixes in.
+    
+    It also adds some useful metadata that could be used in the future.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5306092
+
+ src/cmd/gofix/error.go         |  3 ++-
+ src/cmd/gofix/filepath.go      |  5 ++++
+ src/cmd/gofix/fix.go           | 54 +++++++++++++++---------------------------
+ src/cmd/gofix/httpfinalurl.go  |  5 ++++
+ src/cmd/gofix/httpfs.go        |  5 ++++
+ src/cmd/gofix/httpheaders.go   |  5 ++++
+ src/cmd/gofix/httpserver.go    |  5 ++++
+ src/cmd/gofix/imagecolor.go    |  5 ++++
+ src/cmd/gofix/imagenew.go      |  5 ++++
+ src/cmd/gofix/iocopyn.go       |  5 ++++
+ src/cmd/gofix/main.go          |  4 +++-
+ src/cmd/gofix/mapdelete.go     |  5 ++++
+ src/cmd/gofix/math.go          |  5 ++++
+ src/cmd/gofix/netdial.go       |  9 +++++++
+ src/cmd/gofix/netudpgroup.go   |  5 ++++
+ src/cmd/gofix/oserrorstring.go |  5 ++++
+ src/cmd/gofix/osopen.go        |  5 ++++
+ src/cmd/gofix/procattr.go      |  5 ++++
+ src/cmd/gofix/reflect.go       |  5 ++++
+ src/cmd/gofix/signal.go        |  5 ++++
+ src/cmd/gofix/sorthelpers.go   |  5 ++++
+ src/cmd/gofix/sortslice.go     |  5 ++++
+ src/cmd/gofix/stringssplit.go  |  5 ++++
+ src/cmd/gofix/url.go           |  5 ++++
+ 24 files changed, 133 insertions(+), 37 deletions(-)

@@ -1,0 +1,12 @@
+commit 1c290fda500a748abcdb4622136c047787823534
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 6 13:48:43 2012 -0500
+
+    build: add make.bash --dist-tool
+    
+    R=golang-dev, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/5634048
+
+ src/make.bash | 5 +++++
+ 1 file changed, 5 insertions(+)

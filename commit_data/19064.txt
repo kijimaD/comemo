@@ -1,0 +1,31 @@
+commit f23d3ea85afce3c4940bcf55889625d2e2017128
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Apr 8 16:32:48 2014 -0700
+
+    crypto/(ec)dsa: use Fermat's inversion.
+    
+    Now that we have a constant-time P-256 implementation, it's worth
+    paying more attention elsewhere.
+    
+    The inversion of k in (EC)DSA was using Euclid's algorithm which isn't
+    constant-time. This change switches to Fermat's algorithm, which is
+    much better. However, it's important to note that math/big itself isn't
+    constant time and is using a 4-bit window for exponentiation with
+    variable memory access patterns.
+    
+    (Since math/big depends quite deeply on its values being in minimal (as
+    opposed to fixed-length) represetation, perhaps crypto/elliptic should
+    grow a constant-time implementation of exponentiation in the scalar
+    field.)
+    
+    R=bradfitz
+    Fixes #7652.
+    
+    LGTM=rsc
+    R=golang-codereviews, bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/82740043
+
+ src/pkg/crypto/dsa/dsa.go     | 12 +++++++++++-
+ src/pkg/crypto/ecdsa/ecdsa.go | 12 +++++++++++-
+ 2 files changed, 22 insertions(+), 2 deletions(-)

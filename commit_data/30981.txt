@@ -1,0 +1,22 @@
+commit 9d5987d79f42b018ce8c57ac2d90ce0d81f0d646
+Author: David Chase <drchase@google.com>
+Date:   Mon Apr 3 11:50:54 2017 -0400
+
+    cmd/compile: rewrite upper-bit-clear idiom to use shift-rotate
+    
+    Old buggy hardware incorrectly executes the shift-left-K
+    then shift-right-K idiom for clearing K leftmost bits.
+    Use a right rotate instead of shift to avoid triggering the
+    bug.
+    
+    Fixes #19809.
+    
+    Change-Id: I6dc646b183c29e9d01aef944729f34388dcc687d
+    Reviewed-on: https://go-review.googlesource.com/39310
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

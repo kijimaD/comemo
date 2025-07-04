@@ -1,0 +1,15 @@
+commit d80d1427a8119eed6e668caba4314140edbcb4b8
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri May 7 10:41:24 2021 -0700
+
+    doc/go1.17: fill in TODO for reflect package
+    
+    Updates #46019
+    
+    Change-Id: I3025927d949ff72535542e89b83dd830e969c255
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318011
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

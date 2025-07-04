@@ -1,0 +1,49 @@
+commit 873bd47dfb34ba4416d4df30180905250b91f137
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 23 13:14:19 2018 -0400
+
+    runtime: flush mcaches lazily
+    
+    Currently, all mcaches are flushed during STW mark termination as a
+    root marking job. This is currently necessary because all spans must
+    be out of these caches before sweeping begins to avoid races with
+    allocation and to ensure the spans are in the state expected by
+    sweeping. We do it as a root marking job because mcache flushing is
+    somewhat expensive and O(GOMAXPROCS) and this parallelizes the work
+    across the Ps. However, it's also the last remaining root marking job
+    performed during mark termination.
+    
+    This CL moves mcache flushing out of mark termination and performs it
+    lazily. We keep track of the last sweepgen at which each mcache was
+    flushed and as each P is woken from STW, it observes that its mcache
+    is out-of-date and flushes it.
+    
+    The introduces a complication for spans cached in stale mcaches. These
+    may now be observed by background or proportional sweeping or when
+    attempting to add a finalizer, but aren't in a stable state. For
+    example, they are likely to be on the wrong mcentral list. To fix
+    this, this CL extends the sweepgen protocol to also capture whether a
+    span is cached and, if so, whether or not its cache is stale. This
+    protocol blocks asynchronous sweeping from touching cached spans and
+    makes it the responsibility of mcache flushing to sweep the flushed
+    spans.
+    
+    This eliminates the last mark termination root marking job, which
+    means we can now eliminate that entire infrastructure.
+    
+    Updates #26903. This implements lazy mcache flushing.
+    
+    Change-Id: Iadda7aabe540b2026cffc5195da7be37d5b4125e
+    Reviewed-on: https://go-review.googlesource.com/c/134783
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mcache.go   | 46 ++++++++++++++++++++++++++++++++++++++---
+ src/runtime/mcentral.go | 55 +++++++++++++++++++++++++++++++++++--------------
+ src/runtime/mgc.go      | 18 ++++++++++++++++
+ src/runtime/mgcmark.go  |  9 +++-----
+ src/runtime/mgcsweep.go |  9 ++++++--
+ src/runtime/mheap.go    |  4 ++--
+ src/runtime/proc.go     |  5 +++++
+ 7 files changed, 118 insertions(+), 28 deletions(-)

@@ -1,0 +1,32 @@
+commit cf77dd37e7e7ae8eefe8c21a9ff3f04de989b808
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Jan 3 00:44:31 2013 +0100
+
+    cmd/8g: extend elimination of temporaries to SSE2 code.
+    
+    Before:
+    (erf.go:188)    TEXT     Erf+0(SB),$220
+    (erf.go:265)    TEXT     Erfc+0(SB),$204
+    (lgamma.go:174) TEXT     Lgamma+0(SB),$948
+    
+    After:
+    (erf.go:188)    TEXT     Erf+0(SB),$84
+    (erf.go:265)    TEXT     Erfc+0(SB),$84
+    (lgamma.go:174) TEXT     Lgamma+0(SB),$44
+    
+    SSE before vs. SSE after:
+    
+    benchmark             old ns/op    new ns/op    delta
+    BenchmarkAcosh               81           49  -39.14%
+    BenchmarkAsinh              109          109   +0.00%
+    BenchmarkAtanh               73           74   +0.68%
+    BenchmarkLgamma             138           42  -69.20%
+    BenchmarkModf                24           15  -36.95%
+    BenchmarkSqrtGo             565          556   -1.59%
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7028048
+
+ src/cmd/8g/reg.c | 43 ++++++++++++++++++++++++++-----------------
+ 1 file changed, 26 insertions(+), 17 deletions(-)

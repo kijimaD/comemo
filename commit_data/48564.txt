@@ -1,0 +1,117 @@
+commit a2baae6851a157d662dff7cc508659f66249698a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 3 18:23:35 2022 -0800
+
+    all: use new "unix" build tag where appropriate
+    
+    For #20322
+    For #51572
+    
+    Change-Id: Id0b4799d097d01128e98ba4cc0092298357bca45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389935
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/archive/tar/stat_unix.go                                       | 2 +-
+ src/cmd/go/internal/base/signal_unix.go                            | 2 +-
+ src/cmd/go/internal/lockedfile/internal/filelock/filelock_other.go | 2 +-
+ src/cmd/go/internal/modload/stat_unix.go                           | 2 +-
+ src/cmd/go/stop_other_test.go                                      | 2 +-
+ src/cmd/go/stop_unix_test.go                                       | 2 +-
+ src/crypto/rand/rand_unix.go                                       | 2 +-
+ src/crypto/tls/handshake_unix_test.go                              | 2 +-
+ src/internal/poll/errno_unix.go                                    | 2 +-
+ src/internal/poll/export_posix_test.go                             | 2 +-
+ src/internal/poll/fd_poll_runtime.go                               | 2 +-
+ src/internal/poll/fd_posix.go                                      | 2 +-
+ src/internal/poll/fd_posix_test.go                                 | 2 +-
+ src/internal/poll/fd_unix.go                                       | 2 +-
+ src/internal/poll/hook_unix.go                                     | 2 +-
+ src/internal/poll/sockopt.go                                       | 2 +-
+ src/internal/poll/sockopt_unix.go                                  | 2 +-
+ src/internal/poll/sockoptip.go                                     | 2 +-
+ src/internal/syscall/unix/net.go                                   | 2 +-
+ src/internal/testenv/testenv_unix.go                               | 2 +-
+ src/mime/type_unix.go                                              | 2 +-
+ src/mime/type_unix_test.go                                         | 2 +-
+ src/net/addrselect.go                                              | 2 +-
+ src/net/cgo_unix.go                                                | 2 +-
+ src/net/cgo_unix_test.go                                           | 2 +-
+ src/net/conf.go                                                    | 2 +-
+ src/net/dial_unix_test.go                                          | 2 +-
+ src/net/dnsclient_unix.go                                          | 2 +-
+ src/net/dnsclient_unix_test.go                                     | 2 +-
+ src/net/dnsconfig_unix.go                                          | 2 +-
+ src/net/dnsconfig_unix_test.go                                     | 2 +-
+ src/net/error_posix.go                                             | 2 +-
+ src/net/error_unix.go                                              | 2 +-
+ src/net/fd_posix.go                                                | 2 +-
+ src/net/fd_unix.go                                                 | 2 +-
+ src/net/file_unix.go                                               | 2 +-
+ src/net/hook_unix.go                                               | 2 +-
+ src/net/internal/socktest/switch_unix.go                           | 2 +-
+ src/net/internal/socktest/sys_unix.go                              | 2 +-
+ src/net/iprawsock_posix.go                                         | 2 +-
+ src/net/ipsock_posix.go                                            | 2 +-
+ src/net/lookup_unix.go                                             | 2 +-
+ src/net/main_unix_test.go                                          | 2 +-
+ src/net/nss.go                                                     | 2 +-
+ src/net/port_unix.go                                               | 2 +-
+ src/net/rawconn_unix_test.go                                       | 2 +-
+ src/net/sock_posix.go                                              | 2 +-
+ src/net/sockaddr_posix.go                                          | 2 +-
+ src/net/sockopt_posix.go                                           | 2 +-
+ src/net/sockoptip_posix.go                                         | 2 +-
+ src/net/tcpsock_posix.go                                           | 2 +-
+ src/net/tcpsockopt_posix.go                                        | 2 +-
+ src/net/udpsock_posix.go                                           | 2 +-
+ src/net/unixsock_posix.go                                          | 2 +-
+ src/net/unixsock_readmsg_test.go                                   | 2 +-
+ src/os/env_unix_test.go                                            | 2 +-
+ src/os/error_posix.go                                              | 2 +-
+ src/os/error_unix_test.go                                          | 2 +-
+ src/os/exec/exec_posix_test.go                                     | 2 +-
+ src/os/exec/internal/fdtest/exists_unix.go                         | 2 +-
+ src/os/exec/lp_unix.go                                             | 2 +-
+ src/os/exec/lp_unix_test.go                                        | 2 +-
+ src/os/exec_posix.go                                               | 2 +-
+ src/os/exec_unix.go                                                | 2 +-
+ src/os/exec_unix_test.go                                           | 2 +-
+ src/os/export_unix_test.go                                         | 2 +-
+ src/os/file_posix.go                                               | 2 +-
+ src/os/file_unix.go                                                | 2 +-
+ src/os/os_unix_test.go                                             | 2 +-
+ src/os/path_unix.go                                                | 2 +-
+ src/os/removeall_at.go                                             | 2 +-
+ src/os/removeall_noat.go                                           | 2 +-
+ src/os/signal/example_unix_test.go                                 | 2 +-
+ src/os/signal/signal_test.go                                       | 2 +-
+ src/os/signal/signal_unix.go                                       | 2 +-
+ src/os/stat_unix.go                                                | 2 +-
+ src/os/sys_unix.go                                                 | 2 +-
+ src/os/user/cgo_lookup_unix.go                                     | 2 +-
+ src/os/user/lookup_unix.go                                         | 2 +-
+ src/os/user/lookup_unix_test.go                                    | 2 +-
+ src/path/filepath/path_unix.go                                     | 2 +-
+ src/runtime/cgo/setenv.go                                          | 2 +-
+ src/runtime/crash_unix_test.go                                     | 2 +-
+ src/runtime/env_posix.go                                           | 2 +-
+ src/runtime/export_mmap_test.go                                    | 2 +-
+ src/runtime/export_unix_test.go                                    | 2 +-
+ src/runtime/nbpipe_test.go                                         | 2 +-
+ src/runtime/netpoll.go                                             | 2 +-
+ src/runtime/runtime_mmap_test.go                                   | 2 +-
+ src/runtime/signal_unix.go                                         | 2 +-
+ src/syscall/dirent.go                                              | 2 +-
+ src/syscall/dirent_test.go                                         | 2 +-
+ src/syscall/env_unix.go                                            | 2 +-
+ src/syscall/exec_unix.go                                           | 2 +-
+ src/syscall/exec_unix_test.go                                      | 2 +-
+ src/syscall/sockcmsg_unix.go                                       | 2 +-
+ src/syscall/syscall_unix.go                                        | 2 +-
+ src/syscall/syscall_unix_test.go                                   | 2 +-
+ src/syscall/timestruct.go                                          | 2 +-
+ src/time/sys_unix.go                                               | 2 +-
+ src/time/zoneinfo_unix.go                                          | 2 +-
+ src/time/zoneinfo_unix_test.go                                     | 2 +-
+ 102 files changed, 102 insertions(+), 102 deletions(-)

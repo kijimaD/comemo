@@ -1,0 +1,19 @@
+commit 4accfe1be5d6324a31543a6bfd9eadfa00d90342
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 19 17:39:27 2016 +0900
+
+    net: re-enable TestDualStack{TCP,UDP}Listener on dragonfly
+    
+    It looks like the latest DragonFly BSD kernels, at least 4.4 and above,
+    have finished working on handling of shared IP control blocks. Let's
+    re-enbale test cases referring to IP control blocks and see what
+    happens.
+    
+    Updates #13146.
+    
+    Change-Id: Icbe2250e788f6a445a648541272c99b598c3013d
+    Reviewed-on: https://go-review.googlesource.com/19406
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/listen_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

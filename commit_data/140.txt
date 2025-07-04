@@ -1,0 +1,14 @@
+commit 6a659ebf1360b36107a2fca01d3434df10de7a09
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Jun 9 13:16:50 2008 -0700
+
+    new elf header
+    
+    SVN=121737
+
+ src/cmd/6g/cgen.c |   4 +
+ src/cmd/6l/asm.c  | 234 +++++++++++++++++++++++++++++++++++++++++++++---------
+ src/cmd/6l/l.h    |  10 +++
+ src/cmd/6l/obj.c  |   4 +-
+ src/cmd/gc/lex.c  |   2 +-
+ 5 files changed, 212 insertions(+), 42 deletions(-)

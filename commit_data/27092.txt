@@ -1,0 +1,14 @@
+commit ba966f5d891191450f286859c35bf8a7fa49cde2
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Fri Apr 22 16:27:34 2016 -0700
+
+    doc: mention security from contribution guidelines
+    
+    Fixes #15413
+    
+    Change-Id: I837a391276eed565cf66d3715ec68b7b959ce143
+    Reviewed-on: https://go-review.googlesource.com/22390
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/contribute.html | 4 ++++
+ 1 file changed, 4 insertions(+)

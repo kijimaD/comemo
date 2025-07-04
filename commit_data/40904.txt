@@ -1,0 +1,40 @@
+commit b2482e481722357c6daa98ef074d8eaf8ac4baf3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Nov 14 20:23:17 2019 -0500
+
+    cmd/internal/obj: mark split-stack prologue nonpreemptible
+    
+    When there are both a synchronous preemption request (by
+    clobbering the stack guard) and an asynchronous one (by signal),
+    the running goroutine may observe the synchronous request first
+    in stack bounds check, and go to the path of calling morestack.
+    If the preemption signal arrives at this point before the call to
+    morestack, the goroutine will be asynchronously preempted,
+    entering the scheduler. When it is resumed, the scheduler clears
+    the preemption request, unclobbers the stack guard. But the
+    resumed goroutine will still call morestack, as it is already on
+    its way. morestack will, as there is no preemption request,
+    double the stack unnecessarily. If this happens multiple times,
+    the stack may grow too big, although only a small amount is
+    actually used.
+    
+    To fix this, we mark the stack bounds check and the call to
+    morestack async-nonpreemptible, starting after the memory
+    instruction (mostly a load, on x86 CMP with memory).
+    
+    Not done for Wasm as it does not support async preemption.
+    
+    Fixes #35470.
+    
+    Change-Id: Ibd7f3d935a3649b80f47539116ec9b9556680cf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207350
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/obj/arm/obj5.go   | 17 ++++++++++++++---
+ src/cmd/internal/obj/arm64/obj7.go | 21 ++++++++++++++-------
+ src/cmd/internal/obj/mips/obj0.go  | 10 +++++++++-
+ src/cmd/internal/obj/plist.go      | 15 +++++++++++++--
+ src/cmd/internal/obj/ppc64/obj9.go | 10 +++++++++-
+ src/cmd/internal/obj/s390x/objz.go | 34 ++++++++++++++--------------------
+ src/cmd/internal/obj/x86/obj6.go   | 27 +++++++++++++++++++++------
+ 7 files changed, 94 insertions(+), 40 deletions(-)

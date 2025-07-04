@@ -1,0 +1,12 @@
+commit 28c06182c0fdda38f63e7e8696e7a9f939dd40d3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 25 22:21:14 2011 -0700
+
+    exp/winfsnotify: fix govet-found bug
+    
+    R=golang-dev, hectorchu
+    CC=golang-dev
+    https://golang.org/cl/5304044
+
+ src/pkg/exp/winfsnotify/winfsnotify_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,42 @@
+commit 65ea4c5021d44395db8728eea16eb8f7fc7420eb
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Mar 9 14:55:31 2023 +0100
+
+    runtime: support GOTRACEBACK=wer on Windows
+    
+    GOTRACEBACK=wer is a new traceback level that acts as "crash" and
+    also enables WER. The same effect can be achieved using
+    debug.SetTraceback("wer").
+    
+    The Go runtime currently crashes using exit(2), which bypasses WER
+    even if it is enabled. To best way to trigger WER is calling
+    RaiseFailFastException [1] instead, which internally launches the
+    WER machinery.
+    
+    This CL also changes how GOTRACEBACK=crash crashes, so both "wer" and
+    "crash" crash using RaiseFailFastException, which simplifies the
+    implementation and resolves a longstanding TODO.
+    
+    Fixes #57441
+    Fixes #20498
+    
+    [1] https://learn.microsoft.com/en-us/windows/win32/api/errhandlingapi/nf-errhandlingapi-raisefailfastexception
+    
+    Change-Id: I45669d619fbbd2f6413ce5e5f08425ed1d9aeb64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474915
+    Reviewed-by: Davis Goodin <dagood@microsoft.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+
+ src/runtime/defs_windows.go                       |  2 +-
+ src/runtime/export_windows_test.go                |  1 -
+ src/runtime/extern.go                             |  1 +
+ src/runtime/{relax_stub.go => nonwindows_stub.go} |  4 ++
+ src/runtime/os_windows.go                         | 10 ++-
+ src/runtime/runtime1.go                           |  7 ++
+ src/runtime/signal_windows.go                     | 83 ++++++++++++++++-------
+ src/runtime/syscall_windows_test.go               | 23 ++++---
+ 8 files changed, 95 insertions(+), 36 deletions(-)

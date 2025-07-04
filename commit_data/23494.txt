@@ -1,0 +1,12 @@
+commit fe1cecfaecf6019928bbc340266a2fadd8f23b2a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jun 25 11:33:48 2015 +0900
+
+    misc/cgo/testcshared: don't leave garbages after test
+    
+    Change-Id: I668b18b1e6901c59cf170e0c1cde9a3923c0cb13
+    Reviewed-on: https://go-review.googlesource.com/11472
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/testcshared/test.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

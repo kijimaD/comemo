@@ -1,0 +1,13 @@
+commit 8a1ad756448d0761320f780c9c8bd4abb182aab6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 31 14:57:57 2008 -0700
+
+    make %Z handle embedded NULs; remove fixed-size buffer
+    
+    R=r
+    DELTA=44  (2 added, 15 deleted, 27 changed)
+    OCL=18270
+    CL=18273
+
+ src/cmd/gc/subr.c | 67 ++++++++++++++++++++++---------------------------------
+ 1 file changed, 27 insertions(+), 40 deletions(-)

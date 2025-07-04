@@ -1,0 +1,25 @@
+commit 93f5335be96054bd3877cc88e1ddf7d60e5797ef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 1 10:00:29 2023 -0800
+
+    go/types, types2: enable new type inference
+    
+    Enable new type inference and compare result with old inference
+    implementation - the result must be identical in a correct program.
+    
+    Change-Id: Ic802d29fcee744f6f826d5e433a3d0c0e73b68e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464341
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/infer.go      | 21 ++++++++-------------
+ src/cmd/compile/internal/types2/infer2.go     | 22 +++++++++++++++++++---
+ src/cmd/compile/internal/types2/predicates.go |  7 ++++++-
+ src/go/types/generate_test.go                 |  5 +++--
+ src/go/types/infer.go                         | 21 ++++++++-------------
+ src/go/types/infer2.go                        | 22 +++++++++++++++++++---
+ src/go/types/predicates.go                    |  7 ++++++-
+ 7 files changed, 69 insertions(+), 36 deletions(-)

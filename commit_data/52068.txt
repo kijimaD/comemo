@@ -1,0 +1,25 @@
+commit f60a2a9c9423222b52ecb5f6463787f913195127
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Feb 22 17:50:20 2023 -0500
+
+    cmd/compile: adjust inlined DW_AT_call_line by //line
+    
+    insertInlCall mistakenly uses the absolute line number of the call
+    rather than the relative line number (adjusted by //line). Switch to the
+    correct line number.
+    
+    The call filename was already correct.
+    
+    Fixes #58648
+    
+    Change-Id: Id8d1848895233e972d8cfe9c5789a88e62d06556
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470876
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/dwarfgen/dwinl.go |   6 +-
+ src/cmd/link/internal/ld/dwarf_test.go     | 166 ++++++++++++++++-------------
+ 2 files changed, 97 insertions(+), 75 deletions(-)

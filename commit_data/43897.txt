@@ -1,0 +1,15 @@
+commit f3741bdf7cab5fc8254bebce00479c0168ace86c
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Nov 30 16:32:41 2020 -0800
+
+    doc/go1.16: add crypto/x509 note about Verify on Windows
+    
+    Updates #42897
+    
+    Change-Id: Ice25922475405aca3cf2cb1c163462f223ede736
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274239
+    Trust: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

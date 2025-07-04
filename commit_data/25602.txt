@@ -1,0 +1,20 @@
+commit 3208d92b78eed4d6abfedf3799f51b37826351a6
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Jan 18 22:55:11 2016 -0500
+
+    build: test linux/mips64 and linux/mips64le with buildall.bash
+    
+    Both mips64 architectures share the same runtime/rt0 file, so
+    we have to hardcode them in buildall.bash.
+    
+    Ideally we should have cmd/dist report all supported platforms,
+    see #12270.
+    
+    Change-Id: I08ce35cfe0a831af5e1e8255b305efd38386fa52
+    Reviewed-on: https://go-review.googlesource.com/18687
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/buildall.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit f221067fe875f67c5fc0dc08e5258ecedb04d16d
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Jan 4 10:34:37 2010 -0800
+
+    Allow a nil Ident to print without crashing.
+    Allow Walk of []Decl
+    
+    R=gri
+    CC=golang-dev, rsc
+    https://golang.org/cl/183112
+
+ src/pkg/go/ast/ast.go  |  9 +++++++--
+ src/pkg/go/ast/walk.go | 11 +++++++----
+ 2 files changed, 14 insertions(+), 6 deletions(-)

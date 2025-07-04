@@ -1,0 +1,14 @@
+commit 73d7d12ea62e99fef210ec3d9d2ffbe87d1628f0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Oct 18 10:51:21 2013 +0900
+
+    misc/dist: set default go.tools tag
+    
+    Fixes #6607.
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/14830043
+
+ misc/dist/bindist.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

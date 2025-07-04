@@ -1,0 +1,18 @@
+commit 930fa890c9b6a75700bda3dc4043de81350749ea
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 6 10:53:11 2020 -0700
+
+    net/http: add Transport.GetProxyConnectHeader
+    
+    Fixes golang/go#41048
+    
+    Change-Id: I38e01605bffb6f85100c098051b0c416dd77f261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259917
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/transport.go      | 23 ++++++++++++++++++-
+ src/net/http/transport_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit fc7b9fc26990e3a480f816e7c34d981488340c0c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 12 18:33:47 2011 -0500
+
+    time: allow sleep tests to run for 200% too long
+    
+    Some VMs are slow.  Very slow.
+    Fixes #2421.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5482049
+
+ src/pkg/time/sleep_test.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

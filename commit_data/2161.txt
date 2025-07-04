@@ -1,0 +1,20 @@
+commit 401a95aa83988cda238432af107b07bf9e79e547
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 7 13:42:47 2009 -0700
+
+    if a struct s contains an anonymous interface value
+    with method m, s.m() is ok and m now shows up
+    in s's method set for interface runtime.
+    
+    see http://cl/28419-p2 for new test interface10.go.
+    
+    R=ken
+    OCL=28420
+    CL=28423
+
+ src/cmd/gc/dcl.c  | 29 +++++++++++++++++++++++++----
+ src/cmd/gc/go.h   |  1 +
+ src/cmd/gc/obj.c  |  4 ++--
+ src/cmd/gc/subr.c | 18 +++++++++++++++++-
+ src/cmd/gc/walk.c |  7 +++++--
+ 5 files changed, 50 insertions(+), 9 deletions(-)

@@ -1,0 +1,20 @@
+commit 7a26d9fcedd94a1ba0d95833b0cdbbdcc776fe19
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 31 16:58:15 2016 -0700
+
+    cmd/compile/internal/syntax: don't panic if no error handler is provided
+    
+    If no error handler is provided, terminate parsing with first error
+    and report that error.
+    
+    Fixes #17697.
+    
+    Change-Id: I9070faf7239bd53725de141507912b92ded3474b
+    Reviewed-on: https://go-review.googlesource.com/32456
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go      |  4 +++-
+ src/cmd/compile/internal/syntax/parser_test.go |  7 +++++++
+ src/cmd/compile/internal/syntax/syntax.go      | 24 +++++++++++++++++++-----
+ 3 files changed, 29 insertions(+), 6 deletions(-)

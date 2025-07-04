@@ -1,0 +1,13 @@
+commit 80bce97e45d99e7784bfa1d7d3563126d8c233e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 3 12:44:51 2011 -0400
+
+    gc, ld: sync pathtoprefix + add comments
+    
+    R=lvd, lvd
+    CC=golang-dev
+    https://golang.org/cl/5332051
+
+ src/cmd/gc/subr.c |  2 ++
+ src/cmd/ld/lib.c  | 14 +++++++++++---
+ 2 files changed, 13 insertions(+), 3 deletions(-)

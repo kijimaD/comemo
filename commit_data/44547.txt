@@ -1,0 +1,26 @@
+commit 009bfeae866f45549865e554420a05c10e9578ca
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Fri Jan 1 12:14:34 2021 +0000
+
+    reflect: add VisibleFields function
+    
+    When writing code that reflects over a struct type, it's a common requirement to know the full set of struct fields, including fields available due to embedding of anonymous members while excluding fields that are erased because they're at the same level as another field with the same name.
+    
+    The logic to do this is not that complex, but it's a little subtle and easy to get wrong.
+    
+    This CL adds a new `VisibleFields` function to the reflect package that returns the full set of effective fields that apply in a given struct type.
+    
+    Performance isn't a prime consideration, as it's common to cache results by type.
+    
+    Fixes #42782
+    
+    Change-Id: I7f1af76cecff9b8a2490f17eec058826e396f660
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281233
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+
+ src/reflect/visiblefields.go      | 101 ++++++++++++
+ src/reflect/visiblefields_test.go | 326 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 427 insertions(+)

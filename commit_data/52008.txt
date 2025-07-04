@@ -1,0 +1,21 @@
+commit 87366feb125008aadc85ace6ccbfd2213b640c9c
+Author: zen <mobi2009ro@gmail.com>
+Date:   Mon Jan 16 19:52:03 2023 -0800
+
+    net: retry if GetAddrInfoW returns WSTRY_AGAIN when resolving an IP
+    
+    GetAddrInfoW is retried now multiple times as per the timeout and number of retries defined in func dnsReadConfig (before it was called only once)
+    
+    Fixes #55050
+    
+    Change-Id: If5369ebb164d98557a802de938756dbf9c125773
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462051
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/net/lookup_windows.go | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

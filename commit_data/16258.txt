@@ -1,0 +1,14 @@
+commit 3a32367040a06b55fa93baddba2b57371079af90
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu May 2 13:02:00 2013 +1000
+
+    cmd/ld: fix SDYNIMPORT symbol test
+    
+    As advised by iant. Fixes windows build.
+    
+    R=golang-dev, r
+    CC=golang-dev, iant
+    https://golang.org/cl/9110044
+
+ src/cmd/ld/lib.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,69 @@
+commit c39918a04991387f14cab1204f54fafab81bc105
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 18 10:26:28 2016 -0400
+
+    cmd/compile: disable various write barrier optimizations
+    
+    Several of our current write barrier elision optimizations are invalid
+    with the hybrid barrier. Eliding the hybrid barrier requires that
+    *both* the current and new pointer be already shaded and, since we
+    don't have the flow analysis to figure out anything about the slot's
+    current value, for now we have to just disable several of these
+    optimizations.
+    
+    This has a slight impact on binary size. On linux/amd64, the go tool
+    binary increases by 0.7% and the compile binary increases by 1.5%.
+    
+    It also has a slight impact on performance, as one would expect. We'll
+    win some of this back in subsequent commits.
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              2.38s ± 1%     2.40s ± 1%  +0.82%  (p=0.000 n=18+20)
+    Fannkuch11-12                2.84s ± 1%     2.70s ± 0%  -4.97%  (p=0.000 n=18+18)
+    FmtFprintfEmpty-12          44.2ns ± 1%    46.4ns ± 2%  +4.89%  (p=0.000 n=16+18)
+    FmtFprintfString-12          131ns ± 0%     134ns ± 1%  +2.05%  (p=0.000 n=12+19)
+    FmtFprintfInt-12             114ns ± 1%     117ns ± 1%  +3.26%  (p=0.000 n=19+20)
+    FmtFprintfIntInt-12          176ns ± 1%     181ns ± 1%  +3.25%  (p=0.000 n=20+20)
+    FmtFprintfPrefixedInt-12     185ns ± 1%     190ns ± 1%  +2.77%  (p=0.000 n=19+18)
+    FmtFprintfFloat-12           249ns ± 1%     254ns ± 1%  +1.71%  (p=0.000 n=18+20)
+    FmtManyArgs-12               747ns ± 1%     743ns ± 1%  -0.58%  (p=0.000 n=19+18)
+    GobDecode-12                6.57ms ± 1%    6.61ms ± 0%  +0.73%  (p=0.000 n=19+20)
+    GobEncode-12                5.58ms ± 1%    5.60ms ± 0%  +0.27%  (p=0.001 n=18+18)
+    Gzip-12                      223ms ± 1%     223ms ± 1%    ~     (p=0.351 n=19+20)
+    Gunzip-12                   37.9ms ± 0%    37.9ms ± 1%    ~     (p=0.095 n=16+20)
+    HTTPClientServer-12         77.8µs ± 1%    78.5µs ± 1%  +0.97%  (p=0.000 n=19+20)
+    JSONEncode-12               14.8ms ± 1%    14.8ms ± 1%    ~     (p=0.079 n=20+19)
+    JSONDecode-12               53.7ms ± 1%    54.2ms ± 1%  +0.92%  (p=0.000 n=20+19)
+    Mandelbrot200-12            3.81ms ± 1%    3.81ms ± 0%    ~     (p=0.916 n=19+18)
+    GoParse-12                  3.19ms ± 1%    3.19ms ± 1%    ~     (p=0.175 n=20+19)
+    RegexpMatchEasy0_32-12      71.9ns ± 1%    70.6ns ± 1%  -1.87%  (p=0.000 n=19+20)
+    RegexpMatchEasy0_1K-12       946ns ± 0%     944ns ± 0%  -0.22%  (p=0.000 n=19+16)
+    RegexpMatchEasy1_32-12      67.3ns ± 2%    66.8ns ± 1%  -0.72%  (p=0.008 n=20+20)
+    RegexpMatchEasy1_1K-12       374ns ± 1%     384ns ± 1%  +2.69%  (p=0.000 n=18+20)
+    RegexpMatchMedium_32-12      107ns ± 1%     107ns ± 1%    ~     (p=1.000 n=20+20)
+    RegexpMatchMedium_1K-12     34.3µs ± 1%    34.6µs ± 1%  +0.90%  (p=0.000 n=20+20)
+    RegexpMatchHard_32-12       1.78µs ± 1%    1.80µs ± 1%  +1.45%  (p=0.000 n=20+19)
+    RegexpMatchHard_1K-12       53.6µs ± 0%    54.5µs ± 1%  +1.52%  (p=0.000 n=19+18)
+    Revcomp-12                   417ms ± 5%     391ms ± 1%  -6.42%  (p=0.000 n=16+19)
+    Template-12                 61.1ms ± 1%    64.2ms ± 0%  +5.07%  (p=0.000 n=19+20)
+    TimeParse-12                 302ns ± 1%     305ns ± 1%  +0.90%  (p=0.000 n=18+18)
+    TimeFormat-12                319ns ± 1%     315ns ± 1%  -1.25%  (p=0.000 n=18+18)
+    [Geo mean]                  54.0µs         54.3µs       +0.58%
+    
+    name         old time/op  new time/op  delta
+    XGarbage-12  2.24ms ± 2%  2.28ms ± 1%  +1.68%  (p=0.000 n=18+17)
+    XHTTP-12     11.4µs ± 1%  11.6µs ± 2%  +1.63%  (p=0.000 n=18+18)
+    XJSON-12     11.6ms ± 0%  12.5ms ± 0%  +7.84%  (p=0.000 n=18+17)
+    
+    Updates #17503.
+    
+    Change-Id: I1899f8e35662971e24bf692b517dfbe2b533c00c
+    Reviewed-on: https://go-review.googlesource.com/31572
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/order.go |  2 +-
+ src/cmd/compile/internal/gc/sinit.go |  7 +++++-
+ src/cmd/compile/internal/gc/walk.go  | 44 ++++++++++++++----------------------
+ test/fixedbugs/issue15747.go         |  2 +-
+ test/writebarrier.go                 |  9 ++++----
+ 5 files changed, 30 insertions(+), 34 deletions(-)

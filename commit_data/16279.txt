@@ -1,0 +1,12 @@
+commit f0c3d264731afe8c252acae89013ee1865656cbe
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed May 8 09:23:50 2013 -0700
+
+    doc: pull front page featured articles using new blog JSON feed
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/9288045
+
+ doc/root.html | 41 +++++++++++++++++++++--------------------
+ 1 file changed, 21 insertions(+), 20 deletions(-)

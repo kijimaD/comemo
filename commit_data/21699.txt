@@ -1,0 +1,25 @@
+commit 7c7126cfeb82894229b9c3d5109e4b04e6cfde0c
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Feb 23 13:28:57 2015 -0800
+
+    crypto/rsa: drop the primality check in crypto/rsa.Validate.
+    
+    This check is expensive and adversely impacts startup times for some
+    servers with several, large RSA keys.
+    
+    It was nice to have, but it's not really going to stop a targetted
+    attack and was never designed to – hopefully people's private keys
+    aren't attacker controlled!
+    
+    Overall I think the feeling is that people would rather have the CPU
+    time back.
+    
+    Fixes #6626.
+    
+    Change-Id: I0143a58c9f22381116d4ca2a3bbba0d28575f3e5
+    Reviewed-on: https://go-review.googlesource.com/5641
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+
+ src/crypto/rsa/rsa.go | 10 ----------
+ 1 file changed, 10 deletions(-)

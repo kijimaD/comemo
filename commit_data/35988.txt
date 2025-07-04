@@ -1,0 +1,19 @@
+commit 00f32fbe7ab053f67e255d1350a34e05b07a6ad6
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Sat Jul 14 04:17:19 2018 +0800
+
+    cmd/go: fix module replace flag parsed bug
+    
+    In CL 122404, we change -replace syntax from => to =.
+    And we also need to change this and the tests.
+    
+    Fixes golang/go#26373.
+    
+    Change-Id: I2d4e85e10c1578540cc7673b93d849270940d776
+    Reviewed-on: https://go-review.googlesource.com/123778
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/mod.go |  2 +-
+ src/cmd/go/mod_test.go            | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

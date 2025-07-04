@@ -1,0 +1,19 @@
+commit 34f2365d883ddaab5da9f12d6cbe349d70d8deee
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Jul 22 15:41:53 2021 -0700
+
+    strconv: add example for QuotedPrefix
+    
+    Example can sometimes be more informative than additional prose.
+    
+    Fixes #46829
+    
+    Change-Id: Ia5a5b121ad0b891026e77420d5f7f1b2c4a407da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336749
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/strconv/example_test.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

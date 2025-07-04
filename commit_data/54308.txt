@@ -1,0 +1,20 @@
+commit 0e1a9e18671a1ba171cda9d681cacaf91bd2c0bb
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Sep 4 00:00:11 2023 -0700
+
+    syscall: fixup TestUseCgroupFD error checking
+    
+    Fixup for CL 520265; of course errors returned from os/exec are wrapped.
+    
+    While at it, change the order -- it seems more readable this way.
+    
+    Change-Id: Ifb5d0c113f4fb2b3cc4be922021dbd2a8a886b7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524959
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/exec_linux_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

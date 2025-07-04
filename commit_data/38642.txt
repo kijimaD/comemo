@@ -1,0 +1,14 @@
+commit 61e0cac2988c29130417a323fd539604983854fb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 3 19:38:11 2019 +0000
+
+    strings: document that NewReplacer can panic
+    
+    Fixes #31233
+    
+    Change-Id: I2831d5e6532d3f4ed7eb99af5d6e0e1a41ebac9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170624
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/strings/replace.go | 2 ++
+ 1 file changed, 2 insertions(+)

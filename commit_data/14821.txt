@@ -1,0 +1,20 @@
+commit fba96e915dd16974745b199d09cfa6a4839cd03e
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jan 8 00:23:02 2013 +0100
+
+    cmd/gc: fix uintptr(nil) issues.
+    
+    A constant node of type uintptr with a nil literal could
+    happen in two cases: []int(nil)[1:] and
+    uintptr(unsafe.Pointer(nil)).
+    
+    Fixes #4614.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7059043
+
+ src/cmd/gc/const.c          | 10 ++++++++++
+ src/cmd/gc/gen.c            |  6 +++++-
+ test/fixedbugs/issue4614.go | 20 ++++++++++++++++++++
+ 3 files changed, 35 insertions(+), 1 deletion(-)

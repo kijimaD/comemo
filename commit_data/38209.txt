@@ -1,0 +1,19 @@
+commit 0dc62565401eba11bf9aec127c6c9f5aa4ecf1c9
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Mar 3 18:33:34 2019 +0100
+
+    doc: fix bad lib/time link in 1.12 release notes
+    
+    There's a "lib/time" sub-section in the Go 1.12 relase notes that
+    points to a non-existent golang.org/pkg/lib/time page.
+    
+    The note is about a change in the tz database in the src/lib/time
+    directory, but the section's title (and the link) should probably just
+    refer to the time package.
+    
+    Change-Id: Ibf9dacd710e72886f14ad0b7415fea1e8d25b83a
+    Reviewed-on: https://go-review.googlesource.com/c/164977
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

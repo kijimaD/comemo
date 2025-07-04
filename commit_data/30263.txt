@@ -1,0 +1,14 @@
+commit a0645fcaf9a1a6b76483806f66eedb09ed7c71b5
+Author: Kale Blankenship <kale@lemnisys.com>
+Date:   Tue Feb 14 08:11:07 2017 -0800
+
+    net/http: document ErrServerClosed
+    
+    Fixes #19085
+    
+    Change-Id: Ib11b9a22ea8092aca9e1c9c36b1fb015dd555c4b
+    Reviewed-on: https://go-review.googlesource.com/36943
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 2 ++
+ 1 file changed, 2 insertions(+)

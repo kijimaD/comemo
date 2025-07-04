@@ -1,0 +1,24 @@
+commit 07fc59199b9522bfe0d14f35c4391394efc336c9
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat May 11 06:59:33 2024 +0000
+
+    hash: use internal/byteorder
+    
+    Change-Id: I58c24a58a7b32d3f8d544509db04baac1ea1b56e
+    GitHub-Last-Rev: 7a648fda00ad30aa00d72013d9c6e22e207c31b2
+    GitHub-Pull-Request: golang/go#67318
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585015
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+
+ src/hash/adler32/adler32.go        | 23 ++----------
+ src/hash/crc32/crc32.go            | 29 ++++-----------
+ src/hash/crc64/crc64.go            | 34 ++++--------------
+ src/hash/fnv/fnv.go                | 74 +++++++++-----------------------------
+ src/hash/maphash/maphash_purego.go | 18 +++-------
+ 5 files changed, 36 insertions(+), 142 deletions(-)

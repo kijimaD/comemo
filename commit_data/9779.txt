@@ -1,0 +1,16 @@
+commit 46ed89b7a32f2c415dc12a077e2bbc8bbf973eb9
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Fri Sep 23 10:28:02 2011 +0200
+
+    runtime: gdb support: gracefully handle not being able to find types
+    
+    The Dwarf info has the full typenames, the go *struct runtime.commonType
+    has the short name.  A more permanent fix would link the two together
+    but this way the user gets useable stack traces for now.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5097046
+
+ src/pkg/runtime/runtime-gdb.py | 31 +++++++++++++++++++++++++++----
+ 1 file changed, 27 insertions(+), 4 deletions(-)

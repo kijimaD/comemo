@@ -1,0 +1,13 @@
+commit fd31d9fd7beaac218899c5bdb74004152b076d82
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 27 12:22:06 2011 -0700
+
+    go/parser: test and fix := scoping bug
+    
+    R=iant
+    CC=golang-dev, gri
+    https://golang.org/cl/5327048
+
+ src/pkg/go/parser/parser.go      | 10 ++++++++-
+ src/pkg/go/parser/parser_test.go | 44 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 1 deletion(-)

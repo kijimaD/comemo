@@ -1,0 +1,19 @@
+commit 81555cb4f3521b53f9de4ce15f64b77cc9df61b9
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Aug 5 18:52:15 2018 +0200
+
+    cmd/compile/internal/gc: add nil check for closure call on wasm
+    
+    This commit adds an explicit nil check for closure calls on wasm,
+    so calling a nil func causes a proper panic instead of crashing on the
+    WebAssembly level.
+    
+    Change-Id: I6246844f316677976cdd420618be5664444c25ae
+    Reviewed-on: https://go-review.googlesource.com/127759
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go |  4 ++++
+ test/closure4.go                   | 21 +++++++++++++++++++++
+ 2 files changed, 25 insertions(+)

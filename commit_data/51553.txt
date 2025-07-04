@@ -1,0 +1,31 @@
+commit 5ba98b975638323acf733438a619e9190dfa8afa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 12 13:36:44 2022 -0800
+
+    go/types, types2: report type mismatch error when conversion is impossible
+    
+    Rather than reporting an impossible conversion error when mixing an
+    untyped value with a pointer type in an operation, report a type
+    mismatch error. This fixes a regression in error quality compared
+    to pre-1.18.
+    
+    For the fix, clean up the implementation of canMix, add documentation,
+    and give it a better name.
+    
+    Adjust test case for corresponding error code bacause we now get a
+    better error message (and error code) for the old error code example.
+    
+    Fixes #57160.
+    
+    Change-Id: Ib96ce7cbc44db6905fa2f1c90a3769af609e101b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457055
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/expr.go            | 36 ++++++++++++++++++----
+ src/go/types/expr.go                               | 36 ++++++++++++++++++----
+ src/internal/types/errors/codes.go                 |  2 +-
+ .../types/testdata/fixedbugs/issue57160.go         | 10 ++++++
+ 4 files changed, 71 insertions(+), 13 deletions(-)

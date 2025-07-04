@@ -1,0 +1,22 @@
+commit 8bca7ef607d84820eb7b378fd5223b832c1ac33b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Aug 17 21:20:25 2017 +0200
+
+    cmd/compile: support placeholder name '$' in code generation tests
+    
+    This change adds to the code-generation harness in asm_test.go support
+    for the use of a '$' placeholder name for test functions.
+    
+    A few of uninformative function names are also changed to use the
+    placeholder, to confirm that the change works as expected.
+    
+    Fixes #21500
+    
+    Change-Id: Iba168bd85efc9822253305d003b06682cf8a6c5c
+    Reviewed-on: https://go-review.googlesource.com/57292
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 67 ++++++++++++++++++++++++++++-----
+ 1 file changed, 58 insertions(+), 9 deletions(-)

@@ -1,0 +1,13 @@
+commit e470b3354cb61332585cd85bf814fe1131abe14b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Dec 13 19:08:51 2012 +0800
+
+    lib/godoc/example.html: htmlify the play code
+    Fixes #4539.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6942043
+
+ lib/godoc/example.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

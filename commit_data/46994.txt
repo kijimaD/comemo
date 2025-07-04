@@ -1,0 +1,25 @@
+commit ae4d67c89dfef1cf9f30921e8f717ed5f56b6866
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Jan 4 16:23:01 2021 +0800
+
+    cmd/link: add -asan option
+    
+    The -asan option causes the linker to link against the runtime/asan
+    package in order to use the C/C++ address sanitizer.
+    
+    This CL passes tests but is not usable by itself.  The actual
+    runtime/asan package, and support for -asan in the go tool and the
+    compiler, and tests, are in separate CLs.
+    
+    Updates #44853.
+    
+    Change-Id: Ifc6046c1f75ba52777cbb3d937a4b66e91d5798d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298610
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/doc.go                | 2 ++
+ src/cmd/link/internal/ld/config.go | 4 ++++
+ src/cmd/link/internal/ld/lib.go    | 7 +++++++
+ src/cmd/link/internal/ld/main.go   | 1 +
+ 4 files changed, 14 insertions(+)

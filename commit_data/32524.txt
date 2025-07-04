@@ -1,0 +1,12 @@
+commit 6561e4b61c6852f74fe63620d89441a8ef6ccd57
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:32:19 2017 +1000
+
+    cmd/link: introduce and use peFile.mapToPESection
+    
+    Change-Id: I598e9da5587908f39faa13c11d2b42054f5a632d
+    Reviewed-on: https://go-review.googlesource.com/59423
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 49 +++++++++++++++++++++++++++---------------
+ 1 file changed, 32 insertions(+), 17 deletions(-)

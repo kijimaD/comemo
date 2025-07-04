@@ -1,0 +1,21 @@
+commit 0375edd901f2807af29af95f60a06065c489708c
+Author: Damien Neil <dneil@google.com>
+Date:   Tue May 20 17:02:11 2025 -0700
+
+    os: skip TestOpenFileCreateExclDanglingSymlink when no symlinks
+    
+    Skip this test on plan9, and any other platform that doesn't
+    have symlinks.
+    
+    Fixes #73729
+    
+    Change-Id: I8052db24ed54c3361530bd4f54c96c9d10c4714c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674697
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Richard Miller <millerresearch@gmail.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/os/os_test.go | 1 +
+ 1 file changed, 1 insertion(+)

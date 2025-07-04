@@ -1,0 +1,25 @@
+commit 6b55407d2f342b9c291740f777b718a229690164
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Apr 25 23:04:36 2018 -0700
+
+    cmd/vet: remove "only" from error message
+    
+    If the vetted function supplies zero arguments, previously you would
+    get an error message like this:
+    
+        Printf format %v reads arg #1, but call has only 0 args
+    
+    "has only 0 args" is an odd construction, and "has 0 args" sounds
+    better. Getting rid of "only" in all cases simplifies the code and
+    reads just as well.
+    
+    Change-Id: I4706dfe4a75f13bf4db9c0650e459ca676710752
+    Reviewed-on: https://go-review.googlesource.com/109457
+    Run-TryBot: Kevin Burke <kev@inburke.com>
+    Run-TryBot: David Symonds <dsymonds@golang.org>
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/print.go          |  2 +-
+ src/cmd/vet/testdata/print.go | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

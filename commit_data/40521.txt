@@ -1,0 +1,19 @@
+commit efd395f9fb429ea3e677d9e378b858cd083eec11
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Nov 1 04:07:23 2019 +0700
+
+    cmd/compile: make duplicate index error distinguish arrays and slices
+    
+    Fixes #35291
+    
+    Change-Id: I11ae367b6e972cd9e7a22bbc2cb23d32f4d72b98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204617
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go | 13 +++++++------
+ test/fixedbugs/issue13365.go             |  6 +++---
+ test/fixedbugs/issue35291.go             | 14 ++++++++++++++
+ test/fixedbugs/issue7153.go              |  2 +-
+ 4 files changed, 25 insertions(+), 10 deletions(-)

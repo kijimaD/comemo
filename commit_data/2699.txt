@@ -1,0 +1,20 @@
+commit e48d8fe091beaed16cd4ebdd6fee4e127a6b3045
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 14 10:46:18 2009 -0700
+
+    update remaining files to match new scanner/parser interface
+    and use shared error handling infrastructure
+    
+    R=rsc
+    DELTA=109  (3 added, 86 deleted, 20 changed)
+    OCL=31600
+    CL=31605
+
+ src/cmd/ebnflint/ebnflint.go    | 26 +++-----------
+ src/cmd/gobuild/util.go         |  2 +-
+ src/cmd/godoc/godoc.go          |  5 +--
+ src/cmd/gofmt/gofmt.go          | 14 +++-----
+ src/pkg/Make.deps               |  2 +-
+ src/pkg/datafmt/datafmt_test.go |  2 +-
+ src/pkg/datafmt/parser.go       | 76 ++++-------------------------------------
+ 7 files changed, 22 insertions(+), 105 deletions(-)

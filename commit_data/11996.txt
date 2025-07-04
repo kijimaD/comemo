@@ -1,0 +1,115 @@
+commit 0b477ef17e184117922428a5a5ef15ffab12590a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 16 23:48:57 2012 -0500
+
+    test: use testlib (first 100)
+    
+    X ,s;^// \$G (\$D/)?\$F\.go *$;// compile;g
+    X ,s;^// \$G (\$D/)?\$F\.go && \$L \$F\.\$A *$;// build;g
+    X ,s;^// \$G (\$D/)?\$F\.go && \$L \$F\.\$A && \./\$A\.out *$;// run;g
+    X ,s;^// errchk \$G( -e)? (\$D/)?\$F\.go *$;// errorcheck;g
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5656082
+
+ test/235.go                  | 2 +-
+ test/alias.go                | 2 +-
+ test/alias1.go               | 2 +-
+ test/append.go               | 2 +-
+ test/assign.go               | 2 +-
+ test/assign1.go              | 2 +-
+ test/bench/garbage/peano.go  | 2 +-
+ test/bigalg.go               | 2 +-
+ test/bigmap.go               | 2 +-
+ test/blank.go                | 2 +-
+ test/blank1.go               | 2 +-
+ test/chan/doubleselect.go    | 2 +-
+ test/chan/fifo.go            | 2 +-
+ test/chan/goroutines.go      | 2 +-
+ test/chan/nonblock.go        | 2 +-
+ test/chan/perm.go            | 2 +-
+ test/chan/powser1.go         | 2 +-
+ test/chan/powser2.go         | 2 +-
+ test/chan/select.go          | 2 +-
+ test/chan/select2.go         | 2 +-
+ test/chan/select3.go         | 2 +-
+ test/chan/select4.go         | 2 +-
+ test/chan/select6.go         | 2 +-
+ test/chan/select7.go         | 2 +-
+ test/chan/sendstmt.go        | 2 +-
+ test/chan/sieve1.go          | 2 +-
+ test/chan/sieve2.go          | 2 +-
+ test/chan/zerosize.go        | 2 +-
+ test/chancap.go              | 2 +-
+ test/char_lit1.go            | 2 +-
+ test/closedchan.go           | 2 +-
+ test/closure.go              | 2 +-
+ test/cmp.go                  | 2 +-
+ test/cmp6.go                 | 2 +-
+ test/cmplx.go                | 2 +-
+ test/complit.go              | 2 +-
+ test/complit1.go             | 2 +-
+ test/const.go                | 2 +-
+ test/const1.go               | 2 +-
+ test/const2.go               | 2 +-
+ test/const3.go               | 2 +-
+ test/convert.go              | 2 +-
+ test/convert1.go             | 2 +-
+ test/convert3.go             | 2 +-
+ test/convlit.go              | 2 +-
+ test/convlit1.go             | 2 +-
+ test/copy.go                 | 2 +-
+ test/ddd.go                  | 2 +-
+ test/ddd1.go                 | 2 +-
+ test/decl.go                 | 2 +-
+ test/declbad.go              | 2 +-
+ test/defer.go                | 2 +-
+ test/divide.go               | 2 +-
+ test/dwarf/linedirectives.go | 2 +-
+ test/empty.go                | 2 +-
+ test/env.go                  | 2 +-
+ test/eof.go                  | 2 +-
+ test/eof1.go                 | 2 +-
+ test/escape.go               | 2 +-
+ test/escape3.go              | 2 +-
+ test/fixedbugs/bug000.go     | 2 +-
+ test/fixedbugs/bug002.go     | 2 +-
+ test/fixedbugs/bug003.go     | 2 +-
+ test/fixedbugs/bug004.go     | 2 +-
+ test/fixedbugs/bug005.go     | 2 +-
+ test/fixedbugs/bug006.go     | 2 +-
+ test/fixedbugs/bug007.go     | 2 +-
+ test/fixedbugs/bug008.go     | 2 +-
+ test/fixedbugs/bug009.go     | 2 +-
+ test/fixedbugs/bug010.go     | 2 +-
+ test/fixedbugs/bug011.go     | 2 +-
+ test/fixedbugs/bug012.go     | 2 +-
+ test/fixedbugs/bug013.go     | 2 +-
+ test/fixedbugs/bug014.go     | 2 +-
+ test/fixedbugs/bug015.go     | 2 +-
+ test/fixedbugs/bug016.go     | 2 +-
+ test/fixedbugs/bug017.go     | 2 +-
+ test/fixedbugs/bug021.go     | 2 +-
+ test/fixedbugs/bug022.go     | 2 +-
+ test/fixedbugs/bug023.go     | 2 +-
+ test/fixedbugs/bug024.go     | 2 +-
+ test/fixedbugs/bug026.go     | 2 +-
+ test/fixedbugs/bug027.go     | 2 +-
+ test/fixedbugs/bug028.go     | 2 +-
+ test/fixedbugs/bug030.go     | 2 +-
+ test/fixedbugs/bug031.go     | 2 +-
+ test/fixedbugs/bug035.go     | 2 +-
+ test/fixedbugs/bug037.go     | 2 +-
+ test/fixedbugs/bug039.go     | 2 +-
+ test/fixedbugs/bug045.go     | 2 +-
+ test/fixedbugs/bug046.go     | 2 +-
+ test/fixedbugs/bug047.go     | 2 +-
+ test/fixedbugs/bug048.go     | 2 +-
+ test/fixedbugs/bug049.go     | 2 +-
+ test/fixedbugs/bug050.go     | 2 +-
+ test/fixedbugs/bug051.go     | 2 +-
+ test/fixedbugs/bug052.go     | 2 +-
+ test/fixedbugs/bug053.go     | 2 +-
+ test/fixedbugs/bug054.go     | 2 +-
+ 99 files changed, 99 insertions(+), 99 deletions(-)

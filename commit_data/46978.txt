@@ -1,0 +1,26 @@
+commit 8b0bea993d452ef7861642a9c04bae213246ded1
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Oct 14 12:55:43 2021 -0500
+
+    cmd/compile/internal/ssa/gen: eliminate unnecessary neg and xori on PPC64
+    
+    This adds a few rules to PPC64 to eliminate some instructions:
+    - when an isel is used to generate a boolean value based on a
+    condition and followed by an xori to flip the result, it can
+    instead flip the operands in the isel and avoid the xori.
+    = when a neg follows a sub the operands to the sub can be
+    swapped and the neg avoided.
+    
+    There are several opportunities in reflect.DeepEqual to omit
+    xori which improves some of its benchmarks by as much as
+    5%
+    
+    Change-Id: I81bbc02c0f16995c65934b6f045867b731ab302b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357509
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  6 ++-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  2 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 68 ++++++++++++++++++++++++++++
+ 3 files changed, 74 insertions(+), 2 deletions(-)

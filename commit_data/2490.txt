@@ -1,0 +1,39 @@
+commit 64684cc2a2ac5b3fa242e1b7e6bf88ced7c7ba2c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 22 13:26:13 2009 -0700
+
+    introduce os.EOF and io.ErrUnexpectedEOF.
+    remove io.ErrEOF.
+    rename io.FullRead to io.ReadFull, to match
+       ReadAtLeast and ReadAll.
+    remove io.FullReader, because it is now unused.
+    
+    R=r
+    DELTA=295  (88 added, 105 deleted, 102 changed)
+    OCL=30544
+    CL=30588
+
+ src/pkg/archive/tar/untar.go         |  4 +-
+ src/pkg/archive/tar/untar_test.go    |  4 +-
+ src/pkg/bufio/bufio.go               | 19 +-------
+ src/pkg/bufio/bufio_test.go          |  6 +--
+ src/pkg/compress/flate/inflate.go    | 10 +----
+ src/pkg/compress/gzip/gunzip.go      | 24 +++-------
+ src/pkg/compress/gzip/gunzip_test.go | 26 ++++++++++-
+ src/pkg/crypto/block/eax.go          |  2 +-
+ src/pkg/crypto/block/ecb.go          |  6 +--
+ src/pkg/exec/exec_test.go            | 30 ++++++-------
+ src/pkg/http/client_test.go          |  6 +--
+ src/pkg/http/fs.go                   |  2 +-
+ src/pkg/http/request.go              |  4 +-
+ src/pkg/io/bytebuffer.go             |  4 +-
+ src/pkg/io/io.go                     | 87 +++++++++++++++++-------------------
+ src/pkg/io/pipe.go                   |  3 ++
+ src/pkg/io/pipe_test.go              | 20 ++++++---
+ src/pkg/net/dialgoogle_test.go       |  2 +-
+ src/pkg/net/parse.go                 |  2 +-
+ src/pkg/os/file.go                   | 17 ++++++-
+ src/pkg/os/os_test.go                | 10 ++---
+ src/pkg/strconv/fp_test.go           |  2 +-
+ src/pkg/time/zoneinfo.go             | 21 +--------
+ 23 files changed, 147 insertions(+), 164 deletions(-)

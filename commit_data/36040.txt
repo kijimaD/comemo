@@ -1,0 +1,21 @@
+commit f6ce1e2aa590a3de9da67dd45f5daa66ee9ff1cf
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed Jul 18 11:16:47 2018 +0000
+
+    cmd/compile: fix an arm64's comparison bug
+    
+    The arm64 backend generates "TST" for "if uint32(a)&uint32(b) == 0",
+    which should be "TSTW".
+    
+    fixes #26438
+    
+    Change-Id: I7d64c30e3a840b43486bcd10eea2e3e75aaa4857
+    Reviewed-on: https://go-review.googlesource.com/124637
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteARM64.go |  8 ++++----
+ test/fixedbugs/issue26438.go                 | 26 ++++++++++++++++++++++++++
+ 3 files changed, 32 insertions(+), 6 deletions(-)

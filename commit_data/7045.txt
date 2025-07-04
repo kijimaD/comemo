@@ -1,0 +1,13 @@
+commit 754f0402c3d570e9d956b491f0434e1fccff6e6f
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Wed Jan 5 11:42:35 2011 -0800
+
+    Made format string handling more efficient.
+    
+    R=rsc, r, r2
+    CC=golang-dev
+    https://golang.org/cl/3421042
+
+ src/pkg/fmt/fmt_test.go | 45 ++++++++++++++++++---------------------------
+ src/pkg/fmt/print.go    | 25 +++++++++++++------------
+ 2 files changed, 31 insertions(+), 39 deletions(-)

@@ -1,0 +1,17 @@
+commit 98c6b9844b3c3a14eaa46515a7f63fed2deb57ce
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 16 18:19:59 2020 -0700
+
+    os/exec: build TestExtraFiles subprocess without cgo
+    
+    Fixes #25628
+    
+    Change-Id: I8b69e59f9c0123c4f65b5931d7c6d7ecc1c720e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228639
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/os/exec/exec_test.go | 109 +++++++----------------------------------------
+ src/os/exec/read3.go     |  99 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 114 insertions(+), 94 deletions(-)

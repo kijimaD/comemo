@@ -1,0 +1,18 @@
+commit 0d4fa27fd71d12670b7efe06fce3a5b769fa79ce
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Mon Feb 24 13:44:56 2020 -0700
+
+    time: add basic YYYY/MM/DD example to time docs
+    
+    This is a _very_ common question [1]. Let's just make an example for it.
+    
+    1: https://www.google.com/search?q=golang+yyyy-mm-dd&oq=golang+yyyy-mm-dd&aqs=chrome..69i57j0l4j69i64l3.6015j0j7&sourceid=chrome&ie=UTF-8
+    
+    Change-Id: I32ae689b91018d326f31a2442a1beaf68dddf13c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220595
+    Run-TryBot: Jean de Klerk <deklerk@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/example_test.go | 28 +++++++++++++++-------------
+ 1 file changed, 15 insertions(+), 13 deletions(-)

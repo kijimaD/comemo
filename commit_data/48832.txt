@@ -1,0 +1,20 @@
+commit e49b80a754c3df1a82d089a16a46ea8946d5a00b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 20 12:05:30 2022 -0700
+
+    cmd/compile/internal/syntax: correct an error string
+    
+    When we have an error in a function type used in an expression
+    we don't know until we see an opening { whether we have a function
+    literal or a function type. Use "function type" as context because
+    that's always correct in the specific error message.
+    
+    Change-Id: I9aad8fcddf31ae53daa53cebd2c2001f08eabde0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401316
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go              | 2 +-
+ src/cmd/compile/internal/syntax/testdata/issue48382.go | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

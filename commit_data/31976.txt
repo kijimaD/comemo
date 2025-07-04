@@ -1,0 +1,19 @@
+commit e71285c4c3d9cf5a3b62879327750793b0282b6f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 6 03:06:08 2017 +0000
+
+    Revert "bufio: make Reader.Peek invalidate Unreads"
+    
+    Go 1.9 beta 2 is already out.
+    It's too late to break code with a change like this.
+    This can be rolled forward for Go 1.10.
+    
+    This reverts commit ae238688d2813e83f16050408487ea34ba1c2fff.
+    
+    Change-Id: Ib67b8629e3deac5d50d76581aba6a91ca7a7853e
+    Reviewed-on: https://go-review.googlesource.com/47570
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/bufio/bufio.go      |  3 ---
+ src/bufio/bufio_test.go | 18 ------------------
+ 2 files changed, 21 deletions(-)

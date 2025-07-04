@@ -1,0 +1,20 @@
+commit 0d33a9967540fe06f5ce7b14790e9be8da576936
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Wed Mar 9 07:56:04 2022 -0800
+
+    runtime/pprof: fix pcDeck's frame indexing
+    
+    When building the inlining deck, correctly identify which is the last
+    frame in the deck. Otherwise, when some forms of inlining cause a PC to
+    expand to multiple frames, the length of the deck's two slices will
+    diverge.
+    
+    Fixes #51567
+    
+    Change-Id: I24e7ba32cb16b167f4307178b3f03c29e5362c4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391134
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Than McIntosh <thanm@google.com>
+
+ src/runtime/pprof/proto.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

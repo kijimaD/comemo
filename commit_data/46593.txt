@@ -1,0 +1,31 @@
+commit cfd0868fc3252e349b11066ed300c389d4495587
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 24 23:11:18 2021 +0700
+
+    cmd/compile: fix delayTransform condition
+    
+    The delayTransform only checks whether ir.CurFunc is generic function or
+    not. but when compiling a non-generic closure inside a generic function,
+    we also want to delay the transformation, which delayTransform fails to
+    detect, since when ir.CurFunc is the closure, not the top level function.
+    
+    Instead, we must rely on irgen.topFuncIsGeneric field to decide whether
+    to delay the transformation, the same logic with what is being done for
+    not adding closure inside a generic function to g.target.Decls list.
+    
+    Fixes #48609
+    
+    Change-Id: I5bf5592027d112fe8b19c92eb906add424c46507
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351855
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/expr.go    |  8 ++++----
+ src/cmd/compile/internal/noder/helpers.go |  6 ------
+ src/cmd/compile/internal/noder/irgen.go   |  6 ++++++
+ src/cmd/compile/internal/noder/stmt.go    | 12 ++++++------
+ test/typeparam/issue48609.go              | 18 ++++++++++++++++++
+ 5 files changed, 34 insertions(+), 16 deletions(-)

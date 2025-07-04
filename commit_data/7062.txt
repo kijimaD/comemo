@@ -1,0 +1,12 @@
+commit 4ed17ceacefb79a9183faa2b8077a69374cfae3e
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jan 7 18:20:26 2011 -0800
+
+    add peep
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3902042
+
+ src/cmd/5g/peep.c | 1476 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 1476 insertions(+)

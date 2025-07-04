@@ -1,0 +1,18 @@
+commit c97d6817a3a47ce7ec30f1eebae48def30b64ad8
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 10 15:53:16 2021 -0500
+
+    go/types: when type hashing, use placeholders for type parameters
+    
+    Type parameter names don't matter for the purposes of generic type
+    identity, so mask them with numeric placeholders when hashing.
+    
+    Change-Id: Iacb4c23abecdd733fc292ae13ecac6baa2c5524c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363114
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/typestring.go | 53 ++++++++++++++++++++++++++++------------------
+ 1 file changed, 32 insertions(+), 21 deletions(-)

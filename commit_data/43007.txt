@@ -1,0 +1,16 @@
+commit 39da81da5e35e50da74ebb8c4fe12fd363bf41b9
+Author: David Chase <drchase@google.com>
+Date:   Wed Jun 24 17:00:48 2020 -0400
+
+    cmd/compile: populate AuxCall fields for OpClosureCall
+    
+    Change-Id: Ib5f62826d5249c1727b57d9f8ff2f3a1d6dc5032
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240185
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 4 ++--
+ src/cmd/compile/internal/ssa/op.go | 8 ++++++--
+ 2 files changed, 8 insertions(+), 4 deletions(-)

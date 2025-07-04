@@ -1,0 +1,24 @@
+commit 847d40d699832a1e054bc08c498548eff6a73ab6
+Author: Will Roden <will@roden.cc>
+Date:   Wed Jul 12 17:23:09 2023 -0500
+
+    log/slog: fix issue with concurrent writes
+    
+    This causes instances commonHandler created by withAttrs or withGroup to
+    share a mutex with their parent preventing concurrent writes to their
+    shared writer.
+    
+    Fixes #61321
+    
+    Change-Id: Ieec225e88ad51c84b41bad6c409fac48c90320b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509196
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/log/slog/handler.go      |  3 ++-
+ src/log/slog/handler_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++
+ src/log/slog/json_handler.go |  2 ++
+ src/log/slog/text_handler.go |  2 ++
+ 4 files changed, 53 insertions(+), 1 deletion(-)

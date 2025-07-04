@@ -1,0 +1,59 @@
+commit c0a40e4fe5d4649672d0d430ca26551841fc4852
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Tue Nov 6 17:48:08 2018 -0500
+
+    cmd/vendor: update github.com/google/pprof
+    
+    Sync @ fde099a (Oct 26, 2018)
+    
+    Also update misc/nacl/testzip.proto to include new testdata.
+    Change-Id: If41590be9f395a591056e89a417b589c4ba71b1a
+    Reviewed-on: https://go-review.googlesource.com/c/147979
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/nacl/testzip.proto                            |   3 +
+ .../github.com/google/pprof/driver/driver.go       |  43 +++---
+ .../google/pprof/internal/binutils/binutils.go     | 109 ++++++++++++--
+ .../pprof/internal/binutils/binutils_test.go       |  29 ++++
+ .../pprof/internal/binutils/testdata/malformed_elf |   1 +
+ .../internal/binutils/testdata/malformed_macho     |   1 +
+ .../github.com/google/pprof/internal/driver/cli.go |   7 +-
+ .../google/pprof/internal/driver/commands.go       |  38 +++--
+ .../google/pprof/internal/driver/driver.go         |  64 ++++----
+ .../google/pprof/internal/driver/driver_test.go    | 117 +++++++++++++--
+ .../google/pprof/internal/driver/fetch.go          |  60 +++-----
+ .../google/pprof/internal/driver/fetch_test.go     | 165 +++++++++++++++++----
+ .../google/pprof/internal/driver/flags.go          |  78 ++++++++++
+ .../google/pprof/internal/driver/flamegraph.go     |  18 +--
+ .../pprof/internal/driver/flamegraph_test.go       |  46 ------
+ .../pprof/internal/driver/interactive_test.go      |  19 ++-
+ .../google/pprof/internal/driver/options.go        |  64 +-------
+ .../pprof.cpu.flat.addresses.noinlines.text        |   7 +
+ .../pprof.cpu.flat.filefunctions.noinlines.text    |   5 +
+ .../pprof.cpu.flat.functions.noinlines.text        |   5 +
+ .../driver/testdata/pprof.cpu.lines.topproto       |   3 +
+ .../driver/testdata/pprof.longNameFuncs.dot        |   9 ++
+ .../driver/testdata/pprof.longNameFuncs.text       |   5 +
+ .../google/pprof/internal/driver/webhtml.go        |  84 +++++++----
+ .../google/pprof/internal/driver/webui.go          |  26 ++--
+ .../google/pprof/internal/elfexec/elfexec.go       |  28 ++--
+ .../google/pprof/internal/elfexec/elfexec_test.go  |  11 +-
+ .../google/pprof/internal/graph/dotgraph.go        |   1 +
+ .../google/pprof/internal/graph/graph.go           |  29 +++-
+ .../google/pprof/internal/graph/graph_test.go      | 157 ++++++++++++++++++++
+ .../google/pprof/internal/plugin/plugin.go         |  15 +-
+ .../google/pprof/internal/report/report.go         |  24 +--
+ .../google/pprof/internal/report/report_test.go    |  21 ++-
+ .../google/pprof/internal/symbolizer/symbolizer.go |  31 ++--
+ .../pprof/internal/symbolizer/symbolizer_test.go   |   4 +-
+ .../google/pprof/internal/symbolz/symbolz.go       |  35 +++--
+ .../google/pprof/internal/symbolz/symbolz_test.go  |  28 ++++
+ .../google/pprof/internal/transport/transport.go   | 131 ++++++++++++++++
+ .../google/pprof/profile/legacy_java_profile.go    |   2 +-
+ .../github.com/google/pprof/profile/profile.go     |   6 +
+ .../google/pprof/profile/profile_test.go           |  53 +++++++
+ .../pprof/profile/testdata/java.contention.string  |   2 +-
+ src/cmd/vendor/vendor.json                         |  88 ++++++-----
+ 43 files changed, 1227 insertions(+), 445 deletions(-)

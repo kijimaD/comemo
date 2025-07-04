@@ -1,0 +1,12 @@
+commit ae7a84347100f375f9c7ba01cf042faf4e9fcc1a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 7 16:28:40 2012 +0900
+
+    net: use IANA reserved port to test dial timeout
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5757060
+
+ src/pkg/net/dial_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

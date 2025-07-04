@@ -1,0 +1,14 @@
+commit acb03b8028bdbb5aa6bc3813b7de62a7202eb65e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 7 19:32:34 2014 +0400
+
+    runtime: optimize markspan
+    Increases throughput by 2x on a memory hungry program on 8-node NUMA machine.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/100230043
+
+ src/pkg/runtime/mgc0.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

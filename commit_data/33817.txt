@@ -1,0 +1,19 @@
+commit 0e76143ef1208db7eeb06e939401666065d41337
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Oct 28 20:07:51 2017 +0200
+
+    lib/time: update tzdata to 2017c
+    
+    Update the tzdata database to version 2017c (released 2017-10-20).
+    
+    Updates #22487
+    
+    Change-Id: If58ff89173ef1f1044075505f42ff132b57795f0
+    Reviewed-on: https://go-review.googlesource.com/74230
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 366776 -> 364985 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,60 @@
+commit 2adc4e892704bb99f2d16c0c09777987cb6bed35
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 17 15:44:42 2015 -0800
+
+    all: use "reports whether" in place of "returns true if(f)"
+    
+    Comment changes only.
+    
+    Change-Id: I56848814564c4aa0988b451df18bebdfc88d6d94
+    Reviewed-on: https://go-review.googlesource.com/7721
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/archive/zip/struct.go          |  2 +-
+ src/cmd/cgo/gcc.go                 |  2 +-
+ src/cmd/cgo/main.go                |  2 +-
+ src/cmd/cgo/util.go                |  2 +-
+ src/cmd/fix/fix.go                 | 20 ++++++++++----------
+ src/cmd/go/pkg.go                  |  2 +-
+ src/cmd/gofmt/rewrite.go           |  2 +-
+ src/crypto/elliptic/elliptic.go    |  2 +-
+ src/crypto/hmac/hmac.go            |  2 +-
+ src/crypto/tls/handshake_server.go |  2 +-
+ src/crypto/x509/cert_pool.go       |  2 +-
+ src/encoding/asn1/asn1.go          |  2 +-
+ src/encoding/csv/writer.go         |  2 +-
+ src/flag/flag.go                   |  2 +-
+ src/go/ast/filter.go               | 17 ++++++++---------
+ src/go/build/build.go              |  2 +-
+ src/go/doc/exports.go              |  2 +-
+ src/go/parser/parser.go            |  4 ++--
+ src/go/printer/printer.go          |  2 +-
+ src/go/printer/testdata/parser.go  |  4 ++--
+ src/go/token/position.go           |  6 +++---
+ src/math/big/nat.go                |  4 ++--
+ src/math/big/rat.go                |  2 +-
+ src/mime/grammar.go                |  6 +++---
+ src/net/http/server.go             |  2 +-
+ src/net/http/transport.go          |  2 +-
+ src/net/ip.go                      | 16 ++++++++--------
+ src/net/mail/message.go            |  8 ++++----
+ src/net/url/url.go                 |  2 +-
+ src/os/path_plan9.go               |  2 +-
+ src/os/path_unix.go                |  2 +-
+ src/os/path_windows.go             |  2 +-
+ src/path/filepath/match.go         |  4 ++--
+ src/path/filepath/path_plan9.go    |  2 +-
+ src/path/filepath/path_unix.go     |  2 +-
+ src/path/filepath/path_windows.go  |  4 ++--
+ src/path/match.go                  |  2 +-
+ src/path/path.go                   |  2 +-
+ src/reflect/type.go                | 14 +++++++-------
+ src/reflect/value.go               | 18 +++++++++---------
+ src/regexp/syntax/prog.go          |  4 ++--
+ src/runtime/traceback.go           |  2 +-
+ src/strconv/extfloat.go            |  2 +-
+ src/strings/strings.go             |  6 +++---
+ src/text/scanner/scanner.go        |  2 +-
+ src/time/format.go                 |  5 ++---
+ src/unicode/utf16/utf16.go         |  2 +-
+ 47 files changed, 100 insertions(+), 102 deletions(-)

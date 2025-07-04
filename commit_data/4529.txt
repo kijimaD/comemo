@@ -1,0 +1,14 @@
+commit 32594bd43d90d344c04b91d69519529aafbbf4c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 5 16:54:27 2010 -0800
+
+    rollback of https://golang.org/cl/181077
+    (broke build)
+    
+    TBR=dho
+    https://golang.org/cl/181139
+
+ src/Make.conf    |  8 ++++++--
+ src/Make.pkg     | 10 ++++++++--
+ src/pkg/Makefile | 16 ++++------------
+ 3 files changed, 18 insertions(+), 16 deletions(-)

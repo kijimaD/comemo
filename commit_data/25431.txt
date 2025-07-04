@@ -1,0 +1,12 @@
+commit 7e24e89944310ed12b18a1eefd3776838f34ee15
+Author: Tamir Duberstein <tamird@gmail.com>
+Date:   Wed Dec 30 11:10:47 2015 -0500
+
+    cmd/dist: correct run's comment
+    
+    Change-Id: I45b026f4b4bf23b222a81669280cbe245048022b
+    Reviewed-on: https://go-review.googlesource.com/18212
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/util.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

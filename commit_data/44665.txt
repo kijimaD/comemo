@@ -1,0 +1,34 @@
+commit 4d014e723165f28b34458edb4aa9136e0fb4c702
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Oct 27 00:17:15 2020 +0100
+
+    encoding/xml: handle leading, trailing, or double colons in names
+    
+    Before this change, <:name> would parse as <name>, which could cause
+    issues in applications that rely on the parse-encode cycle to
+    round-trip. Similarly, <x name:=""> would parse as expected but then
+    have the attribute dropped when serializing because its name was empty.
+    Finally, <a:b:c> would parse and get serialized incorrectly. All these
+    values are invalid XML, but to minimize the impact of this change, we
+    parse them whole into Name.Local.
+    
+    This issue was reported by Juho Nurminen of Mattermost as it leads to
+    round-trip mismatches. See #43168. It's not being fixed in a security
+    release because round-trip stability is not a currently supported
+    security property of encoding/xml, and we don't believe these fixes
+    would be sufficient to reliably guarantee it in the future.
+    
+    Fixes CVE-2020-29509
+    Fixes CVE-2020-29511
+    Updates #43168
+    
+    Change-Id: I68321c4d867305046f664347192948a889af3c7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277892
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/encoding/xml/xml.go      |  5 ++--
+ src/encoding/xml/xml_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 2 deletions(-)

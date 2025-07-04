@@ -1,0 +1,20 @@
+commit 0f252511272d340c3fa9d25acfcc9ff9d809cd7d
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Aug 16 16:15:09 2021 -0400
+
+    go/types: change Checker.verify to return an error
+    
+    This is a port of CL 342151 to go/types, adjusted for errors and
+    positions. Checker.sprintf was refactored to facilitate formatting
+    error messages with a nil Checker.
+    
+    Change-Id: Ib2e5c942e55edaff7b5e77cf68a72bad70fea0b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342670
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/errors.go      | 14 ++++++---
+ src/go/types/instantiate.go | 69 ++++++++++++++++++++++++---------------------
+ 2 files changed, 47 insertions(+), 36 deletions(-)

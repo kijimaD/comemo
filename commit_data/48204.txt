@@ -1,0 +1,30 @@
+commit c15527f0b05fe893e2630420747b128fe17566a6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 22 16:53:17 2022 -0800
+
+    go/types, types2: implement adjCoreType using TypeParam.is
+    
+    TypeParam.is also provides ~ (tilde) information which is needed
+    to fix #51229. Delete all code related to singleType as it's not
+    used anymore.
+    
+    Also, remove TypeParam.hasTerms as it was not used.
+    
+    For #51229.
+    
+    Change-Id: Ie49b19d157230beecb17a444d1f17cf24aa4f6ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387774
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/infer.go         | 21 ++++++++++++-----
+ src/cmd/compile/internal/types2/termlist.go      |  9 --------
+ src/cmd/compile/internal/types2/termlist_test.go | 29 ------------------------
+ src/cmd/compile/internal/types2/typeparam.go     | 10 --------
+ src/cmd/compile/internal/types2/typeset.go       |  3 ---
+ src/go/types/infer.go                            | 21 ++++++++++++-----
+ src/go/types/termlist.go                         |  9 --------
+ src/go/types/termlist_test.go                    | 29 ------------------------
+ src/go/types/typeparam.go                        | 10 --------
+ src/go/types/typeset.go                          |  3 ---
+ 10 files changed, 30 insertions(+), 114 deletions(-)

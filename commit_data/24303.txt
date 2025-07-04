@@ -1,0 +1,16 @@
+commit 1216e181352c76d93d0ac501d22a5b7175c4cbf2
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 17 11:17:02 2015 -0700
+
+    encoding/gob: document allocation/merge behavior
+    
+    This is understood, obvious (to me), and well known but has not been clearly documented.
+    
+    Fixes #11117.
+    
+    Change-Id: Ib2b1e318924748d1eac0d735ad6286533be7fd39
+    Reviewed-on: https://go-review.googlesource.com/14693
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/gob/doc.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

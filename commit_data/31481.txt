@@ -1,0 +1,16 @@
+commit 4d7a5edb7e476a321365151a3253395c25185341
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Nov 16 01:05:34 2016 -0500
+
+    cmd/link/internal/ld: always show output from external linker
+    
+    Fixes #17935.
+    
+    Change-Id: I49b0f6cee29ea76ed62b8faa5d6d1f51be41bf84
+    Reviewed-on: https://go-review.googlesource.com/33301
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

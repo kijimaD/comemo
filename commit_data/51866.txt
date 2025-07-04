@@ -1,0 +1,18 @@
+commit ac7efcb0caac712395adf602f69d2ff3ace6e16e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Feb 1 02:11:01 2023 +0700
+
+    test: enable inlining tests for functions with local type
+    
+    Updates #57410
+    
+    Change-Id: Ibe1f5523a4635d2b844b9a5db94514e07eb0bc0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463998
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/escape4.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

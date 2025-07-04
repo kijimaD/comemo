@@ -1,0 +1,17 @@
+commit 65063bc61d66a092f499e3bef1d5a681b7cde814
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Nov 5 15:55:41 2009 -0800
+
+    big: add Div, Mod, Exp, GcdExt and several other fixes.
+    
+    R=gri, rsc
+    CC=go-dev
+    http://go/go-review/1017036
+
+ src/pkg/big/arith.go      |  58 ++++++--
+ src/pkg/big/arith_test.go |  46 +++++++
+ src/pkg/big/int.go        | 296 ++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/big/int_test.go   | 331 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/big/nat.go        | 119 ++++++++++++++++-
+ src/pkg/big/nat_test.go   |  75 ++++++++++-
+ 6 files changed, 896 insertions(+), 29 deletions(-)

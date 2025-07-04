@@ -1,0 +1,17 @@
+commit 20bf6a495eabad79b7b275d46fc3e11c620b8212
+Author: Kyle Shannon <kyle@pobox.com>
+Date:   Mon Nov 25 13:51:02 2019 -0700
+
+    lib/time: update tz data to 2019c
+    
+    Updates #22487
+    
+    Change-Id: I32dcd604af84e2000196d64bf69c67f81535290a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208797
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 781554 -> 781791 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

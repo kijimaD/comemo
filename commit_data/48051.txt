@@ -1,0 +1,16 @@
+commit a42bbf47d6b0d6f67ad843252cb2e8f56a9d32b7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 1 09:07:49 2022 -0800
+
+    doc/go1.18: explain changes to compiler error messages
+    
+    For #47694.
+    For #50954.
+    
+    Change-Id: I3789e145d64025fe2bf787fa5d01a21832903586
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381968
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

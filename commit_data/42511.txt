@@ -1,0 +1,16 @@
+commit 7495a425981eacb35dbc44e53627bfb52a2c3240
+Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+Date:   Thu Jun 11 15:45:46 2020 +0000
+
+    doc/go1.15: replace tab indentation with spaces
+    
+    Replace tab indentation with spaces for consistency, as all other indentation is done with spaces.
+    
+    For #37419
+    
+    Change-Id: I728a75ae0d00e637f57eb455b6039ffc1a5feed2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237538
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

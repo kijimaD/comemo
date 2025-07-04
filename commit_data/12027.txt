@@ -1,0 +1,13 @@
+commit 701fb580bd1d199027126b00f1a2aee2f65afd97
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 18 16:02:51 2012 +1100
+
+    html/template: replace obsolete reference to template.Set
+    Fixes #3053.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5656094
+
+ src/pkg/html/template/doc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

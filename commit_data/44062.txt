@@ -1,0 +1,29 @@
+commit d1502b3c7270e655d3306d65f5dd61438626a1a9
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Dec 23 09:30:22 2020 +0100
+
+    lib/time, time/tzdata: update tzdata to 2020e
+    
+    Changelog:
+    
+      Volgograd switches to Moscow time on 2020-12-27 at 02:00.
+      Small changes to past timestamps and abbreviations.
+    
+    See
+    
+      http://mm.icann.org/pipermail/tz-announce/2020-December/000063.html
+    
+    Updates #22487
+    
+    Change-Id: I709abe899ca498698463e945ccbcf4bc5fe60b92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279794
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ lib/time/update.bash       |     4 +-
+ lib/time/zoneinfo.zip      |   Bin 422449 -> 424205 bytes
+ src/time/tzdata/zipdata.go | 13714 ++++++++++++++++++++++---------------------
+ 3 files changed, 6874 insertions(+), 6844 deletions(-)

@@ -1,0 +1,18 @@
+commit 6876447952bfc5e532482bd1c89314f554e69fcd
+Author: Pierre Prinetti <pierreprinetti@gmail.com>
+Date:   Sun Dec 17 01:41:29 2017 +0100
+
+    net/http/httptest: table-test using named subtests
+    
+    Use Go 1.7 Run method of testing.T to run the table-driven tests into
+    separate, named subtests. The behaviour of the tests is not modified.
+    
+    Change-Id: Ia88fa59a3534e79e3f0731e948b5f8a9919b339d
+    Reviewed-on: https://go-review.googlesource.com/84478
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httptest/httptest_test.go | 75 ++++++++++++++++++----------------
+ src/net/http/httptest/recorder_test.go | 23 ++++++-----
+ 2 files changed, 51 insertions(+), 47 deletions(-)

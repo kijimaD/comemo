@@ -1,0 +1,23 @@
+commit 70331a31ed04144094f77a94676512d8829d84e2
+Author: Keith Randall <khr@google.com>
+Date:   Tue Oct 29 13:14:58 2019 -0700
+
+    cmd/compile: fix typing of IData opcodes
+    
+    The rules for extracting the interface data word don't leave
+    the result typed correctly. If I do i.([1]*int)[0], the result
+    should have type *int, not [1]*int. Using (IData x) for the result
+    keeps the typing of the original top-level Value.
+    
+    I don't think this would ever cause a real codegen bug, bug fixing it
+    at least makes the typing shown in ssa.html more consistent.
+    
+    Change-Id: I239d821c394e58347639387981b0510d13b2f7b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204042
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  6 +++---
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 24 ++++++++++++------------
+ 2 files changed, 15 insertions(+), 15 deletions(-)

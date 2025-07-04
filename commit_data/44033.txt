@@ -1,0 +1,19 @@
+commit 5a4db102b21489c39b3a654e06cc25155432a38a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 2 19:18:46 2020 -0800
+
+    html/template: avoid race when escaping updates template
+    
+    Fixes #39807
+    
+    Change-Id: Icf384f800e2541bc753507daa3a9bc7e5d1c3f79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274450
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roberto Clapis <roberto@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/html/template/exec_test.go | 70 ++++++++++++++++++++++++++++++++
+ src/html/template/template.go  | 90 ++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 147 insertions(+), 13 deletions(-)

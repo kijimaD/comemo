@@ -1,0 +1,14 @@
+commit 127c65b400ef27c3c02242ffd9809f91069218e5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 18 18:44:17 2008 -0800
+
+    - untab app (snapshot - not quite complete)
+    
+    R=r
+    OCL=19558
+    CL=19558
+
+ usr/gri/pretty/Makefile     |  6 +++++
+ usr/gri/pretty/tabwriter.go | 17 +++++++--------
+ usr/gri/pretty/untab.go     | 53 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+), 9 deletions(-)

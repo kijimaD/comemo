@@ -1,0 +1,13 @@
+commit 91212bd1ad81d30425bdb0b0f5d813369490c9bb
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 6 11:38:44 2008 -0800
+
+    If a value implements String(), use that in fmt.print (not fmt.printf)
+    
+    R=rsc
+    DELTA=13  (9 added, 0 deleted, 4 changed)
+    OCL=18682
+    CL=18684
+
+ src/lib/fmt/print.go | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

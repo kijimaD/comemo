@@ -1,0 +1,24 @@
+commit 998419575fb34dd5228cfdb353a73184e29db8da
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Sep 30 14:48:11 2016 -0700
+
+    crypto/ecdsa: correct code comment.
+    
+    The code comment mixed up max and min. In this case, min is correct
+    because this entropy is only used to make the signature scheme
+    probabilistic. (I.e. if it were fixed then the scheme would still be
+    secure except that key.Sign(foo) would always give the same result for a
+    fixed key and foo.)
+    
+    For this purpose, 256-bits is plenty.
+    
+    Fixes #16819.
+    
+    Change-Id: I309bb312b775cf0c4b7463c980ba4b19ad412c36
+    Reviewed-on: https://go-review.googlesource.com/30153
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/ecdsa/ecdsa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

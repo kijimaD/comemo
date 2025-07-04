@@ -1,0 +1,13 @@
+commit 3e02987508d25db11b213e7ce1edd39000ade7c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 6 14:41:21 2009 -0800
+
+    tgs's gc bug.
+    
+    R=r
+    DELTA=10  (7 added, 0 deleted, 3 changed)
+    OCL=24577
+    CL=24577
+
+ src/runtime/malloc.c | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

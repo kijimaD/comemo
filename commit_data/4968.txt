@@ -1,0 +1,14 @@
+commit 6d0f1fedbfaa7e9445d76aeaadd34d4e9a455d97
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Feb 28 21:49:06 2010 -0800
+
+    gotest: set $AS to $GOBIN/$AS
+    
+    May address issue 624.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/223083
+
+ src/cmd/gotest/gotest | 1 +
+ 1 file changed, 1 insertion(+)

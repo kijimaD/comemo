@@ -1,0 +1,12 @@
+commit 3ee49850a08bed8346e319cf6230f1c13a5f526b
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Thu Oct 21 10:47:02 2010 +1100
+
+    goinstall: fix documentation typo
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/2585043
+
+ src/cmd/goinstall/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

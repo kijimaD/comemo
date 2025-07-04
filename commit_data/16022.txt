@@ -1,0 +1,12 @@
+commit 6e054190f77d467e27f3fe64c30661acdc15f02b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Mar 31 02:17:25 2013 +0800
+
+    doc/go1.1: mention (*testing.B).ReportAllocs()
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8198043
+
+ doc/go1.1.html | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

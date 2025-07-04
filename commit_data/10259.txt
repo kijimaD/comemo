@@ -1,0 +1,13 @@
+commit c29cd8abb9e17c468843b097cb0d944ace6b2625
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Nov 5 11:28:23 2011 +1100
+
+    gofix: avoid panic on body-less functions in netudpgroup.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5347041
+
+ src/cmd/gofix/netudpgroup.go      |  2 +-
+ src/cmd/gofix/netudpgroup_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

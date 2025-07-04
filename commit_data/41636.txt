@@ -1,0 +1,32 @@
+commit fc8a6336d1ad29acf2c7728ce669df9059169132
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 17 13:54:30 2020 -0500
+
+    cmd/asm, cmd/compile, runtime: add -spectre=ret mode
+    
+    This commit extends the -spectre flag to cmd/asm and adds
+    a new Spectre mitigation mode "ret", which enables the use
+    of retpolines.
+    
+    Retpolines prevent speculation about the target of an indirect
+    jump or call and are described in more detail here:
+    https://support.google.com/faqs/answer/7625886
+    
+    Change-Id: I4f2cb982fa94e44d91e49bd98974fd125619c93a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222661
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/asm/internal/flags/flags.go |  2 ++
+ src/cmd/asm/main.go                 | 13 +++++++++++++
+ src/cmd/compile/internal/gc/main.go |  3 +++
+ src/cmd/internal/obj/arm/asm5.go    |  5 +++++
+ src/cmd/internal/obj/arm64/asm7.go  |  5 +++++
+ src/cmd/internal/obj/link.go        |  1 +
+ src/cmd/internal/obj/mips/asm0.go   |  5 +++++
+ src/cmd/internal/obj/riscv/obj.go   |  5 +++++
+ src/cmd/internal/obj/s390x/asmz.go  |  5 +++++
+ src/cmd/internal/obj/x86/asm6.go    | 11 +++++++++++
+ src/runtime/asm_amd64.s             | 34 +++++++++++++++++++++++++++++++++-
+ src/runtime/stubs_amd64.go          | 17 +++++++++++++++++
+ test/codegen/retpoline.go           | 14 ++++++++++++++
+ 13 files changed, 119 insertions(+), 1 deletion(-)

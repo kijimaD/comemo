@@ -1,0 +1,19 @@
+commit e0a97a59286f00b511ecacd1f4011bac348ab60f
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 18 13:46:54 2018 +1100
+
+    cmd/doc: make comments inside functions appear with -src
+    
+    The old godoc didn't do this either, perhaps because it's a little
+    tricky, but it can be done using a special type from the go/printer
+    package. (Usually we just use go/format).
+    
+    Fixes #28195.
+    
+    Change-Id: Ic6d3df3953ba71128398ceaf9a133c798551b6b8
+    Reviewed-on: https://go-review.googlesource.com/c/143037
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/doc/doc_test.go |  4 ++--
+ src/cmd/doc/pkg.go      | 13 ++++++++++++-
+ 2 files changed, 14 insertions(+), 3 deletions(-)

@@ -1,0 +1,89 @@
+commit 129dcb7226678d8ccd06c016de3fcfcc43b9aa9c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Mar 21 21:27:06 2022 +0000
+
+    runtime: check the heap goal and trigger dynamically
+    
+    As it stands, the heap goal and the trigger are set once by
+    gcController.commit, and then read out of gcController. However with the
+    coming memory limit we need the GC to be able to respond to changes in
+    non-heap memory. The simplest way of achieving this is to compute the
+    heap goal and its associated trigger dynamically.
+    
+    In order to make this easier to implement, the GC trigger is now based
+    on the heap goal, as opposed to the status quo of computing both
+    simultaneously. In many cases we just want the heap goal anyway, not
+    both, but we definitely need the goal to compute the trigger, because
+    the trigger's bounds are entirely based on the goal (the initial runway
+    is not). A consequence of this is that we can't rely on the trigger to
+    enforce a minimum heap size anymore, and we need to lift that up
+    directly to the goal. Specifically, we need to lift up any part of the
+    calculation that *could* put the trigger ahead of the goal. Luckily this
+    is just the heap minimum and minimum sweep distance. In the first case,
+    the pacer may behave slightly differently, as the heap minimum is no
+    longer the minimum trigger, but the actual minimum heap goal. In the
+    second case it should be the same, as we ensure the additional runway
+    for sweeping is added to both the goal *and* the trigger, as before, by
+    computing that in gcControllerState.commit.
+    
+    There's also another place we update the heap goal: if a GC starts and
+    we triggered beyond the goal, we always ensure there's some runway.
+    That calculation uses the current trigger, which violates the rule of
+    keeping the goal based on the trigger. Notice, however, that using the
+    precomputed trigger for this isn't even quite correct: due to a bug, or
+    something else, we might trigger a GC beyond the precomputed trigger.
+    
+    So this change also adds a "triggered" field to gcControllerState that
+    tracks the point at which a GC actually triggered. This is independent
+    of the precomputed trigger, so it's fine for the heap goal calculation
+    to rely on it. It also turns out, there's more than just that one place
+    where we really should be using the actual trigger point, so this change
+    fixes those up too.
+    
+    Also, because the heap minimum is set by the goal and not the trigger,
+    the maximum trigger calculation now happens *after* the goal is set, so
+    the maximum trigger actually does what I originally intended (and what
+    the comment says): at small heaps, the pacer picks 95% of the runway as
+    the maximum trigger. Currently, the pacer picks a small trigger based
+    on a not-yet-rounded-up heap goal, so the trigger gets rounded up to the
+    goal, and as per the "ensure there's some runway" check, the runway ends
+    up at always being 64 KiB. That check is supposed to be for exceptional
+    circumstances, not the status quo. There's a test introduced in the last
+    CL that needs to be updated to accomodate this slight change in
+    behavior.
+    
+    So, this all sounds like a lot that changed, but what we're talking about
+    here are really, really tight corner cases that arise from situations
+    outside of our control, like pathologically bad behavior on the part of
+    an OS or CPU. Even in these corner cases, it's very unlikely that users
+    will notice any difference at all. What's more important, I think, is
+    that the pacer behaves more closely to what all the comments describe,
+    and what the original intent was.
+    
+    Another note: at first, one might think that computing the heap goal and
+    trigger dynamically introduces some raciness, but not in this CL: the heap
+    goal and trigger are completely static.
+    
+    Allocation outside of a GC cycle may now be a bit slower than before, as
+    the GC trigger check is now significantly more complex. However, note
+    that this executes basically just as often as gcController.revise, and
+    that makes up for a vanishingly small part of any CPU profile. The next
+    CL cleans up the floating point multiplications on this path
+    nonetheless, just to be safe.
+    
+    For #48409.
+    
+    Change-Id: I280f5ad607a86756d33fb8449ad08555cbee93f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397014
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/export_test.go   |  13 +-
+ src/runtime/metrics.go       |   2 +-
+ src/runtime/mgc.go           |  17 ++-
+ src/runtime/mgcpacer.go      | 302 ++++++++++++++++++++++++++++---------------
+ src/runtime/mgcpacer_test.go |  10 +-
+ src/runtime/mstats.go        |   4 +-
+ src/runtime/trace.go         |   6 +-
+ 7 files changed, 223 insertions(+), 131 deletions(-)

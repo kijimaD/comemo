@@ -1,0 +1,20 @@
+commit 012efc67f280d7a68dd30a3150acd50cfa12985b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Nov 13 17:14:46 2020 -0500
+
+    cmd/go/internal/modload: ignore selected version in checkRetractions
+    
+    Fixes #42601
+    
+    Change-Id: I58d817ed34ccbd39591326c4bc23569f94028412
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272006
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/modfile.go                |  6 +++---
+ .../mod/example.com_retract_incompatible_v1.0.0.txt   | 19 +++++++++++++++++++
+ ...e.com_retract_incompatible_v2.0.0+incompatible.txt |  9 +++++++++
+ .../go/testdata/script/mod_retract_incompatible.txt   | 15 +++++++++++++++
+ 4 files changed, 46 insertions(+), 3 deletions(-)

@@ -1,0 +1,19 @@
+commit cad477c922b8b6f71e3f0968822841430516c639
+Author: ag9920 <alexgong7@outlook.com>
+Date:   Tue Jun 14 02:09:10 2022 +0000
+
+    cpu: fix typos in test case
+    
+    Change-Id: Id6a27d0b3f3fc4181a00569bacc578e72b04ce09
+    GitHub-Last-Rev: 85c063d1a2d62181d16044592a60acf970fe3c86
+    GitHub-Pull-Request: golang/go#53359
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411916
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Peter Zhang <binbin36520@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/internal/cpu/cpu_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

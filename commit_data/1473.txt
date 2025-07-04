@@ -1,0 +1,18 @@
+commit 87af75ff7478de95ba8a9ec70b7470127fd48323
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 15 10:15:23 2009 -0800
+
+    Recognize gccgo error messages:
+    
+    interface5.go:15:5: error: incompatible types in assignment
+    interface5.go:16:5: error: incompatible types in assignment
+    
+    (Yes, these could be better).
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=22821
+    CL=22826
+
+ test/interface5.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

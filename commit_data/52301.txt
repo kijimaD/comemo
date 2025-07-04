@@ -1,0 +1,22 @@
+commit 3128edfe59d3f0d677ae9ad24bf2c7474056787a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 15 19:26:33 2023 +0100
+
+    syscall: let EPLAN9 and EWINDOWS implement errors.ErrUnsupported
+    
+    As suggested by Bryan. This should fix the failing
+    TestIPConnSpecificMethods on plan9 after CL 476217 was submitted.
+    
+    For #41198
+    
+    Change-Id: I18e87b3aa7c9f7d48a1bd9c2819340acd1d2ca4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476578
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/syscall/syscall_plan9.go   | 3 +++
+ src/syscall/syscall_windows.go | 2 ++
+ 2 files changed, 5 insertions(+)

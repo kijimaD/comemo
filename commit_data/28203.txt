@@ -1,0 +1,21 @@
+commit 2939f395e0ab9cd70fb1af51f65af711d2f5f222
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 28 10:38:41 2016 -0700
+
+    cmd/go: add bug command
+    
+    This is a slightly rough, skeletal implementation.
+    We will polish and add to it through use.
+    
+    .github/ISSUE_TEMPLATE will be updated in a
+    separate CL.
+    
+    Fixes #16635
+    
+    Change-Id: Icf284170d87e61b5b643366c85cffc48f149f730
+    Reviewed-on: https://go-review.googlesource.com/28485
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/bug.go  | 129 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/main.go |   1 +
+ 2 files changed, 130 insertions(+)

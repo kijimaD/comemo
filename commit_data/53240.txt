@@ -1,0 +1,22 @@
+commit 3c3a883667390c2f03dffb3fdcb4fa4172cb23e6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon May 22 20:37:05 2023 +0200
+
+    os: avoid second fcntl syscall in NewFile on unix
+    
+    CL 494915 introduced an additional fcntl(F_GETFL) syscall to determine
+    whether the file is in append-only mode. The existing unix.IsNonblock
+    call also issues an fcntl(F_GETFL) syscall. The two can be combined and
+    both the append-only mode and the non-blocking flags can be determined
+    from that syscall's result.
+    
+    Change-Id: I915589ed94e079f6abaa2fd0032ef01f78698f7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497075
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/file_unix.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

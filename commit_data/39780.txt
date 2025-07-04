@@ -1,0 +1,19 @@
+commit 88ca80b32286eb337185151249606dec302fe1d9
+Author: Ayan George <ayan@ayan.net>
+Date:   Fri Aug 23 11:38:12 2019 -0400
+
+    plugin: add freebsd/amd64 plugin support
+    
+    Change-Id: I4e7b0e99fd0f6f7d6a8ef60e9d3cb5baeb80a2b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191617
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go               | 2 ++
+ src/cmd/go/internal/work/init.go   | 1 +
+ src/cmd/link/internal/ld/config.go | 2 +-
+ src/plugin/plugin.go               | 2 +-
+ src/plugin/plugin_dlopen.go        | 2 +-
+ src/plugin/plugin_stubs.go         | 2 +-
+ 6 files changed, 7 insertions(+), 4 deletions(-)

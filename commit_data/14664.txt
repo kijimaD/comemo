@@ -1,0 +1,12 @@
+commit a58668ca0e3d8ed2195a529eb5008053d12cd3a5
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Dec 17 23:01:36 2012 +0800
+
+    api/next.txt: update
+    
+    R=golang-dev, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6935061
+
+ api/next.txt | 318 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 318 insertions(+)

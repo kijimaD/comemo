@@ -1,0 +1,13 @@
+commit ebfc7e862eb6311c8403924e404eaa8d1bad2e37
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 21 16:29:38 2014 +1000
+
+    make.bat: do not exit builder on successful completion of make.bat (fixes build)
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/118020043
+
+ src/make.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

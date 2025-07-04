@@ -1,0 +1,18 @@
+commit 933169febb90b2a1551a09b5761fda75be9d964d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 1 00:40:28 2014 -0400
+
+    runtime: remove old malloc test programs
+    
+    These haven't been run in ages.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews, iant, khr, r
+    https://golang.org/cl/134170043
+
+ src/pkg/runtime/malloc1.go    |  26 --------
+ src/pkg/runtime/mallocrand.go |  93 ---------------------------
+ src/pkg/runtime/mallocrep.go  |  72 ---------------------
+ src/pkg/runtime/mallocrep1.go | 144 ------------------------------------------
+ 4 files changed, 335 deletions(-)

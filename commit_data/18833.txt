@@ -1,0 +1,22 @@
+commit d5887c5aaca74080c4b167e11559305c7154901c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 11 23:58:24 2014 -0400
+
+    test/run: make errorcheck tests faster
+    
+    Some of the errorcheck tests have many many identical regexps.
+    Use a map to avoid storing the compiled form many many times
+    in memory. Change the filterRe to a simple string to avoid
+    the expense of those regexps as well.
+    
+    Cuts the time for run.go on index2.go by almost 50x.
+    
+    Noticed during debugging of issue 7344.
+    
+    LGTM=bradfitz
+    R=bradfitz, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/74380043
+
+ test/run.go | 45 ++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 36 insertions(+), 9 deletions(-)

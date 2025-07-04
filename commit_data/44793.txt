@@ -1,0 +1,22 @@
+commit fd5e0bd385660275a8049a2499e0bbbffd465bc8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Mar 24 11:19:19 2021 -0400
+
+    cmd/link: mangle function names with ABI on PE
+    
+    When ABI wrappers are used, we may end up with two functions
+    having the same name. On ELF we mangle the name with ABI. Do the
+    same for PE.
+    
+    TODO: other platforms?
+    
+    Change-Id: If89f214a6286bc28c062c1aa1bad78dc353a9231
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304432
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/pe.go     |  2 ++
+ src/cmd/link/internal/ld/symtab.go | 71 ++++++++++++++++++++------------------
+ 2 files changed, 40 insertions(+), 33 deletions(-)

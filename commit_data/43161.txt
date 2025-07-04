@@ -1,0 +1,19 @@
+commit 8c84dcfe8c6a795ed6ae6be540ffc638841144ce
+Author: David Chase <drchase@google.com>
+Date:   Mon Aug 10 18:30:11 2020 -0400
+
+    cmd/compile: enable late expansion for closure calls
+    
+    This works for "normal" calls.
+    Defer func() and Go func() still pending.
+    RT calls still pending.
+    
+    Change-Id: I29cbdad8c877d12c08bbf7f3f0696611de877da9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247771
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

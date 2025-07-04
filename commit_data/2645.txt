@@ -1,0 +1,19 @@
+commit 2ad7958b7e512bc8f0b280a7c0793297299cab6e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 8 14:57:51 2009 -0700
+
+    - update functionality for printer test
+    - moved test files from data to testdata
+    - use tabs instead of spaces for layout
+    
+    R=rsc
+    DELTA=129  (67 added, 60 deleted, 2 changed)
+    OCL=31353
+    CL=31360
+
+ src/pkg/go/printer/data/golden1.go               | 25 ------------------------
+ src/pkg/go/printer/printer_test.go               | 23 ++++++++++++++--------
+ src/pkg/go/printer/testdata/golden1.go           | 25 ++++++++++++++++++++++++
+ src/pkg/go/printer/{data => testdata}/golden1.x  |  0
+ src/pkg/go/printer/{data => testdata}/source1.go |  0
+ 5 files changed, 40 insertions(+), 33 deletions(-)

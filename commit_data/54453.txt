@@ -1,0 +1,31 @@
+commit 07d4de9312aef72d1bd7427316a2ac21b83e4a20
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 13 11:41:00 2023 -0400
+
+    os/exec: fix edge cases in Windows PATH resolution
+    
+    - Ignore empty entries in PATH, like PowerShell does.
+    
+    - If we resolve a path using an explicit relative entry in PATH,
+      treat it the same as we do for the implicit "." search path,
+      by allowing a later (absolute) PATH entry that resolves to the
+      same executable to return the absolute version of its path.
+    
+    - If the requested path does not end with an extension matching
+      PATHEXT, return ErrNotFound (indicating that we potentially searched
+      for multiple alternatives and did not find one) instead of
+      ErrNotExist (which would imply that we know the exact intended path
+      but couldn't find it).
+    
+    Fixes #61493.
+    
+    Change-Id: I5b539d8616e3403825749d8eccf46725fa808a17
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-race,gotip-windows-amd64-race,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528037
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/exec/lp_windows.go      | 22 ++++++++++--
+ src/os/exec/lp_windows_test.go | 77 ++++++++++++++++++++++++++++++++----------
+ 2 files changed, 79 insertions(+), 20 deletions(-)

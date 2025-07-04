@@ -1,0 +1,13 @@
+commit e5d748a333cf83cb4b510e45687b2f62fe6626ae
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Jun 28 12:19:12 2010 -0700
+
+    8g compiler missing call to splitclean().
+    fixes #887.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1675050
+
+ src/cmd/8g/cgen.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

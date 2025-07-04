@@ -1,0 +1,21 @@
+commit 202ef487fe7e6289e02c60910d5dd0d6bb44cad1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jun 2 13:46:28 2015 +1000
+
+    cmd/dist: convert testso test into Go
+    
+    I would like to re-apply reverted http://golang.org/cl/8523.
+    Reverted tests still fail in some environments (see issue #10360).
+    It is easier to run tests selectively when in Go.
+    This CL prepares for the changes.
+    
+    Updates #10360
+    
+    Change-Id: Iefeb1d71cb3d1cfa653a6ccd9f6e35686c0c5b24
+    Reviewed-on: https://go-review.googlesource.com/10608
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testso/test.bash | 28 ------------------
+ misc/cgo/testso/test.bat  | 18 ------------
+ src/cmd/dist/test.go      | 74 +++++++++++++++++++++++++++++++++++++----------
+ 3 files changed, 59 insertions(+), 61 deletions(-)

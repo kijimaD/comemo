@@ -1,0 +1,23 @@
+commit c51559813f615aa33ca42c0ad963d7712f561433
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 27 16:37:25 2017 -0700
+
+    cmd/compile: add sizeCalculationDisabled flag
+    
+    Use it to ensure that dowidth is not called
+    from the backend on a type whose size
+    has not yet been calculated.
+    
+    This is an alternative to CL 42016.
+    
+    Change-Id: I8c7b4410ee4c2a68573102f6b9b635f4fdcf392e
+    Reviewed-on: https://go-review.googlesource.com/42018
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/align.go   | 12 ++++++++++++
+ src/cmd/compile/internal/gc/pgen.go    |  2 ++
+ src/cmd/compile/internal/gc/ssa.go     | 12 ++++++------
+ src/cmd/compile/internal/types/type.go | 11 ++---------
+ 4 files changed, 22 insertions(+), 15 deletions(-)

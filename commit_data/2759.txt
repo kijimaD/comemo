@@ -1,0 +1,13 @@
+commit 940e381b754054cb33412e989388a1e95d47f52a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 20 14:15:36 2009 -0700
+
+    triple quote
+    
+    R=ken
+    OCL=31868
+    CL=31874
+
+ test/bugs/bug169.go | 10 ++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 13 insertions(+)

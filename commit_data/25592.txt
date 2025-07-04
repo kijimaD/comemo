@@ -1,0 +1,37 @@
+commit 91b910b7e2b35d06720e7ed4f358016403cda79c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 14 16:29:24 2016 -0800
+
+    net/http: update bundled http2
+    
+    If a user starts two HTTP requests when no http2 connection is
+    available, both end up creating new TCP connections, since the
+    server's protocol (h1 or h2) isn't yet known. Once it turns out that
+    the server supports h2, one of the connections is useless. Previously
+    we kept upgrading both TLS connections to h2 (SETTINGS frame exchange,
+    etc).  Now the unnecessary connections are closed instead, before the
+    h2 preface/SETTINGS.
+    
+    Updates x/net/http2 to git rev a8e212f3d for https://golang.org/cl/18675
+    
+    This CL contains the tests for https://golang.org/cl/18675
+    
+    Semi-related change noticed while writing the tests: now that we have
+    TLSNextProto in Go 1.6, which consults the TLS
+    ConnectionState.NegotiatedProtocol, we have to gurantee that the TLS
+    handshake has been done before we look at the ConnectionState. So add
+    that check after the DialTLS hook. (we never documented that users
+    have to call Handshake, so do it for them, now that it matters)
+    
+    Updates #13957
+    
+    Change-Id: I9a70e9d1282fe937ea654d9b1269c984c4e366c0
+    Reviewed-on: https://go-review.googlesource.com/18676
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/clientserver_test.go | 93 ++++++++++++++++++++++++++++++++++++++
+ src/net/http/h2_bundle.go         | 94 +++++++++++++++++++++++++++++++++------
+ src/net/http/transport.go         |  6 +++
+ 3 files changed, 179 insertions(+), 14 deletions(-)

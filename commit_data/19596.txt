@@ -1,0 +1,13 @@
+commit 88b663b246db802809afaeac0f1b86b2bd260723
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jun 24 09:50:10 2014 +1000
+
+    doc/go1.4: add note about Set{uid,gid} change
+    
+    LGTM=iant
+    R=ruiu, iant
+    CC=golang-codereviews
+    https://golang.org/cl/107320044
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

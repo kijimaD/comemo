@@ -1,0 +1,29 @@
+commit 02704d515952f87bf81195859edcdc49f28af02e
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Wed Jan 18 10:54:17 2023 +0100
+
+    runtime: switch AMD64's publicationBarrier to ABIInternal
+    
+    Shrinks a few runtime functions:
+    
+    runtime
+    runtime.mallocgc 2127 -> 2117  (-0.47%)
+    runtime.(*mheap).initSpan 652 -> 639  (-1.99%)
+    runtime.(*mspan).userArenaNextFree 825 -> 808  (-2.06%)
+    
+    file      before   after    Δ       %
+    runtime.s 512473   512414   -59     -0.012%
+    total     20843331 20843272 -59     -0.000%
+    
+    Change-Id: Ifaca7abb6db3467b73945fac71496dd7527e6863
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462296
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Run-TryBot: Jakub Ciolek <jakub@ciolek.dev>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/asm_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit dded58760d3e97907d9ee2d5c7b0252970508044
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 17 13:24:34 2019 -0700
+
+    cmd/compile: enable -d=checkptr when -race or -msan is specified
+    
+    It can still be manually disabled again using -d=checkptr=0.
+    
+    It's also still disabled by default for GOOS=windows, because the
+    Windows standard library code has a lot of unsafe pointer conversions
+    that need updating.
+    
+    Updates #34964.
+    
+    Change-Id: Ie0b8b4fdf9761565e0dcb00d69997ad896ac233d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201783
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 5 +++++
+ 1 file changed, 5 insertions(+)

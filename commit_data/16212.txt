@@ -1,0 +1,18 @@
+commit 8c72b8113263977b3882f551d26ee4e31ce8bd4a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 23 04:42:04 2013 +0800
+
+    misc/cgo/testso: enable test on windows
+    Depends on CL 8715043 and CL 8676050.
+    Fixes #5273.
+    
+    R=alex.brainman, r
+    CC=gobot, golang-dev
+    https://golang.org/cl/8764043
+
+ misc/cgo/testso/cgoso.c   | 14 ++++++++++++++
+ misc/cgo/testso/cgoso.go  |  2 ++
+ misc/cgo/testso/cgoso_c.c | 16 +++++++++++++++-
+ misc/cgo/testso/test.bat  | 18 ++++++++++++++++++
+ src/run.bat               |  8 ++++++++
+ 5 files changed, 57 insertions(+), 1 deletion(-)

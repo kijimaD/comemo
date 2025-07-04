@@ -1,0 +1,15 @@
+commit 689b28fd9634c256c8c3288eea0efd2083c5a237
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 24 14:56:54 2008 -0700
+
+    fix method function type compare bug (again)
+    
+    R=ken
+    OCL=17819
+    CL=17819
+
+ src/cmd/gc/dcl.c  | 15 ++++++++++-----
+ src/cmd/gc/subr.c | 17 +++++++++++++++--
+ test/golden.out   |  6 +++---
+ test/method1.go   | 18 ++++++++++++++++++
+ 4 files changed, 46 insertions(+), 10 deletions(-)

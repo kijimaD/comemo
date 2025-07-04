@@ -1,0 +1,13 @@
+commit 9f1394d270237d42e1e92aa7238b8d779152a400
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Tue Apr 5 17:11:31 2011 -0400
+
+    crypto/ecdsa, crypto/rsa: use io.ReadFull to read from random source.
+    
+    R=golang-dev, agl1
+    CC=golang-dev
+    https://golang.org/cl/4316057
+
+ src/pkg/crypto/ecdsa/ecdsa.go  | 2 +-
+ src/pkg/crypto/rsa/pkcs1v15.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

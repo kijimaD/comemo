@@ -1,0 +1,16 @@
+commit cc402c2c4dd835e98b274aa7d80504cca76b2370
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Thu Aug 3 12:33:26 2017 -0400
+
+    doc: hide blog content for golang.google.cn
+    
+    /blog redirects to blog.golang.org (currently blocked in China)
+    unless there is a local checkout of golang.org/x/blog, which is
+    not possible on App Engine Classic.
+    
+    Change-Id: Ia695e663c9bebcc6c3bedea324c630299eaad4dc
+    Reviewed-on: https://go-review.googlesource.com/53051
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/root.html | 45 ++++++++++++++++++++++-----------------------
+ 1 file changed, 22 insertions(+), 23 deletions(-)

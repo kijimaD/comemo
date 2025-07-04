@@ -1,0 +1,12 @@
+commit 8d206d9d804d793727a668a21711dac69689cf23
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 6 13:58:35 2013 -0800
+
+    doc: update note about GCC 4.8.2 in gccgo instructions
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/22510043
+
+ doc/gccgo_install.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

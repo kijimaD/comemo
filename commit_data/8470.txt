@@ -1,0 +1,12 @@
+commit ed0c0f2c808b67190679692e6607b80f380e724d
+Author: Eric Eisner <eric.d.eisner@gmail.com>
+Date:   Mon May 23 22:47:25 2011 -0400
+
+    misc/emacs: don't select the mark after gofmt
+    
+    R=ajmani
+    CC=golang-dev
+    https://golang.org/cl/4553054
+
+ misc/emacs/go-mode.el | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

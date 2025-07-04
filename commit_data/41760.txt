@@ -1,0 +1,26 @@
+commit 437bd90f13c36cd57298a950caae6601cd60550c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 25 22:17:04 2020 -0400
+
+    cmd/go/internal/base: rename EnvForDir to AppendPWD
+    
+    EnvForDir does not immediately evoke “append”, and thus may not prompt
+    the reader to consider the possibility of aliasing bugs (as in
+    issue #38077). To make this behavior more obvious at the call site, rename
+    cmd/go/internal/base.EnvForDir to AppendPWD and swap the order of
+    arguments to a conventional “append” function (similar to those in the
+    strconv package).
+    
+    For #38077
+    
+    Change-Id: I16f09aa0fa8a269d51f0511eb402a44e2759eb94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225578
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/base/env.go     | 14 +++++++-------
+ src/cmd/go/internal/get/vcs.go      |  2 +-
+ src/cmd/go/internal/test/test.go    |  2 +-
+ src/cmd/go/internal/work/buildid.go |  4 ++--
+ src/cmd/go/internal/work/exec.go    |  4 ++--
+ 5 files changed, 13 insertions(+), 13 deletions(-)

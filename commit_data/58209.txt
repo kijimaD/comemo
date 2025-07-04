@@ -1,0 +1,58 @@
+commit 3ff868f2f50ed5ec44f77bf9f27e42e51e2aae4a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Sep 13 11:06:06 2024 -0400
+
+    cmd/go: cache executables built for go run
+    
+    This change implements executable caching. It always caches the outputs of
+    link steps used by go run. To do so we need to make a few changes:
+    
+    The first is that we want to cache binaries in a slightly different
+    location than we cache other outputs. The reason for doing so is so that
+    the name of the file could be the name of the program built.  Instead of
+    placing the files in $GOCACHE/<two digit prefix>/<hash>-d, we place them
+    in $GOCACHE/<two digit prefix>/<hash>-d/<executable name>. This is done
+    by adding a new function called PutExecutable that works differently
+    from Put in two ways: first, it causes the binaries to written 0777
+    rather than 0666 so they can be executed.  Second, PutExecutable also
+    writes its outputs to a new location in a directory with the output id
+    based name, with the file named based on p.Internal.ExeName or otherwise
+    the base name of the package (plus the .exe suffix on Windows).
+    
+    The next changes are for writing and reading binaries from the cache. In
+    cmd/go/internal/work.updateBuildID, which updates build ids to the
+    content based id and then writes outputs to the cache, we first make the
+    change to always write the content based id into a binary. This is
+    because we won't be throwing the binaries away after running them. Then,
+    if the action is a link action, and we enabled excutable caching for the
+    action, we write the output to the binary cache.
+    
+    When reading binaries, in the useCache function, we switch to using the
+    binary cache, and we also print the cached link outputs (which are
+    stored using the build action's action id).
+    
+    Finally, we change go run to execute the built output from the cache.
+    
+    The support for caching tools defined in a module that are run by go
+    tool will also use this functionality.
+    
+    Fixes #69290
+    For #48429
+    
+    Change-Id: Ic5f1d3b29d8e9786fd0d564460e3a5f53e951f41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613095
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/base/base.go                   | 35 +++++---
+ .../test_nonunix.go => base/error_notunix.go}      |  4 +-
+ .../{test/test_unix.go => base/error_unix.go}      |  4 +-
+ src/cmd/go/internal/cache/cache.go                 | 94 ++++++++++++++++++----
+ src/cmd/go/internal/cache/default.go               |  2 +-
+ src/cmd/go/internal/run/run.go                     |  3 +-
+ src/cmd/go/internal/test/test.go                   |  2 +-
+ src/cmd/go/internal/work/action.go                 |  2 +
+ src/cmd/go/internal/work/buildid.go                | 83 ++++++++++++-------
+ src/cmd/go/internal/work/exec.go                   | 19 +----
+ 10 files changed, 170 insertions(+), 78 deletions(-)

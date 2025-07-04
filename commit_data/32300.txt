@@ -1,0 +1,12 @@
+commit 2c2b17237748ebeb348f93f3c81b1b3a3691d583
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jun 2 16:53:22 2017 +1000
+
+    cmd/link: add peSection
+    
+    Change-Id: Id3aeeaeaacf5f079fb2ddad579f2f209b7fc0e06
+    Reviewed-on: https://go-review.googlesource.com/55258
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 54 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 54 insertions(+)

@@ -1,0 +1,26 @@
+commit 8e970536dfe0b8ce74bfd0e83ae608c4a012d3c6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 4 15:48:39 2016 -0700
+
+    cmd/compile: revert user-visible changes related to aliases
+    
+    Reason: Decision to back out current alias implementation.
+    
+    Leaving import/export related code in place for now.
+    
+    For #16339.
+    
+    TBR=mdempsky
+    
+    Change-Id: Ib0897cab2c1c3dc8a541f2efb9893271b0b0efe2
+    Reviewed-on: https://go-review.googlesource.com/32757
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go           |  97 -----------------------
+ src/go/internal/gcimporter/testdata/exports.go |  23 +-----
+ test/alias2.go                                 | 103 -------------------------
+ test/alias3.dir/a.go                           |  54 -------------
+ test/alias3.dir/b.go                           |  61 ---------------
+ test/alias3.dir/c.go                           |  66 ----------------
+ test/alias3.go                                 |   7 --
+ 7 files changed, 1 insertion(+), 410 deletions(-)

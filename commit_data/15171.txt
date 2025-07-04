@@ -1,0 +1,18 @@
+commit c8f2449ea7e0d61c959062f82a4cf6579f22596c
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Feb 8 10:43:53 2013 -0500
+
+    exp/ssa: (#5 of 5): the SSA interpreter and 'ssadump' tool.
+    
+    R=gri, iant
+    CC=golang-dev
+    https://golang.org/cl/7226065
+
+ src/pkg/exp/ssa/interp/external.go |  312 ++++++++
+ src/pkg/exp/ssa/interp/interp.go   |  588 +++++++++++++++
+ src/pkg/exp/ssa/interp/map.go      |  101 +++
+ src/pkg/exp/ssa/interp/ops.go      | 1373 ++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/ssa/interp/reflect.go  |  413 +++++++++++
+ src/pkg/exp/ssa/interp/value.go    |  492 +++++++++++++
+ src/pkg/exp/ssa/ssadump.go         |  121 ++++
+ 7 files changed, 3400 insertions(+)

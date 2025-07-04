@@ -1,0 +1,12 @@
+commit a91a0a6a7a319425d29a47ab7900c432d6f648e4
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Dec 19 14:26:52 2008 -0800
+
+    array compare (except = != nil) are illegal
+    
+    R=r
+    OCL=21637
+    CL=21637
+
+ src/cmd/6g/cgen.c | 5 +++++
+ 1 file changed, 5 insertions(+)

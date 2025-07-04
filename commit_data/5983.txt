@@ -1,0 +1,34 @@
+commit 5eb35e4247affecd734c6d6bd9ad31a21dec00b9
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Aug 10 12:08:52 2010 +1000
+
+    image: replace Width and Height by Bounds, and introduce the Point and
+    Rect types.
+    
+    The actual image representation is unchanged. A future change will
+    replace the {[][]color} with {[]color, stride int, r Rectangle} and
+    possibly a clip region.
+    
+    The draw.Color, draw.Point and draw.Rect types will be removed in a
+    future change. Trying to do it in this one polluted the diff with
+    trivia.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/1918047
+
+ src/pkg/exp/4s/xs.go             |   4 +-
+ src/pkg/exp/draw/color.go        |   4 +-
+ src/pkg/exp/draw/draw.go         |  12 ++--
+ src/pkg/exp/draw/draw_test.go    |  18 ++++--
+ src/pkg/exp/draw/x11/conn.go     |  17 +++---
+ src/pkg/exp/nacl/av/image.go     |   8 +--
+ src/pkg/exp/spacewar/spacewar.go |   4 +-
+ src/pkg/image/Makefile           |   1 +
+ src/pkg/image/geom.go            | 125 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/image/image.go           |  97 ++++++++++++++----------------
+ src/pkg/image/names.go           |   4 +-
+ src/pkg/image/png/reader_test.go |  11 ++--
+ src/pkg/image/png/writer.go      |  25 ++++----
+ src/pkg/image/png/writer_test.go |   9 +--
+ 14 files changed, 234 insertions(+), 105 deletions(-)

@@ -1,0 +1,23 @@
+commit 54b9cb80372f45b5e86c5246717c766fac6f1fe6
+Author: Patrik Nyblom <pnyb@google.com>
+Date:   Tue Nov 16 14:35:59 2021 -0800
+
+    runtime: make sure to properly park before going to sleep in Windows ConsoleControlHandler
+    
+    This change avoids the program intermittently hanging on windows/arm64 after getting
+    a signal for which the ConsoleControlHandler can not return.
+    
+    Fixes #49458
+    
+    Change-Id: Ie28f0f437c7e0f9634b6b3e29dc6cdebd5d996f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364556
+    Trust: Patrik Nyblom <pnyb@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Patrik Nyblom <pnyb@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/os_windows.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

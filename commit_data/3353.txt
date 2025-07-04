@@ -1,0 +1,17 @@
+commit 73bac0416b658cbc6aef0daec3930e4019e21d0c
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Sep 24 08:19:16 2009 -0700
+
+    Fix declared and not used errors in old sym package (ogle
+    hasn't been ported to the new sym package yet)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=9  (0 added, 1 deleted, 8 changed)
+    OCL=34851
+    CL=34962
+
+ usr/austin/sym/binary.go   | 8 ++++----
+ usr/austin/sym/elf.go      | 5 ++---
+ usr/austin/sym/gosymtab.go | 4 ++--
+ 3 files changed, 8 insertions(+), 9 deletions(-)

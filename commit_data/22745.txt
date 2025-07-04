@@ -1,0 +1,16 @@
+commit 05d53165cebf7c31c4b4c2c818650b2efceefbeb
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Apr 27 12:53:34 2015 -0400
+
+    cmd/internal/ld: remove Biobuf unget
+    
+    The underlying *bufio.Reader does everything that's needed here.
+    
+    Change-Id: If0712a5b4d3142ae4bceaa2efe287eaf2b91e54e
+    Reviewed-on: https://go-review.googlesource.com/9365
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/objfile.go |  8 +++++---
+ src/cmd/internal/ld/util.go    | 45 ++++++------------------------------------
+ 2 files changed, 11 insertions(+), 42 deletions(-)

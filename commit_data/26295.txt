@@ -1,0 +1,12 @@
+commit 95c6c5f36bb04e66d6a9523b3ad590faa6d563dd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 15 13:34:15 2016 -0700
+
+    math/big: fix comment typos
+    
+    Change-Id: I34cdc9cb3d32e86ff3a57db0012326c39cd55670
+    Reviewed-on: https://go-review.googlesource.com/20718
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/ftoa.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

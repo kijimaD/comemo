@@ -1,0 +1,13 @@
+commit bb40196ebf50d461b4c9bef7b5124b04dc4cb73f
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Feb 9 16:18:21 2012 -0500
+
+    runtime: Linux/ARM: exit early on OABI systems, and give an error message
+    Fixes #2533.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5654045
+
+ src/pkg/runtime/rt0_linux_arm.s | 56 ++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 55 insertions(+), 1 deletion(-)

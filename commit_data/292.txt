@@ -1,0 +1,18 @@
+commit 417a971f9a3fc4ff0699be8dd486567335a28338
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Jul 5 12:49:25 2008 -0700
+
+    output args declared
+    arguments in first block for diagnostics
+    thomo return
+    better syntax error recovery
+    
+    SVN=126045
+
+ src/cmd/6g/gen.c  | 20 ++++++++++++++++++++
+ src/cmd/gc/dcl.c  | 50 ++++++++++++++++++++++++++++++++------------------
+ src/cmd/gc/go.h   |  8 +++++---
+ src/cmd/gc/go.y   | 53 ++++++++++++++++++++++++-----------------------------
+ src/cmd/gc/lex.c  | 26 +++++++++++++++++---------
+ src/cmd/gc/walk.c | 17 +++++++++++++++--
+ 6 files changed, 113 insertions(+), 61 deletions(-)

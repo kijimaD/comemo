@@ -1,0 +1,71 @@
+commit e4435cb8448514d2413f9d9aa3ee40738d26fd67
+Author: Michael Knyszek <mknyszek@google.com>
+Date:   Wed Oct 19 14:51:15 2022 -0400
+
+    runtime: add page tracer
+    
+    This change adds a new GODEBUG flag called pagetrace that writes a
+    low-overhead trace of how pages of memory are managed by the Go runtime.
+    
+    The page tracer is kept behind a GOEXPERIMENT flag due to a potential
+    security risk for setuid binaries.
+    
+    Change-Id: I6f4a2447d02693c25214400846a5d2832ad6e5c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444157
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/goexperiment/exp_pagetrace_off.go |   9 +
+ src/internal/goexperiment/exp_pagetrace_on.go  |   9 +
+ src/internal/goexperiment/flags.go             |   6 +
+ src/runtime/create_file_nounix.go              |  14 +
+ src/runtime/create_file_unix.go                |  14 +
+ src/runtime/defs1_netbsd_386.go                |   3 +
+ src/runtime/defs1_netbsd_amd64.go              |   3 +
+ src/runtime/defs1_netbsd_arm.go                |   3 +
+ src/runtime/defs1_netbsd_arm64.go              |   3 +
+ src/runtime/defs1_solaris_amd64.go             |   3 +
+ src/runtime/defs_aix.go                        |   3 +
+ src/runtime/defs_aix_ppc64.go                  |   3 +
+ src/runtime/defs_darwin.go                     |   3 +
+ src/runtime/defs_darwin_amd64.go               |   5 +-
+ src/runtime/defs_darwin_arm64.go               |   5 +-
+ src/runtime/defs_dragonfly.go                  |   3 +
+ src/runtime/defs_dragonfly_amd64.go            |   3 +
+ src/runtime/defs_freebsd.go                    |   3 +
+ src/runtime/defs_freebsd_386.go                |   3 +
+ src/runtime/defs_freebsd_amd64.go              |   3 +
+ src/runtime/defs_freebsd_arm.go                |   3 +
+ src/runtime/defs_freebsd_arm64.go              |   3 +
+ src/runtime/defs_freebsd_riscv64.go            |   3 +
+ src/runtime/defs_linux_386.go                  |   3 +
+ src/runtime/defs_linux_amd64.go                |   3 +
+ src/runtime/defs_linux_arm.go                  |   3 +
+ src/runtime/defs_linux_arm64.go                |   3 +
+ src/runtime/defs_linux_loong64.go              |   3 +
+ src/runtime/defs_linux_mips64x.go              |   3 +
+ src/runtime/defs_linux_mipsx.go                |   3 +
+ src/runtime/defs_linux_ppc64.go                |   3 +
+ src/runtime/defs_linux_ppc64le.go              |   3 +
+ src/runtime/defs_linux_riscv64.go              |   3 +
+ src/runtime/defs_linux_s390x.go                |   3 +
+ src/runtime/defs_netbsd.go                     |   3 +
+ src/runtime/defs_openbsd_386.go                |   3 +
+ src/runtime/defs_openbsd_amd64.go              |   3 +
+ src/runtime/defs_openbsd_arm.go                |   3 +
+ src/runtime/defs_openbsd_arm64.go              |   3 +
+ src/runtime/defs_openbsd_mips64.go             |   3 +
+ src/runtime/defs_solaris.go                    |   3 +
+ src/runtime/exithook.go                        |   1 +
+ src/runtime/export_unix_test.go                |   6 +
+ src/runtime/extern.go                          |   7 +
+ src/runtime/mgcscavenge.go                     |   2 +
+ src/runtime/mheap.go                           |   8 +-
+ src/runtime/pagetrace_off.go                   |  28 ++
+ src/runtime/pagetrace_on.go                    | 358 +++++++++++++++++++++++++
+ src/runtime/proc.go                            |  61 +++--
+ src/runtime/runtime2.go                        |   5 +
+ src/runtime/syscall_unix_test.go               |  25 ++
+ 51 files changed, 636 insertions(+), 29 deletions(-)

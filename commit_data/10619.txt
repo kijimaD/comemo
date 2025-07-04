@@ -1,0 +1,14 @@
+commit ca7d86c4d3e15716ae7aa3d7ba84769218571460
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Dec 6 14:12:09 2011 +1100
+
+    hash: rewrite comment on Hash.Sum method
+    
+    Fixes #2530.
+    
+    R=golang-dev, agl
+    CC=golang-dev
+    https://golang.org/cl/5449101
+
+ src/pkg/hash/hash.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

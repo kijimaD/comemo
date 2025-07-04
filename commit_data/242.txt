@@ -1,0 +1,12 @@
+commit 433ac8e57bb973252f6eab072d89e6699fa21328
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 26 16:15:43 2008 -0700
+
+    - a couple of fixes for integer.go
+    - added pkg dir
+    
+    SVN=124991
+
+ test/bugs/bug058.go |  4 +++-
+ test/integer.go     | 26 ++++++++++++++++++++++++--
+ 2 files changed, 27 insertions(+), 3 deletions(-)

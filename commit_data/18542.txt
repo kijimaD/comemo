@@ -1,0 +1,13 @@
+commit a1aee55bd17b79edc66a865c02d170ed6296288d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 17 06:04:31 2014 +0400
+
+    net/http: close body in benchmarks
+    Is it required? Why don't we do it?
+    
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/61150043
+
+ src/pkg/net/http/serve_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

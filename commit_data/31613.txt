@@ -1,0 +1,15 @@
+commit e309dd938fe570142d8eeb568ae5b6a05472573a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 19 15:08:29 2017 +1000
+
+    internal/poll: remove unused ioSrv.ExecIO parameter
+    
+    Change-Id: If5cb80c3c086684ce6c2e8ed9bb23b2a20c8aacd
+    Reviewed-on: https://go-review.googlesource.com/43690
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/poll/fd_windows.go       | 16 ++++++++--------
+ src/internal/poll/sendfile_windows.go |  2 +-
+ 2 files changed, 9 insertions(+), 9 deletions(-)

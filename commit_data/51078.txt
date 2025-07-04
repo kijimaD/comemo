@@ -1,0 +1,23 @@
+commit a5b4283dfd90687d4263b38001e06bd3acf8b752
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 16 15:52:07 2022 -0400
+
+    README: update from CC-BY-3.0 to CC-BY-4.0
+    
+    CC-BY-3.0 was shiny and new back in 2009, but CC-BY-4.0 is
+    generally preferred now. Update our CC-BY uses to CC-BY-4.0.
+    
+    Google lawyers signed off on the overall CC-BY-4.0 update
+    and Renee French signed off on the update of the gopher license.
+    
+    See also CL 447156.
+    
+    Change-Id: I3908910d6011ed733271e595f761c773351b30f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447275
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ README.md | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

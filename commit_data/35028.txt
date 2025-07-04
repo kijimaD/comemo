@@ -1,0 +1,17 @@
+commit 7ba12c16f49dcaddce7009e1d86a63908cba4222
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 17 14:53:56 2018 -0700
+
+    go/internal/gcimporter: add unit tests for blank parameter names
+    
+    cmd/compile internally rewrites blank return parameters to "~bN". Add
+    a test to make sure this isn't exposed via the go/types API.
+    
+    Change-Id: I319644dc5adf483ed30520fd8e9d88cf5cea9751
+    Reviewed-on: https://go-review.googlesource.com/107616
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/internal/gcimporter/gcimporter_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

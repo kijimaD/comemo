@@ -1,0 +1,44 @@
+commit f3ffd93a617be16585586647eb640fe44813251d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 16 17:11:18 2009 -0700
+
+    ast:
+    - renamed Program -> SourceFile
+    - added Package node representing the AST for an entire package
+    - added filter function to create a source file mimicking the
+      interface of an entire package
+    
+    parser:
+    - parser entry to parse entire packages
+    - unified naming of parser entry points
+    - factored out entry points into new file (interface.go)
+    
+    gofmt:
+    - extended to accept single .go files, and package paths:
+      gofmt file.go             // formatting of a single file
+      gofmt -x file.go          // interface of a single file
+      gofmt -x ./MyPackage      // interface of a local package
+      gofmt -x math             // interface of a $GOROOT relative package
+    
+    Various adjustments in dependent files, documentation.
+    
+    R=rsc
+    DELTA=634  (369 added, 153 deleted, 112 changed)
+    OCL=31743
+    CL=31748
+
+ src/cmd/gobuild/util.go            |   7 +-
+ src/cmd/godoc/godoc.go             |  20 +--
+ src/cmd/gofmt/gofmt.go             |  84 ++++++++++---
+ src/pkg/Make.deps                  |   2 +-
+ src/pkg/Makefile                   |   1 +
+ src/pkg/go/ast/ast.go              |  19 ++-
+ src/pkg/go/ast/filter.go           |  47 ++++++-
+ src/pkg/go/doc/doc.go              |  14 +--
+ src/pkg/go/parser/Makefile         |  15 ++-
+ src/pkg/go/parser/interface.go     | 186 +++++++++++++++++++++++++++
+ src/pkg/go/parser/parser.go        | 252 ++++++++++++-------------------------
+ src/pkg/go/parser/parser_test.go   |  43 +++++--
+ src/pkg/go/printer/printer.go      |  20 +--
+ src/pkg/go/printer/printer_test.go |   9 +-
+ 14 files changed, 468 insertions(+), 251 deletions(-)

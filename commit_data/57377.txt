@@ -1,0 +1,50 @@
+commit 1e2114349d995ce09c75411463c4cdb59d40d8fc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 4 13:20:36 2024 -0700
+
+    cmd/compile/internal/syntax: handle parentheses around constraints consistently
+    
+    Generally, the parser strips (i.e., does not record in the syntax tree)
+    unnecessary parentheses. Specifically, given a type parameter list of
+    the form
+    
+            [P (C),]
+    
+    it records it as
+    
+            [P C]
+    
+    and then no comma is required when printing. However it did only strip
+    one level of parentheses, and
+    
+            [P ((C)),]
+    
+    made it through, causing a panic when printing. Somewhat related,
+    the printer stripped parentheses around constraints as well.
+    
+    This CL implements a more consistent behavior:
+    
+    1) The parser strips all parentheses around constraints. For testing
+       purposes, a local flag (keep_parens) can be set to retain the
+       parentheses.
+    
+    2) The printer code now correctly intruces a comma if parentheses
+       are present (e.g., when testing with keep_parens). This case does
+       not occur in normal operation.
+    
+    3) The printer does not strip parentheses around constraints since
+       the parser does it already.
+    
+    For #69206.
+    
+    Change-Id: I974a800265625e8daf9477faa9ee4dd74dbd17ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610758
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go       | 16 ++++++++++++++--
+ src/cmd/compile/internal/syntax/printer.go      | 12 ++++++++----
+ src/cmd/compile/internal/syntax/printer_test.go |  6 ++++++
+ 3 files changed, 28 insertions(+), 6 deletions(-)

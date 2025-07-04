@@ -1,0 +1,17 @@
+commit 836a517f694a4d737f0e58c68700a94483834fb6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 11 13:21:06 2012 -0800
+
+    gc: fix inlining bug
+    
+    Fixes #2682.
+    
+    R=lvd
+    CC=golang-dev
+    https://golang.org/cl/5538043
+
+ src/cmd/gc/fmt.c                 |  4 +++-
+ test/fixedbugs/bug392.dir/one.go | 15 ++++++++++++---
+ test/fixedbugs/bug392.dir/two.go | 14 +++++++++++++-
+ test/fixedbugs/bug392.go         |  6 +-----
+ 4 files changed, 29 insertions(+), 10 deletions(-)

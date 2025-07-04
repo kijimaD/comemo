@@ -1,0 +1,15 @@
+commit c5fc3b6972ccf3e05ea8f6203814afa5dc24bea4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 2 15:00:14 2011 -0800
+
+    fmt: rename internal interfaces
+    
+    readRuner -> runeReader
+    unreadRuner -> runeUnreader
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4000054
+
+ src/pkg/fmt/scan.go | 35 ++++++++++++++---------------------
+ 1 file changed, 14 insertions(+), 21 deletions(-)

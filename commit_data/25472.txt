@@ -1,0 +1,13 @@
+commit c063e342f823040faeccee8c5c7c6f1b11fb730d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jan 7 09:36:52 2016 +0900
+
+    net/http, net/http/httputil: fix nits found by vet
+    
+    Change-Id: Idf02428591f61dc58f654fdaf0e3a55f8b8a1060
+    Reviewed-on: https://go-review.googlesource.com/18350
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy_test.go | 2 +-
+ src/net/http/serve_test.go                 | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

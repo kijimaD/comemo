@@ -1,0 +1,22 @@
+commit 30fc940c70ee5ee27f0a455248735b8b57f34fb7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 20 17:26:24 2016 -0700
+
+    go/types: don't drop type in n:1 var decl if one is given
+    
+    In n:1 variable declarations (multiple lhs variables with single
+    multi-valued initialization expression) where also a variable
+    type is provided, make sure that that type is assigned to all
+    variables on the lhs before the init expression assignment is
+    checked. Otherwise, (some) variables are assumed to take the type
+    of the corresponding value of the multi-valued init expression.
+    
+    Fixes #15755.
+    
+    Change-Id: I969cb5a95c85e28dbb38abd7fa7df16ff5554c03
+    Reviewed-on: https://go-review.googlesource.com/23313
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/decl.go             | 19 +++++++++++++++++++
+ src/go/types/testdata/issues.src | 16 ++++++++++++++++
+ 2 files changed, 35 insertions(+)

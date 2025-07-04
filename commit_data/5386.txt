@@ -1,0 +1,30 @@
+commit 000ab98df684adfb030ce4a4f55869571001c406
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 27 22:40:26 2010 -0700
+
+    5l, 6l, 8l, runtime: make -s binaries work
+    5l, 6l, 8l: change ELF header so that strip doesn't destroy binary
+    
+    Fixes #261.
+    
+    R=iant, r
+    CC=golang-dev
+    https://golang.org/cl/994044
+
+ src/cmd/5l/asm.c         | 63 ++++++++++++++++++++++++++++++++++++++----------
+ src/cmd/5l/l.h           |  4 +++
+ src/cmd/5l/pass.c        | 26 ++++++++++++++++++--
+ src/cmd/5l/span.c        |  7 ++++++
+ src/cmd/6l/asm.c         | 47 ++++++++++++++++++++++++++++--------
+ src/cmd/6l/l.h           |  3 +++
+ src/cmd/6l/pass.c        | 24 ++++++++++++++++--
+ src/cmd/6l/span.c        |  8 ++++++
+ src/cmd/8l/asm.c         | 43 ++++++++++++++++++++++++---------
+ src/cmd/8l/l.h           |  4 +++
+ src/cmd/8l/pass.c        | 24 ++++++++++++++++--
+ src/cmd/8l/span.c        |  8 ++++++
+ src/cmd/ld/elf.c         |  2 +-
+ src/cmd/ld/lib.c         |  4 +++
+ src/cmd/ld/lib.h         |  2 +-
+ src/pkg/runtime/symtab.c | 25 ++++++-------------
+ 16 files changed, 235 insertions(+), 59 deletions(-)

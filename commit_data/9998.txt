@@ -1,0 +1,13 @@
+commit aeacd9df771f79e819542410cce5c105a69afc64
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Oct 17 14:18:04 2011 +1100
+
+    A+C: Esko Luontola
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5275050
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

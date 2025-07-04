@@ -1,0 +1,15 @@
+commit 0e7f9700f69944a993230d706e41a86ac47da415
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Oct 21 18:46:44 2016 +0900
+
+    path/filepath: pass TestToNorm even if VolumeName(tmpdir) != VolumeName(pwd) on windows
+    
+    Fixes #17504
+    
+    Change-Id: Ic83578cf2019e5d8778e4b324f04931eb802f603
+    Reviewed-on: https://go-review.googlesource.com/31544
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/path/filepath/path_windows_test.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

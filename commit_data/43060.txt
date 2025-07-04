@@ -1,0 +1,19 @@
+commit 754776850a62fa37ff6d68a8d5250497b2869b26
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Sep 22 12:43:16 2020 +0700
+
+    cmd/compile: consistently use typekind when reporting invalid operation
+    
+    While at it, make "typekind" awares of "types.Ideal*" types.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I092fa8c57ab6b8d9ba0f25d8e1ea44fba48675e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256438
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

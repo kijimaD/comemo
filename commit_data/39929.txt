@@ -1,0 +1,21 @@
+commit b3e2a72e6f42a924d6489b14c6881aa5cddf9418
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Tue Sep 17 21:45:28 2019 +0000
+
+    Revert "cmd/link: prefix syms with "_" on darwin links"
+    
+    This reverts commit 06e5529eceae35bb26b51f2430c2c9425149ede2.
+    
+    Reason for revert: darwin_386 is unhappy. (Almost as unhappy as I am.)
+    
+    https://build.golang.org/log/292c90a4ef1c93597b865ab8513b66a95d93d022
+    
+    Change-Id: I690566ce1d8212317fc3dc349ad0d4d5a2bb58eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196033
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/issue33808_test.go | 53 -----------------------------
+ src/cmd/link/internal/ld/macho.go           |  5 ++-
+ src/debug/macho/file.go                     |  7 +---
+ 3 files changed, 3 insertions(+), 62 deletions(-)

@@ -1,0 +1,29 @@
+commit 0f5d86c5a01fbb70ffa1a59049b0a7cf4fcbcc0a
+Author: Holger Hans Peter Freyther <freythergo@gmail.com>
+Date:   Sun Jul 9 22:24:12 2023 +0800
+
+    cmd/go: permit additional cflags when compiling
+    
+    In CL 475375 the Go command started to generate the "preferlinkext"
+    token file for "strange/dangerous" compiler flags. This serves as a hint
+    to the Go linker whether to call the external linker or not.
+    
+    Permit compiler flag used by the hermetic_cc_toolchain bzlmod.
+    
+    As a side effect, it also allows these flags to appear
+    in #cgo directives in source code. We don't know of any cases
+    where that is actually useful, but it appears to be harmless
+    and simplifies the implementation of the internal linking change.
+    
+    Fixes #72842
+    
+    Change-Id: Ic6de29b535a4e2c0720f383567ea6b3c7ca4f541
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657575
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/work/security.go                           | 1 +
+ src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt | 8 ++++++++
+ 2 files changed, 9 insertions(+)

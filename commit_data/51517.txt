@@ -1,0 +1,23 @@
+commit 03bf6f4917c1c8cd883dfa1618b90a95b9192f9a
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Dec 2 13:30:06 2022 -0500
+
+    run.bash, cmd/dist: document GO_TEST_SHORT and GO_TEST_TIMEOUT_SCALE
+    
+    These environment variables affect cmd/dist, and in turn run.bash.
+    They exist primarily for the Go build system, but are still needed
+    sometimes when investigating problems. Document them in one place.
+    
+    Fixes #46054.
+    
+    Change-Id: I5dea2ac79b0d203d2f3c9ec2980382f62bead5cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455517
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/test.go | 6 ------
+ src/run.bash         | 9 +++++++++
+ 2 files changed, 9 insertions(+), 6 deletions(-)

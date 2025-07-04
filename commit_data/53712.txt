@@ -1,0 +1,30 @@
+commit cac69594d1e2844eac1715e7fdf10fca3d798b5b
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Jul 11 17:56:17 2023 +0200
+
+    crypto/internal/boring,crypto/sha1: remove cmd_go_bootstrap build tag
+    
+    Since CL 402595, the Go compiler no longer uses any package under
+    crypto, so there is no need to explicitly exclude boring from the
+    go bootstrap build.
+    
+    Change-Id: Ib71349fffaab151c6e1fb42a9684151439b70cc8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508402
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/crypto/internal/boring/aes.go       |  2 +-
+ src/crypto/internal/boring/boring.go    |  2 +-
+ src/crypto/internal/boring/ecdh.go      |  2 +-
+ src/crypto/internal/boring/ecdsa.go     |  2 +-
+ src/crypto/internal/boring/hmac.go      |  2 +-
+ src/crypto/internal/boring/notboring.go |  2 +-
+ src/crypto/internal/boring/rand.go      |  2 +-
+ src/crypto/internal/boring/rsa.go       |  2 +-
+ src/crypto/internal/boring/sha.go       |  2 +-
+ src/crypto/sha1/boring.go               | 25 -------------------------
+ src/crypto/sha1/notboring.go            | 20 --------------------
+ src/crypto/sha1/sha1.go                 | 13 +++++++------
+ 12 files changed, 16 insertions(+), 60 deletions(-)

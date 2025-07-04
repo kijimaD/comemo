@@ -1,0 +1,17 @@
+commit ca01ab39efb63528275bd00efe674f1c96b3dfab
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Aug 17 13:40:55 2013 +0900
+
+    net: fix garbage connection close in dual stack tests
+    
+    This may possibly be the root cause of flaky dual stack tests.
+    
+    Update #4176
+    Update #5001
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13050043
+
+ src/pkg/net/unicast_posix_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

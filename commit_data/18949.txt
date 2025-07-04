@@ -1,0 +1,13 @@
+commit e673fd9344047630790890c5928e8223a8410847
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Mar 26 13:51:00 2014 +1100
+
+    C: add David Barnett (Google CLA).
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/80310043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

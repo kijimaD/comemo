@@ -1,0 +1,13 @@
+commit 0ba28329e4ee60491b4e6f3f920eb515e56254be
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Sep 29 18:43:20 2009 -0700
+
+    Add a Vim syntax highlighting file for Go.
+    
+    APPROVED=rsc
+    DELTA=190  (190 added, 0 deleted, 0 changed)
+    OCL=35073
+    CL=35128
+
+ misc/vim/go.vim | 190 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 190 insertions(+)

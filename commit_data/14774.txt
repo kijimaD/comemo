@@ -1,0 +1,23 @@
+commit 20c76f7f3f9a8e353cedf57fd633afdc00c09d6f
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Jan 2 21:42:26 2013 +0100
+
+    cmd/gc: mark wrapper methods for unnamed types as DUPOK.
+    
+    Unnamed types like structs with embedded fields can have methods.
+    These methods are generated on-the-fly by the compiler and
+    it may happen for identical types in different packages.
+    The linker must accept these multiple definitions.
+    
+    Fixes #4590.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/7030051
+
+ src/cmd/gc/subr.c                    |  3 +++
+ test/fixedbugs/issue4590.dir/pkg1.go | 26 ++++++++++++++++++++++++++
+ test/fixedbugs/issue4590.dir/pkg2.go | 15 +++++++++++++++
+ test/fixedbugs/issue4590.dir/prog.go | 25 +++++++++++++++++++++++++
+ test/fixedbugs/issue4590.go          | 10 ++++++++++
+ 5 files changed, 79 insertions(+)

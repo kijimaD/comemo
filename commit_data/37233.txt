@@ -1,0 +1,19 @@
+commit b2c397e53798fad7395fa8c67f66d9200d663ae0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 16 15:31:07 2018 -0700
+
+    cmd/compile: disallow converting string to notinheap slice
+    
+    Unlikely to happen in practice, but easy enough to prevent and might
+    as well do so for completeness.
+    
+    Fixes #28243.
+    
+    Change-Id: I848c3af49cb923f088e9490c6a79373e182fad08
+    Reviewed-on: https://go-review.googlesource.com/c/142719
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/subr.go | 12 ++++++++++--
+ test/notinheap.go                   |  8 ++++++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)

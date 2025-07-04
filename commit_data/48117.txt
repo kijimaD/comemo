@@ -1,0 +1,15 @@
+commit 255acb0c059268c99e45b693645a256719f3abb2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 7 20:59:59 2022 -0800
+
+    doc/go1.18: document behavior of go/types predicates for extended interfaces
+    
+    For #47694.
+    
+    Change-Id: Ic27193b65ef4b3c0c932107b8731b5f8d3190ad5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383918
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

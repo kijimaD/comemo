@@ -1,0 +1,15 @@
+commit cf3a28124b199d15b7e968327ba07d45f2f24a88
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 4 17:09:17 2017 +1000
+
+    archive/tar: extend TestFileInfoHeaderSymlink
+    
+    For #17541.
+    
+    Change-Id: I524ab194f32b8b061ce1c9c3e0cd34cc5539358e
+    Reviewed-on: https://go-review.googlesource.com/39410
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/tar/tar_test.go | 43 +++++++++++++++++++++++++++++++------------
+ 1 file changed, 31 insertions(+), 12 deletions(-)

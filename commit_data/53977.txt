@@ -1,0 +1,25 @@
+commit 446783960277251fcb837f3672f377469d204918
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 10 11:56:53 2023 -0400
+
+    time: make time.Since a few nanoseconds faster
+    
+    time.Since(base) is an idiom that can be used to read the system
+    monotonic time as efficiently as possible, when that matters.
+    The current code structure adds a few nanoseconds on top of
+    the 15-20ns the time read already takes. Remove those few.
+    
+    After this CL, there is no reason at all for anyone to
+    //go:linkname runtime.nanotime1 instead.
+    
+    Came up while investigating #61765.
+    
+    Change-Id: Ic9e688af039babfc2a5a8e67dcbb02847a5eb686
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518336
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+
+ src/time/time.go | 29 ++++++++++++++---------------
+ 1 file changed, 14 insertions(+), 15 deletions(-)

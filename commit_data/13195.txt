@@ -1,0 +1,19 @@
+commit 12b2022a3b20565c0c995f86de4f072964679047
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 29 12:40:13 2012 -0700
+
+    net/http: flush server response gracefully when ignoring request body
+    
+    This prevents clients from seeing RSTs and missing the response
+    body.
+    
+    TCP stacks vary. The included test failed on Darwin before but
+    passed on Linux.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6256066
+
+ src/pkg/net/http/serve_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/server.go     | 33 +++++++++++++++++++++++++++---
+ 2 files changed, 76 insertions(+), 3 deletions(-)

@@ -1,0 +1,18 @@
+commit 08dbd8ae6d16ed9eaaca241024a4f92fd2184e2c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 15 23:28:31 2015 +0000
+
+    Revert "cmd/internal/obj: fix pc/sp information for prologue"
+    
+    This seems to have broken arm64 in a mysterious way. Will try again later.
+    
+    This reverts commit 0a3c991fd330276f6876c401541dcbacbb860985.
+    
+    Change-Id: Ic1b53413c4168977a27381d9cc6fb8d9d7cbb780
+    Reviewed-on: https://go-review.googlesource.com/12245
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/arm/obj5.go   | 10 +---------
+ src/cmd/internal/obj/arm64/obj7.go | 10 +---------
+ src/cmd/internal/obj/x86/obj6.go   | 11 +----------
+ 3 files changed, 3 insertions(+), 28 deletions(-)

@@ -1,0 +1,12 @@
+commit 7c128493a41168f35201a26a6f32ee36fe9cc852
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Mar 13 12:51:28 2012 +1100
+
+    test: actually run them on windows
+    
+    R=golang-dev, r, rsc, bradfitz, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/5756065
+
+ src/run.bat | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

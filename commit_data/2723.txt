@@ -1,0 +1,33 @@
+commit 816e3da26d69ee4b52e6c860d87baded7a299be3
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Wed Jul 15 17:56:17 2009 -0700
+
+    Make Value always represent an l-value and never a generic
+    container for values.
+    
+    Instead of having one evaluator function that returns a
+    generic Value, there is now an evaluator function for each
+    generalized type that simply returns a native type.
+    
+    The compiler is more type-safe now because there are almost no
+    type conversions at evaluation time and it's impossible to
+    invoke a nil evaluator function during evaluation.  This also
+    makes ideals and pointers really clean.
+    
+    As an added bonus, expression evaluation should be faster
+    because it doesn't require heap allocation for every
+    intermediate value, type switches, or lots of conversions to
+    and from Value.  It also involves fewer function calls.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=431  (280 added, 115 deleted, 36 changed)
+    OCL=31705
+    CL=31709
+
+ usr/austin/eval/decls.go |   2 +
+ usr/austin/eval/expr.go  | 441 +++++++++++++++++++++++++++++++----------------
+ usr/austin/eval/scope.go |   7 +
+ usr/austin/eval/type.go  |   2 +
+ usr/austin/eval/value.go |   9 +-
+ 5 files changed, 313 insertions(+), 148 deletions(-)

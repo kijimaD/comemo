@@ -1,0 +1,17 @@
+commit 2662b99f39d21f4b98f984a6fe9a38b0b45176bd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 17 14:00:46 2010 -0800
+
+    suffixarray: implememted FindAllIndex regexp search
+    
+    Implementation uses fast suffixarray lookup to find
+    initial matches if the regular expression starts with
+    a suitable prefix without meta characters.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/3720042
+
+ src/pkg/index/suffixarray/suffixarray.go      | 116 +++++++++++++++++++++--
+ src/pkg/index/suffixarray/suffixarray_test.go | 129 ++++++++++++++++++--------
+ 2 files changed, 201 insertions(+), 44 deletions(-)

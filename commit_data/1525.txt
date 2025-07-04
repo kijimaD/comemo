@@ -1,0 +1,18 @@
+commit 0183baaf449338f54727814d079c0254c18226f9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 20 14:40:00 2009 -0800
+
+    * delete export
+    * rename init functions
+    
+    R=ken
+    OCL=23122
+    CL=23126
+
+ src/cmd/gc/dcl.c        |  35 +++++------
+ src/cmd/gc/export.c     |  57 ++++++------------
+ src/cmd/gc/go.h         |   7 +--
+ src/cmd/gc/go.y         |  82 +++++---------------------
+ src/cmd/gc/sysimport.c  | 150 ++++++++++++++++++++++++------------------------
+ src/runtime/rt0_amd64.s |   2 +-
+ 6 files changed, 123 insertions(+), 210 deletions(-)

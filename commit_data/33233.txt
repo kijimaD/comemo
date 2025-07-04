@@ -1,0 +1,34 @@
+commit 1126d1483f0397648905fcd4590ae45352cabd69
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Tue Oct 17 15:59:56 2017 -0700
+
+    database/sql: ensure all driver interfaces are called under single lock
+    
+    Russ pointed out in a previous CL golang.org/cl/65731 that not only
+    was the locking incomplete, previous changes did not correctly
+    lock driver calls in other sections. After inspecting
+    driverConn, driverStmt, driverResult, Tx, and Rows structs
+    where driver interfaces are stored, I discovered a few more places
+    that failed to lock driver calls. The largest of these
+    was the parameter type converter "driverArgs".
+    
+    driverArgs was typically called right before another call to the
+    driver in a locked region, so I made the entire driverArgs expect
+    a locked driver mutex and combined the region. This should not
+    be a problem because the connection is pulled out of the connection
+    pool either way so there shouldn't be contention.
+    
+    Fixes #21117
+    
+    Change-Id: I88d46f74dca25fb11a30f0bf8e79785a73133d23
+    Reviewed-on: https://go-review.googlesource.com/71433
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/database/sql/convert.go      | 15 ++-------
+ src/database/sql/convert_test.go |  2 +-
+ src/database/sql/fakedb_test.go  |  1 +
+ src/database/sql/sql.go          | 70 ++++++++++++++++++++++++++--------------
+ src/database/sql/sql_test.go     |  6 ++++
+ 5 files changed, 55 insertions(+), 39 deletions(-)

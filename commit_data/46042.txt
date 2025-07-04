@@ -1,0 +1,28 @@
+commit 54ce8793a8932d81a45875d32a4cfdc520ee1c83
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Jul 26 10:39:38 2021 -0700
+
+    cmd: update x/tools and remove copy of txtar
+    
+    golang.org/x/tools/txtar is the main location for this package. We
+    don't need our own copy.
+    
+    For golang/go#47193
+    
+    Change-Id: I480eb591f57a0d05b433a657653e2021e39354eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337352
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341937
+
+ src/cmd/go/internal/fsys/fsys_test.go              |  3 +-
+ src/cmd/go/internal/txtar/archive_test.go          | 67 ----------------------
+ src/cmd/go/proxy_test.go                           |  2 +-
+ src/cmd/go/script_test.go                          |  3 +-
+ src/cmd/go/testdata/addmod.go                      |  2 +-
+ src/cmd/go/testdata/savedir.go                     |  2 +-
+ .../golang.org/x/tools}/txtar/archive.go           |  6 +-
+ src/cmd/vendor/modules.txt                         |  1 +
+ 8 files changed, 11 insertions(+), 75 deletions(-)

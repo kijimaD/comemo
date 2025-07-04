@@ -1,0 +1,29 @@
+commit 3161081c12bd7e852a60b836476ad9c3b44037d3
+Author: Sung Yoon Whang <sungyoon@uber.com>
+Date:   Wed Feb 8 22:35:30 2023 +0000
+
+    cmd/compile/internal/staticinit: fix panic in interface conversion
+    
+    This patch fixes a panic from incorrect interface conversion from
+    *ir.BasicLit to *ir.ConstExpr. This only occurs when nounified
+    GOEXPERIMENT is set, so ideally it should be backported to Go
+    1.20 and removed from master.
+    
+    Fixes #58339
+    
+    Change-Id: I357069d7ee1707d5cc6811bd2fbdd7b0456323ae
+    GitHub-Last-Rev: 641dedb5f9f95e6f8d46723d445a8c9609719ce4
+    GitHub-Pull-Request: golang/go#58389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466175
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/staticinit/sched.go | 12 +++---------
+ test/fixedbugs/issue58339.dir/a.go           | 17 +++++++++++++++++
+ test/fixedbugs/issue58339.dir/b.go           |  9 +++++++++
+ test/fixedbugs/issue58339.go                 |  7 +++++++
+ 4 files changed, 36 insertions(+), 9 deletions(-)

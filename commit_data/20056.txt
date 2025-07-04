@@ -1,0 +1,14 @@
+commit e249b0ffeeb36957adfde2b3ec3ab0eabea8e3ba
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 21 11:43:58 2014 +0400
+
+    cmd/api: add missing runtime struct
+    Fixes build.
+    
+    TBR=khr
+    R=golang-codereviews
+    CC=golang-codereviews, khr
+    https://golang.org/cl/130390044
+
+ src/cmd/api/goapi.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 64c7f70c66080aca3fc0b5550608e052eb28ca5d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 28 15:56:14 2011 -0800
+
+    time: Support Solaris zoneinfo directory.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4079047
+
+ src/pkg/time/zoneinfo_unix.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

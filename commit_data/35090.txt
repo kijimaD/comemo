@@ -1,0 +1,18 @@
+commit 0cd0dc96e00bacaf90af1a21a33f8ad94fc24c52
+Author: ludweeg <mursalimovemeel@gmail.com>
+Date:   Mon Apr 23 20:20:43 2018 +0300
+
+    crypto: make receiver name consistent
+    
+    Fixes go lint warning.
+    
+    Change-Id: I63950e7c70bf431e88a04f32befd50be9beacadf
+    Reviewed-on: https://go-review.googlesource.com/108815
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/sha1/sha1.go     | 14 +++++++-------
+ src/crypto/sha256/sha256.go | 10 +++++-----
+ src/crypto/sha512/sha512.go | 12 ++++++------
+ 3 files changed, 18 insertions(+), 18 deletions(-)

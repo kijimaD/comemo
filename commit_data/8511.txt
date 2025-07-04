@@ -1,0 +1,15 @@
+commit bddb75127f0d549e08e8a8774bf92740a13b0810
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu May 26 22:19:23 2011 -0300
+
+    cgo: support pkg-config for flags and libs
+    
+    Fixes issue #1853.
+    
+    R=golang-dev, mattn.jp, adg
+    CC=golang-dev
+    https://golang.org/cl/4550084
+
+ src/cmd/cgo/doc.go | 14 +++++++--
+ src/cmd/cgo/gcc.go | 91 +++++++++++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 88 insertions(+), 17 deletions(-)

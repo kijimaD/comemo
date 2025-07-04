@@ -1,0 +1,20 @@
+commit 6362fead876daa44ca7b9696da72a3d4db888ad0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jul 5 09:55:33 2017 +0900
+
+    net, internal/poll: enable ListenMulticastUDP on solaris
+    
+    Fixes #20898.
+    
+    Change-Id: Ib3a8da34851d8b3681a6802e509fe712d6982df2
+    Reviewed-on: https://go-review.googlesource.com/47450
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
+
+ src/internal/poll/sockoptip.go                    | 2 +-
+ src/net/{sockoptip_bsd.go => sockoptip_bsdvar.go} | 2 +-
+ src/net/sockoptip_posix.go                        | 2 +-
+ src/net/sockoptip_stub.go                         | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

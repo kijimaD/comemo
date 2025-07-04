@@ -1,0 +1,23 @@
+commit 849770dec9191475ffed23f0d0985d8222c51e53
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 14 22:34:58 2024 -0400
+
+    cmd/compile: disallow linkname referring to instantiations
+    
+    Linknaming an instantiated generic symbol isn't particularly
+    useful: it doesn't guarantee the instantiation exists, and the
+    instantiated symbol name may be subject to change. Checked with a
+    large code corpus, currently there is no occurrance of linkname
+    to an instantiated generic symbol (or symbol with a bracket in its
+    name). This also suggests that it is not very useful. Linkname is
+    already an unsafe mechanism. We don't need to allow it to do more
+    unsafe things without justification.
+    
+    Change-Id: Ifaa20c98166b28a9d7dc3290c013c2b5bb7682e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585458
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/noder/writer.go | 5 +++++
+ test/linkname3.go                        | 6 +++++-
+ 2 files changed, 10 insertions(+), 1 deletion(-)

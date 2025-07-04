@@ -1,0 +1,47 @@
+commit 0bae74e8c9b5fab3baf61bde0169f4aa5e287bdc
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 30 20:43:53 2016 -0400
+
+    runtime: wake idle Ps when enqueuing GC work
+    
+    If the scheduler has no user work and there's no GC work visible, it
+    puts the P to sleep (or blocks on the network). However, if we later
+    enqueue more GC work, there's currently nothing that specifically
+    wakes up the scheduler to let it start an idle GC worker. As a result,
+    we can underutilize the CPU during GC if Ps have been put to sleep.
+    
+    Fix this by making GC wake idle Ps when work buffers are put on the
+    full list. We already have a hook to do this, since we use this to
+    preempt a random P if we need more dedicated workers. We expand this
+    hook to instead wake an idle P if there is one. The logic we use for
+    this is identical to the logic used to wake an idle P when we ready a
+    goroutine.
+    
+    To make this really sound, we also fix the scheduler to re-check the
+    idle GC worker condition after releasing its P. This closes a race
+    where 1) the scheduler checks for idle work and finds none, 2) new
+    work is enqueued but there are no idle Ps so none are woken, and 3)
+    the scheduler releases its P.
+    
+    There is one subtlety here. Currently we call enlistWorker directly
+    from putfull, but the gcWork is in an inconsistent state in the places
+    that call putfull. This isn't a problem right now because nothing that
+    enlistWorker does touches the gcWork, but with the added call to
+    wakep, it's possible to get a recursive call into the gcWork
+    (specifically, while write barriers are disallowed, this can do an
+    allocation, which can dispose a gcWork, which can put a workbuf). To
+    handle this, we lift the enlistWorker calls up a layer and delay them
+    until the gcWork is in a consistent state.
+    
+    Fixes #14179.
+    
+    Change-Id: Ia2467a52e54c9688c3c1752e1fc00f5b37bbfeeb
+    Reviewed-on: https://go-review.googlesource.com/32434
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/mgc.go     |  8 ++++++++
+ src/runtime/mgcwork.go | 22 ++++++++++++++++------
+ src/runtime/proc.go    | 20 ++++++++++++++++++++
+ 3 files changed, 44 insertions(+), 6 deletions(-)

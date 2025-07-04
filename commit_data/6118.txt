@@ -1,0 +1,15 @@
+commit 1a0b62a16ad755431486f7f2cfe242ce52132e3c
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Thu Aug 26 22:08:02 2010 -0700
+
+    go/printer: align ImportPaths in ImportDecls if PackageName is given.
+    Fixes #1044.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1958047
+
+ src/pkg/go/printer/nodes.go                     |  8 ++--
+ src/pkg/go/printer/testdata/declarations.golden | 52 +++++++++++++++++--------
+ src/pkg/go/printer/testdata/declarations.input  | 20 ++++++++++
+ 3 files changed, 60 insertions(+), 20 deletions(-)

@@ -1,0 +1,14 @@
+commit e7b6fe3989e0d1bae73d1afbdd3da89eec51160f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 21 16:27:31 2010 -0700
+
+    xml: new "innerxml" tag to collect inner XML
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/971041
+
+ src/pkg/xml/read.go      | 47 +++++++++++++++++++++++++++++++++++++++++------
+ src/pkg/xml/read_test.go | 18 +++++++++++-------
+ src/pkg/xml/xml.go       | 14 ++++++++++++++
+ 3 files changed, 66 insertions(+), 13 deletions(-)

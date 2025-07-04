@@ -1,0 +1,12 @@
+commit 29ffa4bd921125b73b04078fd293ecc4bdb9d7cd
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jul 16 15:41:34 2015 +0900
+
+    cmd/go: don't put mycmd in wrong directory
+    
+    Change-Id: Ia7cc1d52211b32a2eb2b3888d621b28d6932aca9
+    Reviewed-on: https://go-review.googlesource.com/12290
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 1 +
+ 1 file changed, 1 insertion(+)

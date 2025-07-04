@@ -1,0 +1,22 @@
+commit 6b309be7ab7c17beb77c6e40b258278e7454d919
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 24 15:55:30 2022 -0700
+
+    cmd/compile/internal/syntax: check fallthrough in CheckBranches mode
+    
+    The parser CheckBranches mode checked correct use of break, continue,
+    and labels, but not of fallthrough statements.
+    
+    This CL adds checking of fallthrough statements as well.
+    
+    For #51456.
+    
+    Change-Id: I5000388011973724f80c59a6aaf015e3bb70faea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414134
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/syntax/branches.go        | 54 ++++++++++++++++-----
+ src/cmd/compile/internal/syntax/error_test.go      |  2 +-
+ .../internal/syntax/testdata/fallthrough.go        | 55 ++++++++++++++++++++++
+ 3 files changed, 97 insertions(+), 14 deletions(-)

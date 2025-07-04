@@ -1,0 +1,20 @@
+commit 5c8f65b9ca3a7db5331083acf7808282a01aa74c
+Author: Martin Sucha <anty.sk+git@gmail.com>
+Date:   Sun May 20 21:01:31 2018 +0200
+
+    crypto/x509: reformat template members in docs
+    
+    It's easier to skim a list of items visually when the
+    items are each on a separate line. Separate lines also
+    help reduce diff size when items are added/removed.
+    
+    The list is indented so that it's displayed preformatted
+    in HTML output as godoc doesn't support formatting lists
+    natively yet (see #7873).
+    
+    Change-Id: Ibf9e92437e4b464ba58ea3ccef579e8df4745d75
+    Reviewed-on: https://go-review.googlesource.com/113915
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/x509.go | 40 ++++++++++++++++++++++++++++++++--------
+ 1 file changed, 32 insertions(+), 8 deletions(-)

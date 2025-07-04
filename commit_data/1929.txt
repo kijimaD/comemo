@@ -1,0 +1,29 @@
+commit 4702c0e5ef6ebccb2f0eda68571d003aebe95329
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 31 15:45:12 2009 -0700
+
+    more 386 runtime:
+            remove use of _subv in vlrt.c
+            darwin/386/signal.c
+            darwin/386/*
+            linux/386/* (forgotten before)
+    
+    can run empty program on darwin/386 now.
+    
+    R=r
+    DELTA=1140  (1021 added, 114 deleted, 5 changed)
+    OCL=26942
+    CL=26968
+
+ src/runtime/386/vlrt.c                  |   5 +-
+ src/runtime/darwin/386/defs.h           | 229 ++++++++++++++++++++++++++++++++
+ src/runtime/darwin/386/rt0.s            |   8 ++
+ src/runtime/darwin/386/signal.c         | 103 ++++++++++++++
+ src/runtime/darwin/386/sys.s            | 223 +++++++++++++++++++++++++++++++
+ src/runtime/darwin/{ => amd64}/signal.c |   0
+ src/runtime/darwin/thread.c             |   6 +-
+ src/runtime/linux/386/defs.h            | 136 +++++++++++++++++++
+ src/runtime/linux/386/rt0.s             |   8 ++
+ src/runtime/linux/386/sys.s             | 222 +++++++++++++++++++++++++++++++
+ src/runtime/runtime.c                   |  11 +-
+ 11 files changed, 939 insertions(+), 12 deletions(-)

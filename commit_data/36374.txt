@@ -1,0 +1,19 @@
+commit e7f59f02841361cbeb75241df6cecb697f47a989
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Aug 20 10:55:26 2018 +0200
+
+    cmd/compile/internal/gc: unexport Deferproc and Newproc
+    
+    They are no longer used outside the package since CL 38080.
+    
+    Passes toolstash-check -all
+    
+    Change-Id: I30977ed2b233b7c8c53632cc420938bc3b0e37c6
+    Reviewed-on: https://go-review.googlesource.com/129781
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/go.go  |  4 ++--
+ src/cmd/compile/internal/gc/ssa.go | 10 +++++-----
+ 2 files changed, 7 insertions(+), 7 deletions(-)

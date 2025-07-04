@@ -1,0 +1,17 @@
+commit d0d0028207568ebc39b3a5284dfc34c10222bf65
+Author: alex-semenyuk <alexsemenyuk88@gmail.com>
+Date:   Sat Apr 18 20:50:34 2020 +0000
+
+    test: remove duplicate code from makechan/makemap
+    
+    Change-Id: Ib9bcfaa12d42bf9d2045aef035080b1a990a8b98
+    GitHub-Last-Rev: bee77a8970b8c4483a8106598721472623cf8ec2
+    GitHub-Pull-Request: golang/go#38047
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225219
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/makechan.go | 6 ------
+ test/makemap.go  | 6 ------
+ 2 files changed, 12 deletions(-)

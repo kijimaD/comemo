@@ -1,0 +1,20 @@
+commit cbc01a3e7683635f5849c48146593829913df37f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 19 17:47:57 2010 -0700
+
+    syscall: add Utimes on Darwin/FreeBSD, add Futimes everywhere
+    
+    Needed for CL 1103041 and beyond.
+    
+    R=adg, bradfitzpatrick
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/1172042
+
+ src/pkg/syscall/mkall.sh                 |  8 +++++++-
+ src/pkg/syscall/syscall_bsd.go           | 22 +++++++++++++++++++---
+ src/pkg/syscall/syscall_linux.go         | 10 ++++++++--
+ src/pkg/syscall/zsyscall_darwin_386.go   | 12 ++++++++++++
+ src/pkg/syscall/zsyscall_darwin_amd64.go | 12 ++++++++++++
+ src/pkg/syscall/zsyscall_linux_386.go    |  4 ++--
+ src/pkg/syscall/zsyscall_linux_amd64.go  |  4 ++--
+ 7 files changed, 62 insertions(+), 10 deletions(-)

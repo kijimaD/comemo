@@ -1,0 +1,24 @@
+commit 15e26698cc206661063c07cf7f0353391604001e
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Thu Sep 22 06:59:42 2022 -0500
+
+    cmd/link: return correct default linker for the platform
+    
+    If no external linker was passed with -extld, link currently assumes
+    that it is "gcc" which is not correct for platforms that use clang
+    toolchain. Return "clang" for platforms that use it, this fixes dir
+    tests on freebsd/riscv64.
+    
+    For #53466
+    
+    Change-Id: Ie3bce1b9581839d0b3b2129908355cd30ae9a713
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432756
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Mikaël Urankar <mikael.urankar@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit aa8d4df9d9b8659abc7bdc1485c11db515ed1479
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Dec 24 07:23:13 2024 +0000
+
+    go/types: propagate *ast.LabeledStmt in blockBranches properly
+    
+    Fixes #70974
+    
+    Change-Id: I330c0ae53dcbcdb173ab514ee94f2ca53944df09
+    GitHub-Last-Rev: 7c2b740da6d6e94ac8787f04ad8942f3776ac56c
+    GitHub-Pull-Request: golang/go#70976
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638257
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/types2/labels.go          | 14 +++++------
+ src/go/types/labels.go                             | 22 +++++++++---------
+ .../types/testdata/check/doubled_labels.go         | 26 +++++++++++++++++++++
+ src/internal/types/testdata/check/issue70974.go    | 27 ++++++++++++++++++++++
+ 4 files changed, 71 insertions(+), 18 deletions(-)

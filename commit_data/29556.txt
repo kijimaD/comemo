@@ -1,0 +1,16 @@
+commit d8b14c524303f8d28bc5b496e918cfbb2758cbc5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 16 19:08:25 2016 +0000
+
+    math/rand: make floating point tests shorter on mips and mipsle
+    
+    Like GOARM=5 does.
+    
+    Fixes #17944
+    
+    Change-Id: Ica2a54a90fbd4a29471d1c6009ace2fcc5e82a73
+    Reviewed-on: https://go-review.googlesource.com/33326
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/math/rand/rand_test.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

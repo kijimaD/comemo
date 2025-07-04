@@ -1,0 +1,16 @@
+commit 8668ac081a8596af97fbeed1bd3ae74d5e93e7d1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 15 11:13:57 2015 -0700
+
+    doc: update gccgo docs for move of gofrontend to git
+    
+    This also includes some other minor updates to the documentation.
+    
+    Change-Id: Iafab353727d7622d125b97fbdeaa81525b7a92aa
+    Reviewed-on: https://go-review.googlesource.com/11123
+    Reviewed-by: Yves Junqueira <yves.junqueira@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/gccgo_contribute.html | 18 ++++++++---------
+ doc/gccgo_install.html    | 51 ++++++++++++++++++++++++++++-------------------
+ 2 files changed, 40 insertions(+), 29 deletions(-)

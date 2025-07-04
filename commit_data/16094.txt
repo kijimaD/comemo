@@ -1,0 +1,12 @@
+commit 485c06622276409d278cff879a9f8b2569cfd01f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 4 16:10:30 2013 +1100
+
+    doc: mention availability of race detector in go1.1 doc
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/8301044
+
+ doc/go1.1.html | 2 ++
+ 1 file changed, 2 insertions(+)

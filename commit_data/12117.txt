@@ -1,0 +1,12 @@
+commit 9a26a7822eb54fc4d0316b4c57bf5b52124bfd92
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 22 10:09:34 2012 +1100
+
+    godoc: fix playground url
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5685070
+
+ doc/root.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

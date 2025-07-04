@@ -1,0 +1,12 @@
+commit 23ca24018a161ccd60f8c72b39bd66d1660604f1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Dec 4 20:37:19 2012 +0900
+
+    doc: clear execute bit
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/6871057
+
+ doc/articles/godoc_documenting_go_code.html | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

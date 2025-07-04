@@ -1,0 +1,15 @@
+commit 98534812bdcdd22b13469ea587e310187876b7d2
+Author: David Chase <drchase@google.com>
+Date:   Mon Apr 6 11:12:26 2020 -0400
+
+    cmd/compile: make logopt test skip if cannot create scratch directory
+    
+    Fixes #38251.
+    
+    Change-Id: Ic635843fb503484a1c9a230b0cca571393d3da5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227339
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

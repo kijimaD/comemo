@@ -1,0 +1,15 @@
+commit 7e9369a517d9ebf867748719948d8cbccec3bc57
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Sep 21 12:10:16 2020 -0400
+
+    cmd/link: add go.mod to TestFuncAlign
+    
+    Fixes #41531
+    
+    Change-Id: I8b4f0d5b7094e56787998d244d8a4c03becb8452
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256302
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/link/link_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

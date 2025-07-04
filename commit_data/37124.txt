@@ -1,0 +1,18 @@
+commit f8153fcd740483b8c341926acd76b4127c17c789
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 9 15:19:36 2018 -0400
+
+    cmd/go/internal/modload: skip fetches of replaced modules in moduleInfo
+    
+    Fixes #27859
+    
+    Change-Id: Ibb459cf41c3a8fe41bb008f60ef6cdd3437a37b1
+    Reviewed-on: https://go-review.googlesource.com/c/140860
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modload/build.go              | 50 ++++++++++++-----------
+ src/cmd/go/testdata/script/mod_replace.txt        | 28 ++++++++++++-
+ src/cmd/go/testdata/script/mod_vendor_replace.txt | 39 ++++++++++++++++++
+ 3 files changed, 93 insertions(+), 24 deletions(-)

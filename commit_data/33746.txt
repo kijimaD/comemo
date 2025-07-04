@@ -1,0 +1,16 @@
+commit 45c57e59072526b27673b51613f2438d35c48de2
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Dec 1 00:19:24 2017 +0100
+
+    os: remove redundant GOOS checks in chown tests
+    
+    The build tags already prevent the tests from being run on windows or
+    plan9, so there is no need to check GOOS again.
+    
+    Change-Id: I74d3c3b7756d9c50f6e5fd4c3e8b0db618fdebbb
+    Reviewed-on: https://go-review.googlesource.com/81295
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/os_unix_test.go | 13 -------------
+ 1 file changed, 13 deletions(-)

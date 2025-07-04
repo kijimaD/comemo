@@ -1,0 +1,65 @@
+commit 8259ac4986db5ce6dbdd9883b0bbd1402bfe7532
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Jan 8 20:03:33 2023 +0000
+
+    encoding/gob: shave off some init time cost
+    
+    Avoid unnecessary allocations when calling reflect.TypeOf;
+    we can use nil pointers, which fit into an interface without allocating.
+    This saves about 1% of CPU time.
+    
+    The builtin types are limited to typeIds between 0 and firstUserId,
+    and since firstUserId is 64, builtinIdToType does not need to be a map.
+    We can simply use an array of length firstUserId, which is simpler.
+    This saves about 1% of CPU time.
+    
+    idToType is similar to firstUserId in that it is a map keyed by typeIds.
+    The difference is that it can grow with the user's types.
+    However, each added type gets the next available typeId,
+    meaning that we can use a growing slice, similar to the case above.
+    nextId then becomes the current length of the slice.
+    This saves about 1% of CPU time.
+    
+    typeInfoMap is stored globally as an atomic.Value,
+    where each modification loads the map, makes a whole copy,
+    adds the new element, and stores the modified copy.
+    This is perfectly fine when the user registers types,
+    as that can happen concurrently and at any point in the future.
+    
+    However, during init time, we sequentially register many types,
+    and the overhead of copying maps adds up noticeably.
+    During init time, use a regular global map instead,
+    which gets replaced by the atomic.Value when our init work is done.
+    This saves about 2% of CPU time.
+    
+    Finally, avoid calling checkId in bootstrapType;
+    we have just called setTypeId, whose logic for getting nextId is simple,
+    so the extra check doesn't gain us much.
+    This saves about 1% of CPU time.
+    
+    Using benchinit, which transforms GODEBUG=inittrace=1 data into Go
+    benchmark compatible output, results in a nice improvement:
+    
+            name         old time/op    new time/op    delta
+            EncodingGob     175µs ± 0%     162µs ± 0%  -7.45%  (p=0.016 n=5+4)
+    
+            name         old alloc/op   new alloc/op   delta
+            EncodingGob    39.0kB ± 0%    36.1kB ± 0%  -7.35%  (p=0.016 n=5+4)
+    
+            name         old allocs/op  new allocs/op  delta
+            EncodingGob       588 ± 0%       558 ± 0%  -5.10%  (p=0.000 n=5+4)
+    
+    Updates #26775.
+    
+    Change-Id: I28618e8b96ef440480e666ef2cd5c4a9a332ef21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460543
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/encoding/gob/debug.go  |  6 ++---
+ src/encoding/gob/decode.go |  8 +++---
+ src/encoding/gob/type.go   | 65 +++++++++++++++++++++++++++++++---------------
+ 3 files changed, 50 insertions(+), 29 deletions(-)

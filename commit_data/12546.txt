@@ -1,0 +1,12 @@
+commit 9fffe45c6551a495f00d5593e941f7f1b1b7e784
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Mar 10 09:35:56 2012 +1100
+
+    crypto/x509: do not forget to free cert context
+    
+    R=golang-dev, krautz, rsc
+    CC=golang-dev
+    https://golang.org/cl/5783059
+
+ src/pkg/crypto/x509/root_windows.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

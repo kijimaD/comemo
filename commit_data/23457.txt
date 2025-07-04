@@ -1,0 +1,20 @@
+commit 2a331ca8bbadfa20fc1790b04ff90eec23b156e8
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 19 12:29:42 2015 -0400
+
+    runtime: document relaxed access to arena_used
+    
+    The unsynchronized accesses to mheap_.arena_used in the concurrent
+    part of the garbage collector look like a problem waiting to happen.
+    In fact, they are safe, but the reason is somewhat subtle and
+    undocumented. This commit documents this reasoning.
+    
+    Related to issue #9984.
+    
+    Change-Id: Icdbf2329c1aa11dbe2396a71eb5fc2a85bd4afd5
+    Reviewed-on: https://go-review.googlesource.com/11254
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/mbarrier.go | 13 +++++++++++++
+ src/runtime/mgcmark.go  |  9 +++++++++
+ 2 files changed, 22 insertions(+)

@@ -1,0 +1,29 @@
+commit 0c2d3f7346d140542953240e75aa4dc99d67e8bd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 23 14:05:54 2015 -0700
+
+    net/http: on Transport body write error, wait briefly for a response
+    
+    From https://github.com/golang/go/issues/11745#issuecomment-123555313 :
+    
+    The http.RoundTripper interface says you get either a *Response, or an
+    error.
+    
+    But in the case of a client writing a large request and the server
+    replying prematurely (e.g. 403 Forbidden) and closing the connection
+    without reading the request body, what does the client want? The 403
+    response, or the error that the body couldn't be copied?
+    
+    This CL implements the aforementioned comment's option c), making the
+    Transport give an N millisecond advantage to responses over body write
+    errors.
+    
+    Updates #11745
+    
+    Change-Id: I4485a782505d54de6189f6856a7a1f33ce4d5e5e
+    Reviewed-on: https://go-review.googlesource.com/12590
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/transport.go      | 26 +++++++++++++++++
+ src/net/http/transport_test.go | 63 +++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 82 insertions(+), 7 deletions(-)

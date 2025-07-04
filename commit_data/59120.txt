@@ -1,0 +1,19 @@
+commit b59b0580a164478877a684ff3c347a15b03b14fe
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Mar 18 16:33:22 2025 -0700
+
+    os: don't wrap os.Getgroups error in tests
+    
+    The error returned is an os.PathError which already provides enough
+    context.
+    
+    Change-Id: Ib9391c00afc56bca673b8086d5dc19cf9b99b285
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658957
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/os_unix_test.go   | 6 +++---
+ src/os/root_unix_test.go | 8 ++++----
+ 2 files changed, 7 insertions(+), 7 deletions(-)

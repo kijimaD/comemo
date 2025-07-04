@@ -1,0 +1,18 @@
+commit aa168ed2cd0614afa7503e3b0eb2b1e38b43384a
+Author: Michael MacInnis <Michael.P.MacInnis@gmail.com>
+Date:   Thu Sep 11 18:39:51 2014 -0700
+
+    syscall: SysProcAttr job control changes
+    
+    Making the child's process group the foreground process group and
+    placing the child in a specific process group involves co-ordination
+    between the parent and child that must be done post-fork but pre-exec.
+    
+    LGTM=iant
+    R=golang-codereviews, gobot, iant, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/131750044
+
+ src/syscall/exec_bsd.go   | 40 ++++++++++++++++++++++++++++++++++++++--
+ src/syscall/exec_linux.go | 40 ++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 76 insertions(+), 4 deletions(-)

@@ -1,0 +1,12 @@
+commit 8e2b0e1cb85bc95115c4d6a5c3bf7a5917dc78b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 14 13:35:52 2013 -0800
+
+    C: add Cosmos Nicolaou (Google CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7314103
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

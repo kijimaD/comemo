@@ -1,0 +1,18 @@
+commit 13617380cab47a0cfba74650f1539fb2e72bb0fa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 19 15:04:48 2020 -0400
+
+    testing: clean up remaining TempDir issues from CL 231958
+    
+    Updates #38850
+    
+    Change-Id: I33f48762f5520eb0c0a841d8ca1ccdd65ecc20c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234583
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/big/link_test.go     | 7 ++++---
+ src/os/readfrom_linux_test.go | 5 +++--
+ src/testing/testing.go        | 5 ++---
+ 3 files changed, 9 insertions(+), 8 deletions(-)

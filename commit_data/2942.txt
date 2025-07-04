@@ -1,0 +1,15 @@
+commit 866b272336674963ec05eb8dde75cfbca6e3c2ca
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 11 17:05:22 2009 -0700
+
+    bug186 - f(iota)
+    
+    R=ken
+    OCL=33051
+    CL=33051
+
+ src/cmd/gc/go.h          |  1 +
+ src/cmd/gc/typecheck.c   | 10 +++++++---
+ src/cmd/gc/walk.c        |  2 +-
+ test/fixedbugs/bug186.go | 18 ++++++++++++++++++
+ 4 files changed, 27 insertions(+), 4 deletions(-)

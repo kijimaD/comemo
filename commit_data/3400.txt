@@ -1,0 +1,19 @@
+commit c51e184538d96ada6a3f0ff1c2d23fa810b313f1
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Sep 29 19:47:05 2009 -0700
+
+    ZLIB deflater.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=222  (219 added, 0 deleted, 3 changed)
+    OCL=35031
+    CL=35129
+
+ src/pkg/compress/zlib/Makefile        |   1 +
+ src/pkg/compress/zlib/reader.go       |  10 +++-
+ src/pkg/compress/zlib/testdata/e.txt  |   1 +
+ src/pkg/compress/zlib/testdata/pi.txt |   1 +
+ src/pkg/compress/zlib/writer.go       | 107 ++++++++++++++++++++++++++++++++++
+ src/pkg/compress/zlib/writer_test.go  | 105 +++++++++++++++++++++++++++++++++
+ 6 files changed, 222 insertions(+), 3 deletions(-)

@@ -1,0 +1,57 @@
+commit bb84f4b5d260d3642ef0a3197a1a5433ed2c2481
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 27 14:51:47 2010 -0700
+
+    changes &x -> x[0:] for array to slice conversion
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1326042
+
+ src/cmd/godoc/godoc.go                       |  2 +-
+ src/pkg/bytes/buffer.go                      |  4 ++--
+ src/pkg/compress/flate/flate_test.go         |  2 +-
+ src/pkg/compress/flate/huffman_bit_writer.go |  2 +-
+ src/pkg/compress/flate/inflate.go            |  2 +-
+ src/pkg/compress/zlib/writer_test.go         |  2 +-
+ src/pkg/crypto/block/ecb_test.go             |  4 ++--
+ src/pkg/crypto/block/xor_test.go             |  2 +-
+ src/pkg/crypto/blowfish/block.go             | 10 +++++-----
+ src/pkg/crypto/blowfish/cipher.go            | 10 +++++-----
+ src/pkg/crypto/md4/md4.go                    |  2 +-
+ src/pkg/crypto/md5/md5.go                    |  2 +-
+ src/pkg/crypto/rand/rand.go                  | 14 +++++++-------
+ src/pkg/crypto/ripemd160/ripemd160.go        |  2 +-
+ src/pkg/crypto/sha1/sha1.go                  |  2 +-
+ src/pkg/crypto/sha256/sha256.go              |  2 +-
+ src/pkg/crypto/sha512/sha512.go              |  2 +-
+ src/pkg/crypto/tls/conn.go                   |  4 ++--
+ src/pkg/debug/elf/file.go                    |  2 +-
+ src/pkg/encoding/ascii85/ascii85.go          | 10 +++++-----
+ src/pkg/encoding/base64/base64.go            |  8 ++++----
+ src/pkg/encoding/git85/git.go                | 10 +++++-----
+ src/pkg/exec/exec.go                         |  2 +-
+ src/pkg/fmt/format.go                        |  2 +-
+ src/pkg/fmt/print.go                         |  2 +-
+ src/pkg/fmt/scan.go                          |  2 +-
+ src/pkg/go/printer/printer.go                |  2 +-
+ src/pkg/http/fs.go                           |  2 +-
+ src/pkg/net/fd.go                            |  6 +++---
+ src/pkg/net/fd_darwin.go                     |  6 +++---
+ src/pkg/net/fd_linux.go                      |  4 ++--
+ src/pkg/net/ipsock.go                        |  4 ++--
+ src/pkg/net/server_test.go                   |  6 +++---
+ src/pkg/net/sock.go                          |  4 ++--
+ src/pkg/net/timeout_test.go                  |  4 ++--
+ src/pkg/os/dir_linux.go                      |  2 +-
+ src/pkg/os/file.go                           |  4 ++--
+ src/pkg/os/os_test.go                        |  2 +-
+ src/pkg/os/sys_linux.go                      |  2 +-
+ src/pkg/patch/git.go                         |  2 +-
+ src/pkg/sort/sort_test.go                    | 18 +++++++++---------
+ src/pkg/syscall/exec.go                      |  2 +-
+ src/pkg/syscall/syscall_linux.go             |  6 +++---
+ src/pkg/syslog/syslog_test.go                |  2 +-
+ src/pkg/tabwriter/tabwriter.go               |  2 +-
+ src/pkg/utf8/utf8_test.go                    |  2 +-
+ 46 files changed, 95 insertions(+), 95 deletions(-)

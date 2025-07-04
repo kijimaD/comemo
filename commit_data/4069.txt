@@ -1,0 +1,15 @@
+commit d3b1565716ddbd7114d0dbb2b59fc6bd900ea85e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 16 08:58:55 2009 -0800
+
+    - Clarify that struct composite literal keys are field names not selectors.
+    - Slight re-phrasing of struct type section since "field name" was not
+    properly introduced.
+    
+    Fixes #164.
+    
+    R=r, rsc, iant
+    https://golang.org/cl/155061
+
+ doc/go_spec.html | 41 ++++++++++++++++++++++-------------------
+ 1 file changed, 22 insertions(+), 19 deletions(-)

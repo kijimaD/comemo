@@ -1,0 +1,18 @@
+commit 5ec139fa78ac6ba3f0f715b6aa9235d36346a4a4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Sep 22 16:49:39 2021 -0400
+
+    runtime: remove unnecessary argument stores for panicIndex etc. on ARM64
+    
+    If register ABI is used, no need to store the arguments to stack.
+    I forgot them in CL 323937.
+    
+    Change-Id: I888af2b547a8fc97d13716bc8e8f3acd5c5bc127
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351609
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/asm_arm64.s | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,0 +1,24 @@
+commit 2809b339b5da46529f3f4529379391f8dd8e3525
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Wed Jun 13 15:43:54 2018 +0200
+
+    syscall/js: improve import functions
+    
+    1. Make import functions not use the js.Value type directly,
+    but only the ref field. This gives more flexibility on the Go side
+    for the js.Value type, which is a preparation for adding
+    garbage collection of js.Value.
+    
+    2. Turn import functions which are methods of js.Value into
+    package-level functions. This is necessary to make vet happy.
+    
+    Change-Id: I69959bf1fbea0a0b99a552a1112ffcd0c024e9b8
+    Reviewed-on: https://go-review.googlesource.com/118656
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/wasm/wasm_exec.js |  60 ++++++++++----------
+ src/syscall/js/js.go   | 145 ++++++++++++++++++++++++++++++-------------------
+ src/syscall/js/js_js.s |  26 ++++-----
+ 3 files changed, 132 insertions(+), 99 deletions(-)

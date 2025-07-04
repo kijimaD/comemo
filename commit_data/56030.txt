@@ -1,0 +1,18 @@
+commit 1eee17dc4e796c2fe60e8f9e82b66c00610adc31
+Author: apocelipes <seve3r@outlook.com>
+Date:   Fri Mar 22 09:04:08 2024 +0000
+
+    path/filepath: use slices to simplify the test code
+    
+    Change-Id: I020ca2ed8a6af60977f2c492cd742f824906d4ec
+    GitHub-Last-Rev: b27fda463058e86eafbe5bd10e5c99e10dd609a8
+    GitHub-Pull-Request: golang/go#66462
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573715
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/path/filepath/match_test.go | 22 ++++++----------------
+ src/path/filepath/path_test.go  |  3 +--
+ 2 files changed, 7 insertions(+), 18 deletions(-)

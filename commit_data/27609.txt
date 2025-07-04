@@ -1,0 +1,12 @@
+commit d7ae8b3c11b027721f0878caac0620ccb7f81048
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 2 09:24:43 2016 +1000
+
+    api: update next.txt
+    
+    Change-Id: I04da6a56382d3bd96e3c849a022618553039b2db
+    Reviewed-on: https://go-review.googlesource.com/23651
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ api/next.txt | 39 +++++++++++++++++++++++++++++++++------
+ 1 file changed, 33 insertions(+), 6 deletions(-)

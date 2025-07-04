@@ -1,0 +1,14 @@
+commit 58795ea31a4cc7241082b6c8c729b1a00e1a5f62
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Sep 22 12:20:56 2010 +1000
+
+    exp/4s, exp/nacl/av: sync to recent exp/draw changes.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2257042
+
+ src/pkg/exp/4s/xs.go         | 58 ++++++++++++++++++++++++--------------------
+ src/pkg/exp/nacl/av/av.go    | 26 ++++++--------------
+ src/pkg/exp/nacl/av/event.go | 31 +++++++++++------------
+ 3 files changed, 56 insertions(+), 59 deletions(-)

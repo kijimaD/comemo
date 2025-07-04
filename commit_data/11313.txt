@@ -1,0 +1,17 @@
+commit 87079cc14c98cb82d98f3e564fe5e89cbd7d8ff6
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jan 22 09:25:47 2012 -0800
+
+    bytes: delete the test for huge buffers
+    It takes too much memory to be reliable and causes
+    trouble on 32-bit machines.
+    Sigh.
+    
+    Fixes #2756.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5567043
+
+ src/pkg/bytes/buffer_test.go | 21 ---------------------
+ 1 file changed, 21 deletions(-)

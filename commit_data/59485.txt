@@ -1,0 +1,26 @@
+commit a632009c4a0b0826871baae7e7ce7804b4089d93
+Author: xieyuschen <xieyuschen@gmail.com>
+Date:   Mon Oct 14 19:11:53 2024 +0800
+
+    cmd/go: support -json flag in go version
+    
+    It supports features described in the issue:
+    
+    * add -json flag for 'go version -m' to print json encoding of
+      runtime/debug.BuildSetting to standard output.
+    * report an error when specifying -json flag without -m.
+    * print build settings on seperated line for each binary
+    
+    Fixes #69712
+    
+    Change-Id: I79cba2109f80f7459252d197a74959694c4eea1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619955
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/alldocs.go                  |  5 ++++-
+ src/cmd/go/internal/version/version.go | 32 ++++++++++++++++++++++++++++----
+ src/cmd/go/testdata/script/version.txt | 23 +++++++++++++++++++++--
+ src/runtime/debug/mod.go               | 21 +++++++++++----------
+ 4 files changed, 64 insertions(+), 17 deletions(-)

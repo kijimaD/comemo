@@ -1,0 +1,24 @@
+commit 3e97294663d978bf8abb7acec7cc615ef2f1ea75
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jul 25 11:02:56 2022 -0400
+
+    runtime/cgo: use frame address to set g0 stack bound
+    
+    For a cgo binary, at startup we set g0's stack bounds using the
+    address of a local variable (&size) in a C function x_cgo_init and
+    the stack size from pthread_attr_getstacksize. Normally, &size is
+    an address within the current stack frame. However, when  it is
+    compiled with ASAN, it may be instrumented to __asan_stack_malloc_0
+    and the address may not live in the current stack frame, causing
+    the stack bound to be set incorrectly, e.g. lo > hi.
+    
+    Using __builtin_frame_address(0) to get the stack address instead.
+    
+    Change-Id: I41df929e5ed24d8bbf3e15027af6dcdfc3736e37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419434
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/cgo/gcc_linux_amd64.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

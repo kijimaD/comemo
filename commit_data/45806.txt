@@ -1,0 +1,18 @@
+commit fdab5be159c508c4c1cf5be84119fd2b38403cdf
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Jun 14 23:47:10 2021 +1000
+
+    doc/go1.17: further revise OpenBSD release notes
+    
+    Simplify and remove forward-compatibility reference, as OpenBSD 6.9 has
+    already been released (1st of May 2021).
+    
+    Updates #44513
+    
+    Change-Id: I0a1abbb397f31d15c80a970edaa9723f894cafa9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327652
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ doc/go1.17.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

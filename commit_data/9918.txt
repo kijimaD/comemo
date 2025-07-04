@@ -1,0 +1,12 @@
+commit 1444a08098c4ae3001d0aa017f505a97bc006806
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 11 08:49:09 2011 -0700
+
+    fmt: fix doc typo
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5252050
+
+ src/pkg/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,45 @@
+commit a55793835f16d0242be18aff4ec0bd13494175bd
+Author: Damien Neil <dneil@google.com>
+Date:   Wed May 18 16:23:28 2022 -0700
+
+    net/http/httputil: add ReverseProxy.Rewrite
+    
+    Add a new Rewrite hook to ReverseProxy, superseding the Director hook.
+    
+    Director does not distinguish between the inbound and outbound request,
+    which makes it possible for headers added by Director to be inadvertently
+    removed before forwarding if they are listed in the inbound request's
+    Connection header. Rewrite accepts a value containing the inbound
+    and outbound requests, with hop-by-hop headers already removed from
+    the outbound request, avoiding this problem.
+    
+    ReverseProxy's appends the client IP to the inbound X-Forwarded-For
+    header by default. Users must manually delete untrusted X-Forwarded-For
+    values. When used with a Rewrite hook, ReverseProxy now strips
+    X-Forwarded-* headers by default.
+    
+    NewSingleHostReverseProxy creates a proxy that does not rewrite the
+    Host header of inbound requests. Changing this behavior is
+    cumbersome, as it requires wrapping the Director function created
+    by NewSingleHostReverseProxy. The Rewrite hook's ProxyRequest
+    parameter provides a SetURL method that provides equivalent
+    functionality to NewSingleHostReverseProxy, rewrites the Host
+    header by default, and can be more easily extended with additional
+    customizations.
+    
+    Fixes #28168.
+    Fixes #50580.
+    Fixes #53002.
+    
+    Change-Id: Ib84e2fdd1d52c610e3887af66f517d4a74e594d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407214
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ api/next/53002.txt                         |   6 +
+ src/net/http/httputil/example_test.go      |   7 +-
+ src/net/http/httputil/reverseproxy.go      | 258 +++++++++++++++++++++--------
+ src/net/http/httputil/reverseproxy_test.go |  99 +++++++++++
+ 4 files changed, 304 insertions(+), 66 deletions(-)

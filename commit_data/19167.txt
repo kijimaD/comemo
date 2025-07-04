@@ -1,0 +1,24 @@
+commit fcf8a775259b491de580048df8720be7acb5799c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 16 11:52:27 2014 -0400
+
+    reflect: correct type descriptor for call of interface method
+    
+    When preparing a call with an interface method, the argument
+    frame holds the receiver "iword", but funcLayout was being
+    asked to write a descriptor as if the receiver were a complete
+    interface value. This was originally caught by running a large
+    program with Debug=3 in runtime/mgc0.c, but the new panic
+    in funcLayout suffices to catch the mistake with the existing
+    tests.
+    
+    Fixes #7748.
+    
+    LGTM=bradfitz, iant
+    R=golang-codereviews, bradfitz, iant
+    CC=golang-codereviews, khr
+    https://golang.org/cl/88100048
+
+ src/pkg/reflect/type.go  |  5 ++++-
+ src/pkg/reflect/value.go | 14 +++++++-------
+ 2 files changed, 11 insertions(+), 8 deletions(-)

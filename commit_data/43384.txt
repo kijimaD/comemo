@@ -1,0 +1,19 @@
+commit 0709e58bee0b268ee2a11629f44e352c41339443
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 20 13:36:57 2020 +0200
+
+    net/http/cgi: preserve env vars on illumos
+    
+    Preserve the same environment variables as on solaris.
+    
+    Spotted while reviewing CL 263577.
+    
+    Change-Id: Id479dcf83d6231e9ef1fd2404b400d10082e1d0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263802
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/cgi/host.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

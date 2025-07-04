@@ -1,0 +1,24 @@
+commit 26899ef3ee7cd3d9e663e6f792c93bb411c863db
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 4 17:01:53 2023 -0700
+
+    go/types, types2: better error message for bad assignment
+    
+    If the LHS of an assignment is neither addressable nor a map expression
+    (and not the blank identifier), explicitly say so for a better error
+    message.
+    
+    For #3117.
+    
+    Change-Id: I4bffc35574fe390a0567e89182b23585eb5a90de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492875
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go     |  2 +-
+ src/go/types/assignments.go                        |  2 +-
+ src/internal/types/testdata/fixedbugs/issue3117.go | 13 +++++++++++++
+ 3 files changed, 15 insertions(+), 2 deletions(-)

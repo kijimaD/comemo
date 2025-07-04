@@ -1,0 +1,17 @@
+commit 1b5b08d10a372ef3e3a21442fade2d2b4e3be343
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 21 10:50:29 2019 +0100
+
+    cmd/nm: fix cgo tests for aix/ppc64
+    
+    This commit handles AIX cgo in cmd/nm tests.
+    
+    Change-Id: I6753a0102e4f2c4c7bd4d7c999f62a0cb3d2183c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164017
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/nm/nm_cgo_test.go |  2 ++
+ src/cmd/nm/nm_test.go     | 11 +++++++++++
+ 2 files changed, 13 insertions(+)

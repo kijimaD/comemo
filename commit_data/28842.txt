@@ -1,0 +1,26 @@
+commit 707a83341b8c7973f4e0fce731fa279c618f233b
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Oct 3 09:49:25 2016 -0700
+
+    database/sql: add option to use named parameter in query arguments
+    
+    Modify the new Context methods to take a name-value driver struct.
+    This will require more modifications to drivers to use, but will
+    reduce the overall number of structures that need to be maintained
+    over time.
+    
+    Fixes #12381
+    
+    Change-Id: I30747533ce418a1be5991a0c8767a26e8451adbd
+    Reviewed-on: https://go-review.googlesource.com/30166
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/convert.go       | 27 +++++++++----
+ src/database/sql/ctxutil.go       | 43 ++++++++++++++++----
+ src/database/sql/driver/driver.go | 18 +++++++--
+ src/database/sql/fakedb_test.go   | 83 ++++++++++++++++++++++++++++++---------
+ src/database/sql/sql.go           | 23 ++++++++++-
+ src/database/sql/sql_test.go      | 47 ++++++++++++++++++++++
+ 6 files changed, 202 insertions(+), 39 deletions(-)

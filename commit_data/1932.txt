@@ -1,0 +1,15 @@
+commit 4b536c1e07e7c2a09b03c18eafd0350c2919b94f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 31 17:33:04 2009 -0700
+
+    test for and fix bug involving reflect v.Interface() and ==.
+    
+    R=r
+    DELTA=156  (149 added, 2 deleted, 5 changed)
+    OCL=26973
+    CL=26973
+
+ src/runtime/iface.c   | 61 ++++++++++++++++++++++++++++++++-
+ src/runtime/runtime.c | 10 +++---
+ test/interface7.go    | 94 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 158 insertions(+), 7 deletions(-)

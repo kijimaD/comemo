@@ -1,0 +1,29 @@
+commit 129c6e449694f14fd27dfed03f7a0c95847ec366
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 6 17:14:27 2019 -0800
+
+    math/big: support new octal prefixes 0o and 0O
+    
+    This CL extends the various SetString and Parse methods for
+    Ints, Rats, and Floats to accept the new octal prefixes.
+    
+    The main change is in natconv.go, all other changes are
+    documentation and test updates.
+    
+    Finally, this CL also fixes TestRatSetString which silently
+    dropped certain failures.
+    
+    Updates #12711.
+    
+    Change-Id: I5ee5879e25013ba1e6eda93ff280915f25ab5d55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165898
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/math/big/floatconv.go      | 14 ++++----
+ src/math/big/floatconv_test.go | 21 ++++++++++++
+ src/math/big/intconv.go        |  5 +--
+ src/math/big/intconv_test.go   |  7 ++++
+ src/math/big/natconv.go        | 76 ++++++++++++++++++++----------------------
+ src/math/big/natconv_test.go   | 33 ++++++++++++++----
+ src/math/big/ratconv_test.go   | 14 +++++---
+ 7 files changed, 112 insertions(+), 58 deletions(-)

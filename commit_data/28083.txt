@@ -1,0 +1,16 @@
+commit 0d23c28526223f5239581e845e0682f704724525
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 26 16:38:06 2016 -0700
+
+    cmd/compile: make dumpdepth a global again
+    
+    Fixes indenting in debug output like -W.
+    
+    Change-Id: Ia16b0bad47428cee71fe036c297731e841ec9ca0
+    Reviewed-on: https://go-review.googlesource.com/27924
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

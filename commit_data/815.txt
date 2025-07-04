@@ -1,0 +1,40 @@
+commit 74e2e087e25dcbd5828cd1bf436e5ef74c1e009c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 6 16:44:17 2008 -0700
+
+    change type names to go live at the name, so that
+    
+            type T struct {
+                    next *T
+            }
+    
+    and
+    
+            type T *struct {
+                    next T
+            }
+    
+    are valid without needing forward declarations.
+    
+    add "type T struct" syntax for forward struct declarations.
+    
+    add "type T interface" syntax, but commented out
+            (need to fix semicolons first)
+    
+    R=ken
+    DELTA=452  (259 added, 115 deleted, 78 changed)
+    OCL=16580
+    CL=16584
+
+ src/cmd/6g/align.c                 |  13 +-
+ src/cmd/6g/cgen.c                  |   7 +-
+ src/cmd/6g/gen.c                   |   5 +-
+ src/cmd/gc/dcl.c                   | 318 ++++++++++++++++++++++++-------------
+ src/cmd/gc/export.c                |   4 +-
+ src/cmd/gc/go.h                    |  18 ++-
+ src/cmd/gc/go.y                    |  59 +++++--
+ src/cmd/gc/subr.c                  |   2 +-
+ src/cmd/gc/walk.c                  |   4 +-
+ test/{bugs => fixedbugs}/bug094.go |   0
+ test/golden.out                    |  10 +-
+ 11 files changed, 292 insertions(+), 148 deletions(-)

@@ -1,0 +1,31 @@
+commit 4635ad047a426f43a4b70cd11ce52b062d0da34f
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Wed Feb 26 14:13:15 2025 -0500
+
+    crypto/tls: align cert decode alert w/ BSSL
+    
+    For malformed client/server certificates in a TLS handshake send
+    a decode_error alert, matching BoringSSL behaviour.
+    
+    Previously crypto/tls used a bad_certificate alert for this purpose.
+    The TLS specification is imprecise enough to allow this to be considered
+    a spec. justified choice, but since all other places in the protocol
+    encourage using decode_error for structurally malformed messages we may
+    as well do the same here and get some extra cross-impl consistency for
+    free.
+    
+    This also allows un-ignoring the BoGo
+    GarbageCertificate-[Client|Server]-[TLS12|TLS13] tests.
+    
+    Updates #72006
+    
+    Change-Id: Ide45ba1602816e71c3289a60e77587266c3b9036
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652995
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/tls/bogo_config.json    | 1 -
+ src/crypto/tls/handshake_client.go | 2 +-
+ src/crypto/tls/handshake_server.go | 2 +-
+ 3 files changed, 2 insertions(+), 3 deletions(-)

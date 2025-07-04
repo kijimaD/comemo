@@ -1,0 +1,14 @@
+commit fbab1f1bade7bcf6749bfa0d7599ad2c16322821
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Mon Sep 27 21:55:04 2010 -0400
+
+    http: support HTTP/1.0 Keep-Alive
+    
+    R=rsc, bradfitz1
+    CC=golang-dev
+    https://golang.org/cl/2261042
+
+ src/pkg/http/request.go  | 11 +++++++++++
+ src/pkg/http/server.go   | 49 +++++++++++++++++++++++++++++++++++-------------
+ src/pkg/http/transfer.go | 13 ++++++++++++-
+ 3 files changed, 59 insertions(+), 14 deletions(-)

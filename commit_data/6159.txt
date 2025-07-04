@@ -1,0 +1,15 @@
+commit 4e645558947725b8577f71dbb14d43e5852611cb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 2 14:19:12 2010 -0400
+
+    runtime: add GOOS, GOARCH; fix FuncLine
+    
+    Changes to FuncLine sync it with symtab.c's funcline.
+    
+    R=r
+    CC=girard.m1, golang-dev
+    https://golang.org/cl/2083041
+
+ src/pkg/runtime/extern.go   | 28 +++++++++++++++++++++-------
+ src/pkg/runtime/mkversion.c |  6 ++++--
+ 2 files changed, 25 insertions(+), 9 deletions(-)

@@ -1,0 +1,27 @@
+commit ef5505335432572678c19e202e0edde61b7c5b95
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 25 13:22:55 2022 -0400
+
+    make.bash: disable GOEXPERIMENT when using bootstrap toolchain
+    
+    When using Go 1.4 this doesn't matter, but when using Go 1.17,
+    the bootstrap toolchain will complain about unknown GOEXPERIMENT settings.
+    Clearly GOEXPERIMENT is for the toolchain being built, not the bootstrap.
+    
+    Already submitted as CL 395879 on the dev.boringcrypto branch,
+    but needed on master to set up GOEXPERIMENT=boringcrypto
+    builder ahead of merge.
+    
+    For #51940.
+    
+    Change-Id: Ib6a4099cca799b4d5df1974cdb5471adb0fd557d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397894
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/make.bash | 4 ++--
+ src/make.bat  | 1 +
+ src/make.rc   | 2 +-
+ 3 files changed, 4 insertions(+), 3 deletions(-)

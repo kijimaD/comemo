@@ -1,0 +1,20 @@
+commit 743f818218c92822ee56d35e816d86a2205ff17a
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Wed Jun 16 10:15:39 2010 -0700
+
+    http: reply to Expect 100-continue requests automatically
+    
+    This CL replaces my earlier https://golang.org/cl/1640044/show
+    in which Continue handling was explicit.  Instead, this CL makes
+    it automatic.  Reading from Body() is an implicit acknowledgement
+    that the request headers were fine and the body is wanted.  In that
+    case, the 100 Continue response is written automatically when the
+    request continues the "Expect: 100-continue" header.
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/1610042
+
+ src/pkg/http/request.go |  5 +++++
+ src/pkg/http/server.go  | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)

@@ -1,0 +1,16 @@
+commit 2b08e952bbe0b0ec20480d493926bcdb41f71396
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 16 17:48:02 2011 +1000
+
+    sort: change the name of Float64Array to Float64Slice.
+    I missed this before because I used the wrong regexp. What a moron.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4639041
+
+ src/pkg/sort/search.go      | 12 ++++++------
+ src/pkg/sort/search_test.go |  2 +-
+ src/pkg/sort/sort.go        | 32 ++++++++++++++++----------------
+ src/pkg/sort/sort_test.go   | 10 +++++-----
+ 4 files changed, 28 insertions(+), 28 deletions(-)

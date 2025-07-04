@@ -1,0 +1,12 @@
+commit 607d5158c18617b9f814291c4414f9bb922e0065
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 13 15:29:09 2015 -0700
+
+    test: add gcc65755.go for http://gcc.gnu.org/PR65755
+    
+    Change-Id: Ic35dff4c9a7fc6716ef9d5553a7b1769bed9be01
+    Reviewed-on: https://go-review.googlesource.com/8892
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ test/fixedbugs/gcc65755.go | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)

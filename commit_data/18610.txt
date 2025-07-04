@@ -1,0 +1,16 @@
+commit 0ef0d6cd7b3898c5f6986d4fdc253ded497d05e2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 24 20:23:03 2014 +0400
+
+    runtime: fix double symbol definition
+    runfinqv is already defined the same way on line 271.
+    There may also be something to fix in compiler/linker wrt diagnostics.
+    Fixes #7375.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, dave, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/67850044
+
+ src/pkg/runtime/mgc0.c | 2 --
+ 1 file changed, 2 deletions(-)

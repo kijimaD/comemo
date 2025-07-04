@@ -1,0 +1,16 @@
+commit ad2c517708ec24a9ce9393cbdf8aa87615f0d709
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 21 13:21:00 2023 -0700
+
+    doc/go1.21: correct GOOS to GOARCH (another location)
+    
+    Change-Id: Ie71bc41bd7f1aecf6ce69a8b310668fdd03da42b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504880
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+
+ doc/go1.21.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

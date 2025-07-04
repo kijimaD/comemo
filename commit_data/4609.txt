@@ -1,0 +1,12 @@
+commit b41c694297d44c5fe107fc4bd6b659c1313e0189
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 18:22:16 2010 -0800
+
+    doc/devel/release.html: fix dumb typo
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/186148
+
+ doc/devel/release.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

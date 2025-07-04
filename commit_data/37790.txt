@@ -1,0 +1,14 @@
+commit b115207baf6c2decc3820ada4574ef4e5ad940ec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 19 18:25:08 2018 -0800
+
+    syscall: document LockOSThread with GNU/Linux SysProcAttr.Ptrace
+    
+    Fixes #28315
+    
+    Change-Id: Ie02c72d02ad2f66c9cdbbba579a304641f327672
+    Reviewed-on: https://go-review.googlesource.com/c/155138
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/exec_linux.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

@@ -1,0 +1,35 @@
+commit 75e7308be8dc13e53b4f39aad67f286e79ac5313
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 20 11:10:17 2013 -0800
+
+    go/types: support for customizable Alignof, Sizeof
+    
+    (Offsetof is a function of Alignof and Sizeof.)
+    
+    - removed IntSize, PtrSize from Context (set Sizeof instead)
+    - GcImporter needs a Context now (it needs to have
+      access to Sizeof/Alignof)
+    - removed exported Size field from Basic (use Sizeof)
+    - added Offset to Field
+    - added Alignment, Size to Struct
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/7357046
+
+ src/pkg/exp/ssa/builder.go             |   8 +--
+ src/pkg/exp/ssa/importer.go            |   2 +-
+ src/pkg/go/types/api.go                |  55 +++++++--------
+ src/pkg/go/types/builtins.go           | 125 ++++++++++++++++++++++++++-------
+ src/pkg/go/types/check.go              |   4 +-
+ src/pkg/go/types/check_test.go         |   2 +-
+ src/pkg/go/types/const.go              |   2 +-
+ src/pkg/go/types/expr.go               |  53 +++++++++++---
+ src/pkg/go/types/gcimporter.go         |  14 ++--
+ src/pkg/go/types/gcimporter_test.go    |   4 +-
+ src/pkg/go/types/operand.go            |  30 ++++----
+ src/pkg/go/types/predicates.go         |  10 +--
+ src/pkg/go/types/resolver_test.go      |   2 +-
+ src/pkg/go/types/testdata/builtins.src |  31 ++++++++
+ src/pkg/go/types/types.go              |   7 +-
+ 15 files changed, 244 insertions(+), 105 deletions(-)

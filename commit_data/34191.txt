@@ -1,0 +1,21 @@
+commit eda39fe9b2bdae054a6d0b93efb9b40cc9d24391
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 14 16:59:36 2018 -0800
+
+    cmd/compile/internal/syntax: fix syntax.Parse doc string, improved tests
+    
+    1) Fix the doc string for syntax.Parse: The returned AST is
+    always nil if there was an error and an error handler is missing.
+    
+    2) Adjust the syntax Print and Dump tests such that they print and
+    dump the AST even in the presence of errors.
+    
+    Change-Id: If658eabdcc83f578d815070bc65d1a5f6cfaddfc
+    Reviewed-on: https://go-review.googlesource.com/94157
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/dumper_test.go  | 10 +++++++---
+ src/cmd/compile/internal/syntax/nodes.go        |  4 ++--
+ src/cmd/compile/internal/syntax/printer_test.go | 12 ++++++++----
+ src/cmd/compile/internal/syntax/syntax.go       |  9 +++++----
+ 4 files changed, 22 insertions(+), 13 deletions(-)

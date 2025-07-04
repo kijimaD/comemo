@@ -1,0 +1,15 @@
+commit 68f91aea57a81bdaab9da045c5ff09cc825da857
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 20 14:02:11 2014 -0700
+
+    runtime: convert memclrBytes to Go
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/131980043
+
+ src/pkg/runtime/alg.go         | 6 ++++++
+ src/pkg/runtime/alg.goc        | 5 -----
+ src/pkg/runtime/export_test.go | 5 +----
+ 3 files changed, 7 insertions(+), 9 deletions(-)

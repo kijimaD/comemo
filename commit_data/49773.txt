@@ -1,0 +1,23 @@
+commit d6ccb4ead9c995ee2bff10079118bf91d1b646e9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 4 12:05:15 2022 -0700
+
+    debug/pe: use correct pe64 test in ImportedSymbols
+    
+    64-bit PE is set by the optional header magic number,
+    not by the machine field.
+    
+    Fixes #54250
+    
+    Change-Id: I4d01bc08553780d5470e63f0b17bbd968323e5d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421394
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/debug/pe/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

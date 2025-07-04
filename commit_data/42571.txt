@@ -1,0 +1,23 @@
+commit 12c01f7698cd257b7d2e4795b0f8a971ec8533b6
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jun 26 16:38:40 2020 -0700
+
+    runtime: ensure arenaBaseOffset makes it into DWARF (for viewcore)
+    
+    This constant does not make it into DWARF because it is an ideal
+    constant larger than maxint (1<<63-1). DWARF has no way to represent
+    signed values that large. Define a different typed constant that
+    is unsigned and so can represent this constant properly.
+    
+    Viewcore needs this constant to interrogate the heap data structures.
+    In addition, the sign of arenaBaseOffset changed in 1.15, and providing
+    a new name lets viewcore detect the sign change easily.
+    
+    Change-Id: I4274a2f6e79ebbf1411e85d64758fac1672fb96b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240198
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/malloc.go | 2 ++
+ 1 file changed, 2 insertions(+)

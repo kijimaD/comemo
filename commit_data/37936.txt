@@ -1,0 +1,19 @@
+commit 6f4dc1ccf9735013fdb7cd044bda29d19bebb906
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Fri Feb 1 13:51:31 2019 +0200
+
+    cmd/cgo: ignore unrecognized GCC warning group pragmas
+    
+    CL 159859 causes build failure with old clang versions (3.4.1) on FreeBSD 10.3/10.4.
+    
+    Update #29962
+    Update #27619
+    
+    Change-Id: I78264ac5d8d17eeae89a982e89aac988eb22b286
+    Reviewed-on: https://go-review.googlesource.com/c/160777
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/out.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

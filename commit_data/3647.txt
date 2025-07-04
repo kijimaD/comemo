@@ -1,0 +1,12 @@
+commit c91e89d5390d369f3f8281cfc0df6309dfb06bce
+Author: Rob Pike <r@golang.org>
+Date:   Sat Oct 24 14:27:49 2009 -0700
+
+    remove reference to p4 in comment.
+    
+    R=gri
+    CC=rsc
+    http://go/go-review/1014008
+
+ src/cmd/godoc/godoc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

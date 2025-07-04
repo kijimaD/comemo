@@ -1,0 +1,15 @@
+commit 7c3577e48f629120604d232c7a3994cf40ae4cda
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 17 12:01:00 2012 -0800
+
+    net/http: fix goroutine leak in error case
+    
+    Fixes #4531
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6937069
+
+ src/pkg/net/http/transport.go      |  1 +
+ src/pkg/net/http/transport_test.go | 39 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+)

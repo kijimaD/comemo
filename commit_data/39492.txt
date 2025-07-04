@@ -1,0 +1,29 @@
+commit 13327f219e5bb0f050eb41f25f9dd07ec3d56f32
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Jul 2 23:56:41 2019 +0200
+
+    encoding/json: obey SetEscapeHTML in all MarshalJSON cases
+    
+    It wasn't obeyed in the case where the MarshalJSON method uses a pointer
+    receiver, and the encoder grabs the address of a value to find that
+    method. addrMarshalerEncoder is the function that does this work, but it
+    ignored opts.escapeHTML.
+    
+    Here's the before and after of the added test case, which was failing
+    before the fix. Now the two cases are correct and consistent.
+    
+            {"NonPtr":"<str>","Ptr":"\u003cstr\u003e"}
+            {"NonPtr":"<str>","Ptr":"<str>"}
+    
+    Fixes #32896.
+    
+    Change-Id: Idc53077ece074973558bd3bb5ad036380db0d02c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184757
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+
+ src/encoding/json/encode.go      |  4 ++--
+ src/encoding/json/stream_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 2 deletions(-)

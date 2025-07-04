@@ -1,0 +1,24 @@
+commit 5a962bfc3408c89a92c064b0c740458f169251ec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 11 11:54:46 2023 -0700
+
+    crypto/internal/nistec: update generator for re-enabled s390x asm
+    
+    CL 404058 modified the generated file p256.go without modifying
+    the generator program. This CL updates the generator program so
+    that it generates the p256.go file currently in the tree.
+    
+    For #52709
+    
+    Change-Id: I86927a8bb84b2e17426b7ba74a86f1aba781628e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483715
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/crypto/internal/nistec/generate.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

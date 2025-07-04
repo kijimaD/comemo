@@ -1,0 +1,17 @@
+commit aee6b1160e790b098b3aaac317a9a373058e871d
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Wed Apr 27 15:47:12 2011 -0400
+
+    runtime: fix mkversion to output valid path separators
+    
+    In a GOROOT path a backslash is a path separator
+    not an escape character. For example, `C:\go`.
+    Fixes gotest error:
+    version.go:3: unknown escape sequence: g
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4437076
+
+ src/pkg/runtime/mkversion.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

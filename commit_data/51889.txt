@@ -1,0 +1,19 @@
+commit 2a3c695c4b8354c942a5096a85df5d355f4e1718
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 1 12:18:39 2023 -0500
+
+    cmd/link: remove special cases for relocations in .go.buildinfo
+    
+    .go.buildinfo has no relocations anymore, as of Go 1.18.
+    
+    Change-Id: I98369c6a0ef07ada770eaa12f6f56c210e812abc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464436
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/data.go  | 8 --------
+ src/cmd/link/internal/ld/xcoff.go | 5 -----
+ 2 files changed, 13 deletions(-)

@@ -1,0 +1,14 @@
+commit e12b1ddc9908602c7307d27a40c5b11529db6200
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Jan 18 20:05:44 2015 -0500
+
+    fmt: reword the document for [n].
+    
+    Fixes #9632.
+    
+    Change-Id: Ic4d7cad8ff62023c1beecd2d62e48eb9258f5306
+    Reviewed-on: https://go-review.googlesource.com/3013
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

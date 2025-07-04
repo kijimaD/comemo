@@ -1,0 +1,23 @@
+commit 3313bbb4055f38f53cd43c6c5782a229f445f230
+Author: David Chase <drchase@google.com>
+Date:   Thu Dec 14 14:20:12 2023 -0500
+
+    runtime: add race annotations in IncNonDefault
+    
+    Also use CompareAndSwap to make the code actually less racy.
+    
+    Added a test which will be meaningful when run under the race
+    detector (tested it -race with broken fix in runtime, it failed).
+    
+    Fixes #64649
+    
+    Change-Id: I5972e08901d1adc8ba74858edad7eba91be1b0ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549796
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/godebug/godebug_test.go | 31 +++++++++++++++++++++++++++++++
+ src/runtime/runtime.go               | 10 +++++++++-
+ 2 files changed, 40 insertions(+), 1 deletion(-)

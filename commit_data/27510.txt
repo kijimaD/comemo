@@ -1,0 +1,20 @@
+commit 786e51d7baf6535290ecb0f34c9e73d7dcc21b02
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 24 16:53:48 2016 -0700
+
+    cmd/compile: add generated tests for constant folding
+    
+    Covers a bunch of constant-folding rules in generic.rules that aren't
+    being covered currently.
+    
+    Increases coverage in generic.rules from 65% to 72%.
+    
+    Change-Id: I7bf58809faf22e97070183b42e6dd7d3f35bf5f9
+    Reviewed-on: https://go-review.googlesource.com/23407
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
+
+ src/cmd/compile/internal/gc/constFold_test.go      | 12416 +++++++++++++++++++
+ .../internal/gc/testdata/gen/constFoldGen.go       |   224 +
+ 2 files changed, 12640 insertions(+)

@@ -1,0 +1,17 @@
+commit 16398894dccf06e34af8fb1c7cff6eed9b163057
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Feb 22 13:27:39 2018 -0500
+
+    internal/trace: remove backlinks from span/task end to start
+    
+    Even though undocumented, the assumption is the Event's link field
+    points to the following event in the future. The new span/task event
+    processing breaks the assumption.
+    
+    Change-Id: I4ce2f30c67c4f525ec0a121a7e43d8bdd2ec3f77
+    Reviewed-on: https://go-review.googlesource.com/96395
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/trace/annotations.go | 103 +++++++++++++++++++++++++++++--------------
+ src/internal/trace/parser.go |  11 +++--
+ 2 files changed, 76 insertions(+), 38 deletions(-)

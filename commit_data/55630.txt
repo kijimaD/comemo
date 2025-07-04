@@ -1,0 +1,25 @@
+commit a3c35430fc0a67b5c8af6d57d21e2881929076ac
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Feb 16 14:32:27 2024 +0800
+
+    runtime/internal/syscall: merge duplicate constants
+    
+    Change-Id: Ifdc6e22d52317cdb90a607ac4d72437d4d6b33e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564716
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/internal/syscall/defs_linux.go         | 12 +++++++++++-
+ src/runtime/internal/syscall/defs_linux_386.go     | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_amd64.go   | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_arm.go     | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_arm64.go   | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_loong64.go | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_mips64x.go | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_mipsx.go   | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_ppc64x.go  | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_riscv64.go | 12 +-----------
+ src/runtime/internal/syscall/defs_linux_s390x.go   | 12 +-----------
+ 11 files changed, 21 insertions(+), 111 deletions(-)

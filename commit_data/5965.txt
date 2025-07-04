@@ -1,0 +1,26 @@
+commit c78be462a0f5446c21211dcacf1eac81336d85dd
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 6 06:14:41 2010 +1000
+
+    once: replace all uses of package once with sync.Once.
+    package once remains for now; will be deleted after next release.
+    
+    R=golang-dev, brainman
+    CC=golang-dev
+    https://golang.org/cl/1914046
+
+ src/pkg/crypto/tls/common.go        | 4 +++-
+ src/pkg/mime/type.go                | 3 ++-
+ src/pkg/net/dnsclient.go            | 8 +++++---
+ src/pkg/net/fd.go                   | 4 ++--
+ src/pkg/net/fd_windows.go           | 8 +++++---
+ src/pkg/net/iprawsock.go            | 6 ++++--
+ src/pkg/net/port.go                 | 5 +++--
+ src/pkg/os/env.go                   | 3 ++-
+ src/pkg/rpc/server_test.go          | 3 ++-
+ src/pkg/time/tick.go                | 6 ++++--
+ src/pkg/time/zoneinfo.go            | 3 ++-
+ src/pkg/time/zoneinfo_unix.go       | 7 ++++---
+ src/pkg/time/zoneinfo_windows.go    | 7 ++++---
+ src/pkg/websocket/websocket_test.go | 3 ++-
+ 14 files changed, 44 insertions(+), 26 deletions(-)

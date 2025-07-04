@@ -1,0 +1,20 @@
+commit b03b1acfb0bb6c605a70987dfaf5bb922c792e82
+Author: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
+Date:   Wed Sep 11 09:58:04 2024 -0500
+
+    cmd/internal/obj/ppc64: add double-decimal arithmetic instructions
+    
+    Assembler support provided for the instructions DADD, DSUB, DMUL, and DDIV.
+    
+    Change-Id: Ic12ba02ce453cb1ca275334ca1924fb2009da767
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620856
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  8 ++++++++
+ src/cmd/internal/obj/ppc64/a.out.go       |  4 ++++
+ src/cmd/internal/obj/ppc64/anames.go      |  4 ++++
+ src/cmd/internal/obj/ppc64/asm9.go        | 13 +++++++++++++
+ 4 files changed, 29 insertions(+)

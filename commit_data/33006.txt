@@ -1,0 +1,30 @@
+commit 320b0cdd77f1ea997acc9bf1fbb8dafbbdddca6c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Oct 8 18:29:45 2017 +0100
+
+    cmd/vet: skip self-assigns with side effects
+    
+    The existing logic for whether the left and right parts of an assignment
+    were equal only checked that the gofmt representation of the two was
+    equal. This only checks that the ASTs were equal.
+    
+    However, that method is flawed. For example, if either of the
+    expressions contains a function call, the expressions may actually be
+    different even if their ASTs are the same. An obvious case is a func
+    call to math/rand to get a random integer, such as the one added in the
+    test.
+    
+    If either of the expressions may have side effects, simply skip the
+    check. Reuse the logic from bool.go's hasSideEffects.
+    
+    Fixes #22174.
+    
+    Change-Id: Ied7f7543dc2bb8852e817230756c6d23bc801d90
+    Reviewed-on: https://go-review.googlesource.com/69116
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/assign.go          |  3 +++
+ src/cmd/vet/testdata/assign.go | 15 ++++++++++++++-
+ 2 files changed, 17 insertions(+), 1 deletion(-)

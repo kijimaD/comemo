@@ -1,0 +1,23 @@
+commit b8df1465ccd8a45f8c7da66757ef18ad71c115fe
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Apr 19 11:00:35 2011 -0400
+
+    crypto/openpgp: better handling of keyrings.
+    
+      * Accept armored private key blocks
+      * If an armored block is missing, return an InvalidArgumentError,
+        rather than ignoring it.
+      * If every key in a block is skipped due to being unsupported,
+        return the last unsupported error.
+      * Include the numeric type of unsupported public keys.
+      * Don't assume that the self-signature comes immediately after the
+        user id packet.
+    
+    R=bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4434048
+
+ src/pkg/crypto/openpgp/keys.go              | 63 +++++++++++++++++++----------
+ src/pkg/crypto/openpgp/packet/public_key.go |  3 +-
+ src/pkg/crypto/openpgp/read_test.go         | 51 +++++++++++++++++++++++
+ 3 files changed, 94 insertions(+), 23 deletions(-)

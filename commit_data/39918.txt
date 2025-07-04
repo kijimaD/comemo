@@ -1,0 +1,17 @@
+commit 115e4c9c14779f2561de4299b5748b98d7dd8cf0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 16 14:59:32 2019 -0700
+
+    test: add test coverage for type-switch hash collisions
+    
+    This CL expands the test for #29612 to check that type switches also
+    work correctly when type hashes collide.
+    
+    Change-Id: Ia153743e6ea0736c1a33191acfe4d8ba890be527
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195782
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue29612.dir/main.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

@@ -1,0 +1,22 @@
+commit a3434b71a349b396bef43921732709c3a5f54f23
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Feb 14 15:00:38 2022 -0500
+
+    cmd: add a new goexperiment for redesigned code coverage
+    
+    Add a new "coverageredesign" GOEXPERIMENT (currently off by default),
+    for gating the use of the new code coverage design/implementation.
+    
+    Updates #51430.
+    
+    Change-Id: Ia61da869fcd0d61c6163f734e2fe5e3705f37a91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395894
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/internal/goexperiment/exp_coverageredesign_off.go | 9 +++++++++
+ src/internal/goexperiment/exp_coverageredesign_on.go  | 9 +++++++++
+ src/internal/goexperiment/flags.go                    | 4 ++++
+ 3 files changed, 22 insertions(+)

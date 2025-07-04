@@ -1,0 +1,15 @@
+commit 35b80eac7d2ba6cd632b3dc195f8588d95212fbf
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Feb 14 11:19:39 2021 +0100
+
+    hash/maphash: remove duplicate from Hash documentation
+    
+    Fixes #44255
+    
+    Change-Id: I14d2edbee0a0c39e04111414a57d70ee2fdfb6af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291631
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/hash/maphash/maphash.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

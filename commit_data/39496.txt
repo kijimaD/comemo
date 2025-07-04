@@ -1,0 +1,12 @@
+commit c893ea8f8b5fc824b1fdd0b2e56d0cda5eacb02b
+Author: Alexander Rakoczy <alex@golang.org>
+Date:   Mon Jul 8 14:19:07 2019 -0400
+
+    doc: document Go 1.12.7
+    
+    Change-Id: Id5d2f4cc6bc310bed2516ce0f50c395802475f66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185258
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

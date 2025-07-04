@@ -1,0 +1,14 @@
+commit 31c07dfddf022c07e82c63f37c66825e1dfc2aa7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 15 15:22:51 2010 -0700
+
+    gc: issue 901
+    
+    Fixes #901.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1674049
+
+ src/cmd/gc/walk.c | 7 +++++++
+ 1 file changed, 7 insertions(+)

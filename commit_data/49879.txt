@@ -1,0 +1,24 @@
+commit f3c39a83a3076eb560c7f687cbb35eef9b506e7d
+Author: Ludi Rehak <ludi317@gmail.com>
+Date:   Sat Jun 11 22:14:37 2022 -0700
+
+    all: replace hand-rolled atomicBool types with atomic.Bool
+    
+    Two packages construct atomic booleans from atomic integers.
+    Replace these implementations with the new atomic.Bool type.
+    Indeed, these packages were the impetus for the new atomic.Bool
+    type, having demonstrated a need to access boolean values
+    atomically.
+    
+    Change-Id: I6a0314f8e7d660984a6daf36a62ed05a0eb74b2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411400
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/internal/poll/fd_plan9.go | 26 +++++++-----------
+ src/net/http/client.go        |  7 +++--
+ src/net/http/server.go        | 64 ++++++++++++++++++++-----------------------
+ 3 files changed, 43 insertions(+), 54 deletions(-)

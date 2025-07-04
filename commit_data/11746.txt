@@ -1,0 +1,12 @@
+commit eb02b9cf9c2593d135b504a22f404f33d733e1b7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 10 09:44:56 2012 +1100
+
+    encoding/hex: vet the test prints
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5642075
+
+ src/pkg/encoding/hex/hex_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

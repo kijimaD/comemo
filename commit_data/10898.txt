@@ -1,0 +1,19 @@
+commit b9697d4a58bfd6dd99e03123c3d53e4f1b035787
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 20 09:59:09 2011 -0800
+
+    go/ast, parser: remember short variable decls. w/ correspoding ident objects
+    
+    The ast.Object's Decl field pointed back to the corresponding declaration for
+    all but short variable declarations. Now remember corresponding assignment
+    statement in the Decl field.
+    
+    Also: simplified some code for parsing select statements.
+    
+    R=golang-dev, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5492072
+
+ src/pkg/go/ast/scope.go     |  8 +++++-
+ src/pkg/go/parser/parser.go | 62 ++++++++++++++++++++++-----------------------
+ 2 files changed, 37 insertions(+), 33 deletions(-)

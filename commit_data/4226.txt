@@ -1,0 +1,19 @@
+commit b5358e06309f2013d54bbee296fa8ed7db2530de
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 25 13:30:30 2009 -0800
+
+    a few utf8 benchmarks. on my mac:
+    
+    utf8_test.BenchmarkRuneCountTenASCIIChars       20000000               108 ns/op
+    utf8_test.BenchmarkRuneCountTenJapaneseChars    10000000               199 ns/op
+    utf8_test.BenchmarkEncodeASCIIRune      500000000                6 ns/op
+    utf8_test.BenchmarkEncodeJapaneseRune   100000000               10 ns/op
+    utf8_test.BenchmarkDecodeASCIIRune      100000000               13 ns/op
+    utf8_test.BenchmarkDecodeJapaneseRune   100000000               21 ns/op
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/161049
+
+ src/pkg/utf8/utf8_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

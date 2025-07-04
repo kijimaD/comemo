@@ -1,0 +1,14 @@
+commit 7525e085d26d85a3f104f9abdcf3a47e937aa0ff
+Author: Rob Pike <r@golang.org>
+Date:   Sun Mar 22 21:02:17 2009 -0700
+
+    bug141 is fixed
+    
+    R=ken
+    DELTA=56  (26 added, 30 deleted, 0 changed)
+    OCL=26628
+    CL=26628
+
+ test/{bugs => fixedbugs}/bug141.go | 0
+ test/golden.out                    | 4 ----
+ 2 files changed, 4 deletions(-)

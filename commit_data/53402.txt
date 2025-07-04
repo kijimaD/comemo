@@ -1,0 +1,18 @@
+commit 4406e8ef4695fbe5c04b615d18704e83dc57ffc5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 31 11:51:28 2023 -0700
+
+    doc/go1.21: mention upgrade to Unicode 15.0.0
+    
+    For #48621
+    For #55079
+    
+    Change-Id: I279b4fbf07d2fa9de9577559a4e17a57f5692aa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499618
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.21.html | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

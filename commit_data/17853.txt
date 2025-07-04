@@ -1,0 +1,14 @@
+commit 7307ffa7cd97bb6a290914efd856a8ae4076e6e5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 29 17:38:43 2013 -0700
+
+    database/sql: document Result methods
+    
+    Fixes #5110
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/19280046
+
+ src/pkg/database/sql/sql.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

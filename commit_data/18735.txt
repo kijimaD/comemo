@@ -1,0 +1,22 @@
+commit c7157bf44926f489c5db1c830748d9072d17852f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 4 09:58:54 2014 -0800
+
+    crypto/cipher: fix AEAD.Open documentation nit
+    
+    It mentioned true and false for error values. Instead, just
+    don't mention the error semantics, as they match normal Go
+    conventions (if error is non-nil, the other value is
+    meaningless). We generally only document error values when
+    they're interesting (where non-nil, non-nil is valid, or the
+    error value can be certain known values or types).
+    
+    Fixes #7464
+    
+    LGTM=agl
+    R=agl
+    CC=golang-codereviews
+    https://golang.org/cl/68440044
+
+ src/pkg/crypto/cipher/gcm.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

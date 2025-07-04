@@ -1,0 +1,27 @@
+commit 336f951b07645e3c5ce8d624b1af0dcd5a80b948
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 5 16:43:08 2019 -0700
+
+    cmd/compile: add ORESULT, remove OINDREGSP
+    
+    This change is mostly cosmetic.
+    
+    OINDREGSP was used only for reading the results of a function call.
+    In recognition of that fact, rename it to ORESULT.
+    Along the way, trim down our handling of it to the bare minimum,
+    and rely on the increased clarity of ORESULT to inline nodarg.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I25b177df4ea54a8e94b1698d044c297b7e453c64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170705
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go       |   3 -
+ src/cmd/compile/internal/gc/op_string.go | 164 ++++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/gc/ssa.go       |   7 +-
+ src/cmd/compile/internal/gc/syntax.go    |   4 +-
+ src/cmd/compile/internal/gc/walk.go      |  35 ++-----
+ 5 files changed, 174 insertions(+), 39 deletions(-)

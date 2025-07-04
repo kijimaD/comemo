@@ -1,0 +1,38 @@
+commit 91e782106ea465acc6a4c719081cefb690b28533
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Dec 27 16:38:48 2021 +0800
+
+    runtime: fix the issue that the -asan option cannot print where the error occurred
+    
+    The current -asan option does not print where the error occurred. The
+    reason is that the current implementation calls incorrect asan runtime
+    functions, which do not pass sp and pc where asan runtime functions are
+    called, and report the stack trace from the native code. But asan runtime
+    functions are called from cgo on a separated stack, so it cannot dump the
+    Go stack trace correctly.
+    
+    The correct asan runtime function we should call is __asan_report_error,
+    which will pass sp and pc, and report where the error occurred correctly.
+    
+    This patch fixes this issue.
+    
+    Add the test cases.
+    
+    Fixes #50362
+    
+    Change-Id: I12ee1d46c7ae069ddef3d23f2fe86e112db60045
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374395
+    Trust: Fannie Zhang <Fannie.Zhang@arm.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testsanitizers/asan_test.go           | 13 +++++++----
+ misc/cgo/testsanitizers/cc_test.go             |  2 ++
+ misc/cgo/testsanitizers/testdata/asan1_fail.go |  2 +-
+ misc/cgo/testsanitizers/testdata/asan2_fail.go |  2 +-
+ src/runtime/asan.go                            | 25 ++++++++++++++++-----
+ src/runtime/asan/asan.go                       | 31 ++++----------------------
+ src/runtime/asan_amd64.s                       | 20 ++++++++++++-----
+ src/runtime/asan_arm64.s                       | 24 ++++++++++++--------
+ 8 files changed, 66 insertions(+), 53 deletions(-)

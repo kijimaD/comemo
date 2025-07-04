@@ -1,0 +1,34 @@
+commit 4224d81fae7bfce98629894d14f4644018037cfb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 20 00:06:10 2015 -0400
+
+    cmd/internal/gc: inline x := y.(*T) and x, ok := y.(*T)
+    
+    These can be implemented with just a compare and a move instruction.
+    Do so, avoiding the overhead of a call into the runtime.
+    
+    These assertions are a significant cost in Go code that uses interface{}
+    as a safe alternative to C's void* (or unsafe.Pointer), such as the
+    current version of the Go compiler.
+    
+    *T here includes pointer to T but also any Go type represented as
+    a single pointer (chan, func, map). It does not include [1]*T or struct{*int}.
+    That requires more work in other parts of the compiler; there is a TODO.
+    
+    Change-Id: I7ff681c20d2c3eb6ad11dd7b3a37b1f3dda23965
+    Reviewed-on: https://go-review.googlesource.com/7862
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/gc/builtin.go         |   1 +
+ src/cmd/internal/gc/builtin/runtime.go |   1 +
+ src/cmd/internal/gc/cgen.go            |  38 ++++----
+ src/cmd/internal/gc/gen.go             | 163 +++++++++++++++++++++++++++++++++
+ src/cmd/internal/gc/go.go              |   1 +
+ src/cmd/internal/gc/lex.go             |   5 +-
+ src/cmd/internal/gc/order.go           |  12 ++-
+ src/cmd/internal/gc/typecheck.go       |   4 +-
+ src/cmd/internal/gc/walk.go            |  52 +++++++++--
+ src/runtime/error.go                   |  19 ----
+ src/runtime/iface.go                   |   8 ++
+ test/interface/assertinline.go         |  53 +++++++++++
+ 12 files changed, 303 insertions(+), 54 deletions(-)

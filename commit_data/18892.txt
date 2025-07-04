@@ -1,0 +1,15 @@
+commit f081e2b9f41c8f4c1eec78180cbcaeab17f10f65
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue Mar 18 21:47:21 2014 +0100
+
+    cmd/go: let build -x output describe CGO_LDFLAGS env variable
+    
+    Fixes #7249
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/75820046
+
+ src/cmd/go/build.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

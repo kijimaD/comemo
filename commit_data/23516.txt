@@ -1,0 +1,15 @@
+commit 834fef80ae025fdeaeeb210803d63634b76ddedd
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jun 8 17:45:54 2015 +1000
+
+    test: add test case for issue 8154
+    
+    Updates #8154
+    
+    Change-Id: Ie9c731a91b008277e51c723eef6871bb0919fa4c
+    Reviewed-on: https://go-review.googlesource.com/10831
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ test/fixedbugs/issue8154.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

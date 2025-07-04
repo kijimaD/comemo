@@ -1,0 +1,25 @@
+commit ba965640a45f5d94976c3ad6c92396cab539155a
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Mar 17 17:48:57 2019 +0100
+
+    cmd/link/internal/ld: enable bitcode builds for iOS, tvOS, watchOS
+    
+    The Go toolchain cannot output bitcode, but there is a trick where
+    object code can be marked with an __asm section, persuading the
+    Apple toolchain to include our object code in bitcode builds.
+    
+    This enables Go builds with bitcode enabled; the next CL adds
+    the necessary plumbing for building on tvOS and watchOS.
+    
+    Thanks to Aman Gupta for the trick.
+    
+    Test is added two CLs from here.
+    
+    Fixes #22395 (at least until Apple tightens bitcode requirements.)
+    
+    Change-Id: Ic1c1448c4d46222bb3dd097b1f4df80848051e5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168320
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/macho.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

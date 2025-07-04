@@ -1,0 +1,12 @@
+commit e5102b35f6afaaf5a829768710d15924c126aeeb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 20 16:50:51 2012 -0700
+
+    doc: remove reference to deleted os.ENOSPC
+    
+    R=golang-dev, gri, r, r
+    CC=golang-dev
+    https://golang.org/cl/5866046
+
+ doc/effective_go.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

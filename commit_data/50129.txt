@@ -1,0 +1,20 @@
+commit d7a3fa120db1f8ab9e02ea8fccd0cc8699bf9382
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Aug 25 14:41:23 2022 +0800
+
+    reflect: FuncOf support more than 50 arguments
+    
+    Fixes #54669
+    
+    Change-Id: I34cbe729d187437ddeafbaa910af6ed001b2603f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425461
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/reflect/all_test.go | 7 +++++++
+ src/reflect/type.go     | 4 +---
+ 2 files changed, 8 insertions(+), 3 deletions(-)

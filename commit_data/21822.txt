@@ -1,0 +1,38 @@
+commit 621d75999f37a5f358c94d6e467b4fe93a377b46
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 28 14:24:28 2015 -0500
+
+    all: mv 5a old5a and so on
+    
+    This CL will break any uses of 'go tool 5a' etc.
+    That is intentional.
+    Code that invokes an assembler directly should be updated to use go tool asm.
+    
+    We plan to keep the old5a around for bit-for-bit verification during
+    the release testing phase, but we plan to remove those tools for the
+    actual release. Renaming the directory now makes sure that lingering
+    references to 'go tool 5a' will be caught, changed to use asm, and
+    tested during the release evaluation.
+    
+    Change-Id: I98748a7ddb34cc7f1b151c2ef421d3656821f5c2
+    Reviewed-on: https://go-review.googlesource.com/6366
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/dist/build.go           | 10 +++++-----
+ src/cmd/dist/buildtool.go       |  8 ++++----
+ src/cmd/go/build.go             |  2 +-
+ src/cmd/go/pkg.go               |  8 ++++----
+ src/cmd/{5a => old5a}/a.y       |  0
+ src/cmd/{5a => old5a}/lex.go    |  0
+ src/cmd/{5a => old5a}/y.go      |  0
+ src/cmd/{6a => old6a}/a.y       |  0
+ src/cmd/{6a => old6a}/lex.go    |  0
+ src/cmd/{6a => old6a}/y.go      |  0
+ src/cmd/{8a => old8a}/a.y       |  0
+ src/cmd/{8a => old8a}/lex.go    |  0
+ src/cmd/{8a => old8a}/y.go      |  0
+ src/cmd/{9a => old9a}/a.y       |  0
+ src/cmd/{9a => old9a}/lex.go    |  0
+ src/cmd/{9a => old9a}/y.go      |  0
+ src/debug/gosym/pclntab_test.go |  2 +-
+ 17 files changed, 15 insertions(+), 15 deletions(-)

@@ -1,0 +1,22 @@
+commit 94e3a304524b6090686ace233a8bba97aa4f306a
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Oct 17 15:33:45 2017 -0400
+
+    cmd/cover: don't try to attach directives to synthetic decls
+    
+    Fixed an error that occurred in atomic mode. cover adds a global
+    variable declaration that forces sync/atomic to be used. fixDirectives
+    was confused by this declaration since it has an invalid
+    position. These declarations are now skipped.
+    
+    Fixes #22309
+    
+    Change-Id: I84f5fec13ef847fca35ad49f7704fb93b60503e0
+    Reviewed-on: https://go-review.googlesource.com/71351
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/cover/cover.go      | 31 +++++++++++++++++++++++++------
+ src/cmd/cover/cover_test.go |  4 ++--
+ 2 files changed, 27 insertions(+), 8 deletions(-)

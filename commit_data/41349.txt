@@ -1,0 +1,39 @@
+commit 7855d6835d3a27e967a0c2d748f9f39305e7ba47
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Jan 4 19:45:38 2020 +0900
+
+    cmd/compile: add a script to measure ssa/gen's coverage
+    
+    Since rulegen is only tested by inspecting and running its output code,
+    we have no good way to see if any chunks of its source are actually
+    being unused.
+    
+    Code coverage only works as part of 'go test', since it needs to
+    instrument our code. Add a script that sets up a tiny test for that
+    purpose, with a quick example on how to use it.
+    
+    We need to use a script, because there's no other way to make this work
+    without breaking 'go run *.go'. It's far more common to run the
+    generator than to obtain a coverage profile, so this solution seems like
+    the right tradeoff, and we don't break existing users.
+    
+    The script isn't terribly portable, but that's okay for now.
+    
+    At the time of wriging, coverage sits at 89.7%. I've manually skimmed
+    main.go and rulegen.go, and practically all unused code is either error
+    handling, or optional code like *genLog and "if false". A couple of
+    small exceptions stand out, though I'm not paying attention to them in
+    this CL.
+    
+    While at it, inline a couple of tiny unusedInspector methods that were
+    only needed once or twice.
+    
+    Change-Id: I78c5fb47c8536d70e546a437637d4428ec7adfaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212760
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/cover.bash | 26 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 24 +++++++++---------------
+ 2 files changed, 35 insertions(+), 15 deletions(-)

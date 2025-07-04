@@ -1,0 +1,22 @@
+commit bb31217579974587871a6b7d278ec186f93df126
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Sep 2 17:32:58 2017 +0200
+
+    runtime: move map ismapkey check to the compiler
+    
+    Remove the runtime ismapkey check from makemap and
+    add a check that the map key type supports comparison
+    to the hmap construction in the compiler.
+    
+    Move the ismapkey check for the reflect code path
+    into reflect_makemap.
+    
+    Change-Id: I718f79b0670c05b63ef31721e72408f59ec4ae86
+    Reviewed-on: https://go-review.googlesource.com/61035
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 3 +++
+ src/runtime/hashmap.go                 | 7 +++----
+ 2 files changed, 6 insertions(+), 4 deletions(-)

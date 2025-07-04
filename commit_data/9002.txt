@@ -1,0 +1,15 @@
+commit 96bbcc4256b345ed7d30b1b5bac79dc31178950c
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 11 14:43:21 2011 +1000
+
+    exp/template: documentation glitches and typos.
+    Also explain that len(v)==0 makes v a 'zero value'
+    in template execution.
+    
+    R=golang-dev, dsymonds, adg, r
+    CC=golang-dev
+    https://golang.org/cl/4691041
+
+ src/pkg/exp/template/doc.go    | 24 ++++++++++++++++++------
+ src/pkg/exp/template/helper.go |  8 ++++----
+ 2 files changed, 22 insertions(+), 10 deletions(-)

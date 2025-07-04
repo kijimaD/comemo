@@ -1,0 +1,19 @@
+commit c9529e02c1454de4e88f402df666cdccec25a744
+Author: Bobby Powers <bobbypowers@gmail.com>
+Date:   Sat Apr 7 10:51:32 2012 +1000
+
+    time: in Format give buffer an initial capacity
+    
+    I have a small web server that simply sets several cookies
+    along with an expires header, and then returns.  In the
+    cpuprofile for a 200k request benchmark, time.Time.Format()
+    was showing up as 8.3% of cpu usage.  Giving the buffer an
+    inital capacity to avoid reallocs on append drops it down to
+    7.6%.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5992058
+
+ src/pkg/time/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

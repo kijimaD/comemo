@@ -1,0 +1,21 @@
+commit f78efc0178d51c02beff8a8203910dc0a9c6e953
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Sep 8 11:29:09 2022 +0000
+
+    runtime: convert timer.status to atomic type
+    
+    For #53821
+    
+    Change-Id: I7cb6a16626964d5023b96609d9921bfe4a679d8f
+    GitHub-Last-Rev: ddfce125be4aa565aa4d2081841c649bf2f71459
+    GitHub-Pull-Request: golang/go#54865
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428196
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/time.go | 87 +++++++++++++++++++++++++++--------------------------
+ 1 file changed, 44 insertions(+), 43 deletions(-)

@@ -1,0 +1,12 @@
+commit b5d94b7d41ad003cfcf7b8849d75fc09e0c206f3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 21 15:25:52 2015 -0700
+
+    math/big: add test cases for min/max exponent values
+    
+    Change-Id: I2e74e39628285e2fecaab712be6cff230619a6c2
+    Reviewed-on: https://go-review.googlesource.com/14778
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/floatconv_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

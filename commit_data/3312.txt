@@ -1,0 +1,19 @@
+commit bf69025825fd2b8e7aac01f27d5c974bd30af542
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 18 11:49:22 2009 -0700
+
+    Mach-O file reading
+    
+    R=r
+    DELTA=784  (784 added, 0 deleted, 0 changed)
+    OCL=34715
+    CL=34788
+
+ src/pkg/debug/macho/Makefile                       |  12 +
+ src/pkg/debug/macho/file.go                        | 374 +++++++++++++++++++++
+ src/pkg/debug/macho/file_test.go                   | 159 +++++++++
+ src/pkg/debug/macho/macho.go                       | 230 +++++++++++++
+ src/pkg/debug/macho/testdata/gcc-386-darwin-exec   | Bin 0 -> 12588 bytes
+ src/pkg/debug/macho/testdata/gcc-amd64-darwin-exec | Bin 0 -> 8512 bytes
+ .../macho/testdata/gcc-amd64-darwin-exec-debug     | Bin 0 -> 4540 bytes
+ 7 files changed, 775 insertions(+)

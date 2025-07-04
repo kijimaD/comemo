@@ -1,0 +1,15 @@
+commit 0238cec02144991036dadb7ee58e8c9a2de2b0de
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Mar 13 12:50:04 2012 +1100
+
+    os, syscall: windows really isn't posix compliant, fix os.IsExist()
+    
+    R=golang-dev, rsc, bradfitz, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5754083
+
+ src/pkg/os/error_posix.go         |  2 +-
+ src/pkg/os/error_test.go          | 31 +++++++++++++++++++++++++++++++
+ src/pkg/os/error_windows.go       | 35 +++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/ztypes_windows.go |  2 ++
+ 4 files changed, 69 insertions(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 23a59ba17cbfeb5380845f309f88165b2e38930b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 17 18:16:47 2016 -0700
+
+    runtime: deflake TestSignalExitStatus
+    
+    The signal might get delivered to a different thread, and that thread
+    might not run again before the currently running thread returns and
+    exits. Sleep to give the other thread time to pick up the signal and
+    crash.
+    
+    Not tested for all cases, but, optimistically:
+    Fixes #14063.
+    
+    Change-Id: Iff58669ac6185ad91cce85e0e86f17497a3659fd
+    Reviewed-on: https://go-review.googlesource.com/23203
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/runtime/crash_unix_test.go          |  4 ----
+ src/runtime/testdata/testprog/signal.go | 14 +++++++++++++-
+ 2 files changed, 13 insertions(+), 5 deletions(-)

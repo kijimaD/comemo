@@ -1,0 +1,14 @@
+commit 3c7a1ef208d251c4b02595dbd4bb0c8d419c59f8
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue May 26 12:14:55 2009 -0700
+
+    Added automatic detection of system libraries to 5l.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=83  (73 added, 3 deleted, 7 changed)
+    OCL=29276
+    CL=29382
+
+ src/cmd/5l/obj.c | 24 +++++++++++++++---------
+ 1 file changed, 15 insertions(+), 9 deletions(-)

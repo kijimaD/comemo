@@ -1,0 +1,29 @@
+commit 9726c78539f4945087c837201c1ec3545a318389
+Author: eric fang <eric.fang@arm.com>
+Date:   Wed Apr 21 03:12:20 2021 +0000
+
+    cmd/asm: add check for register and shift/extension combination on arm64
+    
+    The current code lacks a check on whether the register and shift/extension
+    combination is valid, for example the follow instructions also compiles.
+            ADD     F1<<1, R1, R3
+            ADD     V1<<1, R1, R3
+            MOVW    (R9)(F8.SXTW<<2), R19
+            VST1    R4.D[1], (R0)
+    
+    Actually only general registers can perform shift operations, and element
+    and arrangement extensions are only applicable to vector registers. This
+    CL adds a check for the register and shift/extension combination on arm64.
+    
+    Change-Id: I93dd9343e92a66899cba8eaf4e0ac5430e94692b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312571
+    Trust: eric fang <eric.fang@arm.com>
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/asm/internal/arch/arm64.go             | 306 +++++++++++++------------
+ src/cmd/asm/internal/asm/parse.go              |   6 +-
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  14 +-
+ 3 files changed, 174 insertions(+), 152 deletions(-)

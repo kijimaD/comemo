@@ -1,0 +1,26 @@
+commit 9bfa6f75d54a63c8c56cfb5c04d10937b27c4738
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:55:16 2021 -0600
+
+    cmd/internal/obj: consolidate MOVB cases with other MOV ops on ppc64
+    
+    We can consolidate MOVB load handling with other MOV* loads. Only
+    Optab.Size bytes are copied from the slice returned by asmout. Thus,
+    we can an unconditionally append an extsb operation to the slice
+    modified by asmout. This extra instruction will only be copied into
+    the final instruction stream if Optab.Size is 4 bytes larger, as is
+    the case with MOVB loads.
+    
+    This removes three extra special cases when loading a signed
+    byte.
+    
+    Change-Id: I71f5324551a06a2c3fa28177109aafbe27f3e4cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314849
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
+
+ src/cmd/internal/obj/ppc64/asm9.go | 47 ++++++++------------------------------
+ 1 file changed, 9 insertions(+), 38 deletions(-)

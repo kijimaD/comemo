@@ -1,0 +1,18 @@
+commit 9edb27e76f297c034e9383ad2d1bf48b23e1a25b
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue May 10 07:06:47 2016 -0700
+
+    reflect: make Field panic when out of bounds, as documented
+    
+    Fixes #15046.
+    
+    Change-Id: Iba7216297735be8e1ec550ce5336d17dcd3fd6b7
+    Reviewed-on: https://go-review.googlesource.com/22992
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/reflect/all_test.go | 35 +++++++++++++++++++++++++++++++++++
+ src/reflect/type.go     |  2 +-
+ 2 files changed, 36 insertions(+), 1 deletion(-)

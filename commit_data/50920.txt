@@ -1,0 +1,20 @@
+commit 3e100a22e57106021df57ff95a0a1ae6ddab2e39
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 17 13:35:01 2022 -0400
+
+    runtime/coverage: skip more tests in short mode
+    
+    Add more skips if short mode testing, since some of these tests
+    still seem to be timing out on smaller and more underpowered
+    builders.
+    
+    Updates #56197.
+    
+    Change-Id: I469d9fd3a6be5602243234562fa3fe6263968b56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443376
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/runtime/coverage/emitdata_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

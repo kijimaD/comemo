@@ -1,0 +1,33 @@
+commit 34038e73683f219bbad295182c7fd06b8ee4eb90
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 8 14:15:13 2009 -0700
+
+    Pad error text for browsers that are too smart.
+    
+    404 page not found
+    
+    Chrome would ignore this error page if this text weren't here.
+    Chrome would ignore this error page if this text weren't here.
+    Chrome would ignore this error page if this text weren't here.
+    Chrome would ignore this error page if this text weren't here.
+    Chrome would ignore this error page if this text weren't here.
+    Chrome would ignore this error page if this text weren't here.
+    Chrome would ignore this error page if this text weren't here.
+    Chrome would ignore this error page if this text weren't here.
+    Chrome would ignore this error page if this text weren't here.
+    Chrome would ignore this error page if this text weren't here.
+    Chrome would ignore this error page if this text weren't here.
+    Chrome would ignore this error page if this text weren't here.
+    Chrome would ignore this error page if this text weren't here.
+    Chrome would ignore this error page if this text weren't here.
+    Chrome would ignore this error page if this text weren't here.
+    Chrome would ignore this error page if this text weren't here.
+    
+    R=presotto
+    APPROVED=p
+    DELTA=50  (50 added, 0 deleted, 0 changed)
+    OCL=30056
+    CL=30061
+
+ src/lib/http/server.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

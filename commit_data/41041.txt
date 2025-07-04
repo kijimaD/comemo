@@ -1,0 +1,28 @@
+commit 4ffd1a0f1ca5f92d4185d02c3f1be00683d755e2
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 30 18:18:07 2019 -0500
+
+    cmd/go: remove TestGoTestDetectsTestOnlyImportCycles
+    
+    The error that's tested in this test is also tested in list_test_err.txt
+    which uses go list -test -deps. Because both commands are just loading
+    packages, the difference is not meaningful.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: Ie712a77d64e8985dd908a1afb515ed3ecc0a9985
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212937
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                           | 11 -----------
+ src/cmd/go/testdata/src/testcycle/p1/p1.go      |  7 -------
+ src/cmd/go/testdata/src/testcycle/p1/p1_test.go |  6 ------
+ src/cmd/go/testdata/src/testcycle/p2/p2.go      |  7 -------
+ src/cmd/go/testdata/src/testcycle/p3/p3.go      |  5 -----
+ src/cmd/go/testdata/src/testcycle/p3/p3_test.go | 10 ----------
+ src/cmd/go/testdata/src/testcycle/q1/q1.go      |  1 -
+ src/cmd/go/testdata/src/testcycle/q1/q1_test.go |  6 ------
+ 8 files changed, 53 deletions(-)

@@ -1,0 +1,14 @@
+commit 1cdfe9fa282228027b26ee5bf9c248214f7d1907
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Nov 16 15:39:04 2009 -0800
+
+    unsafe: documentation typo.
+    
+    Fixes #236.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/155072
+
+ src/pkg/unsafe/unsafe.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

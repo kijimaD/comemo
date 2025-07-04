@@ -1,0 +1,18 @@
+commit aab0b704d88b7dad10c767ad941619d59887203c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 8 09:46:24 2018 -0500
+
+    cmd/go/internal/load: remove redundant assignment to BinDir
+    
+    This assignment became a no-op in CL 36196, where both it and the
+    preceding assignment were changed to cfg.GOROOTbin (from gorootBin and
+    gobin respectively).
+    
+    Change-Id: If74969c4cc3ffc5d8394ff9d8e8bcec9e0a4e3b0
+    Reviewed-on: https://go-review.googlesource.com/c/151561
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/load/pkg.go | 3 ---
+ 1 file changed, 3 deletions(-)

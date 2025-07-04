@@ -1,0 +1,18 @@
+commit 35806efda21242df2c56ca276a842481acf6fea0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 19 16:05:01 2021 -0700
+
+    io/fs: document that caller can modify slice returned by ReadFile
+    
+    Also add a test to testing/fstest.
+    
+    Fixes #45186
+    
+    Change-Id: I00e5f46ccd5269dbc266a8f2ebc9a62ebb1297b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311649
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/io/fs/readfile.go        |  3 +++
+ src/testing/fstest/testfs.go | 12 ++++++++++++
+ 2 files changed, 15 insertions(+)

@@ -1,0 +1,17 @@
+commit a6f87794ffcadb0adec683b5a6f38685d209998a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 15 15:37:14 2008 -0700
+
+    - added more code (package, export, compilation)
+    - first cut at semantic checks (disabled)
+    
+    SVN=127348
+
+ usr/gri/gosrc/compilation.go |  52 ++++++++
+ usr/gri/gosrc/export.go      | 302 +++++++++++++++++++++++++++++++++++++++++++
+ usr/gri/gosrc/globals.go     |   4 +-
+ usr/gri/gosrc/object.go      |   2 +-
+ usr/gri/gosrc/package.go     |  23 ++++
+ usr/gri/gosrc/parser.go      | 277 ++++++++++++++++++++++++++++++---------
+ usr/gri/gosrc/universe.go    |   2 +-
+ 7 files changed, 597 insertions(+), 65 deletions(-)

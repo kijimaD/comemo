@@ -1,0 +1,14 @@
+commit 9e0f3a14591586fcfd876d7801b5f3e4fc1998b5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 2 06:49:17 2016 +0000
+
+    doc: correct the number of changes to the language in go1.8.html
+    
+    And link it.
+    
+    Change-Id: Ic0105468435299fb1638f86522f4f3ce417ec1c2
+    Reviewed-on: https://go-review.googlesource.com/33871
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.8.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

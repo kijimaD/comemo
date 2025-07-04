@@ -1,0 +1,12 @@
+commit 8984fa8fceb79ffbff74f6bc640216502c769a9a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 10 08:29:34 2010 +1100
+
+    dashboard: fix project tag filter
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3439043
+
+ misc/dashboard/godashboard/package.py | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

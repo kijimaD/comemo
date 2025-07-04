@@ -1,0 +1,10 @@
+commit 67e141b637621d20cdb12b27cb63f0e74c9022cb
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 12 18:51:06 2008 -0700
+
+    Bug fix.  Without rounding, .shstrtab is written on top of data segment
+    
+    SVN=122567
+
+ src/cmd/6l/asm.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

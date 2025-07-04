@@ -1,0 +1,21 @@
+commit 78aa4af239749106b8eadc9fcfe0ab4dac0b1315
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 7 16:09:33 2020 -0700
+
+    cmd/compile: don't store NaN in ppc64 floating point constant ops
+    
+    Missed in CL 221790
+    
+    This is the only remaining use of math.Float64frombits in the .rules
+    file that isn't already guarded.
+    
+    Fixes #38880
+    
+    Change-Id: I11f71e3a48516748d8d2701c6cf6920a7bc9e216
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232859
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 2 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

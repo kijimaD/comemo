@@ -1,0 +1,22 @@
+commit 74993bffe1a5c7e28f43423f9925bf9f6ec17aad
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 21 16:59:44 2023 +0000
+
+    runtime: disable trace v2 optimistic deadlock debugger
+    
+    The v2 execution tracer has a rudimentary deadlock detector, but it's
+    based on an arbitrary threshold that an actually get hit even if there's
+    no deadlock. This ends up breaking tests sometimes, and it would be bad
+    if this just appeared in production logs.
+    
+    Put this 'deadlock detector' behind a flag.
+    
+    For #55317.
+    
+    Change-Id: I286f0c05b3ac9600f4f2f9696065cac8bbd25f00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544235
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/trace2.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

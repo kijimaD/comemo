@@ -1,0 +1,23 @@
+commit 07791d04d6a746ac1fbced541e46bae9e85178b4
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 19 14:12:07 2010 -0500
+
+    crypto/cipher: add package
+    
+    cipher is intended to replace crypto/block over time. This
+    change only adds basic parts: CBC and CTR mode and doesn't add
+    the package to the top-level Makefile.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/3069041
+
+ src/pkg/crypto/cipher/Makefile        |  14 +++++
+ src/pkg/crypto/cipher/cbc.go          |  78 ++++++++++++++++++++++++++
+ src/pkg/crypto/cipher/cbc_aes_test.go |  89 ++++++++++++++++++++++++++++++
+ src/pkg/crypto/cipher/cipher.go       |  63 +++++++++++++++++++++
+ src/pkg/crypto/cipher/common_test.go  |  28 ++++++++++
+ src/pkg/crypto/cipher/ctr.go          |  51 +++++++++++++++++
+ src/pkg/crypto/cipher/ctr_aes_test.go | 101 ++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/cipher/io.go           |  57 +++++++++++++++++++
+ 8 files changed, 481 insertions(+)

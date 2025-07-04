@@ -1,0 +1,28 @@
+commit b13b249f43d4d38b145cd01135026286052bbc88
+Author: Frits van Bommel <fvbommel@gmail.com>
+Date:   Sat Apr 30 11:13:29 2016 +0200
+
+    cmd/compile: Improve readability of HTML produced by GOSSAFUNC
+    
+    Factor out the Aux/AuxInt handling in (*Value).LongString() and
+    use it in (*Value).LongHTML() as well.
+    This especially improves readability of auxFloat32, auxFloat64,
+    and auxSymValAndOff values which would otherwise be printed as
+    opaque integers.
+    This change also makes LongString() slightly less verbose by
+    eliding offsets that are zero (as is very often the case).
+    
+    Additionally, ensure the HTML is interpreted as UTF-8 so that
+    non-ASCII characters (especially the "middle dots" in some symbols)
+    show up correctly.
+    
+    Change-Id: Ie26221df876faa056d322b3e423af63f33cd109d
+    Reviewed-on: https://go-review.googlesource.com/22641
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Frits van Bommel <fvbommel@gmail.com>
+
+ src/cmd/compile/internal/ssa/html.go  | 13 ++------
+ src/cmd/compile/internal/ssa/value.go | 56 +++++++++++++++++++++--------------
+ 2 files changed, 35 insertions(+), 34 deletions(-)

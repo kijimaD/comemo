@@ -1,0 +1,15 @@
+commit 90a66fa6aff43214298bbb3e184b2eb8c2bd6850
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Thu Mar 20 15:54:17 2014 +1100
+
+    base32: remove unnecessary "if" condition
+    
+    This is a patch to apply the same change as CL 76610045.
+    
+    LGTM=nigeltao
+    R=nigeltao
+    CC=golang-codereviews
+    https://golang.org/cl/77460044
+
+ src/pkg/encoding/base32/base32.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

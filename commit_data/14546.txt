@@ -1,0 +1,12 @@
+commit 8990dc8ca09e9255ba447b9d2d361f8e9954d3e9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 3 18:49:14 2012 -0800
+
+    test: add test for issue 4468 (go/defer expr may not be parenthesized)
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/6870053
+
+ test/fixedbugs/issue4468.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

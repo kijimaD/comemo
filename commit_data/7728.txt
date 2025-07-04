@@ -1,0 +1,14 @@
+commit 8e1fa76047e93bf2816520af52759137972a534f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 10 08:46:57 2011 -0800
+
+    http: don't hit external network in client_test.go
+    
+    More reliable.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4249068
+
+ src/pkg/http/client_test.go | 21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit 277eddb8f236b76c1028110ca89c9fc596f3074f
+Author: Ivan Ukhov <ivan.ukhov@gmail.com>
+Date:   Tue Feb 17 07:53:44 2015 +0100
+
+    math: change Nextafter64 to Nextafter in the description of Nextafter
+    
+    Change-Id: I3419d6247fbff36aa1ed5451bb3cfb7502c3d07e
+    Reviewed-on: https://go-review.googlesource.com/5030
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/math/nextafter.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit d365890ba6b7b51f69e65d32dd76d3e59f83ece9
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Thu Jul 19 16:31:12 2018 -0400
+
+    api: add ErrorHandler function to httputil.ReverseProxy
+    
+    Change-Id: Ie706c43c9a11cf30ca0f2139a4e9eabac8c75c75
+    Reviewed-on: https://go-review.googlesource.com/125096
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/go1.11.txt | 1 +
+ 1 file changed, 1 insertion(+)

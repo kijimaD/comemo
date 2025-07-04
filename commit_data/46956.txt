@@ -1,0 +1,19 @@
+commit 07e5527249cb0b152a3807d67ea83bafd71d2496
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Oct 20 00:16:23 2021 +0700
+
+    reflect: fix methodValueCall code pointer mismatch in Value.Pointer
+    
+    This is the port of CL 356809 for Value.Pointer to fix the mismatch of
+    methodValueCall code pointer.
+    
+    Change-Id: I080ac41b94b44d878cd5896207a76a28c57fd48b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356950
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/reflect/all_test.go | 7 +++++--
+ src/reflect/value.go    | 3 +--
+ 2 files changed, 6 insertions(+), 4 deletions(-)

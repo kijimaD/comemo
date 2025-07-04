@@ -1,0 +1,22 @@
+commit 385d936fb287cfe3a491ced2d77d52d71b7705a8
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Tue Mar 13 00:21:57 2018 +0100
+
+    cmd/compile: in prove, fail fast when unsat is found
+    
+    When an unsatisfiable relation is recorded in the facts table,
+    there is no need to compute further relations or updates
+    additional data structures.
+    
+    Since we're about to transitively propagate relations, make
+    sure to fail as fast as possible to avoid doing useless work
+    in dead branches.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I23eed376d62776824c33088163c7ac9620abce85
+    Reviewed-on: https://go-review.googlesource.com/100275
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)

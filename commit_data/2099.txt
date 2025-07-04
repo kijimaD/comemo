@@ -1,0 +1,15 @@
+commit a08fb0ff33c328a26350b58e6cf0cffd806bcc12
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Apr 28 04:26:07 2009 -0700
+
+    Add a HTTP handler to the exvar package.
+    
+    R=r
+    APPROVED=r
+    DELTA=20  (11 added, 6 deleted, 3 changed)
+    OCL=27782
+    CL=27950
+
+ src/lib/exvar.go     | 11 +++++++++++
+ src/lib/http/triv.go | 12 +++---------
+ 2 files changed, 14 insertions(+), 9 deletions(-)

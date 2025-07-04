@@ -1,0 +1,20 @@
+commit 7846e25418a087ca15122b88fc179405e26bf768
+Author: eric fang <eric.fang@arm.com>
+Date:   Thu Jun 2 06:54:50 2022 +0000
+
+    cmd/link: fix TestLargeText
+    
+    Do not need to add single quotes '' when passing the parameter value of
+     the -ldflags option, otherwise the following error will be reported:
+    invalid value "'-linkmode=external'" for flag -ldflags: parameter may
+    not start with quote character.
+    
+    Change-Id: I322fa7079ac24c8a68d9cb0872b0a20dbc4893d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410074
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+
+ src/cmd/link/linkbig_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit acfab6870d4ac92cca77099411fb3ffddfea6e11
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jan 8 14:55:08 2020 -0500
+
+    cmd/go: convert TestBenchTimeout to the script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I5dc403726f4960482ed7c267d1a333bbcc260087
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213828
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                                 |  8 --------
+ src/cmd/go/testdata/script/test_benchmark_timeout.txt | 18 ++++++++++++++++++
+ src/cmd/go/testdata/timeoutbench_test.go              | 10 ----------
+ 3 files changed, 18 insertions(+), 18 deletions(-)

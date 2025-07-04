@@ -1,0 +1,17 @@
+commit af6123a865546c8735acc64c344a4e02bd561c0d
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Thu May 6 22:15:11 2021 -0700
+
+    doc/go1.17: document encoding/binary.Uvarint max read of 10 bytes
+    
+    Updates #41185
+    For #44513.
+    Fixes #46009
+    
+    Change-Id: I60f4d891b897809765acc0aace037c78e95bb4f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317929
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ doc/go1.17.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

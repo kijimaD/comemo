@@ -1,0 +1,12 @@
+commit 0b3407e426755b61bb1ff4c87d90336d43d3eed9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 2 11:12:42 2009 -0700
+
+    fix bug introduced in 33293
+    
+    R=r
+    OCL=34253
+    CL=34253
+
+ src/libmach/sym.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

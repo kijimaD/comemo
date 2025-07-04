@@ -1,0 +1,19 @@
+commit af29e98390036e1f260fe50dc18ffcf178f1f29d
+Author: Paul Jolly <paul@myitcv.io>
+Date:   Mon Jul 30 22:31:01 2018 +0100
+
+    doc: add link to go command modules docs from Go 1.11 release notes
+    
+    The FAQ already has a link to the release notes and the go command docs.
+    Add a link from the release notes to the go command docs, to ensure that
+    people ultimately end up there (the docs that then signpost
+    people to the relevant other help docs).
+    
+    Updates #25517.
+    
+    Change-Id: I284c84af712d4519c59f7ca6c396b05a4c967cee
+    Reviewed-on: https://go-review.googlesource.com/126777
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.11.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

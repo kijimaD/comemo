@@ -1,0 +1,12 @@
+commit be6e82e30bd49e7cb00fff693e7e02cb0b331af9
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Mar 1 13:17:13 2013 -0500
+
+    exp/ssa/interp: disable interp_test on non-POSIX.
+    
+    R=gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/7422051
+
+ src/pkg/exp/ssa/interp/interp_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

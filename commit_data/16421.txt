@@ -1,0 +1,16 @@
+commit 081129e286fcda2c9525dd08bd90ff6883df0698
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue May 28 21:10:10 2013 +0400
+
+    runtime: allocate internal symbol table eagerly
+    we need it for GC anyway.
+    
+    R=golang-dev, khr, dave, khr
+    CC=golang-dev
+    https://golang.org/cl/9728044
+
+ src/pkg/runtime/cpuprof.c |  4 ----
+ src/pkg/runtime/proc.c    |  6 ++----
+ src/pkg/runtime/runtime.h |  1 +
+ src/pkg/runtime/symtab.c  | 26 ++------------------------
+ 4 files changed, 5 insertions(+), 32 deletions(-)

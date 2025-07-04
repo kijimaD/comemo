@@ -1,0 +1,36 @@
+commit 7839521335349ce208818bdc2bbb7c4f07bdfb4c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 13 12:37:04 2009 -0700
+
+    Automated g4 rollback of changelist 35383.
+    
+    *** Reason for rollback ***
+    
+    roll back the changes to the tutorial programs (only) since they
+    break the automated processing used to create the tutorial.
+    
+    *** Original change description ***
+    
+    apply gofmt to the LGTM-marked files from 34501
+    that have not changed since I applied gofmt.
+    
+    R=rsc
+    DELTA=139  (0 added, 44 deleted, 95 changed)
+    OCL=35670
+    CL=35670
+
+ doc/progs/cat.go          |  4 +--
+ doc/progs/cat_rot13.go    | 22 ++++++++--------
+ doc/progs/echo.go         | 12 ++++-----
+ doc/progs/file.go         | 32 ++++++++++++------------
+ doc/progs/helloworld.go   |  2 +-
+ doc/progs/helloworld3.go  |  4 +--
+ doc/progs/print.go        |  7 ++----
+ doc/progs/print_string.go |  9 +++----
+ doc/progs/sieve.go        | 14 +++++------
+ doc/progs/sieve1.go       | 10 ++++----
+ doc/progs/sort.go         | 64 +++++++++++++----------------------------------
+ doc/progs/sortmain.go     | 42 +++++++++++++------------------
+ doc/progs/strings.go      |  4 +--
+ doc/progs/sum.go          |  8 +++---
+ 14 files changed, 95 insertions(+), 139 deletions(-)

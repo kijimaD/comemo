@@ -1,0 +1,13 @@
+commit 079e038acababc638633db4041a4a38026c7c3fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 9 16:45:23 2009 -0700
+
+    exit with non-zero status for incompatible pointer type warnings
+    
+    R=r
+    DELTA=9  (7 added, 0 deleted, 2 changed)
+    OCL=34499
+    CL=34499
+
+ src/quietgcc.bash | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

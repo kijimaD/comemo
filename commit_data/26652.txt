@@ -1,0 +1,36 @@
+commit ea306ae625d001a43ef20163739593a21be51f97
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 11 17:16:48 2015 -0800
+
+    runtime: support symbolic backtrace of C code in a cgo crash
+    
+    The new function runtime.SetCgoTraceback may be used to register stack
+    traceback and symbolizer functions, written in C, to do a stack
+    traceback from cgo code.
+    
+    There is a sample implementation of runtime.SetCgoSymbolizer at
+    github.com/ianlancetaylor/cgosymbolizer.  Just importing that package is
+    sufficient to get symbolic C backtraces.
+    
+    Currently only supported on linux/amd64.
+    
+    Change-Id: If96ee2eb41c6c7379d407b9561b87557bfe47341
+    Reviewed-on: https://go-review.googlesource.com/17761
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/cgo.go                            |   2 +
+ src/runtime/cgo/callbacks.go                  |   8 +
+ src/runtime/cgo/gcc_traceback.c               |  29 +++
+ src/runtime/cgocall.go                        |  12 ++
+ src/runtime/crash_cgo_test.go                 |  12 ++
+ src/runtime/os1_linux.go                      |   9 +-
+ src/runtime/runtime2.go                       |   6 +-
+ src/runtime/sys_linux_386.s                   |   3 +
+ src/runtime/sys_linux_amd64.s                 |  59 +++++-
+ src/runtime/sys_linux_arm.s                   |   4 +
+ src/runtime/sys_linux_arm64.s                 |   4 +
+ src/runtime/sys_linux_mips64x.s               |   4 +
+ src/runtime/sys_linux_ppc64x.s                |  15 ++
+ src/runtime/testdata/testprogcgo/traceback.go |  80 +++++++++
+ src/runtime/traceback.go                      | 247 ++++++++++++++++++++++++++
+ 15 files changed, 489 insertions(+), 5 deletions(-)

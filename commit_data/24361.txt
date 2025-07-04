@@ -1,0 +1,28 @@
+commit d1b1487a64be2e3bcd882d03f909c4617403c43d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Sep 17 16:07:38 2015 -0700
+
+    archive/tar: remove dead code with USTAR path splitting
+    
+    Convert splitUSTARPath to return a bool rather than an error since
+    the caller never ever uses the error other than to check if it is
+    nil. Thus, we can remove errNameTooLong as well.
+    
+    Also, fold the checking of the length <= fileNameSize and whether
+    the string is ASCII into the split function itself.
+    
+    Lastly, remove logic to set the MAGIC since that's already done on
+    L200. Thus, setting the magic is redundant.
+    
+    There is no overall logic change.
+    
+    Updates #12638
+    
+    Change-Id: I26b6992578199abad723c2a2af7f4fc078af9c17
+    Reviewed-on: https://go-review.googlesource.com/14723
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+    Run-TryBot: David Symonds <dsymonds@golang.org>
+
+ src/archive/tar/writer.go      | 54 +++++++++++++++---------------------------
+ src/archive/tar/writer_test.go | 34 ++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 35 deletions(-)

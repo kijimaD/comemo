@@ -1,0 +1,12 @@
+commit 527ffebb2c9fe432a0ef0aa0c2449d83cd8a23cb
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sun Apr 10 12:49:40 2016 +0200
+
+    internal/trace: fix a typo in error message
+    
+    Change-Id: Id79eaa6d49dae80c334c7243b0a5bbcdcb9397d3
+    Reviewed-on: https://go-review.googlesource.com/21758
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/internal/trace/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

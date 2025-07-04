@@ -1,0 +1,13 @@
+commit bada653f4d9d9140cf52188d520328d234707317
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 25 10:13:09 2010 -0800
+
+    Use consistent types in .h file and .c file.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/224053
+
+ src/pkg/runtime/mheapmap32.c | 2 +-
+ src/pkg/runtime/mheapmap64.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

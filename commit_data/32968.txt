@@ -1,0 +1,16 @@
+commit acdb44765d86a5fd66cbbe24735f7dde658a295f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 5 10:50:37 2017 -0700
+
+    cmd/internal/dwarf: remove unused SymValue method
+    
+    Change-Id: Ied42c2778899ce12cc256f0a124b77bf0e141aee
+    Reviewed-on: https://go-review.googlesource.com/68471
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/dwarf/dwarf.go   | 1 -
+ src/cmd/internal/obj/objfile.go   | 3 ---
+ src/cmd/link/internal/ld/dwarf.go | 3 ---
+ 3 files changed, 7 deletions(-)

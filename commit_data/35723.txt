@@ -1,0 +1,26 @@
+commit 30b045d4d1a00801b1d1fc32a910334dcd722ba6
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Wed Jun 13 10:04:49 2018 -0600
+
+    math/big: handle negative exponents in Exp
+    
+    For modular exponentiation, negative exponents can be handled using
+    the following relation.
+    
+    for y < 0: x**y mod m == (x**(-1))**|y| mod m
+    
+    First compute ModInverse(x, m) and then compute the exponentiation
+    with the absolute value of the exponent.  Non-modular exponentiation
+    with a negative exponent still returns 1.
+    
+    Fixes #25865
+    
+    Change-Id: I2a35986a24794b48e549c8de935ac662d217d8a0
+    Reviewed-on: https://go-review.googlesource.com/118562
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/int.go      | 16 ++++++++++------
+ src/math/big/int_test.go |  2 +-
+ 2 files changed, 11 insertions(+), 7 deletions(-)

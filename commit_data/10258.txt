@@ -1,0 +1,12 @@
+commit 7f0622e66d5618acc7d2b9ab6e1cb96fd7c1e190
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 4 14:12:35 2011 -0700
+
+    test: make closedchan.go exit with failure if something fails
+    
+    R=golang-dev, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/5356042
+
+ test/closedchan.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

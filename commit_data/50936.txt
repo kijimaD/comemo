@@ -1,0 +1,21 @@
+commit a8e4b8c2a793de420ebbe7120c132f0b090d068c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 18 13:00:26 2022 -0700
+
+    go/types: remove pkgForMode in favor of pkgFor (cleanup)
+    
+    The mode is always 0.
+    
+    Change-Id: I6566383c7724b26f070729041bce203a5afa0989
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443776
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/types/api_test.go         | 14 +++++---------
+ src/go/types/instantiate_test.go | 10 +++++-----
+ src/go/types/methodset_test.go   |  2 +-
+ src/go/types/named_test.go       |  2 +-
+ 4 files changed, 12 insertions(+), 16 deletions(-)

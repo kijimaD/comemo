@@ -1,0 +1,20 @@
+commit 08bec0db3970319ef868b3c11d6cc077cab408b1
+Author: Irakli Safareli <i.safareli@gmail.com>
+Date:   Mon Dec 18 08:53:03 2023 +0000
+
+    builtin: mention PanicNilError in comments of recover
+    
+    As of CL 461956 `recover` will not return `nil` if `panic` is called with `nil`. I have updated  comments of `recover` to account for this change.
+    
+    Change-Id: Ibd0b27fe9b89fb29349b62ad34e762239a1d165b
+    GitHub-Last-Rev: c773abb75c8cd8e08c3470f064a3205573156fea
+    GitHub-Pull-Request: golang/go#64393
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544975
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/builtin/builtin.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

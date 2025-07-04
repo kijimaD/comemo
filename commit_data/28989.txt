@@ -1,0 +1,14 @@
+commit cdccd6a79c5391c21c8e7316e13f8b8d1697ea63
+Author: Alexander Döring <email@alexd.ch>
+Date:   Sun Oct 23 16:03:38 2016 +0200
+
+    doc: update size of "hello, world" binary in FAQ
+    
+    Fixes #17159
+    
+    Change-Id: I44d7081ef7a973dcd1cc2eb7124e3454c94bc6e3
+    Reviewed-on: https://go-review.googlesource.com/31770
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

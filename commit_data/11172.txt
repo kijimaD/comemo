@@ -1,0 +1,13 @@
+commit 4dda23a1d0f793f53661dd973e29c793e67aa9aa
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Sun Jan 15 19:32:16 2012 +1100
+
+    http: Allow cookies with negative Max-Age attribute as these are
+    allowed by RFC 6265 sec 5.2.2.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5533083
+
+ src/pkg/net/http/cookie.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

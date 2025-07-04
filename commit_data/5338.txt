@@ -1,0 +1,12 @@
+commit 6e80a01ab748e16428f5911523a1ad153b220fb0
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 22 17:04:28 2010 -0700
+
+    os/stat_freebsd.go: maybe fix build for freebsd
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/970042
+
+ src/pkg/os/stat_freebsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

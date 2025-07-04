@@ -1,0 +1,13 @@
+commit 21f7d83ffd3633869e9861efbe99f035daeb2201
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Aug 8 16:20:20 2014 +0900
+
+    cmd/go: fix build in airplane mode
+    
+    LGTM=iant
+    R=golang-codereviews, adg, iant
+    CC=golang-codereviews
+    https://golang.org/cl/122190043
+
+ src/cmd/go/vcs_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,30 @@
+commit c2c76c6f198480f3c9aece4aa5d9b8de044d8457
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 14 16:47:57 2022 -0400
+
+    cmd/link: set alignment for carrier symbols
+    
+    For carrier symbols like type.*, currently we don't set its
+    alignment. Normally it doesn't actually matter as we still align
+    the inner symbols. But in some cases it does make the symbol table
+    a bit weird, e.g. on darwin/arm64,
+    
+    0000000000070000 s _runtime.types
+    0000000000070001 s _type.*
+    
+    The address of the symbol _type.* is a bit weird. And the new
+    darwin linker from Xcode 14 beta doesn't like that (see issue
+    53372).
+    
+    This CL aligns them.
+    
+    Fixes #53372.
+    
+    Change-Id: I1cb19dcf172e9a6bca248d85a7e54da76cbbc8a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411912
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/symtab.go | 4 ++++
+ 1 file changed, 4 insertions(+)

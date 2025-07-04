@@ -1,0 +1,38 @@
+commit a7cbea833276454597c583751629a3e11cfa9232
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Feb 4 19:54:25 2025 -0500
+
+    cmd/go: skip bzr tests if 'bzr help' has non-zero exit code
+    
+    It appears to be quite easy to end up with a broken 'bzr' installation.
+    For example, if bzr was installed via a system-wide package manager and
+    intends to work with a system-wide Python installation, it may break if
+    another 'python3' binary is added to PATH.
+    
+    If something as simple as 'bzr help' fails to exit with zero code,
+    consider it broken and skip tests that require a working bzr binary
+    just like if the 'bzr' binary isn't present in PATH at all.
+    
+    This makes these tests more robust and capable of producing useful
+    signal in more environments. Separately from this, we'll want to
+    restore a working bzr installation on the linux-arm64 builders, but
+    at least there's still one on linux-amd64 builders.
+    
+    For #71563.
+    Fixes #71504.
+    
+    Change-Id: Ia147196f12b90a0731ebbfab63b5de308212ed65
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-arm64-longtest,gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646715
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/vcweb/script.go                | 51 ++++++++++++++++++++++
+ src/cmd/go/internal/vcweb/vcstest/vcstest_test.go  | 12 ++---
+ src/cmd/go/scriptconds_test.go                     | 12 +++++
+ src/cmd/go/testdata/script/README                  |  2 +
+ .../go/testdata/script/version_buildvcs_bzr.txt    |  2 +-
+ src/cmd/go/testdata/vcstest/bzr/hello.txt          |  1 +
+ 6 files changed, 73 insertions(+), 7 deletions(-)

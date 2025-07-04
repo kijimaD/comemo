@@ -1,0 +1,42 @@
+commit f466617a620ce98a7a6a84f51621458641a0c38f
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Thu Feb 21 12:52:26 2013 -0800
+
+    cmd/5g, cmd/5l, cmd/6l, cmd/8l, cmd/gc, cmd/ld, runtime: accurate args and locals information
+    
+    Previously, the func structure contained an inaccurate value for
+    the args member and a 0 value for the locals member.
+    
+    This change populates the func structure with args and locals
+    values computed by the compiler.  The number of args was
+    already available in the ATEXT instruction.  The number of
+    locals is now passed through in the new ALOCALS instruction.
+    
+    This change also switches the unit of args and locals to be
+    bytes, just like the frame member, instead of 32-bit words.
+    
+    R=golang-dev, bradfitz, cshapiro, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/7399045
+
+ src/cmd/5g/peep.c               |  3 +++
+ src/cmd/5l/5.out.h              |  1 +
+ src/cmd/5l/l.h                  |  2 ++
+ src/cmd/5l/obj.c                |  6 ++++++
+ src/cmd/5l/span.c               |  1 +
+ src/cmd/6l/6.out.h              |  1 +
+ src/cmd/6l/l.h                  |  2 ++
+ src/cmd/6l/obj.c                |  6 ++++++
+ src/cmd/6l/optab.c              |  1 +
+ src/cmd/8l/8.out.h              |  1 +
+ src/cmd/8l/l.h                  |  2 ++
+ src/cmd/8l/obj.c                |  6 ++++++
+ src/cmd/8l/optab.c              |  1 +
+ src/cmd/gc/pgen.c               |  7 ++++++-
+ src/cmd/ld/lib.c                |  4 +++-
+ src/pkg/runtime/extern.go       |  4 ++--
+ src/pkg/runtime/runtime.h       |  4 ++--
+ src/pkg/runtime/symtab.c        | 22 +++++++++++-----------
+ src/pkg/runtime/traceback_arm.c |  2 +-
+ src/pkg/runtime/traceback_x86.c |  2 +-
+ 20 files changed, 59 insertions(+), 19 deletions(-)

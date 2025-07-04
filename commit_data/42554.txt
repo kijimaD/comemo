@@ -1,0 +1,19 @@
+commit 320e4adc4bd153cb0cb7e31e186fb3b4564fd0a7
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jun 23 18:14:25 2020 -0400
+
+    crypto/elliptic: document and test that IsOnCurve(∞) == false
+    
+    This also implies it can't be passed to Marshal.
+    
+    Fixes #37294
+    
+    Change-Id: I1e6b6abd87ff31f323486958d5cb34a5c8f76b5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239562
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/elliptic/elliptic.go      | 11 ++++--
+ src/crypto/elliptic/elliptic_test.go | 75 +++++++++++++++++++++++-------------
+ 2 files changed, 56 insertions(+), 30 deletions(-)

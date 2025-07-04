@@ -1,0 +1,12 @@
+commit 88fa2e0be638a48cd91ea73cddd59b1728098f5d
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Mon Oct 19 14:30:35 2015 -0700
+
+    net/http: fix typo in serve_test.go
+    
+    Change-Id: Iaf33fae7043f21df2dba0bb7e1addb0ff002c508
+    Reviewed-on: https://go-review.googlesource.com/16088
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

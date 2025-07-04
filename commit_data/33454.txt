@@ -1,0 +1,21 @@
+commit fa62ea6927d81202342289b2b15398886ea4f3bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 5 19:36:35 2017 -0500
+
+    cmd/dist: do not reinstall runtime/cgo with -tags lldb on ios builders
+    
+    The cache will take care of keeping go test -tags lldb fast.
+    Installing runtime/cgo this way just makes all the checkNotStale
+    tests think runtime/cgo is out of date.
+    
+    Should fix ios builders.
+    
+    Fixes #22509.
+    
+    Change-Id: If092cc4feb189eb848b6a22f6d22b89b70df219c
+    Reviewed-on: https://go-review.googlesource.com/76020
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/test.go | 23 -----------------------
+ 1 file changed, 23 deletions(-)

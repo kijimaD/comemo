@@ -1,0 +1,14 @@
+commit f674537cc9dccb0e28ae58277c139d0fb2c5c09f
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jan 16 12:25:33 2017 +0100
+
+    README.md: update and simplify
+    
+    Fixes #18675
+    
+    Change-Id: I82e63e8ee3fe4a998b01d9397c3045912588e2f5
+    Reviewed-on: https://go-review.googlesource.com/35183
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ README.md | 46 ++++++++++++++++++++++------------------------
+ 1 file changed, 22 insertions(+), 24 deletions(-)

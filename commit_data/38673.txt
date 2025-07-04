@@ -1,0 +1,17 @@
+commit 06cff114cf786d5f901aa41ac873f9e8bb8e1eba
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Fri Apr 5 13:01:58 2019 -0700
+
+    syscall: use openat instead of dup to make a really new file descriptor
+    
+    Update #31269
+    
+    Change-Id: I0e7184420055b8dfd23688dab9f9d8cba1fa2485
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170892
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/getdirentries_test.go | 82 +++++++++++++++++++++++++++++++++++++++
+ src/syscall/syscall_darwin.go     |  8 +++-
+ 2 files changed, 89 insertions(+), 1 deletion(-)

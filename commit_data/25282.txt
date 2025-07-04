@@ -1,0 +1,15 @@
+commit 1dc2e7b165d15230e4e1b1ca9eb373419ba99911
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Dec 16 09:35:23 2015 +0900
+
+    net: retighten test harnesses for dial cancelation
+    
+    Updates #11225.
+    
+    Change-Id: I6c33d577f144643781f370ba2ab0997d1c1a3820
+    Reviewed-on: https://go-review.googlesource.com/17880
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial_test.go  | 5 ++++-
+ src/net/error_test.go | 4 ++--
+ 2 files changed, 6 insertions(+), 3 deletions(-)

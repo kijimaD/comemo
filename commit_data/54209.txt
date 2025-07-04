@@ -1,0 +1,21 @@
+commit 882a356ec020919b733bf66d6bcb775fe7a92bad
+Author: korzhao <korzhao95@gmail.com>
+Date:   Tue Aug 22 14:22:53 2023 +0800
+
+    time: make time.Until a few nanoseconds faster
+    
+    This is similar to CL 518336.
+    
+    For #61765.
+    
+    Change-Id: I7c1d92a3b3e2b6c1c0058a2094997d93082ad139
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521237
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/time/time.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

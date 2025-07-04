@@ -1,0 +1,14 @@
+commit 99b0eefd4007d370b653454e804153e28a5338f3
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Sat Apr 16 18:44:51 2011 +1000
+
+    misc/goplay: fix Tab and Shift+Enter in Firefox.
+    
+    Fixes #1633.
+    
+    R=adg, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4439042
+
+ misc/goplay/goplay.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

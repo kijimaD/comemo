@@ -1,0 +1,28 @@
+commit 4f269d3060b89567ed413b17bb488668bdbb6972
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 20 09:20:47 2011 -0500
+
+    runtime: make select fairer
+    
+    The o+i*p approach to visiting select cases in random
+    order stops being fair when there is some case that
+    is never ready.  If that happens, then the case that follows
+    it in the order gets more chances than the others.
+    
+    In general the only way to ensure fairness is to make
+    all permutations equally likely.  I've done that by computing
+    one explicitly.
+    
+    Makes the permutations correct for n >= 4 where
+    previously they were broken.  For n > 12, there's not
+    enough randomness to do a perfect job but this should
+    still be much better than before.
+    
+    Fixes #1425.
+    
+    R=r, ken2, ejsherry
+    CC=golang-dev
+    https://golang.org/cl/4037043
+
+ src/pkg/runtime/chan.c | 85 ++++++++++++++++++--------------------------------
+ 1 file changed, 30 insertions(+), 55 deletions(-)

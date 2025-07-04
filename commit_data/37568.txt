@@ -1,0 +1,16 @@
+commit 58ffe5059fa73b1f35aa354bb4d0ca97601606fb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 3 15:12:54 2018 -0800
+
+    misc/cgo/testcshared: skip TestGo2C2Go on Android
+    
+    Updates #29087
+    
+    Change-Id: I0bab45818119176c2ba5de9c0e457b7717485d6f
+    Reviewed-on: https://go-review.googlesource.com/c/152162
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testcshared/cshared_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

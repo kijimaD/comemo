@@ -1,0 +1,20 @@
+commit fad0a14d92a8e02d422410f9dbdcec1eb3977590
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Sep 25 09:13:31 2019 -0400
+
+    test: add testcase for gccgo compiler buglet
+    
+    New test containing code that caused a gccgo compiler failure.
+    
+    Updates #34503.
+    
+    Change-Id: Id895a1e1249062b7fb147e54bcaa657e774ed0d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197217
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/fixedbugs/issue34503.dir/a.go | 15 +++++++++++++++
+ test/fixedbugs/issue34503.dir/b.go | 11 +++++++++++
+ test/fixedbugs/issue34503.go       |  9 +++++++++
+ 3 files changed, 35 insertions(+)

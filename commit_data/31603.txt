@@ -1,0 +1,22 @@
+commit 9044cb04f2c0379e907d0b2e944043e81888033e
+Author: griesemer <gri@golang.org>
+Date:   Thu May 18 14:11:17 2017 -0700
+
+    test: restore fixedbugs/bug398.go to original version
+    
+    Cannot reproduce original problem. Compiler internals
+    have changed enough such that this appears to work now.
+    
+    Restore original test (exported interfaces), but also
+    keep version of the test using non-exported interfaces.
+    
+    Fixes #15596.
+    
+    Change-Id: Idb32da80239963242bd5d1609343c80f19773b0c
+    Reviewed-on: https://go-review.googlesource.com/43622
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ test/fixedbugs/bug398.go | 25 +++++++++++++++++++++----
+ 1 file changed, 21 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit 6111dc4e71ffd843ac8029df4fd67d32689f8e36
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 21 06:12:54 2014 -0800
+
+    liblink: check for symgrow size too large
+    
+    Many calls to symgrow pass a vlong value.  Change the function
+    to not implicitly truncate, and to instead give an error if
+    the value is too large.
+    
+    R=golang-codereviews, gobot, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/54010043
+
+ include/link.h     | 2 +-
+ src/liblink/data.c | 8 +++++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

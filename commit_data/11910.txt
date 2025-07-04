@@ -1,0 +1,18 @@
+commit 977e8d145bca078936176f73f884bb4b7da037b7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 15 11:06:16 2012 +1100
+
+    bytes: add Reader
+    
+    copy of strings/reader{,_test}.go with
+    a few s/string/[]byte/
+    
+    Fixes #2861
+    
+    R=adg, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5666044
+
+ src/pkg/bytes/reader.go      | 110 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/bytes/reader_test.go |  58 +++++++++++++++++++++++
+ 2 files changed, 168 insertions(+)

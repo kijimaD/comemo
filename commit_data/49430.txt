@@ -1,0 +1,13 @@
+commit decdd87bea5ab380b6c2a656735db9b2eb08a202
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sat May 28 12:39:35 2022 +0800
+
+    doc/go1.19: mention riscv64 supported regabi
+    
+    Change-Id: I715e53e4baf67f896fa9c240f7668ce11f7b33c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409195
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.19.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

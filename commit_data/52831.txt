@@ -1,0 +1,19 @@
+commit 80d64adb7950d09371a351bbd3a23facc2cfe5cf
+Author: cui fliter <imcusg@gmail.com>
+Date:   Mon May 1 12:41:56 2023 +0800
+
+    runtime: fix comment typo in page allocator
+    
+    A commit looks to have some minor bug that makes comments look confusing.
+    The commit in question: https://go-review.googlesource.com/c/go/+/250517
+    
+    Change-Id: I7859587be15a22f8330d6ad476058f74ca2ca6ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490795
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/mpagealloc_64bit.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

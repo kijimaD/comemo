@@ -1,0 +1,15 @@
+commit 0a9f1ab8bb68835bf66faf9c7a925003c6087c4e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Feb 8 19:24:50 2013 +0400
+
+    runtime/race: deflake tests
+    With the new scheduler races in the tests are reported during execution of other tests.
+    The change joins goroutines started during the tests.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7310066
+
+ src/pkg/runtime/race/testdata/mop_test.go        | 7 ++++++-
+ src/pkg/runtime/race/testdata/regression_test.go | 3 +++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

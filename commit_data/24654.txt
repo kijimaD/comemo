@@ -1,0 +1,31 @@
+commit dfc8649854eeb569598cabfbc8e408c3ef07a539
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Fri Oct 16 14:04:29 2015 -0400
+
+    runtime, cmd: TLS setup for android/amd64.
+    
+    Android linker does not handle TLS for us. We set up the TLS slot
+    for g, as darwin/386,amd64 handle instead. This is disgusting and
+    fragile. We will eventually fix this ugly hack by taking advantage
+    of the recent TLS IE model implementation. (Instead of referencing
+    an GOT entry, make the code sequence look into the TLS variable that
+    holds the offset.)
+    
+    The TLS slot for g in android/amd64 assumes a fixed offset from %fs.
+    See runtime/cgo/gcc_android_amd64.c for details.
+    
+    For golang/go#10743
+    
+    Change-Id: I1a3fc207946c665515f79026a56ea19134ede2dd
+    Reviewed-on: https://go-review.googlesource.com/15991
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go    |  6 +++
+ src/cmd/internal/obj/x86/obj6.go    | 10 ++++
+ src/cmd/link/internal/ld/data.go    | 10 ++--
+ src/cmd/link/internal/ld/sym.go     | 10 +++-
+ src/runtime/cgo/gcc_android_amd64.c | 92 +++++++++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_linux_amd64.c   | 12 +++++
+ src/runtime/rt0_android_amd64.s     | 33 +++++++++++++
+ src/runtime/sys_linux_amd64.s       |  8 +++-
+ 8 files changed, 175 insertions(+), 6 deletions(-)

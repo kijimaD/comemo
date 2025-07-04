@@ -1,0 +1,21 @@
+commit 76c70282538bf4cccd6f98b5b26df7f5a7f2cebd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 25 21:35:32 2025 -0800
+
+    runtime/cgo: avoid errors from -Wdeclaration-after-statement
+    
+    It's used by the SWIG CI build, at least, and it's an easy fix.
+    
+    Fixes #71961
+    
+    Change-Id: Id21071a5aef216b35ecf0e9cd3e05d08972d92fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652181
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/cgo/cgo.go                | 3 ++-
+ src/runtime/cgo/gcc_libinit.c         | 7 +++++--
+ src/runtime/cgo/gcc_libinit_windows.c | 4 +++-
+ 3 files changed, 10 insertions(+), 4 deletions(-)

@@ -1,0 +1,19 @@
+commit 090843b65074a306e4e807bdca1fbb7262ffce26
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Oct 1 14:21:37 2015 +1000
+
+    text/template: change IsTrue to take interface{} instead of reflect.Value.
+    
+    This is a follow-up to a326c3e to avoid reflect being in the API.
+    
+    Fixes #12801.
+    
+    Change-Id: Ic4c2e592e2c35b5911f75d88f1d9c44787c80f30
+    Reviewed-on: https://go-review.googlesource.com/15240
+    Run-TryBot: David Symonds <dsymonds@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/html/template/template.go | 3 +--
+ src/text/template/exec.go     | 8 ++++++--
+ src/text/template/funcs.go    | 2 +-
+ 3 files changed, 8 insertions(+), 5 deletions(-)

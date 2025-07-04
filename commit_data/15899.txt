@@ -1,0 +1,13 @@
+commit 092b7cfb08f6bc843050c71f1aae9ffbf4b512a5
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Mar 23 03:21:30 2013 +0800
+
+    runtime/cgo, go/build: re-enable cgo for FreeBSD/ARM.
+    
+    R=dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/7970043
+
+ src/pkg/go/build/build.go             |  1 +
+ src/pkg/runtime/cgo/gcc_freebsd_arm.c | 14 +++++++++++++-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

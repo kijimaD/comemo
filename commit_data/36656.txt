@@ -1,0 +1,24 @@
+commit 8e2333b2825d6a58d98845b448d03545e10de43d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 12 16:45:10 2018 -0700
+
+    go/types: fix scope printing (debugging support)
+    
+    Printing of scopes was horribly wrong: If a scope contained
+    no object declarations, it would abort printing even if the
+    scope had children scopes. Also, the line breaks were not
+    inserted consistently. The actual test case (ExampleScope)
+    was incorrect as well.
+    
+    Fixed and simplified printing, and adjusted example which
+    tests the printing output.
+    
+    Change-Id: If21c1d4ad71b15a517d4a54da16de5e6228eb4b5
+    Reviewed-on: https://go-review.googlesource.com/135115
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/example_test.go | 21 ++++++++++++++++-----
+ src/go/types/scope.go        | 10 ++--------
+ 2 files changed, 18 insertions(+), 13 deletions(-)

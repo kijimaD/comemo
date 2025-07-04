@@ -1,0 +1,18 @@
+commit fa249cae384ae2b56351cd9856ffaed49b5b931e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jul 28 14:30:52 2011 +1000
+
+    ld: remove cseekend and redo pe writing
+    
+    Simplify code and add more checks.
+    
+    Fixes #2105.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4794060
+
+ src/cmd/ld/lib.c |  6 ----
+ src/cmd/ld/lib.h |  1 -
+ src/cmd/ld/pe.c  | 93 +++++++++++++++++++++++++++++++-------------------------
+ 3 files changed, 51 insertions(+), 49 deletions(-)

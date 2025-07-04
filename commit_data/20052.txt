@@ -1,0 +1,13 @@
+commit ddce7c35f46ad4644d6f6e48817daf7a92804144
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 20 12:58:01 2014 +0400
+
+    runtime: add atomicor8 for amd64p32
+    
+    LGTM=khr
+    R=golang-codereviews, daniel.morsing, khr, rsc
+    CC=golang-codereviews, khr, rlh
+    https://golang.org/cl/131950043
+
+ src/pkg/runtime/asm_amd64p32.s | 8 ++++++++
+ 1 file changed, 8 insertions(+)

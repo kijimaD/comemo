@@ -1,0 +1,39 @@
+commit d2a5263a9cb93ab7381d31e1c0494ade9e50b9ab
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Tue Mar 6 09:07:34 2018 +0300
+
+    math/big: speedup nat.setBytes for bigger slices
+    
+    Set up to _S (number of bytes in Uint) bytes at time
+    by using BigEndian.Uint32 and BigEndian.Uint64.
+    
+    The performance improves for slices bigger than _S bytes.
+    This is the case for 128/256bit arith that initializes
+    it's objects from bytes.
+    
+    name               old time/op  new time/op  delta
+    NatSetBytes/8-4    29.8ns ± 1%  11.4ns ± 0%  -61.63%  (p=0.000 n=9+8)
+    NatSetBytes/24-4    109ns ± 1%    56ns ± 0%  -48.75%  (p=0.000 n=9+8)
+    NatSetBytes/128-4   420ns ± 2%   110ns ± 1%  -73.83%  (p=0.000 n=10+10)
+    NatSetBytes/7-4    26.2ns ± 1%  21.3ns ± 2%  -18.63%  (p=0.000 n=8+9)
+    NatSetBytes/23-4    106ns ± 1%    67ns ± 1%  -36.93%  (p=0.000 n=9+10)
+    NatSetBytes/127-4   410ns ± 2%   121ns ± 0%  -70.46%  (p=0.000 n=9+8)
+    
+    Found this optimization opportunity by looking at ethereum_corevm
+    community benchmark cpuprofile.
+    
+    name        old time/op  new time/op  delta
+    OpDiv256-4   715ns ± 1%   596ns ± 1%  -16.57%  (p=0.008 n=5+5)
+    OpDiv128-4   373ns ± 1%   314ns ± 1%  -15.83%  (p=0.008 n=5+5)
+    OpDiv64-4    301ns ± 0%   285ns ± 1%   -5.12%  (p=0.008 n=5+5)
+    
+    Change-Id: I8e5a680ae6284c8233d8d7431d51253a8a740b57
+    Reviewed-on: https://go-review.googlesource.com/98775
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/inl_test.go |  3 +++
+ src/math/big/nat.go                     | 34 ++++++++++++++++++++-------------
+ src/math/big/nat_test.go                | 19 ++++++++++++++++++
+ 3 files changed, 43 insertions(+), 13 deletions(-)

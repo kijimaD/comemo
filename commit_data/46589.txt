@@ -1,0 +1,37 @@
+commit b00222fcdd9f2aeb426887b005865eca1aec3631
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Sep 13 16:48:53 2021 -0700
+
+    cmd/go: refactor {Allow,Disallow}WriteGoMod to ExplicitWriteGoMod
+    
+    Subcommands may now set the global flag modload.ExplicitWriteGoMod
+    instead of calling {Allow,Disallow}WriteGoMod.
+    
+    When ExplicitWriteGoMod is false (default), modload.LoadPackages and
+    ListModules will either update go.mod and go.sum or report an error if
+    they need to be updated, depending on cfg.BuildMod.
+    
+    When ExplicitWriteGoMod is true, commands must explicitly call
+    modload.WriteGoMod to update go.mod and go.sum or report an
+    error. Commands that perform some operation after loading the build
+    list (like downloading zips or building packages) and commands that
+    load packages multiple times should set this. For now, only 'go get'
+    and 'go mod download' set this.
+    
+    This CL is a pure refactor: no change in behavior is expected.
+    There are some other minor changes in here, too: commitRequirements no
+    longer sets the global requirements: that should be done separately first.
+    
+    Change-Id: I69942a808bb177faf7904a53aaf2d4ac68500e82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349600
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/download.go   |  22 ++++--
+ src/cmd/go/internal/modcmd/why.go        |   1 +
+ src/cmd/go/internal/modget/get.go        |   8 +-
+ src/cmd/go/internal/modload/buildlist.go |   5 +-
+ src/cmd/go/internal/modload/init.go      | 130 +++++++++++++------------------
+ src/cmd/go/internal/modload/list.go      |   5 +-
+ src/cmd/go/internal/modload/load.go      |  18 ++++-
+ 7 files changed, 96 insertions(+), 93 deletions(-)

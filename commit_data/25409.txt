@@ -1,0 +1,15 @@
+commit 9d549b5b62f3afd9704c66b5e348a976b2614909
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 29 12:33:16 2015 -0500
+
+    runtime/pprof: shorten a few tests
+    
+    For #10571.
+    
+    Change-Id: I4bdad64e2dfd692ef2adccf2e5e82e9b1996a8ea
+    Reviewed-on: https://go-review.googlesource.com/18206
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/pprof/pprof_test.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

@@ -1,0 +1,25 @@
+commit 1f4521669416a2e14fb0b84481447f4a93f19878
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 12 01:57:27 2020 +0700
+
+    cmd/compile: attach OVARLIVE nodes to OCALLxxx
+    
+    So we can insert theses OVARLIVE nodes right after OpStaticCall in SSA.
+    
+    This helps fixing issue that unsafe-uintptr arguments are not kept alive
+    during return statement, or can be kept alive longer than expected.
+    
+    Fixes #24491
+    
+    Change-Id: Ic04a5d1bbb5c90dcfae65bd95cdd1da393a66800
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254397
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/order.go             | 14 +++-----
+ src/cmd/compile/internal/gc/ssa.go               |  2 ++
+ src/cmd/compile/internal/gc/syntax.go            |  4 +--
+ test/fixedbugs/{issue24491.go => issue24491a.go} | 11 +++++-
+ test/fixedbugs/issue24491b.go                    | 46 ++++++++++++++++++++++++
+ 5 files changed, 63 insertions(+), 14 deletions(-)

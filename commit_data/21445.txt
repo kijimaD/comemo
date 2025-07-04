@@ -1,0 +1,17 @@
+commit eaa872009db2018816d5e14c6349df3ab7e6df0c
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Jan 29 18:33:19 2015 +0300
+
+    cmd/gc: fix capturing by value for range statements
+    
+    Kindly detected by race builders by failing TestRaceRange.
+    ORANGE typecheck does not increment decldepth around body.
+    
+    Change-Id: I0df5f310cb3370a904c94d9647a9cf0f15729075
+    Reviewed-on: https://go-review.googlesource.com/3507
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/range.c     |  19 +++++--
+ src/cmd/gc/typecheck.c |   3 +-
+ test/closure2.go       | 135 ++++++++++++++++++++++++++++++++++---------------
+ 3 files changed, 112 insertions(+), 45 deletions(-)

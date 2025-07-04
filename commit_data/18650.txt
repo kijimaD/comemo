@@ -1,0 +1,13 @@
+commit e6863e7d5b22c7711d0f950981fa3673e9e160f5
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 25 14:15:49 2014 -0800
+
+    spec: libraries and implementation are now at Unicode 6.3
+    
+    LGTM=gri
+    R=gri
+    CC=golang-codereviews
+    https://golang.org/cl/68760043
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

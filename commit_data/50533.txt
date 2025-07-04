@@ -1,0 +1,25 @@
+commit 73c38f226e15e218411d87a05c878f087ad89455
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jun 15 14:24:12 2022 -0400
+
+    cmd/go: clear GOPATH from build context when importing from module
+    
+    In module mode, we shouldn't handle packages under GOPATH any
+    differently from other packages. Clear GOPATH from the build context
+    before Importing to ensure that.
+    
+    Fixes #37015.
+    
+    Change-Id: I0203e25013716bca346fd4a67d80f1d05bbaea77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412476
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ doc/go1.20.html                                    | 11 ++++
+ src/cmd/go/internal/load/pkg.go                    |  5 +-
+ src/cmd/go/internal/modindex/read.go               | 71 ++++++++--------------
+ .../go/testdata/script/mod_go_version_missing.txt  |  2 +-
+ 4 files changed, 42 insertions(+), 47 deletions(-)

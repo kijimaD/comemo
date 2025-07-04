@@ -1,0 +1,22 @@
+commit 9bad99574ad90f877ee4d8aa36ca503f4167fab6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 1 19:19:55 2015 +0000
+
+    net/http: enable HTTP/2 on all Transports, not just the DefaultTransport
+    
+    This mirrors the same behavior and API from the server code to the
+    client side: if TLSNextProto is nil, HTTP/2 is on by default for
+    both. If it's non-nil, the user was trying to do something fancy and
+    step out of their way.
+    
+    Updates #6891
+    
+    Change-Id: Ia31808b71f336a8d5b44b985591d72113429e1d4
+    Reviewed-on: https://go-review.googlesource.com/17300
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go      | 28 +++++++++++++++++++---------
+ src/net/http/transport_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 9 deletions(-)

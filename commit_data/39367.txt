@@ -1,0 +1,15 @@
+commit 0b6e3bf4ec1f52a343ab0680ca0347514e33b109
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Jun 12 14:59:23 2019 -0400
+
+    doc: mention os.UserConfigDir in release notes
+    
+    This change makes the release notes for Go 1.13 more complete
+    by mentioning a new function in the os package.
+    
+    Change-Id: I0d637fd70ff6d14782bbfb7c13985a0f83b19d6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181945
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.13.html | 5 +++++
+ 1 file changed, 5 insertions(+)

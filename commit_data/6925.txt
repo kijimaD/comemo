@@ -1,0 +1,14 @@
+commit 1f6b6ca9ba5f9163d154f1fc62df3d989074d53a
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Sun Dec 12 14:16:37 2010 -0800
+
+    A selection of trivials.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/3606043
+
+ lib/godoc/package.html | 4 ++--
+ src/cmd/gc/align.c     | 4 ++--
+ src/pkg/go/doc/doc.go  | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)

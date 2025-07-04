@@ -1,0 +1,14 @@
+commit 633df67b66da4679dcb6b00590cf3f62aff8ddf1
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Mar 4 20:21:26 2011 -0800
+
+    gc, gopack: add some missing flags to the docs.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4260051
+
+ src/cmd/gc/doc.go     | 2 ++
+ src/cmd/gopack/ar.c   | 2 +-
+ src/cmd/gopack/doc.go | 4 +++-
+ 3 files changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit 428062da4e5e35ce75178d993dd6d8ef5e3ecb5d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Dec 7 16:53:17 2011 +0300
+
+    ld: increase default stack size on Windows for cgo
+    Fixes #2437.
+    
+    R=rsc, hectorchu, mattn.jp, alex.brainman, jdpoirier, snaury, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/5371049
+
+ src/cmd/ld/lib.c                    |  1 +
+ src/cmd/ld/lib.h                    |  1 +
+ src/cmd/ld/pe.c                     | 17 +++++++++++++++--
+ src/pkg/runtime/386/asm.s           | 21 +++++++++------------
+ src/pkg/runtime/amd64/asm.s         | 20 ++++++++------------
+ src/pkg/runtime/cgo/windows_386.c   | 17 ++++++-----------
+ src/pkg/runtime/cgo/windows_amd64.c | 17 ++++++-----------
+ src/pkg/runtime/windows/thread.c    |  5 ++++-
+ 8 files changed, 50 insertions(+), 49 deletions(-)

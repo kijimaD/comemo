@@ -1,0 +1,13 @@
+commit 92543daff17c64bfd0f945e827279b8f50940e8e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 24 17:04:12 2009 -0700
+
+    change reflect test to avoid bug132
+    
+    R=gri
+    DELTA=20  (17 added, 0 deleted, 3 changed)
+    OCL=33793
+    CL=33802
+
+ src/pkg/reflect/all_test.go | 23 ++++++++++++++++++++---
+ 1 file changed, 20 insertions(+), 3 deletions(-)

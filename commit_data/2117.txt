@@ -1,0 +1,13 @@
+commit 5dc95206f2088a7b2a855c5f7ac820afc6a42cbc
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 29 23:33:48 2009 -0700
+
+    don't print binary data. add TODO for better errors.
+    
+    TBR=rsc
+    DELTA=2  (1 added, 0 deleted, 1 changed)
+    OCL=28066
+    CL=28070
+
+ src/lib/time/zoneinfo.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

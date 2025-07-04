@@ -1,0 +1,19 @@
+commit 2f100187f6c4e279f4916cb25c58f33ff85ffaaf
+Author: Inada Naoki <songofacandy@gmail.com>
+Date:   Tue Aug 15 04:33:37 2023 +0000
+
+    doc/go1.22: mention new sql.Null[T]
+    
+    For #60370.
+    
+    Change-Id: Idae906ec7027be6d95f78bf43f7ce8f9d07e6c00
+    GitHub-Last-Rev: c645f0cf82ac595855fa154ce342869262932770
+    GitHub-Pull-Request: golang/go#62033
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519555
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.22.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,0 +1,21 @@
+commit bfe7c81906212c69df754d5f4e3baa6413f092b3
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 8 09:28:53 2017 -0800
+
+    crypto/x509: document AuthorityKeyId and don't mutate it.
+    
+    The AuthorityKeyId value from the template was used by
+    CreateCertificate, but that wasn't documented. Also, CreateCertificate
+    would stash a value in the template if it needed to override it, which
+    was wrong: template should be read-only.
+    
+    Fixes #18962.
+    
+    Change-Id: Ida15c54c341e5bbf553756e8aa65021d8085f453
+    Reviewed-on: https://go-review.googlesource.com/36556
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/x509.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

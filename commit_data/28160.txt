@@ -1,0 +1,24 @@
+commit cc0248aea53b252ec5c0e1c57e32edb102bc36fe
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 31 12:35:32 2016 -0700
+
+    cmd/compile: don't reserve X15 for float sub/div any more
+    
+    We used to reserve X15 to implement the 3-operand floating-point
+    sub/div ops with the 2-operand sub/div that 386/amd64 gives us.
+    
+    Now that resultInArg0 is implemented, we no longer need to
+    reserve X15 (X7 on 386).
+    
+    Fixes #15584
+    
+    Change-Id: I978e6c0a35236e89641bfc027538cede66004e82
+    Reviewed-on: https://go-review.googlesource.com/28272
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/386Ops.go   | 15 +++-----
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 15 +++-----
+ src/cmd/compile/internal/ssa/opGen.go        | 56 ++++++++++++----------------
+ 3 files changed, 36 insertions(+), 50 deletions(-)

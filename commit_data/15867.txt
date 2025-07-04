@@ -1,0 +1,73 @@
+commit 2f32138aba23467201c6106ce5e4d63d530d972b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 21 11:32:02 2013 -0400
+
+    crypto/sha1: faster amd64, 386 implementations
+    
+    -- amd64 --
+    
+    On a MacBookPro10,2 (Core i5):
+    
+    benchmark              old ns/op    new ns/op    delta
+    BenchmarkHash8Bytes          785          592  -24.59%
+    BenchmarkHash1K             8727         3014  -65.46%
+    BenchmarkHash8K            64926        20723  -68.08%
+    
+    benchmark               old MB/s     new MB/s  speedup
+    BenchmarkHash8Bytes        10.19        13.50    1.32x
+    BenchmarkHash1K           117.34       339.71    2.90x
+    BenchmarkHash8K           126.17       395.31    3.13x
+    
+    For comparison, on the same machine, openssl 0.9.8r reports
+    its sha1 speed as 341 MB/s for 1K and 404 MB/s for 8K.
+    
+    On an Intel Xeon E5520:
+    
+    benchmark              old ns/op    new ns/op    delta
+    BenchmarkHash8Bytes          984          707  -28.15%
+    BenchmarkHash1K            11141         3466  -68.89%
+    BenchmarkHash8K            82435        23411  -71.60%
+    
+    benchmark               old MB/s     new MB/s  speedup
+    BenchmarkHash8Bytes         8.13        11.31    1.39x
+    BenchmarkHash1K            91.91       295.36    3.21x
+    BenchmarkHash8K            99.37       349.91    3.52x
+    
+    For comparison, on the same machine, openssl 1.0.1 reports
+    its sha1 speed as 286 MB/s for 1K and 394 MB/s for 8K.
+    
+    -- 386 --
+    
+    On a MacBookPro10,2 (Core i5):
+    
+    benchmark              old ns/op    new ns/op    delta
+    BenchmarkHash8Bytes         1041          713  -31.51%
+    BenchmarkHash1K            15612         3382  -78.34%
+    BenchmarkHash8K           110152        22733  -79.36%
+    
+    benchmark               old MB/s     new MB/s  speedup
+    BenchmarkHash8Bytes         7.68        11.21    1.46x
+    BenchmarkHash1K            65.59       302.76    4.62x
+    BenchmarkHash8K            74.37       360.36    4.85x
+    
+    On an Intel Xeon E5520:
+    
+    benchmark              old ns/op    new ns/op    delta
+    BenchmarkHash8Bytes         1221          842  -31.04%
+    BenchmarkHash1K            14643         4137  -71.75%
+    BenchmarkHash8K           108722        27394  -74.80%
+    
+    benchmark               old MB/s     new MB/s  speedup
+    BenchmarkHash8Bytes         6.55         9.49    1.45x
+    BenchmarkHash1K            69.93       247.51    3.54x
+    BenchmarkHash8K            75.35       299.04    3.97x
+    
+    R=agl, dave
+    CC=golang-dev
+    https://golang.org/cl/7763049
+
+ src/pkg/crypto/sha1/sha1block.go      |   2 +
+ src/pkg/crypto/sha1/sha1block_386.s   | 233 ++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/sha1/sha1block_amd64.s | 216 +++++++++++++++++++++++++++++++
+ src/pkg/crypto/sha1/sha1block_decl.go |   9 ++
+ 4 files changed, 460 insertions(+)

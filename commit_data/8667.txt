@@ -1,0 +1,14 @@
+commit 3a0a86888a0bd371931a10493a7c5b25e6774085
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 9 17:47:01 2011 +1000
+
+    AC: s/Jeffrey M Hodges/Jeff Hodges/
+    Formality rejected.
+    
+    R=jeff
+    CC=golang-dev
+    https://golang.org/cl/4591057
+
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

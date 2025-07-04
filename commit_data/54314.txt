@@ -1,0 +1,21 @@
+commit cffdfe8d2cabbe874bceaeed1eba92cc567be6db
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 1 12:52:48 2023 -0700
+
+    runtime: don't let the tests leave core files behind
+    
+    Also add a check that we didn't leave any core files behind.
+    
+    Change-Id: I30444ef43ad1a8cc1cacd3b75280f2128e104939
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525175
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/crash_test.go                      | 11 +++++++++++
+ src/runtime/crash_unix_test.go                 |  2 ++
+ src/runtime/testdata/testprogcgo/threadprof.go |  4 +++-
+ 3 files changed, 16 insertions(+), 1 deletion(-)

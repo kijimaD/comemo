@@ -1,0 +1,15 @@
+commit 67388e9866b8e0abc6b0a1f576e97959800681c3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 8 14:38:10 2017 -0700
+
+    doc: recommend building Go 1.4 with CGO_ENABLED=0
+    
+    Fixes #21054
+    
+    Change-Id: I016486dc62c04a80727f8da7d1dcec52f2c7f344
+    Reviewed-on: https://go-review.googlesource.com/62291
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/install-source.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

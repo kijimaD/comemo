@@ -1,0 +1,21 @@
+commit 6c4e90a99edaf50a6825e04816756cd10808583c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 7 14:32:18 2016 -0800
+
+    cmd/compile: change Node fields from *NodeList to Nodes
+    
+    Compile time is about the same.  Getting rid of the nodeSeq interfaces,
+    particularly nodeSeqIterate, should produce some improvements.
+    
+    Passes toolstash -cmp.
+    
+    Update #14473.
+    
+    Change-Id: I678abafdd9129c6cccb0ec980511932eaed496a0
+    Reviewed-on: https://go-review.googlesource.com/20343
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go    |  4 ++--
+ src/cmd/compile/internal/gc/parser.go | 16 +++++++++-------
+ src/cmd/compile/internal/gc/syntax.go |  6 +++---
+ 3 files changed, 14 insertions(+), 12 deletions(-)

@@ -1,0 +1,19 @@
+commit 74c03cb81491a2e7e6559b6cf92518287260ce36
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Jan 9 15:05:22 2013 -0800
+
+    cmd/ld: fix incompatible type signatures on Plan 9
+    
+    Changeset f483bfe81114 moved ELF generation to the architecture
+    independent code and in doing so added a Section* to the Sym
+    type and an Elf64_Shdr* to the Section type.
+    
+    This caused the Plan 9 compilers to complain about incompatible
+    type signatures in the many files that reference the Sym type.
+    
+    R=rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/7057058
+
+ src/cmd/ld/lib.h | 2 ++
+ 1 file changed, 2 insertions(+)

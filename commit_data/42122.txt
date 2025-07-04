@@ -1,0 +1,23 @@
+commit b3e8a00060030a8c60db3dbc0d2cf389c65c8a56
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 13:11:00 2020 -0700
+
+    cmd/compile: move duffcopy auxint calculation out of rewrite rules
+    
+    Package amd64 is a more natural home for it.
+    It also makes it easier to see how many bytes
+    are being copied in ssa.html.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I5ecf0f0f18e8db2faa2caf7a05028c310952bd94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229703
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go        | 11 ++++++++++-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  8 +-------
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  2 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go |  4 ++--
+ 4 files changed, 14 insertions(+), 11 deletions(-)

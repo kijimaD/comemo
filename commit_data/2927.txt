@@ -1,0 +1,22 @@
+commit 34f76b5de5a6d40552846777e5f2a007e32e0e51
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Aug 9 15:16:06 2009 -0700
+
+    1. integer division by a constant done.
+    2. moved functions from 6g to gc
+    for portability to other families.
+    3. added rotate-carry instructions to
+    peek and reg.
+    
+    R=rsc
+    OCL=32946
+    CL=32946
+
+ src/cmd/6g/gg.h    |  21 -----
+ src/cmd/6g/ggen.c  |  38 ++++----
+ src/cmd/6g/gsubr.c | 269 ++++-------------------------------------------------
+ src/cmd/6g/peep.c  |  16 ++++
+ src/cmd/6g/reg.c   |   8 ++
+ src/cmd/gc/go.h    |  29 +++++-
+ src/cmd/gc/subr.c  | 267 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 361 insertions(+), 287 deletions(-)

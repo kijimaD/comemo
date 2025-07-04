@@ -1,0 +1,13 @@
+commit d6ad6f0e61228152b3618af2e34381439d3b3ca0
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 14 10:46:21 2012 +1100
+
+    text/template: variables do not take arguments
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5821044
+
+ src/pkg/text/template/exec.go      | 1 +
+ src/pkg/text/template/exec_test.go | 4 ++++
+ 2 files changed, 5 insertions(+)

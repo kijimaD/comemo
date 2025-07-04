@@ -1,0 +1,32 @@
+commit 8f5c6904b616fd97dde4a0ba2f5c71114e588afd
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jun 15 02:00:29 2024 +1000
+
+    syscall: selectively update zerrors_* on openbsd/386, openbsd/arm and openbsd/amd64
+    
+    The EBADMSG, ENOTRECOVERABLE, EOWNERDEAD and EPROTO Errno are missing
+    on openbsd/386, openbsd/arm and openbsd/amd64. These are the earliest
+    OpenBSD ports and they did not exist in the system headers when the
+    relevant zerror_* file was generated.
+    
+    These exist for all other ports, hence it makes sense to add them
+    for consistency. Update error and signal strings so that they are
+    also consistent across OpenBSD ports.
+    
+    Fixes #67998
+    
+    Change-Id: I948857ef5bddcfbcdfb102c95e571d9cee009e77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592795
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ api/except.txt                       |  4 ++++
+ api/go1.23.txt                       | 30 ++++++++++++++++++++++++++++++
+ src/syscall/zerrors_openbsd_386.go   | 20 ++++++++++++++------
+ src/syscall/zerrors_openbsd_amd64.go | 20 ++++++++++++++------
+ src/syscall/zerrors_openbsd_arm.go   | 20 ++++++++++++++------
+ 5 files changed, 76 insertions(+), 18 deletions(-)

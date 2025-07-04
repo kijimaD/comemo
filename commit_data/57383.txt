@@ -1,0 +1,18 @@
+commit 0f12e51ce776fed0c3cb5e26225d4906268a2e8a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 4 17:46:28 2024 -0700
+
+    go/types: factor out opPos computation
+    
+    Adjust Checker.overflow call sites to match types2
+    where possible.
+    
+    Change-Id: Iaa0d423f2ebf642428c745c4ac4f712e4136dffb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610956
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+
+ src/go/types/expr.go | 24 +++++++++++++++++-------
+ 1 file changed, 17 insertions(+), 7 deletions(-)

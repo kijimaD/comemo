@@ -1,0 +1,12 @@
+commit 48334e3e916b04f2754a3bdd704049e4eec19756
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Sun Jan 5 07:48:32 2014 +1100
+
+    container/list: improve test coverage
+    
+    R=golang-codereviews, dave, gobot, bradfitz, gri
+    CC=golang-codereviews
+    https://golang.org/cl/46640043
+
+ src/pkg/container/list/list_test.go | 39 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

@@ -1,0 +1,20 @@
+commit 9faf5cdf9d1f9050a03ae3d420768c846e54646d
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Thu Apr 28 09:41:32 2016 -0300
+
+    net: change type of dnsConfig.timeout from int to time.Duration
+    
+    Instead of keeping the desired number of seconds and converting to
+    time.Duration for every query, convert to time.Duration when
+    building the config.
+    
+    Updates #15473
+    
+    Change-Id: Ib24c050b593b3109011e359f4ed837a3fb45dc65
+    Reviewed-on: https://go-review.googlesource.com/22548
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dnsclient_unix.go      |  3 +--
+ src/net/dnsconfig_unix.go      | 24 ++++++++++++------------
+ src/net/dnsconfig_unix_test.go | 12 ++++++------
+ 3 files changed, 19 insertions(+), 20 deletions(-)

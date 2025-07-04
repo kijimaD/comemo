@@ -1,0 +1,13 @@
+commit 84df38181baeae5b12d2831ecfa5c7aefeffd7b1
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:33:26 2015 -0400
+
+    hash/crc32: added mips64{,le} build tags
+    
+    Change-Id: I77c6768fff6f0163b36800307c4d573bb6521fe5
+    Reviewed-on: https://go-review.googlesource.com/14454
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/hash/crc32/crc32_generic.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

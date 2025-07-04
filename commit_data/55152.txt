@@ -1,0 +1,27 @@
+commit 6317fb41e920cc593620d4b9a55376472fc02c07
+Author: Lasse Folger <lassefolger@google.com>
+Date:   Fri Nov 24 15:30:07 2023 +0000
+
+    Revert "testing: simplify concurrency and cleanup logic"
+    
+    reverts CL 506755
+    
+    Reason for revert: This leads to deadlocks of tests in Google internal testing
+    
+    For #64402
+    
+    Change-Id: I78329fc9dcc2377e7e880b264ac1d18d577ef99a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544895
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Lasse Folger <lassefolger@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/cgo/internal/test/callback_windows.go |   4 +-
+ src/testing/benchmark.go                      |  94 +++---
+ src/testing/fuzz.go                           | 199 ++++++-------
+ src/testing/panic_test.go                     |  85 +++---
+ src/testing/sub_test.go                       | 131 ++++++--
+ src/testing/testing.go                        | 412 +++++++++++++-------------
+ 6 files changed, 494 insertions(+), 431 deletions(-)

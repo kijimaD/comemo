@@ -1,0 +1,18 @@
+commit 7ebaa6587bb0d0454c87796fd894c751f91f2bff
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 6 18:03:30 2022 -0400
+
+    runtime: rename _func.entryoff to entryOff
+    
+    To match _func.nameOff.
+    
+    Change-Id: I75e71cadaa0f7ca8844d1b49950673797b227074
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428658
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/runtime2.go | 2 +-
+ src/runtime/symtab.go   | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

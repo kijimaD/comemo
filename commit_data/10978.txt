@@ -1,0 +1,15 @@
+commit c0589a21c9ec9f075d27037a62c809a7b0db200d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 22 14:00:52 2011 -0800
+
+    go/doc: s/typeDoc/typeInfo/
+    
+    To avoid confusion between typeDoc and TypeDoc.
+    No semantic change.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5502071
+
+ src/pkg/go/doc/doc.go | 58 +++++++++++++++++++++++++--------------------------
+ 1 file changed, 29 insertions(+), 29 deletions(-)

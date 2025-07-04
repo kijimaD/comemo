@@ -1,0 +1,23 @@
+commit 1abe22c3c17091e46c0abec897691c23ad6ebc01
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Aug 22 18:04:57 2019 -0400
+
+    cmd/compile: don't mark stack object symbol DUPOK
+    
+    Stack object symbol is named as <FunctionName>.stkobj. If the
+    function itself is not DUPOK, its stack object symbol should only
+    be defined in the package where the function is defined,
+    therefore no duplicates.
+    
+    If in the future we change the stack object symbol to
+    content-hash naming, as other gcdata symbols, we can mark it as
+    DUPOK.
+    
+    Change-Id: I5aee96578940e2f76e7115d96cd2716021672c03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191437
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/obj.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,38 @@
+commit 8e43c37229835b420637f1230a1ca2a4d58fa017
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 6 16:19:30 2018 -0400
+
+    runtime: make Playground timestamps change when the stream fd changes
+    
+    The process reading the output of the binary may read stderr and
+    stdout separately, and may interleave reads from the two streams
+    arbitrarily. Because we explicitly serialize writes on the writer
+    side, we can reuse a timestamp within a single stream without losing
+    information; however, if we use the same timestamp for write on both
+    streams, the reader can't tell how to interleave them.
+    
+    This change ensures that every time we change between the two fds, we
+    also bump the timestamp. That way, writes within a stream continue to
+    show the same timestamp, but a sorted merge of the contents of the two
+    streams always interleaves them in the correct order.
+    
+    This still requires a corresponding change to the Playground parser to
+    actually reconstruct the correct interleaving. It currently merges the
+    two streams without reordering them; it should instead buffer them
+    separately and perform a sorted merge. (See
+    https://golang.org/cl/105496.)
+    
+    Updates golang/go#24615.
+    Updates golang/go#24659.
+    
+    Change-Id: Id789dfcc02eb4247906c9ddad38dac50cf829979
+    Reviewed-on: https://go-review.googlesource.com/105235
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Yury Smolsky <yury@smolsky.by>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_nacl.go          |  9 +++++++++
+ src/runtime/sys_nacl_amd64p32.s | 16 ++++++++++++++++
+ 2 files changed, 25 insertions(+)

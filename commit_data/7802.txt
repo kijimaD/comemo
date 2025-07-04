@@ -1,0 +1,15 @@
+commit c0f3b6c8a8f3902683abca4637dc1af83182936f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Mar 17 11:49:56 2011 -0700
+
+    go/scanner: to interpret line comments with Windows filenames
+    
+    Fixes #1614.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4290054
+
+ src/pkg/go/scanner/scanner.go      |  2 +-
+ src/pkg/go/scanner/scanner_test.go | 15 +++++++++++++--
+ 2 files changed, 14 insertions(+), 3 deletions(-)

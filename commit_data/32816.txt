@@ -1,0 +1,31 @@
+commit 8cb2952f2f9c80246572b951e2663e79962796c0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 22 12:03:52 2017 -0700
+
+    os/exec: remove protection against simultaneous Wait/Write
+    
+    CL 31148 added code to protect again simultaneous calls to Close and
+    Wait when using the standard input pipe, to fix the race condition
+    described in issue #9307. That issue is a special case of the race
+    between Close and Write described by issue #7970. Since issue #7970
+    was not fixed, CL 31148 fixed the problem specific to os/exec.
+    
+    Since then, issue #7970 has been fixed, so the specific fix in os/exec
+    is no longer necessary. Remove it, effectively reverting CL 31148 and
+    followup CL 33298.
+    
+    Updates #7970
+    Updates #9307
+    Updates #17647
+    
+    Change-Id: Ic0b62569cb0aba44b32153cf5f9632bd1f1b411a
+    Reviewed-on: https://go-review.googlesource.com/65490
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Miguel Bernabeu <miguelbernadi@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Joe Tsai <joetsai@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/exec/exec.go | 56 +++--------------------------------------------------
+ 1 file changed, 3 insertions(+), 53 deletions(-)

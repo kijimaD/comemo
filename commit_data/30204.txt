@@ -1,0 +1,17 @@
+commit 39651bb50bc0e1038e77e63baa37729bc4676e8a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 9 18:39:16 2017 -0500
+
+    expvar: parallelize BenchmarkMapAdd{Same,Different}
+    
+    The other expvar tests are already parallelized, and this will help to
+    measure the impact of potential implementations for #18177.
+    
+    updates #18177
+    
+    Change-Id: I0f4f1a16a0285556cbcc8339855b6459af412675
+    Reviewed-on: https://go-review.googlesource.com/36717
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/expvar/expvar_test.go | 47 ++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 34 insertions(+), 13 deletions(-)

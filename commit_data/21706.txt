@@ -1,0 +1,22 @@
+commit e7fae6854008c163ba83e2eac52ae9f12003a9a9
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Feb 23 15:11:39 2015 -0800
+
+    crypto/x509: allow wildcards only as the first label.
+    
+    RFC 6125 now specifies that wildcards are only allowed for the leftmost
+    label in a pattern: https://tools.ietf.org/html/rfc6125#section-6.4.3.
+    
+    This change updates Go to match the behaviour of major browsers in this
+    respect.
+    
+    Fixes #9834.
+    
+    Change-Id: I37c10a35177133624568f2e0cf2767533926b04a
+    Reviewed-on: https://go-review.googlesource.com/5691
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/verify.go    | 2 +-
+ src/crypto/x509/x509_test.go | 9 ++++++---
+ 2 files changed, 7 insertions(+), 4 deletions(-)

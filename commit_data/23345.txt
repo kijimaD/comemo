@@ -1,0 +1,14 @@
+commit 71e83b8855c787093dae340d365c5fbd21eab7f9
+Author: Michael Matloob <matloob@google.com>
+Date:   Sun Jun 14 09:57:46 2015 -0700
+
+    regexp: small correction to test comment
+    
+    s/Backtrace/Backtrack/
+    
+    Change-Id: I062aab18f23f2bc2110cf7210c2e7264747e02cf
+    Reviewed-on: https://go-review.googlesource.com/11091
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/regexp/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

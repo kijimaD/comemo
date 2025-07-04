@@ -1,0 +1,12 @@
+commit 849fc19cab2c3059379b21dde019f521ce772f5c
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Nov 30 17:00:37 2011 +1100
+
+    html: clean up the z.rawTag calculation in the tokenizer.
+    
+    R=andybalholm
+    CC=golang-dev
+    https://golang.org/cl/5440064
+
+ src/pkg/html/token.go | 51 ++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 42 insertions(+), 9 deletions(-)

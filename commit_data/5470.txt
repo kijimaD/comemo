@@ -1,0 +1,19 @@
+commit e0bde8cfe8b230b900af146de989cb55d4d4d5bc
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu May 13 11:53:44 2010 -0700
+
+    rename 'gordon' to 'gopher'
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1207041
+
+ doc/{gordon => gopher}/bumper.png           | Bin
+ doc/{gordon => gopher}/bumper192x108.png    | Bin
+ doc/{gordon => gopher}/bumper320x180.png    | Bin
+ doc/{gordon => gopher}/bumper480x270.png    | Bin
+ doc/{gordon => gopher}/bumper640x360.png    | Bin
+ doc/{gordon => gopher}/gopherbw.png         | Bin
+ doc/{gordon => gopher}/gophercolor.png      | Bin
+ doc/{gordon => gopher}/gophercolor16x16.png | Bin
+ 8 files changed, 0 insertions(+), 0 deletions(-)

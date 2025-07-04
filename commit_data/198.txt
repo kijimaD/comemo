@@ -1,0 +1,11 @@
+commit 3df8e0a1661dd0c5c4d83c6922022c122f36bec2
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 18 14:47:46 2008 -0700
+
+    clean up ken/rob2.go to eliminate a few workarounds
+    
+    SVN=123442
+
+ test/golden.out  |  2 +-
+ test/ken/rob2.go | 13 ++++++-------
+ 2 files changed, 7 insertions(+), 8 deletions(-)

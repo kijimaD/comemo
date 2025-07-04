@@ -1,0 +1,26 @@
+commit ac56baa09f789ab93dd97b31c4f033da7c85a6a4
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Tue Mar 5 03:58:37 2019 -0800
+
+    testing: enable examples on js/wasm with non os.Pipe runExample
+    
+    os.Pipe is not implemented on wasm/js so for that purpose use
+    a temporary file for js/wasm. This change creates two versions
+    of runExample:
+    
+    * runExample verbatim that still uses os.Pipe for non js/wasm
+    * runExample that uses a temporary file
+    
+    Also added a TODO to re-unify these function versions back into
+    example.go wasm/js gets an os.Pipe implementation.
+    
+    Change-Id: I9f418a49b2c397e1667724c7442b7bbe8942225e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165357
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/example.go        | 92 +++++++++++++++----------------------------
+ src/testing/run_example.go    | 64 ++++++++++++++++++++++++++++++
+ src/testing/run_example_js.go | 74 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 169 insertions(+), 61 deletions(-)

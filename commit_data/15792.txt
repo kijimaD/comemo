@@ -1,0 +1,12 @@
+commit 6b57329268eae87edeb2876864bbc96b3cacebcb
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 15 10:46:34 2013 -0700
+
+    runtime: use AES hash for compound objects.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7716047
+
+ src/pkg/runtime/alg.c | 7 +++++++
+ 1 file changed, 7 insertions(+)

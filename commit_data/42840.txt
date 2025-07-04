@@ -1,0 +1,27 @@
+commit 694fc8e76bec99b67bbd0302852f6a1c1dafe7ca
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 16 17:18:06 2019 -0500
+
+    cmd/go/internal/modload: reject some bad module paths
+    
+    This change rejects module paths that don't conform to
+    the new checkModulePathLax function, when loading a go.mod
+    file. The change uses the checkModulePathLax function instead of
+    CheckPath because there are still many users who are using
+    unpublished modules with unpublishable paths, and we don't
+    want to break them all.
+    
+    Next, before this change, when go mod init is run in GOPATH,
+    it would try to use the location of the directory within GOPATH
+    to infer the module path. After this change, it will only use
+    that inferred module path if it conforms to module.CheckPath.
+    
+    Change-Id: Idb36d1655cc76aae82671e87ba634609503ad1a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211597
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/init.go             | 72 +++++++++++++++++++++++--
+ src/cmd/go/testdata/script/mod_invalid_path.txt | 30 ++++++++++-
+ 2 files changed, 98 insertions(+), 4 deletions(-)

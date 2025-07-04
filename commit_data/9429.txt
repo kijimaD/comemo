@@ -1,0 +1,13 @@
+commit 95aea24990c8fcd7113e62122120a33411e905d4
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Mon Aug 22 11:03:17 2011 +1000
+
+    build: build more packages/commands for Plan 9
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4921041
+
+ src/pkg/Makefile          | 22 ----------------------
+ src/pkg/os/error_plan9.go |  1 +
+ 2 files changed, 1 insertion(+), 22 deletions(-)

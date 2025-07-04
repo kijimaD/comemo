@@ -1,0 +1,34 @@
+commit 2bfa45cfa994512c47da2d98f3baca5bb474ec9b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jun 17 15:50:14 2020 -0400
+
+    cmd/go: propagate context into PackagesForBuild and Do for tracing
+    
+    This change propagates context into PackagesForErrors and Do for
+    the purpose of tracing, and calls trace.StartSpan on PackagesForErrors
+    and Do, so that the trace now shows the broad outline of where
+    the "Loading" and "Execution" phases are in the build.
+    
+    Updates #38714
+    
+    Change-Id: Ib9a7cf7030210f68f76663d1c8a7461e0a226611
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238541
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/clean/clean.go       |  2 +-
+ src/cmd/go/internal/fix/fix.go           |  2 +-
+ src/cmd/go/internal/fmtcmd/fmt.go        |  2 +-
+ src/cmd/go/internal/generate/generate.go |  2 +-
+ src/cmd/go/internal/get/get.go           |  4 ++--
+ src/cmd/go/internal/list/list.go         |  6 +++---
+ src/cmd/go/internal/load/pkg.go          | 15 ++++++++++-----
+ src/cmd/go/internal/modget/get.go        |  4 ++--
+ src/cmd/go/internal/run/run.go           |  4 ++--
+ src/cmd/go/internal/test/test.go         |  8 ++++----
+ src/cmd/go/internal/vet/vet.go           |  4 ++--
+ src/cmd/go/internal/work/build.go        | 20 ++++++++++++--------
+ src/cmd/go/internal/work/exec.go         |  7 ++++++-
+ 13 files changed, 47 insertions(+), 33 deletions(-)

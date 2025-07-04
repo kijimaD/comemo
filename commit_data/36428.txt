@@ -1,0 +1,16 @@
+commit 68527ff4fb32c98b1f15367c65c526c2b2b3a57a
+Author: Thanabodee Charoenpiriyakij <wingyminus@gmail.com>
+Date:   Thu Jul 19 08:16:44 2018 +0700
+
+    runtime: remove +1-1 when asking PC values
+    
+    Fixes #26437
+    
+    Change-Id: Id47b3bcc23ea7b7b17b55dd96b5830c48fd8d53d
+    Reviewed-on: https://go-review.googlesource.com/124895
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/extern.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

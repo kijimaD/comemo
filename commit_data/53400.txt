@@ -1,0 +1,19 @@
+commit 481665ec077f581cec34b7c62c4b7ec715bb3bed
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 31 11:41:31 2023 -0700
+
+    doc/go1.21: mention debug/elf changes
+    
+    For #55107
+    For #56887
+    For #56892
+    
+    Change-Id: Ibcca34c931ed3595d877c4573bba221dec66bb5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499616
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.21.html | 25 ++++++++++++-------------
+ 1 file changed, 12 insertions(+), 13 deletions(-)

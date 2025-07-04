@@ -1,0 +1,24 @@
+commit 12af403624baa87700fe05db3e21c26e410871fd
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Tue Apr 27 14:48:20 2021 +0200
+
+    cmd/go/internal/bug: use envcmd instead of go env
+    
+    Add the printGoEnv function to print the go environment variables, using
+    the envcmd package instead of invoking go env.
+    
+    Add the PrintEnv function to the envcmd package, to avoid duplicating
+    code.
+    
+    Updates #45803
+    
+    Change-Id: I38d5b936c0ebb16e741ffbee4309b95d6d0ecc6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314230
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/bug/bug.go    | 14 +++++++++-----
+ src/cmd/go/internal/envcmd/env.go | 20 +++++++++++++-------
+ 2 files changed, 22 insertions(+), 12 deletions(-)

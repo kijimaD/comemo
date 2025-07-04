@@ -1,0 +1,17 @@
+commit 25444d079fde1c579cf2a29f20f623533324ccaf
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 5 13:09:34 2009 -0800
+
+    clean up some tests
+    
+    R=rsc
+    DELTA=10  (1 added, 2 deleted, 7 changed)
+    OCL=22033
+    CL=22033
+
+ test/fixedbugs/bug027.go | 5 ++---
+ test/fixedbugs/bug045.go | 2 +-
+ test/fixedbugs/bug054.go | 2 +-
+ test/fixedbugs/bug097.go | 4 ++--
+ test/fixedbugs/bug119.go | 4 ++--
+ 5 files changed, 8 insertions(+), 9 deletions(-)

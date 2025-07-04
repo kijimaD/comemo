@@ -1,0 +1,17 @@
+commit bbae8d55083d14c414f32af638d5a5174b8027cc
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Dec 13 00:38:37 2018 +1100
+
+    syscall: use correct cmsg alignment for openbsd/arm
+    
+    The OpenBSD armv7 port requires 64-bit alignment for cmsgs.
+    
+    Rework the cmsg alignment code to facilitate this.
+    
+    Change-Id: I52cf55a8a4cda46c6ef35b0f694862b842028b42
+    Reviewed-on: https://go-review.googlesource.com/c/153837
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/sockcmsg_unix.go | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)

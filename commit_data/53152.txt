@@ -1,0 +1,25 @@
+commit 656a20a52a51f4790ccddca5a7a1226993867e33
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed May 17 18:21:04 2023 +0200
+
+    net: make Dial fail faster on Windows closed loopback devices
+    
+    On Windows when connecting to an unavailable port, ConnectEx() will
+    retry for 2s, even on loopback devices.
+    
+    This CL uses a call to WSAIoctl to make the ConnectEx() call fail
+    faster on local connections.
+    
+    Fixes #23366
+    
+    Change-Id: Iafeca8ea0053f01116b2504c45d88120f84d05e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495875
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/syscall/windows/net_windows.go | 22 +++++++++++++
+ src/net/dial_test.go                        | 48 +++++++++++++++++++++++++++++
+ src/net/fd_windows.go                       | 27 ++++++++++++++++
+ 3 files changed, 97 insertions(+)

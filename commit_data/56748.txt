@@ -1,0 +1,23 @@
+commit 45967bb18e04fa6dc62c2786c87ce120443c64f6
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 4 14:54:55 2024 -0700
+
+    runtime: soften up the GCTestIsReachable test a bit
+    
+    This test can fail due to objects being incorrectly retained due
+    to conservative scanning. Allow a bit of slop (1 accidentally
+    retained object) to prevent flaky failures.
+    
+    Fixes #67204
+    
+    "fixes" is a bit too strong a word. More like, hopefully reduces
+    the false positive rate to something approaching 0.
+    
+    Change-Id: I09984f0cce50d8209aef19f3d89b0e295c86f8d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590615
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/gc_test.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit 24ca86f3083e8dd4ad5ea61e26acf02440d0ad35
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Sep 23 23:04:31 2017 +0100
+
+    cmd/compile: fix invalid switch case value panic
+    
+    This is a regression introduced by myself in golang.org/cl/41852,
+    confirmed by the program that reproduces the crash that can be seen in
+    the added test.
+    
+    Fixes #21988.
+    
+    Change-Id: I18d5b2b3de63ced84db705b18490b00b16b59e02
+    Reviewed-on: https://go-review.googlesource.com/65655
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/swt.go |  5 +++++
+ test/fixedbugs/issue21988.go       | 17 +++++++++++++++++
+ 2 files changed, 22 insertions(+)

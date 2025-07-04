@@ -1,0 +1,23 @@
+commit 44a6f817ea0fbeb3ba4aa398794c4e80dba13b1e
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jan 10 17:33:26 2025 -0800
+
+    cmd/compile: fix write barrier coalescing
+    
+    We can't coalesce a non-WB store with a subsequent Move, as the
+    result of the store might be the source of the move.
+    
+    There's a simple codegen test. Not sure how we might do a real test,
+    as all the repro's I've come up with are very expensive and unreliable.
+    
+    Fixes #71228
+    
+    Change-Id: If18bf181a266b9b90964e2591cd2e61a7168371c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642197
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/writebarrier.go | 15 +++++++++++++++
+ test/codegen/writebarrier.go                 | 25 +++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+)

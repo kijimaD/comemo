@@ -1,0 +1,26 @@
+commit a8af76284d4dadc7720b69cc3e1882865ce509e5
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Apr 24 09:31:06 2023 -0700
+
+    archive/zip: reject overflowing directorySize & directoryOffset
+    
+    We added a check for incorrect baseOffset in CL 408734, but in doing so
+    we introduced a panic when directoryOffset overflowed a int64. The zip
+    spec uses uint64, but since io.SectionReader requires int64 we convert,
+    and possibly introduce an overflow. If offset < 0 && size-offset < 0,
+    SectionReader will panic when we attempt to read from it.
+    
+    Since it's extremely unlikely we're ever going to process a zip file
+    larger than 1<<63-1 byte, just limit directory size and offset to the
+    max int64.
+    
+    Change-Id: I1aaa755cf4da927a6e12ef59f97dfc83a3426d86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488195
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+
+ src/archive/zip/reader.go      |  5 +++++
+ src/archive/zip/reader_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+)

@@ -1,0 +1,11 @@
+commit 1abab32c6512ca5c2c3b3855a0f6d108ef2ff3b6
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 30 12:28:20 2014 -0700
+
+    doc/go1.4.txt: encoding/gob is now safe
+    
+    CC=golang-codereviews
+    https://golang.org/cl/103690043
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

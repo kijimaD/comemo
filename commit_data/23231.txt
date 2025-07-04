@@ -1,0 +1,14 @@
+commit 3974357ecd2f63842b081331d485c168e3407e4d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 3 16:41:00 2015 -0400
+
+    cmd/dist: one more file for CL 9152
+    
+    This one didn't get written out.
+    
+    Change-Id: Iee173861fb4dc7cafa64ba5f601f4664b6e8da4e
+    Reviewed-on: https://go-review.googlesource.com/10681
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/buildgo.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

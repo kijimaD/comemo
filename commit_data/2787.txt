@@ -1,0 +1,16 @@
+commit 0b2683d1ee4cf1280be1329b176680dd1bc46c17
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 27 14:36:32 2009 -0700
+
+    do not insert implicit "return;" in empty function body
+    
+    R=ken
+    OCL=32239
+    CL=32239
+
+ src/cmd/gc/dcl.c         |  2 +-
+ src/cmd/gc/go.y          |  2 +-
+ test/fixedbugs/bug043.go |  2 +-
+ test/fixedbugs/bug080.go |  2 ++
+ test/fixedbugs/bug171.go | 10 ++++++++++
+ 5 files changed, 15 insertions(+), 3 deletions(-)

@@ -1,0 +1,33 @@
+commit f1517ec6e5d1ccf04c1266e710545436b972750f
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 24 15:23:27 2017 -0700
+
+    cmd/compile: remove more nil ptr checks after newobject
+    
+    For code like the following (where x escapes):
+    
+       x := []int{1}
+    
+    We're currently generating a nil check.  The line above is really 3 operations:
+    
+            t := new([1]int)
+            t[0] = 1
+            x := t[:]
+    
+    We remove the nil check for t[0] = 1, but not for t[:].
+    
+    Our current nil check removal rule is too strict about the possible
+    memory arguments of the nil check. Unlike zeroing or storing to the
+    result of runtime.newobject, the nilness of runtime.newobject is
+    always false, even after other stores have happened in the meantime.
+    
+    Change-Id: I95fad4e3a59c27effdb37c43ea215e18f30b1e5f
+    Reviewed-on: https://go-review.googlesource.com/58711
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules | 10 ++++------
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 22 ++++++++++++----------
+ test/nilptr3.go                                |  7 +++++++
+ 3 files changed, 23 insertions(+), 16 deletions(-)

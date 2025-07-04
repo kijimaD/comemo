@@ -1,0 +1,33 @@
+commit dd1e7b3be0f64438e58f956bfb989608c7fa61bc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 2 14:45:27 2016 -0700
+
+    crypto/x509: update __MAC_OS_X_VERSION_MAX_ALLOWED on Mac
+    
+    Reportedly, -mmacosx-version-min=10.6 -D__MAC_OS_X_VERSION_MAX_ALLOWED=1060
+    is problematic.
+    
+    It means min 10.6 and max 10.6, thus exactly 10.6. But we only support
+    10.8+.
+    
+    It never caused us problems, because we build on Macs, but apparently
+    if you cross-compile from Linux with some Mac compiler SDK thing, then
+    things break?
+    
+    This was added in https://golang.org/cl/5700083 for #3131, and the
+    intent at the time was to pin to exactly 10.6. So it wasn't a mistake,
+    but it is definitely outdated.
+    
+    Given that we now support 10.8 as the min, update it to 1080.
+    
+    Fixes #17732
+    
+    Change-Id: I6cc8ab6ac62b8638a5025952b830f23e8822b2a6
+    Reviewed-on: https://go-review.googlesource.com/32580
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/root_cgo_darwin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

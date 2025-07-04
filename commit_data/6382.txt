@@ -1,0 +1,18 @@
+commit d47266558d93573d2ed7ef2c2cc8b177a366fd51
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 24 16:52:06 2010 -0400
+
+    net: enable v4-over-v6 on ip sockets
+    
+    Not all OS make that the default.
+    Can finally do this now that the syscall package
+    has the right definitions.
+    
+    Fixes #679.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2204048
+
+ src/pkg/net/sock.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

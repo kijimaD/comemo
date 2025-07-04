@@ -1,0 +1,24 @@
+commit db18ce2f53f0fc79b7bf1182fca2d33dc7331303
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Tue Dec 1 09:32:22 2009 -0800
+
+    gofmt: use os.Stdin instead of opening /dev/stdin
+    
+    Opening /dev/stdin can sometimes fail. For example, in the acme editor,
+    executing "Edit ,|gofmt" fails with:
+    
+            open /dev/stdin: no such device or address
+    
+    Executing "Edit ,|ls -l /dev/stdin /proc/self/fd/0" gives:
+    
+            lrwxrwxrwx 1 root root  15 2009-09-07 02:17 /dev/stdin -> /proc/self/fd/0
+            lrwx------ 1 fhs  users 64 2009-11-26 22:05 /proc/self/fd/0 -> socket:[5528230]
+    
+    (This is my first change, and I've signed the individual contributor license agreement.)
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/162041
+
+ src/cmd/gofmt/gofmt.go | 26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)

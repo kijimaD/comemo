@@ -1,0 +1,12 @@
+commit 0c44488ad94fe626a87c046662e714ee2058c8c2
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Oct 16 15:53:17 2012 +0800
+
+    misc/dist: support packaging for NetBSD
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/6650053
+
+ misc/dist/bindist.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

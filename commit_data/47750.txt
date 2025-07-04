@@ -1,0 +1,18 @@
+commit 9e29dd42df18141506dcfc2513e8a653564fdbf1
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Dec 7 14:29:21 2021 -0500
+
+    doc: document cmd/vet changes for generics in 1.18
+    
+    Fixes #50011
+    Updates #47694
+    
+    Change-Id: Id3d43f2f72de61b360b79c2b375ca1372d5f4692
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369979
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tim King <taking@google.com>
+
+ doc/go1.18.html | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

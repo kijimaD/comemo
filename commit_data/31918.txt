@@ -1,0 +1,20 @@
+commit bd4fcd001c54014209e817c0dd8c8802ccce7607
+Author: Matt Harden <matt.harden@gmail.com>
+Date:   Mon Feb 20 20:07:44 2017 -0800
+
+    net/http: fix double-close of req.Body
+    
+    Add a test and fix for the request body being closed twice.
+    
+    Fixes #19186
+    
+    Change-Id: I1e35ad4aebfef68e6099c1dba7986883afdef4d7
+    Reviewed-on: https://go-review.googlesource.com/37298
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client.go            | 16 +++++++++++-----
+ src/net/http/clientserver_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 5 deletions(-)

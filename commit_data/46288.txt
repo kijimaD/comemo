@@ -1,0 +1,17 @@
+commit 782aa42255163559c5e1c4c2d98c8f28da8cf96b
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 1 08:33:42 2021 -0700
+
+    cmd/link: mark stacks as non-executable on freebsd
+    
+    Fixes #48112
+    
+    Change-Id: I673a5fe61171e5ba3d8ce58daac79391fb4758f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346872
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/elf.go | 5 +++++
+ 1 file changed, 5 insertions(+)

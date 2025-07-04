@@ -1,0 +1,25 @@
+commit bff4ebb7aa1a89266f0f05a60d8f2f2d385e7583
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Fri Nov 22 14:18:43 2019 -0500
+
+    net/http: unflake TestTimeoutHandlerSuperfluousLogs
+    
+    Uses 2 channels to synchronize that test, because
+    relying on sleeps creates flaky behavior, thus:
+    
+    a) 1 buffered channel to send back the last spurious line
+    without having to reason about "happens before" behavior
+    a) 1 buffered channel at the end of the handler; it'll
+    be controlled by whether we expect to timeout or not,
+    but will always be closed when the test ends
+    
+    Fixes #35051
+    
+    Change-Id: Iff735aa8d1ed9de8d92b792374ec161cc0a72798
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208477
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/net/http/serve_test.go | 46 +++++++++++++++++++++++++++++++---------------
+ 1 file changed, 31 insertions(+), 15 deletions(-)

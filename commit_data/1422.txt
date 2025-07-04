@@ -1,0 +1,24 @@
+commit 8d21004b418e180f821e9d836c0bdaec262ecd21
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 6 15:49:27 2009 -0800
+
+    make the tutorial programs run again.
+    (the text still needs fixing)
+    add the tutorial programs to the test run.
+    
+    R=rsc
+    DELTA=41  (6 added, 0 deleted, 35 changed)
+    OCL=22174
+    CL=22174
+
+ doc/progs/cat.go         |  4 ++--
+ doc/progs/cat_rot13.go   |  8 ++++----
+ doc/progs/fd.go          |  4 ++--
+ doc/progs/helloworld3.go |  2 +-
+ doc/progs/run            |  6 ++++--
+ doc/progs/server.go      |  6 +++---
+ doc/progs/server1.go     | 12 ++++++------
+ doc/progs/sieve.go       | 10 +++++-----
+ doc/progs/sieve1.go      | 18 +++++++++---------
+ src/run.bash             |  4 ++++
+ 10 files changed, 40 insertions(+), 34 deletions(-)

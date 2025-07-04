@@ -1,0 +1,29 @@
+commit 20595ac4b00ecf11576549c4a3b4c6c1115a3abc
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 8 14:30:00 2009 -0800
+
+    many interface bug fixes.
+    
+    also, after
+            func g() (int, int)
+            func f(int, int)
+    allow
+            f(g())
+    and
+            func h() (int, int) { return g() }
+    
+    R=ken
+    DELTA=356  (252 added, 26 deleted, 78 changed)
+    OCL=22319
+    CL=22325
+
+ src/cmd/6g/gsubr.c    |  26 +++++++--
+ src/cmd/6g/obj.c      | 149 +++++++++++++++++++++++++++++++++++++-------------
+ src/cmd/gc/dcl.c      |  24 ++++++--
+ src/cmd/gc/go.h       |   7 ++-
+ src/cmd/gc/go.y       |   2 +-
+ src/cmd/gc/subr.c     | 146 ++++++++++++++++++++++++++++++++++++++++++-------
+ src/cmd/gc/walk.c     |  34 ++++++++----
+ src/runtime/iface.c   |  30 +++++-----
+ src/runtime/runtime.h |   2 +-
+ 9 files changed, 323 insertions(+), 97 deletions(-)

@@ -1,0 +1,23 @@
+commit dd8cb66d0b1bf385a8acbbdc81515b301e059236
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jul 19 13:49:33 2022 -0400
+
+    runtime: convert g.goid to uint64
+    
+    schedt.goidgen and p.goidcache are already uint64, this makes all cases
+    consistent.
+    
+    The only oddball here is schedtrace which prints -1 as an equivalent for
+    N/A or nil. A future CL will make this more explicit.
+    
+    Change-Id: I489626f3232799f6ca333d0d103b71d9d3aa7494
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419440
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/heapdump.go |  2 +-
+ src/runtime/proc.go     | 10 +++++-----
+ src/runtime/runtime2.go |  4 ++--
+ src/runtime/trace.go    | 22 +++++++++++-----------
+ 4 files changed, 19 insertions(+), 19 deletions(-)

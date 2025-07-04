@@ -1,0 +1,17 @@
+commit 10855608bc9361aec0f17f22bf24313a3d07ec85
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed Oct 30 12:45:33 2019 +0000
+
+    runtime/internal/atomic: add tests for And8 and Or8
+    
+    Add some simple unit tests for these atomic operations. These can't
+    catch all the bugs that are possible with these operations but at
+    least they provide some coverage.
+    
+    Change-Id: I94b9f451fcc9fecdb2a1448c5357b019563ad275
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204317
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/internal/atomic/atomic_test.go | 117 +++++++++++++++++++++++++++++
+ 1 file changed, 117 insertions(+)

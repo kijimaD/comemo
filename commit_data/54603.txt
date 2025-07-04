@@ -1,0 +1,20 @@
+commit 95ef1e7efc42a511b2aebff6c9391fec56462330
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Sep 18 02:36:20 2022 +1000
+
+    cmd/link: enable linking on openbsd/riscv64
+    
+    Updates #55999
+    
+    Change-Id: I6e48e6649e19a9b2d776745c05eefb3995b6dd00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518625
+    Reviewed-by: Aaron Bieber <deftly@gmail.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/link/internal/riscv64/obj.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

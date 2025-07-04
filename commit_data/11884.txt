@@ -1,0 +1,14 @@
+commit b7360b9b066e38a42157f56fee174ad21be1dff2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 13 21:31:21 2012 -0800
+
+    net: disable multicast test on Alpha GNU/Linux
+    
+    Alpha GNU/Linux does not have /proc/net/igmp[6].
+    
+    R=golang-dev, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5663047
+
+ src/pkg/net/multicast_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

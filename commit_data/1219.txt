@@ -1,0 +1,19 @@
+commit e081f25c3e602804fc3bd0780e09bf35d2a098cb
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Nov 22 17:58:53 2008 -0800
+
+    reg and peep
+    
+    R=r
+    OCL=19871
+    CL=19871
+
+ src/cmd/6g/cgen.c  |   8 ++-
+ src/cmd/6g/gen.c   |  36 ++++++++++-
+ src/cmd/6g/gsubr.c | 152 +++++++++++++++++++++++++++-----------------
+ src/cmd/6g/opt.h   |  25 +++++---
+ src/cmd/6g/peep.c  |  30 ++++++---
+ src/cmd/6g/reg.c   | 181 ++++++++++++++++++++++++++++++++++++-----------------
+ src/cmd/gc/go.h    |   1 +
+ src/cmd/gc/walk.c  |  15 ++++-
+ 8 files changed, 312 insertions(+), 136 deletions(-)

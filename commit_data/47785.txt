@@ -1,0 +1,21 @@
+commit 67917c3d78002ebca7de697f4ede74e602701554
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Dec 13 10:24:07 2021 -0500
+
+    cmd/internal/obj: fix tail call in non-zero frame leaf function on MIPS and S390X
+    
+    A "RET f(SB)" wasn't assembled correctly in a leaf function with
+    non-zero frame size. Follows CL 371034, for MIPS(32/64)(be/le)
+    and S390X. Other architectures seem to do it right. Add a test.
+    
+    Change-Id: I41349a7ae9862b924f3a3de2bcb55b782061ce21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371214
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/obj/mips/obj0.go  | 12 +++++++++---
+ src/cmd/internal/obj/s390x/objz.go |  9 +++++++--
+ test/retjmp.dir/a.s                |  4 ++++
+ test/retjmp.dir/main.go            |  8 +++++++-
+ 4 files changed, 27 insertions(+), 6 deletions(-)

@@ -1,0 +1,23 @@
+commit 8c5a54f698873244694c8e6f20d3794a5f32ba3f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 9 09:04:37 2023 -0700
+
+    cmd/compile: keep all open-coded defer slots as used
+    
+    Open-coded defer slots are assigned indices upfront, so they're
+    logically like elements in an array. Without reassigning the indices,
+    we need to keep all of the elements alive so their relative offsets
+    are correct.
+    
+    Fixes #61895.
+    
+    Change-Id: Ie0191fdb33276f4e8ed0becb69086524fff022b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517856
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssagen/pgen.go |  8 ++++++++
+ test/fixedbugs/issue61895.go            | 15 +++++++++++++++
+ 2 files changed, 23 insertions(+)

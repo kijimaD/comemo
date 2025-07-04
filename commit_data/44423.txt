@@ -1,0 +1,25 @@
+commit ee2a45e5fbee473b81c8ab81da8d83699d64e01f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Feb 24 09:43:59 2021 +0100
+
+    runtime: use pipe2 for nonblockingPipe on dragonfly
+    
+    The pipe2 syscall is available since DragonflyBSD 4.2, see
+    https://www.dragonflybsd.org/release42/
+    
+    Change-Id: Ifc67c4935cc59bae29be459167e2fa765843ac03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295471
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/defs_dragonfly.go       |  4 ++++
+ src/runtime/defs_dragonfly_amd64.go |  4 ++++
+ src/runtime/export_pipe2_test.go    |  4 ++--
+ src/runtime/export_pipe_test.go     |  4 ++--
+ src/runtime/nbpipe_pipe.go          |  4 ++--
+ src/runtime/nbpipe_pipe2.go         |  4 ++--
+ src/runtime/os_dragonfly.go         |  5 +++--
+ src/runtime/sys_dragonfly_amd64.s   | 18 ++++++++++++++++++
+ 8 files changed, 37 insertions(+), 10 deletions(-)

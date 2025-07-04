@@ -1,0 +1,21 @@
+commit 3ddc9ad9161c6d5ae07ce2304aa838d4b853cc78
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 18 17:27:21 2016 +0000
+
+    strings: add special cases for Join of 2 and 3 strings
+    
+    We already had special cases for 0 and 1. Add 2 and 3 for now too.
+    To be removed if the compiler is improved later (#6714).
+    
+    This halves the number of allocations and total bytes allocated via
+    common filepath.Join calls, improving filepath.Walk performance.
+    
+    Noticed as part of investigating filepath.Walk in #16399.
+    
+    Change-Id: If7b1bb85606d4720f3ebdf8de7b1e12ad165079d
+    Reviewed-on: https://go-review.googlesource.com/25005
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strings/strings.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

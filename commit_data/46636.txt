@@ -1,0 +1,21 @@
+commit 534dfb2aeb0721eeedb847e0d60785da8ac13315
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Sep 27 13:39:43 2021 -0700
+
+    cmd/internal/obj: refactor code to separate content-addressable symbols by section
+    
+    The goal of this change is to improve the documentation
+    and make it easier to keep Link.NumberSyms and writer.contentHash aligned.
+    No functional changes.
+    
+    A subsequent change will add conditions to contentHashSection.
+    
+    Change-Id: I0a274f6974459d34d5a8553081f33ea4cd87f248
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352669
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/objfile.go    | 30 ++++++++++++++++++++++--------
+ src/cmd/internal/obj/sym.go        |  6 +++---
+ src/cmd/link/internal/ld/symtab.go |  2 ++
+ 3 files changed, 27 insertions(+), 11 deletions(-)

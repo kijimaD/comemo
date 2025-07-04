@@ -1,0 +1,12 @@
+commit 6d725e97e3729baca0c9797a71a424f6ca313416
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 15 08:53:12 2013 +0900
+
+    net: simplify ListenMulticastUDP
+    
+    R=rsc, iant, dave
+    CC=golang-dev
+    https://golang.org/cl/6999053
+
+ src/pkg/net/udpsock_posix.go | 49 +++++++++++---------------------------------
+ 1 file changed, 12 insertions(+), 37 deletions(-)

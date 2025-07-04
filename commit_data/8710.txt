@@ -1,0 +1,12 @@
+commit c6c8dbd646ae79d2dd1f1920d6992d6177bc3238
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 14 17:25:57 2011 +1000
+
+    doc/gopher: add a small gif to use as an app engine logo on GAE pages.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4591078
+
+ doc/gopher/appenginelogo.gif | Bin 0 -> 2105 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

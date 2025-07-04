@@ -1,0 +1,18 @@
+commit 02adfa0b3d6dd46dc69709df7f39a1c947bec867
+Author: Rob Pike <r@golang.org>
+Date:   Sun Apr 3 20:45:52 2016 -0700
+
+    html/template: prefix the internally-used FuncMap values with an underscore
+    
+    This makes these names even less likely to collide with a real user-defined function.
+    
+    Fixes #13852.
+    
+    Change-Id: If5a8562c6797ced19c355c7ab2c86fc4401a8674
+    Reviewed-on: https://go-review.googlesource.com/21490
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/html/template/escape.go | 92 ++++++++++++++++++++++-----------------------
+ 1 file changed, 46 insertions(+), 46 deletions(-)

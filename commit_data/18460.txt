@@ -1,0 +1,15 @@
+commit c50760110280ce1e07e7969eec77b1d32e25ae12
+Author: Robert Dinu <r@varp.se>
+Date:   Wed Feb 12 07:35:54 2014 -0800
+
+    debug/pe: delete unnecessary type conversions
+    
+    Fixes #7104.
+    
+    LGTM=iant
+    R=golang-dev, iant
+    CC=golang-codereviews
+    https://golang.org/cl/61480049
+
+ src/pkg/debug/pe/file.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

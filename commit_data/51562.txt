@@ -1,0 +1,15 @@
+commit 628a1e7d3ac8390e0c6327acde1ab52ec09f69d6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 15 09:10:20 2022 -0800
+
+    doc/go1.20: fix typo
+    
+    Change-Id: Icddf980e533b86ca955660ad028f5ad04b6aecbe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457916
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ doc/go1.20.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

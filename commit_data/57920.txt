@@ -1,0 +1,19 @@
+commit e67c0f0c8f1b49937eb197f6172ae75633767db7
+Author: Tim King <taking@google.com>
+Date:   Fri Nov 8 11:21:18 2024 -0800
+
+    cmd/compile/internal/noder: replace recompile library error messages
+    
+    Replaces 'recompile library' error messages with the more accurate
+    'recompile package' globally.
+    
+    Change-Id: I7247964c76f1fcb94feda37c78bdfb8a1b1a6492
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626696
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Commit-Queue: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/importer/gcimporter.go | 2 +-
+ src/cmd/compile/internal/noder/import.go        | 2 +-
+ src/go/internal/gcimporter/gcimporter.go        | 3 +--
+ 3 files changed, 3 insertions(+), 4 deletions(-)

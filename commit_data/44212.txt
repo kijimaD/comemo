@@ -1,0 +1,19 @@
+commit 6ac91e460c294bda5a50e628b7556bf20525fa44
+Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+Date:   Sun Jan 31 12:42:44 2021 +0000
+
+    doc/go1.16: minor markup fixes
+    
+    Add missing <code> tags.
+    Remove unnecessary <br> tag.
+    
+    For #40700
+    
+    Change-Id: I03d3ce1c89a9ae3d3195dcd2bb8b1a61f011e1ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288275
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ doc/go1.16.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

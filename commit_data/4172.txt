@@ -1,0 +1,12 @@
+commit 9bc6a404d53e157fe425c26b02107e7b08b535e6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 20 00:31:03 2009 -0800
+
+    cgo: allow .so in subdirectories
+    
+    R=r
+    https://golang.org/cl/157103
+
+ src/Make.pkg        | 2 +-
+ src/cmd/cgo/main.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

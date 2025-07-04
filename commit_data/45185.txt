@@ -1,0 +1,25 @@
+commit abbb82957d823f249dd39e38d448691e86c978bc
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 15 15:43:22 2021 -0400
+
+    cmd/compile: don't insert VarDef for already-initialized results
+    
+    Currently, when we about to emit code that sets the function
+    results and returns, it emits a VarDef. But in some cases, the
+    result node is actually live and holding useful data. VarDef
+    means that we are about to (re)initialize it so all previous
+    data are dead, but that is not true. Don't insert that.
+    
+    Also don't add VarDef for register results. We are not going to
+    store anything (currently it doesn't cause problem, just
+    unnecessary).
+    
+    Change-Id: I9dd3b70b4a3f5035af028b143fde8fafa2f11fa0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310589
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

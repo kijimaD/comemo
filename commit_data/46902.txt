@@ -1,0 +1,16 @@
+commit 81484cf6263461057251bbda825f2c3dc4cdcd09
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 14 21:08:11 2021 -0700
+
+    doc: document new reflect.SetIter{Key,Value} functions
+    
+    Update #48294
+    Update #47694
+    
+    Change-Id: I4d4c01be74a9736d89a4ec92318ce29ff7289a0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356050
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+
+ doc/go1.18.html | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

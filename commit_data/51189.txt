@@ -1,0 +1,21 @@
+commit 89332e037aeaf1223de4c24805719f733e4c0977
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sat Jul 23 09:11:32 2022 +0200
+
+    encoding/xml: error when more than one colon in qualified names
+    
+    Add test.
+    
+    Fixes #20396
+    
+    Change-Id: I89e9013eb338f831e1908e390b284794df78fb6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/103875
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/encoding/xml/xml.go      |  2 +-
+ src/encoding/xml/xml_test.go | 36 ++++++++++++++++++++++++++++++++++--
+ 2 files changed, 35 insertions(+), 3 deletions(-)

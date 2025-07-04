@@ -1,0 +1,12 @@
+commit eeb9822457e398f59b3620e2b719a950dcf891ff
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 20 08:06:58 2013 -0700
+
+    misc/swig: remove old broken Makefile
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7786046
+
+ misc/swig/stdio/Makefile | 17 -----------------
+ 1 file changed, 17 deletions(-)

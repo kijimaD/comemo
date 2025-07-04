@@ -1,0 +1,15 @@
+commit 6e1c0df1048de9c95e757a35dd924917ea2bc481
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jan 22 12:01:12 2012 -0800
+
+    gob: reduce the maximum message size
+    It was 2^31, but that could cause overflow and trouble.
+    Reduce it to 2^30 and add a TODO.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5562049
+
+ src/pkg/encoding/gob/decoder.go        | 4 +++-
+ src/pkg/encoding/gob/gobencdec_test.go | 1 -
+ 2 files changed, 3 insertions(+), 2 deletions(-)

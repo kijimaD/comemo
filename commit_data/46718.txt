@@ -1,0 +1,21 @@
+commit d99f1de56e7d86389a373e36ed3325e1e5069c31
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Oct 4 14:17:50 2021 -0400
+
+    go/types: update the recorded function type after inference
+    
+    This change preserves the observable invariant that for an *ast.CallExpr
+    'call', Info.Types[call.Fun] is the signature being called.
+    
+    Updates #47916
+    
+    Change-Id: I3e97c712a7ee33a4f29e8cf4c18dc7c946b66cc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353831
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/api_test.go | 6 ++++--
+ src/go/types/call.go     | 8 +++++++-
+ 2 files changed, 11 insertions(+), 3 deletions(-)

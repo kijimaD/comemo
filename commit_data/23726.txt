@@ -1,0 +1,15 @@
+commit f04c506917c585521e3ebbedd9ad2c0bc3c4fba5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 16 14:40:35 2015 -0700
+
+    A+C: more updates
+    
+    Update #10639
+    
+    Change-Id: I2d7817ac0aefb5dd2569d7e83afbc51851e24b42
+    Reviewed-on: https://go-review.googlesource.com/12321
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

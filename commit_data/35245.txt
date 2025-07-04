@@ -1,0 +1,37 @@
+commit e8d417d272290027e10e348f81cbc6bb5fe0ec13
+Author: Fangming.Fang <fangming.fang@arm.com>
+Date:   Sun Apr 8 07:32:43 2018 +0000
+
+    runtime: enable memory sanitizer on arm64
+    
+    Changes include:
+    1. open compilation option -msan for arm64
+    2. modify doc to explain -msan is also supported on linux/arm64
+    3. wrap msan lib API in msan_arm64.s
+    4. use libc for sigaction syscalls when cgo is enabled
+    5. use libc for mmap syscalls when cgo is enabled
+    
+    Change-Id: I26ebe61ff7ce1906125f54a0182a720f9d58ec11
+    Reviewed-on: https://go-review.googlesource.com/109255
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go              |  2 +-
+ src/cmd/go/alldocs.go             |  2 +-
+ src/cmd/go/internal/work/build.go |  2 +-
+ src/cmd/go/internal/work/init.go  |  6 ++--
+ src/runtime/cgo/gcc_linux_arm64.c | 32 ++++++++++++++++----
+ src/runtime/cgo/gcc_mmap.c        |  2 +-
+ src/runtime/cgo/gcc_sigaction.c   |  2 +-
+ src/runtime/cgo/mmap.go           |  2 +-
+ src/runtime/cgo/sigaction.go      |  2 +-
+ src/runtime/cgo_mmap.go           |  2 +-
+ src/runtime/cgo_sigaction.go      |  2 +-
+ src/runtime/mmap.go               |  1 +
+ src/runtime/msan/msan.go          |  3 +-
+ src/runtime/msan_arm64.s          | 62 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/rt0_linux_arm64.s     |  7 ++++-
+ src/runtime/sigaction.go          |  2 +-
+ src/runtime/sys_linux_arm64.s     | 37 +++++++++++++++++++++--
+ 17 files changed, 146 insertions(+), 22 deletions(-)

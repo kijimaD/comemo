@@ -1,0 +1,13 @@
+commit b4e358d7e1d06f0d3e3ba5582e046c98c57e715d
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 27 12:06:29 2010 -0700
+
+    utf8.String: provide an Init method to avoid unnecessary allocation
+    when creating an array of Strings.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2267046
+
+ src/pkg/utf8/string.go | 25 +++++++++++++++++--------
+ 1 file changed, 17 insertions(+), 8 deletions(-)

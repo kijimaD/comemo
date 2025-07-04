@@ -1,0 +1,17 @@
+commit 08bb7ccb75cd6ca5c52c5a09386a6479168607d6
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Dec 9 09:55:50 2016 -0500
+
+    go/types: permit f(nil...) for variadic arguments
+    
+    This code may be pointless, but it is legal.
+    
+    Fixes golang/go#18268
+    
+    Change-Id: Ibacae583606e1a6fdf0c0f01abe2e22e9e608393
+    Reviewed-on: https://go-review.googlesource.com/34194
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/call.go               | 2 +-
+ src/go/types/testdata/builtins.src | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

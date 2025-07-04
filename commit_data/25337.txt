@@ -1,0 +1,18 @@
+commit 0cb68acea2e82f6e071804d4d890271103f83c7b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 01:38:14 2015 -0500
+
+    cmd/go: respect umask when creating executables
+    
+    Also update many call sites where I forgot that the permission
+    argument is going to be masked by umask.
+    
+    Fixes #12692.
+    
+    Change-Id: I52b315b06236122ca020950447863fa396b68abd
+    Reviewed-on: https://go-review.googlesource.com/17950
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go        | 36 +++++++++++++++++++++++++++---------
+ src/cmd/go/go_unix_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 9 deletions(-)

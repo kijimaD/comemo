@@ -1,0 +1,13 @@
+commit b0fba898ef172bb4d99155e725b795ff6fe97ad8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 22 15:41:59 2010 -0800
+
+    go/printer (gofmt): remove more residue from semicolon transition
+    minor unrelated cleanups
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/217086
+
+ src/pkg/go/printer/nodes.go | 93 +++++++--------------------------------------
+ 1 file changed, 14 insertions(+), 79 deletions(-)

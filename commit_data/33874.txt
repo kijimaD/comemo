@@ -1,0 +1,15 @@
+commit 26ec05cdbee032ffdb1936730ba9fbe65eacacff
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Dec 13 12:59:12 2017 -0500
+
+    doc: update info about flame graphs in diagnostics.html
+    
+    Use Brendan Gregg's FlameGraphs page link.
+    Mention the flame graph is available from the upstream pprof.
+    
+    Change-Id: Ife1d5a5f4f93f20cd5952a09083f798b77d25a60
+    Reviewed-on: https://go-review.googlesource.com/83798
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/diagnostics.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

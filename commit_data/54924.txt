@@ -1,0 +1,65 @@
+commit 07c388f17c039c0bb9a3fd0fd70bf5494aa7ee2c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Nov 7 13:10:48 2023 +0100
+
+    syscall: use fchmodat2 in Fchmodat
+    
+    The fchmodat2 syscall was added in Linux kernel 6.6.  Mirror the
+    implementation in golang.org/x/sys/unix.Fchmodat (CL 539635) and use
+    fchmodat2 in Fchmodat if flags are given. It will return ENOSYS on older
+    kernels (or EINVAL or any other bogus error in some container
+    implementations).
+    
+    Also update ztypes_linux_$GOARCH.go for all linux platforms to add
+    _AT_EMPTY_PATH. It was added to linux/types in CL 407694 but was only
+    updated for linux/loong64 at that time.
+    
+    Updates #61636
+    
+    Change-Id: I863d06e35cd366f1cf99052e9f77c22ab8168b3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540435
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/syscall_linux.go           | 26 +++++++++++++++++---------
+ src/syscall/syscall_linux_386.go       |  1 +
+ src/syscall/syscall_linux_amd64.go     |  1 +
+ src/syscall/syscall_linux_arm.go       |  1 +
+ src/syscall/syscall_linux_arm64.go     |  1 +
+ src/syscall/syscall_linux_loong64.go   |  1 +
+ src/syscall/syscall_linux_mips64x.go   |  1 +
+ src/syscall/syscall_linux_mipsx.go     |  1 +
+ src/syscall/syscall_linux_ppc64x.go    |  1 +
+ src/syscall/syscall_linux_riscv64.go   |  1 +
+ src/syscall/syscall_linux_s390x.go     |  1 +
+ src/syscall/zsyscall_linux_386.go      | 15 +++++++++++++++
+ src/syscall/zsyscall_linux_amd64.go    | 15 +++++++++++++++
+ src/syscall/zsyscall_linux_arm.go      | 15 +++++++++++++++
+ src/syscall/zsyscall_linux_arm64.go    | 15 +++++++++++++++
+ src/syscall/zsyscall_linux_loong64.go  | 15 +++++++++++++++
+ src/syscall/zsyscall_linux_mips.go     | 15 +++++++++++++++
+ src/syscall/zsyscall_linux_mips64.go   | 15 +++++++++++++++
+ src/syscall/zsyscall_linux_mips64le.go | 15 +++++++++++++++
+ src/syscall/zsyscall_linux_mipsle.go   | 15 +++++++++++++++
+ src/syscall/zsyscall_linux_ppc64.go    | 15 +++++++++++++++
+ src/syscall/zsyscall_linux_ppc64le.go  | 15 +++++++++++++++
+ src/syscall/zsyscall_linux_riscv64.go  | 15 +++++++++++++++
+ src/syscall/zsyscall_linux_s390x.go    | 15 +++++++++++++++
+ src/syscall/ztypes_linux_386.go        |  1 +
+ src/syscall/ztypes_linux_amd64.go      |  1 +
+ src/syscall/ztypes_linux_arm.go        |  1 +
+ src/syscall/ztypes_linux_arm64.go      |  1 +
+ src/syscall/ztypes_linux_mips.go       |  1 +
+ src/syscall/ztypes_linux_mips64.go     |  1 +
+ src/syscall/ztypes_linux_mips64le.go   |  1 +
+ src/syscall/ztypes_linux_mipsle.go     |  1 +
+ src/syscall/ztypes_linux_ppc64.go      |  1 +
+ src/syscall/ztypes_linux_ppc64le.go    |  1 +
+ src/syscall/ztypes_linux_riscv64.go    |  1 +
+ src/syscall/ztypes_linux_s390x.go      |  1 +
+ 36 files changed, 234 insertions(+), 9 deletions(-)

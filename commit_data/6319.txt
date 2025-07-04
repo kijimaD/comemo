@@ -1,0 +1,26 @@
+commit 8e5f673dacdaefc4646e54445b92b85f07f4d045
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Sep 20 12:17:31 2010 -0400
+
+    crypto/x509, crypto/tls: improve root matching and observe CA flag.
+    
+    The key/value format of X.500 names means that it's possible to encode
+    a name with multiple values for, say, organisation. RFC5280
+    doesn't seem to consider this, but there are Verisign root
+    certificates which do this and, in order to find the correct
+    root certificate in some cases, we need to handle it.
+    
+    Also, CA certificates should set the CA flag and we now check
+    this. After looking at the other X.509 extensions it appears
+    that they are universally ignored/bit rotted away so we ignore
+    them.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2249042
+
+ src/pkg/crypto/tls/ca_set.go           |  3 ++-
+ src/pkg/crypto/tls/handshake_client.go | 24 +++++++++++++++++++++++-
+ src/pkg/crypto/x509/x509.go            | 21 +++++++++++----------
+ src/pkg/crypto/x509/x509_test.go       |  2 +-
+ 4 files changed, 37 insertions(+), 13 deletions(-)

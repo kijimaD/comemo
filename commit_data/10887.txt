@@ -1,0 +1,16 @@
+commit 5842f7e46a278cbf75e37f8a489e1f02e4acc8ac
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Dec 20 12:25:06 2011 +1100
+
+    5l/6l/8l: add support for netbsd signature note section
+    
+    R=m4dh4tt3r, jsing, rsc
+    CC=golang-dev
+    https://golang.org/cl/5493068
+
+ src/cmd/5l/asm.c | 33 +++++++++++++++++++++-----
+ src/cmd/6l/asm.c | 28 ++++++++++++++++++----
+ src/cmd/8l/asm.c | 33 +++++++++++++++++++++-----
+ src/cmd/ld/elf.c | 72 ++++++++++++++++++++++++++++++++++++++++++++++----------
+ src/cmd/ld/elf.h |  6 +++--
+ 5 files changed, 141 insertions(+), 31 deletions(-)

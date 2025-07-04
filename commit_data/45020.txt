@@ -1,0 +1,31 @@
+commit 46ffbec1d6715f62c724a7180aec12ffd8acf57f
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Apr 7 07:58:10 2021 -0700
+
+    cmd/compile: break out transformations of tcCompLit into transformCompLit
+    
+    Create transformCompLit, which does the transformations done by
+    tcCompLit without the typechecking. This removes the final use of the
+    old typechecker in the noder2 pass.
+    
+    Other changes:
+    
+     - Used the transformCompLit in stringstorunelit(), which creates an
+       OCOMPLIT that needs transformation as well.
+    
+     - Fixed one place in transformIndex where we were still using
+       typecheck.AssignConv, when we should be using its equivalent
+       noder.assignconvfn.
+    
+    The go/test tests always run with -G=3, and I also tested that the "go
+    test" tests continue to run correctly with -G=3.
+    
+    Change-Id: I4a976534ab7311cf2a5f43841026dbf7401e62b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308529
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/noder/expr.go      |   5 +-
+ src/cmd/compile/internal/noder/transform.go | 166 +++++++++++++++++++++++++++-
+ 2 files changed, 163 insertions(+), 8 deletions(-)

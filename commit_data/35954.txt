@@ -1,0 +1,26 @@
+commit 4b74506da1ccf8c2f57f11991b432a6d5ac86e4f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 11 21:14:42 2018 +0000
+
+    doc: update the minimum support Windows version
+    
+    Also, remove some test code that was trying to work on XP and fix up
+    some comments referencing XP.
+    
+    Fixes #26191
+    Updates #23380
+    
+    Change-Id: I0b7319fe1954afddb22d396e5ec91d8c960268d8
+    Reviewed-on: https://go-review.googlesource.com/123415
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/install.html                     |  2 +-
+ src/crypto/x509/sha2_windows_test.go | 19 -------------------
+ src/crypto/x509/verify_test.go       |  5 -----
+ src/internal/poll/fd_windows.go      | 11 +++++------
+ src/net/interface_windows.go         |  5 ++---
+ src/runtime/syscall_windows.go       | 11 ++++++-----
+ 6 files changed, 14 insertions(+), 39 deletions(-)

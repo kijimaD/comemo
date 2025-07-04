@@ -1,0 +1,25 @@
+commit 0d018b49e33b1383dc0ae5cc968e800dffeeaf7d
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Nov 18 13:51:35 2023 +0800
+
+    all: fix field names
+    
+    Change-Id: I3ad7a50707486ebdbbd676b3581df6e3ed0fd3a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543476
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+
+ src/cmd/compile/internal/pgo/irgraph.go | 2 +-
+ src/cmd/compile/internal/ssa/func.go    | 2 +-
+ src/cmd/compile/internal/ssa/prove.go   | 7 ++++---
+ src/cmd/go/internal/modget/query.go     | 2 +-
+ src/database/sql/sql.go                 | 4 ++--
+ src/go/internal/gcimporter/ureader.go   | 2 +-
+ src/go/parser/parser_test.go            | 2 +-
+ src/runtime/mgcscavenge.go              | 2 +-
+ src/runtime/runtime2.go                 | 2 +-
+ 9 files changed, 13 insertions(+), 12 deletions(-)

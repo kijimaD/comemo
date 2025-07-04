@@ -1,0 +1,35 @@
+commit d574b59fc71e52ac7feead94348ee61ef8d16a1c
+Author: Patrick Mezard <patrick@mezard.eu>
+Date:   Sun May 10 15:35:52 2015 +0200
+
+    os: fix a race between Process.signal() and wait() on Windows
+    
+    Process.handle was accessed without synchronization while wait() and
+    signal() could be called concurrently.
+    
+    A first solution was to add a Mutex in Process but it was probably too
+    invasive given Process.handle is only used on Windows.
+    
+    This version uses atomic operations to read the handle value. There is
+    still a race between isDone() and the value of the handle, but it only
+    leads to slightly incorrect error codes. The caller may get a:
+    
+      errors.New("os: process already finished")
+    
+    instead of:
+    
+      syscall.EINVAL
+    
+    which sounds harmless.
+    
+    Fixes #9382
+    
+    Change-Id: Iefcc687a1166d5961c8f27154647b9b15a0f748a
+    Reviewed-on: https://go-review.googlesource.com/9904
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/exec.go         |  4 ++--
+ src/os/exec_windows.go | 18 +++++++++++-------
+ 2 files changed, 13 insertions(+), 9 deletions(-)

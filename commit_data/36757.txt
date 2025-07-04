@@ -1,0 +1,16 @@
+commit 10aeb672e0183b63b6e2d59e49c38c8e83ea6113
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Wed Jun 13 21:19:22 2018 -0300
+
+    image: make RegisterFormat safe for concurrent use
+    
+    Fixes #25884
+    
+    Change-Id: I5478846ef78aecac32078ea8c3248db52f1bb534
+    Reviewed-on: https://go-review.googlesource.com/118755
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/image/format.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

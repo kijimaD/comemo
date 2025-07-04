@@ -1,0 +1,20 @@
+commit 13f179b9c8c3b9d9066e71d0a69cff8c0876098b
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jun 7 22:59:40 2019 +0100
+
+    cmd/go: fix syntax mistake in a testscript file
+    
+    I didn't realise that the trybots don't include any Mac machines, so I
+    assumed this test change was fine when submitting CL 181177.
+    
+    In any case, this is a simple fix. I forgot to add the quotes, as the
+    new UserConfigDir on Mac includes a space.
+    
+    Change-Id: I0766b966fc41736e9fc859e37f059a3f12788d7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181278
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/env_write.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

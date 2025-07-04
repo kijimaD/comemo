@@ -1,0 +1,12 @@
+commit 959d0c7ac0091513fc1a2e53834d027430122ee8
+Author: Jeremy Jackins <jeremyjackins@gmail.com>
+Date:   Sat Mar 10 15:13:34 2012 -0800
+
+    doc: fix typo in contribute.html
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5795050
+
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

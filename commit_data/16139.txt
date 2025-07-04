@@ -1,0 +1,26 @@
+commit afb49aada5b79b360d6c16699b0b8121ae6b2b71
+Author: Andrew Wilkins <axwalk@gmail.com>
+Date:   Tue Apr 9 07:35:06 2013 +0800
+
+    cmd/cgo: record CGO_LDFLAGS env var in _cgo_flags
+    
+    cgo stores cgo LDFLAGS in _cgo_flags and _cgo_defun.c.
+    The _cgo_defun.c records the flags via
+    "#pragma cgo_ldflag <flag>", which external linking
+    relies upon for passing libraries (and search paths)
+    to the host linker.
+    
+    The go command will allow LDFLAGS for cgo to be passed
+    through the environment (CGO_LDFLAGS); cgo ignores
+    this environment variable, and so its value doesn't
+    make it into the above mentioned files. This CL changes
+    cgo to record CGO_LDFLAGS also.
+    
+    Fixes #5205.
+    
+    R=iant, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/8465043
+
+ src/cmd/cgo/main.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

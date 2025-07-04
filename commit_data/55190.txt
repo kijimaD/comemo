@@ -1,0 +1,19 @@
+commit 92b6cdeb4250861b1e81451ef699307993856b0a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 30 21:14:52 2023 +0000
+
+    doc: add release notes for runtime/pprof changes
+    
+    For #50891.
+    For #61015.
+    
+    For #61422.
+    
+    Change-Id: I30d580814ac02fe9f3fbd1a101b2cc05947a9aaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546475
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/go1.22.html | 25 +++++++++++++++++--------
+ 1 file changed, 17 insertions(+), 8 deletions(-)

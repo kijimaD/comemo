@@ -1,0 +1,18 @@
+commit 65d7345e8ba77bea9dd3d694d0015308416e3280
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Apr 18 17:54:40 2022 -0400
+
+    go/types: introduce the error_ type to match types2
+    
+    To begin aligning with types2 error reporting, use an error_ type to
+    hold unevaluated error information, to report via Checker.report.
+    
+    Change-Id: Ic5ac515759961e55b81acc9eeaac4db25b61804c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400824
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/go/types/errors.go      | 105 +++++++++++++++++++++++++++++++++++---------
+ src/go/types/errors_test.go |  25 ++++++++++-
+ 2 files changed, 108 insertions(+), 22 deletions(-)

@@ -1,0 +1,21 @@
+commit 787f43973318f9eba3996e989f46f1cb93b7a5f4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 12 10:48:38 2011 -0700
+
+    godoc: setup script for app engine, cleanups
+    
+    - automated app-engine setup with bash script
+    - added README.godoc-app
+    - removed orphaned files in misc/godoc
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5231042
+
+ misc/godoc/README                  |  22 -------
+ misc/godoc/app.yaml                |  12 ----
+ misc/godoc/init.go                 |  35 -----------
+ src/cmd/godoc/README.godoc-app     |  84 +++++++++++++++++++++++++
+ src/cmd/godoc/appconfig.go         |  30 ---------
+ src/cmd/godoc/setup-godoc-app.bash | 121 +++++++++++++++++++++++++++++++++++++
+ 6 files changed, 205 insertions(+), 99 deletions(-)

@@ -1,0 +1,30 @@
+commit 978af9c2dbb4982f62dee6b84c48e06e0d4c085c
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 11 14:46:49 2017 -0700
+
+    cmd/compile: fix store chain in schedule pass
+    
+    Tuple ops are weird. They are essentially a pair of ops,
+    one which consumes a mem and one which generates a mem (the Select1).
+    The schedule pass didn't handle these quite right.
+    
+    Fix the scheduler to include both parts of the paired op in
+    the store chain. That makes sure that loads are correctly ordered
+    with respect to the first of the pair.
+    
+    Add a check for the ssacheck builder, that there is only one
+    live store at a time. I thought we already had such a check, but
+    apparently not...
+    
+    Fixes #20335
+    
+    Change-Id: I59eb3446a329100af38d22820b1ca2190ca46a78
+    Reviewed-on: https://go-review.googlesource.com/43294
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/check.go    | 33 ++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/schedule.go | 31 +++++++++++++++---------------
+ test/fixedbugs/issue20335.go             | 19 ++++++++++++++++++
+ 3 files changed, 68 insertions(+), 15 deletions(-)

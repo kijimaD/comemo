@@ -1,0 +1,12 @@
+commit f6f83e493819675511c09941a075e9637a48b7e9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 31 16:19:25 2012 -0800
+
+    test: add test which crashed gccgo compiler
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5605046
+
+ test/fixedbugs/bug403.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

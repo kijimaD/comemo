@@ -1,0 +1,45 @@
+commit e3edfea07f905916cee66121576b029cd6a11444
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 4 00:54:06 2014 -0400
+
+    runtime: correct various Go -> C function calls
+    
+    Some things get converted.
+    Other things (too complex or too many C deps) get onM calls.
+    Other things (too simple) get #pragma textflag NOSPLIT.
+    
+    After this CL, the offending function list is basically:
+            - panic.c
+            - netpoll.goc
+            - mem*.c
+            - race stuff
+            - readgstatus
+            - entersyscall/exitsyscall
+    
+    LGTM=r, iant
+    R=golang-codereviews, r, iant
+    CC=dvyukov, golang-codereviews, khr
+    https://golang.org/cl/140930043
+
+ src/pkg/runtime/cpuprof.go     |  8 +++-
+ src/pkg/runtime/debug.go       |  9 ++++-
+ src/pkg/runtime/malloc.c       | 52 --------------------------
+ src/pkg/runtime/malloc.go      | 56 +++++++++++++++++++++++++++-
+ src/pkg/runtime/malloc.h       |  2 +-
+ src/pkg/runtime/mcache.c       |  7 ++--
+ src/pkg/runtime/mheap.c        | 11 +++++-
+ src/pkg/runtime/mprof.go       | 20 ++++++----
+ src/pkg/runtime/os_darwin.c    | 84 +++++++++++++++++++++++++++++++++++++-----
+ src/pkg/runtime/os_nacl.c      |  6 ---
+ src/pkg/runtime/os_nacl.go     |  4 ++
+ src/pkg/runtime/os_windows.c   |  6 ---
+ src/pkg/runtime/os_windows.go  |  4 ++
+ src/pkg/runtime/proc.c         | 83 ++++++++++++++++++++++++++++-------------
+ src/pkg/runtime/runtime.c      | 32 +---------------
+ src/pkg/runtime/runtime.go     | 37 +++++++++++++++++++
+ src/pkg/runtime/signal_unix.c  |  2 +-
+ src/pkg/runtime/signal_unix.go | 13 +++++++
+ src/pkg/runtime/stack_test.go  |  9 +++++
+ src/pkg/runtime/stubs.go       |  1 -
+ src/pkg/runtime/thunk.s        |  3 ++
+ 21 files changed, 297 insertions(+), 152 deletions(-)

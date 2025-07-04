@@ -1,0 +1,14 @@
+commit 453cbb8f679e33ccf384055bda88906bae4e058a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 14:43:05 2024 -0400
+
+    doc: document new timer behavior
+    
+    Change-Id: Ifa5894c67a36eb2c101b23b85775a3702512ca79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571796
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/6-stdlib/1-time.md | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

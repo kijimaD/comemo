@@ -1,0 +1,17 @@
+commit f70e8ed0f3e9eec7d67c16b93e53919b21942ee5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 24 17:29:19 2011 -0700
+
+    ebnflint: better handling of stdin
+    
+    - don't rely on /dev/stdin as the name for standard input
+    - employ EBNF extraction if the source contains tags
+    
+    "cat source.html | ebnflint" works now
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4641075
+
+ src/cmd/ebnflint/ebnflint.go | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

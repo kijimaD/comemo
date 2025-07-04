@@ -1,0 +1,32 @@
+commit ae4534e6598fe905d3ebefae44afef07e853b1d0
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 18 15:03:50 2019 +0000
+
+    runtime: ensure heap memstats are updated atomically
+    
+    For the most part, heap memstats are already updated atomically when
+    passed down to OS-level memory functions (e.g. sysMap). Elsewhere,
+    however, they're updated with the heap lock.
+    
+    In order to facilitate holding the heap lock for less time during
+    allocation paths, this change more consistently makes the update of
+    these statistics atomic by calling mSysStat{Inc,Dec} appropriately
+    instead of simply adding or subtracting. It also ensures these values
+    are loaded atomically.
+    
+    Furthermore, an undocumented but safe update condition for these
+    memstats is during STW, at which point using atomics is unnecessary.
+    This change also documents this condition in mstats.go.
+    
+    Updates #35112.
+    
+    Change-Id: I87d0b6c27b98c88099acd2563ea23f8da1239b66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196638
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgcscavenge.go |  7 +++----
+ src/runtime/mheap.go       | 22 ++++++++++++----------
+ src/runtime/mstats.go      |  8 ++++----
+ 3 files changed, 19 insertions(+), 18 deletions(-)

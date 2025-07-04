@@ -1,0 +1,19 @@
+commit 355c38d86a4d67bcff36ed961bccd0fff042c83b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jul 23 07:08:52 2014 +1000
+
+    runtime: rename throwgo to gothrow
+    
+    As pointed out by Elias Naur, the convention for Go runtime functions means this function should be named gothrow.
+    
+    Discussion: https://golang.org/cl/115860045/#msg6
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/118120043
+
+ src/pkg/runtime/hashmap.go | 26 +++++++++++++-------------
+ src/pkg/runtime/panic.c    |  2 +-
+ src/pkg/runtime/stubs.go   |  2 +-
+ 3 files changed, 15 insertions(+), 15 deletions(-)

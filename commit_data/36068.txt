@@ -1,0 +1,15 @@
+commit eec9a895600891c4a05c85e0f41f65275eb356de
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 18 16:20:19 2018 -0400
+
+    cmd/go/internal/str: simplify HasPathPrefix by epsilon
+    
+    Pointed out in CL 122396.
+    An empty prefix has already been handled above.
+    
+    Change-Id: Ib94df0a9c8c0517f932b90126232111caa9ad289
+    Reviewed-on: https://go-review.googlesource.com/124797
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/str/path.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

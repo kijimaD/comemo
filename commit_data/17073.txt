@@ -1,0 +1,12 @@
+commit 2b45124a598be04cfa7aad9de43f7cbb465603f8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 7 11:31:01 2013 -0700
+
+    test: add cases to return.go that gccgo got wrong
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12620043
+
+ test/return.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

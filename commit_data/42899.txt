@@ -1,0 +1,20 @@
+commit ace37d35f18675ac935dc2c6b534dda32ebe84e5
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 2 12:45:07 2020 +0700
+
+    cmd/compile: do not push functions literal node to Func.Dcl
+    
+    They are skipped while processing Func.Dcl anyway.
+    
+    This CL does not pass toolstash-check, because it reduces the length
+    of Func.Dcl length, while that length is used to generate autotmp
+    variables name.
+    
+    Change-Id: I408183e62ce6c34e5f04c89814ebb9570957e37b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252418
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/dcl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

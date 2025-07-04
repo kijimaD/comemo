@@ -1,0 +1,18 @@
+commit 8c31f40a4c1c3474a7c24684cc47845b0ec06974
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 5 10:00:38 2016 -0800
+
+    runtime: don't skip TestCgoCallbackGC on FreeBSD
+    
+    Seems to be fixed according to discussion on issue 16396.
+    
+    Fixes #16396.
+    
+    Change-Id: Ibac7037a24280204e48cb4d3000af524f65afd36
+    Reviewed-on: https://go-review.googlesource.com/33903
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/crash_cgo_test.go | 2 --
+ 1 file changed, 2 deletions(-)

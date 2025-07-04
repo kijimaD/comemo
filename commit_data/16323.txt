@@ -1,0 +1,16 @@
+commit 21cf646bfcc35711ce0c728f3d1e44ffe6b054e8
+Author: Adam Langley <agl@golang.org>
+Date:   Thu May 16 12:29:23 2013 -0400
+
+    crypto/tls: fix flakey test.
+    
+    A test added in b37d2fdcc4d9 didn't work with some values of GOMAXPROCS
+    because the defer statements were in the wrong order: the Pipe could be
+    closed before the TLS Client was.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/9187047
+
+ src/pkg/crypto/tls/handshake_client_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

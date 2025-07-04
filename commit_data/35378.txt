@@ -1,0 +1,20 @@
+commit 3080b7d0af65858400b13134c1c471e2cb35e647
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 26 21:20:41 2018 -0400
+
+    runtime: unify fetching of locals and arguments maps
+    
+    Currently we have two nearly identical copies of the code that fetches
+    the locals and arguments liveness maps for a frame, plus a third
+    that's a poor knock-off. Unify these all into a single function.
+    
+    Change-Id: Ibce7926a0b0e3d23182112da4e25df899579a585
+    Reviewed-on: https://go-review.googlesource.com/109698
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mbitmap.go |  22 ++------
+ src/runtime/mgcmark.go |  79 +++-----------------------
+ src/runtime/stack.go   | 149 +++++++++++++++++++++++++++++--------------------
+ 3 files changed, 101 insertions(+), 149 deletions(-)

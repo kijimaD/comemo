@@ -1,0 +1,13 @@
+commit 01507b9ad168b98a1d528e6039f98a13d633034e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 20 14:32:33 2011 -0800
+
+    net: fix Windows build
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5505048
+
+ src/pkg/net/fd.go  | 8 --------
+ src/pkg/net/net.go | 8 ++++++++
+ 2 files changed, 8 insertions(+), 8 deletions(-)

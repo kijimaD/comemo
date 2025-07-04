@@ -1,0 +1,19 @@
+commit b922055572d8fb4428d9d3482229e1c32c2f40a4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu May 5 02:40:51 2022 +0700
+
+    cmd/compile/internal/walk: remove litas
+    
+    Since when its only usage is in maplit, and its body is simple enough to
+    be inlined directly at the caller side.
+    
+    Change-Id: Id6b8a9d230d0e1e7f8da8d33bbc0073d3e816fb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403998
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/walk/complit.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

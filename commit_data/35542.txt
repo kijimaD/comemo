@@ -1,0 +1,17 @@
+commit f5cf72d43ed1441d2e80654be5bde4b11f4cbcd1
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 30 09:52:06 2018 +0200
+
+    cmd/link/internal/ld: drop duplicate copyright comment
+    
+    The copyright message already appears at the top of macho.go. Drop the
+    duplicate further down in the file.
+    
+    Change-Id: Ib0a69f568c4ef656bab14176223936cd2fe078d1
+    Reviewed-on: https://go-review.googlesource.com/115235
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/macho.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,0 +1,33 @@
+commit a141c58c85a166081bfa9ea4b1d80c347bbb96e4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Feb 8 15:45:09 2023 +0700
+
+    cmd/compile: handle string concatenation in static init inliner
+    
+    Static init inliner is using typecheck.EvalConst to handle string
+    concatenation expressions. But static init inliner may reveal constant
+    expressions after substitution, and the compiler needs to evaluate those
+    expressions in non-constant semantic. Using typecheck.EvalConst, which
+    always evaluates expressions in constant semantic, is not the right
+    choice.
+    
+    For safety, this CL fold the logic to handle string concatenation to
+    static init inliner, so there won't be regression in handling constant
+    expressions in non-constant semantic. And also, future CL can simplify
+    typecheck.EvalConst logic.
+    
+    Updates #58293
+    Updates #58339
+    Fixes #58439
+    
+    Change-Id: I74068d99c245938e576afe9460cbd2b39677bbff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466277
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/staticinit/sched.go | 64 +++++++++++++++++++++++++---
+ test/fixedbugs/issue58439.go                 | 14 ++++++
+ 2 files changed, 73 insertions(+), 5 deletions(-)

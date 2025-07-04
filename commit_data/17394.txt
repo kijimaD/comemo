@@ -1,0 +1,19 @@
+commit 11320fa500c7201065baf1958e237ce4a03b3030
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Aug 27 14:53:57 2013 +1000
+
+    net: have separate read and write processing threads on windows
+    
+    Fixes #4195
+    
+    R=golang-dev, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/12960046
+
+ src/pkg/net/fd_plan9.go            |  2 --
+ src/pkg/net/fd_unix.go             |  2 --
+ src/pkg/net/fd_windows.go          | 28 ++++++++++++++++------------
+ src/pkg/net/http/transport_test.go |  2 +-
+ src/pkg/net/sendfile_windows.go    |  2 +-
+ src/pkg/net/timeout_test.go        |  3 ---
+ 6 files changed, 18 insertions(+), 21 deletions(-)

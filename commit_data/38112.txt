@@ -1,0 +1,35 @@
+commit f40cb19affbb3be090b3519f957b5198744022be
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Feb 27 13:09:22 2019 +0100
+
+    internal/lazyregexp: add a lazy Regexp package
+    
+    This was implemented as part of go/doc, but it's going to be useful in
+    other packages. In particular, many packages under cmd/go like web and
+    vcs make somewhat heavy use of global regexes, which add a non-trivial
+    amount of init work to the cmd/go program.
+    
+    A lazy wrapper around regexp.Regexp will make it trivial to get rid of
+    the extra cost with a trivial refactor, so make it possible for other
+    packages in the repository to make use of it. While naming the package,
+    give the members better names, such as lazyregexp.New and
+    lazyregexp.Regexp.
+    
+    We're also considering adding some form of a lazy API to the public
+    regexp package, so this internal package will allow us to get some
+    initial experience across std and cmd.
+    
+    For #29382.
+    
+    Change-Id: I30b0e72871d5267c309786f95f4cb15c68b2393d
+    Reviewed-on: https://go-review.googlesource.com/c/164040
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/deps_test.go                     | 11 ++++++-----
+ src/go/doc/comment.go                         |  5 +++--
+ src/go/doc/reader.go                          |  7 ++++---
+ src/{go/doc => internal/lazyregexp}/lazyre.go | 18 +++++++++---------
+ 4 files changed, 22 insertions(+), 19 deletions(-)

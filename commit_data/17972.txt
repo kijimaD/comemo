@@ -1,0 +1,13 @@
+commit 3ddd2eaebc6bfb3ef05612a354cbd4273378d18b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 12 17:13:46 2013 -0800
+
+    test: disable large type/stack frame tests for gccgo
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/40370052
+
+ test/fixedbugs/bug385_32.go | 2 +-
+ test/fixedbugs/bug385_64.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

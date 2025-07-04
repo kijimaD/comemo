@@ -1,0 +1,24 @@
+commit f4ca598c9f08a4d00942a1c6a6b8cc7d8f162b66
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 3 11:44:00 2021 -0500
+
+    net: don't check "invalid.invalid" lookup errors in TestLookupHostCancel
+    
+    The exact error isn't actually relevant to the test,
+    and may depend on whether the Go or cgo resolver is used.
+    
+    Also run the test in parallel, because it spends most of its time
+    sleeping in between lookups.
+    
+    Fixes #38767
+    Fixes #43140
+    
+    Change-Id: I2d64ffddf2eb114a69ed3242daa9a9e4a5679f67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369037
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/lookup_test.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

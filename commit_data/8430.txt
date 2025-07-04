@@ -1,0 +1,68 @@
+commit c8727c81bb21293147bb4edc19a0b895d88eba3b
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Wed May 18 13:14:56 2011 -0400
+
+    pkg: spelling tweaks, A-H
+    
+    R=ality, bradfitz, rsc, dsymonds, adg, qyzhai, dchest
+    CC=golang-dev
+    https://golang.org/cl/4536063
+
+ src/pkg/asn1/asn1.go                         |  8 ++++----
+ src/pkg/asn1/common.go                       |  2 +-
+ src/pkg/asn1/marshal.go                      |  4 ++--
+ src/pkg/big/nat.go                           |  2 +-
+ src/pkg/big/rat.go                           |  2 +-
+ src/pkg/compress/bzip2/bzip2.go              |  4 ++--
+ src/pkg/compress/bzip2/huffman.go            |  2 +-
+ src/pkg/compress/flate/huffman_bit_writer.go |  4 ++--
+ src/pkg/compress/gzip/gzip_test.go           |  2 +-
+ src/pkg/container/heap/heap.go               |  2 +-
+ src/pkg/crypto/elliptic/elliptic.go          |  2 +-
+ src/pkg/crypto/elliptic/elliptic_test.go     |  4 ++--
+ src/pkg/crypto/hmac/hmac_test.go             |  2 +-
+ src/pkg/crypto/openpgp/armor/armor.go        |  2 +-
+ src/pkg/crypto/openpgp/packet/packet.go      |  4 ++--
+ src/pkg/crypto/openpgp/packet/public_key.go  |  2 +-
+ src/pkg/crypto/openpgp/packet/signature.go   |  2 +-
+ src/pkg/crypto/openpgp/read.go               | 10 +++++-----
+ src/pkg/crypto/openpgp/read_test.go          |  6 +++---
+ src/pkg/crypto/openpgp/s2k/s2k.go            |  2 +-
+ src/pkg/crypto/rsa/rsa.go                    |  4 ++--
+ src/pkg/crypto/subtle/constant_time_test.go  |  4 ++--
+ src/pkg/crypto/tls/common.go                 |  2 +-
+ src/pkg/crypto/tls/conn.go                   |  6 +++---
+ src/pkg/crypto/tls/handshake_server.go       |  4 ++--
+ src/pkg/crypto/tls/key_agreement.go          |  8 ++++----
+ src/pkg/crypto/x509/x509.go                  | 18 ++++++++---------
+ src/pkg/crypto/xtea/block.go                 |  2 +-
+ src/pkg/crypto/xtea/xtea_test.go             | 10 +++++-----
+ src/pkg/debug/dwarf/type.go                  |  2 +-
+ src/pkg/debug/macho/file.go                  |  2 +-
+ src/pkg/debug/pe/file.go                     |  2 +-
+ src/pkg/debug/proc/proc_linux.go             |  6 +++---
+ src/pkg/encoding/git85/git.go                |  2 +-
+ src/pkg/encoding/pem/pem.go                  |  2 +-
+ src/pkg/exp/datafmt/datafmt.go               |  2 +-
+ src/pkg/exp/draw/x11/conn.go                 |  4 ++--
+ src/pkg/exp/eval/expr.go                     |  2 +-
+ src/pkg/exp/eval/stmt.go                     |  6 +++---
+ src/pkg/exp/eval/typec.go                    |  2 +-
+ src/pkg/exp/wingui/winapi.go                 |  6 +++---
+ src/pkg/expvar/expvar_test.go                | 30 ++++++++++++++--------------
+ src/pkg/go/ast/ast.go                        | 12 +++++------
+ src/pkg/go/parser/parser.go                  |  2 +-
+ src/pkg/go/printer/nodes.go                  |  8 ++++----
+ src/pkg/go/printer/printer.go                |  2 +-
+ src/pkg/go/printer/testdata/comments.golden  |  2 +-
+ src/pkg/go/printer/testdata/comments.input   |  2 +-
+ src/pkg/go/scanner/scanner_test.go           |  2 +-
+ src/pkg/go/token/position.go                 |  2 +-
+ src/pkg/gob/decode.go                        |  2 +-
+ src/pkg/gob/gobencdec_test.go                |  2 +-
+ src/pkg/gob/type.go                          |  2 +-
+ src/pkg/html/token_test.go                   |  2 +-
+ src/pkg/http/chunked.go                      |  2 +-
+ src/pkg/http/persist.go                      |  2 +-
+ src/pkg/http/serve_test.go                   |  2 +-
+ 57 files changed, 120 insertions(+), 120 deletions(-)

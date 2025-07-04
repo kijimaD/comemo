@@ -1,0 +1,21 @@
+commit d728be70f470b3e3f0e47bb03da505fbaee0ec97
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 20 10:45:01 2017 +1000
+
+    cmd/link/internal/ld: remove C style gotos from ldelf
+    
+    ld.ldelf contained a mixture of normal and C style, goto bad, error
+    handling. The use of goto requires many variables to be declared well
+    before their use which inhibited further refactoring to this method.
+    
+    This CL removes the gotos in this function. Future CLs will address
+    remainder of the C style function scoped declarations in this function.
+    
+    Change-Id: Ib9def495209a2f8deb11dcf30ee954bca95390c6
+    Reviewed-on: https://go-review.googlesource.com/41172
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/ldelf.go | 85 ++++++++++++++++++++++-----------------
+ 1 file changed, 47 insertions(+), 38 deletions(-)

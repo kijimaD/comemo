@@ -1,0 +1,16 @@
+commit 854ab14b7e20a419620a42b837a9cf45cbca8189
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 20 14:22:20 2016 -0400
+
+    cmd/link: move pcln declarations into loops
+    
+    (Split out from CL 22243.)
+    
+    Change-Id: Idac1748c8db2b2ed0484e4afadb105c471c6ce34
+    Reviewed-on: https://go-review.googlesource.com/22321
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/pcln.go | 31 +++++++++++--------------------
+ 1 file changed, 11 insertions(+), 20 deletions(-)

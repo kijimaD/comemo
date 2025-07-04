@@ -1,0 +1,15 @@
+commit 53f2d534504f2804ae7ccea45b5a8d6f1e693147
+Author: Austin Clements <austin@google.com>
+Date:   Wed Aug 9 11:19:24 2017 -0400
+
+    runtime: document concurrency of mheap.spans
+    
+    We use lock-free reads from mheap.spans, but the safety of these is
+    somewhat subtle. Document this.
+    
+    Change-Id: I928c893232176135308e38bed788d5f84ff11533
+    Reviewed-on: https://go-review.googlesource.com/54310
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mheap.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

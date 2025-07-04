@@ -1,0 +1,18 @@
+commit 7f3e109d2f89eb997cd28adc607fd75ba9ac94d1
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Thu Jun 16 12:56:49 2011 -0400
+
+    xml: allow attributes without value in non-strict mode.
+    
+    Attributes without value are commen in html and the xml
+    parser will accept them in non-strict mode and use the
+    attribute name as value. Thus parsing <p nowrap> as
+    <p norwar="nowrap">.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4601053
+
+ src/pkg/xml/xml.go      | 23 ++++++++++++++---------
+ src/pkg/xml/xml_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 9 deletions(-)

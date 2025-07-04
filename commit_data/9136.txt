@@ -1,0 +1,12 @@
+commit 48d1240e51bcbbbfe10cbb6a70332039acbf0fe9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jul 20 11:22:56 2011 +1000
+
+    misc/dashboard: center align build results
+    
+    R=rsc, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4806041
+
+ misc/dashboard/godashboard/static/style.css | 3 +++
+ 1 file changed, 3 insertions(+)

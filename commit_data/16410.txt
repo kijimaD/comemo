@@ -1,0 +1,14 @@
+commit 20c524c5e29282d3c91e8155c496865dee2c3c73
+Author: Brian G. Merrell <bgmerrell@gmail.com>
+Date:   Mon May 27 11:00:12 2013 +1000
+
+    effective_go.html: Fix two links
+    This fixes two intra-page "type assertion" links that were broken in
+    different ways.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/9797043
+
+ doc/effective_go.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

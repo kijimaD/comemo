@@ -1,0 +1,57 @@
+commit 6f6b2f04b5c342edf70944e60c9c9a30eef5a9eb
+Author: Sokolov Yura <funny.falcon@gmail.com>
+Date:   Mon Oct 12 16:06:38 2015 +0300
+
+    sort: improve average quicksort performance
+    
+    - change way of protection from O(N^2) on duplicate values.
+      Previous algorithm does additional comparisons and swaps
+      on every split pass.
+      Changed algorithm does one ordinal quicksort split pass,
+      and if distribution is skewed, then additional pass to
+      separate pivot's duplicates.
+      Changed algorithm could be slower on very ununique slice,
+      but it is still protected from O(N^2).
+    
+    - increase small slice size and do simple shell sort pass
+      to amortize worst case on small slices.
+      Small slice has higher probability to have skewed
+      distribution, so lets sort it with simpler algorithm.
+    
+    benchmark                 old ns/op      new ns/op      delta
+    BenchmarkSortString1K     458374         388641         -15.21%
+    BenchmarkSortInt1K        217851         181796         -16.55%
+    BenchmarkSortInt64K       20539264       16730340       -18.54%
+    BenchmarkSort1e2          98668          95554          -3.16%
+    BenchmarkSort1e4          20278500       18316829       -9.67%
+    BenchmarkSort1e6          3215724392     2795999911     -13.05%
+    
+    number of operations:
+           Size:         Total:     Swap:     Less:
+                              %         %         %
+    Sort     100  Avg    -5.98%   -18.43%    -1.90%
+    Sort     100  Max   -14.43%   -16.02%    -4.51%
+    Sort     300  Avg    -7.50%   -12.76%    -5.96%
+    Sort     300  Max   -11.29%    -9.60%    -4.30%
+    Sort    1000  Avg   -12.13%   -11.65%   -12.25%
+    Sort    1000  Max   -13.81%   -11.77%   -11.89%
+    Sort    3000  Avg   -14.61%    -9.30%   -15.86%
+    Sort    3000  Max   -15.81%    -8.66%   -15.19%
+    Sort   10000  Avg   -16.10%    -8.47%   -17.80%
+    Sort   10000  Max   -17.13%    -7.63%   -16.97%
+    Sort   30000  Avg   -17.46%    -7.56%   -19.57%
+    Sort   30000  Max   -18.24%    -7.62%   -17.68%
+    Sort  100000  Avg   -18.83%    -6.64%   -21.33%
+    Sort  100000  Max   -19.72%    -6.70%   -20.96%
+    Sort  300000  Avg   -19.61%    -6.16%   -22.30%
+    Sort  300000  Max   -20.69%    -6.15%   -21.81%
+    Sort 1000000  Avg   -20.42%    -5.58%   -23.31%
+    Sort 1000000  Max   -21.54%    -5.56%   -23.61%
+    
+    Change-Id: I23868e8b52b5841b358cd5403967c9a97871e4d5
+    Reviewed-on: https://go-review.googlesource.com/15688
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/sort/example_multi_test.go |   4 +-
+ src/sort/sort.go               | 112 ++++++++++++++++++++++++++---------------
+ 2 files changed, 73 insertions(+), 43 deletions(-)

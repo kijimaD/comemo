@@ -1,0 +1,19 @@
+commit 301b127a058c9bf3859e2a8c49e1ffc3c3398077
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 29 15:38:52 2017 -0500
+
+    runtime/pprof: read memstats earlier in profile handler
+    
+    Reading the mem stats before our own allocations
+    avoids cluttering memory stats with our recent garbage.
+    
+    Fixes #20565.
+    
+    Change-Id: I3b0046c8300dca83cea24013ffebc32b2ae7f742
+    Reviewed-on: https://go-review.googlesource.com/80739
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/pprof/pprof.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

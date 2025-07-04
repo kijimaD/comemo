@@ -1,0 +1,12 @@
+commit 88e564edb13f1596c12ad16d5fd3c7ac7deac855
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Feb 17 09:50:21 2020 +0100
+
+    doc/go1.14: add missing period at sentence end
+    
+    Change-Id: I82050f16906e7d34555a592e96b7855515a1726a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219641
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ doc/go1.14.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

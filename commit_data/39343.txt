@@ -1,0 +1,30 @@
+commit 323212b9e6edd55e99d973d00d2132995762c858
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sun Jun 9 12:04:23 2019 -0400
+
+    cmd/go: fix syntax mistake in a testscript file, take 2
+    
+    This is a followup to CL 181278 and CL 181177.
+    
+    According to cmd/go/testdata/script/README:
+    
+            Each line is parsed into a sequence of space-separated command words,
+            with environment variable expansion and # marking an end-of-line comment.
+            Adding single quotes around text keeps spaces in that text from being treated
+            as word separators and also disables environment variable expansion.
+    
+    We want $HOME to be expanded, so leave it out of the single-quoted
+    block of text.
+    
+    I tested this change on macOS, and it makes TestScript/env_write pass.
+    
+    Fixes #32503
+    
+    Change-Id: I13621aec82263e5cb6978c13a1ad71d2210a0e42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181418
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/env_write.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

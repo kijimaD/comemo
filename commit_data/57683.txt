@@ -1,0 +1,15 @@
+commit c1d9303d82de0bae1b861b17ec4f9812392ea3cb
+Author: limeidan <limeidan@loongson.cn>
+Date:   Thu Mar 21 11:20:58 2024 +0800
+
+    cmd/link: check if the trampoline is actually added
+    
+    Change-Id: I2ddffe9118fd9954d9bae60c92fd8fc5b311b93a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603736
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+
+ src/cmd/link/link_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,0 +1,19 @@
+commit cd03fd05b55b3b22d31a56a9df388c72a96e62c2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Aug 29 15:11:55 2019 -0400
+
+    runtime: remove unnecessary variable decls in asm.s
+    
+    runtime/asm.s contains two variable declarations that don't seem
+    needed. The variables are defined in Go and not referenced in
+    assembly. They were added in 2014 during the C to Go transition.
+    Maybe they were useful at that time, but not now. Remove them.
+    
+    Change-Id: Id00d724813d18db47126c2f2b8cacfc9d77ffd4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192378
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/asm.s | 3 ---
+ 1 file changed, 3 deletions(-)

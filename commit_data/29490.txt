@@ -1,0 +1,24 @@
+commit eb8f2a832078d0748bcf1eb38357c8119fdbccb7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Nov 11 07:37:32 2016 -0800
+
+    all: fix vet nits
+    
+    Fixes these complaints from vet:
+    
+    cmd/compile/internal/gc/noder.go:32: cmd/compile/internal/syntax.Error composite literal uses unkeyed fields
+    cmd/compile/internal/gc/noder.go:1035: cmd/compile/internal/syntax.Error composite literal uses unkeyed fields
+    cmd/compile/internal/gc/noder.go:1051: cmd/compile/internal/syntax.Error composite literal uses unkeyed fields
+    cmd/compile/internal/syntax/parser_test.go:182: possible formatting directive in Error call
+    net/http/client_test.go:1334: possible formatting directive in Fatal call
+    
+    Change-Id: I5f90ec30f3c106c7e66c92e2b6f8d3b4874fec66
+    Reviewed-on: https://go-review.googlesource.com/33133
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go           | 6 +++---
+ src/cmd/compile/internal/syntax/parser_test.go | 2 +-
+ src/net/http/client_test.go                    | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)

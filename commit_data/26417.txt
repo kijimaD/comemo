@@ -1,0 +1,17 @@
+commit 49be1ebab49c0608a6944c98feebc118432c598e
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Mar 21 19:32:57 2016 +1300
+
+    cmd/link: delete more unreachable code
+    
+    Debugasm can never be set in cmd/link, so delete it and the code it enables.
+    
+    Change-Id: If828db0b09f1a9e512dc660ac2750657a769094c
+    Reviewed-on: https://go-review.googlesource.com/20971
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/link.go    |  1 -
+ src/cmd/link/internal/ld/objfile.go | 51 -------------------------------------
+ 2 files changed, 52 deletions(-)

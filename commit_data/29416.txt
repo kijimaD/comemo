@@ -1,0 +1,22 @@
+commit 44febb28b626695e2daa693b1aa9ad7e516518e3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 7 01:21:15 2016 +0000
+
+    cmd/go: parallelize some tests
+    
+    Cuts tests from 35 to 25 seconds.
+    
+    Many of these could be parallel if the test runner were modified to
+    give each test its own workdir cloned from the tempdir files they
+    use. But later. This helps for now.
+    
+    Updates #17751
+    
+    Change-Id: Icc2ff87cca60a33ec5fd8abb1eb0a9ca3e85bf95
+    Reviewed-on: https://go-review.googlesource.com/32850
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 65 +++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 55 insertions(+), 10 deletions(-)

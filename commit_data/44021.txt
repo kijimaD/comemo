@@ -1,0 +1,22 @@
+commit 7cdc84a15b1f83c6370a79c8e013246a6b495a73
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 14 21:20:36 2020 -0800
+
+    test: remove bug429 (duplicates runtime.TestSimpleDeadlock)
+    
+    The bug429 tests is an exact duplicate of TestSimpleDeadlock in the
+    runtime package. The runtime package is the right place for this test,
+    and the version in the runtime package will run faster as the build
+    step is combined with other runtime package tests.
+    
+    Change-Id: I6538d24e6df8e8c5e3e399d3ff37d68f3e52be56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278173
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/fixedbugs/bug429.go     | 14 --------------
+ test/fixedbugs/bug429_run.go | 35 -----------------------------------
+ 2 files changed, 49 deletions(-)

@@ -1,0 +1,17 @@
+commit a1198fcc034747f4a423a0ba7af626f7339fb535
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 20 10:28:04 2011 -0500
+
+    go: build runtime
+    
+    R=golang-dev, r, adg
+    CC=golang-dev
+    https://golang.org/cl/5495068
+
+ src/cmd/go/build.go            | 75 ++++++++++++++++++++++++++++++++++--------
+ src/cmd/go/list.go             |  1 +
+ src/cmd/go/main.go             |  8 -----
+ src/cmd/go/pkg.go              |  2 ++
+ src/pkg/go/build/build_test.go |  1 +
+ src/pkg/go/build/dir.go        | 21 ++++++++++--
+ 6 files changed, 85 insertions(+), 23 deletions(-)

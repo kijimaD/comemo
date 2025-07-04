@@ -1,0 +1,12 @@
+commit 2a1ee42e2bb28fda9f202ea64e72814bb8e9908f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon May 24 11:48:14 2010 -0700
+
+    fix windows build
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/1209048
+
+ src/pkg/syscall/syscall_windows.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

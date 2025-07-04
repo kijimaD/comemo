@@ -1,0 +1,18 @@
+commit 555bed939d878db4c6fd60f2fef0577273dd05a7
+Author: mkontani <itoama@live.jp>
+Date:   Sun Apr 17 15:17:08 2022 +0000
+
+    test/typeparam: fix copyright message
+    
+    Change-Id: Ia0a4be56d4e1fbfc73e6ce24f01a658c89a74adb
+    GitHub-Last-Rev: dd95e50c4b37a031d3ee852bbb7487f748526562
+    GitHub-Pull-Request: golang/go#52393
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400694
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ test/typeparam/cons.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

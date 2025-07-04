@@ -1,0 +1,20 @@
+commit 5b0bf9db8e0d735551ecec40cc374121b6e6a6ba
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 20 11:58:24 2013 -0700
+
+    net/http: fix confusing shadowing in ProxyFromEnvironment
+    
+    The old code worked, somewhat on accident, but was confusing,
+    and had a useless assignment to the inner err. It worked
+    because url.Parse parses just about anything, so the outer err
+    was always nil, so it always fell through to the bottom return
+    statement, even without the "err = nil" line.
+    
+    Instead, just have two return statements, and add a comment.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/10448044
+
+ src/pkg/net/http/transport.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

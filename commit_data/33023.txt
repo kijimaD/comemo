@@ -1,0 +1,19 @@
+commit 3a8b9cfe9138d3a4aa227a6967d94ecdb3c0bd6f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 17 21:06:05 2017 -0400
+
+    testing: add PAUSE, CONT output lines to explain Parallel execution
+    
+    This should make parallel execution a bit clearer.
+    With -p=1 it should make the execution completely unambiguous.
+    
+    Fixes #19280.
+    
+    Change-Id: Ib48cdfe96896d01b0d8f98ccb2fab614407a7d92
+    Reviewed-on: https://go-review.googlesource.com/49430
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/testing.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

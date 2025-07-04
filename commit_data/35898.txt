@@ -1,0 +1,22 @@
+commit 616da5da94aad1de2464e67e71d8eb1f4292f445
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 29 14:38:56 2018 -0700
+
+    os: increase directory reading block size on Unix systems
+    
+    Reportedly CIFS on RHEL 7 can fail to report files if directories are
+    read in 4K increments. While this seems to be a CIFS or RHEL bug,
+    reportedly CIFS does not return more than 5760 bytes in a block, so
+    reading in 8K increments should hide the problem from users with
+    minimal cost.
+    
+    Fixes #24015
+    
+    Change-Id: Iaf9f00ffe338d379c819ed9edcd4cc9834e3b0f7
+    Reviewed-on: https://go-review.googlesource.com/121756
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/dir_unix.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

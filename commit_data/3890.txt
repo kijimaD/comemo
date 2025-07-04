@@ -1,0 +1,15 @@
+commit 642caacfa32457d3ac874e0923b4d4c20bb9c63b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 7 21:24:48 2009 -0800
+
+    - added link to sources
+    - renamed listing.html -> dirList.html
+      (there is a dirs.html already, it should probably have a better name, too)
+    
+    R=rsc
+    http://go/go-review/1025020
+
+ lib/godoc/{listing.html => dirList.html} |  0
+ lib/godoc/godoc.html                     |  1 +
+ src/cmd/godoc/godoc.go                   | 10 +++++-----
+ 3 files changed, 6 insertions(+), 5 deletions(-)

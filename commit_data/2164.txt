@@ -1,0 +1,28 @@
+commit 93bbbf90ef652c144801fb677de458f8ab7e1ded
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 7 17:15:24 2009 -0700
+
+    make go/src/lib/hash one directory per package
+    (slipped through the cracks last time)
+    
+    R=rsc
+    DELTA=2436  (1337 added, 1090 deleted, 9 changed)
+    OCL=28427
+    CL=28443
+
+ src/lib/Makefile                           | 27 +++++++----
+ src/lib/hash/adler32/Makefile              | 68 ++++++++++++++++++++++++++
+ src/lib/hash/{ => adler32}/adler32.go      |  0
+ src/lib/hash/{ => adler32}/adler32_test.go |  0
+ src/lib/hash/crc32/Makefile                | 68 ++++++++++++++++++++++++++
+ src/lib/hash/{ => crc32}/crc32.go          |  0
+ src/lib/hash/{ => crc32}/crc32_test.go     |  0
+ src/lib/hash/md5/Makefile                  | 76 ++++++++++++++++++++++++++++++
+ src/lib/hash/{ => md5}/md5.go              |  0
+ src/lib/hash/{ => md5}/md5_test.go         |  0
+ src/lib/hash/{ => md5}/md5block.go         |  0
+ src/lib/hash/{ => sha1}/Makefile           | 23 ++-------
+ src/lib/hash/{ => sha1}/sha1.go            |  0
+ src/lib/hash/{ => sha1}/sha1_test.go       |  0
+ src/lib/hash/{ => sha1}/sha1block.go       |  0
+ 15 files changed, 234 insertions(+), 28 deletions(-)

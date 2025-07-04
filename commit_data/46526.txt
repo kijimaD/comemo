@@ -1,0 +1,35 @@
+commit 6097ebe627b7bc58d63d6765abc005f548b9644c
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Sep 12 19:43:25 2021 -0400
+
+    go/types: record all instances, not just inferred instances
+    
+    This change modifies the way we record instance information. It changes
+    the Info.Inferred map to use the instantiated *ast.Ident as its key, and
+    record information for all instances, not just those that were produced
+    via function type inference. Accordingly, Info.Inferred is renamed to
+    Info.Instances, and the Inferred type is renamed to Instance, with its
+    Sig field changed to Type.
+    
+    This was largely motivated by suggestions from mdempsky on the go/types
+    API proposal (#47916). In our analysis, always using the *ast.Ident as
+    key and recording all instances makes the API easier to understand and
+    use.
+    
+    Instance.TArgs is also renamed to TypeArgs, consistent with other name
+    changes.
+    
+    Updates #47916
+    
+    Change-Id: Ic25ad0cfd65fee6b05e513843c3866ee7a77cfe3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349629
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/api.go      |  30 ++++++---
+ src/go/types/api_test.go | 155 +++++++++++++++++++++++++++++++++--------------
+ src/go/types/call.go     |  10 +--
+ src/go/types/check.go    |  36 +++++++++--
+ src/go/types/typexpr.go  |   1 +
+ 5 files changed, 163 insertions(+), 69 deletions(-)

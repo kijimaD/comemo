@@ -1,0 +1,29 @@
+commit 59f2704dabf0c68bc645adb0ed4a8d94cdbcd7bb
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 8 15:01:34 2019 -0500
+
+    sync: add Pool benchmarks to stress STW and reuse
+    
+    This adds two benchmarks that will highlight two problems in Pool that
+    we're about to address.
+    
+    The first benchmark measures the impact of large Pools on GC STW time.
+    Currently, STW time is O(# of items in Pools), and this benchmark
+    demonstrates 70µs STW times.
+    
+    The second benchmark measures the impact of fully clearing all Pools
+    on each GC. Typically this is a problem in heavily-loaded systems
+    because it causes a spike in allocation. This benchmark stresses this
+    by simulating an expensive "New" function, so the cost of creating new
+    objects is reflected in the ns/op of the benchmark.
+    
+    For #22950, #22331.
+    
+    Change-Id: I0c8853190d23144026fa11837b6bf42adc461722
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166959
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/sync/pool_test.go | 82 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 82 insertions(+)

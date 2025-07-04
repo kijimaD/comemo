@@ -1,0 +1,13 @@
+commit f618f8940d7883b3b12ef2584130f0caca8f7912
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 3 10:52:28 2008 -0800
+
+    - keeping track of to-do items
+    
+    R=r
+    DELTA=15  (10 added, 3 deleted, 2 changed)
+    OCL=18334
+    CL=18336
+
+ doc/go_spec.txt | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)

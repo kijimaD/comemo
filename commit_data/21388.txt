@@ -1,0 +1,15 @@
+commit 5e279ddd01e4a28394059ea470be9829bf597b3b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jan 26 20:52:02 2015 +0900
+
+    net: remove solaris tag from cgo
+    
+    For now solaris port does not support cgo. Moreover, its system calls
+    and library interfaces are different from BSD.
+    
+    Change-Id: Idb4fed889973368b35d38b361b23581abacfdeab
+    Reviewed-on: https://go-review.googlesource.com/3306
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+
+ src/net/cgo_bsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

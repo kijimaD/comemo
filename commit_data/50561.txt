@@ -1,0 +1,25 @@
+commit 9c916c79011f3af98b5670eb2ba55349ba904522
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Jun 15 17:29:25 2022 -0700
+
+    fmt: rely on utf8.AppendRune
+    
+    This is both simpler and more performant.
+    The need for fmt.fmtC to manually check for utf8.MaxRune
+    is subtle to avoid overflow when converting uint64 to rune,
+    so a test case was added to exercise this edge case.
+    
+    Change-Id: I0f2e6cce91dcd4cc6b88190c29807ca1c58e999d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412335
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/fmt/fmt_test.go |  1 +
+ src/fmt/format.go   |  5 +++--
+ src/fmt/print.go    | 13 +------------
+ 3 files changed, 5 insertions(+), 14 deletions(-)

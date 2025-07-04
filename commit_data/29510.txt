@@ -1,0 +1,17 @@
+commit 5b147122d6094b792a027b892884b994fe77a4d6
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Wed Oct 19 17:55:10 2016 +0200
+
+    cmd/dist: add support for GOARCH=mips{,le}
+    
+    Change-Id: I6e24d22eada190e9aa2adc161be7a753c8e5054b
+    Reviewed-on: https://go-review.googlesource.com/31514
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/main.go   | 3 +++
+ src/cmd/dist/build.go     | 2 ++
+ src/cmd/dist/buildtool.go | 2 ++
+ src/cmd/dist/util.go      | 5 +++++
+ src/cmd/link/main.go      | 3 +++
+ 5 files changed, 15 insertions(+)

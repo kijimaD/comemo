@@ -1,0 +1,30 @@
+commit 3f5d099663fab4a59133bbe7643f40deb5460509
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 3 16:40:03 2022 -0400
+
+    go/doc/comment: parse and print code
+    
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
+    
+    Implement indented code blocks.
+    
+    For #51082.
+    
+    Change-Id: I0eacbf56e101424a875386cb6f26174b239561f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397285
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/doc/comment/html.go            |  5 ++
+ src/go/doc/comment/markdown.go        | 12 +++++
+ src/go/doc/comment/parse.go           | 43 ++++++++++++++--
+ src/go/doc/comment/print.go           | 12 +++++
+ src/go/doc/comment/testdata/code.txt  | 94 +++++++++++++++++++++++++++++++++++
+ src/go/doc/comment/testdata/code2.txt | 31 ++++++++++++
+ src/go/doc/comment/testdata/code3.txt | 33 ++++++++++++
+ src/go/doc/comment/testdata/text9.txt | 12 +++++
+ src/go/doc/comment/text.go            | 30 ++++++++---
+ 9 files changed, 263 insertions(+), 9 deletions(-)

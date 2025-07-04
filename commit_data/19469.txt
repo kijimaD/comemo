@@ -1,0 +1,18 @@
+commit a68b9be93518300b15b6830648f8e2be7ebbfdf3
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat May 31 01:09:48 2014 -0700
+
+    runtime: fix empty heap dump bug on windows.
+    Fixes #8119.
+    
+    LGTM=khr, rsc
+    R=alex.brainman, khr, bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/93640044
+
+ src/pkg/runtime/debug/heapdump_test.go | 29 +++++++++++++++++++++++++++++
+ src/pkg/runtime/os_plan9.c             |  4 ++--
+ src/pkg/runtime/os_solaris.c           |  2 +-
+ src/pkg/runtime/os_windows.c           |  6 ++++--
+ src/pkg/runtime/runtime.h              |  2 +-
+ 5 files changed, 37 insertions(+), 6 deletions(-)

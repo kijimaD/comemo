@@ -1,0 +1,13 @@
+commit 0dd5be48aa3f532327dabc369427de2f5b303085
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 20 15:23:21 2009 -0700
+
+    missing '}' (found by pretty)
+    
+    R=r
+    DELTA=1  (1 added, 0 deleted, 0 changed)
+    OCL=27633
+    CL=27639
+
+ test/declbad.go | 1 +
+ 1 file changed, 1 insertion(+)

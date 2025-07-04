@@ -1,0 +1,15 @@
+commit 2edc04ccb1b091acaddc47b961607a69cbd2ddc4
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 29 17:18:00 2014 -0700
+
+    A+C: fixed doubled entry
+    Delete an erroneously doubled name in both files. Once is enough.
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/118420043
+
+ AUTHORS      | 1 -
+ CONTRIBUTORS | 1 -
+ 2 files changed, 2 deletions(-)

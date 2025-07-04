@@ -1,0 +1,34 @@
+commit 5e4e3d8e4480756f0d5ace25e5d31b088067dc3d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 14 00:40:37 2012 -0500
+
+    net: avoid Shutdown during Close
+    
+    Once we've evicted all the blocked I/O, the ref count
+    should go to zero quickly, so it should be safe to
+    postpone the close(2) until then.
+    
+    Fixes #1898.
+    Fixes #2116.
+    Fixes #2122.
+    
+    R=golang-dev, mikioh.mikioh, bradfitz, fullung, iant
+    CC=golang-dev
+    https://golang.org/cl/5649076
+
+ src/pkg/net/dial_test.go         |   6 +
+ src/pkg/net/fd.go                | 236 ++++++++++++++++++++++-----------------
+ src/pkg/net/fd_windows.go        |  65 +++++++----
+ src/pkg/net/net_test.go          |  56 ++++++++++
+ src/pkg/net/sendfile_linux.go    |   9 +-
+ src/pkg/net/sendfile_windows.go  |   4 +-
+ src/pkg/net/server_test.go       |   2 +-
+ src/pkg/net/sockopt.go           |  28 +++--
+ src/pkg/net/sockoptip.go         |  72 ++++++++----
+ src/pkg/net/sockoptip_bsd.go     |  20 +++-
+ src/pkg/net/sockoptip_darwin.go  |  24 +++-
+ src/pkg/net/sockoptip_freebsd.go |  24 +++-
+ src/pkg/net/sockoptip_linux.go   |  42 +++++--
+ src/pkg/net/sockoptip_openbsd.go |  24 +++-
+ src/pkg/net/sockoptip_windows.go |  12 +-
+ 15 files changed, 432 insertions(+), 192 deletions(-)

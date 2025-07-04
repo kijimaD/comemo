@@ -1,0 +1,10 @@
+commit fbe7ba5b6ab006d1f8d2a34846e5939b27a601e7
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 16 14:49:01 2008 -0700
+
+    strengthen test by checking values
+    
+    SVN=127601
+
+ test/chan/nonblock.go | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)

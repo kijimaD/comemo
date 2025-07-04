@@ -1,0 +1,19 @@
+commit fd8028dec92166545d080de99021c9c51f05c670
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 17 15:35:15 2016 -0700
+
+    go/types: fix scope extents for range and type switch variables
+    
+    The changes match the existing compilers, and assume an adjusted
+    spec (per issue #16794).
+    
+    Fixes #15686.
+    
+    Change-Id: I72677ce75888c41a8f3c2963117a2f2d5501c42b
+    Reviewed-on: https://go-review.googlesource.com/27290
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html         |  2 +-
+ src/go/types/api_test.go | 47 +++++++++++++++++++++++++++++++++++++++--------
+ src/go/types/stmt.go     |  8 ++++----
+ 3 files changed, 44 insertions(+), 13 deletions(-)

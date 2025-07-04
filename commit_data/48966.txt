@@ -1,0 +1,18 @@
+commit 0668e3cb1a8407547f1b4e316748d3b898564f8e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon May 2 00:25:16 2022 +0700
+
+    cmd/compile: support pointers to arrays in arrayClear
+    
+    Fixes #52635
+    
+    Change-Id: I85f182931e30292983ef86c55a0ab6e01282395c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403337
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/walk/range.go |  8 +++++++-
+ test/codegen/issue52635.go             | 36 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 1 deletion(-)

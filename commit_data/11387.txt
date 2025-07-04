@@ -1,0 +1,17 @@
+commit cf09a9d3bfbdf82ba67419b7efbf188651786271
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 25 12:31:06 2012 -0800
+
+    net/http: disabled test for Transport race / deadlock bug
+    
+    The real fix for Issue 2616 is in
+    https://golang.org/cl/5532057, to be submitted
+    following this CL, without the test there which doesn't work
+    reliably. This one seems to.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5569063
+
+ src/pkg/net/http/transport_test.go | 60 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 60 insertions(+)

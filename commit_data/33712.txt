@@ -1,0 +1,32 @@
+commit 70ee9b4a07d356e9187dd23683ed2254c91984cd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 29 06:36:42 2017 +0000
+
+    runtime: fix sysctl calling convention on netbsd/386
+    
+    Thanks to coypoop for noticing at:
+    
+      https://github.com/golang/go/issues/22914#issuecomment-347761838
+    
+    FreeBSD/386 and NetBSD/386 diverged between Go 1.4 and Go 1.5 when
+    Russ sent https://golang.org/cl/135830043 (git rev 25f6b02ab0db8e)
+    to change the calling convention of the C compilers to match Go.
+    But netbsd wasn't updated.
+    
+    Tested on a NetBSD/386 VM, since the builders aren't back up yet (due
+    to this bug)
+    
+    Fixes #22914
+    Updates #19339
+    Updates #20852
+    Updates #16511
+    
+    Change-Id: Id76ebe8f29bcc85e39b1c11090639d906cd6cf04
+    Reviewed-on: https://go-review.googlesource.com/80515
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_netbsd_386.s | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

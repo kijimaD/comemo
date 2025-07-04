@@ -1,0 +1,14 @@
+commit 03febb677360b30c5d46688b668ac762771d0853
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 30 15:30:47 2008 -0700
+
+    clean up rearrangement of runtime functions in the source
+    add isNaN, isInf, NaN, Inf
+    
+    SVN=125389
+
+ src/cmd/gc/sys.go         |  10 +-
+ src/cmd/gc/sysimport.c    | 210 +++++++++++----------
+ src/runtime/runtime.c     | 461 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/runtime_map.c | 429 ------------------------------------------
+ 4 files changed, 585 insertions(+), 525 deletions(-)

@@ -1,0 +1,20 @@
+commit aa0b573ad610ea659902c8a54183e9fa30d8380e
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Jan 29 10:49:16 2013 -0500
+
+    exp/ssa: make Parameters values, not addresses.
+    
+    We explicitly spill all parameters to the frame during initial
+    SSA construction.  (Later passes will remove spills.)
+    We now properly handle local Allocs escaping via Captures.
+    
+    Also: allocate BasicBlock.Succs inline.
+    
+    R=iant, iant
+    CC=golang-dev
+    https://golang.org/cl/7231050
+
+ src/pkg/exp/ssa/blockopt.go |  6 +-----
+ src/pkg/exp/ssa/func.go     | 50 ++++++++++++++++++++++++++++-----------------
+ src/pkg/exp/ssa/ssa.go      | 30 ++++++++-------------------
+ 3 files changed, 41 insertions(+), 45 deletions(-)

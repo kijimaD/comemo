@@ -1,0 +1,21 @@
+commit a35c5c98c0487f93d70b468483f2ca8e0d698bb7
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Sun Jul 25 23:15:15 2021 +0000
+
+    runtime: constify a test variable
+    
+    Simple cleanup, no functionality change.
+    
+    Change-Id: I8eceda4496a396e0117a0a601186c653982fb004
+    GitHub-Last-Rev: 58defc575e5834a3685bbb8179fdee4afa8d8fc7
+    GitHub-Pull-Request: golang/go#47389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337289
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/export_test.go | 2 +-
+ src/runtime/map_test.go    | 2 +-
+ src/runtime/stubs.go       | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

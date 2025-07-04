@@ -1,0 +1,14 @@
+commit 523aa932881e72ccc83f25d441b2e535c1048296
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 18 13:26:28 2014 -0700
+
+    runtime: move panicindex/panicslice to Go.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/130210043
+
+ src/pkg/runtime/panic.c  | 12 ------------
+ src/pkg/runtime/panic.go | 13 +++++++++++++
+ 2 files changed, 13 insertions(+), 12 deletions(-)

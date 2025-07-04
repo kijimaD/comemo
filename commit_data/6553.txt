@@ -1,0 +1,15 @@
+commit 1ffb1f2b66253ae52d3990e6449f251168b7ea9b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 18 15:09:43 2010 -0700
+
+    netchan: add new method Hangup to terminate transmission on a channel
+    Fixes #1151.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2469043
+
+ src/pkg/netchan/export.go       | 16 +++++++++
+ src/pkg/netchan/import.go       | 16 +++++++++
+ src/pkg/netchan/netchan_test.go | 76 ++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 107 insertions(+), 1 deletion(-)

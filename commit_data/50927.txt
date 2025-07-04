@@ -1,0 +1,36 @@
+commit 8dc08394f0d5f83523080e4dd99fded26b7c1ceb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 15:34:50 2022 -0400
+
+    internal/godebug: remove dependency on os
+    
+    The immediate reason is that we want to use godebug from math/rand,
+    and math/rand importing godebug importing os causes an import cycle
+    in package testing.
+    
+    More generally, the new approach to backward compatibility outlined
+    in discussion #55090 will require using this package from other similarly
+    sensitive places, perhaps even package os itself. Best to remove all
+    dependencies.
+    
+    Preparation for #54880.
+    
+    Change-Id: Ia01657a2d90e707a8121a336c9db3b7247c0198f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439418
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/build/deps_test.go            |  8 +++++---
+ src/internal/godebug/export_test.go  |  7 +++++++
+ src/internal/godebug/godebug.go      |  7 +++++--
+ src/internal/godebug/godebug_test.go |  9 ++++++---
+ src/runtime/env_posix.go             | 12 ++----------
+ src/runtime/runtime.go               | 28 ++++++++++++++++++++++++++++
+ src/runtime/runtime1.go              |  6 +++++-
+ src/syscall/env_unix.go              | 11 +++--------
+ src/syscall/env_windows.go           |  8 +++++++-
+ src/syscall/syscall.go               |  4 ++++
+ 10 files changed, 72 insertions(+), 28 deletions(-)

@@ -1,0 +1,26 @@
+commit a5fb65601e7e51f702fc1b3ea9e956f217449b55
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 30 17:16:12 2024 -0800
+
+    go/token: correct out-of-bounds token offsets and positions
+    
+    Per the discussion on the issue, make methods that depend on
+    incoming offsets or positions tolerant in the presence of
+    out-of-bounds values by adjusting the values as needed.
+    
+    Add an internal flag debug that can be set to enable the old
+    (not fault-tolerant) behavior.
+    
+    Fixes #57490.
+    
+    Change-Id: I8a7d422b9fd1d6f0980fd4e64da2f0489056d71e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559436
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/go/parser/parser_test.go  | 21 ++++++++++++++
+ src/go/token/position.go      | 67 ++++++++++++++++++++++++++++++++-----------
+ src/go/token/position_test.go | 59 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 130 insertions(+), 17 deletions(-)

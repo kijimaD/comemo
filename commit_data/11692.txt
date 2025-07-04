@@ -1,0 +1,15 @@
+commit 0bd53d2ce09222075ff366b657cbba344fc4581b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 8 15:26:36 2012 +1100
+
+    runtime/cgo: silence warning on windows
+    It appears to want a * on an indirect function call (assembly language)
+    
+    TBR=rsc
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5643054
+
+ src/pkg/runtime/cgo/gcc_amd64.S | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 7f1037c717858439a9d75d6f62c98c835fc72a74
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 22 15:33:11 2022 -0400
+
+    net/http: skip Get flakes in TestClientTimeout tests on windows/arm4
+    
+    There is already a skip in case of a later failure in the same test on
+    these platforms. Skip the failure if it occurs earlier too.
+    
+    For #43120.
+    
+    Change-Id: Id530370caa6a7df8cae593f6fdcb66871b86b125
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425096
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/client_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

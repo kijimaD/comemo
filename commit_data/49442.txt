@@ -1,0 +1,48 @@
+commit 13f6be28338c43d3aa22a4467b34a45c40f83593
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jun 8 15:59:37 2022 -0400
+
+    runtime: use pidleget for faketime jump
+    
+    In faketime mode, checkdead is responsible for jumping time forward to
+    the next timer expiration, and waking an M to handle the newly ready
+    timer.
+    
+    Currently it pulls the exact P that owns the next timer off of the pidle
+    list. In theory this is efficient because that P is immediately eligible
+    to run the timer without stealing. Unfortunately it is also fraught with
+    peril because we are skipping all of the bookkeeping in pidleget:
+    
+    * Skipped updates to timerpMask mean that our timers may not be eligible
+      for stealing, as they should be.
+    * Skipped updates to idlepMask mean that our runq may not be eligible
+      for stealing, as they should be.
+    * Skipped updates to sched.npidle may break tracking of spinning Ms,
+      potentially resulting in lost work.
+    * Finally, as of CL 410122, skipped updates to p.limiterEvent may affect
+      the GC limiter, or cause a fatal throw when another event occurs.
+    
+    The last case has finally undercovered this issue since it quickly
+    results in a hard crash.
+    
+    We could add all of these updates into checkdead, but it is much more
+    maintainable to keep this logic in one place and use pidleget here like
+    everywhere else in the runtime. This means we probably won't wake the
+    P owning the timer, meaning that the P will need to steal the timer,
+    which is less efficient, but faketime is not a performance-sensitive
+    build mode. Note that the M will automatically make itself a spinning M
+    to make it eligible to steal since it is the only one running.
+    
+    Fixes #53294
+    For #52890
+    
+    Change-Id: I4acc3d259b9b4d7dc02608581c8b4fd259f272e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411119
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go | 26 ++++++++++++++++----------
+ src/runtime/time.go | 11 ++++-------
+ 2 files changed, 20 insertions(+), 17 deletions(-)

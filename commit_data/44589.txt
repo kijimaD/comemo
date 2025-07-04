@@ -1,0 +1,37 @@
+commit 1811aeae66bee899317403c92c83b56673919775
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Mar 5 22:07:56 2021 -0800
+
+    cmd/compile:  deal with helper generic types that add methods to T
+    
+    Deal with cases like: 'type P[T any] T' (used to add methods to an
+    arbitrary type T), In this case, P[T] has kind types.TTYPEPARAM (as does
+    T itself), but requires more code to substitute than a simple TTYPEPARAM
+    T. See the comment near the beginning of subster.typ() in stencil.go.
+    
+    Add new test absdiff.go. This test has a case for complex types (which
+    I've commented out) that will only work when we deal better with Go
+    builtins in generic functions (like real and imag).
+    
+    Remove change in fmt.go for TTYPEPARAMS that is no longer needed (since
+    all TTYPEPARAMS have a sym) and was sometimes causing an extra prefix
+    when formatting method names.
+    
+    Separate out the setting of a TTYPEPARAM bound, since it can reference
+    the TTYPEPARAM being defined, so must be done separately. Also, we don't
+    currently (and may not ever) need bounds after types2 typechecking.
+    
+    Change-Id: Id173057e0c4563b309b95e665e9c1151ead4ba77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300049
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/noder/stencil.go | 29 ++++++++-
+ src/cmd/compile/internal/noder/types.go   |  9 ++-
+ src/cmd/compile/internal/types/fmt.go     |  2 +-
+ src/cmd/compile/internal/types/type.go    |  7 +--
+ test/typeparam/absdiff.go                 | 99 +++++++++++++++++++++++++++++++
+ 5 files changed, 138 insertions(+), 8 deletions(-)

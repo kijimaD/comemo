@@ -1,0 +1,23 @@
+commit e3eaedb5cf623d0836533573db4140749da42768
+Author: Chaoqun Han <hanssccv@gmail.com>
+Date:   Tue Nov 23 22:05:40 2021 +0800
+
+    os/signal: reset SIGURG in TestSignal
+    
+    Accepting SIGURG signals could cause SIGURG to take up the entire
+    channel buffer.
+    
+    Enhance the stability of test cases by:
+    1.  Stop accepting the SIGURG signal by adding  ‘Reset(sys call.SIGURG)’
+    2.  Close the c1 chan by adding ‘defer Stop(c1)’ (Another bug, NOT this bug)
+    
+    Fixes #49724
+    
+    Change-Id: I909a9993f0f6dd109c15e48a861683b87dfc4ab3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366514
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+
+ src/os/signal/signal_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

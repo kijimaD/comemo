@@ -1,0 +1,20 @@
+commit 640c0f3849ca041b047fd02defea78aa29092812
+Author: mischief <mischief@offblast.org>
+Date:   Mon Dec 15 12:55:00 2014 -0800
+
+    runtime: fix brk_ signature for plan9
+    
+    with uintptr, the check for < 0 will never succeed in mem_plan9.go's
+    sbrk() because the brk_ syscall returns -1 on failure. fixes the plan9/amd64 build.
+    
+    this failed on plan9/amd64 because of the attempt to allocate 136GB in mallocinit(),
+    which failed. it was just by chance that on plan9/386 allocations never failed.
+    
+    Change-Id: Ia3059cf5eb752e20d9e60c9619e591b80e8fb03c
+    Reviewed-on: https://go-review.googlesource.com/1590
+    Reviewed-by: Anthony Martin <ality@pbrane.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+
+ src/runtime/os_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

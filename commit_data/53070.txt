@@ -1,0 +1,19 @@
+commit c890d40d0db00a6a91fd48acee024f0478f10ce4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 10 03:14:22 2023 +0000
+
+    runtime: factor our oneNewExtraM trace code
+    
+    In the interest of further cleaning up the trace.go API, move the trace
+    logic in oneNewExtraM into its own function.
+    
+    Change-Id: I5cf478cb8cd0d301ee3b068347ed48ce768b8882
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494186
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/proc.go  |  7 +------
+ src/runtime/trace.go | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 6 deletions(-)

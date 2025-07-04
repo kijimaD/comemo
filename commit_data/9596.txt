@@ -1,0 +1,16 @@
+commit 73d27dd5ba6a5a8e140d706d993f5d96c20ae108
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Sep 5 08:11:51 2011 -0400
+
+    syscall: update routing message attributes handling, fix typo
+    
+    R=fullung, golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4986041
+
+ src/pkg/syscall/netlink_linux.go      | 8 ++++----
+ src/pkg/syscall/types_linux.c         | 2 +-
+ src/pkg/syscall/ztypes_linux_386.go   | 2 +-
+ src/pkg/syscall/ztypes_linux_amd64.go | 2 +-
+ src/pkg/syscall/ztypes_linux_arm.go   | 2 +-
+ 5 files changed, 8 insertions(+), 8 deletions(-)

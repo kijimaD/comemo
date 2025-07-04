@@ -1,0 +1,19 @@
+commit 356c8c54521efb02cc2a103ac2b80c77f54b4bcd
+Author: Kale Blankenship <kale@lemnisys.com>
+Date:   Tue May 3 09:32:19 2022 -0700
+
+    archive/zip: remove unused File.descErr field
+    
+    Found via staticcheck. Unused as of CL 357489.
+    
+    Change-Id: I3aa409994ba4388912ac7e7809168529a5b6e31c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403814
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Kale B <kale@lemnisys.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/archive/zip/reader.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

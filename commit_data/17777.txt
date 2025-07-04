@@ -1,0 +1,12 @@
+commit b6c0c4228d62406fbe24c4357410813715fdb75d
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Thu Oct 10 17:16:17 2013 -0700
+
+    lib/codereview: return an empty list when CONTRIBUTORS is not found instead of None.
+    
+    R=adg, campoy, r
+    CC=golang-dev
+    https://golang.org/cl/14419059
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

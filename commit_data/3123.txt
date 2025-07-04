@@ -1,0 +1,15 @@
+commit 221d0567e3f5539f18a4da408389783ae21a4dcc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 28 11:44:46 2009 -0700
+
+    Run the tests for the testing package.  Fix them so that they
+    work.
+    
+    R=rsc
+    DELTA=16  (1 added, 1 deleted, 14 changed)
+    OCL=34012
+    CL=34038
+
+ src/pkg/Makefile               |  1 +
+ src/pkg/testing/regexp_test.go | 29 ++++++++++++++---------------
+ 2 files changed, 15 insertions(+), 15 deletions(-)

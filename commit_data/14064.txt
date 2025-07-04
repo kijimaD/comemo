@@ -1,0 +1,15 @@
+commit c4c4b3b46729d8df3a5ee7bd5f0e463290e206da
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Oct 7 15:49:56 2012 -0400
+
+    test/bench/shootout: match gcc architecture to GOARCH
+    
+    If we're benchmarking 8g, use gcc -m32.
+    If we're benchmarking 6g, use gcc -m64.
+    
+    R=golang-dev, bradfitz, minux.ma, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/6625061
+
+ test/bench/shootout/timing.sh | 32 ++++++++++++++++++++------------
+ 1 file changed, 20 insertions(+), 12 deletions(-)

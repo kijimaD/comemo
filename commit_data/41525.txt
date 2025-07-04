@@ -1,0 +1,19 @@
+commit a4f7b0879c8d5d67e8e186dc210d3c8e76589e78
+Author: Torben Schinke <torben.schinke@neotos.de>
+Date:   Sun Mar 1 20:07:46 2020 +0000
+
+    syscall/js: improve documentation of js.FuncOf
+    
+    The existing documentation is improved to be more
+    explicit about the lifecycle and its consequences.
+    
+    Fixes #34324
+    
+    Change-Id: I9969afc69f6eeb7812c11fe821a842794df5aa5b
+    GitHub-Last-Rev: 246a4991660927f88f48290580e96b15c16663c1
+    GitHub-Pull-Request: golang/go#34551
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197458
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ src/syscall/js/func.go | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)

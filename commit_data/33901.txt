@@ -1,0 +1,21 @@
+commit f2ddcca22467c00c058f352aa51e6bbcfb530de3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 15 16:34:39 2017 +0000
+
+    cmd/dist: let misc/cgo/testshared test timeout be scaled by slow builder
+    
+    The default test timeout is 10 minutes if unspecified.
+    
+    The misc/cgo/testshared test didn't use t.timeout(sec), which respects
+    GO_TEST_TIMEOUT_SCALE, so all builders got the default 10 minute
+    timeout. arm5 needs more, though, so specify 10 minutes explicitly,
+    which will then get scaled accordingly on slower builders.
+    
+    Change-Id: I19ecfdcd9c865f2b69524484415b8fbd2852718e
+    Reviewed-on: https://go-review.googlesource.com/84315
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

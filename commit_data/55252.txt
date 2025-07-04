@@ -1,0 +1,17 @@
+commit 46ea4ab5cb87e9e5d443029f5f1a4bba012804d3
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Dec 7 21:45:57 2023 +0100
+
+    doc: document that os.Stat follows all link reparse points on Windows
+    
+    For #61422.
+    
+    Change-Id: I2bb59a1ae38c40368343414a6077bb09c1675a6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548315
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ doc/go1.22.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

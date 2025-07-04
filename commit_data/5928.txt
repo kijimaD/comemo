@@ -1,0 +1,16 @@
+commit 3f5966dcc0246b05604f14441566b67e10ab6614
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 3 08:04:33 2010 +1000
+
+    io: consolidate multi_reader and multi_writer into a single file, multi.go
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1860046
+
+ src/pkg/io/Makefile                                |  3 +-
+ src/pkg/io/{multi_reader.go => multi.go}           | 24 +++++++++++++
+ src/pkg/io/{multi_reader_test.go => multi_test.go} | 32 ++++++++++++++++-
+ src/pkg/io/multi_writer.go                         | 31 ----------------
+ src/pkg/io/multi_writer_test.go                    | 41 ----------------------
+ 5 files changed, 56 insertions(+), 75 deletions(-)

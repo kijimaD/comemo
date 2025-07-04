@@ -1,0 +1,14 @@
+commit 89e13c80efe19caa7deb8e4a5b0ccfa385a8b0bf
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Thu Aug 9 19:43:54 2018 -0400
+
+    doc/go1.11: add note about vet checks for printf wrappers
+    
+    Fixes golang/go#26372
+    
+    Change-Id: I30716ba56f829c6e36ccd50471e118084bad7360
+    Reviewed-on: https://go-review.googlesource.com/128902
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.11.html | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

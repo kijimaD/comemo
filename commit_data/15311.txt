@@ -1,0 +1,12 @@
+commit 04567299771d99206101e3273b1851518cad491a
+Author: Kamil Kisiel <kamil@kamilkisiel.net>
+Date:   Tue Feb 19 10:41:35 2013 -0800
+
+    path/filepath: add examples for SplitList and Rel.
+    
+    R=golang-dev, bradfitz, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7291043
+
+ src/pkg/path/filepath/example_unix_test.go | 39 ++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

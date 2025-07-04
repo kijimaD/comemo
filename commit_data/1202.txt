@@ -1,0 +1,26 @@
+commit c0a01e966543dc1bdbbfe039c516098cc0e218cb
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 19 19:43:32 2008 -0800
+
+    refine gobuild: the files must be *_test.go not *test.go
+    this causes complications
+    
+    R=rsc
+    DELTA=1724  (849 added, 856 deleted, 19 changed)
+    OCL=19667
+    CL=19667
+
+ src/cmd/gobuild/gobuild.c                |  4 ++--
+ src/lib/container/array/Makefile         |  2 +-
+ src/lib/fmt/Makefile                     |  2 +-
+ src/lib/http/Makefile                    |  2 +-
+ src/lib/math/Makefile                    |  2 +-
+ src/lib/net/Makefile                     | 21 +++++++--------------
+ src/lib/os/Makefile                      |  6 +++---
+ src/lib/reflect/Makefile                 |  2 +-
+ src/lib/reflect/{test.go => all_test.go} | 10 +++++-----
+ src/lib/regexp/Makefile                  |  2 +-
+ src/lib/regexp/{test.go => all_test.go}  |  0
+ src/lib/strconv/Makefile                 |  2 +-
+ src/lib/syscall/Makefile                 |  2 +-
+ 13 files changed, 25 insertions(+), 32 deletions(-)

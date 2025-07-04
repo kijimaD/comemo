@@ -1,0 +1,13 @@
+commit 42cc4ea69bf9947625dca122b7f94955e3ac6ef0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 21 10:40:14 2012 -0800
+
+    A+C: Add Vladimir Nikishenko (Individual CLA)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6845073
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

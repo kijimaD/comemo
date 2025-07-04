@@ -1,0 +1,23 @@
+commit 9fe77de3c198848b972915245e41ff26439b08aa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 8 09:49:04 2021 -0500
+
+    debug/buildinfo: update test for CL 369977
+    
+    As a side effect of the changes in cmd/go/internal/work in CL 369977,
+    binaries built in GOPATH mode now include rudimentary build metadata
+    for at least the package path and compiler in use.
+    
+    That seems like a strict improvement, but the test needs to be updated
+    to reflect the newly-available metadata.
+    
+    Change-Id: I657c785e3e9992ed594c9524409f2d076f9eb376
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370234
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/debug/buildinfo/buildinfo_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

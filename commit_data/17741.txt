@@ -1,0 +1,12 @@
+commit 58d18e25af3d3cbc3bc7cb23c42d81d782910e34
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Thu Oct 3 12:46:02 2013 -0700
+
+    spec: fix small typo in comment for example
+    
+    R=golang-dev, mirtchovski, r
+    CC=golang-dev
+    https://golang.org/cl/14227043
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

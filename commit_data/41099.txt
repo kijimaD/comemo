@@ -1,0 +1,23 @@
+commit 5d076d579a338d313806196cd3d045cc402565e5
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jan 9 10:48:14 2020 +0100
+
+    misc/cgo/test: re-enable darwin cgo tests in race mode
+    
+    Go 1.14 will drop support for macOS 10.10, see #23011
+    
+    This reverts CL 125304
+    
+    Updates #26475
+    Updates #26513
+    
+    Change-Id: Ia13eef30f22d67103f7ae45424124fbb116e1261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214057
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/test/issue21897.go                      | 11 +----------
+ misc/cgo/test/issue21897b.go                     |  2 +-
+ misc/cgo/test/testdata/issue24161_darwin_test.go |  8 --------
+ 3 files changed, 2 insertions(+), 19 deletions(-)

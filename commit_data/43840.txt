@@ -1,0 +1,15 @@
+commit 59f5fdac5de669ef534cc744c94d225445a3c193
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 19 15:07:06 2020 +0000
+
+    runtime/metrics: clarify Read's documentation
+    
+    Change-Id: Idbcbc304f1568399a82af9dcd51e511393ed5ee0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271558
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/metrics/sample.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

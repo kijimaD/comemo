@@ -1,0 +1,12 @@
+commit e27b0cdfc46d00537ec2a9540db51a5ff6a8a099
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 17 18:06:58 2013 -0700
+
+    test: add a test that crashed gccgo
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13683046
+
+ test/fixedbugs/bug476.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

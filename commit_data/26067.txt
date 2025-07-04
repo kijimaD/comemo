@@ -1,0 +1,20 @@
+commit 80e5b5256679ec1a8d4082a216a171a60e71ca3c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 4 14:29:24 2016 -0800
+
+    cmd/compile: change order.go to use nodeSeq
+    
+    Passes toolstash -cmp
+    
+    Update #14473.
+    
+    Change-Id: I15b35d40a5ec1f4355ee38bc6d131920933ac95c
+    Reviewed-on: https://go-review.googlesource.com/20237
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/order.go  | 198 ++++++++++++++++------------------
+ src/cmd/compile/internal/gc/subr.go   |  16 +--
+ src/cmd/compile/internal/gc/syntax.go |  12 ++-
+ 3 files changed, 105 insertions(+), 121 deletions(-)

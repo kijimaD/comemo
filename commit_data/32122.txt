@@ -1,0 +1,28 @@
+commit fd29d03f70238abf460f56209a2ccc76dec6509e
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Tue Jul 18 23:59:40 2017 -0400
+
+    net/http: set Content-Type header in Redirect
+    
+    Setting the Content-Type header explicitly allows browsers to know what
+    the type of the content is. Otherwise, they have to guess the type from
+    the content itself, which could lead to unpredictable behavior, and
+    increases CPU usage.
+    
+    Not setting the Content-Type despite writing a body may also trigger
+    unwanted warnings in user middleware, and make it more difficult to
+    resolve valid issues where the user forgets to set Content-Type in
+    some situations where it should be set.
+    
+    There is some precedent for doing this in http.FileServer, which
+    sets "Content-Type" to "text/html; charset=utf-8" before writing
+    <pre><a href=...></a></pre> HTML.
+    
+    Change-Id: I24286827bebf4da8adee9238b8c5a94d4069c8db
+    Reviewed-on: https://go-review.googlesource.com/50510
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/server.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

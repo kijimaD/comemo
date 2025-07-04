@@ -1,0 +1,17 @@
+commit 2d90df91a8ef00e20d8244c3c39fb0c22c382161
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Aug 19 08:35:12 2021 +0000
+
+    cmd/internal/obj/riscv: avoid obj.Prog rewriting for immediate splitting
+    
+    Rather than rewriting the obj.Prog for a immediate instructions that need
+    splitting, generate the appropriate machine instruction sequence directly.
+    
+    Change-Id: Ie90f0e2a98f97a29281e445c4c3b0c47b793ef4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344453
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/riscv64.s |  19 ++++-
+ src/cmd/internal/obj/riscv/obj.go           | 115 +++++++++++-----------------
+ 2 files changed, 62 insertions(+), 72 deletions(-)

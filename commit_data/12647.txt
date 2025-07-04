@@ -1,0 +1,12 @@
+commit ed77d6f04da6f7475ad117716c3827c0150ede15
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Thu Mar 15 14:06:15 2012 -0400
+
+    doc: add missing quotation mark
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5833047
+
+ doc/reference.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

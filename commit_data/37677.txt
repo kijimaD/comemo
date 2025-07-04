@@ -1,0 +1,18 @@
+commit 944a9c7a4f2553998609351ee17111995cf80bb7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 12 22:08:50 2018 -0800
+
+    math: use constant rather than variable for exported test threshold
+    
+    This is a minor follow-up on https://golang.org/cl/153059.
+    
+    TBR=iant
+    
+    Updates #6794.
+    
+    Change-Id: I03657dafc572959d46a03f86bbeb280825bc969d
+    Reviewed-on: https://go-review.googlesource.com/c/153845
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/export_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

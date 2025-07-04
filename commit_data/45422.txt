@@ -1,0 +1,21 @@
+commit eb3fe28d7079692a1545887a2c609b325ec7f087
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Apr 28 16:32:38 2021 -0400
+
+    go/types: improve error messages for unexpected ListExprs
+    
+    This CL is a mix of CL 312149 and CL 314409, adding the
+    Checker.singleIndex method to provide better error messages when an
+    unexpected ListExpr is encountered.
+    
+    Change-Id: I45d6de9b4dfc299dc2d356ca14d05c9191de818d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314869
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/expr.go                           |  3 +-
+ src/go/types/index.go                          | 42 +++++++++++++++++++++++---
+ src/go/types/testdata/fixedbugs/issue45635.go2 | 10 +++---
+ 3 files changed, 44 insertions(+), 11 deletions(-)

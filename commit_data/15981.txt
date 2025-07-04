@@ -1,0 +1,14 @@
+commit 1a427a697e9fce8bd3a12ae233bc6f751a406b9d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 28 08:46:17 2013 -0700
+
+    cmd/godoc: don't crash if there's no documentation
+    
+    Fixes regression introduced by CL 7860049.
+    
+    R=golang-dev, kamil.kisiel, dave
+    CC=golang-dev
+    https://golang.org/cl/8069044
+
+ src/cmd/godoc/main.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

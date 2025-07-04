@@ -1,0 +1,20 @@
+commit 0824ae6dc1e867c327bdcae54be51a8a179c0f7d
+Author: David Lazar <lazard@golang.org>
+Date:   Fri Feb 17 16:55:40 2017 -0500
+
+    cmd/compile: add flag for debugging PC-value tables
+    
+    For example, `-d pctab=pctoinline` prints the PC-inline table and
+    inlining tree for every function.
+    
+    Change-Id: Ia6b9ce4d83eed0b494318d40ffe06481ec5d58ab
+    Reviewed-on: https://go-review.googlesource.com/37235
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/main.go |  5 +++++
+ src/cmd/internal/obj/inl.go         |  7 +++++++
+ src/cmd/internal/obj/link.go        |  2 +-
+ src/cmd/internal/obj/pcln.go        | 31 +++++++++++++------------------
+ 4 files changed, 26 insertions(+), 19 deletions(-)

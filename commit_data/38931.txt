@@ -1,0 +1,22 @@
+commit 4fdeb73fedd99233c04564677a775637930e8b64
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sat Apr 27 12:15:42 2019 +0200
+
+    cmd/link/internal/ld,syscall: replace getfsstat64 with getfsstat
+    
+    getfsstat64 is deprecated but not yet caught by the App Store checks.
+    Use the supported getfsstat$INODE64 form instead to ensure forward
+    compatibility.
+    
+    Change-Id: I0d97e8a8b254debb3de1cfcb3778dbed3702c249
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174200
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/link/internal/ld/macho.go   | 2 +-
+ src/syscall/syscall_darwin.go       | 8 ++++----
+ src/syscall/zsyscall_darwin_386.s   | 4 ++--
+ src/syscall/zsyscall_darwin_amd64.s | 4 ++--
+ src/syscall/zsyscall_darwin_arm.s   | 4 ++--
+ src/syscall/zsyscall_darwin_arm64.s | 4 ++--
+ 6 files changed, 13 insertions(+), 13 deletions(-)

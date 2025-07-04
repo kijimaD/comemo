@@ -1,0 +1,12 @@
+commit a83b17c0b741263e7f3ad5ebb2e3aba27751c770
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 21 12:55:09 2013 +1000
+
+    doc/go1.2.txt: text/template: add comparison functions
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/12801045
+
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

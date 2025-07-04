@@ -1,0 +1,20 @@
+commit 65adb6ab9a91c2f4336e1e48f9e7c325dafa0213
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Sat May 21 16:57:37 2016 +0100
+
+    time: run genzabbrs.go with new source data
+    
+    The source xml data has changed, so running genzabbrs.go
+    regenerates a new time zone file in zoneinfo_abbrs_windows.go
+    which adds some zones and adjusts others.
+    
+    Now set export ZONEINFO=$GOROOT/lib/time/zoneinfo.zip to use zoneinfo.zip in go tip.
+    
+    Change-Id: I19f72359cc808094e5dcb420e480a00c6b2205d7
+    Reviewed-on: https://go-review.googlesource.com/23321
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/zoneinfo_abbrs_windows.go | 40 ++++++++++++++++++++++++--------------
+ 1 file changed, 25 insertions(+), 15 deletions(-)

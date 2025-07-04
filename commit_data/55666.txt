@@ -1,0 +1,36 @@
+commit 638b9023e31b2e1d0d8ef24086722388afd76e41
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jan 31 14:10:56 2024 -0500
+
+    runtime: be careful about crash FD changes during panic
+    
+    There are two separate cases here:
+    
+    The base case is simple: a concurrent call to SetCrashOutput while
+    panicking will switch the crash FD, which could cause the first half of
+    writes to go to the old FD, and the second half to the new FD. This
+    isn't a correctness problem, but would be annoying to see in practice.
+    Since it is easy to check for, I simply drop any changes if panicking is
+    already in progress.
+    
+    The second case is more important: SetCrashOutput will close the old FD
+    after the new FD is swapped, but writeErrData has no locking around use
+    of the fd, so SetCrashOutput could close the FD out from under
+    writeErrData, causing lost writes. We handle this similarly, by not
+    allowing SetCrashOutput to close the old FD if a panic is in progress,
+    but we have to be more careful about synchronization between
+    writeErrData and setCrashFD to ensure that writeErrData can't observe
+    the old FD while setCrashFD allows close.
+    
+    For #42888.
+    
+    Change-Id: I7270b2cc5ea58a15ba40145b7a96d557acdfe842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559801
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/debug/stack.go |  2 ++
+ src/runtime/runtime.go     | 37 ++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 38 insertions(+), 1 deletion(-)

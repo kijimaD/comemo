@@ -1,0 +1,17 @@
+commit ebf56e086d9d5a357fb904bb5734fa047747a466
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 25 17:38:43 2012 -0700
+
+    exp/types/staging: support for typechecking (most) builtins
+    
+    This code relies on some functions that are not yet in staging,
+    but it get's harder to keep all this in sync in a piece-meal
+    fashion.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6492124
+
+ src/pkg/exp/types/staging/builtins.go           | 349 ++++++++++++++++++++++++
+ src/pkg/exp/types/staging/testdata/builtins.src | 258 ++++++++++++++++++
+ 2 files changed, 607 insertions(+)

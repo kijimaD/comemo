@@ -1,0 +1,57 @@
+commit d6df3017749bbe4737789c381b50ef71eb11b900
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 13 18:16:44 2010 -0400
+
+    arm: enable 8 more packages
+    
+    The remaining failures include:
+    
+    * something about bit operations?
+            crypto/block
+            encoding/binary
+    
+    * something about file I/O?
+            archive/tar
+            archive/zip
+            debug/dwarf
+            debug/elf
+            debug/macho
+            image/png
+    
+    * floating point
+            cmath
+            expvar
+            flag
+            fmt
+            gob
+            json
+            math
+            strconv
+            template
+            xml
+    
+    * network (maybe fixed by a pending CL)
+            http
+            netchan
+            rpc
+            rpc/jsonrpc
+            syslog
+            websocket
+    
+    * line numbers
+            log
+    
+    * haven't bothered / not sure
+            exp/datafmt
+            exp/eval
+            go/printer
+            os
+            os/signal
+            testing/quick
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2496041
+
+ src/pkg/Makefile | 8 --------
+ 1 file changed, 8 deletions(-)

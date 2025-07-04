@@ -1,0 +1,26 @@
+commit a8a6f90a237a19b32bd82dc4c314859e24f8cd95
+Author: root <vishwanatha.hd@ibm.com>
+Date:   Thu Feb 23 06:44:23 2023 +0000
+
+    math: support to handle huge arguments in tan function on s390x
+    
+    Currently on s390x, tan assembly implementation is not handling huge arguments at all. This change is to check for large arguments and revert back to native go implantation from assembly code in case of huge arguments.
+    
+    The changes are implemented in assembly code to get better performance over native go implementation.
+    
+    Benchmark details of tan function with table driven inputs are updated as part of the issue link.
+    
+    Fixes #37854
+    
+    Change-Id: I4e5321e65c27b7ce8c497fc9d3991ca8604753d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470595
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/math/tan_s390x.s | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

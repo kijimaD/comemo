@@ -1,0 +1,13 @@
+commit e09ac3cf2a93e7db6950a9fc2926d2846f7fb1c9
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Mar 7 23:18:07 2014 +0100
+
+    cmd/gc: correct GOARCH in object files for amd64p32.
+    
+    LGTM=dave
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/72260045
+
+ src/cmd/gc/obj.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

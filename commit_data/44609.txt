@@ -1,0 +1,23 @@
+commit f009b5b2268a7fcdfe046057cbf2a75306dbfc5e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 22 16:55:55 2020 +0000
+
+    runtime: support register ABI for finalizers
+    
+    This change modifies runfinq to properly pass arguments to finalizers in
+    registers via reflectcall.
+    
+    For #40724.
+    
+    Change-Id: I414c0eff466ef315a0eb10507994e598dd29ccb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300112
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/abi_test.go    | 116 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/export_test.go |  15 ++++++
+ src/runtime/mfinal.go      |  46 ++++++++++++------
+ src/runtime/stubs.go       |  28 +++++++++++
+ 4 files changed, 191 insertions(+), 14 deletions(-)

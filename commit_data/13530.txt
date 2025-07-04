@@ -1,0 +1,12 @@
+commit 67d8a2d4c14fe98cb4035869ce5e6daf883dfb14
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jul 30 15:36:56 2012 +1000
+
+    doc: remove mention of weekly tag from source install doc
+    
+    R=golang-dev, dsymonds, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6442062
+
+ doc/install-source.html | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)

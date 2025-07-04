@@ -1,0 +1,18 @@
+commit b59dd94f331677d28250b51729d5bc888fe4cef0
+Author: Chris Manghane <cmang@golang.org>
+Date:   Tue Dec 9 07:59:24 2014 -0800
+
+    cmd/internal/gc: method selector should not auto-deref named pointer type
+    
+    Fixes #9017.
+    
+    Change-Id: I26cb1e7d6e137ff145773169cfe2d8bd4e1b339c
+    Reviewed-on: https://go-review.googlesource.com/1252
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Chris Manghane <cmang@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/gc/subr.go      |  3 +++
+ src/cmd/internal/gc/typecheck.go | 13 +++++++++
+ test/fixedbugs/issue9017.go      | 57 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 73 insertions(+)

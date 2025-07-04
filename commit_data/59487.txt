@@ -1,0 +1,39 @@
+commit 76f63ee890170f4884f4d213e8150d39d6758ad3
+Author: David Finkel <david.finkel@gmail.com>
+Date:   Fri Dec 13 20:36:30 2024 -0500
+
+    cmd/go: add support for git sha256 hashes
+    
+    Git's supported SHA 256 object hashes since 2.29[1] in 2021, and Gitlab
+    now has experimental support for sha256 repos.
+    
+    Take rsc@'s suggestion of checking the of the length of the hashes from
+    git ls-remote to determine whether a git repo is using sha256 hashes and
+    decide whether to pass --object-format=sha256 to git init.
+    
+    Unfortunately, just passing --object-format=sha256 wasn't quite enough,
+    though. We also need to decide whether the hash-length is 64 hex bytes
+    or 40 hex bytes when resolving refs to decide whether we've been passed
+    a full commit-hash. To that end, we use
+    git config extensions.objectformat to decide whether the (now guaranteed
+    local) repo is using sha256 hashes and hence 64-hex-byte strings.
+    
+    [1]: lost experimental status in 2.42 from Aug 2023
+    (https://lore.kernel.org/git/xmqqr0nwp8mv.fsf@gitster.g/)
+    
+    For: #68359
+    Change-Id: I47f480ab8334128c5d17570fe76722367d0d8ed8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/636475
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: David Finkel <david.finkel@gmail.com>
+
+ src/cmd/go/internal/modfetch/codehost/git.go       |  57 +++++-
+ src/cmd/go/internal/modfetch/codehost/git_test.go  | 215 ++++++++++++++++++++-
+ .../mod_download_git_bareRepository_sha256.txt     |  30 +++
+ src/cmd/go/testdata/vcstest/git/gitrepo-sha256.txt |  69 +++++++
+ .../go/testdata/vcstest/go/mod/gitrepo-sha256.txt  |   6 +
+ 5 files changed, 370 insertions(+), 7 deletions(-)

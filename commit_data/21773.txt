@@ -1,0 +1,16 @@
+commit 940f22eea2ac57f5f41848c62d6d1c82d94828ee
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 26 10:58:48 2015 -0800
+
+    cmd/internal/obj: implement Dconv for TYPE_INDIR
+    
+    It was just missing, and apparently always was.
+    
+    Change-Id: I84c057bb0ec72940201075f3e6078262fe4bce05
+    Reviewed-on: https://go-review.googlesource.com/6120
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/asm/internal/asm/operand_test.go  | 4 ++--
+ src/cmd/asm/internal/asm/testdata/386.out | 2 +-
+ src/cmd/internal/obj/util.go              | 3 +++
+ 3 files changed, 6 insertions(+), 3 deletions(-)

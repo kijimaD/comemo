@@ -1,0 +1,17 @@
+commit 1badb463134c47ba17fd59917321687f09d7eea8
+Author: Tarmigan Casebolt <tarmigan@gmail.com>
+Date:   Tue Aug 3 14:34:44 2010 -0700
+
+    websocket: correct challenge response
+    
+    Tested against latest Chrome.
+    
+    R=ukai, rsc
+    CC=golang-dev
+    https://golang.org/cl/1743053
+
+ src/pkg/websocket/client.go         | 30 +-----------------------------
+ src/pkg/websocket/server.go         | 21 ++-------------------
+ src/pkg/websocket/websocket.go      | 27 ++++++++++++++++++++++++++-
+ src/pkg/websocket/websocket_test.go | 19 +++++++++++++++++++
+ 4 files changed, 48 insertions(+), 49 deletions(-)

@@ -1,0 +1,15 @@
+commit 3eabdd291d3f53c88fdd01aca30158d0c06420b6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 6 13:47:19 2019 -0800
+
+    net: skip TestDialCancel if Dial fails with "connection refused"
+    
+    Fixes #15191
+    
+    Change-Id: I86214ede619400acd44f21138b5ddf6cef4649a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205698
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial_test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

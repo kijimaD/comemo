@@ -1,0 +1,20 @@
+commit f8892147bdfd16fe7ef04eccf59c4abf774550f1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 19 13:58:07 2021 -0400
+
+    runtime: open up space for callee's arg spill slot in mcall (regabi version)
+    
+    mcall calls fn with an argument. Currently, in the regabi version
+    of mcall it does not reserve space for that argument's spill slot.
+    If the callee spills its argument, it may clobber things on the
+    g0 stack at 0(SP) (e.g. the old SP saved in cgocallback).
+    
+    Reserve the space.
+    
+    Change-Id: I85a314273cd996c7fac8fd0b03cd9033faae9c5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311489
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/asm_amd64.s | 2 ++
+ 1 file changed, 2 insertions(+)

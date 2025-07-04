@@ -1,0 +1,56 @@
+commit 2965dc989530e1f52d80408503be24ad2582871b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 13 19:48:58 2024 -0400
+
+    runtime: fix lost sleep causing TestZeroTimer flakes
+    
+    Classic operating system kernel mistake: if you start using
+    per-CPU data without disabling interrupts on the CPU,
+    and then an interrupt reschedules the process onto a different
+    CPU, now you're using the wrong CPU's per-CPU data.
+    The same thing happens in Go if you use per-M or per-P
+    data structures while not holding a lock nor using acquirem.
+    
+    In the original timer.modify before CL 564977, I had been
+    very careful about this during the "unlock t; lock ts" dance,
+    only calling releasem after ts was locked. That made sure
+    we used the right ts. The refactoring of that code into its
+    own helper function in CL 564977 missed that nuance.
+    
+    The code
+    
+        ts := &getg().m.p.p.ptr().timers
+        ts.lock()
+    
+    was now executing without holding any locks nor acquirem.
+    If the goroutine changed its M or P between deciding which
+    ts to use and actually locking that ts, the code would proceed
+    to add the timer t to some other P's timers. If the P was idle
+    by then, the scheduler could have already checked it for timers
+    and not notice the newly added timer when deciding when the
+    next timer should trigger.
+    
+    The solution is to do what the old code correctly did, namely
+    acquirem before deciding which ts to use, rather than assume
+    getg().m.p won't change before ts.lock can complete.
+    This CL does that.
+    
+    Before CL 564977,
+    
+            stress ./time.test -test.run='ZeroTimer/impl=(func|cache)' -test.timeout=3m -test.count=20
+    
+    ran without failure for over an hour on my laptop.
+    Starting in CL 564977, it consistently failed within a few minutes.
+    After this CL, it now runs without failure for over an hour again.
+    
+    Fixes #66006.
+    
+    Change-Id: Ib9e7ccaa0f22a326ce3fdef2b9a92f7f0bdafcbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571196
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/time.go    | 13 ++++++++++++-
+ src/time/sleep_test.go |  7 +++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

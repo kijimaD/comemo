@@ -1,0 +1,53 @@
+commit 9d7e39340d28482dc3a3d768308d475f69862987
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Jul 31 20:07:04 2011 +1000
+
+    syscall: delay load of dll functions until they are called
+    
+    Before this change, syscall package would load
+    all dlls used anywhere in the go tree on startup.
+    For example, this program:
+    
+    package main
+    
+    import "fmt"
+    
+    func main() {
+           fmt.Printf("Hello world\n")
+    }
+    
+    would load these dlls
+    
+    kernel32.dll
+    advapi32.dll
+    shell32.dll
+    wsock32.dll
+    ws2_32.dll
+    dnsapi.dll
+    iphlpapi.dll
+    
+    Most of these dlls are network related and are not used
+    in this program. Now the same program loads only
+    
+    kernel32.dll
+    shell32.dll
+    
+    This decreases start times somewhat.
+    
+    This also relaxes the rules of which dlls can be included
+    in the standard library. We could now include system calls
+    that are not available on all versions of Windows, because
+    we could decide if we should call them during runtime.
+    
+    R=rsc, vcc.163
+    CC=golang-dev
+    https://golang.org/cl/4815046
+
+ src/pkg/exp/wingui/Makefile               |   1 +
+ src/pkg/exp/wingui/winapi.go              |  17 --
+ src/pkg/exp/wingui/zwinapi.go             |  70 +++---
+ src/pkg/syscall/mksyscall_windows.pl      |   6 +-
+ src/pkg/syscall/syscall_windows.go        |  65 +++++-
+ src/pkg/syscall/zsyscall_windows_386.go   | 376 +++++++++++++++---------------
+ src/pkg/syscall/zsyscall_windows_amd64.go | 376 +++++++++++++++---------------
+ 7 files changed, 470 insertions(+), 441 deletions(-)

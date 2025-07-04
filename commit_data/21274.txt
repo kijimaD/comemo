@@ -1,0 +1,19 @@
+commit 25ece4ae4477ca03e2cdcb3c924cfd4fd7d7092b
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Wed Jan 14 12:13:17 2015 -0500
+
+    build: androidtest.bash has to use copy for files to adb-sync.
+    
+    androidtest.bash copies some go source to the android device
+    where the tests are going to run. It's necessary because some
+    tests require files and resources to be present. The copy is
+    done through adb sync. The script hoped faking the directory
+    using symlinks to work, but it doesn't. (adb sync doesn't follow
+    the symlinks) We need proper copy.
+    
+    Change-Id: If55abca4958f159859e58512b0045f23654167e3
+    Reviewed-on: https://go-review.googlesource.com/2827
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/androidtest.bash | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

@@ -1,0 +1,15 @@
+commit ceae2c930159cce83407be3489d3fa896f237429
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jun 21 11:28:15 2011 +1000
+
+    goinstall: undo repo peeking code
+    
+    Keeping the Julian's good refactoring work.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4638049
+
+ src/cmd/goinstall/doc.go      | 14 ++-----
+ src/cmd/goinstall/download.go | 92 -------------------------------------------
+ 2 files changed, 3 insertions(+), 103 deletions(-)

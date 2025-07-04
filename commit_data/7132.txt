@@ -1,0 +1,12 @@
+commit 2862d003cb052a672f34cca5125ff12628909fc2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 18 08:10:22 2011 -0800
+
+    syscall: Correct length of GNU/Linux abstract Unix domain sockaddr.
+    
+    R=rsc, iant2
+    CC=golang-dev
+    https://golang.org/cl/3974044
+
+ src/pkg/syscall/syscall_linux.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

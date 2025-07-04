@@ -1,0 +1,43 @@
+commit 3278dc158e34779eb46cd1b5a73c1d0c18602184
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 2 13:05:04 2013 -0800
+
+    runtime: pass key/value to map accessors by reference, not by value.
+    
+    This change is part of the plan to get rid of all vararg C calls
+    which are a pain for getting exact stack scanning.
+    
+    We allocate a chunk of zero memory to return a pointer to when a
+    map access doesn't find the key.  This is simpler than returning nil
+    and fixing things up in the caller.  Linker magic allocates a single
+    zero memory area that is shared by all (non-reflect-generated) map
+    types.
+    
+    Passing things by reference gets rid of some copies, so it speeds
+    up code with big keys/values.
+    
+    benchmark             old ns/op    new ns/op    delta
+    BenchmarkBigKeyMap           34           31   -8.48%
+    BenchmarkBigValMap           37           30  -18.62%
+    BenchmarkSmallKeyMap         26           23  -11.28%
+    
+    R=golang-dev, dvyukov, khr, rsc
+    CC=golang-dev
+    https://golang.org/cl/14794043
+
+ src/cmd/gc/builtin.c             |  10 +-
+ src/cmd/gc/fmt.c                 |   4 +
+ src/cmd/gc/go.h                  |   2 +
+ src/cmd/gc/range.c               |  28 ++--
+ src/cmd/gc/reflect.c             | 113 +++++++++++++--
+ src/cmd/gc/runtime.go            |  10 +-
+ src/cmd/gc/walk.c                | 149 ++++++++++++++------
+ src/pkg/reflect/type.go          |   6 +
+ src/pkg/reflect/value.go         |   2 +-
+ src/pkg/runtime/hashmap.c        | 293 +++++++++++++++------------------------
+ src/pkg/runtime/hashmap_fast.c   |  13 +-
+ src/pkg/runtime/mapspeed_test.go |  30 ++++
+ src/pkg/runtime/runtime.h        |   6 -
+ src/pkg/runtime/type.h           |   1 +
+ src/pkg/runtime/typekind.h       |   2 +-
+ 15 files changed, 389 insertions(+), 280 deletions(-)

@@ -1,0 +1,17 @@
+commit 57e27a879eea9ea4e11f07ecb76393434ff54d1e
+Author: Jakub Ryszard Czarnowicz <j.czarnowicz@gmail.com>
+Date:   Fri Dec 20 11:49:42 2013 -0800
+
+    net/http: empty contenty-type treated as application/octet-stream
+    
+    RFC 2616, section 7.2.1 - empty type SHOULD be treated as
+    application/octet-stream.
+    Fixes #6616.
+    
+    R=golang-codereviews, gobot, bradfitz, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/31810043
+
+ src/pkg/net/http/request.go      | 5 +++++
+ src/pkg/net/http/request_test.go | 5 +++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

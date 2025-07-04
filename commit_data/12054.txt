@@ -1,0 +1,27 @@
+commit 4e3f8e915fadd17b7caffaae273eddd3528ac080
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 19 03:19:52 2012 -0500
+
+    gc, ld: tag data as no-pointers and allocate in separate section
+    
+    The garbage collector can avoid scanning this section, with
+    reduces collection time as well as the number of false positives.
+    Helps a little bit with issue 909, but certainly does not solve it.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5671099
+
+ src/cmd/5g/gsubr.c  |  4 ++++
+ src/cmd/5l/5.out.h  |  3 ++-
+ src/cmd/5l/obj.c    |  6 +++++-
+ src/cmd/6g/gsubr.c  |  2 ++
+ src/cmd/6l/6.out.h  |  1 +
+ src/cmd/6l/obj.c    |  4 +++-
+ src/cmd/8g/gsubr.c  |  2 ++
+ src/cmd/8l/8.out.h  |  1 +
+ src/cmd/8l/obj.c    |  4 +++-
+ src/cmd/ld/data.c   | 41 +++++++++++++++++++++++++++--------------
+ src/cmd/ld/lib.h    |  1 +
+ src/cmd/ld/symtab.c |  2 ++
+ 12 files changed, 53 insertions(+), 18 deletions(-)

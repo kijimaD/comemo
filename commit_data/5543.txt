@@ -1,0 +1,12 @@
+commit 566f59804699b2a2e955515a09ab90f765aef442
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 24 17:00:21 2010 -0700
+
+    fix build - nacl stubs
+    
+    TBR=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/1259042
+
+ src/pkg/syscall/syscall_nacl.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,18 @@
+commit 5ab8f00bf8d2f133dfbed4d0440b05669516bc34
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 12 13:59:02 2010 -0800
+
+    gc: diagnose invalid array bounds
+    
+    Fixes #587.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/207085
+
+ src/cmd/gc/const.c       |  6 ++----
+ src/cmd/gc/go.h          |  2 ++
+ src/cmd/gc/typecheck.c   | 38 +++++++++++++++++++-------------------
+ test/fixedbugs/bug254.go | 16 ++++++++++++++++
+ test/fixedbugs/bug255.go | 15 +++++++++++++++
+ 5 files changed, 54 insertions(+), 23 deletions(-)

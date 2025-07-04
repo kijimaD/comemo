@@ -1,0 +1,19 @@
+commit e8cc083ede9120c70b9d38b603ba07b3e62bd95d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 16:00:04 2015 -0500
+
+    net/mail: do not parse RFC 2047 tokens in quoted strings
+    
+    RFC 2047 tokens like =?utf-8?B?whatever?= can only appear
+    unquoted, but this code was trying to decode them even when
+    they came out of quoted strings. Quoted strings must be left alone.
+    
+    Fixes #11294.
+    
+    Change-Id: I41b371f5b1611f1e56d93623888413d07d4ec878
+    Reviewed-on: https://go-review.googlesource.com/17381
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/mail/message.go      |  7 +++----
+ src/net/mail/message_test.go | 27 ++++++++++++++++++++++++++-
+ 2 files changed, 29 insertions(+), 5 deletions(-)

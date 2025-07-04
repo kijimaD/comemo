@@ -1,0 +1,33 @@
+commit 731fd009f0acef70d939f3cb62f81a83e3e9e2bb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Feb 22 12:47:52 2017 -0800
+
+    cmd/vet/all: use -dolinkobj=false to speed up runs
+    
+    When running on the host platform,
+    the standard library has almost certainly already been built.
+    However, all other platforms will probably need building.
+    Use the new -dolinkobj=false flag to cmd/compile
+    to only build the export data instead of doing a full compile.
+    
+    Having partial object files could be confusing for people
+    doing subsequent cross-compiles, depending on what happens with #18369.
+    However, cmd/vet/all will mainly be run by builders
+    and core developers, who are probably fairly well-placed
+    to handle any such confusion.
+    
+    This reduces the time on my machine for a cold run of
+    'go run main.go -all' by almost half:
+    
+    benchmark           old ns/op        new ns/op        delta
+    BenchmarkVetAll     240670814551     130784517074     -45.66%
+    
+    Change-Id: Ieb866ffb2cb714b361b0a6104077652f8eacd166
+    Reviewed-on: https://go-review.googlesource.com/37385
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/all/main.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

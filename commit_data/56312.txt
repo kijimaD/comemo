@@ -1,0 +1,21 @@
+commit 9effeeab27de2a8f75a1050ce879ba8db3abb406
+Author: Dmitriy Matrenichev <temp65535@gmail.com>
+Date:   Mon Apr 22 22:26:33 2024 +0000
+
+    internal/weak: remove unnecessary conversion, fix typo
+    
+    Remove unnecessary conversion from unsafe.Pointer to unsafe.Pointer.
+    Also fix small typo in weak.Pointer.Strong method documentation.
+    
+    Change-Id: I84791fba244581bd6218c589827a61914f0797b4
+    GitHub-Last-Rev: 7978d07d5bbd72ca84c9650bf2450d7a269bbb1d
+    GitHub-Pull-Request: golang/go#66977
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580936
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/weak/pointer.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

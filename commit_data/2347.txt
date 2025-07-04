@@ -1,0 +1,39 @@
+commit 91395ae68945ffcf6383954cb5b1377c3ac10d50
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 29 18:12:04 2009 -0700
+
+    make gobuild failures more readable.
+    
+    1. ar reports names of objects with duplicate text symbols.
+    2. gobuild only shows first line of error output for each failed command.
+    3. gobuild ignores files that begin with ascii non-alphanumeric non _.
+    
+    ; gobuild
+    $ 6g -I _obj gobuild.go
+      gobuild.go:150: PackageImports: undefined
+    $ 6g -I _obj makefile.go
+      makefile.go:102: ShellString: undefined
+    $ 6g -I _obj util.go
+      util.go:114: syntax error near zzz
+    gobuild: stalemate
+    ;
+    
+    ; gobuild
+    $ 6ar grc _obj/gobuild.a util.6 util1.6
+      duplicate text symbol: util1.6 and util.6: gobuild·Build
+    $ 6g -I _obj gobuild.go
+      gobuild.go:150: PackageImports: undefined
+    $ 6g -I _obj makefile.go
+      makefile.go:102: ShellString: undefined
+    gobuild: stalemate
+    ;
+    
+    R=r
+    DELTA=95  (49 added, 9 deleted, 37 changed)
+    OCL=29625
+    CL=29640
+
+ src/cmd/ar/ar.c            | 21 +++++++++-----
+ src/cmd/gobuild/gobuild.go | 23 +++++++++++-----
+ src/cmd/gobuild/util.go    | 68 +++++++++++++++++++++++++++++++---------------
+ 3 files changed, 76 insertions(+), 36 deletions(-)

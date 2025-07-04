@@ -1,0 +1,58 @@
+commit 685aca45dc8435df7b7e8059a42a8a98efdaf22c
+Author: Austin Clements <austin@google.com>
+Date:   Thu Nov 1 12:30:23 2018 -0400
+
+    cmd/compile, cmd/link: separate stable and internal ABIs
+    
+    This implements compiler and linker support for separating the
+    function calling ABI into two ABIs: a stable and an internal ABI. At
+    the moment, the two ABIs are identical, but we'll be able to evolve
+    the internal ABI without breaking existing assembly code that depends
+    on the stable ABI for calling to and from Go.
+    
+    The Go compiler generates internal ABI symbols for all Go functions.
+    It uses the symabis information produced by the assembler to create
+    ABI wrappers whenever it encounters a body-less Go function that's
+    defined in assembly or a Go function that's referenced from assembly.
+    
+    Since the two ABIs are currently identical, for the moment this is
+    implemented using "ABI alias" symbols, which are just forwarding
+    references to the native ABI symbol for a function. This way there's
+    no actual code involved in the ABI wrapper, which is good because
+    we're not deriving any benefit from it right now. Once the ABIs
+    diverge, we can eliminate ABI aliases.
+    
+    The linker represents these different ABIs internally as different
+    versions of the same symbol. This way, the linker keeps us honest,
+    since every symbol definition and reference also specifies its
+    version. The linker is responsible for resolving ABI aliases.
+    
+    Fixes #27539.
+    
+    Change-Id: I197c52ec9f8fc435db8f7a4259029b20f6d65e95
+    Reviewed-on: https://go-review.googlesource.com/c/147160
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/gen.go          | 11 +++++
+ src/cmd/compile/internal/gc/gsubr.go        | 63 ++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/gc/noder.go        | 13 ++++++
+ src/cmd/compile/internal/gc/pgen.go         |  4 +-
+ src/cmd/compile/internal/gc/reflect.go      |  4 +-
+ src/cmd/compile/internal/gc/ssa.go          | 40 +++++++++---------
+ src/cmd/compile/internal/types/sym.go       |  6 +++
+ src/cmd/internal/obj/arm/asm5.go            |  1 +
+ src/cmd/internal/obj/wasm/wasmobj.go        |  2 +
+ src/cmd/internal/obj/x86/asm6.go            |  1 +
+ src/cmd/internal/objabi/symkind.go          |  7 ++++
+ src/cmd/internal/objabi/symkind_string.go   |  4 +-
+ src/cmd/link/internal/ld/deadcode.go        | 12 +++++-
+ src/cmd/link/internal/ld/go.go              | 16 ++++++++
+ src/cmd/link/internal/ld/lib.go             | 32 ++++++++++++++-
+ src/cmd/link/internal/ld/symtab.go          |  2 +-
+ src/cmd/link/internal/ppc64/asm.go          |  2 +-
+ src/cmd/link/internal/sym/symbols.go        |  2 +
+ src/cmd/link/internal/sym/symkind.go        |  4 ++
+ src/cmd/link/internal/sym/symkind_string.go |  4 +-
+ 20 files changed, 196 insertions(+), 34 deletions(-)

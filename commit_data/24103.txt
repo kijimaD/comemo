@@ -1,0 +1,34 @@
+commit 12663b46278f553911b5e5cb6eae4f99f09b636a
+Author: Daniel Johansson <dajo2002@gmail.com>
+Date:   Thu Aug 27 22:16:09 2015 +0200
+
+    registry: Explain how GetMUIStringValue works and where it falls short
+    
+    GetMUIStringValue tries as a convenience to resolve string values even for pathless
+    resource DLLs by searching the system directory (one of several paths used
+    by the system's standard DLL search order algorithm). This would not be
+    needed if regLoadMUIString searched for pathless DLLs itself, but it
+    doesn't, instead it needs an absolute path, otherwise it will fail.
+    
+    This approach works fine for solving issue #12015 (handle localized time
+    zone names; for which GetMUIStringValue was created) since tzres.dll that
+    is used to resolve localized time zone names has no path in the registry
+    but is located under the system directory.
+    
+    However, this approach will fail if a pathless DLL is located somewhere
+    else than the system directory.
+    
+    Because of this limitation GetMUIStringValue may have to be revised in the
+    future to allow for custom paths, possibly through another version of the
+    function.
+    
+    See also:
+    https://msdn.microsoft.com/en-us/library/windows/desktop/ms724890%28v=vs.85%29.aspx
+    https://msdn.microsoft.com/en-us/library/windows/desktop/ms682586%28v=vs.85%29.aspx
+    
+    Change-Id: Ida66a0ef1928e0461ce248c795827902d785e6cd
+    Reviewed-on: https://go-review.googlesource.com/13929
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/internal/syscall/windows/registry/value.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

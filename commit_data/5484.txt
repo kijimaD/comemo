@@ -1,0 +1,13 @@
+commit 4a3cb1ad2f3dc2d4ea097e5c17c835a40a4c24e1
+Author: Michael Hoisie <hoisie@gmail.com>
+Date:   Tue May 18 23:01:05 2010 -0700
+
+    bytes: add Trim, TrimLeft, TrimRight, and generic functions
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/946045
+
+ src/pkg/bytes/bytes.go      | 85 ++++++++++++++++++++++++++++++++++-----------
+ src/pkg/bytes/bytes_test.go | 69 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 134 insertions(+), 20 deletions(-)

@@ -1,0 +1,15 @@
+commit 504963e6a466bd0c13c6f36f1ca129602151e598
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Oct 6 18:33:13 2011 +0900
+
+    build: clear execute bit from source files
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5201042
+
+ src/pkg/math/atan2_386.s            | 0
+ src/pkg/runtime/cgo/386.S           | 0
+ src/pkg/runtime/cgo/windows_386.c   | 0
+ src/pkg/runtime/cgo/windows_amd64.c | 0
+ 4 files changed, 0 insertions(+), 0 deletions(-)

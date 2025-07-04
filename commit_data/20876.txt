@@ -1,0 +1,14 @@
+commit 9bc842ca180d88d3cf4956b37dadcc21c53eded8
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 9 20:20:26 2014 -0500
+
+    cmd/dist: remove old misc/pprof
+    
+    LGTM=dave, bradfitz, r, alex.brainman
+    R=r, dave, bradfitz, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/167350043
+
+ misc/pprof           | 5100 --------------------------------------------------
+ src/cmd/dist/build.c |    9 -
+ 2 files changed, 5109 deletions(-)

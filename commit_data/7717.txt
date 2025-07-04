@@ -1,0 +1,21 @@
+commit ec5c4759190006261014c08aceccb6f99aa53d50
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 9 10:24:50 2011 -0800
+
+    http: add Flusher type; remove Flush from ResponseWriter
+    
+    The Flush functionality wasn't removed, but now you have
+    to test if your ResponseWriter is also a Flusher:
+    
+    func ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+       if f, ok := rw.(http.Flusher); ok {
+           f.Flush()
+       }
+    }
+    
+    R=rsc, bradfitzwork
+    CC=gburd, golang-dev
+    https://golang.org/cl/4239077
+
+ src/pkg/http/server.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

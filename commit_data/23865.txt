@@ -1,0 +1,21 @@
+commit 85a5fce7adfcd45dafd7303a174608ba0a97a1c7
+Author: Paul Marks <pmarks@google.com>
+Date:   Mon Jul 27 14:39:32 2015 -0700
+
+    net: Set finalDeadline from TestDialParallel to avoid leaked sockets.
+    
+    I've also changed TestDialSerialAsyncSpuriousConnection for consistency,
+    although it always computes a finalDeadline of zero.
+    
+    Note that #11225 is the root cause of the socket leak; this just hides
+    it from the unit test by restoring the shorter timeout.
+    
+    Fixes #11878
+    
+    Change-Id: Ie0037dd3bce6cc81d196765375489f8c61be74c2
+    Reviewed-on: https://go-review.googlesource.com/12712
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Paul Marks <pmarks@google.com>
+
+ src/net/dial_test.go | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

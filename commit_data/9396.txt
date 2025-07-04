@@ -1,0 +1,19 @@
+commit b77c40a2b3c9e1b6b4c27918da92828fed546b74
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 17 10:27:32 2011 -0700
+
+    go/parser: do not accept type literals where not permitted in general
+    
+    - Resolves a long-standing TODO.
+    - Replacement for CL 4908042 by befelemepeseveze@gmail.com
+    
+    Fixes #2155.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4904048
+
+ src/cmd/gofmt/test.sh            |  2 +-
+ src/pkg/go/parser/parser.go      | 34 +++++++++++++++++++---------------
+ src/pkg/go/parser/parser_test.go | 13 +++++++++++++
+ 3 files changed, 33 insertions(+), 16 deletions(-)

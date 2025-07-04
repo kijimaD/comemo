@@ -1,0 +1,16 @@
+commit ee923e3f907adbe99352fe27a5a4994f7d9c4917
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 4 08:19:24 2013 +1100
+
+    doc: simplify How to write Go code article
+    
+    This version just tells you what to do, rather
+    than trying to teach you how it all works.
+    Should be much better for newcomers.
+    
+    R=dave, gary.burd, alcosholik, r
+    CC=golang-dev
+    https://golang.org/cl/8247044
+
+ doc/code.html | 461 +++++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 275 insertions(+), 186 deletions(-)

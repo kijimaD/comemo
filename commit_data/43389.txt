@@ -1,0 +1,25 @@
+commit 90c924ff88a8b5ab65538ccc16d160922b1b4003
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 10:58:05 2020 -0400
+
+    testing/fstest: new package for testing file system code
+    
+    This change adds basic test helpers for file system code.
+    
+    The type MapFS is a simple map-based file system for use when
+    exercising general file system code.
+    
+    The func TestFS tests a file system implementation.
+    
+    For #41190.
+    
+    Change-Id: I5a2036f57e733915ad508651ad7317749794423c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243910
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/go/build/deps_test.go        |   3 +-
+ src/testing/fstest/mapfs.go      | 204 ++++++++++++++++++++++
+ src/testing/fstest/mapfs_test.go |  19 ++
+ src/testing/fstest/testfs.go     | 364 +++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 589 insertions(+), 1 deletion(-)

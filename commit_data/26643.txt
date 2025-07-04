@@ -1,0 +1,23 @@
+commit 36feb1a00aef40b793c173859aab49f8080b71fc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 31 00:06:27 2016 -0700
+
+    net/http: limit Transport's reading of response header bytes from servers
+    
+    The default is 10MB, like http2, but can be configured with a new
+    field http.Transport.MaxResponseHeaderBytes.
+    
+    Fixes #9115
+    
+    Change-Id: I01808ac631ce4794ef2b0dfc391ed51cf951ceb1
+    Reviewed-on: https://go-review.googlesource.com/21329
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/http.go           | 12 ++++++
+ src/net/http/server.go         |  2 +-
+ src/net/http/transport.go      | 95 +++++++++++++++++++++++++++++-------------
+ src/net/http/transport_test.go | 36 ++++++++++++++++
+ 4 files changed, 116 insertions(+), 29 deletions(-)

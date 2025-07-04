@@ -1,0 +1,18 @@
+commit b4b70a4617fa318ae3e3f3b3d1bb9241d4dc0f9e
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Apr 19 12:31:27 2023 -0700
+
+    doc: add release notes for new context functions
+    
+    For #40221
+    For #56661
+    For #57928
+    
+    Change-Id: Iaf7425bb26eeb9c23235d13c786d5bb572159481
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486535
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.21.html | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

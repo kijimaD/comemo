@@ -1,0 +1,14 @@
+commit f0964a54fb94a5dd9b237570646dbc38faef4d66
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 24 01:37:27 2009 -0700
+
+    go/printer: fix sync bug - avoid sending on errors twice -
+            and report node type in error
+    
+    R=gri
+    DELTA=4  (3 added, 0 deleted, 1 changed)
+    OCL=34949
+    CL=34955
+
+ src/pkg/go/printer/printer.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

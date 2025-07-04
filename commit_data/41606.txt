@@ -1,0 +1,16 @@
+commit 0e3ace42f5a06a2472662da08105d6c956f4eef1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 11 10:24:14 2020 -0400
+
+    net/http: use t.Deadline instead of an arbitrary timeout in TestServerConnState
+    
+    Updates #37322
+    
+    Change-Id: I3b8369cd9e0ed5e4b3136cedaa2f70698ead2270
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222957
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+
+ src/net/http/serve_test.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

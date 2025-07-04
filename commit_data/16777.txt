@@ -1,0 +1,14 @@
+commit 9bd32b48ca135ea21a2ee634e849cd72d780ccef
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Jul 16 08:35:06 2013 -0700
+
+    net: fix setsockopt for openbsd
+    
+    s/TCP_KEEPALIVE/SO_KEEPALIVE/ to unbreak build on OpenBSD.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/11345044
+
+ src/pkg/net/tcpsockopt_openbsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

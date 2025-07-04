@@ -1,0 +1,18 @@
+commit aa175a196d74f2788ec3d02b990487f7ca2af5b0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Dec 30 15:50:50 2019 +0100
+
+    internal/syscall/unix: use libc based fcntl for IsNonblock on aix and solaris
+    
+    On aix and solaris (like on darwin) use libc fcntl to implement
+    IsNonblock instead of Syscall(SYS_FCNTL, ...) which isn't supported.
+    
+    Change-Id: I989b02aa0c90b7e2dae025572867dda277fef8be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212600
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/syscall/unix/nonblocking.go                              | 2 +-
+ .../syscall/unix/{nonblocking_darwin.go => nonblocking_libc.go}       | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

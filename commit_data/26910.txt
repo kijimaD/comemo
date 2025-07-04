@@ -1,0 +1,18 @@
+commit d9712aa82af7192469d75802c6dc1734ea9858b2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 13 11:31:24 2016 -0700
+
+    runtime: merge the darwin os*.go files together
+    
+    Merge them together into os1_darwin.go. A future CL will rename it.
+    
+    Change-Id: Ia4380d3296ebd5ce210908ce3582ff184566f692
+    Reviewed-on: https://go-review.googlesource.com/22004
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os1_darwin.go | 50 ++++++++++++++++++++++++++++++++++++++++++++---
+ src/runtime/os2_darwin.go | 14 -------------
+ src/runtime/os_darwin.go  | 42 ---------------------------------------
+ 3 files changed, 47 insertions(+), 59 deletions(-)

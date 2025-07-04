@@ -1,0 +1,71 @@
+commit ee402e98824ef68feab5d1d2cf532747287cc618
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 26 16:27:28 2023 -0700
+
+    go/types, types2: use exact unification for component types
+    
+    This change defines two unification modes used to control unification:
+    
+    - assign  set when unifying types involved in an assignment
+    - exact   if set, types unify if they can be made identical
+    
+    Currently, unification is inexact: when a defined type is compared
+    against a type literal, the underlying type of the defined type is
+    considered. When channel types are compared, the channel direction
+    is ignored. And when defined types are compared where one (or both)
+    are interfaces, interface unification is used.
+    
+    By contrast, exact unification requires types to match exactly:
+    if they can be unified, the types must be identical (with suitable
+    type arguments).
+    
+    Exact unification is required when comparing component types.
+    For instance, when unifying func(x P) with func(x Q), the two
+    signatures unify only if P is identical to Q per Go's assignment
+    rules.
+    
+    Until now we have ignored exact unification and made due with inexact
+    unification everywhere, even for component types. In some cases this
+    led to infinite recursions in the unifier, which we guarded against
+    with a depth limit (and unification failure).
+    
+    Go's assignmemt rules allow inexact matching at the top-level but
+    require exact matching for element types.
+    
+    This change passes 'assign' to the unifier when unifying parameter
+    against argument types because those follow assignment rules.
+    When comparing constraints, inexact unification is used as before.
+    
+    In 'assign' mode, when comparing element types, the unifyier is
+    called recursively, this time with the 'exact' mode set, causing
+    element types to be compared exactly. If unification succeeds for
+    element types, they are identical (with suitable type arguments).
+    
+    This change fixes #60460. It also fixes a bug in the test for
+    issue #60377. We also don't need to rely anymore on the recursion
+    depth limit (a temporary fix) for #59740. Finally, because we use
+    exact unification when comparing element types which are channels,
+    errors caused by assignment failures (due to inexact inference which
+    succeeded when it shouldn't have) now produce the correct inference
+    error.
+    
+    Fixes #60460.
+    For #60377.
+    For #59740.
+    
+    Change-Id: Icb6a9b4dbd34294f99328a06d52135cb499cab85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498895
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/infer.go           |  4 +-
+ src/cmd/compile/internal/types2/unify.go           | 36 +++++++--
+ src/go/types/infer.go                              |  4 +-
+ src/go/types/unify.go                              | 36 +++++++--
+ src/internal/types/testdata/examples/functions.go  | 12 +--
+ .../types/testdata/fixedbugs/issue60377.go         | 12 +--
+ .../types/testdata/fixedbugs/issue60460.go         | 88 ++++++++++++++++++++++
+ 7 files changed, 159 insertions(+), 33 deletions(-)

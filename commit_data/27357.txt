@@ -1,0 +1,24 @@
+commit d958dab095febfe542c6209b023d15f1d0de7128
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 10 17:06:19 2016 -0700
+
+    go/importer: use correct path when checking if package was already imported
+    
+    The importer uses a global (shared) package map across multiple imports
+    to determine if a package was imported before. That package map is usually
+    indexed by package (import) path ('id' in this code). However, the binary
+    importer was using the incoming (possibly unclean) path.
+    
+    Fixes #15517.
+    
+    Change-Id: I0c32a708dfccf345e0353fbda20ad882121e437c
+    Reviewed-on: https://go-review.googlesource.com/23012
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/internal/gcimporter/bimport.go         |  2 +-
+ src/go/internal/gcimporter/gcimporter.go      |  2 +-
+ src/go/internal/gcimporter/gcimporter_test.go | 39 +++++++++++++++++++++++++++
+ src/go/internal/gcimporter/testdata/p.go      | 13 +++++++++
+ 4 files changed, 54 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit 73896bdc854409b2c058a3fb22a8d12fa11c1144
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 29 21:56:13 2011 -0700
+
+    net: break up and simplify Dial a bit
+    
+    No API or functional change.
+    
+    R=jacek.masiulaniec, mikioh.mikioh, rsc
+    CC=golang-dev
+    https://golang.org/cl/4630081
+
+ src/pkg/net/dial.go | 86 ++++++++++++++++++++++++-----------------------------
+ 1 file changed, 39 insertions(+), 47 deletions(-)

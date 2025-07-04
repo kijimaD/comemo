@@ -1,0 +1,12 @@
+commit 6f43a989b0701ef2f87827dc72ee93378e09bb9b
+Author: Jonathan Boulle <jonathanboulle@gmail.com>
+Date:   Tue Aug 30 02:09:19 2016 +0200
+
+    os: fix typo in comment (Readir -> Readdir)
+    
+    Change-Id: I8434925661dc11396380af65c192c9f0dc191287
+    Reviewed-on: https://go-review.googlesource.com/27973
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/dir_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

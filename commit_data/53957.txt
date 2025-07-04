@@ -1,0 +1,24 @@
+commit d13f7aa0ae1ad6ec86d66953cc84851977580c8c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 9 17:46:00 2023 -0700
+
+    archive/tar: correct value passed to Uname method
+    
+    For #50102
+    
+    Change-Id: I28b5579611b07952b6379bc4603daf29a86a3be0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518056
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tianon Gravi (Andrew) <admwiggin@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+
+ src/archive/tar/common.go   |  2 +-
+ src/archive/tar/tar_test.go | 24 ++++++++++++++++++++++--
+ 2 files changed, 23 insertions(+), 3 deletions(-)

@@ -1,0 +1,22 @@
+commit bcea0dd1d0d41c5cf503c87e86460cd34dbc7dfb
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Dec 3 13:39:40 2012 +0100
+
+    cmd/gc: fix inlining internal error with T.Method calls.
+    
+    The compiler was confused when inlining a T.Method(f()) call
+    where f returns multiple values: support for this was marked
+    as TODO.
+    
+    Variadic calls are not supported but are not inlined either.
+    Add a test preventively for that case.
+    
+    Fixes #4167.
+    
+    R=golang-dev, rsc, lvd
+    CC=golang-dev
+    https://golang.org/cl/6871043
+
+ src/cmd/gc/inl.c            | 69 +++++++++++++++++++++++----------------------
+ test/fixedbugs/issue4167.go | 50 ++++++++++++++++++++++++++++++++
+ 2 files changed, 86 insertions(+), 33 deletions(-)

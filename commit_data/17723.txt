@@ -1,0 +1,22 @@
+commit 8d6bc666fb86a45f2f426009b05fc07d3fb1cefc
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Oct 2 12:27:33 2013 -0400
+
+    cmd/gc: qualified embedded fields with owner package.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/14188044
+
+ src/cmd/gc/dcl.c                     |    8 +-
+ src/cmd/gc/fmt.c                     |    3 +
+ src/cmd/gc/go.h                      |    2 +-
+ src/cmd/gc/go.y                      |   25 +-
+ src/cmd/gc/y.tab.c                   | 3398 ++++++++++++++++++++--------------
+ src/cmd/gc/y.tab.h                   |   46 +-
+ src/cmd/gc/yerr.h                    |   30 +-
+ test/fixedbugs/issue6513.dir/a.go    |    7 +
+ test/fixedbugs/issue6513.dir/b.go    |    9 +
+ test/fixedbugs/issue6513.dir/main.go |   16 +
+ test/fixedbugs/issue6513.go          |   10 +
+ 11 files changed, 2129 insertions(+), 1425 deletions(-)

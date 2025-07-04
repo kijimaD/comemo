@@ -1,0 +1,28 @@
+commit 590c5b08070dfb2ddeb2b2583acc3a2b0fcb03bb
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Mon May 22 15:17:38 2017 -0600
+
+    text/template: support indexing into *int* maps
+    
+    Ensure that we can index maps whose key types are:
+    * int
+    * uint
+    * int32
+    * uint32
+    * int64
+    * uint64
+    * uintptr
+    
+    Fixes #20439
+    
+    Change-Id: I8fa96b14073c8af72786482ff4ffc3508064ea86
+    Reviewed-on: https://go-review.googlesource.com/43850
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/text/template/exec_test.go | 17 +++++++++++++++++
+ src/text/template/funcs.go     | 20 +++++++++++++++++---
+ 2 files changed, 34 insertions(+), 3 deletions(-)

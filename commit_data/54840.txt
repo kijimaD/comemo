@@ -1,0 +1,51 @@
+commit b7a695bd684585a86ae883c64eb8cfc2b80d847b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 31 13:29:25 2023 -0700
+
+    cmd/compile/internal/syntax: better error messages for incorrect type parameter list
+    
+    When parsing a declaration of the form
+    
+            type a [b[c]]d
+    
+    where a, b, c, d stand for identifiers, b[c] is parsed as a type
+    constraint (because an array length must be constant and an index
+    expression b[c] is never constant, even if b is a constant string
+    and c a constant index - this is crucial for disambiguation of the
+    various possibilities).
+    
+    As a result, the error message referred to a missing type parameter
+    name and not an invalid array declaration.
+    
+    Recognize this special case and report both possibilities (because
+    we can't be sure without type information) with the new error:
+    
+           "missing type parameter name or invalid array length"
+    
+    ALso, change the previous error message
+    
+            "type parameter must be named"
+    
+    to
+    
+            "missing type parameter name"
+    
+    which is more fitting as the error refers to an absent type parameter
+    (rather than a type parameter that's somehow invisibly present but
+    unnamed).
+    
+    Fixes #60812.
+    
+    Change-Id: Iaad3b3a9aeff9dfe2184779f3d799f16c7500b34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538856
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go              |  6 +++++-
+ src/cmd/compile/internal/syntax/testdata/issue43527.go | 14 +++++++-------
+ src/cmd/compile/internal/syntax/testdata/tparams.go    | 11 +++++++++++
+ src/cmd/compile/internal/syntax/testdata/typeset.go    | 14 +++++++-------
+ 4 files changed, 30 insertions(+), 15 deletions(-)

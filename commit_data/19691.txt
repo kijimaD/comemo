@@ -1,0 +1,13 @@
+commit fa113cf767ac330b836966c4e75b6b21566da095
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Wed Jul 9 12:32:49 2014 +0200
+
+    cmd/objdump: set goarch properly on non-386 Plan 9 systems
+    
+    LGTM=0intro, r
+    R=0intro, r
+    CC=ality, golang-codereviews, jas, mischief
+    https://golang.org/cl/108420043
+
+ src/cmd/objdump/plan9obj.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

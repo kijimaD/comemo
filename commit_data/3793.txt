@@ -1,0 +1,33 @@
+commit 5d377054169ebc8df5e743b5d8a0105c40fa18e9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 23:16:46 2009 -0800
+
+    gofmt-ify net
+    
+    R=rsc
+    http://go/go-review/1017045
+
+ src/pkg/net/dialgoogle_test.go |  15 ++-
+ src/pkg/net/dnsclient.go       |  46 +++----
+ src/pkg/net/dnsconfig.go       |  33 +++--
+ src/pkg/net/dnsmsg.go          | 293 ++++++++++++++++++++---------------------
+ src/pkg/net/fd.go              | 121 ++++++++---------
+ src/pkg/net/fd_darwin.go       |  38 +++---
+ src/pkg/net/fd_linux.go        |  20 +--
+ src/pkg/net/fd_nacl.go         |   5 +-
+ src/pkg/net/ip.go              | 171 ++++++++++++------------
+ src/pkg/net/ip_test.go         |  21 +--
+ src/pkg/net/ipsock.go          |  21 ++-
+ src/pkg/net/net.go             |  16 +--
+ src/pkg/net/net_test.go        |  10 +-
+ src/pkg/net/parse.go           |  48 +++----
+ src/pkg/net/parse_test.go      |   6 +-
+ src/pkg/net/port.go            |  12 +-
+ src/pkg/net/port_test.go       |  64 ++++-----
+ src/pkg/net/server_test.go     |  16 +--
+ src/pkg/net/sock.go            |  24 ++--
+ src/pkg/net/tcpsock.go         |  49 ++++---
+ src/pkg/net/timeout_test.go    |   4 +-
+ src/pkg/net/udpsock.go         |  44 +++----
+ src/pkg/net/unixsock.go        |  62 ++++-----
+ 23 files changed, 569 insertions(+), 570 deletions(-)

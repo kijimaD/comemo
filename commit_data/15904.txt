@@ -1,0 +1,12 @@
+commit 7191ef7199cae4753dd7f06e66d9b82d760136aa
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 22 14:51:22 2013 -0700
+
+    doc/go1.1.html: return requirements
+    
+    R=golang-dev, rsc, jeremyjackins, gri
+    CC=golang-dev
+    https://golang.org/cl/7838045
+
+ doc/go1.1.html | 33 +++++++++++++++++++++++++++++++--
+ 1 file changed, 31 insertions(+), 2 deletions(-)

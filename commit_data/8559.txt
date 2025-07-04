@@ -1,0 +1,15 @@
+commit 5b62ba14c460a23d31c8c2645a41c196ceee8220
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue May 31 15:41:47 2011 -0400
+
+    gc: disallow ... in type conversions
+    
+    Fixes #1866.
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4548073
+
+ src/cmd/gc/typecheck.c | 2 +-
+ test/ddd1.go           | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

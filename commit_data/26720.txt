@@ -1,0 +1,14 @@
+commit f79b50b8d5bc159561c1dcf7c17e2a0db96a9a11
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 5 11:17:57 2016 -0700
+
+    go/importer: match predeclared type list with gc's list in binary exporter
+    
+    I think we had this code before but it may have gone lost somehow.
+    
+    Change-Id: Ifde490e686de0d2bfe907cbe19c9197f24f5fa8e
+    Reviewed-on: https://go-review.googlesource.com/21537
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/internal/gcimporter/bimport.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

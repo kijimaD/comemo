@@ -1,0 +1,18 @@
+commit 5cc29ab95ecbbf3b7435b30e61d3e49c75c29539
+Author: Chris Manghane <cmang@golang.org>
+Date:   Tue Dec 9 07:16:38 2014 -0800
+
+    cmd/gc: logical operators should produce untyped bool for untyped
+    operands
+    
+    Fixes #6671 for cmd/gc.
+    
+    Change-Id: I4907655b6e243960f2ceb544c63ea16513c7bd68
+    Reviewed-on: https://go-review.googlesource.com/1251
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/typecheck.c      |  9 ++++++++-
+ test/fixedbugs/issue3924.go | 13 -------------
+ test/fixedbugs/issue6671.go | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 36 insertions(+), 14 deletions(-)

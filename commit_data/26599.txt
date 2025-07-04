@@ -1,0 +1,16 @@
+commit e3c7497327cfa210d5686cccdd2aa3fe2ea62129
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 29 10:15:02 2016 -0700
+
+    cmd/compile: add typWrapper and Type.Wrapped
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I7dffd9bc5bab323590df6fb591bf1e73edf2e465
+    Reviewed-on: https://go-review.googlesource.com/21305
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/align.go   | 25 +++++++++----------------
+ src/cmd/compile/internal/gc/bexport.go |  4 ++--
+ src/cmd/compile/internal/gc/type.go    | 22 ++++++++++++++++++++++
+ 3 files changed, 33 insertions(+), 18 deletions(-)

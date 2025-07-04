@@ -1,0 +1,31 @@
+commit 545e4f38e0c177484ffa409c2fa1265423a5855f
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed Sep 13 12:02:38 2023 -0400
+
+    net/http: ServeMux handles extended patterns
+    
+    Modify ServeMux to handle patterns with methods and wildcards.
+    
+    Remove the map and list of patterns. Instead patterns
+    are registered and matched using a routing tree.
+    
+    We also reorganize the code around "trailing-slash redirection,"
+    the feature whereby a trailing slash is added to a path
+    if it doesn't match an existing one. The existing code
+    checked the map of paths twice, but searching the tree
+    twice would be needlessly expensive. The rewrite
+    searches the tree once, and then again only if a
+    trailing-slash redirection is possible.
+    
+    There are a few omitted features in this CL, indicated
+    with TODOs.
+    
+    Change-Id: Ifaef59f6c8c7b7131dc4a5d0f101cc22887bdc74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528039
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/server.go      | 333 ++++++++++++++++++++++++--------------------
+ src/net/http/server_test.go |  86 +++++++++++-
+ 2 files changed, 268 insertions(+), 151 deletions(-)

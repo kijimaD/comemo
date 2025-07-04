@@ -1,0 +1,20 @@
+commit b3d791c7bb89acc5bc77c4ba55f173a4d2c732c4
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 24 22:20:38 2015 -0500
+
+    runtime: consolidate gcworkdone/gcscanvalid clearing loops
+    
+    Previously, we had three loops in the garbage collector that all
+    cleared the per-G GC flags.  Consolidate these into one function.
+    This one function is designed to work in a concurrent setting.  As a
+    result, it's slightly more expensive than the loops it replaces during
+    STW phases, but these happen at most twice per GC.
+    
+    Change-Id: Id1ec0074fd58865eb0112b8a0547b267802d0df1
+    Reviewed-on: https://go-review.googlesource.com/5881
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go     | 30 +++++++++++++++++++-----------
+ src/runtime/mgcmark.go | 11 ++---------
+ 2 files changed, 21 insertions(+), 20 deletions(-)

@@ -1,0 +1,51 @@
+commit 3790ceca9735432486ba34da28f214349e4c1e7e
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 14 13:54:29 2023 -0500
+
+    runtime: delete gentraceback
+    
+    Printing is the only remaining functionality of gentraceback. Move
+    this into the traceback printing code and eliminate gentraceback. This
+    lets us simplify the logic, which fixes at least one minor bug:
+    previously, if inline unwinding pushed the total printed count over
+    _TracebackMaxFrames, we would print extra frames and then fail to
+    print "additional frames elided".
+    
+    The cumulative performance effect of the series of changes starting
+    with "add a benchmark of Callers" (CL 472956) is:
+    
+    goos: linux
+    goarch: amd64
+    pkg: runtime
+    cpu: Intel(R) Xeon(R) CPU E5-2690 v3 @ 2.60GHz
+                           │  baseline   │              unwinder               │
+                           │   sec/op    │   sec/op     vs base                │
+    Callers/cached-48        1.464µ ± 1%   1.684µ ± 1%  +15.03% (p=0.000 n=20)
+    Callers/inlined-48       1.391µ ± 1%   1.536µ ± 1%  +10.42% (p=0.000 n=20)
+    Callers/no-cache-48      10.50µ ± 1%   11.11µ ± 0%   +5.82% (p=0.000 n=20)
+    StackCopyPtr-48          88.74m ± 1%   81.22m ± 2%   -8.48% (p=0.000 n=20)
+    StackCopy-48             80.90m ± 1%   70.56m ± 1%  -12.78% (p=0.000 n=20)
+    StackCopyNoCache-48      2.458m ± 1%   2.209m ± 1%  -10.15% (p=0.000 n=20)
+    StackCopyWithStkobj-48   26.81m ± 1%   25.66m ± 1%   -4.28% (p=0.000 n=20)
+    geomean                  518.8µ        512.9µ        -1.14%
+    
+    The performance impact of intermediate CLs in this sequence varies a
+    lot as we went through many refactorings. The slowdown in Callers
+    comes primarily from the introduction of unwinder because that doesn't
+    get inlined and results in somewhat worse code generation in code
+    that's extremely hot in those microbenchmarks. The performance gains
+    on stack copying come mostly from replacing callbacks with direct use
+    of the unwinder.
+    
+    Updates #54466.
+    Fixes #32383.
+    
+    Change-Id: I4970603b2861633eecec30545e852688bc7cc9a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468301
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/runtime2.go  |   6 --
+ src/runtime/traceback.go | 204 +++++++++++++++++++----------------------------
+ 2 files changed, 83 insertions(+), 127 deletions(-)

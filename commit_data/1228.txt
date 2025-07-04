@@ -1,0 +1,14 @@
+commit 508277debe6230ef210cf0165c393e6ff2fd0d4b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 24 12:35:07 2008 -0800
+
+    bufio.ReadRune
+    
+    R=rsc
+    DELTA=32  (29 added, 0 deleted, 3 changed)
+    OCL=19809
+    CL=19913
+
+ src/lib/bufio.go | 34 +++++++++++++++++++++++++++++++---
+ src/lib/utf8.go  |  1 +
+ 2 files changed, 32 insertions(+), 3 deletions(-)

@@ -1,0 +1,18 @@
+commit 5a90270d7f5b384de31399133c7336d007fbd93d
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Mon Apr 4 23:01:16 2022 +0800
+
+    cmd/compile: fix deadlock on syntax error
+    
+    Fixes #52127
+    
+    Change-Id: I6523c83350cb9263d23e3e8b472fe63a5cc99c2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398014
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/noder/noder.go | 37 +++++++++++++++++++--------------
+ 1 file changed, 21 insertions(+), 16 deletions(-)

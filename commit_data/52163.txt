@@ -1,0 +1,20 @@
+commit 052a36ccbe698b5f2be9ac097fc2403428f200d5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 28 09:43:36 2023 -0800
+
+    go/types, types2: handle unbound type parameters in switch (cleanup)
+    
+    This simply moves the special handling for unbound type parameters
+    into the switch (which already looks for type parameters).
+    
+    Change-Id: I2d6d22f3fdffc443065c3681a442288cd1d375ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472115
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/unify.go | 80 ++++++++++++++++----------------
+ src/go/types/unify.go                    | 80 ++++++++++++++++----------------
+ 2 files changed, 80 insertions(+), 80 deletions(-)

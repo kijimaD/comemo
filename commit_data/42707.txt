@@ -1,0 +1,21 @@
+commit a2a2237ae02016dd9ce16388963cfceece6744f3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Aug 13 16:59:52 2020 -0400
+
+    cmd/link: emit correct jump instruction on ARM for DYNIMPORT
+    
+    On ARM, for a JMP/CALL relocation, the instruction bytes is
+    encoded in Reloc.Add (issue #19811). I really hate it, but before
+    it is fixed we have to follow the rule and emit the right bits
+    from r.Add.
+    
+    Fixes #40769.
+    
+    Change-Id: I862e105408d344c5cc58ca9140d2e552e4364453
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248399
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/arm/asm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit a36070cbd550eae80d283f81ef9880579c9df0a9
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sun Oct 1 12:07:42 2023 +0000
+
+    go/printer: use max/min func
+    
+    Change-Id: I2f708bca0c1e26fb63083731927d5d6a51d41690
+    GitHub-Last-Rev: 27d2000103d64c47b3c07e92f1d0bd16eadaeac2
+    GitHub-Pull-Request: golang/go#63320
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531915
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/go/printer/nodes.go   | 17 ++++-------------
+ src/go/printer/printer.go |  5 +----
+ 2 files changed, 5 insertions(+), 17 deletions(-)

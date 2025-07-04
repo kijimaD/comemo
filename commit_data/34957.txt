@@ -1,0 +1,20 @@
+commit 299b40b86dc4d71a269f063603c6654c56de6b80
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Apr 12 20:33:47 2018 +0200
+
+    misc/ios: speed up the iOS exec wrapper
+    
+    First, take the exclusive lock that ensures only one running binary
+    later: after assembling the gotest.app directory and signing it.
+    
+    Second, don't pass -r to ios-deploy. The -r flag uninstalls the
+    app before installing it. It seems unnecessary, takes extra time
+    and if there was only the one developer app on the phone, it
+    will drop the developer permission on uninstall.
+    
+    Change-Id: Ia222d3e5c2e1e2285f53074eb952941fd45fadd9
+    Reviewed-on: https://go-review.googlesource.com/106676
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ misc/ios/go_darwin_arm_exec.go | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

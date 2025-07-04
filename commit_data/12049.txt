@@ -1,0 +1,21 @@
+commit 990f9f4c007cb8b74fafd5c3d4800de86a7f2295
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 19 00:27:05 2012 -0500
+
+    encoding/json: disable anonymous fields
+    
+    We should, after Go 1, make them work the same as
+    package xml, that is, make them appear in the outer
+    struct.  For now turn them off so that people do not
+    depend on the old behavior.
+    
+    Fixing them is issue 3069.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5656102
+
+ src/pkg/encoding/json/decode.go      | 14 ++++++++++++++
+ src/pkg/encoding/json/decode_test.go | 29 +++++++++++++++++++++++++++++
+ src/pkg/encoding/json/encode.go      |  5 +++++
+ 3 files changed, 48 insertions(+)

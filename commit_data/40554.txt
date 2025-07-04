@@ -1,0 +1,27 @@
+commit 6b67f7d65dda78ba3bce04c539ca0995ab5c6c9b
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Wed Oct 2 23:11:24 2019 -0300
+
+    cmd/internal/obj/ppc64: add support for DQ-form instructions
+    
+    POWER9 (ISA 3.0) introduced a new format of load/store instructions to
+    implement indexed load/store quadword, using an immediate value instead
+    of a register index.
+    
+    This change adds support for this new instruction encoding and adds the
+    new load/store quadword instructions (lxv/stxv) to the assembler.
+    
+    This change also adds the missing XX1-form loads/stores (halfword and byte)
+    included in ISA 3.0.
+    
+    Change-Id: Ibcdf53c342d7a352d64a9403c2fe7b25be9c3b24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200399
+    Run-TryBot: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 16 ++++++-
+ src/cmd/internal/obj/ppc64/a.out.go       |  6 ++-
+ src/cmd/internal/obj/ppc64/anames.go      |  6 ++-
+ src/cmd/internal/obj/ppc64/asm9.go        | 78 +++++++++++++++++++++++++++----
+ 4 files changed, 93 insertions(+), 13 deletions(-)

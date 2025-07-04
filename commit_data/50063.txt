@@ -1,0 +1,21 @@
+commit 42794f3871c35d1b3837f78f29d781b6ab1c1a64
+Author: Austin Clements <austin@google.com>
+Date:   Mon Aug 22 16:14:34 2022 -0400
+
+    runtime: move traceStackTable.lock to the system stack
+    
+    This lock is acquired under trace.lock, which as of CL 418956
+    (6c2e327e35b) must be acquired on the system stack, so this lock must
+    be, too.
+    
+    Fixes #54553.
+    
+    Change-Id: I4fb0c0c2dfc3cb94b76673e842ad416305a31238
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425097
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/trace.go | 45 +++++++++++++++++++++++++--------------------
+ 1 file changed, 25 insertions(+), 20 deletions(-)

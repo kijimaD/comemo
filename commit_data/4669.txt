@@ -1,0 +1,16 @@
+commit 3fc41d5e65b339fd450bde1657c9ea48f6e8a5ec
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Mon Jan 25 14:57:04 2010 -0800
+
+    net: parse aliases in /etc/hosts correctly
+    
+    Previous behaviour only picked the first entry (official hostname) but not the aliases.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/193092
+
+ src/pkg/net/hosts.go       | 8 +++++---
+ src/pkg/net/hosts_test.go  | 6 ++++++
+ src/pkg/net/hosts_testdata | 2 ++
+ 3 files changed, 13 insertions(+), 3 deletions(-)

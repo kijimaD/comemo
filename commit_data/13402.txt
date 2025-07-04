@@ -1,0 +1,15 @@
+commit ab14888712baf8f07aba235c9e59aa214048f69e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 25 20:25:59 2012 -0400
+
+    A+C: L Campbell (individual CLA)
+    
+    Guess I was wrong about being done for the day.
+    
+    R=golang-dev, r
+    CC=golang-dev, unpantsu
+    https://golang.org/cl/6325060
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

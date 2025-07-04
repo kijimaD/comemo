@@ -1,0 +1,35 @@
+commit a54762586fd7b91cb1a8b8bb404db87e6b976d59
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jan 15 23:10:48 2021 +0000
+
+    cmd/gofmt: simplify arg handling
+    
+    First, we can use flag.Args instead of flag.NArg and flag.Arg.
+    
+    Second, just call filepath.WalkDir directly on each argument. We don't
+    need to check if each argument is a directory or not, since the function
+    will still work on regular files as expected.
+    
+    To continue giving an error in the "gofmt does-not-exist.go" case, we
+    now need to return and handle errors from filepath.WalkDir, too.
+    Arguably, that should have always been the case.
+    
+    While at it, I noticed that the printinf of the "diff" command did not
+    obey the "out" parameter. Fix that.
+    
+    Finally, remove the code to ignore IsNotExist errors. It was added in CL
+    19301, though it didn't include tests and its reasoning is dubious.
+    Using gofmt on a directory treewhile another program is concurrently
+    editing or removing files is inherently racy. Hiding errors can hide
+    valid problems from the user, and such racy usages aren't supported.
+    
+    Change-Id: I2e74cc04c53eeefb25231d804752b53562b97371
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284138
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/gofmt/gofmt.go | 29 ++++++++---------------------
+ 1 file changed, 8 insertions(+), 21 deletions(-)

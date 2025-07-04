@@ -1,0 +1,13 @@
+commit 29f18f2800cf05514c42fdf4c54d7f52bccd3730
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 5 00:50:38 2015 -0500
+
+    cmd/internal/obj/x86: fix PINSRD with mem in from3
+    
+    Change-Id: I3a2b17e218aa05cfb67d7561e0b52a6df766924d
+    Reviewed-on: https://go-review.googlesource.com/6897
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/obj/x86/obj6.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

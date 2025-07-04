@@ -1,0 +1,17 @@
+commit 809479740fb3f5df110f0e8ae9fef9f038fa0aa8
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Tue May 18 22:33:50 2010 -0700
+
+    math: amd64 versions of fdim, fmax, fmin
+    
+    Uses the SSE2 max, min instructions. Also shorter sqrt_amd64.s
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1216042
+
+ src/pkg/math/Makefile     |  1 +
+ src/pkg/math/fdim_amd64.s | 26 ++++++++++++++++++++++++++
+ src/pkg/math/fdim_decl.go |  9 +++++++++
+ src/pkg/math/sqrt_amd64.s |  3 +--
+ 4 files changed, 37 insertions(+), 2 deletions(-)

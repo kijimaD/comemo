@@ -1,0 +1,32 @@
+commit 140aed9ab7a528b98f891c19eafd6db4a2de9c98
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 20 18:16:38 2009 -0700
+
+    hash reorg.
+    * new package hash defining interfaces Hash and Hash32.
+    * adler32 and crc32 return Hash32 instead of specific types.
+    * adler32 and crc32 provide non-allocating methods for single slices.
+    * sha1 and md5 move to crypto, return Hash.
+    * sum.go, a simple test program, moves to /usr/rsc.
+    * refresh Make.deps
+    
+    R=r
+    DELTA=1908  (935 added, 923 deleted, 50 changed)
+    OCL=29095
+    CL=29135
+
+ src/lib/Make.deps                          | 10 ++--
+ src/lib/Makefile                           | 11 +++--
+ src/lib/{hash => crypto}/md5/Makefile      |  2 +-
+ src/lib/{hash => crypto}/md5/md5.go        | 36 +++++++++-----
+ src/lib/{hash => crypto}/md5/md5_test.go   |  4 +-
+ src/lib/{hash => crypto}/md5/md5block.go   |  4 +-
+ src/lib/{hash => crypto}/sha1/Makefile     |  2 +-
+ src/lib/{hash => crypto}/sha1/sha1.go      | 36 +++++++++-----
+ src/lib/{hash => crypto}/sha1/sha1_test.go |  4 +-
+ src/lib/{hash => crypto}/sha1/sha1block.go |  4 +-
+ src/lib/hash/adler32/adler32.go            | 60 ++++++++++++++++-------
+ src/lib/hash/adler32/adler32_test.go       |  2 +-
+ src/lib/hash/crc32/crc32.go                | 76 +++++++++++++++++++-----------
+ src/lib/hash/crc32/crc32_test.go           |  2 +-
+ 14 files changed, 160 insertions(+), 93 deletions(-)

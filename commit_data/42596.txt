@@ -1,0 +1,20 @@
+commit bff372793a6bb685b6338eb84ddb5583d57c7f9c
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Tue Jul 7 07:39:05 2020 -0400
+
+    doc/go1.15: update Go 1.15 release notes using relnote
+    
+    The additions were generated using golang.org/x/build/cmd/relnote.
+    
+    Updates #37419
+    
+    Change-Id: I99e934377e4bb511c44908039ad6d3bfd3ee35ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241065
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/go1.15.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

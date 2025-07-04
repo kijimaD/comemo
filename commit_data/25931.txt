@@ -1,0 +1,19 @@
+commit 071e43a95809030d3a74b3d526da1497d02d17e4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 26 01:37:28 2016 -0800
+
+    cmd/compile: stop representing keywords as Syms
+    
+    Instead add a dedicated keywords map for use in lexer.ident and drop
+    Sym's Lexical field.
+    
+    Change-Id: Ia668e65499035ff7167fabbbd0cd027102b21231
+    Reviewed-on: https://go-review.googlesource.com/19935
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/go.go   |   3 +-
+ src/cmd/compile/internal/gc/lex.go  | 206 ++++++++++++++++++------------------
+ src/cmd/compile/internal/gc/subr.go |   5 +-
+ 3 files changed, 104 insertions(+), 110 deletions(-)

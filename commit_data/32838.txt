@@ -1,0 +1,75 @@
+commit f22ba1f24786be600bfa3686a7ce5a318a96b9c9
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Sep 21 19:01:27 2017 +0200
+
+    all: prefer strings.IndexByte over strings.Index
+    
+    strings.IndexByte was introduced in go1.2 and it can be used
+    effectively wherever the second argument to strings.Index is
+    exactly one byte long.
+    
+    This avoids generating unnecessary string symbols and saves
+    a few calls to strings.Index.
+    
+    Change-Id: I1ab5edb7c4ee9058084cfa57cbcc267c2597e793
+    Reviewed-on: https://go-review.googlesource.com/65930
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/api/goapi.go                          | 2 +-
+ src/cmd/cgo/gcc.go                            | 8 ++++----
+ src/cmd/cgo/godefs.go                         | 2 +-
+ src/cmd/compile/fmt_test.go                   | 2 +-
+ src/cmd/compile/internal/gc/main.go           | 8 ++++----
+ src/cmd/compile/internal/gc/noder.go          | 2 +-
+ src/cmd/compile/internal/gc/plive.go          | 2 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go   | 8 ++++----
+ src/cmd/compile/internal/syntax/nodes_test.go | 2 +-
+ src/cmd/dist/main.go                          | 2 +-
+ src/cmd/doc/main.go                           | 2 +-
+ src/cmd/fix/fix.go                            | 2 +-
+ src/cmd/fix/typecheck.go                      | 6 +++---
+ src/cmd/go/go_test.go                         | 2 +-
+ src/cmd/go/internal/base/base.go              | 2 +-
+ src/cmd/go/internal/cmdflag/flag.go           | 2 +-
+ src/cmd/go/internal/get/get.go                | 2 +-
+ src/cmd/go/internal/get/vcs.go                | 2 +-
+ src/cmd/go/internal/load/match_test.go        | 2 +-
+ src/cmd/go/internal/load/pkg.go               | 2 +-
+ src/cmd/link/internal/ld/data.go              | 2 +-
+ src/cmd/link/internal/ld/deadcode.go          | 2 +-
+ src/cmd/link/internal/ld/go.go                | 2 +-
+ src/cmd/link/internal/ld/ld.go                | 4 ++--
+ src/cmd/vet/asmdecl.go                        | 2 +-
+ src/cmd/vet/print.go                          | 2 +-
+ src/cmd/vet/structtag.go                      | 2 +-
+ src/crypto/x509/pem_decrypt.go                | 2 +-
+ src/crypto/x509/root_darwin_arm_gen.go        | 2 +-
+ src/debug/gosym/symtab.go                     | 4 ++--
+ src/encoding/json/tags.go                     | 4 ++--
+ src/encoding/xml/typeinfo.go                  | 2 +-
+ src/encoding/xml/xml.go                       | 2 +-
+ src/go/build/build.go                         | 8 ++++----
+ src/go/printer/printer.go                     | 2 +-
+ src/html/template/js.go                       | 2 +-
+ src/math/big/ratconv.go                       | 2 +-
+ src/mime/encodedword.go                       | 2 +-
+ src/mime/mediatype.go                         | 6 +++---
+ src/net/http/cgi/child.go                     | 2 +-
+ src/net/http/cookie.go                        | 6 +++---
+ src/net/http/fs.go                            | 2 +-
+ src/net/http/request.go                       | 6 +++---
+ src/net/http/server.go                        | 2 +-
+ src/net/lookup_test.go                        | 2 +-
+ src/net/url/url.go                            | 6 +++---
+ src/os/env_test.go                            | 2 +-
+ src/os/exec/exec.go                           | 2 +-
+ src/os/os_test.go                             | 2 +-
+ src/os/user/cgo_lookup_unix.go                | 2 +-
+ src/os/user/lookup_unix.go                    | 2 +-
+ src/regexp/exec_test.go                       | 4 ++--
+ src/regexp/regexp.go                          | 2 +-
+ src/runtime/pprof/pprof_test.go               | 2 +-
+ src/unicode/maketables.go                     | 2 +-
+ 55 files changed, 81 insertions(+), 81 deletions(-)

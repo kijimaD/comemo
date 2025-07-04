@@ -1,0 +1,29 @@
+commit 14b07dfc7ec20df9d74bb69290571cf6fd2fe2fc
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Jun 30 14:10:48 2017 -0700
+
+    net/http/httptest: allow creation of Server manually
+    
+    The Server struct has exported fields, which allows users to manually
+    create a Server object without using using NewServer or NewTLSServer
+    and directly call Start or StartTLS on their object.
+    
+    In order to ensure that manual creation of Server works, the
+    NewUnstartedServer function should not initialize Server in any way
+    that the user was not able to do themselves. For example, the setting
+    of a unexported filed, client, is not something a user can do.
+    Thus, rather than setting the client field in NewUnstartedServer,
+    we lazily initialize it when Start or StartTLS is called.
+    
+    Otherwise, the Server logic can nil panic later when it assumes that this
+    field has been initialized.
+    
+    Fixes #20871
+    
+    Change-Id: I65c6a9f893ea963b0fbad0990b33af08007c1140
+    Reviewed-on: https://go-review.googlesource.com/47353
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httptest/server.go      |  9 +++--
+ src/net/http/httptest/server_test.go | 66 +++++++++++++++++++++++++++++-------
+ 2 files changed, 59 insertions(+), 16 deletions(-)

@@ -1,0 +1,30 @@
+commit c81fa001a7b01be5ce9d2990e706f0ed2c1299e8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 27 17:14:00 2021 -0700
+
+    cmd/compile/internal/types: simplify and optimize PtrDataSize
+    
+    The current implementation of PtrDataSize checks HasPointers each
+    call, which could lead to exponential blow-up in handling (admittedly
+    contrived) deeply nested structs.
+    
+    To avoid the duplicate recursion, this CL incorporates the HasPointers
+    logic directly int PtrDataSize, and then re-defines HasPointers as
+    simply "PtrDataSize(t) > 0".
+    
+    This CL also tightens up HasPointers/PtrDataSize to only be valid on
+    actual Go types. Fortunately, there was only one instance where this
+    wasn't already the case (escape analysis), and that's easily fixed
+    with an extra check for untyped types.
+    
+    Change-Id: I0044bf9b558a88333aee2ccb137afb6cb4fea1db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345809
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/escape/expr.go |  2 +-
+ src/cmd/compile/internal/types/size.go  | 46 +++++++++++++++++++++------------
+ src/cmd/compile/internal/types/type.go  | 38 +--------------------------
+ 3 files changed, 32 insertions(+), 54 deletions(-)

@@ -1,0 +1,18 @@
+commit 48b4263efa351e9cf877f7972633419cafac91af
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 10:39:07 2015 -0400
+
+    net: allow longer timeout in dialClosedPort test on windows
+    
+    The test expects the dial to take 1.0 seconds
+    on Windows and allows it to go to 1.095 seconds.
+    That's far too optimistic.
+    Recent failures are reporting roughly 1.2 seconds.
+    Let it have 1.5.
+    
+    Change-Id: Id69811ccb65bf4b4c159301a2b4767deb6ee8d28
+    Reviewed-on: https://go-review.googlesource.com/12895
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

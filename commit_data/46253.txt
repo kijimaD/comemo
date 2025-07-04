@@ -1,0 +1,27 @@
+commit 62ba72b35321bd76de18aa8874b021ee02ab8a4e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 1 00:18:13 2021 +0700
+
+    cmd/compile: fix method expression lookup during import
+    
+    CL 309831 fixed importing of method expressions, by re-using the same
+    code already have for ODOTMETH. But that code does not work with
+    embedded field.
+    
+    To fix this, we need to calculate all methods of the receiver base type
+    of method expression, before looking up the selection.
+    
+    Fixes #48088
+    
+    Change-Id: Ia244d36a3ed0f989735eb57becdfa70a81912f57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346489
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/iimport.go |  6 ++++--
+ test/fixedbugs/issue48088.dir/a.go            | 22 ++++++++++++++++++++++
+ test/fixedbugs/issue48088.dir/b.go            | 11 +++++++++++
+ test/fixedbugs/issue48088.go                  |  7 +++++++
+ 4 files changed, 44 insertions(+), 2 deletions(-)

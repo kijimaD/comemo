@@ -1,0 +1,14 @@
+commit 514eb4aa542f6989630b0cda290a77be3bc0fb4c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 8 11:20:15 2015 -0700
+
+    net/rpc: document that the type must be exported, not just the methods
+    
+    Fixes #10379.
+    
+    Change-Id: Ia4cdda36ed57a06371f9ace7365ce9e215228487
+    Reviewed-on: https://go-review.googlesource.com/8654
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/net/rpc/server.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

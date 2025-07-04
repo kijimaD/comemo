@@ -1,0 +1,18 @@
+commit 5bc1fd42f6d185b8ff0201db09fb82886978908b
+Author: Raghavendra Nagaraj <jamdagni86@gmail.com>
+Date:   Fri Oct 26 12:18:06 2018 +0000
+
+    container/list: combining insert and remove operations while moving elements within a list.
+    
+    Fixes #27747
+    
+    Change-Id: I843e9e121d33440648b364650ee8a8a1639a0144
+    GitHub-Last-Rev: c614e91e23d4d3dea80bc78886a1b7e96456596b
+    GitHub-Pull-Request: golang/go#28413
+    Reviewed-on: https://go-review.googlesource.com/c/144998
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/container/list/list.go | 25 +++++++++++++++++++++----
+ 1 file changed, 21 insertions(+), 4 deletions(-)

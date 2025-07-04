@@ -1,0 +1,26 @@
+commit edfeea01be331b8737697d4d74737d7888d7dd6f
+Author: muyizixiu <muyizixiu@gmail.com>
+Date:   Wed Aug 17 01:51:01 2022 +0000
+
+    net/http: return ErrNoCookie from Request.Cookie when name is ""
+    
+    Request.Cookie(name string) will return the first cookie
+    when cookie name is "". Since readCookies in
+    file net/http/cookie.go at line 247 return all cookies
+    when second parameter is a empty string.
+    
+    To fix it, Return ErrNoCookie from Request.Cookie(""),
+    instead of the first cookie in the request.
+    
+    Fixes #53181
+    
+    Change-Id: Ie623ca4c53da64ef7623a7863292a2d771f76832
+    GitHub-Last-Rev: 01098cd5dbcc8d65e9c0893e0586601584e5f8b9
+    GitHub-Pull-Request: golang/go#53183
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409754
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/request.go      |  3 +++
+ src/net/http/request_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

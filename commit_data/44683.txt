@@ -1,0 +1,18 @@
+commit 26c32de7c9a6bb54d0144d1cc2f00cc334778cac
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 12 11:26:51 2021 -0500
+
+    cmd/go/internal/modcmd: in 'go mod tidy', suspend go.mod writes until tidy
+    
+    For #36460
+    
+    Change-Id: Ia8633f37aec8c7ed532bf7278867251e5e2a4285
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301370
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modcmd/tidy.go | 3 +++
+ 1 file changed, 3 insertions(+)

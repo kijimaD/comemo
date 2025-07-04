@@ -1,0 +1,24 @@
+commit b084073b53bfc4236d95819a3cc34dcbb4f15392
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Apr 6 21:55:19 2021 +0000
+
+    reflect: refactor funcLayout tests
+    
+    This change refactors the existing funcLayout tests and sets them up to
+    support the new register ABI by explicitly setting the register counts
+    to zero. This allows the test to pass if GOEXPERIMENT=regabiargs is set.
+    
+    A follow-up change will add tests for a non-zero register count.
+    
+    For #40724.
+    
+    Change-Id: Ibbe061b4ed4fd70566eb38b9e6182dca32b81127
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307869
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/reflect/abi_test.go    |  54 +----------
+ src/reflect/all_test.go    | 235 ++++++++++++++++++++++-----------------------
+ src/reflect/export_test.go |  57 ++++++++---
+ 3 files changed, 158 insertions(+), 188 deletions(-)

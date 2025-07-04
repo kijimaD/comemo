@@ -1,0 +1,25 @@
+commit 07cb63aae5629213a0f5c484a8d79ae4bc1026e6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 23 21:15:03 2020 -0700
+
+    syscall: document exact meaning of Ctty field
+    
+    The Ctty field is a child descriptor number when Setctty is set,
+    but a parent descriptor when Foreground is set. This is absurd
+    but changing either behavior breaks existing programs.
+    
+    With this change we at least document how it works.
+    
+    For #29458
+    
+    Change-Id: If9cf0a1a1e6ed0d4a4edae5043016d5b4ee3308b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229768
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/syscall/exec_bsd.go    | 23 +++++++++++++++++------
+ src/syscall/exec_darwin.go | 23 +++++++++++++++++------
+ src/syscall/exec_libc.go   | 23 +++++++++++++++++------
+ src/syscall/exec_linux.go  | 25 ++++++++++++++++++-------
+ 4 files changed, 69 insertions(+), 25 deletions(-)

@@ -1,0 +1,19 @@
+commit c2b707bcf18e763a1fafc7c6fe955c64760df255
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Thu Feb 28 11:54:22 2019 +0100
+
+    syscall: use 64-bit alignment on netbsd-arm
+    
+    netbsd-arm needs the same override to the alignment function as
+    openbsd-arm. This fixes the TestPassFD failure.
+    
+    Update golang/go#24771
+    
+    Change-Id: Ib124fc776f6e2e3b3932784365c2bd3944523a52
+    Reviewed-on: https://go-review.googlesource.com/c/164458
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/sockcmsg_unix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

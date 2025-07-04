@@ -1,0 +1,17 @@
+commit 3308eb440636acdcc02a576411419f158ef5b70b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 20 15:46:05 2008 -0700
+
+    delete redundant bug.
+    fix typo.
+    add scoping bug.
+    
+    R=gri
+    OCL=14349
+    CL=14349
+
+ test/bugs/bug091.go | 25 +++++++++++++++++++++++++
+ test/golden.out     |  3 +++
+ test/iota.go        |  2 +-
+ test/ken/robiota.go | 30 ------------------------------
+ 4 files changed, 29 insertions(+), 31 deletions(-)

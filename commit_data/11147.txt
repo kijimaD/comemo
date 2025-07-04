@@ -1,0 +1,12 @@
+commit 4f63cdc81ff3f401a04457036e2c08f71bab7ccf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 12 17:20:51 2012 -0800
+
+    go/doc: initial testing support
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/5533082
+
+ src/pkg/go/doc/doc_test.go | 136 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 136 insertions(+)

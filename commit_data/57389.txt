@@ -1,0 +1,23 @@
+commit 12dcbed45190fecf56ca46d82cd7439cf6015b67
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Sep 4 12:02:38 2024 +0000
+
+    compress/flate: use built-in clear to simplify the code
+    
+    The new bootstrap toolchain allows us to use the built-in clear.
+    
+    Updates #64751
+    
+    Change-Id: Ic363e1059f34c46eaa4267c0b40a4ed8d5b3961b
+    GitHub-Last-Rev: 46ca735bfcd99a9874d7904a705970ed0cadf61c
+    GitHub-Pull-Request: golang/go#69253
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610516
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/compress/flate/deflate.go            |  8 ++------
+ src/compress/flate/deflatefast.go        |  4 +---
+ src/compress/flate/huffman_bit_writer.go | 16 ++++------------
+ 3 files changed, 7 insertions(+), 21 deletions(-)

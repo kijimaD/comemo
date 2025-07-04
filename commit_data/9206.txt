@@ -1,0 +1,13 @@
+commit e527d49e550d64732ccb2e24c4b152c3c911fd24
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Jul 26 13:28:20 2011 +1000
+
+    http: implement MP4 sniffing.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4809044
+
+ src/pkg/http/sniff.go      | 29 ++++++++++++++++++++++++++++-
+ src/pkg/http/sniff_test.go |  2 ++
+ 2 files changed, 30 insertions(+), 1 deletion(-)

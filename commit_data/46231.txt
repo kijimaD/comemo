@@ -1,0 +1,25 @@
+commit f27d6a23b0b9d2cb41441a5dd2bd6d65dd94acf0
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 31 09:31:56 2021 -0700
+
+    cmd/compile: builtins may be in the unsafe package
+    
+    Now that unsafe.Sizeof and friends can operate on generic parameters,
+    and evaluate to non-constants, we need to export/import them correctly.
+    
+    Fixes #48094
+    
+    Change-Id: If3ebf77255385cd5462e13fb7ced8b157ba3cf5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346469
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/typecheck/iexport.go |  1 +
+ src/cmd/compile/internal/typecheck/iimport.go |  6 +++++-
+ test/typeparam/issue48094.dir/a.go            | 26 ++++++++++++++++++++++++++
+ test/typeparam/issue48094.dir/main.go         | 20 ++++++++++++++++++++
+ test/typeparam/issue48094.go                  |  7 +++++++
+ 5 files changed, 59 insertions(+), 1 deletion(-)

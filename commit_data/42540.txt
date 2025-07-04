@@ -1,0 +1,18 @@
+commit 4379fa1740b24c610849f597f9ca13711e1bf455
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Jun 16 13:40:03 2020 -0400
+
+    cmd/internal/obj/ppc64: update doc
+    
+    This updates the ppc64 asm doc file, including information on
+    updates to the objdump, correcting information on operand order,
+    and adding some information on shifts.
+    
+    Change-Id: Ib8ed53eac86c2121ea5b657c361ad92aae31cb32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238237
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/obj/ppc64/doc.go | 52 ++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 46 insertions(+), 6 deletions(-)

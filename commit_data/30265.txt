@@ -1,0 +1,28 @@
+commit 78200799a290da7d53ebbd50c04e432a4ab14eec
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Feb 14 11:01:04 2017 -0500
+
+    cmd/compile: undo special handling of zero-valued STRUCTLIT
+    
+    CL 35261 introduces special handling of zero-valued STRUCTLIT for
+    efficient struct zeroing. But it didn't cover all use cases, for
+    example, CONVNOP STRUCTLIT is not handled.
+    
+    On the other hand, CL 34566 handles zeroing earlier, so we don't
+    need the change in CL 35261 for efficient zeroing. Other uses of
+    zero-valued struct literals are very rare. So undo the change in
+    walk.go in CL 35261.
+    
+    Add a test for efficient zeroing.
+    
+    Fixes #19084.
+    
+    Change-Id: I0807f7423fb44d47bf325b3c1ce9611a14953853
+    Reviewed-on: https://go-review.googlesource.com/36955
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 11 +++++++++++
+ src/cmd/compile/internal/gc/walk.go     |  3 ---
+ test/fixedbugs/issue19084.go            | 17 +++++++++++++++++
+ 3 files changed, 28 insertions(+), 3 deletions(-)

@@ -1,0 +1,19 @@
+commit f613a7bf33e823fc36fdd2222d955dcab6bed8f9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 16 17:41:24 2018 +0000
+
+    cmd/dist, os/user: test os/user in osusergo mode as well, fix plan9 & windows
+    
+    Would've caught two regressions so far, and found two more.
+    
+    Updates #24841
+    Updates #24845 (package net remains)
+    
+    Change-Id: I57ad06eb54e04b8c99b5d2e7f24c77ad865224e8
+    Reviewed-on: https://go-review.googlesource.com/107300
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go        | 12 ++++++++++++
+ src/os/user/lookup_stubs.go |  2 +-
+ src/os/user/user_test.go    | 16 ++++++++++++++++
+ 3 files changed, 29 insertions(+), 1 deletion(-)

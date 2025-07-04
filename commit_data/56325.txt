@@ -1,0 +1,16 @@
+commit dc164eade1efd819d54dabf121bec0386019421b
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Apr 30 14:16:25 2024 +0200
+
+    os: remove ineffective else branch
+    
+    Change-Id: Ic9cf871d862aec54ab8f491b8bc8d2820aecc875
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582497
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/path_windows.go | 2 --
+ 1 file changed, 2 deletions(-)

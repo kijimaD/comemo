@@ -1,0 +1,20 @@
+commit 9dd2e1e30f1eb9f2f07adfc4a2068a9612f0236f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 1 21:04:16 2009 -0800
+
+    nil pointer checks in 8g.
+    fix nil pointer check in 6g.
+    was dereferencing after the ADD;
+    dereference before instead.
+    
+    R=ken@golang.org
+    CC=iant
+    http://go/go-review/1016022
+
+ src/cmd/6g/cgen.c  | 14 +++++++++++++-
+ src/cmd/6g/ggen.c  | 20 ++++++++++----------
+ src/cmd/8g/cgen.c  | 25 ++++++++++++++++++++++++-
+ src/cmd/8g/gg.h    |  4 +++-
+ src/cmd/8g/gsubr.c | 49 +++++++++++++++++++++++++++++++++++++++++--------
+ test/golden.out    |  2 +-
+ 6 files changed, 92 insertions(+), 22 deletions(-)

@@ -1,0 +1,21 @@
+commit 432f18221fa77b814854053e751c125c9920886c
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Dec 17 11:07:40 2012 -0500
+
+    runtime: implement getenv for Plan 9
+    
+    With this change the runtime can now read GOMAXPROCS, GOGC, etc.
+    
+    I'm not quite sure how we missed this.
+    
+    R=seed, lucio.dere, rsc
+    CC=golang-dev
+    https://golang.org/cl/6935062
+
+ src/pkg/runtime/env_plan9.c       | 33 +++++++++++++++++++++
+ src/pkg/runtime/env_posix.c       | 61 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/os_plan9.h        |  1 +
+ src/pkg/runtime/runtime.c         | 52 ---------------------------------
+ src/pkg/runtime/sys_plan9_386.s   | 12 +++++++-
+ src/pkg/runtime/sys_plan9_amd64.s | 24 +++++++++++++++
+ 6 files changed, 130 insertions(+), 53 deletions(-)

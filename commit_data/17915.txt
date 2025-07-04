@@ -1,0 +1,12 @@
+commit d4f68f2892f4ebcdec57f07e32178b15612f8a73
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Fri Dec 6 15:36:54 2013 -0800
+
+    cmd/gc: clarify a TODO regarding variables used in liveness analysis
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/38640043
+
+ src/cmd/gc/plive.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

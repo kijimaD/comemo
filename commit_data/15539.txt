@@ -1,0 +1,12 @@
+commit f42a11ec8e960f48c373b5c931b40def3bc2c486
+Author: John Graham-Cumming <jgc@jgc.org>
+Date:   Fri Mar 1 11:56:33 2013 -0800
+
+    net: eliminate odd if statement with identical branches
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7447044
+
+ src/pkg/net/fd_unix.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

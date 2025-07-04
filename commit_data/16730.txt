@@ -1,0 +1,31 @@
+commit 32fef9908a6dcd523ae44766717662764e6c14ee
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jul 11 15:57:36 2013 -0400
+
+    runtime: fix CPU underutilization
+    runtime.newproc/ready are deliberately sloppy about waking new M's,
+    they only ensure that there is at least 1 spinning M.
+    Currently to compensate for that, schedule() checks if the current P
+    has local work and there are no spinning M's, it wakes up another one.
+    It does not work if goroutines do not call schedule.
+    With this change a spinning M wakes up another M when it finds work to do.
+    It's also not ideal, but it fixes the underutilization.
+    A proper check would require to know the exact number of runnable G's,
+    but it's too expensive to maintain.
+    Fixes #5586.
+    This is reincarnation of cl/9776044 with the bug fixed.
+    The bug was due to code added after cl/9776044 was created:
+    if(tick - (((uint64)tick*0x4325c53fu)>>36)*61 == 0 && runtime·sched.runqsize > 0) {
+            runtime·lock(&runtime·sched);
+            gp = globrunqget(m->p, 1);
+            runtime·unlock(&runtime·sched);
+    }
+    If M gets gp from global runq here, it does not reset m->spinning.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/10743044
+
+ src/pkg/runtime/proc.c       | 39 ++++++++++++++++++++++++++-------------
+ src/pkg/runtime/proc_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 13 deletions(-)

@@ -1,0 +1,20 @@
+commit adf20ee3c5f75139bebca6f4515719c304963a69
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 2 22:15:05 2019 -0700
+
+    debug/dwarf, debug/elf: support DWARF 5
+    
+    Change-Id: I6e9d47865c198299d497911c58235cd40f775e34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175138
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/debug/dwarf/buf.go      |  12 +++
+ src/debug/dwarf/entry.go    | 217 +++++++++++++++++++++++++++++++++++++++++---
+ src/debug/dwarf/line.go     | 215 +++++++++++++++++++++++++++++++++++++------
+ src/debug/dwarf/open.go     |  25 +++++
+ src/debug/dwarf/typeunit.go |   2 +-
+ src/debug/dwarf/unit.go     |  26 +++++-
+ src/debug/elf/file.go       |  24 +++--
+ 7 files changed, 470 insertions(+), 51 deletions(-)

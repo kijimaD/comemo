@@ -1,0 +1,84 @@
+commit 5be95e0951705d7a1fc39dda07416f4bdaeda5ea
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed May 8 11:10:59 2024 -0400
+
+    cmd: vendor golang.org/x/sys@v0.20.0
+    
+    This is a requirement of golang.org/x/telemetry@2790727 but the diff is
+    so big it's being vendored in a separate CL.
+    
+    Commands run:
+    
+        go get golang.org/x/sys@v0.20.0
+        go mod tidy
+        go mod vendor
+    
+    Change-Id: Idbeef95dab71449f67d21552636137e08db0f54d
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584235
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/go.mod                                     |    2 +-
+ src/cmd/go.sum                                     |    4 +-
+ .../vendor/golang.org/x/sys/unix/asm_zos_s390x.s   |  665 ++-
+ src/cmd/vendor/golang.org/x/sys/unix/bpxsvc_zos.go |  657 +++
+ src/cmd/vendor/golang.org/x/sys/unix/bpxsvc_zos.s  |  192 +
+ src/cmd/vendor/golang.org/x/sys/unix/epoll_zos.go  |  220 -
+ .../vendor/golang.org/x/sys/unix/fstatfs_zos.go    |  163 -
+ .../vendor/golang.org/x/sys/unix/pagesize_unix.go  |    2 +-
+ .../x/sys/unix/readdirent_getdirentries.go         |    2 +-
+ .../vendor/golang.org/x/sys/unix/sockcmsg_zos.go   |   58 +
+ .../golang.org/x/sys/unix/symaddr_zos_s390x.s      |   75 +
+ .../golang.org/x/sys/unix/syscall_zos_s390x.go     | 1507 +++++-
+ .../vendor/golang.org/x/sys/unix/sysvshm_unix.go   |    2 +-
+ .../golang.org/x/sys/unix/sysvshm_unix_other.go    |    2 +-
+ .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |    9 +
+ .../golang.org/x/sys/unix/zerrors_zos_s390x.go     |  233 +-
+ .../golang.org/x/sys/unix/zsymaddr_zos_s390x.s     |  364 ++
+ .../golang.org/x/sys/unix/zsyscall_zos_s390x.go    | 3113 +++++++++--
+ .../golang.org/x/sys/unix/zsysnum_linux_386.go     |    5 +
+ .../golang.org/x/sys/unix/zsysnum_linux_amd64.go   |    5 +
+ .../golang.org/x/sys/unix/zsysnum_linux_arm.go     |    5 +
+ .../golang.org/x/sys/unix/zsysnum_linux_arm64.go   |    5 +
+ .../golang.org/x/sys/unix/zsysnum_linux_loong64.go |    5 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mips.go    |    5 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mips64.go  |    5 +
+ .../x/sys/unix/zsysnum_linux_mips64le.go           |    5 +
+ .../golang.org/x/sys/unix/zsysnum_linux_mipsle.go  |    5 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc.go     |    5 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc64.go   |    5 +
+ .../golang.org/x/sys/unix/zsysnum_linux_ppc64le.go |    5 +
+ .../golang.org/x/sys/unix/zsysnum_linux_riscv64.go |    5 +
+ .../golang.org/x/sys/unix/zsysnum_linux_s390x.go   |    5 +
+ .../golang.org/x/sys/unix/zsysnum_linux_sparc64.go |    5 +
+ .../golang.org/x/sys/unix/zsysnum_zos_s390x.go     | 5507 ++++++++++----------
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |   26 +-
+ .../golang.org/x/sys/unix/ztypes_linux_386.go      |    8 -
+ .../golang.org/x/sys/unix/ztypes_linux_amd64.go    |    9 -
+ .../golang.org/x/sys/unix/ztypes_linux_arm.go      |    9 -
+ .../golang.org/x/sys/unix/ztypes_linux_arm64.go    |    9 -
+ .../golang.org/x/sys/unix/ztypes_linux_loong64.go  |    9 -
+ .../golang.org/x/sys/unix/ztypes_linux_mips.go     |    9 -
+ .../golang.org/x/sys/unix/ztypes_linux_mips64.go   |    9 -
+ .../golang.org/x/sys/unix/ztypes_linux_mips64le.go |    9 -
+ .../golang.org/x/sys/unix/ztypes_linux_mipsle.go   |    9 -
+ .../golang.org/x/sys/unix/ztypes_linux_ppc.go      |    9 -
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64.go    |    9 -
+ .../golang.org/x/sys/unix/ztypes_linux_ppc64le.go  |    9 -
+ .../golang.org/x/sys/unix/ztypes_linux_riscv64.go  |    9 -
+ .../golang.org/x/sys/unix/ztypes_linux_s390x.go    |    9 -
+ .../golang.org/x/sys/unix/ztypes_linux_sparc64.go  |    9 -
+ .../golang.org/x/sys/unix/ztypes_zos_s390x.go      |  146 +-
+ src/cmd/vendor/golang.org/x/sys/windows/aliases.go |    2 +-
+ src/cmd/vendor/golang.org/x/sys/windows/empty.s    |    8 -
+ src/cmd/vendor/modules.txt                         |    2 +-
+ src/go.mod                                         |    2 +-
+ src/go.sum                                         |    4 +-
+ src/vendor/golang.org/x/sys/cpu/cpu.go             |    1 +
+ src/vendor/golang.org/x/sys/cpu/cpu_arm64.go       |   10 +
+ src/vendor/golang.org/x/sys/cpu/cpu_arm64.s        |    8 +
+ src/vendor/golang.org/x/sys/cpu/cpu_gc_arm64.go    |    1 +
+ src/vendor/golang.org/x/sys/cpu/cpu_linux_arm64.go |    5 +
+ src/vendor/modules.txt                             |    2 +-
+ 62 files changed, 8941 insertions(+), 4262 deletions(-)

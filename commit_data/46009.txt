@@ -1,0 +1,28 @@
+commit a192ef8ac47679ca46a41fa190af1048e7008b2b
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Aug 15 20:44:49 2021 -0400
+
+    go/types: cleanup panic calls
+    
+    This is a port of CL 339969 to go/types. It differs slightly in
+    errors.go, due to the differing API.
+    
+    Change-Id: Ie2bf84ebf312ea3872ee6706615dfc6169a32405
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342431
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/decl.go       |  4 ++--
+ src/go/types/errors.go     |  4 ++--
+ src/go/types/lookup.go     |  4 ++--
+ src/go/types/named.go      | 12 ++++++------
+ src/go/types/signature.go  |  4 ++--
+ src/go/types/stmt.go       |  2 +-
+ src/go/types/typeparam.go  |  4 ++--
+ src/go/types/typeset.go    |  4 ++--
+ src/go/types/typestring.go |  6 +++---
+ src/go/types/union.go      |  2 +-
+ src/go/types/universe.go   |  2 +-
+ 11 files changed, 24 insertions(+), 24 deletions(-)

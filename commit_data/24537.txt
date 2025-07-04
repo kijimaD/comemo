@@ -1,0 +1,21 @@
+commit 6deb3c0619240c5b2f5d28e1f038eee6ac942318
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Oct 8 22:49:39 2015 +1300
+
+    runtime, runtime/cgo: conform to PIC register use rules in ppc64 asm
+    
+    PIC code on ppc64le uses R2 as a TOC pointer and when calling a function
+    through a function pointer must ensure the function pointer is in R12.  These
+    rules are easy enough to follow unconditionally in our assembly, so do that.
+    
+    Change-Id: Icfc4e47ae5dfbe15f581cbdd785cdeed6e40bc32
+    Reviewed-on: https://go-review.googlesource.com/15526
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/asm_ppc64x.s        | 52 ++++++++++++++++++++---------------------
+ src/runtime/cgo/asm_ppc64x.s    |  1 +
+ src/runtime/cgo/gcc_ppc64x.S    |  1 +
+ src/runtime/rt0_linux_ppc64.s   |  4 ++--
+ src/runtime/rt0_linux_ppc64le.s |  4 ++--
+ src/runtime/sys_linux_ppc64x.s  |  8 +++----
+ 6 files changed, 36 insertions(+), 34 deletions(-)

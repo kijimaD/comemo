@@ -1,0 +1,23 @@
+commit 0592c449560d5c748d3d2a2e44dc95d40136f384
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 6 17:18:53 2013 -0800
+
+    net: permit pollster DelFD to return whether to call Wakeup
+    
+    This is necessary for systems that use select as the pollster,
+    such as Solaris (supported by gccgo).  It corresponds to the
+    bool returned by AddFD.  In general it's not clearly defined
+    what happens when a descriptor used in a select is closed, and
+    different systems behave differently.  Waking up the select
+    will cause the right thing to happen: the closed descriptor
+    will be dropped from the next iteration.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7303056
+
+ src/pkg/net/fd_bsd.go    |  7 ++++++-
+ src/pkg/net/fd_darwin.go |  7 ++++++-
+ src/pkg/net/fd_linux.go  |  7 ++++++-
+ src/pkg/net/fd_unix.go   | 18 ++++++++++++++----
+ 4 files changed, 32 insertions(+), 7 deletions(-)

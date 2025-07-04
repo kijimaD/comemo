@@ -1,0 +1,13 @@
+commit b276293abae9c3694038b6228c05dc156c98d82b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 11 04:30:05 2011 -0700
+
+    http: don't Clean query string in relative redirects
+    
+    R=adg, rsc, kevlar, r
+    CC=golang-dev
+    https://golang.org/cl/4476045
+
+ src/pkg/http/serve_test.go | 17 +++++++++++++++++
+ src/pkg/http/server.go     |  6 ++++++
+ 2 files changed, 23 insertions(+)

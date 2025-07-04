@@ -1,0 +1,14 @@
+commit 74a60ed08a2581279bef3cccfb9043196c865f80
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 15 17:22:15 2009 -0800
+
+    casify lib/regexp
+    
+    R=rsc
+    DELTA=259  (0 added, 0 deleted, 259 changed)
+    OCL=22897
+    CL=22900
+
+ src/lib/regexp/all_test.go |  96 ++++++------
+ src/lib/regexp/regexp.go   | 374 ++++++++++++++++++++++-----------------------
+ 2 files changed, 235 insertions(+), 235 deletions(-)

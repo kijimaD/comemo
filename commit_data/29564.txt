@@ -1,0 +1,22 @@
+commit fe057c1478c4309f715d689127125cabbb4efe08
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 16 13:51:32 2016 -0800
+
+    runtime/cgo: fixes for calling sigaction in C
+    
+    Zero out the sigaction structs, in case the sa_restorer field is set.
+    
+    Clear the SA_RESTORER flag; it is part of the kernel interface, not the
+    libc interface.
+    
+    Fixes #17947.
+    
+    Change-Id: I610348ce3c196d3761cf2170f06c24ecc3507cf7
+    Reviewed-on: https://go-review.googlesource.com/33331
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/cgo/gcc_sigaction.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

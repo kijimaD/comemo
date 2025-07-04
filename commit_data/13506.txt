@@ -1,0 +1,13 @@
+commit c49af2ccafa42971a63aee0a953b82fa58285e74
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 26 23:21:41 2012 -0700
+
+    misc/cgo/test: add test for issue 3871: cgo setgid hang on GNU/Linux
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6445049
+
+ misc/cgo/test/basic.go    | 16 ++++++++++++++++
+ misc/cgo/test/cgo_test.go |  1 +
+ 2 files changed, 17 insertions(+)

@@ -1,0 +1,21 @@
+commit 4bf4d9f86ebeb5711464bd98b6823e3e2cca7bb7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 16 17:46:25 2014 -0400
+
+    runtime: reenable TestStackGrowth on 32-bit systems
+    
+    If this needs to be turned back off, it should be done
+    just before the '// in finalizer' comment, not at the top
+    of the function.
+    
+    GC is more precise now than it was (the only imprecise
+    stuff left is some global variables), so maybe the finalizer
+    test will work now on 32-bit systems.
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/144030043
+
+ src/runtime/stack_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,0 +1,15 @@
+commit 98edf09e674b0f02cb32c48de22dcb21ca50df2d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jan 3 10:06:04 2013 -0800
+
+    net/http: Sync TimeoutHandler godoc with code.
+    
+    TimeoutHandler was changed from "ns int64" to "dt time.Duration" on
+    Nov 30, 2011, but the godoc still refers to "ns".
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7031050
+
+ src/pkg/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

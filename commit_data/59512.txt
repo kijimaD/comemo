@@ -1,0 +1,24 @@
+commit 01e0e8b6b397f2e775d9ccbfcde104d025464382
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Thu May 15 07:01:14 2025 -0400
+
+    runtime/pprof: include PCs for deduplication in TestMutexBlockFullAggregation
+    
+    TestMutexBlockFullAggregation aggregates stacks by function, file, and
+    line number. But there can be multiple function calls on the same line,
+    giving us different sequences of PCs. This causes the test to spuriously
+    fail in some cases. Include PCs in the stacks for this test.
+    
+    Also pick up a small "range over int" modernize suggestion while we're
+    looking at the test.
+    
+    Fixes #73641
+    
+    Change-Id: I50489e19fcf920e27b9eebd9d4b35feb89981cbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673115
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/pprof/pprof_test.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

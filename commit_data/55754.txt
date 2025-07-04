@@ -1,0 +1,27 @@
+commit db8c6c8c7a198be10310387e9212004dd3163a27
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:57:00 2024 -0500
+
+    runtime: merge timerDeleted into timerModified
+    
+    When we make a change to a timer, we have to note the
+    desired change to t.when and then wait for the timer heap
+    owner to apply the change. There are two possible changes:
+    delete or set a new t.when. Most of the code for processing
+    these changes is the same, so we can simplify the code by
+    making both have the same state: timerDeleted is now
+    timerModified with t.nextwhen == 0.
+    
+    This is part of a larger simplification of the state set.
+    
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: I1a2a12f8250bcd40f7b08b83f22c3a82b124eda6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564123
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/time.go | 181 ++++++++++++++++++++++++----------------------------
+ 1 file changed, 85 insertions(+), 96 deletions(-)

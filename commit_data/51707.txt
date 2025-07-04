@@ -1,0 +1,27 @@
+commit 1011ccad5cdc7a90c31f07196df0f40ba2d5f6c5
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Dec 19 17:39:09 2022 -0500
+
+    cmd/dist: mark linux/sparc64 as a broken port, remove incomplete map
+    
+    The linux/sparc64 port is incomplete—it doesn't work, and it doesn't
+    have a builder. Now that dist supports broken ports, mark it as such.
+    
+    The incomplete map was created to hide ports that aren't functional
+    from dist list output. Now that we have the broken port concept, it
+    seems largely redundant, so remove it for now.
+    
+    For #56679.
+    Updates #28944.
+    
+    Change-Id: I34bd23e913ed6d786a4d0aa8d2852f2b926fe4b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458516
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/dist/build.go | 12 ++++--------
+ src/cmd/dist/test.go  |  6 ------
+ 2 files changed, 4 insertions(+), 14 deletions(-)

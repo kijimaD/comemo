@@ -1,0 +1,18 @@
+commit 20ea881c7909bb3a1f93b2b023a5b970d9c267cb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 19 14:58:49 2009 -0700
+
+    Xor-based crypto modes: OFB and CTR stream encryption.
+    
+    R=r
+    DELTA=643  (643 added, 0 deleted, 0 changed)
+    OCL=29017
+    CL=29047
+
+ src/lib/crypto/block/ctr.go          |  69 ++++++++++++++
+ src/lib/crypto/block/ctr_aes_test.go | 115 ++++++++++++++++++++++++
+ src/lib/crypto/block/ofb.go          |  61 +++++++++++++
+ src/lib/crypto/block/ofb_aes_test.go | 113 +++++++++++++++++++++++
+ src/lib/crypto/block/xor.go          | 122 +++++++++++++++++++++++++
+ src/lib/crypto/block/xor_test.go     | 169 +++++++++++++++++++++++++++++++++++
+ 6 files changed, 649 insertions(+)

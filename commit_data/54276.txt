@@ -1,0 +1,24 @@
+commit bdccd923e914ab61d77a8f23a3329cf1d5aaa7c1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 30 14:06:45 2023 -0700
+
+    cmd/cgo: only write _cgo_flags for gccgo
+    
+    We only use it for gccgo. Also only write out LDFLAGS,
+    as that is all that cmd/go uses.
+    
+    Fixes #60642
+    
+    Change-Id: I6ccc419a17a433583d9868dd63aa7ec41c2b22c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524556
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/cgo/doc.go  |  2 +-
+ src/cmd/cgo/gcc.go  |  7 ++++---
+ src/cmd/cgo/main.go |  3 +--
+ src/cmd/cgo/out.go  | 19 +++++++++----------
+ 4 files changed, 15 insertions(+), 16 deletions(-)

@@ -1,0 +1,13 @@
+commit c9ece81cc8c1a81ebdebcf6dfc13ebf5c4cbdb61
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Mar 2 04:25:54 2020 +1100
+
+    cmd/compile: absorb SNEZ into branch on riscv64
+    
+    Change-Id: I55fd93843a7fb574a7dd66ebb87fdd96e944d555
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221682
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules | 3 +++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 9 +++++++++
+ 2 files changed, 12 insertions(+)

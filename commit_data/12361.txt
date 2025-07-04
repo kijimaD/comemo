@@ -1,0 +1,14 @@
+commit 539178bd01336824453cc82de6a7181c7a28a7f7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 5 15:07:43 2012 +1100
+
+    doc: add help page, update project page
+    
+    R=golang-dev, kyle, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5729053
+
+ doc/contrib.html | 48 ++++++++++++++++++++++++++++++++++++++++++------
+ doc/docs.html    |  5 +----
+ doc/help.html    | 36 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 79 insertions(+), 10 deletions(-)

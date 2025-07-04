@@ -1,0 +1,20 @@
+commit 0f801ff81e9a9f8d88a7d63e7951f2c61f5d449b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 17 16:38:58 2011 -0700
+
+    godoc: template cleanup
+    
+    Use naming convention for template variables
+    to indicate "escaped-ness" for easier reviewing.
+    (per suggestion from bradfitz)
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4914041
+
+ lib/godoc/codewalkdir.html |  4 ++--
+ lib/godoc/dirlist.html     |  6 +++---
+ lib/godoc/package.html     | 16 ++++++++--------
+ lib/godoc/search.html      | 26 +++++++++++++-------------
+ lib/godoc/search.txt       |  4 ++--
+ 5 files changed, 28 insertions(+), 28 deletions(-)

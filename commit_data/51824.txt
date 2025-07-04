@@ -1,0 +1,21 @@
+commit 8c347a093cf168aa714da07f4d0709aa6d5a090d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Dec 16 13:12:22 2022 -0500
+
+    cmd/link/internal/ld: split varDeclCoords tests
+    
+    This test set is a bit hard to follow due to trying to test both
+    variable and function declaration location information.
+    
+    Now that we have additional helpers to avoid duplication, it isn't too
+    much work to split them up into individually more understandable tests.
+    
+    Change-Id: I619ac82ac3b5d00683e22a4a2064e2a5b15e8ce9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458197
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 174 ++++++++++++++++++++-------------
+ 1 file changed, 108 insertions(+), 66 deletions(-)

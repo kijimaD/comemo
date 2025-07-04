@@ -1,0 +1,29 @@
+commit 5b48fca1fad44d22105f64be725514020432a2c1
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Fri Sep 3 15:04:52 2021 +0200
+
+    cmd/compile: mark wrapper functions with DW_AT_trampoline
+    
+    Change DWARF generation to tag wrapper functions with the
+    "DW_AT_trampoline attribute". The intent is that debuggers can pick up
+    on this attr so as to skip through the wrapper to the eventual target.
+    
+    DWARF standard allows for a couple of different possible variants of
+    the trampoline attr; this is the simplest variant (all it tells the
+    debugger is that the function is a wrapper, doesn't include a
+    reference to the wrapper routine).
+    
+    This implementation keys off the WRAPPER LSym attribute, which is set
+    for method wrappers, ABI wrappers, and a selected set of runtime
+    assembly routines (ex: "runtime.call32").
+    
+    Change-Id: Ib53e1bc56c02b86ca3ac5e7da1a541ec262726cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347352
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/internal/dwarf/dwarf.go | 61 ++++++++++++++++++++++++++++++++++-------
+ src/cmd/internal/obj/dwarf.go   |  4 +--
+ 2 files changed, 53 insertions(+), 12 deletions(-)

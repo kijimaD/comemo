@@ -1,0 +1,13 @@
+commit 4707a6c284a9d8a0927cbc1badc6d09535a79bff
+Author: Pedro Lopez Mareque <pedro.lopez.mareque@gmail.com>
+Date:   Sat Oct 2 16:14:58 2021 +0200
+
+    unicode: add examples for the Is functions
+    
+    Change-Id: If4afe33985dc0a758db32564244095190b82e5c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353691
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/unicode/example_test.go | 60 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 60 insertions(+)

@@ -1,0 +1,32 @@
+commit 5714c91b532f3ac9b354cd8302c63aa6f9ab53e7
+Author: erifan01 <eric.fang@arm.com>
+Date:   Mon Jan 14 09:36:18 2019 +0000
+
+    cmd/compile: intrinsify math/bits.Add64 for arm64
+    
+    This CL instrinsifies Add64 with arm64 instruction sequence ADDS, ADCS
+    and ADC, and optimzes the case of carry chains.The CL also changes the
+    test code so that the intrinsic implementation can be tested.
+    
+    Benchmarks:
+    name               old time/op       new time/op       delta
+    Add-224            2.500000ns +- 0%  2.090000ns +- 4%  -16.40%  (p=0.000 n=9+10)
+    Add32-224          2.500000ns +- 0%  2.500000ns +- 0%     ~     (all equal)
+    Add64-224          2.500000ns +- 0%  1.577778ns +- 2%  -36.89%  (p=0.000 n=10+9)
+    Add64multiple-224  6.000000ns +- 0%  2.000000ns +- 0%  -66.67%  (p=0.000 n=10+10)
+    
+    Change-Id: I6ee91c9a85c16cc72ade5fd94868c579f16c7615
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/159017
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/arm64/ssa.go        |  24 ++++++
+ src/cmd/compile/internal/gc/ssa.go           |   4 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |   6 ++
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 109 ++++++++++++++-------------
+ src/cmd/compile/internal/ssa/opGen.go        |  44 +++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 108 ++++++++++++++++++++++++++
+ src/math/bits/bits_test.go                   |  25 ++++++
+ test/codegen/mathbits.go                     |  10 +++
+ 8 files changed, 277 insertions(+), 53 deletions(-)

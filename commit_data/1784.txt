@@ -1,0 +1,12 @@
+commit 820f42d977817785ff198425292cddd5f6900083
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Mar 7 17:33:42 2009 -0800
+
+    binary search for constant case statements.
+    
+    R=r
+    OCL=25890
+    CL=25890
+
+ src/cmd/gc/swt.c | 215 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 212 insertions(+), 3 deletions(-)

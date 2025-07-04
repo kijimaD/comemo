@@ -1,0 +1,12 @@
+commit 804ef381db6bef62a44ccbbb6a417728ad3bf01d
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Apr 15 10:20:24 2013 -0700
+
+    runtime: fix build on openbsd/386
+    
+    R=golang-dev, minux.ma, r
+    CC=golang-dev
+    https://golang.org/cl/8569043
+
+ src/pkg/runtime/signal_openbsd_386.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

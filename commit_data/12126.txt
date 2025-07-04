@@ -1,0 +1,25 @@
+commit a457fa500d35d352a76883706e82fd7e9f8e4bd7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 21 22:54:07 2012 -0500
+
+    gc: return of ideal bool
+    
+    This is a manual undo of CL 5674098.
+    It does not implement the even less strict spec
+    that we just agreed on, but it gets us back where
+    we were at the last weekly.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5683069
+
+ src/cmd/gc/const.c       | 7 ++++---
+ src/cmd/gc/export.c      | 2 +-
+ src/cmd/gc/fmt.c         | 4 ++--
+ src/cmd/gc/go.h          | 1 +
+ src/cmd/gc/lex.c         | 5 +++--
+ src/cmd/gc/subr.c        | 4 ++--
+ test/fixedbugs/bug285.go | 1 +
+ test/named.go            | 4 +++-
+ test/named1.go           | 4 ++--
+ 9 files changed, 19 insertions(+), 13 deletions(-)

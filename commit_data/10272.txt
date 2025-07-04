@@ -1,0 +1,19 @@
+commit 1170a6460f3917f0b060f6de654759edb98f3df5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Nov 7 12:37:05 2011 -0500
+
+    exp/ssh: improved client authentication support
+    
+    This CL adds an API for handling the various SSH
+    authenticaton methods. None and password continue
+    to be the only supported methods.
+    
+    R=bradfitz, agl, n13m3y3r, rsc, cw
+    CC=golang-dev
+    https://golang.org/cl/5328045
+
+ src/pkg/exp/ssh/Makefile       |   1 +
+ src/pkg/exp/ssh/client.go      |  55 +--------------
+ src/pkg/exp/ssh/client_auth.go | 157 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/ssh/doc.go         |   2 +-
+ 4 files changed, 162 insertions(+), 53 deletions(-)

@@ -1,0 +1,13 @@
+commit 375b1e2a0ee9e147e4e1cfdd20f87e99c108d905
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 24 11:59:23 2008 -0800
+
+    output of fmt has changed for %g
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=19909
+    CL=19909
+
+ test/fmt_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

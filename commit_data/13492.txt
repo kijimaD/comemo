@@ -1,0 +1,17 @@
+commit ce274339a1ed46356f5322288f4ef878a06f0aab
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 23 16:19:12 2012 -0700
+
+    text/template: fix bug in map indexing
+    If the key is not present, return value of the type of the element
+    not the type of the key. Also fix a test that should have caught this case.
+    
+    Fixes #3850.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6405078
+
+ src/pkg/text/template/exec_test.go | 2 +-
+ src/pkg/text/template/funcs.go     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

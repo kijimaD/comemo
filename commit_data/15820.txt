@@ -1,0 +1,15 @@
+commit 3a2fe62f44a8a8513a087f75798425db7f9cc7bd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 18 15:33:04 2013 -0700
+
+    database/sql: add DB.SetMaxIdleConns
+    
+    Update #4805
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7634045
+
+ src/pkg/database/sql/sql.go      | 47 +++++++++++++++++++++++++++++++++++-----
+ src/pkg/database/sql/sql_test.go | 29 +++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+), 6 deletions(-)

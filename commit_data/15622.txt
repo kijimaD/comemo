@@ -1,0 +1,15 @@
+commit ae7aa345db7c08c15e621dd567b1666a674ffa1a
+Author: Tyler Bunnell <tylerbunnell@gmail.com>
+Date:   Thu Mar 7 19:06:19 2013 +0900
+
+    cmd/fix: remove redundant 0 port
+    
+    Fixes #4505.
+    
+    R=golang-dev, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/7468043
+
+ src/cmd/fix/netipv6zone.go      | 11 ++++++++---
+ src/cmd/fix/netipv6zone_test.go |  6 ++++--
+ 2 files changed, 12 insertions(+), 5 deletions(-)

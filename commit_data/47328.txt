@@ -1,0 +1,24 @@
+commit 61d789db3a52e4570596f1fd15122358deb73b77
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 4 21:31:08 2021 -0700
+
+    cmd/compile/internal/types2: report error for incomplete struct composite literal type
+    
+    Mark a struct as "complete" with a non-nil (but possibly zero length)
+    fields list. Add a test when type-checking struct composite literals,
+    the same way we do for other composite literal types.
+    
+    Fixes #49276.
+    
+    Change-Id: If44a3d790bf7032ddcd155af49bdc47b1cdff4fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361412
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/expr.go            |  6 +++
+ src/cmd/compile/internal/types2/struct.go          | 14 ++++++-
+ src/cmd/compile/internal/types2/subst.go           |  4 +-
+ .../types2/testdata/fixedbugs/issue49276.go        | 46 ++++++++++++++++++++++
+ 4 files changed, 67 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit 00c73f5c6e4b80a24eb19218c006c8a3f08e1ed8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 5 17:32:57 2015 -0800
+
+    math/big: cleaner handling of exponent under/overflow
+    
+    Fixed several corner-case bugs and added corresponding tests.
+    
+    Change-Id: I23096b9caeeff0956f65ab59fa91e168d0e47bb8
+    Reviewed-on: https://go-review.googlesource.com/7001
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/bits_test.go  |   7 +-
+ src/math/big/float.go      | 202 ++++++++++++++++++++++-----------------------
+ src/math/big/float_test.go |  62 ++++++++++++++
+ src/math/big/floatconv.go  |  12 ++-
+ 4 files changed, 176 insertions(+), 107 deletions(-)

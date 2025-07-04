@@ -1,0 +1,12 @@
+commit d6589377c6e48af1990ada22ea47e1bd131c5f62
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 1 15:58:10 2010 -0700
+
+    debug/macho: fix error message format
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/836046
+
+ src/pkg/debug/macho/file.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

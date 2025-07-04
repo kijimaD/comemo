@@ -1,0 +1,24 @@
+commit 65c365bf0f4add682419ba8fe68db43a0cab0e83
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Tue May 22 18:08:12 2018 -0400
+
+    cmd/compile: fix debug info generation for loads from Phis
+    
+    Apparently a LoadReg can take a Phi as its argument. The Phi has names
+    in the NamedValue table, so just read the Load's names from the Phi.
+    
+    The example given, XORKeyStream in chacha20, is pretty complicated so I
+    didn't try to actually debug it and verify that the results are right.
+    But the debug logging looks reasonable, with the right names in the right
+    registers at the right times.
+    
+    Fixes #25404
+    
+    Change-Id: I2c3183dcfb033948556d6805bd66c22c0b45625c
+    Reviewed-on: https://go-review.googlesource.com/114008
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/debug.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

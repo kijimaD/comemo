@@ -1,0 +1,14 @@
+commit 66beb2fd3b47050ae496079ec731015826701b45
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 12 14:54:15 2009 -0700
+
+    fix bug187 not to crash
+    
+    TBR=austin
+    DELTA=9  (4 added, 4 deleted, 1 changed)
+    OCL=33115
+    CL=33115
+
+ test/bugs/bug187.go | 6 +++++-
+ test/golden.out     | 4 ----
+ 2 files changed, 5 insertions(+), 5 deletions(-)

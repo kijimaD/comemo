@@ -1,0 +1,15 @@
+commit 10a349a7c154e4ee4f21a8027a9577f41de5e4f1
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 3 17:14:32 2009 -0800
+
+    The String() method requires global state that makes it not work outside of this package,
+    so make it a local method (_String()).
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/165049
+
+ src/pkg/gob/decode.go    |  4 ++--
+ src/pkg/gob/type.go      | 14 +++++++-------
+ src/pkg/gob/type_test.go | 16 ++++++++--------
+ 3 files changed, 17 insertions(+), 17 deletions(-)

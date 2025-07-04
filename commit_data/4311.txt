@@ -1,0 +1,13 @@
+commit e93132c982da55fdc92eab3d3aad14faac444717
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Dec 3 19:33:23 2009 -0800
+
+    crypto/rsa: fix shadowing error.
+    
+    Fixes bug 375.
+    
+    R=rsc
+    https://golang.org/cl/165045
+
+ src/pkg/crypto/rsa/rsa.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

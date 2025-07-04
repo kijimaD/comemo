@@ -1,0 +1,16 @@
+commit 5bb7bf08bd839da48d9fc3dcc7eb6a3eb339b019
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jan 31 20:31:15 2010 -0800
+
+    Fix expected string.
+    
+    I got it wrong because gccgo was incorrectly failing to clear
+    the value when a nonblocking receive did not receive
+    anything.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194161
+
+ test/bugs/bug242.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

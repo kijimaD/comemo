@@ -1,0 +1,14 @@
+commit ef3e6810b8c3176baeb0e3062f254b32d1384a7c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 24 09:23:04 2009 -0700
+
+    bug189
+    
+    R=ken
+    OCL=33745
+    CL=33745
+
+ src/cmd/gc/typecheck.c             | 2 ++
+ test/{bugs => fixedbugs}/bug189.go | 2 +-
+ test/golden.out                    | 3 ---
+ 3 files changed, 3 insertions(+), 4 deletions(-)

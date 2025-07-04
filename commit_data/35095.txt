@@ -1,0 +1,22 @@
+commit 03f546eb60bb8da02ef86264f43d9555e96fcb0b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 17 14:54:42 2018 -0700
+
+    cmd/compile/internal/types: add Pkg and SetPkg methods to Type
+    
+    The go/types API exposes what package objects were declared in, which
+    includes struct fields, interface methods, and function parameters.
+    
+    The compiler implicitly tracks these for non-exported identifiers
+    (through the Sym's associated Pkg), but exported identifiers always
+    use localpkg. To simplify identifying this, add an explicit package
+    field to struct, interface, and function types.
+    
+    Change-Id: I6adc5dc653e78f058714259845fb3077066eec82
+    Reviewed-on: https://go-review.googlesource.com/107622
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/types/sizeof_test.go |  6 ++---
+ src/cmd/compile/internal/types/type.go        | 39 ++++++++++++++++++++++++++-
+ 2 files changed, 41 insertions(+), 4 deletions(-)

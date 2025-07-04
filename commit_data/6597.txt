@@ -1,0 +1,12 @@
+commit a89b0ed7e4b7feaca9828b1f2256fedb9df0191e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Oct 22 10:49:29 2010 +1100
+
+    playground: s/it/this/
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2663041
+
+ doc/root.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

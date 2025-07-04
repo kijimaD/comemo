@@ -1,0 +1,14 @@
+commit bf57520e1c16c4eb46c21fd5ad06dfc48c9dab75
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 29 16:37:50 2010 -0800
+
+    Long-overdue update for semicolon change.
+    
+    Fixes #485.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/196071
+
+ doc/go_for_cpp_programmers.html | 154 ++++++++++++++++++++++++----------------
+ 1 file changed, 92 insertions(+), 62 deletions(-)

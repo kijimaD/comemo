@@ -1,0 +1,16 @@
+commit 7fb16406139e934d84f7ec66ba440a772747270a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 4 10:13:18 2017 -0800
+
+    testing: add missing newlines to error messages
+    
+    No test because in practice these errors never occur.
+    
+    Change-Id: I11c77893ae931fc621c98920cba656790d18ed93
+    Reviewed-on: https://go-review.googlesource.com/34811
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/testing.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

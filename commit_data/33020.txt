@@ -1,0 +1,23 @@
+commit 755742399490d3e25239f504688f6b2e280366e9
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Oct 6 12:46:22 2017 -0700
+
+    crypto/x509: reject intermediates with unknown critical extensions.
+    
+    In https://golang.org/cl/9390 I messed up and put the critical extension
+    test in the wrong function. Thus it only triggered for leaf certificates
+    and not for intermediates or roots.
+    
+    In practice, this is not expected to have a security impact in the web
+    PKI.
+    
+    Change-Id: I4f2464ef2fb71b5865389901f293062ba1327702
+    Reviewed-on: https://go-review.googlesource.com/69294
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/x509/verify.go      |  8 ++--
+ src/crypto/x509/verify_test.go | 96 ++++++++++++++++++++++++++++++++++++++++++
+ src/crypto/x509/x509_test.go   | 68 ------------------------------
+ 3 files changed, 100 insertions(+), 72 deletions(-)

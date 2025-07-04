@@ -1,0 +1,16 @@
+commit 4240ff764b14de9007fe26aaa9147c6c0ade91c9
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 11:38:29 2022 -0400
+
+    runtime: tricky replacements of _g_ in signal_windows.go
+    
+    winthrow is always called on g0.
+    
+    Change-Id: Ia23276a5bd545993faf4d75368c171f6ea7a3034
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418581
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/signal_windows.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

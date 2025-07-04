@@ -1,0 +1,12 @@
+commit c3eaef71ab3039921f4cf28bd4abd22aae002922
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Mar 17 15:53:40 2012 +0800
+
+    doc/go_faq: minor update
+    
+    R=adg, r
+    CC=golang-dev
+    https://golang.org/cl/5849052
+
+ doc/go_faq.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

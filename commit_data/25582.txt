@@ -1,0 +1,14 @@
+commit b73d8fbedf3806993e6ae2c46776c1e86558541e
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Jan 13 21:33:33 2016 -0500
+
+    build: use consistent shebang line
+    
+    Fixes #13948.
+    
+    Change-Id: I37d734c1241f3d72d8fe33dfdf79b573e5476b1f
+    Reviewed-on: https://go-review.googlesource.com/18643
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/bootstrap.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

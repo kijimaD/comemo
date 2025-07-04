@@ -1,0 +1,79 @@
+commit caae0917bff12751019cb4240e99874fa692e770
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 15 16:01:31 2017 -0700
+
+    math/rand: make Perm match Shuffle
+    
+    Perm and Shuffle are fundamentally doing the same work.
+    This change makes Perm's algorithm match Shuffle's.
+    In addition to allowing developers to switch more
+    easily between the two methods, it affords a nice speed-up:
+    
+    name      old time/op  new time/op  delta
+    Perm3-8   75.7ns ± 1%  51.8ns ± 1%  -31.59%  (p=0.000 n=9+8)
+    Perm30-8   610ns ± 1%   405ns ± 1%  -33.67%  (p=0.000 n=9+9)
+    
+    This change alters the output from Perm,
+    given the same Source and seed.
+    This is a change from Go 1.0 behavior.
+    This necessitates updating the regression test.
+    
+    This also changes the number of calls made to the Source
+    during Perm, which changes the output of the math/rand examples.
+    
+    This also slightly perturbs the output of Perm,
+    nudging it out of the range currently accepted by TestUniformFactorial.
+    However, it is complete unclear that the helpers relied on
+    by TestUniformFactorial are correct. That is #21211.
+    This change updates checkSimilarDistribution to respect
+    closeEnough for standard deviations, which makes the test pass.
+    The whole situation is muddy; see #21211 for details.
+    
+    There is an alternative implementation of Perm
+    that avoids initializing m, which is more similar
+    to the existing implementation, plus some optimizations:
+    
+    func (r *Rand) Perm(n int) []int {
+            m := make([]int, n)
+            max31 := n
+            if n > 1<<31-1-1 {
+                    max31 = 1<<31 - 1 - 1
+            }
+            i := 1
+            for ; i < max31; i++ {
+                    j := r.int31n(int32(i + 1))
+                    m[i] = m[j]
+                    m[j] = i
+            }
+            for ; i < n; i++ {
+                    j := r.Int63n(int64(i + 1))
+                    m[i] = m[j]
+                    m[j] = i
+            }
+            return m
+    }
+    
+    This is a tiny bit faster than the implementation
+    actually used in this change:
+    
+    name      old time/op  new time/op  delta
+    Perm3-8   51.8ns ± 1%  50.3ns ± 1%  -2.83%  (p=0.000 n=8+9)
+    Perm30-8   405ns ± 1%   394ns ± 1%  -2.66%  (p=0.000 n=9+8)
+    
+    However, 3% in performance doesn't seem worth
+    having the two algorithms diverge,
+    nor the reduced readability of this alternative.
+    
+    Updates #16213.
+    
+    Change-Id: I11a7441ff8837ee9c241b4c88f7aa905348be781
+    Reviewed-on: https://go-review.googlesource.com/55972
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/math/rand/example_test.go |  8 ++++----
+ src/math/rand/rand.go         | 26 +++++++++++++++++---------
+ src/math/rand/rand_test.go    |  2 +-
+ src/math/rand/regress_test.go | 28 ++++++++++++++--------------
+ 4 files changed, 36 insertions(+), 28 deletions(-)

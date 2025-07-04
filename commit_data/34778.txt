@@ -1,0 +1,26 @@
+commit a9ba3e30acf004a57fbc1288d5cea6bae74d06e8
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Fri Mar 9 00:06:33 2018 +0100
+
+    cmd/compile: add SSA config options useAvg and useHmul
+    
+    This commit allows architectures to disable optimizations that need the
+    Avg* and Hmul* operations.
+    
+    WebAssembly has no such operations, so using them as an optimization
+    but then having to emulate them with multiple instructions makes no
+    sense, especially since the WebAssembly compiler may do the same
+    optimizations internally.
+    
+    Updates #18892
+    
+    Change-Id: If57b59e3235482a9e0ec334a7312b3e3b5fc2b61
+    Reviewed-on: https://go-review.googlesource.com/103256
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/config.go         |  4 +++
+ src/cmd/compile/internal/ssa/gen/generic.rules | 24 ++++++-------
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 50 +++++++++++++-------------
+ 3 files changed, 42 insertions(+), 36 deletions(-)

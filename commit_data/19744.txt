@@ -1,0 +1,13 @@
+commit a03900a12f73fb01bd8943e0d2d5549d9bc5e909
+Author: Matthew Cottingham <mattcottingham@gmail.com>
+Date:   Wed Jul 16 12:27:25 2014 -0700
+
+    flag: fix typo
+    
+    LGTM=r
+    R=golang-codereviews, gobot, r
+    CC=golang-codereviews
+    https://golang.org/cl/114850043
+
+ src/pkg/flag/flag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit a5c44f3e3f722187c5438da8468963b2f0b629ac
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Sun Sep 3 21:46:51 2017 +1000
+
+    math: add RoundToEven function
+    
+    Rounding ties to even is statistically useful for some applications.
+    This implementation completes IEEE float64 rounding mode support (in
+    addition to Round, Ceil, Floor, Trunc).
+    
+    This function avoids subtle faults found in ad-hoc implementations, and
+    is simple enough to be inlined by the compiler.
+    
+    Fixes #21748
+    
+    Change-Id: I09415df2e42435f9e7dabe3bdc0148e9b9ebd609
+    Reviewed-on: https://go-review.googlesource.com/61211
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/all_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ src/math/bits.go     |  3 +++
+ src/math/floor.go    | 48 ++++++++++++++++++++++++++++++++++++++++--------
+ 3 files changed, 81 insertions(+), 8 deletions(-)

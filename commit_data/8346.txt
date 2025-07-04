@@ -1,0 +1,12 @@
+commit a03bfe7f693d84ddee30756dbcac490ee0b27ae0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue May 10 18:40:40 2011 -0700
+
+    doc/roadmap: put "App Engine support" under "Done".
+    
+    R=rsc, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4528053
+
+ doc/devel/roadmap.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

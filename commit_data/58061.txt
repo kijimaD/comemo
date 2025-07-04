@@ -1,0 +1,64 @@
+commit 0240c91383fb5bdbdc2676637662db95e87b77db
+Author: Boris Nagaev <bnagaev@gmail.com>
+Date:   Thu Feb 8 01:27:16 2024 +0000
+
+    crypto/aes: speedup CTR mode on AMD64 and ARM64
+    
+    The implementation runs up to 8 AES instructions in different registers
+    one after another in ASM code. Because CPU has instruction pipelining
+    and the instructions do not depend on each other, they can run in
+    parallel with this layout of code. This results in significant speedup
+    compared to the regular implementation in which blocks are processed in
+    the same registers so AES instructions do not run in parallel.
+    
+    GCM mode already utilizes the approach.
+    
+    The ASM implementation of ctrAble has most of its code in XORKeyStreamAt
+    method which has an additional argument, offset. It allows to use it
+    in a stateless way and to jump to any location in the stream. The method
+    does not exist in pure Go and boringcrypto implementations.
+    
+    [ Mailed as CL 413594, then edited by filippo@ to manage the counter
+    with bits.Add64, remove bounds checks, make the assembly interface more
+    explicit, and to port the amd64 to Avo. Squeezed another -6.38% out. ]
+    
+    goos: linux
+    goarch: amd64
+    pkg: crypto/cipher
+    cpu: AMD Ryzen 7 PRO 8700GE w/ Radeon 780M Graphics
+                │  19df80d792  │             c8b0409d40              │
+                │    sec/op    │   sec/op     vs base                │
+    AESCTR/50-8    64.68n ± 0%   26.89n ± 0%  -58.42% (p=0.000 n=10)
+    AESCTR/1K-8   1145.0n ± 0%   135.8n ± 0%  -88.14% (p=0.000 n=10)
+    AESCTR/8K-8   9145.0n ± 0%   917.5n ± 0%  -89.97% (p=0.000 n=10)
+    geomean        878.2n        149.6n       -82.96%
+    
+                │  19df80d792  │               c8b0409d40               │
+                │     B/s      │      B/s       vs base                 │
+    AESCTR/50-8   737.2Mi ± 0%   1773.3Mi ± 0%  +140.54% (p=0.000 n=10)
+    AESCTR/1K-8   848.5Mi ± 0%   7156.6Mi ± 0%  +743.40% (p=0.000 n=10)
+    AESCTR/8K-8   853.8Mi ± 0%   8509.9Mi ± 0%  +896.70% (p=0.000 n=10)
+    geomean       811.4Mi         4.651Gi       +486.94%
+    
+    Fixes #20967
+    Updates #39365
+    Updates #26673
+    
+    Co-authored-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: Iaeea29fb93a56456f2e54507bc25196edb31b84b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621958
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+
+ src/crypto/aes/_asm/ctr/ctr_amd64_asm.go | 127 ++++++
+ src/crypto/aes/_asm/ctr/go.mod           |  11 +
+ src/crypto/aes/_asm/ctr/go.sum           |   8 +
+ src/crypto/aes/ctr_amd64.s               | 494 +++++++++++++++++++++
+ src/crypto/aes/ctr_arm64.s               | 729 +++++++++++++++++++++++++++++++
+ src/crypto/aes/ctr_arm64_gen.go          | 213 +++++++++
+ src/crypto/aes/ctr_asm.go                | 134 ++++++
+ src/crypto/cipher/ctr_aes_test.go        | 231 ++++++++++
+ 8 files changed, 1947 insertions(+)

@@ -1,0 +1,19 @@
+commit 96c62b3b318403261c09826a27f5b58ef9f40be8
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Nov 1 11:03:41 2017 +0100
+
+    all: remove unnecessary return after skipping test
+    
+    testing.Skip{,f} will exit the test via runtime.Goexit. Thus, the
+    successive return is never reached and can be removed.
+    
+    Change-Id: I1e399f3d5db753ece1ffba648850427e1b4be300
+    Reviewed-on: https://go-review.googlesource.com/74990
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/go/internal/gccgoimporter/gccgoinstallation_test.go | 1 -
+ src/go/internal/gccgoimporter/importer_test.go          | 1 -
+ src/runtime/pprof/pprof_test.go                         | 2 --
+ 3 files changed, 4 deletions(-)

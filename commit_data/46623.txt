@@ -1,0 +1,15 @@
+commit f961d8e5b10c317b86efca18e19ef0f238032c0a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Sep 21 14:31:09 2021 -0700
+
+    runtime: add Func method benchmarks
+    
+    Change-Id: Ib76872c22b1be9e611199b84fd96b59beedf786c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351457
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/symtab_test.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

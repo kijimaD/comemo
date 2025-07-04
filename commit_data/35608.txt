@@ -1,0 +1,19 @@
+commit 7c1f361e253dbc61e2456c9778104da18f61a0a5
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Fri Jun 1 13:14:48 2018 +0300
+
+    test: add comments for all test actions
+    
+    Every action has a short annotation.
+    The errorCheck function has a comment adapted from errchk script.
+    
+    Removed redundant assigments to tmpDir.
+    
+    Change-Id: Ifdd1284de046a0ce2aad26bd8da8a8e6a7707a8e
+    Reviewed-on: https://go-review.googlesource.com/115856
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/run.go | 45 +++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 37 insertions(+), 8 deletions(-)

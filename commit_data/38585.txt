@@ -1,0 +1,22 @@
+commit ee2836048c5a5e48e35b7cb67303c3fe22728eca
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 25 12:32:41 2019 -0700
+
+    cmd/compile: change sinit.go functions into methods
+    
+    This will make it easier for subsequent CLs to track additional state
+    during package initialization scheduling.
+    
+    Passes toolstash-check.
+    
+    Updates #22326.
+    
+    Change-Id: I528792ad34f41a4be52951531eb7525a94c9f350
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169898
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/order.go |   6 +--
+ src/cmd/compile/internal/gc/sinit.go | 100 +++++++++++++++++++----------------
+ 2 files changed, 57 insertions(+), 49 deletions(-)

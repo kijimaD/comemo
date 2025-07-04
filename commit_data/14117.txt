@@ -1,0 +1,31 @@
+commit dda1b560ec03e3c5da82bef67322f6f4d16cd7eb
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Oct 10 22:35:27 2012 +0200
+
+    test: convert tests to run.go whenever possible.
+    
+    The other tests either need a complex procedure
+    or are architecture- or OS-dependent.
+    
+    Update #4139.
+    
+    R=golang-dev, daniel.morsing, iant
+    CC=golang-dev
+    https://golang.org/cl/6618062
+
+ test/ddd2.dir/ddd2.go                             | 16 +++++++++
+ test/{ => ddd2.dir}/ddd3.go                       |  5 ---
+ test/ddd2.go                                      | 15 ++------
+ test/fixedbugs/bug437.dir/x.go                    | 25 +++++++++++++
+ test/fixedbugs/bug437.go                          | 23 ++----------
+ test/interface/{ => embed1.dir}/embed0.go         |  2 --
+ test/interface/embed1.dir/embed1.go               | 43 +++++++++++++++++++++++
+ test/interface/embed1.go                          | 43 ++---------------------
+ test/interface/{ => private.dir}/private1.go      |  2 --
+ test/interface/private.dir/prog.go                | 33 +++++++++++++++++
+ test/interface/private.go                         | 32 ++---------------
+ test/interface/recursive1.dir/recursive1.go       | 15 ++++++++
+ test/interface/{ => recursive1.dir}/recursive2.go |  5 ---
+ test/interface/recursive1.go                      | 12 ++-----
+ test/run.go                                       |  5 ---
+ 15 files changed, 143 insertions(+), 133 deletions(-)

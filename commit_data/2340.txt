@@ -1,0 +1,14 @@
+commit 3b37b0283491582db7154352ea779b5d2b7ef332
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri May 29 13:44:30 2009 -0700
+
+    bug 149
+    
+    R=r
+    OCL=29612
+    CL=29612
+
+ src/cmd/gc/const.c                 | 5 ++++-
+ test/{bugs => fixedbugs}/bug149.go | 0
+ test/golden.out                    | 6 ------
+ 3 files changed, 4 insertions(+), 7 deletions(-)

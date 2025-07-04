@@ -1,0 +1,13 @@
+commit ef7c370a201b1aae90349b1e869493264a147baa
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 11 14:52:38 2009 -0800
+
+    typo
+    
+    Fixes #69.
+    
+    R=r
+    https://golang.org/cl/152082
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

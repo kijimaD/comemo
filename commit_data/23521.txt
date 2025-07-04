@@ -1,0 +1,14 @@
+commit 77132c810d66971318d898190c3ad02b3eedca40
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Jun 26 18:09:23 2015 +0200
+
+    runtime/race: enable tests that now pass
+    
+    These tests pass after cl/11417.
+    
+    Change-Id: Id98088c52e564208ce432e9717eddd672c42c66d
+    Reviewed-on: https://go-review.googlesource.com/11551
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/race/testdata/mop_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

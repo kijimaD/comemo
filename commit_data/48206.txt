@@ -1,0 +1,16 @@
+commit b8b3196375e6b5275ae05eba8ca04662f10ab047
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 24 15:45:11 2022 -0800
+
+    doc/go1.18: document method set limitation for method selectors
+    
+    For #51183.
+    For #47694.
+    
+    Change-Id: If47ae074c3cd9f73b2e7f6408749d9a7d56bd8d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387924
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

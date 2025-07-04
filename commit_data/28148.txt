@@ -1,0 +1,25 @@
+commit 448d3952af2e60eab7fddd0d8a7b8e0ea6905073
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Jul 12 16:54:36 2016 -0700
+
+    crypto/sha256: add examples for New, Sum256
+    
+    The goal for these examples is to show how to mirror the
+    functionality of the sha256sum Unix utility, a common checksumming
+    tool, using the Go standard library.
+    
+    Add a newline at the end of the input, so users will get the same
+    output if they type `echo 'hello world' | sha256sum`, since the
+    builtin shell echo appends a newline by default. Also use hex output
+    (instead of the shorter base64) since this is the default output
+    encoding for shasum/sha256sum.
+    
+    Change-Id: I0036874b3cc5ba85432bfcb86f81b51c4e0238fd
+    Reviewed-on: https://go-review.googlesource.com/24868
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/sha256/example_test.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

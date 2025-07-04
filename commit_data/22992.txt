@@ -1,0 +1,20 @@
+commit a4f4a46c28fdf6a2b0724bd779c9cf1bad32b066
+Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
+Date:   Tue May 12 16:47:40 2015 -0400
+
+    misc/cgo/testcshared: fix test for android.
+    
+    On android the generated header files are located in
+    pkg/$(go env GOOS)_$(go env GOARCH)_testcshared.
+    The test was broken since https://go-review.googlesource.com/9798.
+    
+    The installation path differs based on codegenArgs
+    (around src/cmd/go/build.go line 389), and the codegenArgs
+    is platform dependent.
+    
+    Change-Id: I01ae9cb957fb7676e399f3b8c067f24c5bd20b9d
+    Reviewed-on: https://go-review.googlesource.com/9980
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcshared/test.bash | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

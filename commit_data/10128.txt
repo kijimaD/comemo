@@ -1,0 +1,13 @@
+commit c92a499bc3b0be67f91a1be47f5359e1289ca732
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Oct 28 08:45:17 2011 +1100
+
+    misc/windows: allow to be used for amd64
+    
+    R=jdpoirier
+    CC=golang-dev
+    https://golang.org/cl/5305048
+
+ misc/windows/README       | 15 ++++++---------
+ misc/windows/package.bash |  4 ++--
+ 2 files changed, 8 insertions(+), 11 deletions(-)

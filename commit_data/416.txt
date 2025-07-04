@@ -1,0 +1,12 @@
+commit d544ddb5552a7b5603df81f16f28a6d6365d8ca4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 24 13:30:49 2008 -0700
+
+    - filed bug: label names in different scopes should not conflict
+    
+    R=r
+    OCL=13430
+    CL=13430
+
+ test/bugs/bug076.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

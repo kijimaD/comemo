@@ -1,0 +1,20 @@
+commit d7521704cebccd36c16df6f4ac229e3a757ed055
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Sep 8 21:45:36 2024 +0700
+
+    cmd/compile/internal/typecheck: simplify tcSlice
+    
+    types2 handles all constant-related bounds checks in user Go code now,
+    so it's safe to remove all constants checking in tcSlice function.
+    
+    Change-Id: Ia0dd4928d7122a6f62df10436bb4a3675ebf3357
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611676
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Tim King <taking@google.com>
+
+ src/cmd/compile/internal/typecheck/expr.go      | 10 +++------
+ src/cmd/compile/internal/typecheck/typecheck.go | 30 +------------------------
+ 2 files changed, 4 insertions(+), 36 deletions(-)

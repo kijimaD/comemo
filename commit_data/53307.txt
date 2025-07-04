@@ -1,0 +1,28 @@
+commit a965318ac051b112b61fcbbbfe4e0be00088abd7
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed May 24 14:16:38 2023 -0400
+
+    go/types: set correct Pos for T in struct{p.T}
+    
+    Previously, the field Var for T created for struct{p.T}
+    would use the Pos of the ast.Field, which coincides with p.
+    This change makes it use the Pos of T.
+    
+    Errors about the field type are still reported at the
+    position of the ast.Field (e.g. *p.T) not the field T.
+    
+    Fixes #60372
+    
+    Change-Id: I06000874f2018d47159493626da3d16e6716f4c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497882
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/types2/struct.go     | 4 ++--
+ src/go/types/struct.go                        | 4 ++--
+ src/internal/types/testdata/check/decls3.go   | 4 ++--
+ src/internal/types/testdata/examples/types.go | 8 ++++----
+ 4 files changed, 10 insertions(+), 10 deletions(-)

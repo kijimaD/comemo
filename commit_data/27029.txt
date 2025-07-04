@@ -1,0 +1,18 @@
+commit 1dad218da1239a8375b7fad5dd83e4a840e3fdbb
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 20 10:36:27 2016 -0400
+
+    cmd/link: move declarations into loops
+    
+    (Split out from CL 22205.)
+    
+    Change-Id: Id32698f48ce02b55c15b6f2842215e0ffdbf425b
+    Reviewed-on: https://go-review.googlesource.com/22298
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/elf.go   | 6 ++----
+ src/cmd/link/internal/ld/macho.go | 6 ++----
+ src/cmd/link/internal/ld/pe.go    | 6 ++----
+ 3 files changed, 6 insertions(+), 12 deletions(-)

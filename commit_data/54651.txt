@@ -1,0 +1,19 @@
+commit ede27fb4aca9ab103413aff71b254f10db2b302a
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Oct 9 13:31:25 2023 -0400
+
+    go/types: clarify semantics of Selection
+    
+    This is one of the more complex areas of the (pre-generics)
+    spec, and I'm probably not the only person who can never
+    remember all the details each time I need them.
+    
+    Change-Id: I25b3c46311df4db33357af5601c5e3586327dac2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533736
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/types2/selection.go | 33 ++++++++++++++++++++++++++++
+ src/go/types/selection.go                    | 33 ++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+)

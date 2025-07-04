@@ -1,0 +1,12 @@
+commit b35cef670453a02c94ffb814729cf26ae7186a97
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Mon Jan 23 09:26:14 2012 -0500
+
+    compress/flate: use append instead of slice+counter.
+    
+    R=rsc, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5561056
+
+ src/pkg/compress/flate/deflate.go | 31 +++++++++++++------------------
+ 1 file changed, 13 insertions(+), 18 deletions(-)

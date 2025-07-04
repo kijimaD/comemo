@@ -1,0 +1,25 @@
+commit 4e7e7ae1406c70d9cc0809ec11105a55a60a0b70
+Author: Eliza Weisman <eliza@buoyant.io>
+Date:   Wed Aug 31 19:16:18 2022 +0000
+
+    net/http: don't time out idle server connections after ReadHeaderTimeout
+    
+    Consistently wait for idle connections to become readable before
+    starting the ReadHeaderTimeout timer. Previously, connections with no
+    idle timeout skipped directly to reading headers, so the
+    ReadHeaderTimeout also included time spent idle.
+    
+    Fixes #54784
+    
+    Change-Id: Iff1a876f00311d03dfa0fbef5b577506c62f7c41
+    GitHub-Last-Rev: 09332743ad6d5a9eb1137adaade2810c583d38ca
+    GitHub-Pull-Request: golang/go#54785
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426895
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ src/net/http/serve_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 14 ++++++++++---
+ 2 files changed, 63 insertions(+), 3 deletions(-)

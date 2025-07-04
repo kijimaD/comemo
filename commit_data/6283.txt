@@ -1,0 +1,13 @@
+commit abb73a4a867431913e137718288a496cfb959ef3
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Sep 15 14:32:09 2010 -0700
+
+    fix line number printing
+    with //line directives.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2224041
+
+ src/cmd/gc/subr.c | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

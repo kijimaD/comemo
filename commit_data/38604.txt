@@ -1,0 +1,24 @@
+commit c90f6dd4966087d85e1dcafc02b64ecb0c7f4e7e
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Mar 28 00:53:19 2019 +1100
+
+    cmd/link: permit duplicate weak symbols
+    
+    Permit weak symbols to be duplicates - most external linkers allow
+    this and there are various situations where they can occur (including
+    retpoline and retguard).
+    
+    Fixes #29563
+    
+    Change-Id: I355493c847fbc8f670a85a643db65a4cf8f9883d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169658
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/testdata/issue29563.go      | 12 ++++++++++++
+ misc/cgo/test/testdata/issue29563/weak.go | 13 +++++++++++++
+ misc/cgo/test/testdata/issue29563/weak1.c | 11 +++++++++++
+ misc/cgo/test/testdata/issue29563/weak2.c | 11 +++++++++++
+ src/cmd/link/internal/loadelf/ldelf.go    |  5 +++++
+ 5 files changed, 52 insertions(+)

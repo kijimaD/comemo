@@ -1,0 +1,25 @@
+commit 9f26170a02327c7e03dff148faf278866a79f8b4
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Thu Feb 25 22:24:07 2016 -0500
+
+    net/url: support query string without values
+    
+    Previously, RawQuery was used to indicate the presence of a query
+    string in url.URL. However, this approach was not able to differentiate
+    between URLs that have no query string at all (http://foo.bar/) and
+    those that have a query with no values (http://foo.bar/?).
+    
+    Add a ForceQuery field to indicate the latter form of URL and use it
+    in URL.String to create a matching URL with a trailing '?'.
+    
+    Fixes #13488
+    
+    Change-Id: Ifac663c73d35759bc6c33a00f84ab116b9b81684
+    Reviewed-on: https://go-review.googlesource.com/19931
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/url/url.go      | 28 +++++++++++++++++-----------
+ src/net/url/url_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 11 deletions(-)

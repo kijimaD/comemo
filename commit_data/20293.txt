@@ -1,0 +1,15 @@
+commit 43345a118b9e68f7779914cc7a965a6b8a1d585e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 4 10:43:03 2014 -0700
+
+    go/parser: initialize file set even in only some tests are run
+    
+    Without this fix, some tests crashed (e.g. go test -run Invalid).
+    
+    LGTM=adonovan
+    R=adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/133580043
+
+ src/pkg/go/parser/error_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

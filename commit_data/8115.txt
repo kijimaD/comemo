@@ -1,0 +1,17 @@
+commit 57d0c26c01de5bfefd936cec3ef7f1c6f7926255
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Apr 15 01:21:18 2011 -0700
+
+    expvar: add Func for functions that return values that are JSON marshalable.
+    
+    Remove {Float,Int,String}Func, which are now redundant.
+    
+    Fixes #1684.
+    
+    R=rsc, r, r2
+    CC=golang-dev
+    https://golang.org/cl/4410041
+
+ src/pkg/expvar/expvar.go      | 37 +++++++++++++------------------------
+ src/pkg/expvar/expvar_test.go | 42 ++++++++----------------------------------
+ 2 files changed, 21 insertions(+), 58 deletions(-)

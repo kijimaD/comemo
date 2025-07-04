@@ -1,0 +1,25 @@
+commit 4b66502ddaa264257343aae58395ef8cd4176cfd
+Author: Achille Roussel <achille.roussel@gmail.com>
+Date:   Sat Apr 29 11:17:25 2023 -0700
+
+    syscall: fix opening of directories on wasip1
+    
+    Go programs targeting GOOS=wasip1 were failing to open directories when
+    executed with runtimes like wasmtime or wasmedge due to requesting
+    rights for operations that are not supported on directories such as
+    fd_read, fd_write, etc...
+    
+    This change addresses the issue by performing a second path_open when
+    observing EISDIR, and masking the requested rights to only ask for
+    permissions to perform operations supported by a directory.
+    
+    Change-Id: Ibf65acf4a38bc848a649f41dbd026507d8b63c82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490755
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/syscall/fs_wasip1.go | 87 +++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 83 insertions(+), 4 deletions(-)

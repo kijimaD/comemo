@@ -1,0 +1,14 @@
+commit 68209ed5e323d48a63d7bbb718a277c6fb426b47
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 17 14:08:52 2008 -0700
+
+    fix printing of -(1<<63)
+    
+    R=r
+    OCL=15441
+    CL=15445
+
+ src/runtime/print.c | 12 ++++++++----
+ test/golden.out     | 30 ++++--------------------------
+ test/printbig.go    | 12 ++++++++++++
+ 3 files changed, 24 insertions(+), 30 deletions(-)

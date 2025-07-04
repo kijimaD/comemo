@@ -1,0 +1,21 @@
+commit 2e4fe8bbf0b7ca8fa523c3219dbaa64cec22b5dc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 1 16:31:15 2023 -0700
+
+    go/types, types2: remove version check for more lenient constant handling in inference
+    
+    For #58671.
+    Fixes #60566.
+    
+    Change-Id: I746f99cdfd44b204dc90350fcfb3867e9b8b1da8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499997
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/infer.go          | 97 +++++++----------------
+ src/go/types/infer.go                             | 97 +++++++----------------
+ src/internal/types/testdata/examples/inference.go |  4 +-
+ 3 files changed, 58 insertions(+), 140 deletions(-)

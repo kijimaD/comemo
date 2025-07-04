@@ -1,0 +1,16 @@
+commit 7f417d8d6679fa0d6e8fdfee232a043706a414a0
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Fri Nov 18 23:11:50 2011 -0500
+
+    libmach: fix for Plan 9 build
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5316059
+
+ src/libmach/5db.c        |  2 +-
+ src/libmach/8db.c        | 12 ++++++------
+ src/libmach/executable.c | 16 +++++++++-------
+ src/libmach/machdata.c   | 10 +++++-----
+ src/libmach/sym.c        | 24 ++++++++++++------------
+ 5 files changed, 33 insertions(+), 31 deletions(-)

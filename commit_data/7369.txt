@@ -1,0 +1,12 @@
+commit f8404ee3e1a19cff8c32b7b85889805f8325b81c
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Feb 4 09:29:08 2011 -0800
+
+    spec: fix Typeof() return type
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4121058
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

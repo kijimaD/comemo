@@ -1,0 +1,22 @@
+commit ed467db6d8db16dcc2956d85f0ce114635e12f06
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 29 12:36:59 2013 -0700
+
+    cmd/cc,runtime: change preprocessor to expand macros inside of
+    #pragma textflag and #pragma dataflag directives.
+    Update dataflag directives to use symbols instead of integer constants.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13310043
+
+ src/cmd/cc/dpchk.c           | 28 ++++++++++++++++++++++++++--
+ src/cmd/ld/textflag.h        | 10 +++++-----
+ src/pkg/runtime/hashmap.c    |  4 ++--
+ src/pkg/runtime/malloc.goc   |  2 +-
+ src/pkg/runtime/mgc0.c       |  3 ++-
+ src/pkg/runtime/os_linux.c   |  2 +-
+ src/pkg/runtime/os_plan9.c   |  2 +-
+ src/pkg/runtime/os_windows.c |  2 +-
+ src/pkg/runtime/sema.goc     |  3 ++-
+ 9 files changed, 41 insertions(+), 15 deletions(-)

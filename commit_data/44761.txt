@@ -1,0 +1,20 @@
+commit ba6b8e75ed16b3e9ecb305399e5ec2e29778e299
+Author: Shuhei Takahashi <nya@chromium.org>
+Date:   Mon Mar 22 13:35:49 2021 +0900
+
+    os/exec: avoid flaky Wait in TestContextCancel
+    
+    This change just increases the timeout to 1 minute to avoid test
+    flakiness.
+    
+    Fixes #42061
+    
+    Change-Id: Id258488ee8f062cd5e68b68bb5cf11e15fdbb396
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303351
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+
+ src/os/exec/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

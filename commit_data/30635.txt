@@ -1,0 +1,23 @@
+commit 26e726c3092264584053a4f81714dcc8c91d2153
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 10 17:17:23 2017 -0800
+
+    spec: remove superfluous terms "delimiter" and "special tokens"
+    
+    The (original) section on "Operators and Delimiters" introduced
+    superfluous terminology ("delimiter", "special token") which
+    didn't matter and was used inconsistently.
+    
+    Removed any mention of "delimiter" or "special token" and now
+    simply group the special character tokens into "operators"
+    (clearly defined via links), and "punctuation" (everything else).
+    
+    Fixes #19450.
+    
+    Change-Id: Ife31b24b95167ace096f93ed180b7eae41c66808
+    Reviewed-on: https://go-review.googlesource.com/38073
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

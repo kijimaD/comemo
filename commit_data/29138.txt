@@ -1,0 +1,16 @@
+commit 09692182fa79fcaf89aa08ccf74ad74562ccba04
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 27 12:43:37 2016 -0400
+
+    runtime: print sigcode on signal crash
+    
+    For #17496.
+    
+    Change-Id: I671a59581c54d17bc272767eeb7b2742b54eca38
+    Reviewed-on: https://go-review.googlesource.com/32183
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/signal_sighandler.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

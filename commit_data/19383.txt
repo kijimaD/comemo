@@ -1,0 +1,13 @@
+commit 37323fe05e1f142ba81bc5071a2d23517fd7de95
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat May 17 06:54:05 2014 +0900
+
+    doc/go1.3.html: update the state of supported platforms
+    
+    LGTM=r
+    R=golang-codereviews, aram, 0intro, gobot, r
+    CC=golang-codereviews
+    https://golang.org/cl/100490044
+
+ doc/go1.3.html | 65 ++++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 41 insertions(+), 24 deletions(-)

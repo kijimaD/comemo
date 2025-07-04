@@ -1,0 +1,21 @@
+commit adda7ad29551d0880df1805ae22401551b1fbfa8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 16 16:33:05 2016 -0700
+
+    cmd/compile/internal/gc: enable new parser by default
+    
+    Change-Id: I3c784986755cfbbe1b8eb8da4d64227bd109a3b0
+    Reviewed-on: https://go-review.googlesource.com/27203
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/main.go  |  2 +-
+ src/cmd/compile/internal/gc/noder.go |  1 +
+ src/go/types/stdlib_test.go          |  4 +---
+ test/alias2.go                       |  2 +-
+ test/fixedbugs/issue11610.go         |  8 ++------
+ test/nul1.go                         | 12 ++++--------
+ test/syntax/chan1.go                 | 10 +++-------
+ test/syntax/semi4.go                 |  4 ++--
+ 8 files changed, 15 insertions(+), 28 deletions(-)

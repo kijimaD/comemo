@@ -1,0 +1,17 @@
+commit abf84221fc35a03848cda60373adf484eafb3e1b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 10 16:05:07 2023 +0000
+
+    internal/trace/v2: disable cgo callback test if cgo is not available
+    
+    For #63960.
+    
+    Change-Id: I3d8d1567c4ee213e2ffd2bd91d0ffae9c4c42b92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541535
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/trace/v2/trace_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

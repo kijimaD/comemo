@@ -1,0 +1,35 @@
+commit f999e14f025b69516dd3e126d04dd309adb2fce0
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Apr 29 12:44:40 2014 -0400
+
+    all: spelling tweaks, A-G
+    
+    LGTM=ruiu, bradfitz
+    R=golang-codereviews, bradfitz, ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/91840044
+
+ src/cmd/cgo/out.go                    | 2 +-
+ src/pkg/archive/tar/reader_test.go    | 2 +-
+ src/pkg/bufio/bufio_test.go           | 2 +-
+ src/pkg/bufio/scan.go                 | 2 +-
+ src/pkg/bufio/scan_test.go            | 2 +-
+ src/pkg/compress/bzip2/bzip2_test.go  | 2 +-
+ src/pkg/compress/flate/inflate.go     | 2 +-
+ src/pkg/compress/flate/reader_test.go | 2 +-
+ src/pkg/compress/zlib/writer_test.go  | 2 +-
+ src/pkg/crypto/rsa/pkcs1v15.go        | 2 +-
+ src/pkg/crypto/rsa/pss.go             | 6 +++---
+ src/pkg/crypto/tls/conn.go            | 2 +-
+ src/pkg/database/sql/sql.go           | 4 ++--
+ src/pkg/database/sql/sql_test.go      | 2 +-
+ src/pkg/debug/elf/elf.go              | 2 +-
+ src/pkg/debug/goobj/read.go           | 2 +-
+ src/pkg/expvar/expvar.go              | 2 +-
+ src/pkg/fmt/doc.go                    | 2 +-
+ src/pkg/fmt/format.go                 | 2 +-
+ src/pkg/go/ast/commentmap.go          | 2 +-
+ src/pkg/go/doc/example.go             | 4 ++--
+ src/pkg/go/parser/parser.go           | 2 +-
+ src/pkg/go/printer/printer_test.go    | 6 +++---
+ 23 files changed, 29 insertions(+), 29 deletions(-)

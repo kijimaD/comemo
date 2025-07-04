@@ -1,0 +1,34 @@
+commit 781fd3998e3c1031379cf5709043a9c0e2987287
+Author: David Lazar <lazard@golang.org>
+Date:   Fri Feb 17 16:08:36 2017 -0500
+
+    runtime: use inlining tables to generate accurate tracebacks
+    
+    The code in https://play.golang.org/p/aYQPrTtzoK now produces the
+    following stack trace:
+    
+    goroutine 1 [running]:
+    main.(*point).negate(...)
+            /tmp/go/main.go:8
+    main.main()
+            /tmp/go/main.go:14 +0x23
+    
+    Previously the stack trace missed the inlined call:
+    
+    goroutine 1 [running]:
+    main.main()
+            /tmp/go/main.go:14 +0x23
+    
+    Fixes #10152.
+    Updates #19348.
+    
+    Change-Id: Ib43c67012f53da0ef1a1e69bcafb65b57d9cecb2
+    Reviewed-on: https://go-review.googlesource.com/37233
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/crash_test.go | 28 ++++++++++++++++++++++++++++
+ src/runtime/symtab.go     | 25 +++++++++++++++++++++++++
+ src/runtime/traceback.go  | 17 ++++++++++++++++-
+ 3 files changed, 69 insertions(+), 1 deletion(-)

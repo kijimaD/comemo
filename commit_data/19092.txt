@@ -1,0 +1,18 @@
+commit d7ac73c869cce4f8fe5978345d74de94c319b1c0
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Apr 10 06:37:30 2014 +0200
+
+    runtime: no longer skip stack growth test in short mode
+    
+    We originally decided to skip this test in short mode
+    to prevent the parallel runtime test to timeout on the
+    Plan 9 builder. This should no longer be required since
+    the issue was fixed in CL 86210043.
+    
+    LGTM=dave, bradfitz
+    R=dvyukov, dave, bradfitz
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/84790044
+
+ src/pkg/runtime/stack_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

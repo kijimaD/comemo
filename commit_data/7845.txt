@@ -1,0 +1,12 @@
+commit 538f63453d1572874dd905328eae401d6aa18f7a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 23 13:33:45 2011 -0400
+
+    CONTRIBUTORS: John DeNero, Sameer Ajmani (Google CLA)
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4274079
+
+ CONTRIBUTORS | 2 ++
+ 1 file changed, 2 insertions(+)

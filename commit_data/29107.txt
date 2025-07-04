@@ -1,0 +1,15 @@
+commit 03361fd350d4e3b53093bced838504b77e8775c7
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Oct 26 13:20:05 2016 -0700
+
+    bytes, strings: fix snake-case in variable name
+    
+    Change-Id: I40896fffbffefa359d08abda346933aa996f628d
+    Reviewed-on: https://go-review.googlesource.com/32124
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/bytes.go     | 12 ++++++------
+ src/strings/strings.go | 12 ++++++------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

@@ -1,0 +1,12 @@
+commit e430ee6cbacc9574cab5a507013fe3ea11783cba
+Author: Rob Pike <r@golang.org>
+Date:   Sat Sep 4 10:40:00 2010 +1000
+
+    test/turing: refactor
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/2116043
+
+ test/turing.go | 51 ++++++++++++++++++++++++---------------------------
+ 1 file changed, 24 insertions(+), 27 deletions(-)

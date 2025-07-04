@@ -1,0 +1,18 @@
+commit c8fe9c7606cd00e2b68d0b619d81edc92e4e7ec7
+Author: Andrew Radev <andrey.radev@gmail.com>
+Date:   Mon Oct 29 22:10:59 2012 +1100
+
+    misc/vim: fix reimport guard and remove K mapping.
+    
+    The "did_ftplugin" lines were ineffective and the "K" mapping was too
+    invasive, which is why it was removed.
+    
+    R=golang-dev, dsymonds, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6823044
+
+ misc/vim/ftplugin/go/fmt.vim    |  5 +++++
+ misc/vim/ftplugin/go/godoc.vim  | 13 -------------
+ misc/vim/ftplugin/go/import.vim |  4 +++-
+ misc/vim/readme.txt             |  1 -
+ 4 files changed, 8 insertions(+), 15 deletions(-)

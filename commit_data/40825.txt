@@ -1,0 +1,21 @@
+commit 48989d519cbf2d7cb4a64de107f0471be67bcc3e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 18 12:35:55 2019 -0500
+
+    cmd/go: convert DevNull tests to script tests
+    
+    I'm hoping to eliminate testdata/src/go-cmd-test, so porting over
+    tests that assume its existence.
+    
+    Updates #28387
+    Updates #30316
+    
+    Change-Id: I20bae780a4eb87cc19cc1e8531b84ab4a8a3c255
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207608
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                       | 38 -----------------------------
+ src/cmd/go/testdata/script/devnull.txt      | 26 ++++++++++++++++++++
+ src/cmd/go/testdata/script/test_devnull.txt | 15 ------------
+ 3 files changed, 26 insertions(+), 53 deletions(-)

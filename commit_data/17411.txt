@@ -1,0 +1,15 @@
+commit d595b67a12f1ecc0839bc4ced7efae916ed5584d
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 29 11:16:53 2013 +1000
+
+    cmd/go: add -race flag to 'go list'
+    
+    Causes the package dependencies to include those for race detection.
+    Fixes #5653.
+    
+    R=golang-dev, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13236045
+
+ src/cmd/go/list.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

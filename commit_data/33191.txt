@@ -1,0 +1,31 @@
+commit 29ea82d072731aedb2c117bef3aecdb6d035a8d0
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Oct 20 17:04:17 2017 -0700
+
+    encoding/csv: add ParseError.RecordLine
+    
+    CL 72150 fixes #22352 by reverting the problematic parts of that CL
+    where the line number and column number were inconsistent with each other.
+    This CL adds back functionality to address the issue that CL 72150
+    was trying to solve in the first place. That is, it reports the starting
+    line of the record, so that users have a frame of reference to start with
+    when debugging what went wrong.
+    
+    In the event of gnarly CSV files with multiline quoted strings, a parse
+    failure likely occurs somewhere between the start of the record and
+    the point where the parser finally detected an error.
+    Since ParserError.{Line,Column} reports where the *error* occurs, we
+    add a RecordLine field to report where the record starts.
+    
+    Also take this time to cleanup and modernize TestRead.
+    
+    Fixes #19019
+    Fixes #22352
+    
+    Change-Id: I16cebf0b81922c35f75804c7073e9cddbfd11a04
+    Reviewed-on: https://go-review.googlesource.com/72310
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/csv/reader.go      |  43 +++--
+ src/encoding/csv/reader_test.go | 343 +++++++++++++++++-----------------------
+ 2 files changed, 168 insertions(+), 218 deletions(-)

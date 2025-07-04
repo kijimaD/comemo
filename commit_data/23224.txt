@@ -1,0 +1,28 @@
+commit 6d9df14fec6361a022c9732da0ac87fda7f9963f
+Author: Aamir Khan <syst3m.w0rm@gmail.com>
+Date:   Wed Jun 3 12:51:56 2015 +0900
+
+    text/template: refactor code to accomodate bi-state requirement for templates
+    
+    This is follow-up to CL10607
+    
+    - Refactor AddParseTree() to use t.associate()
+    - Refactor Parse() to use AddParseTree() to put entries into common structure
+    - Clone() should not put entry in t.tmpl for undefined template
+    - Clarify documentation for Templates()
+    - Clarify documentation for AddParseTree() to include the error case
+    
+    Updates #10910
+    Uodates #10926
+    
+    Includes test cases for most of the above changes
+    
+    Change-Id: I25b2fce6f9651272866f881acf44e4dbca04a4a8
+    Reviewed-on: https://go-review.googlesource.com/10622
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/text/template/multi_test.go | 67 +++++++++++++++++++++++++++++++++++++++++
+ src/text/template/template.go   | 41 +++++++++++--------------
+ 2 files changed, 85 insertions(+), 23 deletions(-)

@@ -1,0 +1,12 @@
+commit 3ad995ea88230607dbb2ebd498b8d48dfc4e633e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 31 14:18:20 2010 -0700
+
+    strconv: fix comment for godoc
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2029042
+
+ src/pkg/strconv/quote.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

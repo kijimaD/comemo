@@ -1,0 +1,21 @@
+commit 480ef72c230f4f42447865716fc9f502ca032795
+Author: Florian Uekermann <florian@uekermann-online.de>
+Date:   Sat Jul 23 15:47:06 2011 -0400
+
+    sort: fixed bug in (Float64Slice) Less; NaN less than anything else
+    
+    Previously comparisons with NaN led to contradictory results if it was
+    compared to anything not NaN, since Less always returned false, thus
+    breaking monotonicity of ordering.
+    This fix makes NaN less than anything else and adds NaN and (+-)Inf to
+    testcases.
+    
+    Fixes #2092.
+    
+    R=golang-dev, r, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4805051
+
+ src/pkg/sort/sort.go      | 4 +++-
+ src/pkg/sort/sort_test.go | 3 ++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

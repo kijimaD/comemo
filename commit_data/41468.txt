@@ -1,0 +1,71 @@
+commit eb5cd0fb40f24d8480fd549ad36c34ed001ccf3d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Feb 16 17:00:52 2020 -0800
+
+    cmd/compile: mark Lsyms as readonly earlier
+    
+    The SSA backend has rules to read the contents of readonly Lsyms.
+    However, this rule was failing to trigger for many readonly Lsyms.
+    This is because the readonly attribute that was set on the Node.Name
+    was not propagated to its Lsym until the dump globals phase, after SSA runs.
+    
+    To work around this phase ordering problem, introduce Node.SetReadonly,
+    which sets Node.Name.Readonly and also configures the Lsym
+    enough that SSA can use it.
+    
+    This change also fixes a latent problem in the rewrite rule function,
+    namely that reads past the end of lsym.P were treated as entirely zero,
+    instead of merely requiring padding with trailing zeros.
+    
+    This change also adds an amd64 rule needed to fully optimize
+    the results of this change. It would be better not to need this,
+    but the zero extension that should handle this for us
+    gets optimized away too soon (see #36897 for a similar problem).
+    I have not investigated whether other platforms also need new
+    rules to take full advantage of the new optimizations.
+    
+    Compiled code for (interface{})(true) on amd64 goes from:
+    
+    LEAQ    type.bool(SB), AX
+    MOVBLZX ""..stmp_0(SB), BX
+    LEAQ    runtime.staticbytes(SB), CX
+    ADDQ    CX, BX
+    
+    to
+    
+    LEAQ    type.bool(SB), AX
+    LEAQ    runtime.staticbytes+1(SB), BX
+    
+    Prior to this change, the readonly symbol rewrite rules
+    fired a total of 884 times during make.bash.
+    Afterwards they fire 1807 times.
+    
+    file    before    after     Δ       %
+    cgo     4827832   4823736   -4096   -0.085%
+    compile 24907768  24895656  -12112  -0.049%
+    fix     3376952   3368760   -8192   -0.243%
+    pprof   14751700  14747604  -4096   -0.028%
+    total   120343528 120315032 -28496  -0.024%
+    
+    Change-Id: I59ea52138276c37840f69e30fb109fd376d579ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220499
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/order.go         |  2 +-
+ src/cmd/compile/internal/gc/sinit.go         | 10 +++---
+ src/cmd/compile/internal/gc/syntax.go        | 13 ++++++++
+ src/cmd/compile/internal/gc/walk.go          |  2 +-
+ src/cmd/compile/internal/ssa/gen/386.rules   |  4 +--
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  7 +++--
+ src/cmd/compile/internal/ssa/gen/ARM.rules   |  4 +--
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  6 ++--
+ src/cmd/compile/internal/ssa/gen/Wasm.rules  |  6 ++--
+ src/cmd/compile/internal/ssa/rewrite.go      | 47 ++++++++++++++--------------
+ src/cmd/compile/internal/ssa/rewrite386.go   |  8 ++---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 32 +++++++++++++++----
+ src/cmd/compile/internal/ssa/rewriteARM.go   |  8 ++---
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 12 +++----
+ src/cmd/compile/internal/ssa/rewriteWasm.go  | 12 +++----
+ 15 files changed, 103 insertions(+), 70 deletions(-)

@@ -1,0 +1,14 @@
+commit 01fc062496501416c2e5a9be335cf12aaefff06a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 27 18:48:29 2010 -0700
+
+    iterable: expose iterFunc as iterable.Func
+    
+    Fixes #483.
+    
+    R=dsymonds, dsymonds1
+    CC=golang-dev
+    https://golang.org/cl/965044
+
+ src/pkg/exp/iterable/iterable.go | 33 +++++++++++++++++----------------
+ 1 file changed, 17 insertions(+), 16 deletions(-)

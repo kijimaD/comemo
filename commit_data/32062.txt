@@ -1,0 +1,14 @@
+commit 3498012e79e7955513c5a39e193a7a4f7a6cf231
+Author: yansal <yannsalaun1@gmail.com>
+Date:   Wed Jul 19 23:04:36 2017 +0200
+
+    net/mail: Fix typo
+    
+    Fixes #21089
+    
+    Change-Id: Idd65c7185b3e19f33958eb165cb5b09c06db3d56
+    Reviewed-on: https://go-review.googlesource.com/50110
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/mail/message.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit e3982660a73b04a87c08215cb5aaa16d816ea573
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 15 13:46:00 2022 -0700
+
+    runtime: don't block preemption signal in new M's or ensureSigM
+    
+    No test because we already have a test in the syscall package.
+    The issue reports 1 failure per 100,000 iterations, which is rare enough
+    that our builders won't catch the problem.
+    
+    Fixes #52226
+    
+    Change-Id: I17633ff6cf676b6d575356186dce42cdacad0746
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400315
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/signal_unix.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,35 @@
+commit 4a9f0cec2918c855a23d5581c0b1da95eb11dd17
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 24 00:32:30 2021 -0700
+
+    cmd/compile: change irgen to generate exprs/stmts after decls processed
+    
+    This CL changes irgen to wait until all top-level declarations have
+    been processed before constructing any expressions or statements that
+    reference them. This is the same approach that typecheck used.
+    
+    Mechanically, it splits varDecl and funcDecl (the two top-level
+    declarations that can generate/contain code) into a part that runs
+    immediately for constructing the ir.ONAME, and then a separate task
+    that runs later to handle the code.
+    
+    It also adds an exprStmtOK flag to indicate when it's actually safe to
+    start constructing (non-trivial) expressions and statements.
+    
+    Fixes #47928.
+    
+    Change-Id: I51942af6823aa561d341e2ffc1142948da025fa2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344649
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/decl.go  | 122 ++++++++++++++++++--------------
+ src/cmd/compile/internal/noder/expr.go  |   2 +
+ src/cmd/compile/internal/noder/irgen.go |  27 ++++++-
+ src/cmd/compile/internal/noder/stmt.go  |   6 +-
+ test/fixedbugs/issue47928.go            |  21 ++++++
+ 5 files changed, 120 insertions(+), 58 deletions(-)

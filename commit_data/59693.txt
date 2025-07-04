@@ -1,0 +1,19 @@
+commit c684dfcb8a8fe38a8414bfd07b94e9995e5cd308
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu May 22 00:29:14 2025 +0000
+
+    runtime: don't spin looking for a tiny alloc address with asan or race
+    
+    CL 674655 modified the checkfinalizers test to spin looking for an
+    appropriate address to trip the detector, but this doesn't work with
+    ASAN or in race mode, which both disable the tiny allocator.
+    
+    Fixes #73834.
+    
+    Change-Id: I27416da1f29cd953271698551e9ce9724484c683
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675395
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/testdata/testprog/checkfinalizers.go | 31 +++++++++++++++---------
+ 1 file changed, 19 insertions(+), 12 deletions(-)

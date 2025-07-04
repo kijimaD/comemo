@@ -1,0 +1,15 @@
+commit 8d87ccad0bab75497b35e1e965ea64cd9c0d0e4e
+Author: Dan Sinclair <dan.sinclair@gmail.com>
+Date:   Fri Sep 24 12:23:01 2010 -0400
+
+    xml: Allow entities inside CDATA tags
+    
+    Fixes #1112.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2255042
+
+ src/pkg/xml/xml.go      |  2 +-
+ src/pkg/xml/xml_test.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

@@ -1,0 +1,28 @@
+commit 8ee2d5bc00c5cc2313d87e001961294907cee133
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 23 11:40:47 2017 -0700
+
+    cmd/compile: strengthen SetFields/Width safety guarantee
+    
+    It is currently possible in the compiler to create a struct type,
+    calculate the widths of types that depend on it,
+    and then alter the struct type.
+    
+    transformclosure has local protection against this.
+    Protect against it at a deeper level.
+    
+    This is preparation to call dowidth automatically,
+    rather than explicitly.
+    
+    This is a re-roll of CL 38469.
+    
+    Change-Id: Ic5b4baa250618504611fc57cbf51ab01d1eddf80
+    Reviewed-on: https://go-review.googlesource.com/38534
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go | 4 ----
+ src/cmd/compile/internal/gc/type.go    | 9 +++++++++
+ 2 files changed, 9 insertions(+), 4 deletions(-)

@@ -1,0 +1,20 @@
+commit 1a01cb22f9ab07d55ee61c95a34e1e18e49596c0
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Aug 24 10:58:51 2023 -0700
+
+    net/http: document when request bodies are closed in more places
+    
+    It isn't obvious that request bodies can be closed asynchronously,
+    and it's easy to overlook the documentation of this fact in
+    RoundTripper, which is a fairly low-level interface.
+    
+    Change-Id: I3b825c505418af7e1d3f6ed58f3704e55cf16901
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523036
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/net/http/client.go  | 3 ++-
+ src/net/http/request.go | 5 +++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)

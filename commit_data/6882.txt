@@ -1,0 +1,15 @@
+commit 37499ebcfdce3e17f3d9c42f69304a435ac37bb8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 13:53:19 2010 -0500
+
+    debug/elf, debug/macho: add ImportedLibraries, ImportedSymbols
+    
+    R=r, iant
+    CC=golang-dev
+    https://golang.org/cl/3470044
+
+ src/pkg/debug/elf/elf.go     |   9 ++-
+ src/pkg/debug/elf/file.go    | 161 ++++++++++++++++++++++++++++++++++++++-----
+ src/pkg/debug/macho/file.go  | 157 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/debug/macho/macho.go |  80 ++++++++++++++++++++-
+ 4 files changed, 384 insertions(+), 23 deletions(-)

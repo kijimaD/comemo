@@ -1,0 +1,16 @@
+commit 4c4a376736fff47b08ab6053605c3b68d87552b5
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 18 13:01:54 2020 -0700
+
+    runtime/debug: skip fault address test on unsupported platforms
+    
+    
+    Change-Id: I6a6fe616365fa542218fbc9ff61805ff70a1ef63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255999
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Keith Randall <khr@golang.org>
+
+ src/runtime/debug/panic_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

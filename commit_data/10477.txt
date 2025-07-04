@@ -1,0 +1,25 @@
+commit 750de28d6ceb5c42637b08fb87f2de2f826ed0eb
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue Nov 22 09:27:27 2011 +1100
+
+    html: ignore whitespace before <head> element
+    
+    Pass tests2.dat, test 47:
+    " \n "
+    (That is, two spaces separated by a newline)
+    
+    | <html>
+    |   <head>
+    |   <body>
+    
+    Also pass tests through test 49:
+    <!DOCTYPE html><script>
+    </script>  <title>x</title>  </head>
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5422043
+
+ src/pkg/html/parse.go      | 22 +++++++++++++++++++---
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 20 insertions(+), 4 deletions(-)

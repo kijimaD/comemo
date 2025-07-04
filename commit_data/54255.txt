@@ -1,0 +1,21 @@
+commit 22f9e0ef52a85b433c1c4bd202e6fde98446bfb4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Aug 26 19:44:21 2023 -0700
+
+    cmd/asm: stop using "" as the local package prefix
+    
+    Now that cmd/asm always knows its package path, we can create symbols
+    with the appropriate package prefix instead of "".
+    
+    Change-Id: I56864089e8f1b38ff4197b3158131f976b329572
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523336
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/operand_test.go | 36 +++++++++++++++++---------------
+ src/cmd/asm/internal/asm/parse.go        | 20 +++++++++++++++++-
+ src/cmd/asm/internal/lex/lex.go          |  8 ++-----
+ src/internal/abi/abi_test.go             |  2 +-
+ 4 files changed, 41 insertions(+), 25 deletions(-)

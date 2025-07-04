@@ -1,0 +1,13 @@
+commit a291e998c1c629af5a17ff431bd9380cb1530ba0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 25 10:01:51 2010 -0700
+
+    bug264: test case for issue 692
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/715042
+
+ test/bugs/bug264.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ test/golden.out     |  9 +++++++++
+ 2 files changed, 58 insertions(+)

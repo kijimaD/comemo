@@ -1,0 +1,20 @@
+commit e50bbae2de46f3baf377d4fe44b571e6d7f8e80c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Sep 12 10:45:54 2023 +0700
+
+    cmd/compile: remove typecheck.Orig* functions
+    
+    Same as CL 526397, but for typecheck.
+    
+    Change-Id: Ia8f19a54ffaa2ae3b86a4c66cbe6d973482796cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526236
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/loopvar/loopvar.go  | 19 ++++--------
+ src/cmd/compile/internal/staticinit/sched.go |  6 ++--
+ src/cmd/compile/internal/typecheck/const.go  | 45 ----------------------------
+ src/cmd/compile/internal/walk/builtin.go     |  2 +-
+ 4 files changed, 8 insertions(+), 64 deletions(-)

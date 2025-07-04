@@ -1,0 +1,17 @@
+commit 63c910a670731eee559f7264e5aaf4147094e550
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Sun Mar 3 03:49:32 2024 +0000
+
+    lib/time: use consistent directory in mkzip usage message
+    
+    Change-Id: I6de70064222038d7d15557be9e85b66f944ac554
+    GitHub-Last-Rev: fe7d6e94903620a525584eceec00e4801de0faa2
+    GitHub-Pull-Request: golang/go#66021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568077
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ lib/time/mkzip.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

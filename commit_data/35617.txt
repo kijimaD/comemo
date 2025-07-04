@@ -1,0 +1,19 @@
+commit 5f2b4f26aa3ae79e6cfd3bd397d586d5a3ed9fec
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jun 7 12:17:40 2018 +0200
+
+    runtime: remove unused darwinVersion and getDarwinVersion
+    
+    They are unused since CL 114799.
+    
+    Also remove consts _CTL_KERN and _KERN_OSRELEASE previously used by
+    getDarwinVersion.
+    
+    Change-Id: I51b701e8effbe4dd4301b0e6d52e8885469032f4
+    Reviewed-on: https://go-review.googlesource.com/116955
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os_darwin.go | 28 +++-------------------------
+ 1 file changed, 3 insertions(+), 25 deletions(-)

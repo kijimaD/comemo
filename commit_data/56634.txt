@@ -1,0 +1,23 @@
+commit 587c3847da81aa7cfc3b3db2677c8586c94df13a
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed May 22 20:47:31 2024 +0200
+
+    math/rand/v2: add ChaCha8.Read
+    
+    Fixes #67059
+    Closes #67452
+    Closes #67498
+    
+    Change-Id: I84eba2ed787a17e9d6aaad2a8a78596e3944909a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587280
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/67059.txt                               |   1 +
+ doc/next/6-stdlib/99-minor/math/rand/v2/67059.md |   1 +
+ src/math/rand/rand.go                            |   1 +
+ src/math/rand/v2/chacha8.go                      |  66 +++++++++-
+ src/math/rand/v2/chacha8_test.go                 | 161 ++++++++++++++++++++++-
+ 5 files changed, 228 insertions(+), 2 deletions(-)

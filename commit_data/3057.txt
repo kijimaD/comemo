@@ -1,0 +1,19 @@
+commit 30a2dabdc325f90a9f0b589e966cfb8897503d5b
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Aug 21 18:37:38 2009 -0700
+
+    Implement map types
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=329  (301 added, 2 deleted, 26 changed)
+    OCL=33696
+    CL=33706
+
+ usr/austin/eval/decls.go |  17 ++++++
+ usr/austin/eval/expr.go  | 150 +++++++++++++++++++++++++++++++++++++++++++----
+ usr/austin/eval/stmt.go  |  31 +++++++++-
+ usr/austin/eval/type.go  |  64 ++++++++++++++++----
+ usr/austin/eval/typec.go |  24 +++++++-
+ usr/austin/eval/value.go |  63 ++++++++++++++++++++
+ 6 files changed, 324 insertions(+), 25 deletions(-)

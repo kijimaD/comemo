@@ -1,0 +1,13 @@
+commit 72f2b56a67be0397b67679d3217b365006c5f019
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Feb 18 16:48:34 2014 +1100
+
+    run.bat: use double-colon to comment text
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/64980043
+
+ src/run.bat | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

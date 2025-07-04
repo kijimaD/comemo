@@ -1,0 +1,20 @@
+commit 0e1bcfc63886315fe16a958b03b4174d5cfa0cfa
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Feb 13 17:07:54 2018 +0100
+
+    runtime: add symbol for AT_FDCWD on Linux amd64 and mips64x
+    
+    Also order the syscall number list by numerically for mips64x.
+    
+    Follow-up for CL 92895.
+    
+    Change-Id: I5f01f8c626132a06160997fce8a2aef0c486bb1c
+    Reviewed-on: https://go-review.googlesource.com/93616
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/sys_linux_amd64.s   | 4 +++-
+ src/runtime/sys_linux_mips64x.s | 6 ++++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)

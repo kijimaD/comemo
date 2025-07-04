@@ -1,0 +1,21 @@
+commit 28ddfb090c2824d60e30007cf171b5dc1e8935e2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 2 13:02:25 2014 -0700
+
+    math/big: math.Exp should return result >= 0 for |m| > 0
+    
+    The documentation states that Exp(x, y, m)
+    computes x**y mod |m| for m != nil && m > 0.
+    In math.big, Mod is the Euclidean modulus,
+    which is always >= 0.
+    
+    Fixes #8822.
+    
+    LGTM=agl, r, rsc
+    R=agl, r, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/145650043
+
+ src/math/big/int.go      |  6 ++++++
+ src/math/big/int_test.go | 14 +++++++++++---
+ 2 files changed, 17 insertions(+), 3 deletions(-)

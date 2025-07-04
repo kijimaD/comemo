@@ -1,0 +1,18 @@
+commit 209865be7cbb95e745c1599507d5bde16c9f0b92
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 24 15:04:18 2009 -0700
+
+    convert Linux to auto-generated defs.h
+    
+    TBR=r
+    OCL=26686
+    CL=26688
+
+ src/runtime/darwin/signal.c    |   1 +
+ src/runtime/linux/amd64/defs.h | 203 +++++++++++++++++++++++++++++++++--------
+ src/runtime/linux/defs.c       |  42 +++++++++
+ src/runtime/linux/defs1.c      |  25 +++++
+ src/runtime/linux/os.h         |  10 ++
+ src/runtime/linux/signal.c     | 193 +++++++++------------------------------
+ src/runtime/linux/thread.c     |   7 +-
+ 7 files changed, 292 insertions(+), 189 deletions(-)

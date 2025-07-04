@@ -1,0 +1,18 @@
+commit 9442c4429a7fe18aba304f8d239c4ca10ab598ad
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 6 15:41:17 2012 +0900
+
+    net: add skip message to test
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5753048
+
+ src/pkg/net/multicast_test.go |  3 +++
+ src/pkg/net/net_test.go       |  1 +
+ src/pkg/net/parse_test.go     |  4 +++-
+ src/pkg/net/server_test.go    |  1 +
+ src/pkg/net/timeout_test.go   | 12 +++++++++---
+ src/pkg/net/udp_test.go       |  4 +++-
+ src/pkg/net/unicast_test.go   |  7 +++++++
+ 7 files changed, 27 insertions(+), 5 deletions(-)

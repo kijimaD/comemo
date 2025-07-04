@@ -1,0 +1,17 @@
+commit 3a9d906edcfd0fa574ecd5498f8999b56f1e5fa1
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Tue May 25 16:24:41 2021 +0200
+
+    os: avoid finalizer race in windows process object
+    
+    If proc.Release is called concurrently, a handle will be double-freed.
+    
+    Change-Id: I0c0c32e312e07bc8615e0bf9e9b691214444d8d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322510
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/exec_windows.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

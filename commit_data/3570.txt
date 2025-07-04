@@ -1,0 +1,19 @@
+commit 738c58ca7548aa1b560586b993995fbfab07cb8f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 15 22:52:11 2009 -0700
+
+    improved handling of expression lists
+    
+    R=rsc
+    DELTA=189  (118 added, 9 deleted, 62 changed)
+    OCL=35816
+    CL=35821
+
+ src/pkg/go/printer/printer.go                   | 110 ++++++++++++++----------
+ src/pkg/go/printer/testdata/declarations.go     |  44 ++++++++++
+ src/pkg/go/printer/testdata/declarations.golden |  53 +++++++++++-
+ src/pkg/go/printer/testdata/expressions.golden  |   3 +-
+ src/pkg/go/printer/testdata/expressions.raw     |   3 +-
+ src/pkg/go/printer/testdata/linebreaks.golden   |  33 +++----
+ src/pkg/go/printer/testdata/statements.golden   |   3 +-
+ 7 files changed, 179 insertions(+), 70 deletions(-)

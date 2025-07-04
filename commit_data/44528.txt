@@ -1,0 +1,27 @@
+commit a2f70672334ecc71c81bd1f424e1734485d8cb83
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Feb 18 17:33:01 2021 +0000
+
+    reflect: include the alignment of zero-sized types in stack offsets
+    
+    This change modifies the reflect ABI assignment algorithm to catch
+    zero-sized types at the top level of each argument and faux-stack-assign
+    them. It doesn't actually generate an ABI step, which is unnecessary,
+    but it ensures that the offsets of further stack-assigned arguments are
+    aligned to the alignment of that zero-sized argument.
+    
+    This change is necessary to have the register ABI assignment algorithm
+    gracefully degrade to ABI0 when no registers are present in the ABI.
+    
+    Fixes #44377.
+    
+    Change-Id: Ia95571688a61259302bb3c6d5fb33fbb6b5e8db8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293789
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Than McIntosh <thanm@google.com>
+
+ src/reflect/abi.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

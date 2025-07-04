@@ -1,0 +1,14 @@
+commit 3bcdbe57b6847e5fc3ab16016f5f66d9960fff97
+Author: Sarah Adams <shadams@google.com>
+Date:   Mon Jun 5 15:45:04 2017 -0700
+
+    database/sql: properly document QueryRow
+    
+    Fixes golang/go#20163
+    
+    Change-Id: I0caf95fc84aa502715848151c93b6e7bee003ea5
+    Reviewed-on: https://go-review.googlesource.com/44890
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/sql.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

@@ -1,0 +1,15 @@
+commit c02e4ae41aea1b2ff537b9da117e412b5b4d7f52
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 9 14:47:29 2009 -0800
+
+    hgtags: tag release.2009-12-07 (where gccgo is)
+       and release.2009-12-09 (where we are)
+    
+    shorten tags because it is too hard to look up the
+    full size hash and overkill anyway.
+    
+    R=r
+    https://golang.org/cl/171047
+
+ .hgtags | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

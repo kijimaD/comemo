@@ -1,0 +1,16 @@
+commit 28b655ea071f3c100f239ab3eb2e32b55feca289
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 21 21:30:24 2009 -0700
+
+    more interface embedding tests
+    6g's error for I4 is not quite accurate
+    (it calls I4 a non-interface) but also
+    not a crash or infinite loop.
+    
+    R=iant
+    DELTA=15  (15 added, 0 deleted, 0 changed)
+    OCL=33701
+    CL=33709
+
+ test/fixedbugs/bug195.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

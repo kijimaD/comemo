@@ -1,0 +1,21 @@
+commit 4d39bb6a3a06a7690242559113b7434591e97cbf
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 16 15:31:50 2015 -0500
+
+    runtime: make mcache.tiny a uintptr
+    
+    mcache.tiny is in non-GC'd memory, but points to heap memory. As a
+    result, there may or may not be write barriers when writing to
+    mcache.tiny. Make it clearer that funny things are going on by making
+    mcache.tiny a uintptr instead of an unsafe.Pointer.
+    
+    Change-Id: I732a5b7ea17162f196a9155154bbaff8d4d00eac
+    Reviewed-on: https://go-review.googlesource.com/16963
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/malloc.go | 8 ++++----
+ src/runtime/mcache.go | 4 ++--
+ 2 files changed, 6 insertions(+), 6 deletions(-)

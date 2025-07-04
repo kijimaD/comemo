@@ -1,0 +1,17 @@
+commit 0c62c93a097fbe72161dd354ea6f4026d8e33580
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 28 13:58:32 2015 -0700
+
+    runtime/cgo: use PTHREAD_{MUTEX,COND}_INITIALIZER
+    
+    Technically you must initialize static pthread_mutex_t and
+    pthread_cond_t variables with the appropriate INITIALIZER macro.  In
+    practice the default initializers are zero anyhow, but it's still good
+    code hygiene.
+    
+    Change-Id: I517304b16c2c7943b3880855c1b47a9a506b4bdf
+    Reviewed-on: https://go-review.googlesource.com/9433
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/cgo/gcc_libinit.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

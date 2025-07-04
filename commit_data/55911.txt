@@ -1,0 +1,17 @@
+commit 293fadffe7907dd4fc87201b8d9b7a186946639e
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Tue Mar 12 08:22:19 2024 +0000
+
+    cmd/covdata: fix typo in comment
+    
+    Change-Id: I14d2e58e36feb17a52fdc376a4562628e0da6698
+    GitHub-Last-Rev: 7e5d056dc5e0b9c009f5ed716ad4e9110551fe25
+    GitHub-Pull-Request: golang/go#66262
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570896
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/covdata/metamerge.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

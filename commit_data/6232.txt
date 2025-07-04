@@ -1,0 +1,17 @@
+commit dbc226d5a1dba021e386a9a90765d5f34cde9946
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 10 12:45:46 2010 -0700
+
+    test: Match gccgo error messages.
+    
+    gccgo does not handle 'new' specially here.
+    
+    varerr.go:10:6: error: reference to undefined name ‘asdf’
+    varerr.go:12:6: error: invalid left hand side of assignment
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2139045
+
+ test/varerr.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

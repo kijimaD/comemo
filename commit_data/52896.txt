@@ -1,0 +1,24 @@
+commit dace96b9a12905b34af609eedaa6b43e30e7cdb1
+Author: David Chase <drchase@google.com>
+Date:   Thu May 4 16:08:13 2023 -0400
+
+    cmd/compile: add "loop-transformed" (for whole loop) to logopt
+    
+    This is intended to support automated pairing of performance
+    regressions with transformed loops; there is already a POC
+    for doing this in the general missed-optimization case; the
+    difference here is the ability to describe an entire range,
+    which required some extra plumbing to acquire and publish
+    the ending line+column.
+    
+    Change-Id: Ibe606786f6be917b5a9a69d773560ed716a0754d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492717
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/escape/solve.go    |   5 +-
+ src/cmd/compile/internal/gc/main.go         |  42 +--------
+ src/cmd/compile/internal/logopt/log_opts.go |  57 ++++++++-----
+ src/cmd/compile/internal/loopvar/loopvar.go | 127 +++++++++++++++++++++++++++-
+ 4 files changed, 165 insertions(+), 66 deletions(-)

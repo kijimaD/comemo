@@ -1,0 +1,31 @@
+commit f1428b2910dc7dec28ff3caa08a2cc41496cff83
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 2 15:54:57 2009 -0700
+
+    Recognize gccgo error messages.
+    
+    (Amusing side note: the GNU coding standards say: Please do
+    not use the term "illegal" to refer to erroneous input to a
+    computer program.  Please use "invalid" for this, and reserve
+    the term "illegal" for activities prohibited by law.)
+    
+    indirect1.go:35:3: error: argument must be string or array or slice or map
+    indirect1.go:36:3: error: argument must be string or array or slice or map
+    indirect1.go:38:3: error: argument must be string or array or slice or map
+    indirect1.go:41:3: error: argument must be string or array or slice or map
+    indirect1.go:42:3: error: argument must be string or array or slice or map
+    indirect1.go:44:3: error: argument must be string or array or slice or map
+    indirect1.go:55:3: error: argument must be string or array or slice or map
+    indirect1.go:56:3: error: argument must be string or array or slice or map
+    indirect1.go:58:3: error: argument must be string or array or slice or map
+    indirect1.go:61:3: error: argument must be array or slice
+    indirect1.go:62:3: error: argument must be array or slice
+    indirect1.go:64:3: error: argument must be array or slice
+    
+    R=rsc
+    DELTA=12  (0 added, 0 deleted, 12 changed)
+    OCL=31081
+    CL=31088
+
+ test/indirect1.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

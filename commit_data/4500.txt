@@ -1,0 +1,13 @@
+commit eb109a765d1ac7b99568b3185594cd8430de0684
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 28 14:40:42 2009 -0800
+
+    Clarify section on tokens.
+    Fixes #457.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/181083
+
+ doc/go_spec.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit bb8c2e19a7fe2ca2283eca44dba2047c9f4307fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 20:50:11 2016 -0500
+
+    net: ensure that malformed domain names report a consistent error
+    
+    Previously it depended on whether we were using the Go resolver or the Cgo resolver.
+    
+    Fixes #12421.
+    
+    Change-Id: Ib162e336f30f736d7244e29d96651c3be11fc3cd
+    Reviewed-on: https://go-review.googlesource.com/18383
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/ip_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ src/net/lookup.go  | 21 +++++++++++++++++++++
+ 2 files changed, 66 insertions(+)

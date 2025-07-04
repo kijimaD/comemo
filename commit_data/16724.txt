@@ -1,0 +1,12 @@
+commit dff0c194464bf23fc924242885843426a91b8969
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 10 14:19:35 2013 -0700
+
+    go/format: fix failing test (fix build)
+    
+    R=khr
+    CC=golang-dev
+    https://golang.org/cl/11131043
+
+ src/pkg/go/format/format_test.go | 1 -
+ 1 file changed, 1 deletion(-)

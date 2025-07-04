@@ -1,0 +1,24 @@
+commit 89cfdda44dec9f1e4e7f9ac360638fecee2482c6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Feb 20 18:49:22 2016 -0800
+
+    cmd/compile: replace Order's use of NodeLists with slices
+    
+    Order's "temp" and "free" fields use NodeLists in a rather
+    non-idiomatic way.  Instead of using the "list" or "concat" functions,
+    it manipulates them directly and without the normal invariants (e.g.,
+    it doesn't maintain the "End" field).
+    
+    Rather than convert it to more typical usage, just replace with a
+    slice, which ends up much simpler anyway.
+    
+    Passes toolstash/buildall.
+    
+    Change-Id: Ibd0f24324bd674c0d5bb1bc40d073b01e7824ad5
+    Reviewed-on: https://go-review.googlesource.com/19776
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/order.go | 55 +++++++++++-------------------------
+ 1 file changed, 17 insertions(+), 38 deletions(-)

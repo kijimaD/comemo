@@ -1,0 +1,24 @@
+commit d396b9df10bcdb14f06c14b82c293a07ebdee77b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 6 14:50:58 2014 -0700
+
+    go/build: do not consider "android.go" to be android-specific
+    A file name must have a non-empty underscore-separated
+    prefix before its suffix matches GOOS. This is what the
+    documentation already said but is not what the code did.
+    
+    Fixes #8838.
+    
+    This needs to be called out in the release notes.
+    The he single affected file
+            code.google.com/p/go.text/collate/tools/colcmp/darwin.go
+    could use a renaming but works because it has a build tag inside.
+    
+    LGTM=adg, rsc
+    R=golang-codereviews, adg, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/147690043
+
+ src/go/build/build.go      | 12 ++++++++++++
+ src/go/build/build_test.go |  4 ++++
+ 2 files changed, 16 insertions(+)

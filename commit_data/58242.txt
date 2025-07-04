@@ -1,0 +1,23 @@
+commit 0dafae13605409231f410d329c86269b19814caa
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Nov 21 13:56:57 2024 -0500
+
+    reflect: add test of maps with keys larger than key size
+    
+    This finds the bug fixed in CL 630279.
+    
+    reflect mutates the SwissMapType of a map[unsafe.Pointer]unsafe.Pointer,
+    which happened to already have the correct GroupSize for all of the maps
+    used in the reflect tests.
+    
+    For #54766.
+    
+    Change-Id: If4428e1e799598e7512edceb3cefb2ad00cfa712
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630676
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/reflect/all_test.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

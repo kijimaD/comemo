@@ -1,0 +1,20 @@
+commit 7939c43748932c0caf1a1538410eb70fcd5a705f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Mar 31 19:13:39 2020 -0400
+
+    runtime: generate dummy duffcopy
+    
+    Although duffcopy is not used on PPC64, duff_ppc64x.s and
+    mkduff.go don't match. Make it so.
+    
+    Fixes #38188.
+    
+    Change-Id: Ic6c08e335795ea407880efd449f4229696af7744
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226719
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/duff_ppc64x.s | 6 ++----
+ src/runtime/mkduff.go     | 4 +++-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

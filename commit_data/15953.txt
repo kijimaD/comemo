@@ -1,0 +1,12 @@
+commit a101bfc6201ff81075a1ff57516a487d14e092aa
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 26 11:47:27 2013 -0700
+
+    doc/go1.1.html: net/mail, net/smtp
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7835049
+
+ doc/go1.1.html | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

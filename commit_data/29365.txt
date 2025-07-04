@@ -1,0 +1,16 @@
+commit 2c39e50995bb02325b2c17f253b10f5ada0e337f
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:50:48 2016 +0200
+
+    debug/elf: add support for GOARCH=mips{,le}
+    
+    Change-Id: Ia6f8ae7e56a49ad66b60a24c4afb606f3cfe5efd
+    Reviewed-on: https://go-review.googlesource.com/31482
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/debug/elf/file.go                              |  42 ++++++++++++++++++++-
+ src/debug/elf/file_test.go                         |  38 +++++++++++++++++++
+ .../testdata/go-relocation-test-gcc492-mipsle.obj  | Bin 0 -> 2864 bytes
+ .../testdata/go-relocation-test-gcc540-mips.obj    | Bin 0 -> 3064 bytes
+ 4 files changed, 79 insertions(+), 1 deletion(-)

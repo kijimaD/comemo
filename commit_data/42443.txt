@@ -1,0 +1,36 @@
+commit 58f017bcea3d2f3dbb898ba175fe09beb32b4eb6
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri May 29 16:01:08 2020 -0400
+
+    cmd/{compile,link}: fix problem with DWARF end_sequence ops
+    
+    During DWARF line table emission in the linker, prior to issuing a
+    DW_LNE_end_sequence op to mark the end of the line table for a
+    compilation unit, advance the PC to produce an address beyond the last
+    text address in the unit (this is required by the DWARF standard).
+    Because of the way that GDB interprets end-sequence ops, we were
+    effectively losing the last row in the line table for each unit, which
+    degraded the debugging experience.
+    
+    This problem has been around for a while, but has surfaced recently
+    due to changes in line table generation. Prior to Go 1.14, the DWARF
+    line table was emitted entirely in the linker, and a single monolithic
+    line table was created for each Go package (including functions from
+    assembly). In 1.14 we moved to having the compiler emit line table
+    fragments for each function, and having the linker stitch together the
+    fragments. As part of this change we moved to a model in which each
+    "go tool compile/asm" output has its own DWARF line table instance,
+    meaning that there are many more "end sequence" ops, which made the
+    problem more visible.
+    
+    Fixes #38192.
+    
+    Change-Id: Ic29e2f6e0ac952360c81fcba5268ad70b2b44184
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235739
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

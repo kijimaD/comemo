@@ -1,0 +1,25 @@
+commit 7f1c4b3afbc809afff6813eade571e3c3a4c0e15
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jan 2 15:20:19 2018 -0500
+
+    cmd/compile: disable "redundant zeroextensions" optimization for Select on AMD64
+    
+    A Select Op could produce a value with upper 32 bits NOT zeroed,
+    for example, Div32 is lowered to (Select0 (DIVL x y)).
+    
+    In theory, we could look into the argument of a Select to decide
+    whether the upper bits are zeroed. As it is late in release cycle,
+    just disable this optimization for Select for now.
+    
+    Fixes #23305.
+    
+    Change-Id: Icf665a2af9ccb0a7ba0ae00c683c9e349638bf85
+    Reviewed-on: https://go-review.googlesource.com/85736
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/compile/internal/ssa/rewrite.go |  6 +++++-
+ test/fixedbugs/issue23305.go            | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

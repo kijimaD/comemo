@@ -1,0 +1,15 @@
+commit d20a0bfc8a7fd70537766990691d4c9e5841e086
+Author: Hossein Zolfi <hossein.zolfi@gmail.com>
+Date:   Fri Dec 3 22:51:11 2021 +0330
+
+    doc/go1.18: change github.com/golang/go/issues to golang.org/issue
+    
+    Updates #47694
+    
+    Change-Id: I84547ff995e2a302cf229fefefd28a7220a17028
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369016
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Austin Clements <austin@google.com>
+
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

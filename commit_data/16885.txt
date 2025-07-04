@@ -1,0 +1,13 @@
+commit 29f17fb01ceedad4d76ec4442e0a3bd6a6717e09
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Jul 27 13:36:27 2013 +0400
+
+    net: temporary skip hanging test on windows
+    Update #5971.
+    
+    R=alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/11938046
+
+ src/pkg/net/timeout_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

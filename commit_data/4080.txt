@@ -1,0 +1,12 @@
+commit 597b2a91a62b79513e50e96fc464ae51cd35971b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 16 17:51:47 2009 -0800
+
+    runtime: make signal handler work on 386
+    
+    R=r
+    https://golang.org/cl/154171
+
+ src/pkg/runtime/darwin/386/sys.s | 23 +++++++++++++++++------
+ src/pkg/runtime/darwin/os.h      |  2 +-
+ 2 files changed, 18 insertions(+), 7 deletions(-)

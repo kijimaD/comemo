@@ -1,0 +1,14 @@
+commit 742be070b6109d32a5e91d13a75542aefc892ee1
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Thu Nov 8 12:52:47 2018 +0530
+
+    time: add a missing comma in the documentation of Time
+    
+    Updates #28421
+    
+    Change-Id: I3262c83669bc3cefd2cea6a612e3dc1d4318b2c2
+    Reviewed-on: https://go-review.googlesource.com/c/148339
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/time/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

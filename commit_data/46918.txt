@@ -1,0 +1,24 @@
+commit cf51fb5d680a9a1ca98af3361e65722d07bff111
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Oct 16 20:30:12 2021 -0700
+
+    cmd/compile, types2: avoid confusing follow-on error in invalid type assertion
+    
+    This CL avoids a useless follow-on error (that gets reported before the
+    actual error due to source position). This addresses the first part of
+    the issue below.
+    
+    Thanks to @cuonglm for the suggestion for the fix.
+    
+    For #49005.
+    
+    Change-Id: Ifdd83072a05c32e115dc58a0233868a64f336f3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356449
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/types2/typexpr.go |  7 +++++++
+ test/fixedbugs/issue49005a.go              | 13 +++++++++++++
+ 2 files changed, 20 insertions(+)

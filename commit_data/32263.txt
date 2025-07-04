@@ -1,0 +1,23 @@
+commit 9223adcc2c48f4b7f60ff10001bb35f028e6126a
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 14 15:39:19 2017 -0700
+
+    archive/tar: add support for atime and ctime to Writer
+    
+    Both the GNU and PAX formats support atime and ctime fields.
+    The implementation is trivial now that we have:
+    * support for formatting PAX records for timestamps
+    * dedicated methods that only handle one format (e.g., GNU)
+    
+    Fixes #17876
+    
+    Change-Id: I0c604fce14a47d722098afc966399cca2037395d
+    Reviewed-on: https://go-review.googlesource.com/55570
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/tar/common.go   | 10 +++++-----
+ src/archive/tar/tar_test.go | 28 ++++++++++++++++++++++++++++
+ src/archive/tar/writer.go   |  8 ++++++--
+ 3 files changed, 39 insertions(+), 7 deletions(-)

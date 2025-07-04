@@ -1,0 +1,36 @@
+commit 9cbd2fb1aa7ac3d4cd33442a93187d8549dbf1c4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jan 22 11:27:16 2014 +0400
+
+    runtime: remove locks from netpoll hotpaths
+    Introduces two-phase goroutine parking mechanism -- prepare to park, commit park.
+    This mechanism does not require backing mutex to protect wait predicate.
+    Use it in netpoll. See comment in netpoll.goc for details.
+    This slightly reduces contention between reader, writer and read/write io notifications;
+    and just eliminates a bunch of mutex operations from hotpaths, thus making then faster.
+    
+    benchmark                             old ns/op    new ns/op    delta
+    BenchmarkTCP4ConcurrentReadWrite           2109         1945   -7.78%
+    BenchmarkTCP4ConcurrentReadWrite-2         1162         1113   -4.22%
+    BenchmarkTCP4ConcurrentReadWrite-4          798          755   -5.39%
+    BenchmarkTCP4ConcurrentReadWrite-8          803          748   -6.85%
+    BenchmarkTCP4Persistent                    9411         9240   -1.82%
+    BenchmarkTCP4Persistent-2                  5888         5813   -1.27%
+    BenchmarkTCP4Persistent-4                  4016         3968   -1.20%
+    BenchmarkTCP4Persistent-8                  3943         3857   -2.18%
+    
+    R=golang-codereviews, mikioh.mikioh, gobot, iant, rsc
+    CC=golang-codereviews, khr
+    https://golang.org/cl/45700043
+
+ src/pkg/runtime/asm_386.s    |   6 +++
+ src/pkg/runtime/asm_amd64.s  |   6 +++
+ src/pkg/runtime/atomic_arm.c |  13 +++++
+ src/pkg/runtime/chan.c       |  18 +++++--
+ src/pkg/runtime/mgc0.c       |   2 +-
+ src/pkg/runtime/netpoll.goc  | 124 ++++++++++++++++++++++++++++---------------
+ src/pkg/runtime/proc.c       |  30 +++++++++--
+ src/pkg/runtime/runtime.h    |  42 ++++++++-------
+ src/pkg/runtime/sema.goc     |   6 +--
+ src/pkg/runtime/time.goc     |   4 +-
+ 10 files changed, 173 insertions(+), 78 deletions(-)

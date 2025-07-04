@@ -1,0 +1,58 @@
+commit f9be63b9ba583d093f74ebe233f55e9e1ac365ce
+Author: Damien Lespiau <damien.lespiau@intel.com>
+Date:   Wed Apr 19 19:24:27 2017 +0100
+
+    cmd/compile: provide a way to auto-discover -d debug keys
+    
+    Currently one needs to refer to the sources to have a list of accepted
+    debug keys. We can copy what 'ssa/help' does and introspect the list of
+    debug keys to print a more detailed help:
+    
+        $ go tool compile -d help
+        usage: -d arg[,arg]* and arg is <key>[=<value>]
+    
+        <key> is one of:
+    
+            append          print information about append compilation
+            closure         print information about closure compilation
+            disablenil      disable nil checks
+            dclstack        run internal dclstack check
+            gcprog          print dump of GC programs
+            nil             print information about nil checks
+            panic           do not hide any compiler panic
+            slice           print information about slice compilation
+            typeassert      print information about type assertion inlining
+            wb              print information about write barriers
+            export          print export data
+            pctab           print named pc-value table
+            ssa/help        print help about SSA debugging
+    
+        <value> is key-specific.
+    
+        Key "pctab" supports values:
+            "pctospadj", "pctofile", "pctoline", "pctoinline", "pctopcdata"
+    
+    For '-d help' to be discoverable, a hint is given in the -d flag
+    description.
+    
+    A last thing, today at least one go file needs to be provided to get to
+    the code printing ssa/help.
+    
+      $ go tool compile -d ssa/help foo.go
+    
+    Add a check so one can just do '-d help' or '-d ssa/help'
+    
+    Caught by trybot: I needed to update fmt_test.go as I'm introducing the
+    usage of %-*s in a format string.
+    
+    Fixes #20041
+    
+    Change-Id: Ib2858b038c1bcbe644aa3b1a371009710c6d957d
+    Reviewed-on: https://go-review.googlesource.com/41091
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/fmt_test.go         |  1 +
+ src/cmd/compile/internal/gc/main.go | 59 ++++++++++++++++++++++++++++---------
+ 2 files changed, 46 insertions(+), 14 deletions(-)

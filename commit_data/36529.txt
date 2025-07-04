@@ -1,0 +1,27 @@
+commit f78cc1324a95b964f932b965a82f3c786cb1d932
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jul 17 15:36:30 2018 -0400
+
+    cmd/link: move Plt, Got fields in sym.Symbol to cold section
+    
+    The sym.Symbol 'Plt' and 'Got' field are used only with cgo and/or
+    external linking and are not needed for most symbols. Relocate them to
+    sym.AuxSymbol so as to shrink the main Symbol struct.
+    
+    Updates #26186
+    
+    Change-Id: I170d628a760be300a0c1f738f0998970e91ce3d6
+    Reviewed-on: https://go-review.googlesource.com/125478
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go       | 28 +++++++++++-----------
+ src/cmd/link/internal/arm/asm.go         | 32 ++++++++++++-------------
+ src/cmd/link/internal/ld/data.go         | 10 ++++----
+ src/cmd/link/internal/loadpe/ldpe.go     |  4 ++--
+ src/cmd/link/internal/ppc64/asm.go       | 10 ++++----
+ src/cmd/link/internal/s390x/asm.go       | 16 ++++++-------
+ src/cmd/link/internal/sym/sizeof_test.go |  2 +-
+ src/cmd/link/internal/sym/symbol.go      | 40 +++++++++++++++++++++++++++++---
+ src/cmd/link/internal/sym/symbols.go     |  2 --
+ src/cmd/link/internal/x86/asm.go         | 24 +++++++++----------
+ 10 files changed, 100 insertions(+), 68 deletions(-)

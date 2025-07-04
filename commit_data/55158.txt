@@ -1,0 +1,22 @@
+commit d59bd25a30bbfc96d4123517f6f7b637c910e059
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Tue Nov 21 15:31:26 2023 -0800
+
+    runtime: test for contention in both semaphore paths
+    
+    Most contention on the runtime locks inside semaphores is observed in
+    runtime.semrelease1, but it can also appear in runtime.semacquire1. When
+    examining contention profiles in TestRuntimeLockMetricsAndProfile, allow
+    call stacks that include either.
+    
+    For #64253
+    
+    Change-Id: Id4f16af5e9a28615ab5032a3197e8df90f7e382f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544375
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Rhys Hiltner <rhys@justin.tv>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/metrics_test.go | 76 ++++++++++++++++++++++++++++++---------------
+ 1 file changed, 51 insertions(+), 25 deletions(-)

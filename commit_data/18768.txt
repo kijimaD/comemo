@@ -1,0 +1,17 @@
+commit 31731b27cd9001d399e0e3c38c149c51dacb22ac
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 5 16:01:37 2014 -0800
+
+    net/rpc/jsonrpc: add temporarily-disabled failing test
+    
+    To be enabled by https://golang.org/cl/71230045/
+    
+    Update #7442
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/69860056
+
+ src/pkg/net/rpc/jsonrpc/all_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

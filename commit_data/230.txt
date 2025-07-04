@@ -1,0 +1,15 @@
+commit 250a091922af9661dd1f190e74cdddf55ba331c4
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 25 20:58:35 2008 -0700
+
+    add plan 9 ar, which understands our symbol tables
+    
+    SVN=124761
+
+ src/cmd/ar/Makefile        |   24 +
+ src/cmd/ar/ar.c            | 1246 ++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/clean.bash         |    2 +-
+ src/cmd/make.bash          |    5 +
+ src/libmach_amd64/Makefile |    1 +
+ src/libmach_amd64/obj.c    |   32 ++
+ 6 files changed, 1309 insertions(+), 1 deletion(-)

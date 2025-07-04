@@ -1,0 +1,18 @@
+commit 896df422a7cecbace10f5877beeeb1476b6061ae
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Sep 3 09:56:23 2021 -0700
+
+    crypto/x509: support NumericString in DN components
+    
+    Fixes #48171
+    
+    Change-Id: Ia2e1920c0938a1f8659935a4f725a7e5090ef2c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347034
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/parser.go      |  13 ++++--
+ src/crypto/x509/parser_test.go | 102 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 112 insertions(+), 3 deletions(-)

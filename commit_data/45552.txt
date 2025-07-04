@@ -1,0 +1,19 @@
+commit 18e666bad75362ef7d031ebf557effdc42dd290f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 5 11:24:24 2021 -0400
+
+    cmd/go: skip TestExecInDeletedDir on aix and solaris-based platforms
+    
+    They empirically do not seem to support deleting the current working
+    directory.
+    
+    Updates #34499
+    
+    Change-Id: I705cdf8b545fbb837d5b75d2904a7c2a89276fa5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317249
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/go/go_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

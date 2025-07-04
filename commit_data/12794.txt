@@ -1,0 +1,8 @@
+commit 8e71ee3b75f12766089816dd28980d4150686367
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 28 23:44:45 2012 +1100
+
+    tag weekly.2012-03-27 and go1
+
+ .hgtags | 4 ++++
+ 1 file changed, 4 insertions(+)

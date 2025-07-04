@@ -1,0 +1,12 @@
+commit d2e70054c9c530214d9945fabbb82b2a7433644d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 25 13:44:30 2012 -0700
+
+    codereview: look for new release branches
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/6127048
+
+ lib/codereview/codereview.py | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

@@ -1,0 +1,16 @@
+commit 048c766e660e70e6e3779e479a2ab535b3865a21
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 19 16:19:05 2018 -0700
+
+    cmd/compile/internal/gc: minor code reorg (cleanup)
+    
+    Found while tracking down #26855.
+    
+    Change-Id: Ice137fe390820ba351e1c7439b6a9a1b3bdc966b
+    Reviewed-on: https://go-review.googlesource.com/136396
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

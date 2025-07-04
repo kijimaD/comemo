@@ -1,0 +1,13 @@
+commit 72084068a4e4fdb35f62350715aea289c96b1113
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Jan 24 14:12:54 2011 -0500
+
+    template: treat map keys as zero, not non-existent.
+    
+    R=adg, r, hoka, rsc
+    CC=golang-dev
+    https://golang.org/cl/4036045
+
+ src/pkg/template/template.go      |  5 ++++-
+ src/pkg/template/template_test.go | 41 ++++++++++++++++++++++++++++-----------
+ 2 files changed, 34 insertions(+), 12 deletions(-)

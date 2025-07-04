@@ -1,0 +1,22 @@
+commit bd83cc6dae36399f3c8fd99bd4ceea6570c70f5a
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Wed Mar 23 16:35:50 2016 +0100
+
+    cmd/compile: prettify loop iterations
+    
+    This commit replaces some of
+    
+    for i := len(x) - 1; i >= 0; i-- {...}
+    
+    style loops, which do not rely on reverse iteration order.
+    
+    Change-Id: I5542834286562da058200c06e7a173b13760e54d
+    Reviewed-on: https://go-review.googlesource.com/21044
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go         | 12 ++++++------
+ src/cmd/compile/internal/gc/main.go        |  4 +---
+ src/cmd/compile/internal/gc/typecheck.go   |  5 ++---
+ src/cmd/compile/internal/ssa/dom.go        |  7 +++----
+ src/cmd/compile/internal/ssa/stackalloc.go |  2 +-
+ 5 files changed, 13 insertions(+), 17 deletions(-)

@@ -1,0 +1,13 @@
+commit 5ae12e9c718b2f64289bd260c6d77f601f6254c3
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Sep 14 00:48:02 2015 -0400
+
+    cmd/cgo: update docs refering to 6g and 6l
+    
+    Change-Id: Id6cb5e3d40e8a2ded6359aa7fcdc012861cc3994
+    Reviewed-on: https://go-review.googlesource.com/14545
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/doc.go | 84 ++++++++++++++++++++++++++----------------------------
+ 1 file changed, 40 insertions(+), 44 deletions(-)

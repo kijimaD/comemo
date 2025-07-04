@@ -1,0 +1,15 @@
+commit 008048c5f4613c6b864c2e69ce795df9fa227e63
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Apr 15 15:11:51 2020 -0400
+
+    doc: add module retraction to release notes
+    
+    For #24031
+    
+    Change-Id: I9bd0905e9aacee4bec3463b7d91f6f0929744752
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228384
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.16.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

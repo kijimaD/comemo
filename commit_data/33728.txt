@@ -1,0 +1,19 @@
+commit a631daba5fe9d91ebdddd4148e8af82e07c1ae3e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 29 22:30:23 2017 +0000
+
+    os: remove skipped test on netbsd
+    
+    It must've been fixed since NetBSD 7.0. I can no longer reproduce it
+    with NetBSD 8-BETA (our new minimum NetBSD requirement).
+    
+    Fixes #19293
+    
+    Change-Id: I28f970ca41a53a037e1c6cddf1b7f286bda2d725
+    Reviewed-on: https://go-review.googlesource.com/80875
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/os_test.go | 2 --
+ 1 file changed, 2 deletions(-)

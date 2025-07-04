@@ -1,0 +1,20 @@
+commit b77f5f9667c6e5c2081d94163dd7d11c03fa2b8e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 23 15:55:11 2021 -0800
+
+    cmd/compile/internal/types2: better error message for missing ~ in constraint
+    
+    If a constraint could be satisfied if one of its type elements
+    had a ~, provide this information in the error message.
+    
+    Fixes #49179.
+    
+    Change-Id: I59f1a855a0646ad7254a978420b0334f1f52ec22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366758
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/instantiate.go     | 25 +++++++++++++++++++---
+ .../types2/testdata/fixedbugs/issue49179.go2       | 20 ++++++++++++++++-
+ src/cmd/compile/internal/types2/typeset.go         |  2 ++
+ 3 files changed, 43 insertions(+), 4 deletions(-)

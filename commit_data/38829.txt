@@ -1,0 +1,35 @@
+commit 248444d5eb91a26fa0b050172b22fc2cf7c72936
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 10 10:18:52 2019 -0400
+
+    cmd/link: apply DWARF relocations while doing compression
+    
+    We are preparing for applying relocations to the output buffer.
+    However, for DWARF compression, relocations need to be applied
+    before compression, but we don't have an output buffer at that
+    time. We also cannot delay DWARF compression to when we mmap the
+    output file, because we need the size of the DWARF sections to
+    compute the file size.
+    
+    Instead of applying all the relocations together, we apply
+    relocations in DWARF sections one symbol at a time, right before
+    it is writing out for compression. As the symbol content may be
+    in read-only memory (in the future), we use a temporary buffer
+    for applying the relocations, and immediately write it out.
+    
+    If compression is not used, relocations are still applied all
+    together.
+    
+    This is in preparation for mmap'ing input files read-only.
+    
+    Change-Id: Iae6d2dd71313897d5054bcc458d3bb78075b30c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171397
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/link/internal/ld/data.go  | 14 ++++++++++++++
+ src/cmd/link/internal/ld/dwarf.go |  7 ++++---
+ src/cmd/link/internal/ld/link.go  |  2 ++
+ src/cmd/link/internal/ld/main.go  |  2 +-
+ 4 files changed, 21 insertions(+), 4 deletions(-)

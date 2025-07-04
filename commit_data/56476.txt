@@ -1,0 +1,23 @@
+commit bbdad50c0909134ab474bdb4b0c3741f85b28ecd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 14 15:27:33 2024 -0400
+
+    doc/godebug: correct gotypealias=1 deprecation
+    
+    Per the note earlier in the page, GODEBUGs are maintained for a
+    minimum of two years (four Go releases). Not said but certainly
+    implied is that they are maintained for four Go releases from the
+    point where people started needing to use them.
+    
+    Since people would start needing gotypesalias=0 in Go 1.23,
+    it can be removed in Go 1.27.
+    
+    Change-Id: Ifad63a1fff63c3f96f2ee192ca74bd1ce8bdb61f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585457
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+
+ doc/godebug.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

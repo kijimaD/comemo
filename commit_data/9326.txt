@@ -1,0 +1,15 @@
+commit 83c734601c0d03bbe929c612f999ca3a128103f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 10 09:26:51 2011 -0400
+
+    json: fix []unmarshaler case
+    
+    Now that reflect has v.Addr(), we can use it.
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/4860041
+
+ src/pkg/json/decode.go      |  6 ++++++
+ src/pkg/json/decode_test.go | 11 ++++++++++-
+ 2 files changed, 16 insertions(+), 1 deletion(-)

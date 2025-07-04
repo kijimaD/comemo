@@ -1,0 +1,15 @@
+commit 4566868b41620ba47ef589d8bab9b0906c370cb6
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Tue Oct 18 15:58:10 2011 -0400
+
+    6l, 8l: emit macho dwarf info before linkedit section
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5272050
+
+ src/cmd/6l/asm.c   | 16 +++++++++++++---
+ src/cmd/8l/asm.c   | 16 +++++++++++++---
+ src/cmd/ld/lib.h   |  1 +
+ src/cmd/ld/macho.c |  2 +-
+ 4 files changed, 28 insertions(+), 7 deletions(-)

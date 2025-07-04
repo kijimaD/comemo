@@ -1,0 +1,12 @@
+commit 30ded16596246c719ede90acf45ecb31d8f428f6
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 11 16:29:07 2016 -0400
+
+    runtime: remove obsolete comment from scanobject
+    
+    Change-Id: I5ebf93b60213c0138754fc20888ae5ce60237b8c
+    Reviewed-on: https://go-review.googlesource.com/23131
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

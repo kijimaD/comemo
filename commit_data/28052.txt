@@ -1,0 +1,16 @@
+commit 307de6540a5e6e5c2353c410240bb0f98bab1624
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 7 16:21:53 2016 -0700
+
+    cmd/compile/internal/obj/x86: clean up "is leaf?" check
+    
+    Minor code cleanup. No functional changes.
+    
+    Change-Id: I2e631b43b122174302a182a1a286c0f873851ce6
+    Reviewed-on: https://go-review.googlesource.com/24813
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/x86/obj6.go | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)

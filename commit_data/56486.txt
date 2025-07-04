@@ -1,0 +1,35 @@
+commit bf0b605dfbc36b3555eef3315b15facca1c08bdb
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu May 9 18:16:59 2024 -0400
+
+    runtime: make convTstring write barrier unreachable from throw
+    
+    CL 581215 changed 'throw' so that instead of print(s) it called
+    a more complicated function, printpanicval, that statically
+    appeared to have convTstring in its call graph, even though this
+    isn't dynamically reachable when called with a string argument.
+    
+    However, this caused the link-time static callgraph test to point
+    out that throw (which is called in nowritebarrierrec contexts
+    such as markgc) reaches a write barrier.
+    
+    The solution is to inline and specialize the printpanicval
+    function for strings; it reduces to printindented.
+    
+    Thanks to mpratt for pointing out that the reachability
+    check is on the fully lowered code, and is thus sensitive
+    to optimizations such as inlining.
+    I added an explanatory comment on the line that generates
+    the error message to help future users confused as I was.
+    
+    Fixes golang/go#67274
+    
+    Change-Id: Ief110d554de365ce4c09509dceee000cbee30ad9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584617
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/ssagen/nowb.go | 8 ++++++++
+ src/runtime/panic.go                    | 5 ++---
+ 2 files changed, 10 insertions(+), 3 deletions(-)

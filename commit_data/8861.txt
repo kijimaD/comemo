@@ -1,0 +1,12 @@
+commit 3a4a581c49a62ec8c58809c2e108b825bafe6aa0
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 27 16:02:13 2011 -0400
+
+    sync: add benchmark for Once.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4650054
+
+ src/pkg/sync/once_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

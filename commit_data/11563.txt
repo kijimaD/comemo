@@ -1,0 +1,14 @@
+commit 69a5b23dc58a589f491e5524d3e32019a5de69b5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 2 11:49:28 2012 -0800
+
+    test: make map nan timing test more robust
+    
+    take 2
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5617045
+
+ test/map.go | 25 ++++++++++++++++++++-----
+ 1 file changed, 20 insertions(+), 5 deletions(-)

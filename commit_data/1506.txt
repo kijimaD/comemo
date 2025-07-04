@@ -1,0 +1,26 @@
+commit aedfb397aee33a971a44c6959f4759b3bbea0022
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 16 12:47:24 2009 -0800
+
+    casify misc
+    
+    R=r
+    DELTA=247  (20 added, 50 deleted, 177 changed)
+    OCL=22951
+    CL=22955
+
+ src/lib/http/request.go  |   2 +-
+ src/lib/http/url.go      |   2 +-
+ src/lib/io/io.go         |  12 ++---
+ src/lib/json/generic.go  |   2 +-
+ src/lib/malloc.go        |   2 +-
+ src/lib/net/dnsclient.go |   2 +-
+ src/lib/once.go          |  24 ++++-----
+ src/lib/once_test.go     |  14 ++---
+ src/lib/rand.go          | 133 ++++++++++++++++++----------------------------
+ src/lib/sort_test.go     |   6 +--
+ src/lib/strings.go       |  14 ++---
+ src/lib/strings_test.go  |  12 ++---
+ src/lib/utf8.go          | 134 +++++++++++++++++++++++------------------------
+ src/lib/utf8_test.go     |  23 ++++----
+ 14 files changed, 176 insertions(+), 206 deletions(-)

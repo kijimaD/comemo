@@ -1,0 +1,19 @@
+commit 683917a72154e3409e1ab5ef5b26030388312d0b
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Fri Apr 1 07:34:18 2016 +0200
+
+    all: use bytes.Equal, bytes.Contains and strings.Contains, again
+    
+    The previous cleanup was done with a buggy tool, missing some potential
+    rewrites.
+    
+    Change-Id: I333467036e355f999a6a493e8de87e084f374e26
+    Reviewed-on: https://go-review.googlesource.com/21378
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go          | 4 ++--
+ src/html/template/url.go       | 2 +-
+ src/net/http/serve_test.go     | 2 +-
+ src/path/filepath/path_test.go | 2 +-
+ src/runtime/gcinfo_test.go     | 2 +-
+ 5 files changed, 6 insertions(+), 6 deletions(-)

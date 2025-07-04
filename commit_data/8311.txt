@@ -1,0 +1,20 @@
+commit 4b30d7cead579335c486573f154567f813279b5e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 3 11:25:35 2011 -0700
+
+    http: improve a test
+    
+    Should prevent failures on slow machines, such as:
+    http://godashboard.appspot.com/log/47b5cae591b7ad8908704e327f3b9b41945d7d5fecfc0c8c945d5545ece1a813
+    
+    Verified the change (on a fast machine) by removing the
+    existing sleep, in which case the race happens ~50% of the
+    time with GOMAXPROCS > 1, but recovers gracefully with
+    retries.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4441089
+
+ src/pkg/http/transport_test.go | 44 +++++++++++++++++++++++++++++-------------
+ 1 file changed, 31 insertions(+), 13 deletions(-)

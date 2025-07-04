@@ -1,0 +1,16 @@
+commit 43c04ba1b8c81114d09c0f9f326987070e0ee291
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed Feb 27 19:47:14 2013 +0100
+
+    cmd/gc: don't emit type instructions for nonexisting locals
+    
+    If all locals are optimized away, the type instructions would stay in the instruction stream. Call fixautoused to scrub the output.
+    
+    Fixes #4915.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7385055
+
+ src/cmd/gc/pgen.c | 2 ++
+ 1 file changed, 2 insertions(+)

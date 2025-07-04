@@ -1,0 +1,13 @@
+commit d55cf5b80cf3232bdc2793a8362f9acd8a6f8442
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 17 18:37:47 2019 -0700
+
+    cmd/compile: remove toolstash bandage
+    
+    Change-Id: Ic33dfccf06681470bec19f66653fda67d9901095
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196118
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/op_string.go | 99 ++++++++++++++------------------
+ src/cmd/compile/internal/gc/syntax.go    |  1 -
+ 2 files changed, 44 insertions(+), 56 deletions(-)

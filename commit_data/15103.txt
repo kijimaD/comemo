@@ -1,0 +1,17 @@
+commit b2e0c34cf32a82cf808bfc54134a2cf1d8042429
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 3 01:25:47 2013 -0500
+
+    cmd/gc: remove reference to ? and @ symbols in error message
+    
+    Those symbols are only allowed during imports;
+    the parser may expect them but saying that doesn't help users.
+    
+    Fixes #3434.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7277045
+
+ src/cmd/gc/subr.c | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

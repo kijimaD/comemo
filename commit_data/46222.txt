@@ -1,0 +1,17 @@
+commit b06cfe9b25a9cd6ef6ff482b9cd08b2f709131b0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Aug 28 18:19:36 2021 -0700
+
+    cmd/compile/internal/types2: eliminate typeHashing global variable
+    
+    Instead, keep track of hashing mode with a typeWriter field.
+    Introduce a new constructor (newTypeHasher) to set the mode.
+    
+    Change-Id: Ie69cc0382532c75973794326be15c884b7fdcb76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345929
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/subst.go      | 13 ++++---------
+ src/cmd/compile/internal/types2/typestring.go | 19 ++++++++++++-------
+ 2 files changed, 16 insertions(+), 16 deletions(-)

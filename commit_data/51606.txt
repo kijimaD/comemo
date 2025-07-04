@@ -1,0 +1,31 @@
+commit 82f09b75ca181a6be0e594e1917e4d3d91934b27
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jan 10 11:29:25 2023 -0500
+
+    os/exec: avoid leaking an exec.Cmd in TestWaitInterrupt
+    
+    In CL 436655 I added a GODEBUG setting to this test process to verify
+    that Wait is eventually called for every exec.Cmd before it becomes
+    unreachable. However, the cmdHang test helpers in
+    TestWaitInterrupt/Exit-hang and TestWaitInterrupt/SIGKILL-hang
+    intentially leak a subprocess in order to simulate a leaky third-party
+    program, as Go users might encounter in practical use.
+    
+    To avoid tripping over the leak check, we call Wait on the leaked
+    subprocess in a background goroutine. Since we expect the process
+    running cmdHang to exit before its subprocess does, the call to Wait
+    should have no effect beyond suppressing the leak check.
+    
+    Fixes #57596.
+    Updates #52580.
+    Updates #50436.
+    
+    Change-Id: Ia4b88ea47fc6b605c27ca6d9d7669c874867a900
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460998
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/exec/exec_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,16 @@
+commit a5f064a3e127b1d54853822a608137d3539b578f
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Oct 5 12:08:28 2011 -0400
+
+    gc: limit helper threads based on ncpu
+    
+    When ncpu < 2, work.nproc is always 1 which results in infinite helper
+    threads being created if gomaxprocs > 1 and MaxGcproc > 1. Avoid this
+    by using the same limits as imposed helpgc().
+    
+    R=golang-dev, rsc, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/5176044
+
+ src/pkg/runtime/mgc0.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

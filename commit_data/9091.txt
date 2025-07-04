@@ -1,0 +1,12 @@
+commit e07c6e6ee78c20b78981591ebc2d0b6cb4094b21
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 15 12:07:37 2011 -0400
+
+    http: fixes for sniffing
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4753044
+
+ src/pkg/http/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

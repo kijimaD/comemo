@@ -1,0 +1,21 @@
+commit ffd9bd7e605cdd2eb66e38bad6e0d93b0d37963c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 21 11:14:41 2023 -0700
+
+    runtime: consider core PID in gdb test
+    
+    Add the PID to the core file name if the current system uses it
+    when generating core files.
+    
+    Fixes #61487
+    
+    Change-Id: I3b53a6c850c754795c8022921160f03c588d4c91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511659
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime-gdb_unix_test.go | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)

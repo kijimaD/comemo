@@ -1,0 +1,11 @@
+commit de663b2d6b025f5dd04de948b1a24324a049ff87
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Nov 6 13:50:58 2009 -0800
+
+    with rsc: argsize rounding to 8 smashes stack data on 32bit machines.
+    
+    R=rsc
+    http://go/go-review/1024011
+
+ src/cmd/cc/pgen.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

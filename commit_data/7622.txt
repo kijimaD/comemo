@@ -1,0 +1,19 @@
+commit 61fd11ef9658a214eb9c46ca2bd84aef7a994819
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 3 12:22:13 2011 -0800
+
+    http: allow handlers to send non-chunked responses
+    
+    Currently all http handlers reply to HTTP/1.1 requests with
+    chunked responses.  This patch allows handlers to opt-out of
+    that behavior by pre-declaring their Content-Length (which is
+    then enforced) and unsetting their Transfer-Encoding or
+    setting it to the "identity" encoding.
+    
+    R=rsc, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4245058
+
+ src/pkg/http/serve_test.go |  83 +++++++++++++++++++++++++++++
+ src/pkg/http/server.go     | 128 ++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 174 insertions(+), 37 deletions(-)

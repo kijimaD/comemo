@@ -1,0 +1,23 @@
+commit c485506b0aae298652448e80fca35036bfa755ac
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Aug 16 10:36:01 2019 -0700
+
+    time: update TestSub to avoid future regressions
+    
+    CL 131196 optimized Time.Sub, but was reverted because
+    it incorrectly computed the nanoseconds in some edge cases.
+    This CL adds a test case to enforce the correct behavior
+    so that a future optimization does not break this again.
+    
+    Updates #17858
+    Updates #33677
+    
+    Change-Id: I596d8302ca6bf721cf7ca11cc6f939639fcbdd43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190524
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/time_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

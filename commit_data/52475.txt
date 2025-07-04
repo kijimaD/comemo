@@ -1,0 +1,19 @@
+commit c5ccff405ee9ef6ae30ba2ac900feae4f5abbfd6
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Thu Mar 30 12:11:14 2023 -0700
+
+    cmd/dist: mark wasip1/wasm port as broken
+    
+    Mark the wasip1/wasm port as broken until it has been fully merged.
+    
+    Change-Id: I58592b43c82513b079c561673de99b41c94b11c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480655
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+
+ src/cmd/dist/build.go | 1 +
+ 1 file changed, 1 insertion(+)

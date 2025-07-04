@@ -1,0 +1,26 @@
+commit bcdc61d830be61fd5f371f4eb9c345f8dc9ada55
+Author: David Chase <drchase@google.com>
+Date:   Mon Aug 23 17:19:34 2021 -0400
+
+    cmd/compile: preserve statements better in expandCalls
+    
+    Arg/Load/Dereference rewriting was not using the best Pos for
+    translated values.  I also investigated whether OpCopy processing
+    was losing statements, and though they flood the debugging output,
+    doing the "obvious" thing of moving statement marks from copi-er to
+    copy-ee actually makes the resulting binary score slightly worse on
+    statement-boundary measures.
+    (for -N -l, 0.9994 vs 0.9995 from "nostmt -c sqle.test")
+    
+    Fixes #47793.
+    
+    Change-Id: I65cb878d0e5a3ceb5da4ef679020ca5f40e9b02b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344769
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 91 ++++++++++++++++------------
+ src/cmd/compile/internal/ssa/value.go        | 10 ++-
+ 2 files changed, 59 insertions(+), 42 deletions(-)

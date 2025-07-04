@@ -1,0 +1,14 @@
+commit 9ef8ebafe46668a3164d99e061c3e8ff652a0b07
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 26 11:28:23 2011 -0700
+
+    gc: patch y.tab.c to fix build when using Bison 2.5
+    
+    Fixes #1843.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4535101
+
+ src/cmd/gc/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

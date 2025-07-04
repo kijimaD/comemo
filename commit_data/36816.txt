@@ -1,0 +1,24 @@
+commit 0906d648aa173f65aaafd6296d43247b426f05f3
+Author: Austin Clements <austin@google.com>
+Date:   Sun Aug 26 21:33:26 2018 -0400
+
+    runtime: eliminate gchelper mechanism
+    
+    Now that we do no mark work during mark termination, we no longer need
+    the gchelper mechanism.
+    
+    Updates #26903.
+    Updates #17503.
+    
+    Change-Id: Ie94e5c0f918cfa047e88cae1028fece106955c1b
+    Reviewed-on: https://go-review.googlesource.com/c/134785
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go      | 68 +++----------------------------------
+ src/runtime/mgcmark.go  |  4 ---
+ src/runtime/proc.go     | 89 ++-----------------------------------------------
+ src/runtime/runtime2.go |  1 -
+ src/runtime/stack.go    |  4 +--
+ 5 files changed, 9 insertions(+), 157 deletions(-)

@@ -1,0 +1,15 @@
+commit a91fa9d52ea0bbcf4fbb712eb522976a75a18121
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 11 10:01:03 2010 -0800
+
+    Steps towards more flexible godoc:
+    The Mapping object implements a flexible
+    mapping of relative to absolute paths and
+    vice versa.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/206067
+
+ src/cmd/godoc/mapping.go | 176 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 176 insertions(+)

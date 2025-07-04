@@ -1,0 +1,10 @@
+commit 384c5bed2d921027085cd1f2d4eff9a2652b6513
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 6 14:02:48 2008 -0700
+
+    update golden.out for two versions of hello, world
+    
+    SVN=121479
+
+ test/golden.out | 2 ++
+ 1 file changed, 2 insertions(+)

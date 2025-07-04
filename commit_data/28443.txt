@@ -1,0 +1,15 @@
+commit 2e2db7a1704773082db547cbde70d8c0ce36a10c
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 16 16:56:29 2016 -0700
+
+    cmd/compile: fix format verbs in ssa package
+    
+    %s is no longer valid.  Use %v instead.
+    
+    Change-Id: I5ec4fa6a9280082c1a0c75fd1cf94b4bb8096f5c
+    Reviewed-on: https://go-review.googlesource.com/29365
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/location.go | 4 ++--
+ src/cmd/compile/internal/ssa/value.go    | 8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

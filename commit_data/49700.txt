@@ -1,0 +1,14 @@
+commit 54a0ab3f7b240dcd6829d636cff3a40d19d5b266
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 11:45:26 2022 -0400
+
+    runtime: tricky replacements of _g_ in os3_plan9.go
+    
+    Change-Id: I2a3ec71a33380b1215b9ab1ceb0a9b0e2bf7835b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418582
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/os3_plan9.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

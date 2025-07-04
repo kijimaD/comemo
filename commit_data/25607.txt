@@ -1,0 +1,17 @@
+commit 7ce2402baeac8a344af6868b9cee79bc33e3e3fb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 19 13:14:03 2016 -0800
+
+    cmd/compile: don't crash on invalid labeled statement
+    
+    Fixes #14006.
+    
+    Change-Id: Ia819073677ad6993c02255e23760ee21598427b4
+    Reviewed-on: https://go-review.googlesource.com/18736
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go |  7 +++-
+ test/fixedbugs/issue14006.go          | 64 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+), 1 deletion(-)

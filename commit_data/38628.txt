@@ -1,0 +1,34 @@
+commit 814c97b3133d0e5a8aa884e2ef752aaf7e7bd500
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 2 14:14:51 2019 -0700
+
+    runtime/internal/atomic: fix wasm's StorepNoWB implementation
+    
+    Package unsafe's safety rules require that pointers converted to
+    uintptr must be converted back to pointer-type before being stored
+    into memory. In particular, storing a pointer into a non-pointer-typed
+    expression does not guarantee the pointer stays valid, even if the
+    expression refers to a pointer-typed variable.
+    
+    wasm's StorepNoWB implementation violates these rules by storing a
+    pointer through a uintptr-typed expression.
+    
+    This happens to work today because esc.go is lenient in its
+    implementation of package unsafe's rules, but my escape analysis
+    rewrite follows them more rigorously, which causes val to be treated
+    as a non-leaking parameter.
+    
+    This CL fixes the issue by using a *T-typed expression, where T is
+    marked //go:notinheap so that the compiler still omits the write
+    barrier as appropriate.
+    
+    Updates #23109.
+    
+    Change-Id: I49bc5474dbaa95729e5c93201493afe692591bc8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170323
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/internal/atomic/atomic_wasm.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

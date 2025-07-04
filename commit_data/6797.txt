@@ -1,0 +1,14 @@
+commit 37b7e3db73e1a637091c55a3526e766c6b8413e8
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Mon Nov 29 14:31:24 2010 -0800
+
+    godoc: fix doc typo
+    
+    Consistently use 6060 as the port number.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3287042
+
+ src/cmd/godoc/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

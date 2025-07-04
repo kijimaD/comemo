@@ -1,0 +1,13 @@
+commit 7d975ae9c04ca7e1c605ac051a13a4d5ff99fca3
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Fri Jun 12 15:12:52 2020 +0800
+
+    A+C: change email address for Meng Zhuo
+    
+    Change-Id: I60965f6193256959055824749ed08ce86f6ba482
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237541
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit eabcc981c50d5695e796c347e97ae7d9b268fb42
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 17:02:30 2009 -0800
+
+    gofmt-ify crypto
+    
+    R=agl
+    CC=rsc
+    http://go/go-review/1017032
+
+ src/pkg/crypto/block/ecb_test.go   | 20 ++++++++++----------
+ src/pkg/crypto/block/xor_test.go   |  4 +---
+ src/pkg/crypto/tls/common.go       |  6 ++++--
+ src/pkg/crypto/tls/record_write.go | 10 ++++++++--
+ 4 files changed, 23 insertions(+), 17 deletions(-)

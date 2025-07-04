@@ -1,0 +1,13 @@
+commit 091fb779a1600994d7ddb7e02b4a9f124e8cecf1
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 10 14:47:28 2008 -0800
+
+    Protocol buffer encoding.
+    
+    R=rsc
+    DELTA=1075  (1028 added, 31 deleted, 16 changed)
+    OCL=18865
+    CL=18918
+
+ src/lib/reflect/type.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

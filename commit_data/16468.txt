@@ -1,0 +1,12 @@
+commit ec1769ba7b864c1523093958d7b107137ca1bf0a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jun 3 11:47:42 2013 +1000
+
+    doc: update linux tarball version for Go 1.1
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/9819044
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

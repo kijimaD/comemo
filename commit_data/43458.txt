@@ -1,0 +1,18 @@
+commit e313fd7448ed0dabf98dc725bee2361e905f208b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Jul 9 16:20:48 2020 -0400
+
+    runtime: drop unused work.ndone field
+    
+    This field is unused since golang.org/cl/134785 and thus can be
+    trivially removed.
+    
+    Change-Id: I1a87f8e78ffdf662440409404f0251c40bc56a4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241741
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgc.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,12 @@
+commit de2cf5113b3860d487ab6b9638521c91785486b7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 16 10:30:31 2013 +1000
+
+    doc/go1.2.txt: three-index slices are going into 1.2
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12931044
+
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

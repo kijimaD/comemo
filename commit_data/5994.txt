@@ -1,0 +1,13 @@
+commit 2bf8741c0f87bfe0c9b22718c3cd64fc6228ab42
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 10 16:55:02 2010 -0700
+
+    rpc: catch errors from ReadResponseBody.
+    Fixes #1014.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1941041
+
+ src/pkg/rpc/client.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

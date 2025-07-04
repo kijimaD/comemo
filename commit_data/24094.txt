@@ -1,0 +1,36 @@
+commit 7437e3f02e839d82d1818980376bdeea9c75c535
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Tue Aug 25 16:25:11 2015 +0000
+
+    cmd/asm: fix potential infinite loop in parser
+    
+    For ARM machines, the assembler supports list of registers
+    operands such as [R1,R2].
+    
+    A list missing a ']' results in the parser issuing many errors
+    and consuming all the tokens. At EOF (i.e. end of the line),
+    it still loops.
+    
+    Normally, a counter is maintained to make sure the parser
+    stops after 10 errors. However, multiple errors occuring on the
+    same line are simply ignored. Only the first one is reported.
+    At most one error per line is accounted.
+    
+    Missing ']' in a register list therefore results in an
+    infinite loop.
+    
+    Fixed the parser by explicitly checking for ']' to interrupt
+    this loops
+    
+    In the operand tests, also fixed a wrong entry which I think was
+    not set on purpose (but still led to a successful result).
+    
+    Fixes #11764
+    
+    Change-Id: Ie87773388ee0d21b3a2a4cb941d4d911d0230ba4
+    Reviewed-on: https://go-review.googlesource.com/13920
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/asm/internal/asm/operand_test.go | 3 ++-
+ src/cmd/asm/internal/asm/parse.go        | 9 +++++++--
+ 2 files changed, 9 insertions(+), 3 deletions(-)

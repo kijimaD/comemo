@@ -1,0 +1,73 @@
+commit 1dc20e91247d6013dd5c299ffe2fde45524decba
+Author: Alexander Döring <email@alexd.ch>
+Date:   Fri May 11 20:06:53 2018 +0200
+
+    math/big: specialize Karatsuba implementation for squaring
+    
+    Currently we use three different algorithms for squaring:
+    1. basic multiplication for small numbers
+    2. basic squaring for medium numbers
+    3. Karatsuba multiplication for large numbers
+    
+    Change 3. to a version of Karatsuba multiplication specialized
+    for x == y.
+    
+    Increasing the performance of 3. lets us lower the threshold
+    between 2. and 3.
+    
+    Adapt TestCalibrate to the change that 3. isn't independent
+    of the threshold between 1. and 2. any more.
+    
+    Fixes #23221.
+    
+    benchstat old.txt new.txt
+    name           old time/op  new time/op  delta
+    NatSqr/1-4     29.6ns ± 7%  29.5ns ± 5%     ~     (p=0.103 n=50+50)
+    NatSqr/2-4     51.9ns ± 1%  51.9ns ± 1%     ~     (p=0.693 n=42+49)
+    NatSqr/3-4     64.3ns ± 1%  64.1ns ± 0%   -0.26%  (p=0.000 n=46+43)
+    NatSqr/5-4     93.5ns ± 2%  93.1ns ± 1%   -0.39%  (p=0.000 n=48+49)
+    NatSqr/8-4      131ns ± 1%   131ns ± 1%     ~     (p=0.870 n=46+49)
+    NatSqr/10-4     175ns ± 1%   175ns ± 1%   +0.38%  (p=0.000 n=49+47)
+    NatSqr/20-4     426ns ± 1%   429ns ± 1%   +0.84%  (p=0.000 n=46+48)
+    NatSqr/30-4     702ns ± 2%   699ns ± 1%   -0.38%  (p=0.011 n=46+44)
+    NatSqr/50-4    1.44µs ± 2%  1.43µs ± 1%   -0.54%  (p=0.010 n=48+48)
+    NatSqr/80-4    2.85µs ± 1%  2.87µs ± 1%   +0.68%  (p=0.000 n=47+47)
+    NatSqr/100-4   4.06µs ± 1%  4.07µs ± 1%   +0.29%  (p=0.000 n=46+45)
+    NatSqr/200-4   13.4µs ± 1%  13.5µs ± 1%   +0.73%  (p=0.000 n=48+48)
+    NatSqr/300-4   28.5µs ± 1%  28.2µs ± 1%   -1.22%  (p=0.000 n=46+48)
+    NatSqr/500-4   81.9µs ± 1%  67.0µs ± 1%  -18.25%  (p=0.000 n=48+48)
+    NatSqr/800-4    161µs ± 1%   140µs ± 1%  -13.29%  (p=0.000 n=47+48)
+    NatSqr/1000-4   245µs ± 1%   207µs ± 1%  -15.17%  (p=0.000 n=49+49)
+    
+    go test -v -calibrate --run TestCalibrate
+    ...
+    Calibrating threshold between basicSqr(x) and karatsubaSqr(x)
+    Looking for a timing difference for x between 200 - 500 words by 10 step
+    words = 200 deltaT =     -980ns (  -7%) is karatsubaSqr(x) better: false
+    words = 210 deltaT =     -773ns (  -5%) is karatsubaSqr(x) better: false
+    words = 220 deltaT =     -695ns (  -4%) is karatsubaSqr(x) better: false
+    words = 230 deltaT =     -570ns (  -3%) is karatsubaSqr(x) better: false
+    words = 240 deltaT =     -458ns (  -2%) is karatsubaSqr(x) better: false
+    words = 250 deltaT =      -63ns (   0%) is karatsubaSqr(x) better: false
+    words = 260 deltaT =      118ns (   0%) is karatsubaSqr(x) better: true  threshold  found
+    words = 270 deltaT =      377ns (   1%) is karatsubaSqr(x) better: true
+    words = 280 deltaT =      765ns (   3%) is karatsubaSqr(x) better: true
+    words = 290 deltaT =      673ns (   2%) is karatsubaSqr(x) better: true
+    words = 300 deltaT =      502ns (   1%) is karatsubaSqr(x) better: true
+    words = 310 deltaT =      629ns (   2%) is karatsubaSqr(x) better: true
+    words = 320 deltaT =    1.011µs (   3%) is karatsubaSqr(x) better: true
+    words = 330 deltaT =     1.36µs (   4%) is karatsubaSqr(x) better: true
+    words = 340 deltaT =    3.001µs (   8%) is karatsubaSqr(x) better: true
+    words = 350 deltaT =    3.178µs (   8%) is karatsubaSqr(x) better: true
+    ...
+    
+    Change-Id: I6f13c23d94d042539ac28e77fd2618cdc37a429e
+    Reviewed-on: https://go-review.googlesource.com/105075
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/calibrate_test.go | 65 ++++++++++++++++++---------------
+ src/math/big/nat.go            | 81 ++++++++++++++++++++++++++++++++++++------
+ src/math/big/nat_test.go       | 14 ++++----
+ 3 files changed, 115 insertions(+), 45 deletions(-)

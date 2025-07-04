@@ -1,0 +1,24 @@
+commit baebc7f9939b8030d89d3b96d7bc6879452c9495
+Author: Keith Randall <khr@google.com>
+Date:   Mon Jul 16 10:45:25 2018 -0700
+
+    misc/cgo: fix darwin test, again
+    
+    TARGET_OS_OSX is the right macro, but it also was only introduced
+    in 1.12.  For 1.11 and earlier a reasonable substitution is
+    TARGET_OS_IPHONE == 0.
+    
+    Update #24161
+    Update #26355
+    
+    Change-Id: I5f43c463d14fada9ed1d83cc684c7ea05d94c5f3
+    Reviewed-on: https://go-review.googlesource.com/124075
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/issue24161e0/main.go | 2 +-
+ misc/cgo/test/issue24161e1/main.go | 2 +-
+ misc/cgo/test/issue24161e2/main.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

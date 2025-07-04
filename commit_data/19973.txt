@@ -1,0 +1,15 @@
+commit 4769f87e0d39cbcce5309ff79c82465629798d15
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Aug 11 17:10:23 2014 -0400
+
+    runtime: no need to set R9 to m for runtime.sigpanic anymore
+    
+    Replaces CL 123980043 which I created on the dev.power64 branch.
+    
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/123120043
+
+ src/pkg/runtime/signal_arm.c | 1 -
+ 1 file changed, 1 deletion(-)

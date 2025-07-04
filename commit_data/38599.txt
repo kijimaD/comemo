@@ -1,0 +1,22 @@
+commit 70ea70ecfda68abbc5b3c7703dc671f75adde645
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 27 14:59:10 2019 -0700
+
+    runtime: rename p racectx field to raceprocctx
+    
+    Both g and p had a racectx field, but they held different kinds of values.
+    The g field held ThreadState values while the p field held Processor values
+    (to use the names used in the C++ code in the compiler_rt support library).
+    Rename the p field to raceprocctx to reduce potential confusion.
+    
+    Change-Id: Iefba0e259d240171e973054c452c3c15bf3f8f8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169960
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc.go        | 10 +++++-----
+ src/runtime/race_amd64.s   |  2 +-
+ src/runtime/race_ppc64le.s |  2 +-
+ src/runtime/runtime2.go    |  2 +-
+ 4 files changed, 8 insertions(+), 8 deletions(-)

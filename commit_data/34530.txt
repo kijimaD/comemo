@@ -1,0 +1,18 @@
+commit 44e20b64ef7fd27d8ff0950e92b6a9ce4b881482
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jan 9 14:45:30 2018 -0500
+
+    cmd/compile: more String methods for prove types
+    
+    These aid in debugging.
+    
+    Change-Id: Ieb38c996765f780f6103f8c3292639d408c25123
+    Reviewed-on: https://go-review.googlesource.com/87476
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/fmt_test.go           |  1 +
+ src/cmd/compile/internal/ssa/prove.go | 36 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

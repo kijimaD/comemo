@@ -1,0 +1,16 @@
+commit 62237c2c8ef26767d61c9fb35adbf6a82de2b312
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 13 15:30:42 2017 -0800
+
+    runtime: if runtime is stale while testing, show StaleReason
+    
+    Update #19062.
+    
+    Change-Id: I7397b573389145b56e73d2150ce0fc9aa75b3caa
+    Reviewed-on: https://go-review.googlesource.com/36934
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/crash_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,24 @@
+commit 9b379d7e04750bbf6615cdfc1783db53c3d9bdc9
+Author: Andrew Williams <williams.andrew@gmail.com>
+Date:   Sun Jan 25 12:53:34 2015 -0600
+
+    syscall: relocate linux death signal code
+    
+    Fix bug on Linux SysProcAttr handling: setting both Pdeathsig and
+    Credential caused Pdeathsig to be ignored. This is because the kernel
+    clears the deathsignal field when performing a setuid/setgid
+    system call.
+    
+    Avoid this by moving Pdeathsig handling after Credential handling.
+    
+    Fixes #9686
+    
+    Change-Id: Id01896ad4e979b8c448e0061f00aa8762ca0ac94
+    Reviewed-on: https://go-review.googlesource.com/3290
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/exec_linux.go         |  40 +++++------
+ src/syscall/syscall_linux_test.go | 140 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 160 insertions(+), 20 deletions(-)

@@ -1,0 +1,13 @@
+commit c6e4697141a0d24886245eaa71f9c40d74a5f476
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Jul 28 16:33:52 2010 +0300
+
+    arm: fix build (dodgy floats)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1907041
+
+ test/arm-pass.txt   |  6 +++---
+ test/golden-arm.out | 20 --------------------
+ 2 files changed, 3 insertions(+), 23 deletions(-)

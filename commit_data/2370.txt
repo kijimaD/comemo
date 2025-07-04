@@ -1,0 +1,16 @@
+commit 7f9d2c8264138ff2512595288bc7b0fe5245ab68
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 2 23:22:25 2009 -0700
+
+    mechanically-generated syscall files
+    
+    R=r
+    DELTA=1615  (1615 added, 0 deleted, 0 changed)
+    OCL=29803
+    CL=29810
+
+ src/lib/syscall/zerrors_darwin_386.go  | 260 ++++++++++++++
+ src/lib/syscall/zsyscall_darwin_386.go | 624 +++++++++++++++++++++++++++++++++
+ src/lib/syscall/zsysnum_darwin_386.go  | 485 +++++++++++++++++++++++++
+ src/lib/syscall/ztypes_darwin_386.go   | 246 +++++++++++++
+ 4 files changed, 1615 insertions(+)

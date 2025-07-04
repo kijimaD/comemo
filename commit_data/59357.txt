@@ -1,0 +1,28 @@
+commit 702f164ed1a4a64cfa60e10723b9b7344bd3f601
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Apr 23 14:23:45 2025 -0400
+
+    cmd/vet: add hostport analyzer
+    
+    + test, release note
+    
+    Fixes #28308
+    
+    Change-Id: I190e2fe513eeb6b90b0398841f67bf52510b5f59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667596
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/3-tools.md                                |  13 +-
+ src/cmd/go/internal/test/flagdefs.go               |   1 +
+ src/cmd/go/internal/test/flagdefs_test.go          |   3 +
+ .../tools/go/analysis/passes/hostport/hostport.go  | 185 +++++++++++++++++
+ .../analysisinternal/typeindex/typeindex.go        |  33 +++
+ .../internal/typesinternal/typeindex/typeindex.go  | 223 +++++++++++++++++++++
+ src/cmd/vendor/modules.txt                         |   3 +
+ src/cmd/vet/main.go                                |   2 +
+ src/cmd/vet/testdata/hostport/hostport.go          |  17 ++
+ src/cmd/vet/vet_test.go                            |   1 +
+ 10 files changed, 478 insertions(+), 3 deletions(-)

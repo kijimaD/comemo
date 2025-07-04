@@ -1,0 +1,27 @@
+commit 8491fd311c5d4f38fda026129709306ab4787e87
+Author: zlasd <zlasd@hotmail.com>
+Date:   Thu Feb 9 14:03:45 2023 +0000
+
+    cmd/go: handle escapes in pkg-config ldflags output
+    
+    #16455 handled escapes in pkg-config output but only for cflags. The fix
+    for #41400 left a note that we don't need to parse quotes and unescapes,
+    but it is still necessary to handle spaces in pkg-config output. As cflags
+    has already been processed correctly, we apply the same logic to ldflags
+    here.
+    
+    Fixes #35262
+    
+    Change-Id: Id01d422b103780f67f89e99ff1df0d8f51a7a137
+    GitHub-Last-Rev: c67e5112130fa008397cfd0bc03e1de58201da86
+    GitHub-Pull-Request: golang/go#58429
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466875
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/go/go_test.go            | 16 ++++++++++++++++
+ src/cmd/go/internal/work/exec.go |  9 ++++++---
+ 2 files changed, 22 insertions(+), 3 deletions(-)

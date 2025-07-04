@@ -1,0 +1,26 @@
+commit 74af79bcf6b1efde7b91ac3e519338c6815efda9
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Mon May 22 22:40:47 2023 +0300
+
+    fmt,math/big,net/url: fixes to old Benchmarks
+    
+    b.ResetTimer used to also stop the timer, however it does not anymore.
+    These benchmarks hadn't been fixed and as a result ended up measuring
+    some additional things.
+    
+    Also, make some for loops more conventional.
+    
+    Change-Id: I76ca68456d85eec51722a80587e5b2c9f5d836a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496996
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/fmt/scan_test.go     | 12 ++++++------
+ src/math/big/int_test.go |  6 +-----
+ src/net/url/url_test.go  |  1 -
+ 3 files changed, 7 insertions(+), 12 deletions(-)

@@ -1,0 +1,35 @@
+commit 8fa14ea8b4744576bd28073901154c15813e29de
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 15 10:02:19 2015 -0700
+
+    cmd/internal/gc: unembed Name field
+    
+    This is an automated follow-up to CL 10120.
+    It was generated with a combination of eg and gofmt -r.
+    
+    No functional changes. Passes toolstash -cmp.
+    
+    Change-Id: I0dc6d146372012b4cce9cc4064066daa6694eee6
+    Reviewed-on: https://go-review.googlesource.com/10144
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/5g/ggen.go               |  2 +-
+ src/cmd/5g/gsubr.go              |  2 +-
+ src/cmd/6g/ggen.go               |  2 +-
+ src/cmd/7g/ggen.go               |  2 +-
+ src/cmd/8g/ggen.go               |  2 +-
+ src/cmd/8g/gsubr.go              |  2 +-
+ src/cmd/9g/ggen.go               |  2 +-
+ src/cmd/internal/gc/cgen.go      |  4 ++--
+ src/cmd/internal/gc/closure.go   | 28 ++++++++++++++--------------
+ src/cmd/internal/gc/esc.go       |  2 +-
+ src/cmd/internal/gc/gen.go       |  8 ++++----
+ src/cmd/internal/gc/gsubr.go     |  4 ++--
+ src/cmd/internal/gc/inl.go       | 22 +++++++++++-----------
+ src/cmd/internal/gc/pgen.go      |  4 ++--
+ src/cmd/internal/gc/plive.go     |  4 ++--
+ src/cmd/internal/gc/sinit.go     |  2 +-
+ src/cmd/internal/gc/syntax.go    |  2 +-
+ src/cmd/internal/gc/typecheck.go |  6 +++---
+ src/cmd/internal/gc/walk.go      |  2 +-
+ 19 files changed, 51 insertions(+), 51 deletions(-)

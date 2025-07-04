@@ -1,0 +1,13 @@
+commit 70c1a106e609f7d38f8fe7fb7c93070e999f2fba
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 18 19:23:59 2009 -0700
+
+    drop the ,ok switch; keep the straight type switch.
+    
+    R=rsc,gri
+    DELTA=97  (26 added, 42 deleted, 29 changed)
+    OCL=26436
+    CL=26527
+
+ doc/go_spec.html | 108 ++++++++++++++++++++++++-------------------------------
+ 1 file changed, 46 insertions(+), 62 deletions(-)

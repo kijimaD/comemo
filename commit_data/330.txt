@@ -1,0 +1,10 @@
+commit bb9d53e570cfdf4029a08891365feb1b0785b253
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 10 18:46:30 2008 -0700
+
+    - added buildtime
+    
+    SVN=126776
+
+ usr/gri/gosrc/go.go | 61 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)

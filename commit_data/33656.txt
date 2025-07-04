@@ -1,0 +1,14 @@
+commit 71aee2a190e6a26858b16a0974afdf976f2b0905
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 22 01:38:40 2017 +0000
+
+    doc: update the URL of the latest go1.4 source snapshot
+    
+    Updates golang/go#20672
+    
+    Change-Id: I3c62b1606aec93e188255f1701c0af569d540016
+    Reviewed-on: https://go-review.googlesource.com/79276
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/install-source.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

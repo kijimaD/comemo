@@ -1,0 +1,19 @@
+commit 9fbcba6664840ada5aaedb7f1a587d0cca1c9035
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Apr 14 23:36:14 2021 -0400
+
+    cmd/compile: in clobberdead mode, don't clobber slots that are live for defers
+    
+    There are stack slots that are kept live for defers, which are
+    tracked separately. Don't clobber them.
+    
+    Change-Id: Ib558345758b5a4fd89c7ff8a3fe08087059add21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310329
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/liveness/plive.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

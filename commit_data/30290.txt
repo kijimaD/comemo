@@ -1,0 +1,24 @@
+commit e31144f128e2a491845dc4fcc57d45e22fc1b963
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Feb 5 14:19:19 2017 +1100
+
+    cmd/link: set pe section and file alignment to 0 during external linking
+    
+    This is what gcc does when it generates object files.
+    And it is easier to count everything, when it starts from 0.
+    Make go linker do the same.
+    
+    gcc also does not output IMAGE_OPTIONAL_HEADER or
+    PE64_IMAGE_OPTIONAL_HEADER for object files.
+    Perhaps we should do the same, but not in this CL.
+    
+    For #10776.
+    
+    Change-Id: I9789c337648623b6cfaa7d18d1ac9cef32e180dc
+    Reviewed-on: https://go-review.googlesource.com/36974
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/amd64/obj.go |  2 +-
+ src/cmd/link/internal/ld/pe.go     | 25 ++++++++++++++++++-------
+ src/cmd/link/internal/x86/obj.go   |  2 +-
+ 3 files changed, 20 insertions(+), 9 deletions(-)

@@ -1,0 +1,12 @@
+commit 2784a3ea8527083a3d819272f879fa508dcca3b5
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Dec 17 08:46:07 2013 -0800
+
+    ld: fix Plan 9 build
+    
+    R=golang-dev, jas, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/43420043
+
+ src/cmd/ld/pobj.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

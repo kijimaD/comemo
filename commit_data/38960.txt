@@ -1,0 +1,20 @@
+commit 8e28cd19acc43437e7ccec25dd0572afd6b77f8a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 29 21:29:16 2019 -0400
+
+    cmd/go/internal/modfetch: fix concurrent read/write race in modfetch
+    
+    On Windows systems, the failure rate for cmd/go's TestScript/mod_concurrent
+    is somewhere around 3-10% without this change. With the change, I have yet
+    to see a failure.
+    
+    Fixes #31744.
+    
+    Change-Id: Ib321ebb9556dd8438086cf329dfa083a9e051732
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174439
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/sumdb.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

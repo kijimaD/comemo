@@ -1,0 +1,18 @@
+commit 27923482fa0b9684a2b672b3f88267d9858e3e79
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 4 17:12:28 2017 -0400
+
+    runtime: separate GC background utilization from goal utilization
+    
+    Currently these are the same constant, but are separate concepts.
+    Split them into two constants for easier experimentation and better
+    documentation.
+    
+    Change-Id: I121854d4fd1a4a827f727c8e5153160c24aacda7
+    Reviewed-on: https://go-review.googlesource.com/68570
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

@@ -1,0 +1,14 @@
+commit d0e29f28527cf08e18ed75aeb2059596a7a0668a
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Wed Jul 15 09:58:42 2009 -0700
+
+    Pretty printer for os.Waitmsg
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=49  (49 added, 0 deleted, 0 changed)
+    OCL=31568
+    CL=31671
+
+ src/pkg/os/exec.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 49 insertions(+)

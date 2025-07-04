@@ -1,0 +1,18 @@
+commit 2b920cba8fa68f8ded28150ec1b1a5cea61ae0f0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Feb 6 04:47:52 2020 +1100
+
+    cmd/internal/obj/riscv: store relocation details in obj.Prog.RestArgs
+    
+    Store the relocation offset and symbol in obj.Prog.RestArgs, rather than
+    overloading obj.Prog.From and having to deal with invalid offsets
+    potentially existing when the instruction is encoded.
+    
+    Change-Id: Iff0d678361677e78b41b887f6eba08cee94fccb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218197
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/riscv/obj.go | 46 ++++++++++++++-------------------------
+ 1 file changed, 16 insertions(+), 30 deletions(-)

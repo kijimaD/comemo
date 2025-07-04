@@ -1,0 +1,34 @@
+commit a190f3c8a34b859dd578b1d30b48ecd04c7a99c7
+Author: David Chase <drchase@google.com>
+Date:   Wed May 11 15:25:17 2016 -0400
+
+    cmd/compile: enable flag-specified dump of specific phase+function
+    
+    For very large input files, use of GOSSAFUNC to obtain a dump
+    after compilation steps can lead to both unwieldy large output
+    files and unwieldy larger processes (because the output is
+    buffered in a string).  This flag
+    
+      -d=ssa/<phase>/dump:<function name>
+    
+    provides finer control of what is dumped, into a smaller
+    file, and with less memory overhead in the running compiler.
+    The special phase name "build" is added to allow printing
+    of the just-built ssa before any transformations are applied.
+    
+    This was helpful in making sense of the gogo/protobuf
+    problems.
+    
+    The output format was tweaked to remove gratuitous spaces,
+    and a crude -d=ssa/help help text was added.
+    
+    Change-Id: If7516e22203420eb6ed3614f7cee44cb9260f43e
+    Reviewed-on: https://go-review.googlesource.com/23044
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/main.go     |  6 +-
+ src/cmd/compile/internal/ssa/compile.go | 98 +++++++++++++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/func.go    |  3 +-
+ 3 files changed, 99 insertions(+), 8 deletions(-)

@@ -1,0 +1,17 @@
+commit 28b97027416e0fccc70960cae2ac8965c4d58a44
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Sep 13 14:46:19 2008 -0700
+
+    correct signal name thru package rename
+    
+    R=r
+    OCL=15312
+    CL=15312
+
+ src/cmd/6g/gsubr.c  |   2 +-
+ src/cmd/gc/dcl.c    | 100 +++++++++++++++++-------------
+ src/cmd/gc/go.h     |  13 ++--
+ src/cmd/gc/go.y     |   4 +-
+ src/cmd/gc/walk.c   | 173 +++++++++++++++++++---------------------------------
+ src/runtime/print.c |   7 ++-
+ 6 files changed, 133 insertions(+), 166 deletions(-)

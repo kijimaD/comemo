@@ -1,0 +1,18 @@
+commit 8281f6bd1b02b52c8233fbcc6b54b697896d0155
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 23 09:44:29 2011 -0500
+
+    crypto/openpgp/packet: fix private key checksum
+    
+    I misinterpreted http://tools.ietf.org/html/rfc4880#section-5.5.3
+    and implemented the sum of 16-bit values, rather than the 16-bit sum
+    of 8-bit values.
+    
+    Thanks to Szabolcs Nagy for pointing it out.
+    
+    R=bradfitz, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5372091
+
+ src/pkg/crypto/openpgp/packet/private_key.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

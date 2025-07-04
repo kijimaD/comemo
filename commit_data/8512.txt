@@ -1,0 +1,14 @@
+commit e4492ce3c38c33ca2e8828e07a6e11286319dcf2
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Thu May 26 21:43:27 2011 -0700
+
+    runtime: fix mmap error return on linux.
+    
+    Fixes #1511 again.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/4527070
+
+ src/pkg/runtime/linux/mem.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

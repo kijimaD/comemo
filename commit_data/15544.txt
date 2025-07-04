@@ -1,0 +1,16 @@
+commit 0598114a90306b9dc8cc0e38a7566448308946d4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 1 16:24:23 2013 -0500
+
+    runtime/cgo: fix arm build, re-enable test
+    
+    Fixes #4961.
+    
+    R=golang-dev, r, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7443048
+
+ src/pkg/runtime/cgo/asm_arm.s |  2 +-
+ src/pkg/runtime/cgo/cgo_arm.c | 12 ++++++++++++
+ src/run.bash                  |  1 -
+ 3 files changed, 13 insertions(+), 2 deletions(-)

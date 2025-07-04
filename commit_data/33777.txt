@@ -1,0 +1,19 @@
+commit ce5292a1f2740c0dc51ae62390de9f0e9360a90b
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 1 16:21:03 2017 -0500
+
+    runtime: use MAP_ANON in sigstack check
+    
+    MAP_ANON is the deprecated but more portable spelling of
+    MAP_ANONYMOUS. Use MAP_ANON to un-break the Darwin 10.10 builder.
+    
+    Updates #22930.
+    
+    Change-Id: Iedd6232b94390b3b2a7423c45cdcb25c1a5b3323
+    Reviewed-on: https://go-review.googlesource.com/81615
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/testdata/testprogcgo/sigstack.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

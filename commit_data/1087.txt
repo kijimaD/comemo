@@ -1,0 +1,14 @@
+commit f8d7f5bd81e122a3ac13a176453d4ba810b07918
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 7 11:44:15 2008 -0800
+
+    Don't use a type guard with a type which is not an interface.
+    
+    R=r,gri
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=18781
+    CL=18785
+
+ test/fixedbugs/bug113.go | 2 +-
+ test/ken/interbasic.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

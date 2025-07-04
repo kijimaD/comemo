@@ -1,0 +1,15 @@
+commit 09797676643203c3f0aa2fd6f26b040daceac0b7
+Author: dchenk <dcherchenko@gmail.com>
+Date:   Tue May 22 20:32:51 2018 -0700
+
+    net/http: fix doc comment on PostFormValue function
+    
+    This function checks Request.PostForm, which now includes values parsed
+    from a PATCH request.
+    
+    Change-Id: I5d0af58d9c0e9111d4e822c45f0fb1f511bbf0d5
+    Reviewed-on: https://go-review.googlesource.com/114009
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

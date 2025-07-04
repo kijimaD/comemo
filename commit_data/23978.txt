@@ -1,0 +1,16 @@
+commit 85789daac3ed499683dd03ae7a35bf30dc1e74c0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 4 11:29:28 2015 -0700
+
+    spec: clarify that short variable declarations can redeclare parameters
+    
+    Fixes #9837.
+    
+    Change-Id: Ia513c7e5db221eee8e3ab0affa6d3688d2099fd9
+    Reviewed-on: https://go-review.googlesource.com/13130
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go_spec.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

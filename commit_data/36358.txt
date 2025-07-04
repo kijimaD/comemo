@@ -1,0 +1,16 @@
+commit a0212aa6273395c400092383bbdebc251ebacd2d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 21 02:43:45 2018 +0000
+
+    cmd/go: revert "add graphviz output to graph command"
+    
+    This reverts commit 723479bc30f998f29ecbba7caea118ac4e2c9afd.
+    
+    Reason for revert: other tools should convert the graph output to graphviz.
+    
+    Change-Id: Ide5b8f0b061aaff74bb6ba4c2a8f8768d1fbc05a
+    Reviewed-on: https://go-review.googlesource.com/130295
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modcmd/graph.go | 33 +++------------------------------
+ 1 file changed, 3 insertions(+), 30 deletions(-)

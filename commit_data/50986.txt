@@ -1,0 +1,45 @@
+commit 71048daa2f4e0c23b651d56fa157e1a75e098a82
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 17 12:38:27 2022 -0400
+
+    cmd/go: reroute vcs-test.golang.org HTTPS requests to the test-local server
+    
+    After this CL, the only test requests that should still reach
+    vcs-test.golang.org are for Subversion repos, which are not yet handled.
+    
+    The interceptor implementation should also allow us to redirect other
+    servers (such as gopkg.in) fairly easily in a followup change if
+    desired.
+    
+    For #27494.
+    
+    Change-Id: I8cb85f3a7edbbf0492662ff5cfa779fb9b407136
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427254
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go                              |  17 ++-
+ src/cmd/go/internal/auth/auth.go                   |   5 +-
+ src/cmd/go/internal/vcs/vcs.go                     |   4 +-
+ src/cmd/go/internal/vcweb/auth.go                  | 108 ++++++++++++++
+ src/cmd/go/internal/vcweb/insecure.go              |  42 ++++++
+ src/cmd/go/internal/vcweb/script.go                |  38 +++++
+ src/cmd/go/internal/vcweb/vcstest/vcstest.go       |  75 ++++++++++
+ src/cmd/go/internal/vcweb/vcweb.go                 |  12 +-
+ src/cmd/go/internal/web/http.go                    | 160 ++++++++++++++++-----
+ src/cmd/go/script_test.go                          |  22 ++-
+ src/cmd/go/testdata/vcstest/auth/or401.txt         |  29 ++++
+ src/cmd/go/testdata/vcstest/auth/or404.txt         |  30 ++++
+ src/cmd/go/testdata/vcstest/auth/ormanylines.txt   |   9 ++
+ src/cmd/go/testdata/vcstest/auth/oronelongline.txt |   9 ++
+ src/cmd/go/testdata/vcstest/go/custom-hg-hello.txt |   4 +
+ src/cmd/go/testdata/vcstest/go/insecure.txt        |   6 +
+ src/cmd/go/testdata/vcstest/go/missingrepo.txt     |  18 +++
+ src/cmd/go/testdata/vcstest/go/mod/gitrepo1.txt    |   6 +
+ src/cmd/go/testdata/vcstest/go/modauth404.txt      |   6 +
+ src/cmd/go/testdata/vcstest/go/test1-svn-git.txt   |  30 ++++
+ src/cmd/go/testdata/vcstest/go/test2-svn-git.txt   |  26 ++++
+ src/cmd/go/testdata/vcstest/go/v2module.txt        |   6 +
+ src/cmd/go/testdata/vcstest/insecure.txt           |   1 +
+ 23 files changed, 613 insertions(+), 50 deletions(-)

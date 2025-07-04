@@ -1,0 +1,13 @@
+commit e50d3ba7e4ce54327751153258296dc8bb0c1b9e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 28 14:50:50 2009 -0700
+
+    floating-point limits and equations
+    
+    R=r
+    DELTA=13  (8 added, 2 deleted, 3 changed)
+    OCL=32291
+    CL=32322
+
+ src/pkg/math/const.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

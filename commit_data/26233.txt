@@ -1,0 +1,14 @@
+commit 055dcb75665992454454894e87216a2aa2215e4f
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Mar 10 15:49:30 2016 -0800
+
+    crypto/tls: document that the cipher suite list is non-exhaustive.
+    
+    Fixes #14370.
+    
+    Change-Id: Ieb95ee3494f592fb5fc74aa4b803479671816927
+    Reviewed-on: https://go-review.googlesource.com/20551
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/cipher_suites.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

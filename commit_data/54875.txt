@@ -1,0 +1,23 @@
+commit 4cd201b14b6216e72ffa175747c20d1191e5eb57
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sun Nov 5 16:48:15 2023 +0000
+
+    runtime: fix badmorestackg0 never called on wasm
+    
+    Previously, badmorestackg0 was never called since it was behind a g ==
+    R1 check, R1 holding g.m. This is clearly wrong, since we want to check
+    if g == g0. Fixed by using R2 that holds the value of g0.
+    
+    Fixes #63953
+    
+    Change-Id: I1e2a1c3be7ad9e7ae8dbf706ef6783e664a44764
+    GitHub-Last-Rev: b3e92cf28603ef6f6fafc9f9b724b84253a4355c
+    GitHub-Pull-Request: golang/go#63954
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539840
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/asm_wasm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

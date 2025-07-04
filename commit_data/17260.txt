@@ -1,0 +1,16 @@
+commit ec837ad73c20d9b33d8aea9d79ce68bf95598544
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 14 23:21:57 2013 -0700
+
+    archive/zip: speed up Zip64 test
+    
+    Took 76 seconds or so before. By avoiding flate and crc32 on
+    4GB of data, it's now only 12 seconds.  Still a slow test, but
+    not painful to run anymore when you forget -short.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/12950043
+
+ src/pkg/archive/zip/zip_test.go | 162 +++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 151 insertions(+), 11 deletions(-)

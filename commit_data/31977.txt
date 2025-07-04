@@ -1,0 +1,14 @@
+commit e335643864d6ba2cba00c9f667dee742c340f02f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 5 23:05:42 2017 +0000
+
+    os/exec: document lack of implicit shell usage or globbing
+    
+    Fixes #20894
+    
+    Change-Id: I0c0e906964bbd789317d07f245e64e3d61ecfa8c
+    Reviewed-on: https://go-review.googlesource.com/47550
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/os/exec/exec.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

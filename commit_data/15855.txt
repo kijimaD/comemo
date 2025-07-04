@@ -1,0 +1,13 @@
+commit db53d97ac494397f8b11ad66c83b7662eb84d5d3
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 20 14:34:26 2013 -0700
+
+    runtime: Use aligned loads for AES key schedule.
+    
+    R=rsc, minux.ma, khr
+    CC=golang-dev
+    https://golang.org/cl/7763050
+
+ src/pkg/runtime/asm_386.s   | 20 ++++++++------------
+ src/pkg/runtime/asm_amd64.s | 20 ++++++++------------
+ 2 files changed, 16 insertions(+), 24 deletions(-)

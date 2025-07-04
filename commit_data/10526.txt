@@ -1,0 +1,18 @@
+commit 1eb7ca924b184d06706cee78cf56d022ebb1fe5a
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Nov 28 15:34:16 2011 -0500
+
+    crypto/tls: don't rely on map iteration order.
+    
+    Previously we were using the map iteration order to set the order of
+    the cipher suites in the ClientHello.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5440048
+
+ src/pkg/crypto/tls/cipher_suites.go    | 28 +++++++++++++++++-----------
+ src/pkg/crypto/tls/common.go           |  6 ++----
+ src/pkg/crypto/tls/handshake_client.go |  4 ++--
+ src/pkg/crypto/tls/handshake_server.go | 17 ++++++++++++-----
+ 4 files changed, 33 insertions(+), 22 deletions(-)

@@ -1,0 +1,33 @@
+commit f7a95d2c17c2b2506034d519b68a267c944f6450
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Oct 6 12:40:35 2021 -0700
+
+    debug/gosym: bulk allocate Syms
+    
+    name                old time/op    new time/op    delta
+    115/NewLineTable-8    80.7ns ± 1%    81.7ns ± 3%     ~     (p=0.408 n=10+8)
+    115/NewTable-8        76.3µs ± 2%    63.3µs ± 3%  -17.03%  (p=0.000 n=9+9)
+    115/LineToPC-8        56.8µs ± 2%    56.8µs ± 3%     ~     (p=0.905 n=10+9)
+    115/PCToLine-8         252ns ± 1%     256ns ± 5%     ~     (p=0.183 n=10+10)
+    
+    name                old alloc/op   new alloc/op   delta
+    115/NewLineTable-8      384B ± 0%      384B ± 0%     ~     (all equal)
+    115/NewTable-8         164kB ± 0%     172kB ± 0%   +4.97%  (p=0.000 n=10+10)
+    115/LineToPC-8         0.00B          0.00B          ~     (all equal)
+    115/PCToLine-8         0.00B          0.00B          ~     (all equal)
+    
+    name                old allocs/op  new allocs/op  delta
+    115/NewLineTable-8      3.00 ± 0%      3.00 ± 0%     ~     (all equal)
+    115/NewTable-8         1.04k ± 0%     0.01k ± 0%  -98.75%  (p=0.000 n=10+10)
+    115/LineToPC-8          0.00           0.00          ~     (all equal)
+    115/PCToLine-8          0.00           0.00          ~     (all equal)
+    
+    Change-Id: Ibfe6c0cb86737dee8209cb1f58f5b796aa7b30aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353134
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/debug/gosym/pclntab.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

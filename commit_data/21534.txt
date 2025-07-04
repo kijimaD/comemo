@@ -1,0 +1,21 @@
+commit afac4f0a403ec0742d68330c3f3bb97be6b187bc
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Sun Feb 8 07:42:10 2015 -0800
+
+    os: embed "sleep 1" within the test binary itself.
+    
+    This is an alternative to http://golang.org/cl/4150,
+    and is motivated by a review comment on that CL.
+    
+    testKillProcess() tries to build and run the Go equivalent
+    for "sleep 1". This doesn't work for testing cross compilers
+    since the Go compiler is not available on the targets. This
+    change embeds the "sleep 1" functionality within the "os.test"
+    binary itself.
+    
+    Change-Id: I6bad513deaa6c9e2704e70319098eb4983f1bb23
+    Reviewed-on: https://go-review.googlesource.com/4190
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/os_test.go | 46 ++++++++++++----------------------------------
+ 1 file changed, 12 insertions(+), 34 deletions(-)

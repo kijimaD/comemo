@@ -1,0 +1,14 @@
+commit 5235501c0509385c28294b3a314891e1e7165163
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jun 20 15:48:29 2019 -0400
+
+    crypto/x509: add Ed25519 to ExampleParsePKIXPublicKey
+    
+    ParsePKIXPublicKey gained Ed25519 support in CL 175478.
+    
+    Change-Id: I11ffe0a62743292367b3adb103956e61bad57cc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183243
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/x509/example_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

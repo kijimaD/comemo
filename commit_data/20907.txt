@@ -1,0 +1,15 @@
+commit 361199749d81d06cc1007db9f7da5818b6f830b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 19 20:52:58 2014 -0500
+
+    build: disable race external linking test on OS X 10.6 and earlier
+    
+    External linking doesn't work there at all.
+    
+    LGTM=bradfitz
+    R=adg, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/176070043
+
+ src/run.bash | 37 ++++++++++++++++++++++++-------------
+ 1 file changed, 24 insertions(+), 13 deletions(-)

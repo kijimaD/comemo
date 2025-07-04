@@ -1,0 +1,16 @@
+commit 81a93ef24a502f74f542845b3a35f22a573f6876
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 5 21:08:28 2014 +0400
+
+    doc: fix happens-before rules for buffered channels
+    The current wording is reversed in 2 places.
+    Not sure how it got 4 LGTMs (mine was there as well).
+    Update #6242.
+    
+    LGTM=dan.kortschak, r, rsc
+    R=golang-codereviews, 0xjnml, dan.kortschak, r, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/101980047
+
+ doc/go_mem.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

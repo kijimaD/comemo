@@ -1,0 +1,14 @@
+commit 2bed8a7e957439587ae30416183fe2300d059bb9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri May 4 18:34:04 2012 +0800
+
+    go/build: cgo is supported on Linux/ARM
+            Last Part of CL 5601044 (cgo: Linux/ARM support)
+            Fixes #1880.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/5988057
+
+ src/pkg/go/build/build.go | 1 +
+ 1 file changed, 1 insertion(+)

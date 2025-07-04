@@ -1,0 +1,22 @@
+commit ccacab641af54f51bdca228445f464efde47e935
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 21 14:10:34 2012 +1100
+
+    os: replace non-portable Waitmsg with portable ProcessState
+    Use methods for key questions.
+    Provide access to non-portable pieces through portable methods.
+    Windows and Plan 9 updated.
+    
+    R=golang-dev, bradfitz, bradfitz, r, dsymonds, rsc, iant, iant
+    CC=golang-dev
+    https://golang.org/cl/5673077
+
+ src/cmd/cgo/util.go        |  4 +--
+ src/cmd/godoc/main.go      |  8 +++--
+ src/pkg/os/exec/exec.go    | 16 +++++-----
+ src/pkg/os/exec_plan9.go   | 68 +++++++++++++++++++++++++++++++++++-------
+ src/pkg/os/exec_posix.go   | 73 ++++++++++++++++++++++++++++++----------------
+ src/pkg/os/exec_unix.go    | 28 +++++++++++++-----
+ src/pkg/os/exec_windows.go | 19 ++++++++++--
+ src/pkg/os/os_test.go      |  8 ++---
+ 8 files changed, 162 insertions(+), 62 deletions(-)

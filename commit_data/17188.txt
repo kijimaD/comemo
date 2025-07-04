@@ -1,0 +1,13 @@
+commit a5385580035abaf4ce6aeb2835e70371f4fde77a
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Aug 13 12:25:41 2013 -0400
+
+    test/run: process build tags like go/build
+    
+    R=bradfitz, dave, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/10001045
+
+ test/run.go  | 87 +++++++++++++++++++++++++++++++++++++++++++++++-------------
+ test/testlib | 51 ++++++++++++++++++++++++-----------
+ 2 files changed, 105 insertions(+), 33 deletions(-)

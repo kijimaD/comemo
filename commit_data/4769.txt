@@ -1,0 +1,13 @@
+commit 8bef7fdc3923d48ddc2f76ae57fc8d4e9135beb8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 2 15:00:13 2010 -0800
+
+    bug252: make ... vs ...T crossing an error, at least for now
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/199066
+
+ src/cmd/gc/typecheck.c   |  5 +++++
+ test/fixedbugs/bug252.go | 15 +++++++++++++++
+ 2 files changed, 20 insertions(+)

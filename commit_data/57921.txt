@@ -1,0 +1,18 @@
+commit 5123f38e050c5ee7130d459ea247d998a838b5a1
+Author: Youlin Feng <fengyoulin@live.com>
+Date:   Mon Nov 4 07:43:43 2024 +0800
+
+    cmd/compile: update comment for initLimit in prove pass
+    
+    For: #70156
+    
+    Change-Id: Ie39a88130f27b4b210ddbcf396cc0ddd2713d58b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624855
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

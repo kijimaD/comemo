@@ -1,0 +1,16 @@
+commit f570b54cc02ffeb82e35e72fc818916e8b896c67
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Tue Oct 30 17:22:05 2018 +0200
+
+    crypto/cipher: make stream examples runnable in the playground
+    
+    Updates #9679
+    
+    Change-Id: I53412cf0142364de5f76e8affc15d607bfa2ad23
+    Reviewed-on: https://go-review.googlesource.com/c/145838
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/cipher/example_test.go | 43 +++++++++++++++------------------------
+ 1 file changed, 16 insertions(+), 27 deletions(-)

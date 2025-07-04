@@ -1,0 +1,25 @@
+commit 0941dbca6ae805dd7b5f7871d5811b7b7f14f77f
+Author: Matt T. Proud <matt.proud@gmail.com>
+Date:   Wed Jul 14 22:42:31 2021 +0200
+
+    testing: clarify in docs that TestMain is advanced
+    
+    Beginner and intermediate Go users periodically use TestMain when
+    requirements do not necessitate TestMain (exceeding least-mechanism
+    design). This commit expands package testing's documentation to convey
+    that the TestMain feature itself is somewhat low-level and potentially
+    unsuitable for casual testing where ordinary test functions would
+    suffice.
+    
+    Fixes #42161
+    Updates #44200
+    
+    Change-Id: I91ba0b048c3d6f79110fe8f0fbb58d896edca366
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334649
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/testing/testing.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,14 @@
+commit 770485e52222233f2bb507e1a70cc5aba842e0da
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 19 17:37:23 2009 -0700
+
+    add bug to capture double declaration of name in file and package block
+    
+    R=rsc
+    DELTA=12  (12 added, 0 deleted, 0 changed)
+    OCL=33554
+    CL=33563
+
+ test/fixedbugs/bug192.go | 11 +++++++++++
+ test/golden.out          |  1 +
+ 2 files changed, 12 insertions(+)

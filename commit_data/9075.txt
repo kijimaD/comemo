@@ -1,0 +1,25 @@
+commit df68a61c9e214deeff8affd3a6120747336010ba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 14 11:34:53 2011 -0700
+
+    godoc: support for file systems stored in .zip files
+    
+    Instead of serving files of the underlying OS file system,
+    a .zip file may be provided to godoc containing the files
+    to serve; for instance:
+    
+       godoc -http=:6060 -zip=go.zip
+    
+    using a .zip file created from a clean tree as follows:
+    
+       zip -r go.zip $GOROOT
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4670053
+
+ src/cmd/godoc/doc.go        |   2 +
+ src/cmd/godoc/filesystem.go |  20 ++++-
+ src/cmd/godoc/main.go       |  19 ++++-
+ src/cmd/godoc/zip.go        | 199 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 233 insertions(+), 7 deletions(-)

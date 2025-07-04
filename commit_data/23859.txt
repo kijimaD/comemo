@@ -1,0 +1,25 @@
+commit a3ffd836a6f9f081ea30c77f6d59abe25262410b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 24 14:22:26 2015 -0700
+
+    net/http: pause briefly after closing Server connection when body remains
+    
+    From https://github.com/golang/go/issues/11745#issuecomment-123555313
+    this implements option (b), having the server pause slightly after
+    sending the final response on a TCP connection when we're about to close
+    it when we know there's a request body outstanding. This biases the
+    client (which might not be Go) to prefer our response header over the
+    request body write error.
+    
+    Updates #11745
+    
+    Change-Id: I07cb0b74519d266c8049d9e0eb23a61304eedbf8
+    Reviewed-on: https://go-review.googlesource.com/12658
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 24 ++++++++++++++++++++++++
+ src/net/http/server.go     | 19 +++++++++++++++----
+ src/net/http/transfer.go   | 11 +++++++++++
+ src/net/http/transport.go  | 10 ++++------
+ 4 files changed, 54 insertions(+), 10 deletions(-)

@@ -1,0 +1,24 @@
+commit 313fd1cb1343e46b563b6b8acfef7e58604b5b8f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 26 22:58:59 2016 -0500
+
+    runtime: fix crash in GoroutineProfile
+    
+    It was just completely broken if you gave it the number
+    of records it asked for. Make it impossible for that particular
+    inconsistency to happen again.
+    
+    Also make it exclude system goroutines, to match both
+    NumGoroutine and Stack.
+    
+    Fixes #14046.
+    
+    Change-Id: Ic238c6b89934ba7b47cccd3440dd347ed11e4c3d
+    Reviewed-on: https://go-review.googlesource.com/18976
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mprof.go        | 52 ++++++++++++++++++++++++++++-----------------
+ src/runtime/runtime_test.go | 12 +++++++++++
+ 2 files changed, 44 insertions(+), 20 deletions(-)

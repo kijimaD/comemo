@@ -1,0 +1,19 @@
+commit 7126da2fd5c922ea2dd4ba3fe5578aa1e17ce510
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 15 00:51:24 2015 -0400
+
+    cmd/go: fix build
+    
+    Failures noted by dashboard.
+    
+    Change-Id: I22f90120c6687b64b9efff9df7a7fa8f26d24bac
+    Reviewed-on: https://go-review.googlesource.com/12207
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/build.go                           |  2 +-
+ src/cmd/go/go_test.go                         | 11 +++++++++--
+ src/cmd/go/testdata/src/testdep/p1/p1.go      |  1 +
+ src/cmd/go/testdata/src/testdep/p1/p1_test.go |  3 +++
+ src/cmd/go/testdata/src/testdep/p2/p2.go      |  3 +++
+ src/cmd/go/testdata/src/testdep/p3/p3.go      |  3 +++
+ 6 files changed, 20 insertions(+), 3 deletions(-)

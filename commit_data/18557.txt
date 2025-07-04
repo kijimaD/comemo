@@ -1,0 +1,18 @@
+commit 86ac6181459047f8e014e2a5cf0be8a7d9a8f63d
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Tue Feb 18 17:59:44 2014 -0800
+
+    cmd/link: change cloneProg to return the cloned value
+    
+    The code was returning the original value rather than the cloned value
+    resulting in the tests not being repeatable.
+    
+    Fixes #7111.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/65720045
+
+ src/cmd/link/prog_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

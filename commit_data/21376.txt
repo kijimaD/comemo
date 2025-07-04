@@ -1,0 +1,20 @@
+commit 69cd91a5981c49eaaa59b33196bdb5586c18d289
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Jan 27 23:57:12 2015 +0300
+
+    cmd/gc: don't copy []byte during string comparison
+    
+    Currently we allocate a new string during []byte->string conversion
+    in string comparison expressions. String allocation is unnecessary in
+    this case, because comparison does memorize the strings for later use.
+    This change uses slicebytetostringtmp to construct temp string directly
+    from []byte buffer and passes it to runtime.eqstring.
+    
+    Change-Id: If00f1faaee2076baa6f6724d245d5b5e0f59b563
+    Reviewed-on: https://go-review.googlesource.com/3410
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/order.c         | 12 ++++++++++++
+ src/runtime/string.go      |  1 +
+ src/runtime/string_test.go | 17 +++++++++++++++++
+ 3 files changed, 30 insertions(+)

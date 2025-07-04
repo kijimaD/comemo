@@ -1,0 +1,11 @@
+commit ba25fe80a2ea9eea94c18bc2d409753420475066
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 3 16:51:22 2008 -0700
+
+    - minor update
+    
+    SVN=125989
+
+ test/bugs/bug063.go    |   2 +-
+ usr/gri/src/scanner.go | 330 ++++++++++++++++++++++++++++---------------------
+ 2 files changed, 187 insertions(+), 145 deletions(-)

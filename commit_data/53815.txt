@@ -1,0 +1,26 @@
+commit 3313b39bae9ee6b830fecaaaaa004de646f82e50
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue May 2 03:42:30 2023 +1000
+
+    cmd/internal/obj/arm64: improve classification of loads and stores
+    
+    Currently, pool literals are added when they are not needed, namely
+    in the case where the offset is a 24 bit unsigned scaled immediate.
+    By improving the classification of loads and stores, we can avoid
+    generating unused pool literals. However, more importantly this
+    provides a basis for further improvement of the load and store
+    code generation.
+    
+    Updates #59615
+    
+    Change-Id: Ia3bad1709314565a05894a76c434cca2fa4533c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512538
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/obj/arm64/a.out.go   |   4 +-
+ src/cmd/internal/obj/arm64/anames7.go |   2 +
+ src/cmd/internal/obj/arm64/asm7.go    | 177 ++++++++++++++++++++++++++++------
+ 3 files changed, 152 insertions(+), 31 deletions(-)

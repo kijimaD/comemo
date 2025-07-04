@@ -1,0 +1,24 @@
+commit a42573c2f1d6a806439ec0cf65ace0508a37747f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 27 13:58:55 2022 -0400
+
+    net: avoid darwin/arm64 platform bug in TestCloseWrite
+    
+    On darwin_arm64, reading from a socket at the same time as the other
+    end is closing it will occasionally hang for 60 seconds before
+    returning ECONNRESET. (This is a macOS issue, not a Go issue.)
+    
+    Work around this condition by adding a brief sleep before the read.
+    
+    Fixes #49352 (we hope).
+    Updates #37795.
+    
+    Change-Id: I4052aec21d311d7370550aea9dd7941f39141133
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414534
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/net_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

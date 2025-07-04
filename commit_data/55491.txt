@@ -1,0 +1,26 @@
+commit 79738217d53f6b2d06d47a2233e51cc859d69e8d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 24 16:29:20 2024 -0500
+
+    go/version: fix package to accept go1.21.0-bigcorp
+    
+    The proposal discussion made clear that suffixes should be accepted,
+    so that people who use custom VERSION files can still pass runtime.Version()
+    to this code. But we forgot to do that in the CL. Do that.
+    
+    Note that cmd/go also strips space- and tab-prefixed suffixes,
+    but go.dev/doc/toolchain only mentions dash, so this code only
+    strips dash.
+    
+    Fixes #65061.
+    
+    Change-Id: I6a427b78f964eb41c024890dae30223beaef13eb
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559796
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/go/version/version.go      | 10 ++++++----
+ src/go/version/version_test.go |  3 +++
+ 2 files changed, 9 insertions(+), 4 deletions(-)

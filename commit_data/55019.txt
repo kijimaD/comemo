@@ -1,0 +1,22 @@
+commit 8f7006a6dff175c7445a245612b8aa028509a15c
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Nov 16 07:06:03 2023 +0000
+
+    runtime: gofmt -w -s
+    
+    Change-Id: I2eac85b502df9851df294f8d46c7845f635dde9b
+    GitHub-Last-Rev: 3c8382442a0fadb355be9e4656942c2e03db2391
+    GitHub-Pull-Request: golang/go#64198
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542697
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/export_debug_ppc64le_test.go        |  4 +--
+ src/runtime/mgc.go                              |  2 +-
+ src/runtime/testdata/testprogcgo/stackswitch.go |  3 +-
+ src/runtime/testdata/testprognet/waiters.go     |  1 +
+ src/runtime/testdata/testwinlibthrow/main.go    | 38 ++++++++++++-------------
+ 5 files changed, 24 insertions(+), 24 deletions(-)

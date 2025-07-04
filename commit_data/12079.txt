@@ -1,0 +1,24 @@
+commit b5a3bd5ff6f735f39a312a43d3f0a647f4d76590
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 20 15:36:08 2012 +1100
+
+    os: drop the Wait function and the options to Process.Wait
+    They are portability problems and the options are almost always zero in practice anyway.
+    
+    R=golang-dev, dsymonds, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5688046
+
+ doc/go1.html               | 17 +++++++++++---
+ doc/go1.tmpl               | 17 +++++++++++---
+ src/cmd/cgo/util.go        |  2 +-
+ src/cmd/fix/oswait.go      | 56 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/fix/oswait_test.go | 41 +++++++++++++++++++++++++++++++++
+ src/cmd/godoc/main.go      |  2 +-
+ src/pkg/os/exec/exec.go    |  2 +-
+ src/pkg/os/exec_plan9.go   | 19 ++--------------
+ src/pkg/os/exec_posix.go   | 14 ------------
+ src/pkg/os/exec_unix.go    | 28 ++++-------------------
+ src/pkg/os/exec_windows.go |  2 +-
+ src/pkg/os/os_test.go      |  4 ++--
+ 12 files changed, 137 insertions(+), 67 deletions(-)

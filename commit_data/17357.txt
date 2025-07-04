@@ -1,0 +1,14 @@
+commit a48702eb390325300ecc6222005e5a040d90d58f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 22 11:12:44 2013 +1000
+
+    doc: hide playground on front page if playground disabled
+    
+    Fixes #5630.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12884046
+
+ doc/root.html | 22 +++++++++++++---------
+ 1 file changed, 13 insertions(+), 9 deletions(-)

@@ -1,0 +1,27 @@
+commit 19a932ceb8dc0059754e1f986c86daba3a4fb14e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jul 27 11:36:41 2020 -0400
+
+    cmd/link: don't mark shared library symbols reachable unconditionally
+    
+    During the transitioning period, we mark symbols from Go shared
+    libraries reachable unconditionally. That might be useful when
+    there was still a large portion of the linker using sym.Symbols,
+    and only reachable symbols were converted to sym.Symbols. Marking
+    them reachable brings them to the dynamic symbol table, even if
+    they are not needed, increased the binary size unexpectedly.
+    
+    That time has passed. Now we largely operate on loader symbols,
+    and it is not needed to mark them reachable anymore.
+    
+    Fixes #40416.
+    
+    Change-Id: I1e2bdb93a960ba7dc96575fabe15af93d8e95329
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244839
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testshared/shared_test.go | 13 +++++++++++++
+ src/cmd/link/internal/ld/lib.go    | 11 -----------
+ 2 files changed, 13 insertions(+), 11 deletions(-)

@@ -1,0 +1,14 @@
+commit 90e02e85130fb18d51a331c279e513bc396e7504
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 5 20:01:11 2015 -0800
+
+    cmd/internal/ld: remove unused files
+    
+    Change-Id: Id27861d5449cc3565bc9e80aad671229598dbeb1
+    Reviewed-on: https://go-review.googlesource.com/7060
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/ld/fmt.go | 60 ----------------------------------------------
+ src/cmd/internal/ld/z.go   |  1 -
+ 2 files changed, 61 deletions(-)

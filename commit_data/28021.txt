@@ -1,0 +1,16 @@
+commit 8050782cba45c739bfb2cd735766879098c48d99
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 23 13:54:01 2016 -0700
+
+    flag: improve comment for calling String with zero value
+    
+    Update #16694.
+    
+    Change-Id: Id6be1535d8a146b3dac3bee429ce407a51272032
+    Reviewed-on: https://go-review.googlesource.com/27634
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/flag/flag.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

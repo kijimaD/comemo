@@ -1,0 +1,12 @@
+commit eb002c50f5aaa3d63ff01a406bbe8dd30fdc9535
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Oct 4 13:13:56 2013 +0900
+
+    doc/go1.2.html: update a minor change to syscall
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/14379043
+
+ doc/go1.2.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

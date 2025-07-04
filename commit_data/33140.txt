@@ -1,0 +1,19 @@
+commit 151c66b59fb657c90d2cad4c72b2059319806a9c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 16 11:11:34 2017 -0700
+
+    debug/dwarf: support 64-bit DWARF in byte order check
+    
+    Also fix 64-bit DWARF to read a 64-bit abbrev offset in the
+    compilation unit.
+    
+    Change-Id: Idc22e59ffb354d58e9973b62fdbd342acf695859
+    Reviewed-on: https://go-review.googlesource.com/71171
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/debug/dwarf/entry.go      |  4 +--
+ src/debug/dwarf/entry_test.go | 60 +++++++++++++++++++++++++++++++++++++++++++
+ src/debug/dwarf/open.go       | 17 +++++++++---
+ src/debug/dwarf/typeunit.go   | 11 +++-----
+ src/debug/dwarf/unit.go       | 11 ++++++--
+ 5 files changed, 87 insertions(+), 16 deletions(-)

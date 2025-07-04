@@ -1,0 +1,12 @@
+commit 3eadc59b0d23b2807787057e2251ee48b4be39c3
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Apr 16 20:42:21 2015 +0200
+
+    net: fix typo in comment
+    
+    Change-Id: I8b2063e65d3454a694a789c1682dacfe0bea2e19
+    Reviewed-on: https://go-review.googlesource.com/8965
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/fd_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

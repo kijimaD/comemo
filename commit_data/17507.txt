@@ -1,0 +1,18 @@
+commit 8d530f2472f1c4ef5cf0513a6735869fb606fa96
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 9 12:21:09 2013 -0400
+
+    cmd/gc: show package name in 'imported and not used' error
+    
+    Fixes #5957.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/13250046
+
+ src/cmd/gc/lex.c                  | 26 ++++++++++++++++++++++++--
+ test/fixedbugs/issue5957.dir/a.go |  3 +++
+ test/fixedbugs/issue5957.dir/b.go |  2 ++
+ test/fixedbugs/issue5957.dir/c.go | 12 ++++++++++++
+ test/fixedbugs/issue5957.go       |  7 +++++++
+ 5 files changed, 48 insertions(+), 2 deletions(-)

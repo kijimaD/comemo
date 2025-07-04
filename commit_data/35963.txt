@@ -1,0 +1,25 @@
+commit a7bcb5390d1f5c5d955663eedcade63daac270c4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 12 05:02:36 2018 +0000
+
+    net/http: update bundled http2
+    
+    Updates bundled x/net/http2 to git rev cffdcf67 for:
+    
+        http2: use GetBody unconditionally on Transport retry, when available
+        https://golang.org/cl/123476
+    
+        http2: a closed stream cannot receive data
+        https://golang.org/cl/111676
+    
+    Updates #25009
+    Updates #25023
+    
+    Change-Id: I84f50cc50c0fa5a3c34f0037a9cb1ef468e5f0d9
+    Reviewed-on: https://go-review.googlesource.com/123515
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/h2_bundle.go | 41 ++++++++++++++++++++++++++++-------------
+ 1 file changed, 28 insertions(+), 13 deletions(-)

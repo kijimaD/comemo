@@ -1,0 +1,14 @@
+commit 9049abbd2d454add90a26265ffb49cccc02028af
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Oct 18 12:47:34 2011 +1100
+
+    reflect: make map test independent of map iteration order.
+    
+    This should fix the 386 builds.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5298042
+
+ src/pkg/reflect/all_test.go | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

@@ -1,0 +1,16 @@
+commit 1831e1ec3725c987c42aef81264433a219756226
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jun 2 13:28:33 2015 +1000
+
+    cmd/pprof/internal/profile: fix missing error check
+    
+    Fix missing error check.
+    
+    Spotted by Gordon Klass, https://groups.google.com/forum/#!topic/golang-nuts/MdDLbvOjb4o
+    
+    Change-Id: I453a0cf032e0077d2622d5b85030310d159b9c4b
+    Reviewed-on: https://go-review.googlesource.com/10606
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/cmd/pprof/internal/profile/profile.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

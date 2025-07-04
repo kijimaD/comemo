@@ -1,0 +1,23 @@
+commit e948d2b73ede67f12bff9e4d050f0e1425163010
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Thu Jan 23 16:05:29 2020 -0500
+
+    cmd/link: ensure cgo cflags do not leak into dwarf tests
+    
+    Running the dwarf tests with CGO_CFLAGS set
+    with certain values would cause the test to fail. all.bash
+    would fail when CGO_CFLAGS was set to '-mmacosx-version-min=10.10'
+    because the --macosx-version-min flag is incompatible with some dwarf
+    tests. The change guards against using an unintended flag in the unit test.
+    
+    Updates #35459
+    
+    Change-Id: Idc9b354aba44fdab424cb0081a4b3ea7a6d0f8e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216177
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/dwarf_test.go | 1 +
+ 1 file changed, 1 insertion(+)

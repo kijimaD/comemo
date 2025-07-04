@@ -1,0 +1,17 @@
+commit b8eb5b53eadd10ed8c84b94a46301a3fc3715282
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Sep 11 23:29:25 2016 +0200
+
+    net: make lookupPort case-insensitive on Plan 9
+    
+    The CL 28951 added TestLookupPort_Minimal, which was failing
+    on Plan 9, because lookupPort was not case-insensitive.
+    
+    Change-Id: Ic80dd29dad4ffd1c84c2590e3d5d0e588ab2e6c2
+    Reviewed-on: https://go-review.googlesource.com/29051
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/lookup_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

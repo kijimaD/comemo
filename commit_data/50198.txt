@@ -1,0 +1,19 @@
+commit 3680b5e9c4f42fcf9155aa42b3b344d1fbe19571
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sun Jun 5 13:22:29 2022 +0800
+
+    cmd/compile: teach prove about bitwise OR operation
+    
+    Fixes #45928.
+    
+    Change-Id: Ifbb0effbca4ab7c0eb56069fee40edb564553c35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410336
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/prove.go | 3 +++
+ test/prove.go                         | 5 +++++
+ 2 files changed, 8 insertions(+)

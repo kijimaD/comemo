@@ -1,0 +1,12 @@
+commit f49889d0c21767d7285fcfbba92f6659fbe4cb19
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 18 11:24:13 2011 -0500
+
+    C: add Jos Visser (Google CLA)
+    
+    R=josv, r
+    CC=golang-dev
+    https://golang.org/cl/4065041
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

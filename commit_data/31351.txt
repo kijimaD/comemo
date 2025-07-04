@@ -1,0 +1,16 @@
+commit 6f45e37bcda68139dcbb4d3aa99e23a4ee67ff89
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 25 23:13:05 2017 +0000
+
+    cmd/dist: disable internal linking tests on Alpine
+    
+    Updates #18243
+    
+    Change-Id: I1fe0af65dbd52c3e8e0a245e4cbbdfca100971b4
+    Reviewed-on: https://go-review.googlesource.com/41759
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/dist/test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,31 @@
+commit 25895d1c995d71ca505e1e7a3c79daa49620db74
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 23 19:30:35 2023 +0000
+
+    runtime: make all GC mark workers yield for forEachP
+    
+    Currently dedicated GC mark workers really try to avoid getting
+    preempted. The one exception is for a pending STW, indicated by
+    sched.gcwaiting. This is currently fine because other kinds of
+    preemptions don't matter to the mark workers: they're intentionally
+    bound to their P.
+    
+    With the new execution tracer we're going to want to use forEachP to get
+    the attention of all Ps. We may want to do this during a GC cycle.
+    forEachP doesn't set sched.gcwaiting, so it may end up waiting the full
+    GC mark phase, burning a thread and a P in the meantime. This can mean
+    basically seconds of waiting and trying to preempt GC mark workers.
+    
+    This change makes all mark workers yield if (*p).runSafePointFn != 0 so
+    that the workers actually yield somewhat promptly in response to a
+    forEachP attempt.
+    
+    Change-Id: I7430baf326886b9f7a868704482a224dae7c9bba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537235
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgcmark.go | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)

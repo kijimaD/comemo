@@ -1,0 +1,21 @@
+commit e05695ed4d898e3c21906b608a0f259110a78ec8
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Jun 2 08:50:54 2020 -0700
+
+    runtime: add three new partial orders for lock ranking
+    
+    Two are associated with the new sysmon rank:  lockRankSysmon -> lockRankFin
+    (https://build.golang.org/log/07b0b8ee6ec9421d83699a1d850d9938390fb996)
+    and one I encountered during testing, lockRankSysmon -> lockRankWbufSpans
+    
+    And another just seems not to have occurred before:  lockRankScavenge -> lockRankFin
+    (https://build.golang.org/log/07ba499b861fc93f527ef8514f5ba4c77086f4c4)
+    
+    Change-Id: I070b5ed8e742857e815c6a56f8439d17a0ba36f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236137
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/lockrank.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

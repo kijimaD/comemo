@@ -1,0 +1,12 @@
+commit 10d1680efb10333f1e8280b1f812dd83ca9b0eee
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Thu Apr 21 17:02:52 2011 -0400
+
+    cgo: avoid "incompatible pointer type" warning
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4409041
+
+ src/cmd/cgo/out.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

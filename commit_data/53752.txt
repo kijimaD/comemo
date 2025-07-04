@@ -1,0 +1,27 @@
+commit 4d21b3ec2d63163962feb0cfaceaa33c6b98e6a5
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 5 18:52:39 2023 -0400
+
+    cmd/link: rationalize -s and -w flags with Mach-O external linking
+    
+    Currently, on Mach-O in external linking mode, the handling of -s
+    and -w flags are a bit mixed: neither flag disables the symbol
+    table, and both flags disable DWARF.
+    
+    This CL makes it do what is documented: -s disables symbol table,
+    and -w disables DWARF. For the Darwin system linker, the -s flag
+    (strip symbol table) is obsolete. So we strip it afterwards. We
+    already use the strip command to strip the debug STAB symbols if
+    we need to combine DWARF. With this CL we'll use an additional
+    flag to strip more symbols. And we now also use strip if -s is
+    specified and we don't need to combine DWARF.
+    
+    Change-Id: I9bed24fd388f2bd5b0ffa4ec2db46a4a2f6b1016
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493136
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/lib.go   | 20 +++++++++++++++++---
+ src/cmd/link/internal/ld/macho.go |  2 +-
+ 2 files changed, 18 insertions(+), 4 deletions(-)

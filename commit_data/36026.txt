@@ -1,0 +1,12 @@
+commit 61a04474e265151500148172f0bee1e5381e6fbf
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 17 17:27:26 2018 -0400
+
+    doc/go1.11: fix some typos
+    
+    Change-Id: I3c0cb9b56776d8cc78a96ef012385c31f9f0e146
+    Reviewed-on: https://go-review.googlesource.com/124516
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.11.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

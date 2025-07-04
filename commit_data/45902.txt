@@ -1,0 +1,13 @@
+commit 912f0750472dd4f674b69ca1616bfaf377af1805
+Author: Sean Liao <seankhliao@gmail.com>
+Date:   Tue Jun 8 20:13:23 2021 +0200
+
+    net/http: mention socks5 support in proxy
+    
+    Change-Id: I55b6d5c77221569eeafea625379affd476a65772
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326011
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/http/transport.go | 1 +
+ 1 file changed, 1 insertion(+)

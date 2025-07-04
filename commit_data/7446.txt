@@ -1,0 +1,12 @@
+commit a93c994bcf4c3ca75a25f2703ab7a66d9a84c4e3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 11 18:00:58 2011 -0500
+
+    testing: include elapsed time in output
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4180045
+
+ src/pkg/testing/testing.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

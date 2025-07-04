@@ -1,0 +1,15 @@
+commit 823154836534e0ed5dfe0ede73ad2447ae208c5f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 8 13:35:46 2009 -0700
+
+    Only clean the relevant installed files, not everything.  This
+    should let a 6g build and an 8g build be done in sequence
+    without stepping on each other.
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=35478
+    CL=35481
+
+ src/clean.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

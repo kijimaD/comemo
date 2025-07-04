@@ -1,0 +1,21 @@
+commit 2b82d70f856b91bf278a28fd697b69811e1335eb
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Jun 20 11:35:10 2023 +0000
+
+    net/http: declare publicErr as a constant
+    
+    Do the same as the code above: "case err == errTooLarge", declare
+    publicErr as a constant to avoid runtime calls.
+    
+    Change-Id: I50a9951232c70eff027b0da86c0bbb8bea51acbe
+    GitHub-Last-Rev: 71d4458ded3a1e99a0d027ccca6c9d6269a1ab06
+    GitHub-Pull-Request: golang/go#60884
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504456
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Olif Oftimis <oftimisolif@gmail.com>
+
+ src/net/http/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

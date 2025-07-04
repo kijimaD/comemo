@@ -1,0 +1,16 @@
+commit 5158147e24a4626d14971fdda38d71db4a975a04
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 13 18:08:33 2015 -0700
+
+    debug/elf: support reading debug info from 32-bit PPC objects
+    
+    Fixes #10118.
+    
+    Change-Id: I4a2e6748db609c6eed1d68c824b81c59bd7b875c
+    Reviewed-on: https://go-review.googlesource.com/7590
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/debug/elf/file.go                              |  42 +++++++++++++++++++++
+ src/debug/elf/file_test.go                         |   6 +++
+ .../elf/testdata/go-relocation-test-gcc5-ppc.obj   | Bin 0 -> 2356 bytes
+ 3 files changed, 48 insertions(+)

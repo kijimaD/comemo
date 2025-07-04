@@ -1,0 +1,14 @@
+commit d49844bcce59409a88d889b3a5fdd7ca59f19c4e
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sat May 14 23:06:50 2011 -0700
+
+    gofmt: skip bug340.go in test.sh
+    
+    bug340.go is a test case for a syntax error
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4523069
+
+ src/cmd/gofmt/test.sh | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

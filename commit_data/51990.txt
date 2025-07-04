@@ -1,0 +1,24 @@
+commit 7f5274a2885b8a3310cd4c3a6af49453d34cceae
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Feb 13 10:58:32 2023 -0800
+
+    all: update vendored golang.org/x/net
+    
+    Pull in HTTP/2 fix to deflake builders:
+    
+        547e7edf38 http2: avoid referencing ResponseWrite.Write parameter after returning
+    
+    For #58446
+    
+    Change-Id: I7f3666bc1f20ee03a7ccf25f0e091033cbc635d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467657
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go.mod                |  2 +-
+ src/go.sum                |  4 ++--
+ src/net/http/h2_bundle.go | 29 +++++++++++++++++++++++++----
+ src/vendor/modules.txt    |  2 +-
+ 4 files changed, 29 insertions(+), 8 deletions(-)

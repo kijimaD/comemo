@@ -1,0 +1,52 @@
+commit 4a4e05b0b166ef17d62789d7ca6d58aeb846c5d1
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 28 14:58:06 2019 -0400
+
+    cmd/compile,runtime/internal/atomic: add Load8
+    
+    Change-Id: Id52a5730cf9207ee7ccebac4ef12791dc5720e7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172283
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go          |  2 +-
+ src/cmd/compile/internal/arm64/ssa.go          |  1 +
+ src/cmd/compile/internal/gc/ssa.go             |  7 +++
+ src/cmd/compile/internal/mips64/ssa.go         |  7 ++-
+ src/cmd/compile/internal/ppc64/ssa.go          | 12 ++--
+ src/cmd/compile/internal/s390x/ssa.go          |  2 +-
+ src/cmd/compile/internal/ssa/branchelim.go     |  2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   | 13 ++--
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  1 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  1 +
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  1 +
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules  |  1 +
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go  |  1 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |  1 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |  1 +
+ src/cmd/compile/internal/ssa/gen/S390XOps.go   |  1 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  1 +
+ src/cmd/compile/internal/ssa/opGen.go          | 85 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 67 ++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 15 +++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 15 +++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 16 +++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 15 +++++
+ src/runtime/internal/atomic/asm_mipsx.s        |  8 +++
+ src/runtime/internal/atomic/atomic_386.go      |  6 ++
+ src/runtime/internal/atomic/atomic_amd64x.go   |  6 ++
+ src/runtime/internal/atomic/atomic_arm.go      |  3 +
+ src/runtime/internal/atomic/atomic_arm64.go    |  3 +
+ src/runtime/internal/atomic/atomic_arm64.s     |  7 +++
+ src/runtime/internal/atomic/atomic_mips64x.go  |  3 +
+ src/runtime/internal/atomic/atomic_mips64x.s   |  9 +++
+ src/runtime/internal/atomic/atomic_mipsx.go    |  3 +
+ src/runtime/internal/atomic/atomic_ppc64x.go   |  3 +
+ src/runtime/internal/atomic/atomic_ppc64x.s    | 11 ++++
+ src/runtime/internal/atomic/atomic_s390x.go    |  6 ++
+ src/runtime/internal/atomic/atomic_wasm.go     |  6 ++
+ src/runtime/internal/atomic/sys_linux_arm.s    | 16 +++++
+ src/runtime/internal/atomic/sys_nonlinux_arm.s | 12 ++++
+ 39 files changed, 354 insertions(+), 18 deletions(-)

@@ -1,0 +1,12 @@
+commit e13170e22ced3d3dcba933f407b5d1eeda59a1df
+Author: Burcu Dogan <jbd@google.com>
+Date:   Wed Jan 14 18:49:03 2015 -0800
+
+    build: fix typo in androidtest.bash
+    
+    Change-Id: Idd72e095ad64e1a398058982422c2c5497a23ce5
+    Reviewed-on: https://go-review.googlesource.com/2739
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/androidtest.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

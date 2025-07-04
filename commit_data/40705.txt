@@ -1,0 +1,33 @@
+commit 904e1136c226b2b6ca31969acbf90ae44ecf8dc0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 7 21:04:53 2019 -0800
+
+    runtime: add pipe/pipe2 on Solaris
+    
+    This adds pipe/pipe2 on Solaris as they exist on other Unix systems.
+    They were not added previously because Solaris does not need them
+    for netpollBreak. They are added now in preparation for using pipes
+    in TestSignalM.
+    
+    Updates #35276
+    
+    Change-Id: I53dfdf077430153155f0a79715af98b0972a841c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206077
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/defs1_solaris_amd64.go                 |  2 ++
+ src/runtime/defs_solaris.go                        |  2 ++
+ ...xport_nbpipe_test.go => export_solaris_test.go} |  9 ++----
+ src/runtime/export_unix_test.go                    |  5 ++++
+ ...fcntl_aix_test.go => nbpipe_fcntl_libc_test.go} |  5 ++--
+ src/runtime/nbpipe_pipe2.go                        |  5 +---
+ src/runtime/nbpipe_test.go                         |  2 +-
+ src/runtime/os3_solaris.go                         | 33 +++++++++++++++++++++-
+ src/runtime/os_freebsd.go                          |  3 ++
+ src/runtime/os_linux.go                            |  2 ++
+ src/runtime/os_netbsd.go                           |  3 ++
+ src/runtime/os_openbsd.go                          |  3 ++
+ src/runtime/os_solaris.go                          | 23 +++++++++++++--
+ src/runtime/syscall_solaris.go                     |  1 -
+ 14 files changed, 81 insertions(+), 17 deletions(-)

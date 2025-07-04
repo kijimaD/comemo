@@ -1,0 +1,16 @@
+commit 6d68fc8eeaf32375eda7208b62cedf6ee5d241d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 15 12:05:24 2013 -0400
+
+    runtime: fix CPU profiling on Windows
+    
+    The test 'gp == m->curg' is not valid on Windows,
+    because the goroutine being profiled is not from the
+    current m.
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/13718043
+
+ src/pkg/runtime/proc.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

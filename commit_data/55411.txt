@@ -1,0 +1,21 @@
+commit 99e12bee441ac82f53bbb0e5cf2fdad716aba5a6
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat Jan 6 07:25:05 2024 +0000
+
+    reflect: StructOf set abi.TFlagRegularMemory
+    
+    Complete a TODO.
+    
+    Change-Id: I791d27266ccee69c371524e298120765f5736cf8
+    GitHub-Last-Rev: 8878003efa2f9f3d8609b88073c982d21ece774b
+    GitHub-Pull-Request: golang/go#64617
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548435
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/export_test.go |  2 ++
+ src/reflect/type.go        | 47 +++++++++++++++++++++++++++++++++++++++++++++-
+ src/reflect/type_test.go   | 43 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 91 insertions(+), 1 deletion(-)

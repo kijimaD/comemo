@@ -1,0 +1,16 @@
+commit 5887ef75713e3f3291f7880809ae2b91c9944ce9
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Feb 1 11:12:57 2011 +1100
+
+    misc/vim: Define import commands on buffer switch
+    
+    This change fixes the import plugin so that the
+    defined commands are available when opening a new
+    Go buffer from within Vim itself.
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/3998053
+
+ misc/vim/ftplugin/go/import.vim | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

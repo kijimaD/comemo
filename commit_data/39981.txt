@@ -1,0 +1,27 @@
+commit 37c033b0a5433ce4132e8694705ad66d4650f670
+Author: Andrew Medvedev <andrew.y.medvedev@gmail.com>
+Date:   Sat Sep 21 20:18:47 2019 +0300
+
+    crypto/x509: give type hint in error message in marshalPublicKey
+    
+    Currently if type of public key is unsupported, error message is "only
+    RSA and ECDSA public keys supported". After adding Ed25519 this message
+    is no longer correct.
+    
+    Moreover, it is superfluous because documentation for
+    MarshalPKIXPublicKey, CreateCertificateRequest and CreateCertificate
+    already lists supported public key types.
+    
+    This CL removes unnecessary details from error message.
+    It also adds reporting the type of unsupported key, which helps
+    debugging cases when struct (instead of a pointer) to otherwise correct
+    public key is given.
+    
+    Fixes #32640
+    
+    Change-Id: I45e6e3d756b543688d850009b4da8a4023c05027
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196777
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

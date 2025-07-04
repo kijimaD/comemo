@@ -1,0 +1,19 @@
+commit 2eeaaaae7530337c23b0d4d76ac519e677c125dd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 19 04:29:13 2016 +0530
+
+    net/http: fix bug where http2 wasn't enabled on DefaultTransport
+    
+    I had accidentally disabled a headline feature at the last second. :(
+    
+    Fixes #14391
+    
+    Change-Id: I1992c9b801072b7538b95c55242be174075ff932
+    Reviewed-on: https://go-review.googlesource.com/19672
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go      | 10 +++++++---
+ src/net/http/transport_test.go |  5 +++++
+ 2 files changed, 12 insertions(+), 3 deletions(-)

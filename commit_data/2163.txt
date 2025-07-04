@@ -1,0 +1,15 @@
+commit abdf4853a743105dbe93002aa580ae6bcd0abf91
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu May 7 15:09:32 2009 -0700
+
+    Define Len() for JSON Map.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=6  (5 added, 0 deleted, 1 changed)
+    OCL=28398
+    CL=28430
+
+ src/lib/json/generic.go      | 3 ++-
+ src/lib/json/generic_test.go | 4 ++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

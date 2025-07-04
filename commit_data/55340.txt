@@ -1,0 +1,15 @@
+commit aa0a6ad1db9ea2e338e755720c91e1b10376c4de
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Jan 3 11:21:49 2024 -0500
+
+    doc/go1.22: add links to go/types symbols
+    
+    Also, join three paragraphs that should have been one.
+    
+    Change-Id: Ib1c252f88a1e98afe157d477caa5323c0c8365e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553715
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+
+ doc/go1.22.html | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

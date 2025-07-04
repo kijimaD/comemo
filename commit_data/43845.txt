@@ -1,0 +1,19 @@
+commit 66c02645062561ac29d00297e8d8c49698b2e4da
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 19 19:15:57 2020 -0800
+
+    net, internal/poll: reset value before adding in minor kernel version
+    
+    Fixes #42733
+    
+    Change-Id: I5446aeb5de13cd70212755fb12c9bc484f343c74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271846
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/internal/poll/copy_file_range_linux.go | 1 +
+ src/net/sock_linux.go                      | 1 +
+ 2 files changed, 2 insertions(+)

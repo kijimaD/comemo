@@ -1,0 +1,21 @@
+commit 70d836debbaf660d41604761a839e28fa349a8f9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 20 11:47:28 2023 -0700
+
+    go.types, types2: factor out checking of LHS in variable assignment
+    
+    Step towards disentangling assignment checking functionality.
+    In preparation for reverse inference of function type arguments,
+    but independently helpful in better separating concerns in the code.
+    
+    Change-Id: I9bac9d8005090c00d9ae6c5cfa13765aacce6b12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477855
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go | 62 ++++++++++++++++----------
+ src/go/types/assignments.go                    | 62 ++++++++++++++++----------
+ 2 files changed, 78 insertions(+), 46 deletions(-)

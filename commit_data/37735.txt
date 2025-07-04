@@ -1,0 +1,25 @@
+commit 99e4ddd053fada36038f7fd4e7220d789e30e48a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 17 14:42:29 2018 -0800
+
+    cmd/compile: increase nesting depth limit for type descriptors
+    
+    The formatting routines for types use a depth limit as primitive
+    mechanism to detect cycles. For now, increase the limit from 100
+    to 250 and file #29312 so we don't drop this on the floor.
+    
+    Also, adjust some fatal error messages elsewhere to use
+    better formatting.
+    
+    Fixes #29264.
+    Updates #29312.
+    
+    Change-Id: Idd529f6682d478e0dcd2d469cb802192190602f6
+    Reviewed-on: https://go-review.googlesource.com/c/154583
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go     |  6 +++++-
+ src/cmd/compile/internal/gc/iexport.go |  2 +-
+ src/cmd/compile/internal/gc/iimport.go |  2 +-
+ test/fixedbugs/issue29264.go           | 22 ++++++++++++++++++++++
+ 4 files changed, 29 insertions(+), 3 deletions(-)

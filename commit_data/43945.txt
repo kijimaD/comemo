@@ -1,0 +1,16 @@
+commit b67b7ddabcc8e1a4b5819f03d47777bf5ddedbcc
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Dec 1 14:12:22 2020 +0100
+
+    doc/go1.16: add reflect changes to release notes
+    
+    For #40700
+    Fixes #42911
+    
+    Change-Id: I1bd729f72ae3a29d190ffc34a40c3d0b59ebbbb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274474
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

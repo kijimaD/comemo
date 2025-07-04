@@ -1,0 +1,24 @@
+commit 1095dd6339dbaf8d7c92214396c0a4dbcfa38521
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 13 10:58:13 2020 -0400
+
+    cmd/go/internal/modload: embed PackageOpts in loaderParams
+    
+    Instead of duplicating PackageOpts fields in the loaderParams struct,
+    embed the PackageOpts directly. Many of the fields are duplicated, and
+    further fields that would also be duplicated will be added in
+    subsequent changes.
+    
+    For #36460
+    
+    Change-Id: I3b0770d162e901d23ec1643183eb07c413d51e0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263138
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/buildlist.go |  4 +++-
+ src/cmd/go/internal/modload/load.go      | 24 ++++++++++++------------
+ 2 files changed, 15 insertions(+), 13 deletions(-)

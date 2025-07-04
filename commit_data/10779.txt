@@ -1,0 +1,20 @@
+commit a62722bba4e7ccfe2ebfae4a5702c17e0a64937d
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Dec 14 15:05:33 2011 +0100
+
+    gc: inlining (disabled without -l)
+    
+    Cross- and intra package inlining of single assignments or return <expression>.
+    Minus some hairy cases, currently including other calls, expressions with closures and ... arguments.
+    
+    R=rsc, rogpeppe, adg, gri
+    CC=golang-dev
+    https://golang.org/cl/5400043
+
+ src/cmd/gc/Makefile |   1 +
+ src/cmd/gc/export.c |  83 ++++++-
+ src/cmd/gc/go.h     |  13 +-
+ src/cmd/gc/go.y     |  12 +-
+ src/cmd/gc/inl.c    | 688 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/lex.c    |  40 ++-
+ 6 files changed, 824 insertions(+), 13 deletions(-)

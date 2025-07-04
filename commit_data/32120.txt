@@ -1,0 +1,17 @@
+commit 4fa2674aa73e815150e531b8b4b02e1711d0e756
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Aug 5 11:07:06 2017 -0700
+
+    misc/cgo/errors: update ptr.go comment
+    
+    Accidentally omitted from submit of CL 53352.
+    
+    Updates #21306
+    
+    Change-Id: I022d89c6417fe9371856d49b646eb6294b91657c
+    Reviewed-on: https://go-review.googlesource.com/53415
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Avelino <t@avelino.xxx>
+
+ misc/cgo/errors/ptr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

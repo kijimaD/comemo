@@ -1,0 +1,12 @@
+commit 2b0e9e8e9ec26f9261b901cf67503ad2d16d3145
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 5 15:15:36 2017 +1000
+
+    cmd/link: introduce and use peSection.checkOffset
+    
+    Change-Id: I093b79a8dd298bce8e8774c51a86a4873718978a
+    Reviewed-on: https://go-review.googlesource.com/56314
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)

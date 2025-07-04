@@ -1,0 +1,14 @@
+commit afff0ff1b8442e9032266c392773a633604ff18c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 25 09:23:13 2008 -0800
+
+    % x inserts spaces between hex bytes in string/*[]byte
+    
+    R=r
+    DELTA=7  (7 added, 0 deleted, 0 changed)
+    OCL=19967
+    CL=19978
+
+ src/lib/fmt/fmt_test.go | 1 +
+ src/lib/fmt/format.go   | 3 +++
+ 2 files changed, 4 insertions(+)

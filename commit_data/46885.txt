@@ -1,0 +1,34 @@
+commit ad99d8840edc655a757570d3d4ec62ad8f4df8a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 13 21:13:05 2021 -0700
+
+    cmd/compile/internal/types2: avoid infinite expansion for invalid recursive generic types
+    
+    The algorithm for detecting invalid recursive types that
+    expand indefinitely suffered from the exact problem is was
+    intended to detect: if the indefinite expansion is happening
+    through type parameters, the algorithm ended up in an infinite
+    sequence of instantiations. (This is only a problem for generic
+    types).
+    
+    Changed the algorithm to always only consider the "original"
+    uninstantiated types. This avoids the problem but it will also
+    not detect some invalid recursive generic types anymore. That
+    requires a more sophisticated type flow analysis.
+    Opened #48962 to track.
+    
+    Addressed with help from @findleyr.
+    
+    For #48951.
+    
+    Change-Id: Ie29cea8f810dae55153dbb1b17c9390cd823c2d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355732
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/decl.go             | 13 +++++++++++--
+ .../internal/types2/testdata/check/issues.go2       |  4 ++--
+ .../types2/testdata/fixedbugs/issue39634.go2        |  4 ++--
+ .../types2/testdata/fixedbugs/issue39938.go2        | 12 +++++++-----
+ .../types2/testdata/fixedbugs/issue48951.go2        | 21 +++++++++++++++++++++
+ 5 files changed, 43 insertions(+), 11 deletions(-)

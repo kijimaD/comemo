@@ -1,0 +1,21 @@
+commit 49ad23a6d23d6cc1666c22e4bc215f25f717b569
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 19 16:58:37 2023 -0400
+
+    cmd/dist: delete moved_goroot test
+    
+    This test is largely obviated by the goroot_executable and
+    list_goroot_symlink cmd/go script tests. It's the last user of several
+    special-case features in cmd/dist and runs only under a fairly
+    constrained set of conditions (including only running on builders, not
+    locally). Delete it.
+    
+    Change-Id: Icc744e3f9f04813bfd0cad2ef3e88e42617ecf5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496519
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/cmd/dist/test.go | 44 --------------------------------------------
+ 1 file changed, 44 deletions(-)

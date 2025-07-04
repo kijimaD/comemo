@@ -1,0 +1,21 @@
+commit 04bee230145759a8f7eadff29f16d7443b215114
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Fri Aug 3 20:51:25 2018 +0530
+
+    cmd/dist: wait for run jobs to finish in case of a compiler error
+    
+    Instead of calling run synchronously, we pass it through bgrun
+    and immediately wait for it to finish. This pushes all jobs
+    to execute through the bgwork channel and therefore causes
+    them to exit cleanly in case of a compiler error.
+    
+    Fixes #25981
+    
+    Change-Id: I789a85d23fabf32d144ab85a3c9f53546cb7765a
+    Reviewed-on: https://go-review.googlesource.com/127776
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

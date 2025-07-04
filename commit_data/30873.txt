@@ -1,0 +1,19 @@
+commit 73912a1b914251d29eb60c8e85262d931f895b90
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 27 15:25:44 2017 -0700
+
+    cmd/vet: remove Peek from list of canonical methods
+    
+    It is insufficiently canonical;
+    see the discussion at issue 19719.
+    
+    Fixes #19719
+    
+    Change-Id: I0559ff3b1b39d7bc4b446d104f36fdf8ce3da50e
+    Reviewed-on: https://go-review.googlesource.com/38722
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/method.go | 1 -
+ 1 file changed, 1 deletion(-)

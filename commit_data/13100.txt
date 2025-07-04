@@ -1,0 +1,15 @@
+commit 40b310706b37b4154cae32d9ed5099dcfb80e11c
+Author: Joel Sing <jsing@google.com>
+Date:   Mon May 21 00:38:14 2012 +1000
+
+    net: reduce dial tests on netbsd
+    
+    Add NetBSD to the list of operating systems that have a reduced set
+    of dial tests.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6208083
+
+ src/pkg/net/dial_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

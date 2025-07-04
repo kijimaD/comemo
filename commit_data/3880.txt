@@ -1,0 +1,16 @@
+commit 1ac60ddd1020026fe184273d0e1b6aeb731e946a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 7 13:17:53 2009 -0800
+
+    - support to extract one-line package synopsis for package listings
+    - formatting in dirs.html is crude, needs better html (open to suggestions),
+      but shows the synopsis
+    - many package comments should probably be adjusted such that the first
+      sentence is more concise
+    
+    R=rsc, iant
+    http://go/go-review/1025014
+
+ lib/godoc/dirs.html    |  2 +-
+ src/cmd/godoc/godoc.go | 27 +++++++++++++++++++++++++--
+ 2 files changed, 26 insertions(+), 3 deletions(-)

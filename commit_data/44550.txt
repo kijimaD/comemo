@@ -1,0 +1,16 @@
+commit 597b5d192e39d7bba38dd461b96effe6e524984b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Mar 6 23:25:25 2021 -0800
+
+    cmd/compile: rename internal-abi.md to abi-internal.md
+    
+    Allows muscle-memoried tab completion of cmd/compile/internal/...
+    paths to work again.
+    
+    Change-Id: Ib54a5f2cc9fabcb876c2e62635828ab28b565501
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299530
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/{internal-abi.md => abi-internal.md} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

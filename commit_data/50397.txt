@@ -1,0 +1,15 @@
+commit 027ff3f47d5d6557067324c342c8e14d7da1cf7a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 6 18:02:13 2022 -0400
+
+    debug/gosym: rename nameoff to nameOff to match runtime
+    
+    Change-Id: Id33526e56bb25bc06746355f95045c5ef3c795c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428660
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/debug/gosym/pclntab.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

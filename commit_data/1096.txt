@@ -1,0 +1,13 @@
+commit 842e1a9aa70648a013d5a48073683f08332e461d
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 10 14:53:40 2008 -0800
+
+    Add a cache to avoid unnecessary parsing of type strings when constructing values
+    
+    R=rsc
+    DELTA=12  (9 added, 0 deleted, 3 changed)
+    OCL=18916
+    CL=18921
+
+ src/lib/reflect/value.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

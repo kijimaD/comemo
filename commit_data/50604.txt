@@ -1,0 +1,20 @@
+commit 63668a5155c808f474d5adab676ef3f3aa50c1d3
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Aug 24 22:00:45 2022 +0800
+
+    reflect: create funcTypes using StructOf
+    
+    follow the TODO to use StructOf, this cl can save the used memory.
+    for example, old code alloc [128]*rtype for func with 65 arguments(in+out),
+    this cl change to alloc [65]*rtype to save memory.
+    
+    Change-Id: I1494bb6b3524d0d46869c3f24a628fec88119d8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425314
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/reflect/type.go | 84 +++++++++++++++++++++--------------------------------
+ 1 file changed, 33 insertions(+), 51 deletions(-)

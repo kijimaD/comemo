@@ -1,0 +1,14 @@
+commit 8b2503d5f54e49608f2b2abfb7d5449288e801b1
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 3 15:58:18 2015 -0400
+
+    cmd/internal/gc: fix race build
+    
+    Change-Id: Iab3f5538c135a21e071789e2c7b445b0a04a2ad0
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8461
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/gc/racewalk.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

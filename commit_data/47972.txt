@@ -1,0 +1,19 @@
+commit a4d3c73ac3cc109ac2088beadf4d51987a60c625
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 18 19:14:25 2022 -0800
+
+    doc/go1.18: don't mention -buildinfo flag
+    
+    It was removed in CL 378576.
+    
+    For #50501
+    
+    Change-Id: I26b8f0e99a40fa5c616aa4849a6ab15dd0d072f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379314
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ doc/go1.18.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

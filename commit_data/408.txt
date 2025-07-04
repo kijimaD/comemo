@@ -1,0 +1,14 @@
+commit 35b7a174e610fa83f2b44b6a6c55a25ce1f60a31
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 22 15:57:46 2008 -0700
+
+    maintain __.PKGDEF files in archives if the 'g' flag is given
+    use this facility to simplify the math lib-building script
+    
+    R=ken
+    DELTA=183  (158 added, 16 deleted, 9 changed)
+    OCL=13364
+    CL=13366
+
+ src/cmd/ar/ar.c | 173 +++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 165 insertions(+), 8 deletions(-)

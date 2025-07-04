@@ -1,0 +1,14 @@
+commit 3a52cf56f85a83b31b474d56b15aad1301c5569c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 29 13:57:59 2011 +1000
+
+    gob: delete some unused bits from the GobEncoder/GobDecoder code.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4631076
+
+ src/pkg/gob/decode.go |  4 ++--
+ src/pkg/gob/encode.go | 15 ++-------------
+ src/pkg/gob/type.go   |  5 -----
+ 3 files changed, 4 insertions(+), 20 deletions(-)

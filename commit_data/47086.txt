@@ -1,0 +1,22 @@
+commit 4f1c9aace00277914e080170237ae381e05683c5
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Oct 27 11:23:06 2021 -0400
+
+    go/types: add debugging support for delayed actions
+    
+    This is a port of CL 355871 to go/types.
+    
+    Change-Id: I2dbc3c625c16b545a271a19606ef34ce04a4a6df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359136
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/check.go       | 39 +++++++++++++++++++++++++++++++++++----
+ src/go/types/decl.go        |  2 +-
+ src/go/types/instantiate.go |  2 +-
+ src/go/types/interface.go   |  2 +-
+ src/go/types/struct.go      |  2 +-
+ src/go/types/typexpr.go     |  2 --
+ 6 files changed, 39 insertions(+), 10 deletions(-)

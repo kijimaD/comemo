@@ -1,0 +1,19 @@
+commit b6544a2a87b17f552c3ab4f7f0f082e48b56d5fa
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sun Dec 23 15:01:11 2018 +0530
+
+    testing/cover: improve message when a package has no statements
+    
+    Fixes #25492
+    
+    Change-Id: Ic1496857524dad0c0a77f3bb80fa084c9bf00aa9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/155777
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/go_test.go                        | 8 ++++++++
+ src/cmd/go/testdata/testcover/pkg4/a.go      | 5 +++++
+ src/cmd/go/testdata/testcover/pkg4/a_test.go | 9 +++++++++
+ src/testing/cover.go                         | 3 ++-
+ 4 files changed, 24 insertions(+), 1 deletion(-)

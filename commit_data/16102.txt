@@ -1,0 +1,20 @@
+commit b72325fde48f56dce438608b7d8375be1dc81080
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 4 13:40:26 2013 -0700
+
+    net/http: remove some obsolete TODOs
+    
+    We've decided to leave logging to third-parties (there are too
+    many formats), which others have done.
+    
+    And we can't change the behavior of the various response
+    fields at this point anyway. Plus I argue they're correct and
+    match their documention.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8391043
+
+ src/pkg/net/http/response_test.go | 6 +++---
+ src/pkg/net/http/server.go        | 3 ---
+ 2 files changed, 3 insertions(+), 6 deletions(-)

@@ -1,0 +1,16 @@
+commit a4a86c7b2441d2777beb2377acfa3d9d7b1fc4ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 6 18:54:11 2022 -0500
+
+    doc/go1.20: relnote and take care of TODOs
+    
+    The main change here is documenting the last-minute addition types.Satisfies.
+    
+    Change-Id: I8be2d2ad730ba108706bd849b68cbd1f4d68a4b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455698
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ doc/go1.20.html | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)

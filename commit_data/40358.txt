@@ -1,0 +1,21 @@
+commit a97ccc894032d646e3003f061704ca59cac2587f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 21 17:06:02 2019 -0700
+
+    sync/atomic: suppress checkptr errors for hammerStoreLoadPointer
+    
+    This test could be updated to use unsafe.Pointer arithmetic properly
+    (e.g., see discussion at #34972), but it doesn't seem worthwhile. The
+    test is just checking that LoadPointer and StorePointer are atomic.
+    
+    Updates #34972.
+    
+    Change-Id: I85a8d610c1766cd63136cae686aa8a240a362a18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202597
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sync/atomic/atomic_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

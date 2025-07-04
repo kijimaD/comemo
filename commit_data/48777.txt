@@ -1,0 +1,21 @@
+commit 9298f604f474ef6dcd5fdfb73877d63b1972c29f
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Apr 13 11:49:15 2022 -0700
+
+    crypto/x509: add CertPool.Clone
+    
+    Export the previously private method copy as Clone.
+    
+    Fixes #35044
+    
+    Change-Id: I5403d6a3b9f344c980c1c89a6823e1a49dcda26b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400175
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/35044.txt           | 1 +
+ src/crypto/x509/cert_pool.go | 5 +++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)

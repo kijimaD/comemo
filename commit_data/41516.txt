@@ -1,0 +1,19 @@
+commit 33e98326a25d54cef19e94ca73c45eaed8847f56
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 26 18:34:25 2020 -0800
+
+    net/textproto: pass missing argument to fmt.Sprintf
+    
+    The vet tool didn't catch this because the fmt.Sprintf format argument
+    was written as an expression.
+    
+    Fixes #37467
+    
+    Change-Id: I72c20ba45e3f42c195fa5e68adcdb9837c7d7ad5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221297
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/textproto/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

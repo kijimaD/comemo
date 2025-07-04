@@ -1,0 +1,19 @@
+commit 526319830bf0d7778226fa9ef558f51ebe67aaa6
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 8 10:14:41 2014 -0700
+
+    runtime: a few cleanups.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/134630043
+
+ src/runtime/asm_386.s      | 4 ++--
+ src/runtime/asm_amd64.s    | 4 ++--
+ src/runtime/asm_amd64p32.s | 4 ++--
+ src/runtime/asm_arm.s      | 4 ++--
+ src/runtime/malloc.go      | 2 ++
+ src/runtime/stubs.go       | 9 +--------
+ src/runtime/thunk.s        | 4 ++--
+ 7 files changed, 13 insertions(+), 18 deletions(-)

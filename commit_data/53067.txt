@@ -1,0 +1,18 @@
+commit 9fd876924a0bc5f94c18ae8b9dce22ad48da9a8f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 3 17:12:15 2022 -0400
+
+    cmd/go: add a test that reproduces the root cause of issue #56494
+    
+    For #56494.
+    
+    Change-Id: I9bbded6d014ac73d81b973f2d7b4783e64380031
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447797
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modget/get.go                 |   2 +-
+ src/cmd/go/testdata/script/mod_get_issue56494.txt | 136 ++++++++++++++++++++++
+ 2 files changed, 137 insertions(+), 1 deletion(-)

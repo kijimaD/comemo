@@ -1,0 +1,28 @@
+commit 0b99ea3b16ae2e00851e087771d30e649c2faa4c
+Author: zikaeroh <zikaeroh@gmail.com>
+Date:   Fri Dec 4 12:20:17 2020 -0800
+
+    cmd/vendor: sync pprof@v0.0.0-20201203190320-1bf35d6f28c2
+    
+    Pulls in a fix to make versioned import paths more readable in pprof's
+    graph view.
+    
+    Updated via the instructions in README.vendor.
+    
+    Updates #36905
+    
+    Change-Id: I6a91de0f4ca1be3fc69d8e1a39ccf4f5bd0387ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275513
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go.mod                                     |   3 +-
+ src/cmd/go.sum                                     |   9 +-
+ .../google/pprof/internal/graph/dotgraph.go        |  24 +-
+ .../google/pprof/internal/graph/graph.go           |  17 +-
+ .../github.com/ianlancetaylor/demangle/ast.go      | 378 ++++++++++++++--
+ .../github.com/ianlancetaylor/demangle/demangle.go | 501 +++++++++++++++++----
+ src/cmd/vendor/modules.txt                         |   5 +-
+ 7 files changed, 792 insertions(+), 145 deletions(-)

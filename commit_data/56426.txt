@@ -1,0 +1,29 @@
+commit a548dee75cc2fd578acc303f58887a50e64e29bc
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu May 9 17:48:33 2024 +0000
+
+    cmd/link/internal/ld: fix overlapping sections in ELF relro links
+    
+    This patch fixes a problem with how the .dynamic and .got sections are
+    handled during PIE linking on ELF targets. These sections were being
+    given addresses that overlapped with the .data.rel.ro section, which
+    resulted in binaries that worked correctly but confused the binutils
+    "strip" tool (which, confusingly, produced non-working stripped output
+    when used on Go PIE binaries without returning a non-zero exit
+    status). The new RELRO PIE code path preserves .dynamic and .got as
+    their own independent sections, while ensuring that they make it into
+    the RELRO segment. A new test verifies that we can successfully strip
+    and run Go PIE binaries, and also that we don't wind up with any
+    sections whose address ranges overlap.
+    
+    Fixes #67261.
+    Updates #45681.
+    
+    Change-Id: If874be05285252a9b074d4a1fc6a4023b9a28b5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584595
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/ld/data.go     |   4 +-
+ src/cmd/link/internal/ld/elf_test.go | 197 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 199 insertions(+), 2 deletions(-)

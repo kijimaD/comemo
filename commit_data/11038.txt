@@ -1,0 +1,12 @@
+commit 2c459f14e9b338fabbae3941ce8a84cee059fc4c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 6 09:48:03 2012 +1100
+
+    goinstall: fix test data
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5519048
+
+ src/cmd/goinstall/download_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit f47335e653ac37f68ada2b265ce4a2c869a27cae
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sat Jun 5 11:04:37 2021 +0530
+
+    crypto/tls: add Conn.NetConn method
+    
+    NetConn method gives us access to the underlying net.Conn
+    value.
+    
+    Fixes #29257
+    
+    Change-Id: I68b2a92ed9dab4be9900807c94184f8c0aeb4f72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325250
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Trust: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Trust: Katie Hockman <katie@golang.org>
+
+ src/crypto/tls/conn.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

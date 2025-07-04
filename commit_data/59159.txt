@@ -1,0 +1,26 @@
+commit 4f11f8ff7db476c534b9b1ad8910dcdd8bbcf022
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Mar 24 04:24:35 2025 -0400
+
+    runtime: rename runfinq to runFinalizersAndCleanups
+    
+    Users see this frame in tracebacks and it serves as a hint that what is
+    running here is a finalizer or cleanup. But runfinq is a rather dense
+    name. We can give it a more obvious name to help users realize what it
+    is.
+    
+    For #73011.
+    
+    Change-Id: I6a6a636ce9a493fd00d4b4c60c23f2b1c96d3568
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660296
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/internal/objabi/funcid.go | 42 +++++++++++++++++++--------------------
+ src/internal/abi/symtab.go        |  2 +-
+ src/runtime/crash_test.go         | 27 ++++++++++++++-----------
+ src/runtime/mfinal.go             |  8 ++++----
+ src/runtime/pprof/pprof_test.go   |  4 ++--
+ src/runtime/traceback.go          | 12 ++++++-----
+ 6 files changed, 50 insertions(+), 45 deletions(-)

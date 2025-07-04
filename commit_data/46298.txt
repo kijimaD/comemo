@@ -1,0 +1,26 @@
+commit 065f3808156c92d957fc1ad2a2a37e147ee628f4
+Author: Joe Sylve <joe.sylve@gmail.com>
+Date:   Thu Sep 2 19:09:15 2021 +0000
+
+    debug/dwarf: check for DWARFv4 AttrDataBitOffset value
+    
+    AttrBitOffset is deprecated (but reserved) in DWARFv4.  This fix adds
+    logic to check the new AttrDataBitOffset attribute if AttrBitOffset
+    attribute is not present.
+    
+    Fixes #46784
+    
+    Change-Id: I7406dcaa4c98e95df72361fd4462c39e6be8879d
+    GitHub-Last-Rev: 5aa10d04910a09538320b4de8fbd8a1f5fd8c17d
+    GitHub-Pull-Request: golang/go#46790
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328709
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/debug/dwarf/testdata/typedef.c      |   1 +
+ src/debug/dwarf/testdata/typedef.macho4 | Bin 0 -> 6220 bytes
+ src/debug/dwarf/type.go                 |   9 ++++--
+ src/debug/dwarf/type_test.go            |  51 ++++++++++++++++++++++++++++++++
+ 4 files changed, 59 insertions(+), 2 deletions(-)

@@ -1,0 +1,23 @@
+commit 869e2957b9f66021581b839cadce6cb48ad46114
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Oct 12 12:03:43 2020 -0400
+
+    cmd/go: update 'go help mod init'
+    
+    'go help mod init' now mentions that the module path can be derived
+    from the directory within GOPATH. We no longer mention version
+    control, since that's now ignored.
+    
+    Fixes #36775
+    
+    Change-Id: Ia5559ecb537fccd838eeab84517e76aa01989292
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261539
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/alldocs.go              | 17 +++++++++++------
+ src/cmd/go/internal/modcmd/init.go | 19 ++++++++++++-------
+ 2 files changed, 23 insertions(+), 13 deletions(-)

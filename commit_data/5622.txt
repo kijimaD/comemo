@@ -1,0 +1,12 @@
+commit 57a62a8bcb4016cf438c350eecbc4350a489945f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 8 15:51:31 2010 -0700
+
+    bug284: make conversion legal, fix error patterns
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1612041
+
+ test/bugs/bug284.go | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

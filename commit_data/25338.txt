@@ -1,0 +1,16 @@
+commit 54977cd3de0a537be46e28a474be203a0ac1a61a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 17 10:29:12 2015 -0800
+
+    cmd/go: runtime and runtime/internal packages depend on runtime/internal/sys
+    
+    Fixes #13655.
+    
+    Change-Id: I764019aecdd59743baa436b7339499e6c2126268
+    Reviewed-on: https://go-review.googlesource.com/17916
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go | 9 +++++++++
+ src/cmd/go/pkg.go     | 8 ++++++++
+ 2 files changed, 17 insertions(+)

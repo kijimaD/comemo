@@ -1,0 +1,26 @@
+commit bf9d9b7dba25ecd2956f4f613ff83c1a3624a038
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 23 13:57:47 2023 -0700
+
+    go/types, types2: better error message for some invalid integer array lengths
+    
+    Don't say "array length must be integer" if it is in fact an integer.
+    
+    Fixes #59209
+    
+    Change-Id: If60b93a0418f5837ac334412d3838eec25eeb855
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479115
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/typexpr.go          | 10 +++++++---
+ src/go/types/typexpr.go                             | 10 +++++++---
+ src/internal/types/testdata/check/decls0.go         |  2 +-
+ src/internal/types/testdata/fixedbugs/issue59209.go | 11 +++++++++++
+ test/fixedbugs/bug255.go                            |  2 +-
+ test/fixedbugs/issue49814.go                        |  4 ++--
+ test/fixedbugs/issue5609.go                         |  2 +-
+ 7 files changed, 30 insertions(+), 11 deletions(-)

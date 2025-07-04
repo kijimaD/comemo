@@ -1,0 +1,13 @@
+commit 47f4ae1a78cb09999f57b34a38913047d5d99a53
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Mar 29 01:27:38 2011 -0400
+
+    bytes, strings: simplify Join
+    
+    R=gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/4300044
+
+ src/pkg/bytes/bytes.go     | 18 ++++--------------
+ src/pkg/strings/strings.go | 18 ++++--------------
+ 2 files changed, 8 insertions(+), 28 deletions(-)

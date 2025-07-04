@@ -1,0 +1,26 @@
+commit e0e2685c80d2c7f3d68b35b6122545659737ad94
+Author: Harald Böhm <harald@boehm.dev>
+Date:   Sun Nov 27 15:34:28 2022 +0100
+
+    syscall: add jail support to ForkExec on FreeBSD
+    
+    Introduce a new SysProcAttr member called Jail on FreeBSD. This allows
+    supplying an existing jail's ID to which the child process is attached
+    before calling the exec system call.
+    
+    Fixes #46259
+    
+    Change-Id: Ie282e5b83429131f9a9e1e27cfcb3bcc995d1d4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458335
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Samuel Karp <samuelkarp@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ api/next/46259.txt               | 10 ++++
+ src/syscall/exec_freebsd.go      | 10 ++++
+ src/syscall/exec_freebsd_test.go | 98 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 118 insertions(+)

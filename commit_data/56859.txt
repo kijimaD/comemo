@@ -1,0 +1,19 @@
+commit f71c00b6165177dbcc5d40ff5f4731d297ee6090
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Jul 1 16:11:33 2024 +0000
+
+    cmd/link: align .reloc block starts by 32 bits for PE target
+    
+    Tweak the code that emits the PE ".reloc" section on Windows to ensure
+    that each relocation block is 32-bit aligned, which is required by the
+    PE standard.
+    
+    Fixes #68260.
+    
+    Change-Id: I39b75a7491b00fa97871aebb90d3be0ec09f9c40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595896
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/ld/pe.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

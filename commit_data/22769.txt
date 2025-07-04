@@ -1,0 +1,17 @@
+commit ea426dcae194cc796a8054d0c4cca5f488a3e857
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 29 10:59:22 2015 -0400
+
+    cmd/internal/ld: use a simpler cout writer
+    
+    Removes the unused *bufio.Reader from the object controlling the
+    linker's primary output.
+    
+    Change-Id: If91d9f60752f3dc4b280f35d6eb441f3c47574b2
+    Reviewed-on: https://go-review.googlesource.com/9362
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/elf.go |  2 +-
+ src/cmd/internal/ld/lib.go | 56 +++++++++++++++++++++++++++++++---------------
+ src/cmd/internal/ld/pe.go  |  2 +-
+ 3 files changed, 40 insertions(+), 20 deletions(-)

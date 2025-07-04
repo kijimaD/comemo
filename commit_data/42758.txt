@@ -1,0 +1,27 @@
+commit 98a0071a5363e307c2e284034f810378de3883dd
+Author: Andrew Ekstedt <andrew.ekstedt@gmail.com>
+Date:   Fri Jul 24 12:48:30 2020 -0700
+
+    path,path/filepath: add Join examples with ".." components
+    
+    People sometimes expect Join to trim .. components from its arguments
+    before joining, and are surprised that it doesn't. This is bad if they
+    were relying on that assumed behaviour to prevent directory traversal
+    attacks.
+    
+    While a careful reading of the documentation for Join and Clean
+    might dispel this notion, it is not obvious at first glance.
+    
+    Add a case to the examples to nudge people in the right direction.
+    
+    Updates #40373
+    
+    Change-Id: Ib5792c12ba1000811a0c0eb77048196d0b26da60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249177
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/path/example_test.go               | 5 +++++
+ src/path/filepath/example_unix_test.go | 4 ++++
+ 2 files changed, 9 insertions(+)

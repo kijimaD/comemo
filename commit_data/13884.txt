@@ -1,0 +1,13 @@
+commit d151fb9e20a808e91cd0c2fbfbe59a1515070705
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Sep 20 22:46:24 2012 +0400
+
+    runtime: reset parfor stats
+    Otherwise they sum up between GCs.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6535048
+
+ src/pkg/runtime/parfor.c | 5 +++++
+ 1 file changed, 5 insertions(+)

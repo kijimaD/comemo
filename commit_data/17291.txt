@@ -1,0 +1,12 @@
+commit 8814b4a4c6bb3906ba82bb4372eb01c8be5d2bfa
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 16 15:38:18 2013 +1000
+
+    doc/go1.2.txt: testing: add TB interface
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/12890044
+
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

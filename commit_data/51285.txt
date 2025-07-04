@@ -1,0 +1,18 @@
+commit 5e73f6a02928518bd8ea0a7b1112ce5e536d5dd6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:30:10 2022 -0500
+
+    cmd/nm: use the test binary as 'nm' instead of rebuilding it
+    
+    This not only reduces the latency of the test, but also respects
+    build flags like '-race' and '-cover' passed to the 'go test' command.
+    
+    Change-Id: Iffdc60d444a9ff1d4ff5e688bca1c2ef0dfa03c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450703
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/nm/nm_test.go | 68 ++++++++++++++++++++++++---------------------------
+ 1 file changed, 32 insertions(+), 36 deletions(-)

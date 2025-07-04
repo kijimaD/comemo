@@ -1,0 +1,19 @@
+commit 5f9fb1ce0293c3d5bc2b0fd81ad7e0aaafd414f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 2 23:22:18 2016 -0400
+
+    cmd/go: remove .o and .a files in builder.collect
+    
+    This matches the removal of .so files and makes the processing
+    of '-L/path/to -lfoo' and plain '/path/to/foo.a' match.
+    
+    Fixes #16463.
+    
+    Change-Id: I1464c5390d7eb6a3a33b4b2c951f87ef392ec94a
+    Reviewed-on: https://go-review.googlesource.com/32642
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

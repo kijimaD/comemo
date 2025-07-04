@@ -1,0 +1,20 @@
+commit 2396101e0590cb7d77556924249c26af0ccd9eff
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 17 13:45:46 2019 +0100
+
+    src/cmd/internal/obj/wasm: optimize blocks in wasm binary
+    
+    This change optimizes the blocks in the wasm binary by generating the
+    entryPointLoop only if it is used and adding an unwindExit block to
+    be able to use the short BrIf instruction for unwinding the stack.
+    These changes were suggested by the wasm-opt tool and reduce the
+    wasm binary size of "hello world" by 1.5%.
+    
+    Change-Id: Ie52db2fa2d9b8482f9a78b7c189231750811fe97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167937
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/wasm/wasmobj.go | 114 ++++++++++++++++++++++-------------
+ 1 file changed, 71 insertions(+), 43 deletions(-)

@@ -1,0 +1,21 @@
+commit 345f9c9eb283dafb0724e0ebc53f1412e0b97dad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 12 13:51:42 2010 -0700
+
+    container/vector: remove Iter() from interface
+    (Iter() is almost never the right mechanism to call.
+    Per discussion with rsc.)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1771043
+
+ src/pkg/container/vector/Makefile             |  2 --
+ src/pkg/container/vector/intvector.go         | 17 ----------
+ src/pkg/container/vector/intvector_test.go    | 47 ---------------------------
+ src/pkg/container/vector/stringvector.go      | 17 ----------
+ src/pkg/container/vector/stringvector_test.go | 47 ---------------------------
+ src/pkg/container/vector/vector.go            | 17 ----------
+ src/pkg/container/vector/vector_test.go       | 47 ---------------------------
+ src/pkg/nntp/nntp.go                          |  4 +--
+ 8 files changed, 1 insertion(+), 197 deletions(-)

@@ -1,0 +1,13 @@
+commit 9eebfe6c3be9211f4ce09077e433653f7f17a38a
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Oct 29 14:09:32 2008 -0700
+
+    types
+    
+    R=r
+    OCL=18034
+    CL=18034
+
+ test/ken/simparray.go | 16 ++++++++--------
+ test/ken/simpconv.go  |  1 +
+ 2 files changed, 9 insertions(+), 8 deletions(-)

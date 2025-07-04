@@ -1,0 +1,16 @@
+commit d970bea88500b21c85d51199d6b0deb1e764950a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 5 10:45:56 2015 -0500
+
+    cmd/internal/gc: start syntax.go for syntax tree definitions
+    
+    Minor comments added. More to come.
+    
+    Change-Id: I97511db54d59e1009ef934da38f306a2dc83a6e9
+    Reviewed-on: https://go-review.googlesource.com/6898
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/gc/go.go     | 362 -------------------------------------
+ src/cmd/internal/gc/subr.go   | 112 ------------
+ src/cmd/internal/gc/syntax.go | 403 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 403 insertions(+), 474 deletions(-)

@@ -1,0 +1,25 @@
+commit 001a75a74c4a27901b0b536efe1be581612c52a9
+Author: Shawn Walker-Salas <shawn.walker@oracle.com>
+Date:   Tue Aug 18 14:13:38 2015 -0700
+
+    runtime/trace: fix tracing of blocking system calls
+    
+    The placement and invocation of traceGoSysCall when using
+    entersyscallblock() instead of entersyscall() differs enough that the
+    TestTraceSymbolize test can fail on some platforms.
+    
+    This change moves the invocation of traceGoSysCall for entersyscall() so
+    that the same number of "frames to skip" are present in the trace as when
+    entersyscallblock() is used ensuring system call traces remain identical
+    regardless of internal implementation choices.
+    
+    Fixes golang/go#12056
+    
+    Change-Id: I8361e91aa3708f5053f98263dfe9feb8c5d1d969
+    Reviewed-on: https://go-review.googlesource.com/13861
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/proc1.go | 12 ++++++++----
+ src/runtime/trace.go |  2 +-
+ 2 files changed, 9 insertions(+), 5 deletions(-)

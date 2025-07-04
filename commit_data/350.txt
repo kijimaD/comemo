@@ -1,0 +1,10 @@
+commit 08b5993b8e8146c60fdb26e9a564feea39890aee
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 14 16:26:41 2008 -0700
+
+    - filed 6g crash bug
+    
+    SVN=127093
+
+ test/bugs/bug066.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

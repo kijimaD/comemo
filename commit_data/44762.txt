@@ -1,0 +1,24 @@
+commit 196c33e92d86eb21fe1cb7d244ea61209b4a554e
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 12 13:37:24 2021 -0500
+
+    cmd/compile: fix WriteFuncMap for new ABI.
+    
+    replaced old type-based logic with new abi-based logic;
+    earlier versions of this CL compared them for equality.
+    For not-in-a-register, they match everywhere tested.
+    
+    also modified GetFrameOffset to make it more like the one it replaces;
+    the LocalsOffset is subtracted.
+    
+    Change-Id: I65ce7f0646c493c277df6b6f46e4839a0d886ac9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302072
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/abi/abiutils.go   | 24 +++++++++++++++---------
+ src/cmd/compile/internal/gc/compile.go     |  4 ++--
+ src/cmd/compile/internal/liveness/plive.go | 29 +++++++++++++++++------------
+ src/cmd/compile/internal/objw/objw.go      |  6 ++++++
+ src/cmd/compile/internal/ssagen/ssa.go     |  2 +-
+ 5 files changed, 41 insertions(+), 24 deletions(-)

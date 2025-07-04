@@ -1,0 +1,25 @@
+commit 1467776b17c7dc232f5586944785f85f48862b49
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 20 13:32:40 2015 -0700
+
+    cmd/internal/obj: update callers to Linkline{fmt,hist} and remove
+    
+    Does the TODOs added by https://golang.org/cl/7623.
+    
+    Passes rsc.io/toolstash/buildall.
+    
+    Change-Id: I23913a8f03834640e9795d48318febb3f88c10f9
+    Reviewed-on: https://go-review.googlesource.com/9160
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/asm/internal/lex/input.go     |  3 +--
+ src/cmd/asm/internal/lex/tokenizer.go |  6 ++----
+ src/cmd/internal/asm/lexbody.go       |  4 ++--
+ src/cmd/internal/asm/macbody.go       |  5 ++---
+ src/cmd/internal/gc/lex.go            |  8 +++----
+ src/cmd/internal/gc/subr.go           | 40 ++++++++++++++++++++---------------
+ src/cmd/internal/gc/util.go           |  3 +--
+ src/cmd/internal/obj/line_test.go     | 14 ++++++------
+ src/cmd/internal/obj/obj.go           | 33 -----------------------------
+ src/cmd/internal/obj/util.go          |  4 ++--
+ 10 files changed, 44 insertions(+), 76 deletions(-)

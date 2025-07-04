@@ -1,0 +1,27 @@
+commit 38db0316f4e45704cc891026ea28dd566387de95
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 3 21:54:48 2023 +0700
+
+    cmd/compile: do not fatal when typechecking conversion expression
+    
+    The types2 typechecker already reported all invalid conversions required
+    by the Go language spec. However, the conversion involves go pragma is
+    not specified in the spec, so is not checked by types2.
+    
+    Fixing this by handling the error gracefully during typecheck, just like
+    how old typechecker did before CL 394575.
+    
+    Fixes #63333
+    
+    Change-Id: I04c4121971c62d96f75ded1794ab4bdf3a6cd0ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532515
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/typecheck/expr.go |  6 +++++-
+ test/fixedbugs/issue63333.go               | 15 +++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

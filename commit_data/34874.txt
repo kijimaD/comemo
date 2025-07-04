@@ -1,0 +1,19 @@
+commit fcb7488add3fcaecce1270fad1590ba9c41be4a9
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 26 17:44:05 2018 -0400
+
+    runtime: factor waiting on mark phase
+    
+    There are three places where we wait for the GC mark phase to
+    complete. Factor these all into a single helper function.
+    
+    Fixes #24362.
+    
+    Change-Id: I47f6a7147974f5b9a2869c527a024519070ba6f3
+    Reviewed-on: https://go-review.googlesource.com/102605
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 67 ++++++++++++++++++++++++++----------------------------
+ 1 file changed, 32 insertions(+), 35 deletions(-)

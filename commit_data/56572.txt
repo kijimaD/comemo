@@ -1,0 +1,25 @@
+commit dfb7073bb8e66630156fc14ae50042acef89a929
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Tue May 14 12:37:14 2024 -0700
+
+    runtime: use semaphore structure for futex locks
+    
+    Prepare the futex-based implementation of lock2 to maintain a list of
+    waiting Ms. Beyond storing an muintptr in the mutex's key field, we now
+    must never overwrite that field (even for a moment) without taking its
+    current value into account.
+    
+    The semaphore-based implementation of lock2 already has that behavior.
+    Reuse that structure.
+    
+    For #66999
+    
+    Change-Id: I23b6f6bacb276fe33c6aed5c0571161a7e71fe6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585636
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/lock_futex.go | 103 +++++++++++++++++++++++-----------------------
+ 1 file changed, 52 insertions(+), 51 deletions(-)

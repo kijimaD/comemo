@@ -1,0 +1,44 @@
+commit 561923fa7a7d47bba99556aaa61e40dd38708773
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 11 22:46:55 2018 -0500
+
+    cmd/go/internal/modfetch: skip symlinks in (*coderepo).Zip
+    
+    Tested manually.
+    
+    Before:
+    
+            $ go mod init golang.org/issue/scratch
+            go: creating new go.mod: module golang.org/issue/scratch
+            $ go1.11.2 mod download github.com/rogpeppe/test2@latest
+            go: finding github.com/rogpeppe/test2 v0.0.11
+            $ find $GOPATH -name goodbye
+            /tmp/tmp.Y8a8UzX3zD/_gopath/pkg/mod/github.com/rogpeppe/test2@v0.0.11/tests/goodbye
+            $ cat $(find $GOPATH -name goodbye)
+            hello
+    
+    After:
+    
+            $ go mod init golang.org/issue/scratch
+            go: creating new go.mod: module golang.org/issue/scratch
+            $ go mod download github.com/rogpeppe/test2@latest
+            go: finding github.com/rogpeppe/test2 v0.0.11
+            $ find $GOPATH -name goodbye
+            $ find $GOPATH -name hello
+            /tmp/tmp.Zo0jhfLaRs/_gopath/pkg/mod/github.com/rogpeppe/test2@v0.0.11/tests/hello
+    
+    A proper regression test would require one of:
+    • a new entry in the vcs-test server (feasible but tedious, and not easily updated by open-source contributors), or
+    • a way to set up an HTTPS proxy in a script_test, or
+    • a way to explicitly populate the module cache from the contents of a local repository (#28835).
+    
+    Fixes #27093
+    Updates #28835
+    
+    Change-Id: I72702a7e791f8815965f0f87c82a30df4d6f0151
+    Reviewed-on: https://go-review.googlesource.com/c/153819
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo.go | 5 +++++
+ 1 file changed, 5 insertions(+)

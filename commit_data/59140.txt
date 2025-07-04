@@ -1,0 +1,13 @@
+commit 2cc0ea46e410b295181c9e1efa85b0e2be495682
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Mar 20 16:02:58 2025 -0700
+
+    internal/syscall/unix: add missing cgo_import_dynamics for AIX
+    
+    Change-Id: Ief4c6dd8340e07556692d2bde2284a3b7afb2444
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659756
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/syscall/unix/at_aix.go | 1 +
+ 1 file changed, 1 insertion(+)

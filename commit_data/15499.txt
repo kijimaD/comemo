@@ -1,0 +1,13 @@
+commit 3dc7f17e892a5422ca9a21e1eb3187850c31cebb
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 28 11:32:53 2013 -0800
+
+    cmd/vet: %b is a valid floating-point format.
+    Also add a report about "invalid type" from gotype, if -v is set.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7420045
+
+ src/cmd/vet/print.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

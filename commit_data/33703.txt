@@ -1,0 +1,21 @@
+commit 08b19a1c5938cad574e812cad784e587855e3df6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Nov 28 10:04:29 2017 -0800
+
+    cmd/compile: use NoXPos instead of lineno in typenod
+    
+    typenod is only used for anonymous types, which don't logically have
+    position information.
+    
+    Passes toolstash-check.
+    
+    Updates #19683.
+    
+    Change-Id: I505424ae980b88c7deed5f23502c3cecb3dc0702
+    Reviewed-on: https://go-review.googlesource.com/80298
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/dcl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

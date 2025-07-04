@@ -1,0 +1,41 @@
+commit 850c964be21d8aadcb0c79be89e62762b0604fbf
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 17 15:40:55 2018 -0400
+
+    cmd/go: treat VCS errors as hard errors in module search
+    
+    If we're looking for a module for a/b/c/d/e,
+    we check for a module named a/b/c/d/e,
+    then a/b/c/d, then a/b/c, then a/b, then a.
+    If we know the source repo for a/b/c and that
+    fails, we should report that error instead of
+    continuing the loop: a/b and a are useless,
+    and the error from a/b/c contains important
+    information.
+    
+    The errors are now a bit more verbose than
+    I'd like but they will suffice for Go 1.11.
+    
+    $ go get github.com/bradfitz/private/sonos
+    go get github.com/bradfitz/private/sonos: git ls-remote -q origin in /Users/rsc/pkg/mod/cache/vcs/61e3c76780847e514802ec6af8f940f641c6017f711444f05c59cb17ac46d456: exit status 128:
+            remote: Repository not found.
+            fatal: repository 'https://github.com/bradfitz/private/' not found
+    $ go list launchpad.net/gocheck
+    can't load package: package launchpad.net/gocheck: unknown import path "launchpad.net/gocheck": bzr branch --use-existing-dir https://launchpad.net/~niemeyer/gocheck/trunk . in /Users/rsc/pkg/mod/cache/vcs/f46ce2ae80d31f9b0a29099baa203e3b6d269dace4e5357a2cf74bd109e13339: exec: "bzr": executable file not found in $PATH
+    $
+    
+    Fixes #26885.
+    Fixes #26982.
+    
+    Change-Id: I2f9cf1853d2d68af18adad668c80513b6ba220d6
+    Reviewed-on: https://go-review.googlesource.com/129683
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/modfetch/codehost/vcs.go   | 14 ++++++++++++++
+ src/cmd/go/internal/modfetch/repo.go           |  3 +++
+ src/cmd/go/internal/modload/import.go          |  4 ++++
+ src/cmd/go/internal/modload/query.go           |  6 ++++++
+ src/cmd/go/testdata/script/mod_vcs_missing.txt | 11 +++++++++++
+ 5 files changed, 38 insertions(+)

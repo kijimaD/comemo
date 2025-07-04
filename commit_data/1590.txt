@@ -1,0 +1,36 @@
+commit 4cf7711568da9510bae09338e03a66049767c851
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 30 14:39:31 2009 -0800
+
+    update go code tree to new func rules.
+    
+    R=r
+    DELTA=367  (111 added, 59 deleted, 197 changed)
+    OCL=23957
+    CL=23960
+
+ doc/progs/server.go                |  8 ++--
+ doc/progs/server1.go               |  8 ++--
+ src/cmd/gotest/gotest              |  6 +--
+ src/lib/bufio_test.go              | 14 +++----
+ src/lib/http/server.go             |  6 +--
+ src/lib/net/dnsclient.go           |  2 +-
+ src/lib/net/dnsmsg.go              |  2 +-
+ src/lib/net/fd.go                  |  2 +-
+ src/lib/net/net.go                 |  6 +--
+ src/lib/net/port.go                |  2 +-
+ src/lib/once.go                    |  6 +--
+ src/lib/once_test.go               | 12 +++---
+ src/lib/reflect/value.go           | 52 ++++++++++++-------------
+ src/lib/testing.go                 |  2 +-
+ src/lib/time/zoneinfo.go           |  2 +-
+ test/fixedbugs/bug029.go           | 14 -------
+ test/fixedbugs/bug088.dir/bug0.go  |  6 +--
+ test/{bugs => fixedbugs}/bug121.go |  2 +-
+ test/fixedbugs/bug134.go           | 11 ------
+ test/func4.go                      | 14 +++++++
+ test/func5.go                      | 77 ++++++++++++++++++++++++++++++++++++++
+ test/golden.out                    | 15 ++++----
+ test/ken/ptrfun.go                 |  4 +-
+ test/newfn.go                      | 17 ---------
+ 24 files changed, 169 insertions(+), 121 deletions(-)

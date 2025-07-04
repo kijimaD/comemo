@@ -1,0 +1,13 @@
+commit 84a5a9b558fbe1a4d20d1be822eefa1fd504d8df
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 22 14:36:23 2012 -0700
+
+    time: avoid data race in abs
+    Fixes #3967.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6460115
+
+ src/pkg/time/time.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

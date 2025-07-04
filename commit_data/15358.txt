@@ -1,0 +1,16 @@
+commit fb21bca01253dfba1a7254f816576724fc2443a9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 21 12:01:47 2013 -0800
+
+    net/http, net/url: deal with URL.Opaque beginning with //
+    
+    Update #4860
+    
+    R=adg, rsc, campoy
+    CC=golang-dev
+    https://golang.org/cl/7369045
+
+ src/pkg/net/http/requestwrite_test.go | 38 +++++++++++++++++++++++++++++++++++
+ src/pkg/net/url/url.go                |  4 ++++
+ src/pkg/net/url/url_test.go           | 18 +++++++++++++++++
+ 3 files changed, 60 insertions(+)

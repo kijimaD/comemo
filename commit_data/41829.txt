@@ -1,0 +1,28 @@
+commit 886303004f06cfb3bcd0c1da92fe51f5eb1e3023
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat Mar 28 23:10:20 2020 -0400
+
+    net/http: release callbacks after fetch promise completes
+    
+    When the request context was canceled, the Transport.RoundTrip method
+    could return before the fetch promise resolved. This would cause the
+    success and failure callback functions to get called after they've
+    been released, which in turn prints a "call to released function"
+    error to the console.
+    
+    Avoid that problem by releasing the callbacks after the fetch promise
+    completes, by moving the release calls into the callbacks themselves.
+    This way we can still return from the Transport.RoundTrip method as
+    soon as the context is canceled, without waiting on the promise to
+    resolve. If the AbortController is unavailable and it's not possible to
+    abort the fetch operation, the promise may take a long time to resolve.
+    
+    For #38003.
+    
+    Change-Id: Ied1475e31dcba101b3326521b0cd653dbb345e1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226204
+    Reviewed-by: Johan Brandhorst <johan.brandhorst@gmail.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ src/net/http/roundtrip_js.go | 35 +++++++++++++++++------------------
+ 1 file changed, 17 insertions(+), 18 deletions(-)

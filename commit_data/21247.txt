@@ -1,0 +1,12 @@
+commit a88d709268b7aa0bb859964981dc1fab5ab019de
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jan 13 16:43:34 2015 +1100
+
+    runtime: make windows goenvs look more like Go
+    
+    Change-Id: I4f84a89553f77382a8064f49db0f5eb575b64313
+    Reviewed-on: https://go-review.googlesource.com/2714
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os1_windows.go | 34 ++++++++++++++++++++++------------
+ 1 file changed, 22 insertions(+), 12 deletions(-)

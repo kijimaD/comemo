@@ -1,0 +1,12 @@
+commit 01ecd41688d0e2441cc8cb755f514807ef966821
+Author: Tormod Erevik Lea <tormodlea@gmail.com>
+Date:   Tue Oct 6 16:57:06 2015 +0200
+
+    encoding/gob: fix typo in documentation
+    
+    Change-Id: I6a882d9f0bc20b7a8bf73765e055d9344f3f401f
+    Reviewed-on: https://go-review.googlesource.com/15422
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/gob/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

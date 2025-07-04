@@ -1,0 +1,19 @@
+commit 5e217284dc9f3b55e8c8b225dc81c1eb1004d423
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Oct 28 16:06:21 2021 -0400
+
+    cmd/internal/goobj: bump version number
+    
+    There have a few updates to the Go object file in this cycle (e.g.
+    FuncInfo format change, some changes in constant values), and it
+    is not compatible with the old tools. Bump up the version number.
+    
+    Change-Id: Id176979b139c76ded2c50f2678eb313934326d6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359483
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/internal/goobj/objfile.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

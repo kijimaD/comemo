@@ -1,0 +1,18 @@
+commit 638e0d36d2a6b2efce0550978bf48e7df1166a0b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 2 16:26:27 2023 -0700
+
+    syscall: return pointer from test function OrigRlimitNofile
+    
+    Change-Id: I8740a2a7ebb3045d8daa97bcb0da7f31f6f7b881
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531996
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/exec_unix_test.go     | 2 +-
+ src/syscall/export_rlimit_test.go | 7 ++-----
+ 2 files changed, 3 insertions(+), 6 deletions(-)

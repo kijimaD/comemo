@@ -1,0 +1,27 @@
+commit ed88076c6437fa87c26a568b46020eacc9202e13
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Wed Apr 16 23:01:02 2014 -0700
+
+    net/http: allow commas and spaces in cookie values
+    
+    According to RFC 6265 a cookie value may contain neither
+    commas nor spaces but such values are very common in the
+    wild and browsers handle them very well so we'll allow
+    both commas and spaces.
+    Values starting or ending in a comma or a space are
+    sent in the quoted form to prevent missinterpetations.
+    
+    RFC 6265 conforming values are handled as before and
+    semicolons, backslashes and double-quotes are still
+    disallowed.
+    
+    Fixes #7243
+    
+    LGTM=nigeltao
+    R=nigeltao
+    CC=bradfitz, golang-codereviews
+    https://golang.org/cl/86050045
+
+ src/pkg/net/http/cookie.go      | 56 ++++++++++-------------------
+ src/pkg/net/http/cookie_test.go | 79 ++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 97 insertions(+), 38 deletions(-)

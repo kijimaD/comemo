@@ -1,0 +1,16 @@
+commit 58cf881c1c61544d467b265950a942ec2aeb9d28
+Author: griesemer <gri@golang.org>
+Date:   Mon Oct 16 21:52:34 2017 -0700
+
+    cmd/compile/internal/parser: removed TODO (cleanup)
+    
+    When an opening "{" of a block is missing and after advancing we
+    find a closing "}", it's likely better to assume the end of the
+    block. Fixed and removed TODO.
+    
+    Change-Id: I20c9b4ecca798933a7cd4cbf21185bd4ca04f5f7
+    Reviewed-on: https://go-review.googlesource.com/71291
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

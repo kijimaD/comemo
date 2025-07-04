@@ -1,0 +1,17 @@
+commit 8f931e49f5ce3692c25f68b415a0228f1d32c40f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 23 16:48:31 2015 -0800
+
+    cmd/compile: remove dead code
+    
+    Get rid of residue after removing old parser.
+    
+    Change-Id: I0dace1037d50959071a082c276f9f374eef6edb2
+    Reviewed-on: https://go-review.googlesource.com/17179
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go    | 85 ++---------------------------------
+ src/cmd/compile/internal/gc/parser.go |  1 -
+ 2 files changed, 3 insertions(+), 83 deletions(-)

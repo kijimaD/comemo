@@ -1,0 +1,24 @@
+commit 18d042e08e46f9d9b55d7347f2dac28277060ef9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 23:46:17 2020 -0400
+
+    all: go get golang.org/x/net@ab3426394381
+    
+    Pull in dns/dnsmessage fix to drop fmt dependency.
+    Also pulled in minor bug fix in x/crypto (dep of net).
+    
+    Change-Id: I0f618e81a24ac24a5adae00af34b728b243dfdbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241257
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go.mod                                        | 2 +-
+ src/cmd/go.sum                                        | 4 ++--
+ src/cmd/vendor/modules.txt                            | 2 +-
+ src/go.mod                                            | 4 ++--
+ src/go.sum                                            | 8 ++++----
+ src/vendor/golang.org/x/crypto/cryptobyte/asn1.go     | 4 ++--
+ src/vendor/golang.org/x/net/dns/dnsmessage/message.go | 3 +--
+ src/vendor/modules.txt                                | 4 ++--
+ 8 files changed, 15 insertions(+), 16 deletions(-)

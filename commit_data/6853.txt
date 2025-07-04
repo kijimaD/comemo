@@ -1,0 +1,20 @@
+commit 70deac67cfa559cff70f040b0f4ff0ea674fd1e8
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Tue Dec 7 15:28:33 2010 -0500
+
+    8l : add dynimport to import table in Windows PE, initial make cgo dll work.
+    
+    R=rsc, brainman, Joe Poirier, mattn
+    CC=golang-dev
+    https://golang.org/cl/2166041
+
+ src/cmd/8l/asm.c                  |   1 +
+ src/cmd/8l/l.h                    |   1 +
+ src/cmd/8l/obj.c                  |   2 +
+ src/cmd/ld/pe.c                   | 209 +++++++++++++++++++++++++++++---------
+ src/cmd/ld/pe.h                   |   2 +
+ src/pkg/runtime/windows/386/sys.s |   8 --
+ src/pkg/runtime/windows/mem.c     |   5 +
+ src/pkg/runtime/windows/os.h      |   8 --
+ src/pkg/runtime/windows/thread.c  | 103 +++++++------------
+ 9 files changed, 207 insertions(+), 132 deletions(-)

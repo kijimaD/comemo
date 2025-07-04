@@ -1,0 +1,19 @@
+commit 546ea78efa159680dde0df42f1f2091ccafef4df
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Aug 2 06:43:20 2019 -0400
+
+    errors: improve doc
+    
+    Explain wrapping and how to use Is and As in the package doc.
+    
+    Explain "chain" in Is and As.
+    
+    Updates #33364.
+    
+    Change-Id: Ic06362106dbd129e33dd47e63176ee5355492086
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188737
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/errors/errors.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/errors/wrap.go   |  6 ++++++
+ 2 files changed, 55 insertions(+)

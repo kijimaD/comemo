@@ -1,0 +1,14 @@
+commit ef945203809d68663cfb7c4dd935d3bfe6babe78
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 2 08:14:31 2011 -0700
+
+    multipart: add FileName accessor on Part
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/4426074
+
+ src/pkg/mime/multipart/formdata.go       |  5 +----
+ src/pkg/mime/multipart/multipart.go      | 33 ++++++++++++++++++++++--------
+ src/pkg/mime/multipart/multipart_test.go | 35 ++++++++++++++++----------------
+ 3 files changed, 43 insertions(+), 30 deletions(-)

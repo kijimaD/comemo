@@ -1,0 +1,14 @@
+commit 1850b29da672c8c1364ce9a2cdfebefead6d40e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 30 15:25:26 2008 -0700
+
+    struct annotations in imports.
+    distribute tag across multiple names.
+    
+    R=ken
+    OCL=18178
+    CL=18178
+
+ src/cmd/gc/go.y   | 3 ++-
+ src/cmd/gc/subr.c | 4 +++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

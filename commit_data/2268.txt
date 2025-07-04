@@ -1,0 +1,13 @@
+commit fb5aa46e655395453de887004d26c16f4d139d6f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 06:54:00 2009 -0700
+
+    fix build again; this time for sure.
+    (this time i ran g4 nothave)
+    
+    TBR=r
+    OCL=29156
+    CL=29156
+
+ src/lib/hash/hash.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

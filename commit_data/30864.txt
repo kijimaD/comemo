@@ -1,0 +1,26 @@
+commit 0476c7a7b50614f98f37a51ee2100af922288b68
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Mar 25 12:55:40 2017 +0100
+
+    runtime/cgo: raise the thread-local storage slot search limit on Android
+    
+    On Android, the thread local offset is found by looping through memory
+    starting at the TLS base address. The search is limited to
+    PTHREAD_KEYS_MAX, but issue 19472 made it clear that in some cases, the
+    slot is located further from the TLS base.
+    
+    The limit is merely a sanity check in case our assumptions about the
+    thread-local storage layout are wrong, so this CL raises it to 384, which
+    is enough for the test case in issue 19472.
+    
+    Fixes #19472
+    
+    Change-Id: I89d1db3e9739d3a7fff5548ae487a7483c0a278a
+    Reviewed-on: https://go-review.googlesource.com/38636
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/gcc_android_arm.c   | 13 +++++--------
+ src/runtime/cgo/gcc_android_arm64.c |  6 +++++-
+ 2 files changed, 10 insertions(+), 9 deletions(-)

@@ -1,0 +1,18 @@
+commit ac6d1564795e662b5b930c6b3d86f12351ff83d5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 3 10:38:22 2018 -0400
+
+    cmd/go/internal/load: trim the " (test)" suffix from ImportStack paths
+    
+    We were passing untrimmed paths to ModPackageModuleInfo, which was then failing
+    the build because it was asked to resolve an invalid path.
+    
+    Fixes #26722
+    
+    Change-Id: I043cc9c26f2188c5e005c0353620d9c55b339df9
+    Reviewed-on: https://go-review.googlesource.com/127795
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/load/pkg.go         |  7 ++++---
+ src/cmd/go/testdata/script/mod_test.txt | 18 ++++++++++++++++++
+ 2 files changed, 22 insertions(+), 3 deletions(-)

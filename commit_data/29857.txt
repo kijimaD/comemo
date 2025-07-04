@@ -1,0 +1,29 @@
+commit 0c942e8f2c6aeedfe672fdd0c2549ac39505cd75
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 19 22:43:38 2016 -0500
+
+    runtime: avoid incorrect panic when a signal arrives during STW
+    
+    Stop-the-world and freeze-the-world (used for unhandled panics) are
+    currently not safe to do at the same time. While a regular unhandled
+    panic can't happen concurrently with STW (if the P hasn't been
+    stopped, then the panic blocks the STW), a panic from a _SigThrow
+    signal can happen on an already-stopped P, racing with STW. When this
+    happens, freezetheworld sets sched.stopwait to 0x7fffffff and
+    stopTheWorldWithSema panics because sched.stopwait != 0.
+    
+    Fix this by detecting when freeze-the-world happens before
+    stop-the-world has completely stopped the world and freeze the STW
+    operation rather than panicking.
+    
+    Fixes #17442.
+    
+    Change-Id: I646a7341221dd6d33ea21d818c2f7218e2cb7e20
+    Reviewed-on: https://go-review.googlesource.com/34611
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/proc.go | 32 ++++++++++++++++++++++++++------
+ 1 file changed, 26 insertions(+), 6 deletions(-)

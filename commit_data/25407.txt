@@ -1,0 +1,25 @@
+commit dc5315c34108016c0c833f4262da8c72108a826b
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sat Jan 2 14:26:13 2016 +0000
+
+    build: prevent the entire repo to be wiped out by cgo test scripts
+    
+    Following the parallelization of some tests, a race condition can
+    occur in testcarchive, testshared and testcshared.
+    
+    In some cases, it can result in the go env GOROOT command returning
+    corrupted data, which are then passed to a rm command.
+    
+    Make the shell script more robust by not trusting the result of
+    the go env GOROOT command. It does not really fix the issue, but
+    at least prevent the entire repository to be deleted.
+    
+    Updates #13789
+    
+    Change-Id: Iaf04a7bd078ed3a82e724e35c4b86e6f756f2a2f
+    Reviewed-on: https://go-review.googlesource.com/18173
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/testcshared/test.bash | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

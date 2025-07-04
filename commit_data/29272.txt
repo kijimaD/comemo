@@ -1,0 +1,21 @@
+commit 9a8bf2d67de6884d99760a065d7af508b85e38d7
+Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
+Date:   Sat Oct 29 12:10:21 2016 -0700
+
+    cmd/compile: avoid nil-ing out a node's Type in typecheckcomplit() on error
+    
+    typecheckcomplit nils out node's type, upon finding new errors.
+    This hides new errors in children's node as well as the type info
+    of current node. This change fixes that.
+    
+    Fixes #17645.
+    
+    Change-Id: Ib473291f31c7e8fa0307cb1d494e0c112ddd3583
+    Reviewed-on: https://go-review.googlesource.com/32324
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go |  1 -
+ test/fixedbugs/issue17645.go             | 17 +++++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

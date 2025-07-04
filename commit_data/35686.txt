@@ -1,0 +1,24 @@
+commit 1041ac8781be0fc6b7108b8270f583660e72ec77
+Author: Suriyaa Sundararuban <suriyaasundararuban@gmail.com>
+Date:   Wed Jun 13 07:06:04 2018 +0000
+
+    doc: use HTTPS for links
+    
+    Change-Id: I9d2d25df067ca573589db5ff18296a5ec33866be
+    Reviewed-on: https://go-review.googlesource.com/118595
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/code.html               |  2 +-
+ doc/contribute.html         |  2 +-
+ doc/debugging_with_gdb.html |  2 +-
+ doc/docs.html               |  2 +-
+ doc/editors.html            |  2 +-
+ doc/gccgo_contribute.html   |  6 +++---
+ doc/gccgo_install.html      | 10 +++++-----
+ doc/go1.2.html              |  4 ++--
+ doc/go1.4.html              | 10 +++++-----
+ doc/go_faq.html             | 10 +++++-----
+ doc/go_spec.html            | 10 +++++-----
+ doc/install-source.html     |  4 ++--
+ doc/install.html            |  2 +-
+ 13 files changed, 33 insertions(+), 33 deletions(-)

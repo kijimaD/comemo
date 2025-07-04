@@ -1,0 +1,20 @@
+commit c5038c85933a69a1ddeae812d601eb11e71cdc58
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Aug 10 09:34:10 2012 +1000
+
+    exp/html: ignore self-closing flag except in SVG and MathML
+    
+    In HTML content, having a self-closing tag is a parse error unless
+    the tag would be self-closing anyway (like <img>). The only place a
+    self-closing tag actually makes a difference is in XML-based foreign
+    content.
+    
+    Pass 1 additional test.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6450109
+
+ src/pkg/exp/html/parse.go                  | 6 +++++-
+ src/pkg/exp/html/testlogs/webkit01.dat.log | 2 +-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,23 @@
+commit 8da6405e0db80fa0a4136fb816c7ca2db716c2b2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 10 10:52:12 2023 -0800
+
+    go/types, types2: implement Info.PkgNameOf
+    
+    For #62037.
+    
+    Change-Id: I354f6417232708278d3f2b2d5ea41ff48e08d6b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541575
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ api/next/62037.txt                          |  2 +
+ src/cmd/compile/internal/types2/api.go      | 17 +++++++
+ src/cmd/compile/internal/types2/api_test.go | 74 ++++++++++++++++++++++++++++
+ src/go/types/api.go                         | 17 +++++++
+ src/go/types/api_test.go                    | 75 +++++++++++++++++++++++++++++
+ 5 files changed, 185 insertions(+)

@@ -1,0 +1,18 @@
+commit 0c24038d22a83c0da5feb3d700b13445f47b24c9
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Dec 15 15:07:22 2021 -0500
+
+    cmd/go: update go work docs
+    
+    Change-Id: If28cc02a5a6f9bf2c7f2550de77ca0b31c1b35ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372494
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go               | 100 +++++++++++++++++++++++++++---------
+ src/cmd/go/internal/workcmd/init.go |  20 ++++----
+ src/cmd/go/internal/workcmd/sync.go |  25 ++++++---
+ src/cmd/go/internal/workcmd/use.go  |  20 +++++---
+ src/cmd/go/internal/workcmd/work.go |  56 +++++++++++++++-----
+ 5 files changed, 160 insertions(+), 61 deletions(-)

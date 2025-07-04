@@ -1,0 +1,15 @@
+commit 14efdea35986e47db79c8b1e8d5e57dc13e8727a
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 12 09:11:44 2012 +1100
+
+    effective_go: use new map deletion syntax
+    
+    Fixes #2984.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5652071
+
+ doc/effective_go.html | 8 ++++----
+ doc/effective_go.tmpl | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

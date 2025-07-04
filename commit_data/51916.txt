@@ -1,0 +1,18 @@
+commit 4636c57fe147e4b5db9935aa72588bea6c0ab530
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 30 11:01:43 2022 +0700
+
+    cmd/compile: factor out code to generate hash func
+    
+    Passes toolstash-check.
+    
+    Change-Id: I86a078ffc5948cbcbec84ce8012f3dfb1c2269b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436960
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/reflectdata/alg.go | 25 ++++++++++++++++---------
+ 1 file changed, 16 insertions(+), 9 deletions(-)

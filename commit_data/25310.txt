@@ -1,0 +1,13 @@
+commit 2ae895c0ce36ffb607442ff053bd19cb5fcd6fd6
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Dec 16 11:26:26 2015 -0800
+
+    archive/tar: spell license correctly in example
+    
+    Change-Id: Ice85d161f026a991953bd63ecc6ec80f8d06dfbd
+    Reviewed-on: https://go-review.googlesource.com/17901
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/tar/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

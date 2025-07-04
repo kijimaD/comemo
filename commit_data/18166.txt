@@ -1,0 +1,15 @@
+commit 79653e412132c02b455ea010733c3adfe40c7313
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Mon Jan 6 11:11:03 2014 -0500
+
+    misc/emacs: fontify type switch correctly
+    
+    Require at least one space after "type" and do not fontify closing
+    parenthesis of type switch as a type.
+    
+    R=adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/37720050
+
+ misc/emacs/go-mode.el | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 0063b9b036f1bdf5c548530a4f93e0b4a111ae14
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jul 19 13:50:52 2022 -0400
+
+    runtime: remove useless empty string literal
+    
+    Assumingly this appears to have been a bug in c2go, as this appeared in
+    https://go.dev/cl/172260043.
+    
+    Change-Id: I8477ec226ffb31268b9c479af13b0fcf401dbeec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418276
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

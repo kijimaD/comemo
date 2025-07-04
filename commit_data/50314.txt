@@ -1,0 +1,17 @@
+commit 02700e55a57647c837618d713102c8f8214657d8
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Sep 2 10:37:16 2022 +0800
+
+    runtime: convert local var cunlock at doTestParallelReaders to atomic type
+    
+    For #53821
+    
+    Change-Id: I17440ea30827976a8d3755851a2496f26aea13b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427137
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/runtime/rwmutex_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

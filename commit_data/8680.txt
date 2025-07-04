@@ -1,0 +1,12 @@
+commit 86183e43c92be0f3761abd0855e5cdac2280e073
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jun 9 22:41:19 2011 -0400
+
+    gopack: make unused page function a fatal error
+    
+    R=iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/4601051
+
+ src/cmd/gopack/ar.c | 19 +------------------
+ 1 file changed, 1 insertion(+), 18 deletions(-)

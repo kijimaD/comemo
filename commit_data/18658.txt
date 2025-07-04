@@ -1,0 +1,13 @@
+commit e6c66a90791cf6f599cf94749c94b0e3e68dfd8a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 26 07:38:13 2014 -0800
+
+    include: fix comment in link.h
+    
+    LGTM=dave, rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/68960044
+
+ include/link.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

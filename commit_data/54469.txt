@@ -1,0 +1,27 @@
+commit 630fff76f9f5f52735fc34745d39c85671fe800c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Sep 14 18:15:47 2023 +0200
+
+    syscall: remove unused ptracePtr on openbsd
+    
+    ptracePtr was introduced in CL 470299 for openbsd but it's not used on
+    this platform.
+    
+    For #58387
+    
+    Change-Id: I27901c3f4497e18dc407a9248b66e2691c9a6abb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527535
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/syscall/syscall_openbsd_libc.go   |  1 -
+ src/syscall/zsyscall_openbsd_386.go   | 11 -----------
+ src/syscall/zsyscall_openbsd_amd64.go | 11 -----------
+ src/syscall/zsyscall_openbsd_arm.go   | 11 -----------
+ src/syscall/zsyscall_openbsd_arm64.go | 11 -----------
+ src/syscall/zsyscall_openbsd_ppc64.go | 11 -----------
+ 6 files changed, 56 deletions(-)

@@ -1,0 +1,19 @@
+commit ec81b1259b6764e0a4c9cbb0414c1bf80e96a92b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 14 11:16:36 2010 -0700
+
+    godoc: better support for directory trees for user-defined
+           file systems provided via -path
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2182041
+
+ src/cmd/godoc/Makefile    |   1 +
+ src/cmd/godoc/dirtrees.go |  44 +++++++++--
+ src/cmd/godoc/doc.go      |  11 +++
+ src/cmd/godoc/godoc.go    | 197 +++++++++++++++++++++++++++++++++++++---------
+ src/cmd/godoc/main.go     |  14 ++--
+ src/cmd/godoc/mapping.go  |  94 ++++++++++------------
+ src/cmd/godoc/utils.go    |  87 ++++++++++++++++++++
+ 7 files changed, 348 insertions(+), 100 deletions(-)

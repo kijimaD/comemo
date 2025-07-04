@@ -1,0 +1,10 @@
+commit 194ed070de814b341b23c43205d45ad3e7393d83
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 6 22:14:17 2008 -0800
+
+    fix a few nits in the typography so HTML is right
+    
+    SVN=111691
+
+ doc/go_lang.txt | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

@@ -1,0 +1,13 @@
+commit 43456b4a7a5929264ea0c175584f47d018a77c73
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 2 17:47:20 2009 -0700
+
+    remove superfluous indirection
+    
+    R=rsc
+    DELTA=7  (0 added, 0 deleted, 7 changed)
+    OCL=29776
+    CL=29778
+
+ src/lib/go/ast/format.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

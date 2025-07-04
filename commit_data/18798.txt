@@ -1,0 +1,17 @@
+commit 02903f8395c4d62c0e07f5ed114252635b29e92f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 7 14:19:05 2014 -0500
+
+    runtime: fix windows/386 build
+    
+    From the trace it appears that stackalloc is being
+    called with 0x1800 which is 6k = 4k + (StackSystem=2k).
+    Make StackSystem 4k too, to make stackalloc happy.
+    It's already 4k on windows/amd64.
+    
+    TBR=khr
+    CC=golang-codereviews
+    https://golang.org/cl/72600043
+
+ src/pkg/runtime/stack.h | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

@@ -1,0 +1,24 @@
+commit 5afa5554289c91706ef6244b24ccf91181123b68
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 28 14:55:10 2021 +0700
+
+    cmd/compile: fix wrong check for b.Controls in isBlockMultiValueExit
+    
+    b.Controls has type [2]*Value, thus len(b.Controls) > 0 is always true.
+    The right check should be b.Controls[0] != nil, though, this is also
+    always true, since when we always set control value for BlockRet and
+    BlockRetJmp when state.exit is called.
+    
+    Though checkFunc also checks for nil control value of ret/retjmp, but
+    it happens later after expand_calls pass, so better to be defensive
+    here, just in case.
+    
+    Change-Id: Ie4a292a3494dfbf5e6d872cde498703023b84d00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345433
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 04535459caf349bc5a731133f5e9eef5e1ab9af9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Apr 17 15:13:46 2016 -0700
+
+    .gitignore: don't ignore y.output
+    
+    We no longer use yacc, and we shouldn't have any y.output files.
+    
+    Change-Id: I045671b6aef3f53c3cfe068b0c14a4871689c13e
+    Reviewed-on: https://go-review.googlesource.com/22161
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .gitignore | 1 -
+ 1 file changed, 1 deletion(-)

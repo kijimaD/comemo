@@ -1,0 +1,14 @@
+commit cf9e46fec6e0e4a6a355dc41aa00d6a2430444da
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 19:34:47 2008 -0700
+
+    bugs from old gri mail
+    
+    R=gri
+    OCL=18093
+    CL=18093
+
+ test/bugs/bug115.go | 14 ++++++++++++++
+ test/bugs/bug116.go | 34 ++++++++++++++++++++++++++++++++++
+ test/golden.out     | 16 ++++++++++++++++
+ 3 files changed, 64 insertions(+)

@@ -1,0 +1,15 @@
+commit 920c6106ca8f7adb8e8f4d21823b0596198abff6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 3 17:22:20 2009 -0700
+
+    top-level func
+    
+    R=austin
+    DELTA=21  (5 added, 10 deleted, 6 changed)
+    OCL=34355
+    CL=34355
+
+ usr/austin/eval/stmt.go      | 18 +++++-------------
+ usr/austin/eval/stmt_test.go |  3 +++
+ usr/austin/eval/world.go     |  4 ++--
+ 3 files changed, 10 insertions(+), 15 deletions(-)

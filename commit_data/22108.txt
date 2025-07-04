@@ -1,0 +1,15 @@
+commit 20b3a9b6eddfb7e3279a315a29f2b45f1ea603f6
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Mar 15 18:38:56 2015 -0400
+
+    crypto/x509: document that DecryptPEMBlock cannot detect all cases of incorrect password
+    
+    Fixes #10171.
+    
+    Change-Id: I1b2e30ebbb2b9d66680008674baa96e550efe1f2
+    Reviewed-on: https://go-review.googlesource.com/7603
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/pem_decrypt.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

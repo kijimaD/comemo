@@ -1,0 +1,14 @@
+commit c403af83a67b42887bbe76800d66ce11de61e74e
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 25 15:12:45 2014 -0700
+
+    runtime: convert complex128div to go.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/116320043
+
+ src/pkg/runtime/complex.go  | 52 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/complex.goc | 58 ---------------------------------------------
+ 2 files changed, 52 insertions(+), 58 deletions(-)

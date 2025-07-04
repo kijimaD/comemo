@@ -1,0 +1,15 @@
+commit 8eaf38cbdd0ae88c7e89ac2f62d13f2091ba1603
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 25 11:56:31 2012 +1100
+
+    godoc: update metadata upon launch
+    
+    Without this change it's possible to launch godoc,
+    immediately GET /, and see a directory listing instead of root.html
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5575054
+
+ src/cmd/godoc/main.go | 2 ++
+ 1 file changed, 2 insertions(+)

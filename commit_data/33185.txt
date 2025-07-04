@@ -1,0 +1,24 @@
+commit 6738c494ad675c0fdd309c9b5c6b7f0c08f00022
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Oct 7 13:28:51 2017 -0400
+
+    cmd/link: move FlagLinkshared global to ctxt
+    
+    For #22095
+    
+    Change-Id: Ica6b3391541fe5a0355620d7c4a5107cf53eee82
+    Reviewed-on: https://go-review.googlesource.com/70833
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/config.go   |  2 +-
+ src/cmd/link/internal/ld/data.go     |  2 +-
+ src/cmd/link/internal/ld/deadcode.go |  2 +-
+ src/cmd/link/internal/ld/elf.go      |  2 +-
+ src/cmd/link/internal/ld/ld.go       |  4 ++--
+ src/cmd/link/internal/ld/lib.go      | 14 +++++++-------
+ src/cmd/link/internal/ld/link.go     |  5 +++--
+ src/cmd/link/internal/ld/main.go     |  4 ++--
+ 8 files changed, 18 insertions(+), 17 deletions(-)

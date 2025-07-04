@@ -1,0 +1,18 @@
+commit 6fc479166a42f859ec8cfbb3e583f941160e069c
+Author: David Chase <drchase@google.com>
+Date:   Tue Nov 6 16:42:13 2018 -0500
+
+    cmd/compile: update TestNexting golden file for Delve
+    
+    This change updates the expected output of the delve debugging session
+    in the TestNexting internal/ssa test, aligning it with the changes
+    introduced in CL 147360 and earlier.
+    
+    Change-Id: I1cc788d02433624a36f4690f24201569d765e5d3
+    Reviewed-on: https://go-review.googlesource.com/c/147998
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/testdata/hist.dlv-opt.nexts | 4 ++++
+ 1 file changed, 4 insertions(+)

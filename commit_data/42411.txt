@@ -1,0 +1,30 @@
+commit 8f4151ea67e1d498e0880f28d3fd803dc2c5448f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Sep 24 18:14:10 2019 +0100
+
+    encoding/xml: only initialize nil struct fields when decoding
+    
+    fieldInfo.value used to initialize nil anonymous struct fields if they
+    were encountered. This behavior is wanted when decoding, but not when
+    encoding. When encoding, the value should never be modified, and these
+    nil fields should be skipped entirely.
+    
+    To fix the bug, add a bool argument to the function which tells the
+    code whether we are encoding or decoding.
+    
+    Finally, add a couple of tests to cover the edge cases pointed out in
+    the original issue.
+    
+    Fixes #27240.
+    
+    Change-Id: Ic97ae4bfe5f2062c8518e03d1dec07c3875e18f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196809
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/encoding/xml/marshal.go      | 16 ++++++++++++----
+ src/encoding/xml/marshal_test.go | 17 +++++++++++++++++
+ src/encoding/xml/read.go         | 16 ++++++++--------
+ src/encoding/xml/typeinfo.go     | 16 +++++++++++++---
+ 4 files changed, 50 insertions(+), 15 deletions(-)

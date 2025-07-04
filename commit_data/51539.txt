@@ -1,0 +1,18 @@
+commit 8247b9f17aa28bbd9382b8204b9befa8ceb875e8
+Author: Zhizhen He <hezhizhen.yi@gmail.com>
+Date:   Mon Dec 5 17:22:01 2022 +0000
+
+    doc: fix typo
+    
+    Change-Id: Ie639fe39b83336c0d885cdcb2fddc06f2b06c2dd
+    GitHub-Last-Rev: b5cc78ad42ee57d77cf027cc5fb6840eb38a0f1b
+    GitHub-Pull-Request: golang/go#57082
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455196
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

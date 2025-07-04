@@ -1,0 +1,76 @@
+commit 6002e01e34f5b847eb4c49ca84e9623d7204f5f2
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 30 17:02:23 2016 -0400
+
+    runtime: allocate black during GC
+    
+    Currently we allocate white for most of concurrent marking. This is
+    based on the classical argument that it produces less floating
+    garbage, since allocations during GC may not get linked into the heap
+    and allocating white lets us reclaim these. However, it's not clear
+    how often this actually happens, especially since our write barrier
+    shades any pointer as soon as it's installed in the heap regardless of
+    the color of the slot.
+    
+    On the other hand, allocating black has several advantages that seem
+    to significantly outweigh this downside.
+    
+    1) It naturally bounds the total scan work to the live heap size at
+    the start of a GC cycle. Allocating white does not, and thus depends
+    entirely on assists to prevent the heap from growing faster than it
+    can be scanned.
+    
+    2) It reduces the total amount of scan work per GC cycle by the size
+    of newly allocated objects that are linked into the heap graph, since
+    objects allocated black never need to be scanned.
+    
+    3) It reduces total write barrier work since more objects will already
+    be black when they are linked into the heap graph.
+    
+    This gives a slight overall improvement in benchmarks.
+    
+    name              old time/op  new time/op  delta
+    XBenchGarbage-12  2.24ms ± 0%  2.21ms ± 1%  -1.32%  (p=0.000 n=18+17)
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              2.60s ± 3%     2.53s ± 3%  -2.56%  (p=0.000 n=20+20)
+    Fannkuch11-12                2.08s ± 1%     2.08s ± 0%    ~     (p=0.452 n=19+19)
+    FmtFprintfEmpty-12          45.1ns ± 2%    45.3ns ± 2%    ~     (p=0.367 n=19+20)
+    FmtFprintfString-12          131ns ± 3%     129ns ± 0%  -1.60%  (p=0.000 n=20+16)
+    FmtFprintfInt-12             122ns ± 0%     121ns ± 2%  -0.86%  (p=0.000 n=16+19)
+    FmtFprintfIntInt-12          187ns ± 1%     186ns ± 1%    ~     (p=0.514 n=18+19)
+    FmtFprintfPrefixedInt-12     189ns ± 0%     188ns ± 1%  -0.54%  (p=0.000 n=16+18)
+    FmtFprintfFloat-12           256ns ± 0%     254ns ± 1%  -0.43%  (p=0.000 n=17+19)
+    FmtManyArgs-12               769ns ± 0%     763ns ± 0%  -0.72%  (p=0.000 n=18+18)
+    GobDecode-12                7.08ms ± 2%    7.00ms ± 1%  -1.22%  (p=0.000 n=20+20)
+    GobEncode-12                5.88ms ± 0%    5.88ms ± 1%    ~     (p=0.406 n=18+18)
+    Gzip-12                      214ms ± 0%     214ms ± 1%    ~     (p=0.103 n=17+18)
+    Gunzip-12                   37.6ms ± 0%    37.6ms ± 0%    ~     (p=0.563 n=17+17)
+    HTTPClientServer-12         77.2µs ± 3%    76.9µs ± 2%    ~     (p=0.606 n=20+20)
+    JSONEncode-12               15.1ms ± 1%    15.2ms ± 2%    ~     (p=0.138 n=19+19)
+    JSONDecode-12               53.3ms ± 1%    53.1ms ± 1%  -0.33%  (p=0.000 n=19+18)
+    Mandelbrot200-12            4.04ms ± 1%    4.04ms ± 1%    ~     (p=0.075 n=19+18)
+    GoParse-12                  3.30ms ± 1%    3.29ms ± 1%  -0.57%  (p=0.000 n=18+16)
+    RegexpMatchEasy0_32-12      69.5ns ± 1%    69.9ns ± 3%    ~     (p=0.822 n=18+20)
+    RegexpMatchEasy0_1K-12       237ns ± 1%     237ns ± 0%    ~     (p=0.398 n=19+18)
+    RegexpMatchEasy1_32-12      69.8ns ± 2%    69.5ns ± 1%    ~     (p=0.090 n=20+16)
+    RegexpMatchEasy1_1K-12       371ns ± 1%     372ns ± 1%    ~     (p=0.178 n=19+20)
+    RegexpMatchMedium_32-12      108ns ± 2%     108ns ± 3%    ~     (p=0.124 n=20+19)
+    RegexpMatchMedium_1K-12     33.9µs ± 2%    34.2µs ± 4%    ~     (p=0.309 n=20+19)
+    RegexpMatchHard_32-12       1.75µs ± 2%    1.77µs ± 4%  +1.28%  (p=0.018 n=19+18)
+    RegexpMatchHard_1K-12       52.7µs ± 1%    53.4µs ± 4%  +1.23%  (p=0.013 n=15+18)
+    Revcomp-12                   354ms ± 1%     359ms ± 4%  +1.27%  (p=0.043 n=20+20)
+    Template-12                 63.6ms ± 2%    63.7ms ± 2%    ~     (p=0.654 n=20+18)
+    TimeParse-12                 313ns ± 1%     316ns ± 2%  +0.80%  (p=0.014 n=17+20)
+    TimeFormat-12                332ns ± 0%     329ns ± 0%  -0.66%  (p=0.000 n=16+16)
+    [Geo mean]                  51.7µs         51.6µs       -0.09%
+    
+    Change-Id: I2214a6a0e4f544699ea166073249a8efdf080dc0
+    Reviewed-on: https://go-review.googlesource.com/21323
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/malloc.go |  4 ++--
+ src/runtime/mgc.go    | 20 ++++++++++++++------
+ 2 files changed, 16 insertions(+), 8 deletions(-)

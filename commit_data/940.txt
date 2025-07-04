@@ -1,0 +1,14 @@
+commit ad48706a249eebe84171f0e438443b3b59ca3e9b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 22 17:45:47 2008 -0700
+
+    do not use fake names on anonymous function return values
+    
+    R=ken
+    OCL=17679
+    CL=17679
+
+ src/cmd/6g/gsubr.c | 4 +---
+ src/cmd/gc/dcl.c   | 6 +-----
+ src/cmd/gc/subr.c  | 2 +-
+ 3 files changed, 3 insertions(+), 9 deletions(-)

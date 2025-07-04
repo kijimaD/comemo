@@ -1,0 +1,14 @@
+commit 835cd46941683bce57689a184ab934b7739da036
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 7 17:27:14 2008 -0700
+
+    - first cut a Go parser in Go
+    
+    SVN=126242
+
+ doc/go_lang.txt             |  11 +-
+ usr/gri/src/parser.go       | 705 ++++++++++++++++++++++++++++++++++++++++++++
+ usr/gri/src/scanner.go      |  35 ++-
+ usr/gri/src/test_parser.go  |  40 +++
+ usr/gri/src/test_scanner.go |   4 +-
+ 5 files changed, 782 insertions(+), 13 deletions(-)

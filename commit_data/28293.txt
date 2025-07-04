@@ -1,0 +1,24 @@
+commit f30598dd71b5bb7109eda56b02ea10d2b6cc1362
+Author: Joonas Kuorilehto <joneskoo@derbian.fi>
+Date:   Sat Sep 10 22:07:33 2016 +0300
+
+    crypto/tls: Add mutex to protect KeyLogWriter
+    
+    Concurrent use of tls.Config is allowed, and may lead to
+    KeyLogWriter being written to concurrently. Without a mutex
+    to protect it, corrupted output may occur. A mutex is added
+    for correctness.
+    
+    The mutex is made global to save size of the config struct as
+    KeyLogWriter is rarely enabled.
+    
+    Related to #13057.
+    
+    Change-Id: I5ee55b6d8b43a191ec21f06e2aaae5002a71daef
+    Reviewed-on: https://go-review.googlesource.com/29016
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/common.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

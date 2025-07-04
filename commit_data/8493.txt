@@ -1,0 +1,14 @@
+commit 8c2078796d79fee91cf8078df037cd36f84ea1b2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 25 10:26:06 2011 -0700
+
+    test: test cases for issue 1708.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4548058
+
+ test/golden.out | 15 +++++++++++++++
+ test/shift1.go  | 36 ++++++++++++++++++++++++++++++++++++
+ test/shift2.go  | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 93 insertions(+)

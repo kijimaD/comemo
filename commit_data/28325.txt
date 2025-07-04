@@ -1,0 +1,25 @@
+commit cfea26026bc49be1710ed742465514e84bd31ab5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 9 05:26:20 2016 +0000
+
+    doc: document minimum OS X version as 10.8
+    
+    The download page says "OS X 10.8 or later", but other pages said 10.7.
+    Say 10.8 everywhere.
+    
+    Turns out Go doesn't even compile on OS X 10.7 (details in bug) and we
+    only run builders for OS X 10.8+, which is likely why 10.7
+    regressed. Until recently we only had OS X 10.10 builders, even.
+    
+    We could run 10.7 builders, but there's basically no reason to do so,
+    especially with 10.12 coming out imminently.
+    
+    Fixes #16625
+    
+    Change-Id: Ida6e20fb6c54aea0a3757235b708ac1c053b8c04
+    Reviewed-on: https://go-review.googlesource.com/28870
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/install-source.html | 2 +-
+ doc/install.html        | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

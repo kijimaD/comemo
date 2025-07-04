@@ -1,0 +1,15 @@
+commit cb11c981df7b4dc40550ab71cc097c25d24d7a71
+Author: pj <pj@pjebs.com.au>
+Date:   Tue May 12 05:14:25 2020 +0000
+
+    A+C: add Prasanga Siripala (individual CLA)
+    
+    Change-Id: I15e5788ecfc94d8110dbea277beb14e3d4ff0672
+    GitHub-Last-Rev: 6305c599297730500b4a0372234172ad01fac97b
+    GitHub-Pull-Request: golang/go#39010
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233324
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

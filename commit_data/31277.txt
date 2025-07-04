@@ -1,0 +1,19 @@
+commit 7b0b52ef2b2b86eef3b73859ceaa986c8c0e47f7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 21 06:50:02 2017 -0400
+
+    cmd/compile: mark ARM's CALLudiv not safepoint
+    
+    ARM's udiv function is nosplit and it shouldn't be preemptied
+    (passing args in registers). It is in some sense like DUFFCOPY,
+    which we don't mark as safepoint.
+    
+    Change-Id: I49f7c4e69e787ac364d0b0def0661e79a0ea9e69
+    Reviewed-on: https://go-review.googlesource.com/41370
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/arm/ssa.go  | 6 ++++--
+ src/cmd/compile/internal/gc/plive.go | 2 +-
+ 2 files changed, 5 insertions(+), 3 deletions(-)

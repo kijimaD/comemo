@@ -1,0 +1,12 @@
+commit 75dd952d1617b658b62dc5cf8f4445cbd2942ef1
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Fri Sep 9 09:39:23 2011 +1000
+
+    os: forgotten file of submitted CL 4984051
+    
+    R=alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/4983053
+
+ src/pkg/syscall/ztypes_windows.go | 1 -
+ 1 file changed, 1 deletion(-)

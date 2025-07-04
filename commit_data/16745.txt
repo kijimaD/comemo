@@ -1,0 +1,28 @@
+commit fb63e4fefbb1325a21f643febc97987c82fcae7a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 12 00:03:32 2013 -0400
+
+    runtime: make cas64 like cas32 and casp
+    
+    The current cas64 definition hard-codes the x86 behavior
+    of updating *old with the new value when the cas fails.
+    This is inconsistent with cas32 and casp.
+    Make it consistent.
+    
+    This means that the cas64 uses will be epsilon less efficient
+    than they might be, because they have to do an unnecessary
+    memory load on x86. But so be it. Code clarity and consistency
+    is more important.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10909045
+
+ src/pkg/runtime/asm_amd64.s  |  5 +----
+ src/pkg/runtime/atomic_386.c | 16 ++++++++--------
+ src/pkg/runtime/atomic_arm.c |  5 ++---
+ src/pkg/runtime/lfstack.c    |  8 ++++----
+ src/pkg/runtime/parfor.c     |  4 ++--
+ src/pkg/runtime/runtime.c    | 20 ++++++++++++++++----
+ src/pkg/runtime/runtime.h    |  2 +-
+ 7 files changed, 34 insertions(+), 26 deletions(-)

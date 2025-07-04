@@ -1,0 +1,18 @@
+commit 9dc1cce38db0229e97c1ee8d9929f0457f1af385
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 31 09:49:42 2014 -0700
+
+    database/sql: make TestDrivers not crash on second run
+    
+    Using -test.cpu=1,1 made it crash before.
+    
+    Fixes #9024
+    
+    LGTM=iant
+    R=adg, iant
+    CC=golang-codereviews
+    https://golang.org/cl/169860043
+
+ src/database/sql/fakedb_test.go | 2 ++
+ src/database/sql/sql.go         | 5 +++++
+ 2 files changed, 7 insertions(+)

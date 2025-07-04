@@ -1,0 +1,13 @@
+commit d4507d44a65e0b064f2728e92cf1221d6f1cd465
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 27 09:33:26 2011 -0700
+
+    archive/zip: fix Fatal call
+    Error found by govet.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5142048
+
+ src/pkg/archive/zip/writer_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

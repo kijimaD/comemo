@@ -1,0 +1,36 @@
+commit 5e5247176174c1ce98665e07c30b556e50a5e8e7
+Author: Mark Rushakoff <mark.rushakoff@gmail.com>
+Date:   Sat Mar 10 05:57:43 2018 +0000
+
+    all: fix non-standard "DO NOT EDIT" comments for generated files
+    
+    I found files to change with this command:
+    
+        git grep 'DO NOT EDIT' | grep -v 'Code generated .* DO NOT'
+    
+    There are more files that match that grep, but I do not intend on fixing
+    them.
+    
+    Change-Id: I4b474f1c29ca3135560d414785b0dbe0d1a4e52c
+    GitHub-Last-Rev: 65804b02634abd85bf113788b38354d48801241f
+    GitHub-Pull-Request: golang/go#24334
+    Reviewed-on: https://go-review.googlesource.com/99955
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/md5/gen.go                | 3 +--
+ src/crypto/md5/md5block.go           | 3 +--
+ src/encoding/gob/dec_helpers.go      | 2 +-
+ src/encoding/gob/decgen.go           | 2 +-
+ src/encoding/gob/enc_helpers.go      | 2 +-
+ src/encoding/gob/encgen.go           | 2 +-
+ src/image/color/palette/gen.go       | 2 +-
+ src/image/color/palette/palette.go   | 2 +-
+ src/image/internal/imageutil/gen.go  | 2 +-
+ src/image/internal/imageutil/impl.go | 2 +-
+ src/sort/genzfunc.go                 | 2 +-
+ src/sort/zfuncversion.go             | 2 +-
+ src/strconv/isprint.go               | 3 +--
+ src/strconv/makeisprint.go           | 3 +--
+ 14 files changed, 14 insertions(+), 18 deletions(-)

@@ -1,0 +1,26 @@
+commit 3fd62ce91030f27c5cc28e49fb0101f5f658d3d0
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Tue May 8 00:07:13 2018 -0600
+
+    math/big: optimize multiplication by 2 and 1/2 in float Sqrt
+    
+    The Sqrt code previously used explicit constants for 2 and 1/2.  This change
+    replaces multiplication by these constants with increment and decrement of
+    the floating point exponent directly.  This improves performance by ~7-10%
+    for small inputs and minimal improvement for large inputs.
+    
+    name                 old time/op    new time/op    delta
+    FloatSqrt/64-4         1.39µs ± 0%    1.29µs ± 3%   -7.01%  (p=0.016 n=4+5)
+    FloatSqrt/128-4        2.84µs ± 0%    2.60µs ± 1%   -8.33%  (p=0.008 n=5+5)
+    FloatSqrt/256-4        3.24µs ± 1%    2.91µs ± 2%  -10.00%  (p=0.008 n=5+5)
+    FloatSqrt/1000-4       7.42µs ± 1%    6.74µs ± 0%   -9.16%  (p=0.008 n=5+5)
+    FloatSqrt/10000-4      65.9µs ± 1%    65.3µs ± 4%     ~     (p=0.310 n=5+5)
+    FloatSqrt/100000-4     1.57ms ± 8%    1.52ms ± 1%     ~     (p=0.111 n=5+4)
+    FloatSqrt/1000000-4     127ms ± 1%     126ms ± 1%     ~     (p=0.690 n=5+5)
+    
+    Change-Id: Id81ac842a9d64981e001c4ca3ff129eebd227593
+    Reviewed-on: https://go-review.googlesource.com/130835
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/sqrt.go | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

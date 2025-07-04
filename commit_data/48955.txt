@@ -1,0 +1,45 @@
+commit 349cc83389f71c459b7820b0deecdf81221ba46c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 29 20:05:26 2022 -0400
+
+    os/exec: return error when PATH lookup would use current directory
+    
+    CL 381374 was reverted because x/sys/execabs broke.
+    
+    This CL reapplies CL 381374, but adding a lookPathErr error
+    field back, for execabs to manipulate with reflect.
+    That field will just be a bit of scar tissue in this package forever,
+    to keep old code working with new toolchains.
+    
+    CL 403256 fixes x/sys/execabs's test to be ready for the change.
+    Older versions of x/sys/execabs will keep working
+    (that is, will keep rejecting what they should reject),
+    but they will return a slightly different error from LookPath
+    without that CL, and the test fails because of the different
+    error text.
+    
+    For #43724.
+    
+    This reverts commit f2b674756b3b684118e4245627d4ed8c07e518e7.
+    
+    Change-Id: Iee55f8cd9939e1bd31e5cbdada50681cdc505117
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403274
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/43724.txt                      |   2 +
+ src/cmd/dist/build.go                   |   7 +++
+ src/cmd/dist/test.go                    |  27 ++++----
+ src/cmd/dist/util.go                    |   6 +-
+ src/cmd/go/testdata/script/cgo_path.txt |   2 +-
+ src/internal/execabs/execabs.go         |  40 +-----------
+ src/internal/execabs/execabs_test.go    | 103 ------------------------------
+ src/os/exec/dot_test.go                 |  87 +++++++++++++++++++++++++
+ src/os/exec/exec.go                     | 108 ++++++++++++++++++++++++++++++--
+ src/os/exec/lp_plan9.go                 |   9 ++-
+ src/os/exec/lp_unix.go                  |   9 ++-
+ src/os/exec/lp_windows.go               |  35 ++++++++---
+ src/os/exec/lp_windows_test.go          |   6 +-
+ 13 files changed, 269 insertions(+), 172 deletions(-)

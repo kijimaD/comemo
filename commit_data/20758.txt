@@ -1,0 +1,16 @@
+commit 9070afb3599ad437ad08e5839653978817818c9a
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 20 13:28:00 2014 -0700
+
+    flag: roll back 156390043 (flag setting)
+    Shell scripts depend on the old behavior too often.
+    It's too late to make this change.
+    
+    LGTM=bradfitz
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/161890044
+
+ src/flag/flag.go      | 29 -------------------------
+ src/flag/flag_test.go | 60 ---------------------------------------------------
+ 2 files changed, 89 deletions(-)

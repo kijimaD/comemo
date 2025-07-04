@@ -1,0 +1,27 @@
+commit 2013ad897dc26e413948d18138f50050857b141a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Feb 27 08:14:53 2018 +0100
+
+    os, syscall: use pipe2 instead of pipe syscall on OpenBSD
+    
+    The pipe2 syscall is part of OpenBSD since version 5.7 and thus exists in
+    all officially supported versions.
+    
+    Follows CL 38426 and CL 94035
+    
+    Change-Id: I8f93ecbc89664241f1b6b0d069e948776941b1d0
+    Reviewed-on: https://go-review.googlesource.com/97356
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/pipe2_bsd.go                   |  2 +-
+ src/os/pipe_bsd.go                    |  2 +-
+ src/syscall/forkpipe.go               |  2 +-
+ src/syscall/forkpipe2.go              |  2 +-
+ src/syscall/syscall_openbsd.go        | 12 ++++++++----
+ src/syscall/zsyscall_openbsd_386.go   |  4 ++--
+ src/syscall/zsyscall_openbsd_amd64.go |  4 ++--
+ src/syscall/zsyscall_openbsd_arm.go   |  4 ++--
+ src/syscall/zsysnum_openbsd_386.go    |  1 +
+ src/syscall/zsysnum_openbsd_amd64.go  |  1 +
+ 10 files changed, 20 insertions(+), 14 deletions(-)

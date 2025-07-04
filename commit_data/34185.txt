@@ -1,0 +1,22 @@
+commit c3e8da67dd79d84ac04187b5ce577d76d4e0c032
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 14 13:51:51 2018 -0800
+
+    cmd/compile: fix printing of untyped types in -W output
+    
+    It's always useful to distinguish "bool" and "string" from "untyped
+    bool" and "untyped string", so change typefmt to do this
+    unconditionally.
+    
+    Also, while here, replace a bare 0 with its named constant FErr.
+    
+    Fixes #23833.
+    
+    Change-Id: I3fcb8d7204686937439caaaf8b3973fc236d0387
+    Reviewed-on: https://go-review.googlesource.com/94021
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

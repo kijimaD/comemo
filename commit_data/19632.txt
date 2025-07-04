@@ -1,0 +1,39 @@
+commit 3050a0a7d2bccede88c56828609902469328e15f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 30 11:06:47 2014 -0700
+
+    encoding/gob: remove unsafe, use reflection.
+    This removes a major unsafe thorn in our side, a perennial obstacle
+    to clean garbage collection.
+    Not coincidentally: In cleaning this up, several bugs were found,
+    including code that reached inside by-value interfaces to create
+    pointers for pointer-receiver methods. Unsafe code is just as
+    advertised.
+    
+    Performance of course suffers, but not too badly. The Pipe number
+    is more indicative, since it's doing I/O that simulates a network
+    connection. Plus these are end-to-end, so each end suffers
+    only half of this pain.
+    
+    The edit is pretty much a line-by-line conversion, with a few
+    simplifications and a couple of new tests. There may be more
+    performance to gain.
+    
+    BenchmarkEndToEndByteBuffer     2493          3033          +21.66%
+    BenchmarkEndToEndPipe           4953          5597          +13.00%
+    
+    Fixes #5159.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews, khr
+    https://golang.org/cl/102680045
+
+ src/pkg/encoding/gob/codec_test.go     | 311 ++++++++---------
+ src/pkg/encoding/gob/debug.go          |   6 +-
+ src/pkg/encoding/gob/decode.go         | 588 +++++++++++++++------------------
+ src/pkg/encoding/gob/encode.go         | 324 +++++++-----------
+ src/pkg/encoding/gob/encoder_test.go   |  76 ++++-
+ src/pkg/encoding/gob/gobencdec_test.go |   7 +-
+ src/pkg/encoding/gob/timing_test.go    |   6 +-
+ 7 files changed, 593 insertions(+), 725 deletions(-)

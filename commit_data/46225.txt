@@ -1,0 +1,23 @@
+commit d384ebde60a7e720f83fb10e6fa9cbf989a8866f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Aug 30 16:00:53 2021 +0200
+
+    net: enable multicast listener tests on solaris/illumos
+    
+    It seems everything is in place for these tests to pass on solaris and
+    illumos, so enable them.
+    
+    Fixes #7399
+    
+    Change-Id: If6defb651ef9c5059c1aeccbc4fc13a12a86b682
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346149
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/listen_test.go    | 4 ----
+ src/net/sockoptip_stub.go | 6 ------
+ 2 files changed, 10 deletions(-)

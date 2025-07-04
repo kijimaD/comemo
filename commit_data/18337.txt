@@ -1,0 +1,13 @@
+commit d07d08e60f9eacde0af7648d577a09a65d4eb992
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 22 15:55:56 2014 -0800
+
+    cmd/gc: add the word 'archive' to the documentation for -pack
+    The term "package file" is unclear.
+    
+    R=iant, dave
+    CC=golang-codereviews
+    https://golang.org/cl/54760044
+
+ src/cmd/gc/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 4a7975e73a2815b93caf6697fec4f4e777e729a1
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Oct 15 11:54:25 2021 -0700
+
+    cmd/compile: convert to using a map in getInstInfo, rather than SetImplicit()
+    
+    SetImplicit() has an explicit meaning and really shouldn't be used in
+    this way - its use is left over from early prototype of the dictionary
+    code. Convert from using SetImplicit to just using a map during
+    traversal.
+    
+    Change-Id: I3d257c101a859f000e159d7ced307d1b7cf990d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356310
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

@@ -1,0 +1,13 @@
+commit c490bb6f81e5905962a2a8f7e26dd8db175a9d97
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 29 15:52:25 2010 -0700
+
+    gob: clarify the comments about installing the debug/dumper.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2789043
+
+ src/pkg/gob/debug.go   | 3 ++-
+ src/pkg/gob/decoder.go | 5 +++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)

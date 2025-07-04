@@ -1,0 +1,27 @@
+commit 5b1b080ca5433c957aaee431d3e429558742cb10
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 22 00:27:07 2022 -0500
+
+    cmd/dist: skip the staleness check for 'cmd' when testing on aix-ppc64
+    
+    The gcc toolchain on the aix-ppc64 builder apparently does not achieve
+    reproducible builds for packages that use cgo, which causes the
+    binaries in cmd that use package "net" (cmd/go, cmd/pprof, and
+    cmd/trace) to appear stale whenever the Go build cache is cleared.
+    
+    For now, we work around the staleness by rebuilding std and simply not
+    checking whether cmd is stale.
+    
+    For #56896.
+    Updates #47257.
+    
+    Change-Id: I15f86e72dee53904b881710d5d5d613872361510
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452680
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ayappan Perumal <ayappanec@gmail.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

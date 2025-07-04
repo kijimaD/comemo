@@ -1,0 +1,13 @@
+commit 310e5fe60c71bd8435a7989d1970b739bd5e4463
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Sep 16 13:40:02 2011 +1000
+
+    net: reuse channels during io
+    
+    R=golang-dev, bsiegert, rsc, hectorchu
+    CC=golang-dev
+    https://golang.org/cl/5016043
+
+ src/pkg/net/fd_windows.go       | 50 ++++++++++++++++++++++++++---------------
+ src/pkg/net/sendfile_windows.go |  2 +-
+ 2 files changed, 33 insertions(+), 19 deletions(-)

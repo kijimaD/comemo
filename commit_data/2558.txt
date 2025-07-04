@@ -1,0 +1,24 @@
+commit fa40c856ac531c7e6ce9fc8c655aea43dd6b7ba6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 30 20:01:50 2009 -0700
+
+    convert string runtime to use cgo.
+    
+    now that cgo2c can handle it,
+    merge x.c and x_go.cgo into
+    a single x.cgo, for x=float,malloc,sema.
+    
+    R=r
+    DELTA=1950  (954 added, 996 deleted, 0 changed)
+    OCL=30951
+    CL=30964
+
+ src/pkg/runtime/Makefile                 |  3 --
+ src/pkg/runtime/{float.c => float.cgo}   | 45 +++++++++++++++++++++++++++
+ src/pkg/runtime/float_go.cgo             | 52 -------------------------------
+ src/pkg/runtime/{malloc.c => malloc.cgo} | 21 +++++++++++++
+ src/pkg/runtime/malloc_go.cgo            | 28 -----------------
+ src/pkg/runtime/{sema.c => sema.cgo}     |  9 ++++++
+ src/pkg/runtime/sema_go.cgo              | 15 ---------
+ src/pkg/runtime/{string.c => string.cgo} | 53 +++++++-------------------------
+ 8 files changed, 86 insertions(+), 140 deletions(-)

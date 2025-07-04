@@ -1,0 +1,16 @@
+commit 44c1eb6bed9e14d58ebe8e32ca0f2db8d372d18f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 4 21:58:32 2009 -0800
+
+    Fix syscall.Statfs and syscall.Fstatfs for 386 GNU/Linux.
+    
+    For 386 we use the [f]statfs64 system call, which takes three
+    parameters: the filename, the size of the statfs64 structure,
+    and a pointer to the structure itself.
+    
+    R=rsc
+    https://golang.org/cl/166073
+
+ src/pkg/syscall/syscall_linux_386.go  | 14 ++++++++++++--
+ src/pkg/syscall/zsyscall_linux_386.go | 12 ------------
+ 2 files changed, 12 insertions(+), 14 deletions(-)

@@ -1,0 +1,26 @@
+commit 3487c4e02199b68d71df1868326e1b0a872a89a2
+Author: Cyrill Schumacher <cyrill@schumacher.fm>
+Date:   Thu Sep 28 10:23:12 2017 +0200
+
+    database/sql: convertAssign string and time.Time into RawBytes
+    
+    A new switch case for converting the source string type into a
+    destination RawBytes type avoids the reflection based conversion.
+    Speed up from old ~61.7ns/op down to ~49ns/op.
+    
+    A second new switch case allows to convert and assign a source time.Time
+    type into a destination sql.RawBytes type. This switch case appends
+    the time to the reset RawBytes slice. This allows the reuse of RawBytes
+    and avoids allocations.
+    
+    Fixes #20746
+    
+    Change-Id: Ib0563fd5c5c7cb6d9d0acaa1d9aa7b2927f1329c
+    Reviewed-on: https://go-review.googlesource.com/66830
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/convert.go      | 12 ++++++++++++
+ src/database/sql/convert_test.go |  5 +++++
+ 2 files changed, 17 insertions(+)

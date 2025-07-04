@@ -1,0 +1,27 @@
+commit 79b43fa819bca31b5be2b9ed3014d8b7faf4c8cc
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jan 16 21:39:42 2020 +0000
+
+    runtime: preempt dedicated background mark workers for STW
+    
+    Currently, dedicated background mark workers are essentially always
+    non-preemptible.
+    
+    This change makes it so that dedicated background mark workers park if
+    their preemption flag is set and someone is trying to STW, allowing them
+    to do so.
+    
+    This change prepares us for allowing a STW to happen (and happen
+    promptly) during GC marking in a follow-up change.
+    
+    Updates #19812.
+    
+    Change-Id: I67fb6085bf0f0aebd18ca500172767818a1f15e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215157
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgcmark.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

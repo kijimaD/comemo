@@ -1,0 +1,21 @@
+commit a334c452731e7becc2dc879e253c7198202af126
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Nov 1 11:55:10 2023 -0400
+
+    os/signal: skip nohup tests on darwin builders
+    
+    The new LUCI builders have a temporary limitation that breaks nohup.
+    Skip nohup tests there.
+    
+    For #63875.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-arm64_13
+    Change-Id: Ia9ffecea7310f84a21f6138d8f8cdfc5e1392307
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538698
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/os/signal/signal_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

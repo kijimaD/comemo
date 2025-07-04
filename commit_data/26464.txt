@@ -1,0 +1,22 @@
+commit bac0005ec77994b093c51e29f630125130c99b98
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 22 18:17:43 2016 -0700
+
+    misc/cgo/testcarchive: rewrite test from bash to Go
+    
+    This is to support https://golang.org/cl/18057, which is going to add
+    Windows support to this directory.  Better to write the test in Go then
+    to have both test.bash and test.bat.
+    
+    Update #13494.
+    
+    Change-Id: I4af7004416309e885049ee60b9470926282f210d
+    Reviewed-on: https://go-review.googlesource.com/20892
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 334 +++++++++++++++++++++++++++++++++
+ misc/cgo/testcarchive/test.bash        | 106 -----------
+ src/cmd/dist/test.go                   |   2 +-
+ 3 files changed, 335 insertions(+), 107 deletions(-)

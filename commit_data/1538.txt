@@ -1,0 +1,15 @@
+commit c5f99ccbdd3f8d0fcef53ff5e3f46076ed4a5740
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 21 15:45:54 2009 -0800
+
+    change reflect.CopyArray into a method on ArrayValue called CopyFrom
+    
+    R=rsc
+    DELTA=16  (12 added, 0 deleted, 4 changed)
+    OCL=23242
+    CL=23242
+
+ src/lib/json/struct.go      |  2 +-
+ src/lib/reflect/all_test.go |  2 +-
+ src/lib/reflect/value.go    | 14 +++++++++++++-
+ 3 files changed, 15 insertions(+), 3 deletions(-)

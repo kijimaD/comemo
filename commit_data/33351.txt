@@ -1,0 +1,36 @@
+commit 018642d6cf2321f9209dfa59332daacc721d03b0
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Sat Oct 21 12:45:23 2017 +0200
+
+    compile, link: remove base address selector from DWARF range lists
+    
+    Dsymutil, an utility used on macOS when externally linking executables,
+    does not support base address selector entries in debug_ranges.
+    
+    To work around this deficiency this commit removes base address
+    selectors from debug_ranges and emits instead a list composed only of
+    compile unit relative addresses.
+    
+    A new type of relocation is introduced, R_ADDRCUOFF, similar to
+    R_ADDROFF, that relocates an address to its offset from the low_pc of
+    the symbol's compile unit.
+    
+    Fixes #21945
+    
+    Change-Id: Ie991f9bc1afda2b49ac5d734eb41c37d3a37e554
+    Reviewed-on: https://go-review.googlesource.com/72371
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/internal/dwarf/dwarf.go             | 18 +++++++++++-------
+ src/cmd/internal/obj/data.go                | 20 ++++++++++++++++----
+ src/cmd/internal/obj/objfile.go             |  5 +++++
+ src/cmd/internal/objabi/reloctype.go        |  3 +++
+ src/cmd/internal/objabi/reloctype_string.go |  4 ++--
+ src/cmd/link/internal/ld/data.go            |  5 +++++
+ src/cmd/link/internal/ld/deadcode.go        |  7 +++++++
+ src/cmd/link/internal/ld/dwarf.go           | 17 +++++++++++------
+ src/cmd/link/internal/sym/symbol.go         | 12 ++++++++++--
+ 9 files changed, 70 insertions(+), 21 deletions(-)

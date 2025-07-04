@@ -1,0 +1,17 @@
+commit 60dc159cf71c7f4b7021a7bed8708fecf5547887
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Fri Oct 4 13:10:04 2019 -0600
+
+    doc: remove code.html
+    
+    This is being moved to x/website in https://golang.org/cl/199058.
+    
+    Updates golang/go#33637
+    Updates golang/go#29206
+    
+    Change-Id: I5c58b784fcdd212d7a003cd0f4085059f33a47c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199057
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/code.html | 643 ----------------------------------------------------------
+ 1 file changed, 643 deletions(-)

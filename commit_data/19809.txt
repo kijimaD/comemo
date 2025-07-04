@@ -1,0 +1,14 @@
+commit c4807f6a845898deebda5db04a4c08ce8d772cc3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 23 18:38:13 2014 -0700
+
+    net/http: don't ignore errors in Request.Write
+    
+    LGTM=josharian, adg
+    R=golang-codereviews, josharian, adg
+    CC=golang-codereviews
+    https://golang.org/cl/119110043
+
+ src/pkg/net/http/request.go           | 20 +++++++++---
+ src/pkg/net/http/requestwrite_test.go | 58 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 4 deletions(-)

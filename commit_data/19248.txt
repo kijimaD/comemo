@@ -1,0 +1,20 @@
+commit 29d1b211fdece82b3c4ccdb549ac394e71132643
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 28 12:47:09 2014 -0400
+
+    runtime: clean up scanning of Gs
+    
+    Use a real type for Gs instead of scanning them conservatively.
+    Zero the schedlink pointer when it is dead.
+    
+    Update #7820
+    
+    LGTM=rsc
+    R=rsc, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/89360043
+
+ src/pkg/runtime/malloc.h |  1 +
+ src/pkg/runtime/mgc0.go  |  5 +++++
+ src/pkg/runtime/proc.c   | 17 ++++++++++++++++-
+ 3 files changed, 22 insertions(+), 1 deletion(-)

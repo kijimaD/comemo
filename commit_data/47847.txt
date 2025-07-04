@@ -1,0 +1,16 @@
+commit 60f2c12a85470c87ef9c49d6f79458f575612e0d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 21 12:04:57 2021 -0800
+
+    doc/go1.18: mention new go/types/Config.Context field
+    
+    For #47694
+    For #47916
+    
+    Change-Id: Ieeffaf161da744adfdb4da8aac58a64c109ebcab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373775
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ doc/go1.18.html | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

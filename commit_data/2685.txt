@@ -1,0 +1,14 @@
+commit da1da8d07e0b0f4fef5fcab537a78ef28c8b6c7a
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Mon Jul 13 19:20:38 2009 -0700
+
+    Add accessor for SIGTRAP cause in wait status
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=7  (7 added, 0 deleted, 0 changed)
+    OCL=31563
+    CL=31565
+
+ src/pkg/syscall/syscall_linux.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

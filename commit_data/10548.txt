@@ -1,0 +1,13 @@
+commit 12eee9edbc0a63ba5802541ec9bfec4a925637ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 30 12:38:54 2011 -0500
+
+    os: fix windows build
+    
+    TBR=brainman
+    CC=golang-dev
+    https://golang.org/cl/5449048
+
+ src/pkg/os/export_test.go  |  1 -
+ src/pkg/os/stat_windows.go | 14 ++++++++++++--
+ 2 files changed, 12 insertions(+), 3 deletions(-)

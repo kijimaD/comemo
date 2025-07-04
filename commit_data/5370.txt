@@ -1,0 +1,16 @@
+commit 646301a766cfe54c9eb4b746157a74594fcc0052
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 27 13:51:58 2010 -0700
+
+    rpc/jsonrpc: support for jsonrpc wire encoding
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/989042
+
+ src/pkg/Makefile                |   1 +
+ src/pkg/rpc/jsonrpc/Makefile    |  12 ++++
+ src/pkg/rpc/jsonrpc/all_test.go | 147 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/rpc/jsonrpc/client.go   | 110 ++++++++++++++++++++++++++++++
+ src/pkg/rpc/jsonrpc/server.go   | 123 +++++++++++++++++++++++++++++++++
+ 5 files changed, 393 insertions(+)

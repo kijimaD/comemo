@@ -1,0 +1,20 @@
+commit 41a2b21f2606ea9568f375beb9c5d517107e6dfa
+Author: Bill Neubauer <wcn@golang.org>
+Date:   Sat Oct 3 11:09:01 2009 -0700
+
+    Fixing HTTP POST handling to work with Chrome and Safari.
+    
+    request.go does not handle Content-Type correctly for the definition of
+    Media Types.
+    
+    http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.7
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=44  (42 added, 0 deleted, 2 changed)
+    OCL=35274
+    CL=35306
+
+ src/pkg/http/request.go      |  2 +-
+ src/pkg/http/request_test.go | 44 +++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 44 insertions(+), 2 deletions(-)

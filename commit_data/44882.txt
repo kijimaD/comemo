@@ -1,0 +1,15 @@
+commit 0e8a72b62efa44fa01eccb94d47a051366cb6d17
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 30 12:21:20 2021 -0700
+
+    runtime: check for sysAlloc failures in pageAlloc
+    
+    Change-Id: I78c5744bb01988f1f599569703d83fd21542ac7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305911
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mpagealloc.go | 3 +++
+ 1 file changed, 3 insertions(+)

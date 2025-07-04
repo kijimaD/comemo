@@ -1,0 +1,17 @@
+commit 07490c0f05035ddb9990646547527e69f416d9ed
+Author: Jeff Hodges <jeff@somethingsimilar.com>
+Date:   Mon Aug 22 15:19:27 2011 +1000
+
+        json: calculate Offset for Indent correctly
+    
+    Fixes #2171
+    
+    This is the real change.
+    
+    R=adg
+    CC=golang-dev, r, rsc
+    https://golang.org/cl/4943041
+
+ src/pkg/json/indent.go       |  1 +
+ src/pkg/json/scanner_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 26 insertions(+)

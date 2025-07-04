@@ -1,0 +1,24 @@
+commit 70f5afa2104ac625190d65d6c19d83196e12482b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 5 16:04:56 2018 -0700
+
+    go/printer, gofmt: handle raw string literals containing newlines better
+    
+    A raw string containing newlines breaks whatever columns structure
+    has been established so far. Recognize the situation and force a
+    new section of alignment with the first line break seen after the
+    the raw string.
+    
+    Applied gofmt to src and misc.
+    
+    Fixes #9064.
+    
+    Change-Id: I961e94b529b1fd421908311f366b113e2ec9b7f0
+    Reviewed-on: https://go-review.googlesource.com/105040
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ssa/gen/386Ops.go |  4 +--
+ src/go/printer/printer.go                  | 40 ++++++++++++++++++++++--------
+ src/go/printer/testdata/linebreaks.golden  | 22 +++++++++++++++-
+ src/go/printer/testdata/linebreaks.input   | 24 ++++++++++++++++--
+ 4 files changed, 75 insertions(+), 15 deletions(-)

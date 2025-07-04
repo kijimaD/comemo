@@ -1,0 +1,15 @@
+commit 63a6f305ef7e4f0cd0d99e9714b259c1930f5609
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 14 13:42:13 2015 -0500
+
+    cmd/compile: diagnose invalid switch interface{} case earlier
+    
+    Fixes #11737.
+    
+    Change-Id: Id231b502ac5a44035dc3a02515b43bf665cb1e87
+    Reviewed-on: https://go-review.googlesource.com/17816
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/swt.go |  2 ++
+ test/fixedbugs/issue11737.go       | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+)

@@ -1,0 +1,16 @@
+commit 45f39fb46747d0c46bc25e6ef605c00e96e2dc07
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon May 2 13:58:48 2016 +1200
+
+    cmd/link: pass -Wl,-z,relro to host linker in -buildmode=PIE
+    
+    Fixes #15485
+    
+    Change-Id: I8e9314be91db89873130b232b589a284822e6643
+    Reviewed-on: https://go-review.googlesource.com/22687
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 3 +++
+ 1 file changed, 3 insertions(+)

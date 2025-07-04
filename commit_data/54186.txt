@@ -1,0 +1,22 @@
+commit 079dfdcac0448168e22a72baa61b9ab5de8ce54e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 23 16:32:46 2023 -0400
+
+    cmd/go: error out of linking package main if cgo is required but not enabled
+    
+    Fixes #46330.
+    Fixes #62123.
+    Updates #31544.
+    
+    Change-Id: I023aa2bdb5a24e126a0de5192a077e8cf1a0a67c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522239
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/load/pkg.go                    | 49 ++++++++++++----------
+ src/cmd/go/internal/load/test.go                   |  6 ++-
+ src/cmd/go/internal/work/action.go                 |  6 ++-
+ .../go/testdata/script/test_android_issue62123.txt | 19 +++++++++
+ 4 files changed, 57 insertions(+), 23 deletions(-)

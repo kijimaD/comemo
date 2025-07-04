@@ -1,0 +1,23 @@
+commit 874b3132a84cf76da6a48978826c04c380a37a50
+Author: avivklas <avivklas@gmail.com>
+Date:   Fri Aug 7 21:50:12 2020 +0300
+
+    mime/multipart: return overflow errors in Reader.ReadForm
+    
+    Updates Reader.ReadForm to check for overflow errors that may
+    result from a leeway addition of 10MiB to the input argument
+    maxMemory.
+    
+    Fixes #40430
+    
+    Change-Id: I510b8966c95c51d04695ba9d08fcfe005fd11a5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247477
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/mime/multipart/formdata.go      |  4 ++++
+ src/mime/multipart/formdata_test.go | 18 ++++++++++++++++++
+ 2 files changed, 22 insertions(+)

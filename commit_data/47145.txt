@@ -1,0 +1,24 @@
+commit d2b512160e4fc9dd69947ad9566c2dab1a135694
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Oct 31 10:37:15 2021 -0700
+
+    cmd/compile/internal/types2: differently named types are not assignable
+    
+    When checking assignability, a value of a named type (incl. a type parameter)
+    can never be assigned to a variable of a differently named type. Specifically,
+    if the types are two differently named type parameters, then values of one are
+    never assignable to variables of the other.
+    
+    This CL clarifies the assignabiliy rules and simplifies the implementation.
+    
+    Fixes #49242.
+    
+    Change-Id: Id72a2c9bed5cdb726855e7a707137db1009e7953
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360274
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/operand.go         | 66 ++++++++++------------
+ .../types2/testdata/fixedbugs/issue49242.go2       | 27 +++++++++
+ .../types2/testdata/spec/assignability.go2         | 46 ++++++++++++---
+ 3 files changed, 94 insertions(+), 45 deletions(-)

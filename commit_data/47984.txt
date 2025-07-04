@@ -1,0 +1,20 @@
+commit 9eba5ff5219a76c3c4e020fa27e966a226174d7e
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jan 21 11:07:52 2022 -0500
+
+    runtime/pprof: TestLabelSystemstack parallelLabelHog.func1 must be labeled
+    
+    The closure in parallelLabelHog should be labeled in a addition to
+    parallelLabelHog itself. Generally samples on that goroutine land on
+    labelHog, but there is a small portion of the closure outside of
+    labelHog.
+    
+    Fixes #50740.
+    
+    Change-Id: I363b6d8eec2e6920c215686e2039fce6d5b29a98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380055
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+
+ src/runtime/pprof/pprof_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 9b5358af2d805336e103a743697eb6fad1ecf1c4
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Dec 10 12:38:20 2012 -0500
+
+    CONTRIBUTORS: add sledbetter (Google Corporate CLA).
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6912062
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

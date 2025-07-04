@@ -1,0 +1,21 @@
+commit fdba080220f0642b2b3926cbc062c775f6224e5d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 30 18:36:41 2020 -0400
+
+    cmd: remove Go115AMD64
+    
+    Always do aligned jumps now.
+    
+    Change-Id: If68a16fe93c9173c83323a9063465c9bd166eeb8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266857
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/asm/internal/asm/endtoend_test.go |  7 +------
+ src/cmd/internal/obj/x86/asm6.go          | 11 +++--------
+ src/cmd/internal/objabi/util.go           |  9 +--------
+ src/cmd/link/internal/amd64/l.go          |  2 +-
+ src/cmd/link/internal/amd64/obj.go        |  7 +------
+ 5 files changed, 7 insertions(+), 29 deletions(-)

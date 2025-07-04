@@ -1,0 +1,21 @@
+commit a745171e6b30394b661a040d04e8807b4bd0c7da
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 17 21:59:07 2020 -0700
+
+    cmd/compile: fix SSA type comparison
+    
+    A typo in the conversion code caused comparisons of SSA types to
+    report CMPeq when they were not in fact equal.
+    
+    Fixes #40837
+    
+    Change-Id: I0627eee51d524a585908b34a4590bc533c8415fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248781
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/cmd/compile/internal/types/type.go      |  3 ++-
+ src/cmd/compile/internal/types/type_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)

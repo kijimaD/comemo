@@ -1,0 +1,19 @@
+commit 9ee6f7b0616be6af09f47b80022eedd8c9b590da
+Author: Samuel Tan <samueltan@google.com>
+Date:   Wed Aug 2 13:45:43 2017 -0700
+
+    html/template: explain URL filtering
+    
+    Expand documentation in of the internal urlFilter function
+    to explain why URLs with schemes other than "http", "https",
+    and "mailto" are filtered out.
+    
+    Fixes #20586
+    
+    Change-Id: I1f65ff6e15fc4cd325489327c40f8c141904bf5c
+    Reviewed-on: https://go-review.googlesource.com/52853
+    Reviewed-by: Mike Samuel <mikesamuel@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/html/template/url.go | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)

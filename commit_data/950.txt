@@ -1,0 +1,12 @@
+commit 2bfa95741f32fec06ac314e2532bf25c8b0bf5f8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 24 13:13:12 2008 -0700
+
+    Preparation for varargs: Proposal for syntax.
+    
+    DELTA=11  (7 added, 0 deleted, 4 changed)
+    OCL=17772
+    CL=17804
+
+ doc/go_spec.txt | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

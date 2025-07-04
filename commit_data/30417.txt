@@ -1,0 +1,22 @@
+commit 949f95e7a40715ad05015dc4cb039e78a5260ef8
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Nov 30 10:03:09 2016 -0800
+
+    os/user: add Go implementation of LookupGroup, LookupGroupId
+    
+    If cgo is not available, parse /etc/group in Go to find the name/gid
+    we need. This does not consult the Network Information System (NIS),
+    /etc/nsswitch.conf or any other libc extensions to /etc/group.
+    
+    Fixes #18102.
+    
+    Change-Id: I6ae4fe0e2c899396c45cdf243d5483113932657c
+    Reviewed-on: https://go-review.googlesource.com/33713
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/user/lookup_stubs.go     |   8 ---
+ src/os/user/lookup_unix.go      |  99 ++++++++++++++++++++++++++++++++++
+ src/os/user/lookup_unix_test.go | 117 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 216 insertions(+), 8 deletions(-)

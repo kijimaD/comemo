@@ -1,0 +1,19 @@
+commit a609a6bb6386494e1025d4195b29abe7d97f1121
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 8 09:10:30 2011 -0700
+
+    ebnf: follow EBNF for EBNF faithfully
+    
+    Apply analogous changes in godoc/spec.go.
+    
+    Fixes #1829.
+    
+    R=nmessenger, r
+    CC=golang-dev
+    https://golang.org/cl/4528127
+
+ src/cmd/godoc/spec.go     |  7 ++++++-
+ src/pkg/ebnf/ebnf.go      |  7 +++++++
+ src/pkg/ebnf/ebnf_test.go | 33 ++++++++++++++++++++++++++++-----
+ src/pkg/ebnf/parser.go    | 19 ++++++++++---------
+ 4 files changed, 51 insertions(+), 15 deletions(-)

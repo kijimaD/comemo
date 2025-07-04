@@ -1,0 +1,14 @@
+commit 08c611b12751ca3901a8409ee0941fa30b70d894
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 21 17:26:40 2022 -0500
+
+    doc/go1.20: document bootstrap requirements (Go 1.20 needs Go 1.17.13)
+    
+    Change-Id: I806bc79e5b5c7b57750d4a4b39828add86a34635
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452560
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ doc/go1.20.html | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

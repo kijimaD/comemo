@@ -1,0 +1,21 @@
+commit 191118a8213d486389763afe31be0d2dd3f9ed6a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 23 21:11:01 2020 -0700
+
+    internal/poll: assume we have CancelIoEX on Windows
+    
+    As of the Go 1.11 release we require at least Windows 7, so CancelIoEx
+    is always available.  This lets us simplify the code to not require
+    dedicated threads to handle I/O requests.
+    
+    Fixes #37956
+    
+    Change-Id: If1dc4ac4acb61c43e4f2a9f26f225869050262a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225060
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/internal/poll/fd_windows.go       | 121 +++++++---------------------------
+ src/internal/poll/sendfile_windows.go |   2 +-
+ 2 files changed, 23 insertions(+), 100 deletions(-)

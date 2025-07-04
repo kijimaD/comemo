@@ -1,0 +1,14 @@
+commit 895df143a2d76cc5bb5f49f8e6c1675fc95cd183
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 25 22:38:19 2015 +1000
+
+    math: explain OEIS link
+    
+    Fixes #10236
+    
+    Change-Id: Ife85513efda48af81c267b753da2ac7317cdfe75
+    Reviewed-on: https://go-review.googlesource.com/11479
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/math/const.go | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)

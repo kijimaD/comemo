@@ -1,0 +1,29 @@
+commit 7555a45dc2ef22f2afe7f1cc78fc313fd0365735
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue May 16 21:52:41 2017 +0900
+
+    cmd/cgo: support large unsigned macros
+    
+    Currently, cgo converts integer macros into int64 if it's possible.
+    As a result, some macros which satisfy
+    
+    math.MaxInt64 < x <= math.MaxUint64
+    
+    will lose their original values.
+    
+    This CL introduces the new probe to check signs,
+    so we can handle signed ints and unsigned ints separately.
+    
+    Fixes #20369
+    
+    Change-Id: I002ba452a82514b3a87440960473676f842cc9ee
+    Reviewed-on: https://go-review.googlesource.com/43476
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue20369.go | 20 ++++++++++++++++++++
+ src/cmd/cgo/gcc.go          | 36 ++++++++++++++++++++++++++++++------
+ src/cmd/cgo/main.go         |  6 +++---
+ 4 files changed, 54 insertions(+), 9 deletions(-)

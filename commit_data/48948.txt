@@ -1,0 +1,35 @@
+commit edab07d09f1dcee58395602054ffb1cd03490dd8
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Sun Aug 15 15:53:05 2021 +0800
+
+    cmd/dist: support dist tool for loong64
+    
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
+    
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I61dca43680d8e5bd3198a38577450a53f405a987
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342307
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/build.go     | 3 +++
+ src/cmd/dist/buildtool.go | 2 ++
+ src/cmd/dist/main.go      | 2 ++
+ src/cmd/dist/test.go      | 4 ++--
+ 4 files changed, 9 insertions(+), 2 deletions(-)

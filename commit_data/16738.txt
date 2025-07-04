@@ -1,0 +1,12 @@
+commit 09e72f5670664539a4f01c60faea4a366d2a0fb8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jul 12 12:30:18 2013 +1000
+
+    make.bat: incease runtime test timeout to 300s (fixes build)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/11064044
+
+ src/run.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

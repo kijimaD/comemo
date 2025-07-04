@@ -1,0 +1,23 @@
+commit 398a8ed653929f9901ec14c1fa3d048955050f44
+Author: Keith Randall <khr@google.com>
+Date:   Mon Jul 2 09:43:37 2018 -0700
+
+    cmd/compile: remove broken rules
+    
+    These rules don't even type check.  ADDQconstmodify returns memory,
+    and it is being rewritten to a value that returns an int64.
+    
+    There should be a MOVQstore wrapped around the result.
+    These rules never fire during all.bash, so they aren't even tested.
+    
+    I'm just going to remove them for now.
+    
+    Change-Id: I76008eb51ae4e16c707fac73c05a8d67cac149ae
+    Reviewed-on: https://go-review.googlesource.com/121935
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  5 --
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 68 ----------------------------
+ 2 files changed, 73 deletions(-)

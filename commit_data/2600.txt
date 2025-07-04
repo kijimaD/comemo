@@ -1,0 +1,32 @@
+commit 769919c4eeedaf5798688708fb0334fcb9607b57
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 16:05:48 2009 -0700
+
+    better error message + line numbers
+    
+    package main
+    func main() {
+           var x interface{};
+           switch x {
+           case 41:
+           case "b":
+           }
+    }
+    
+    before:
+    x.go:5: fatal error: exprcmp
+    
+    now:
+    x.go:5: illegal types for operand: EQ
+            interface { }
+            int
+    x.go:6: illegal types for operand: EQ
+            interface { }
+            string
+    
+    R=ken
+    OCL=31217
+    CL=31219
+
+ src/cmd/gc/swt.c | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

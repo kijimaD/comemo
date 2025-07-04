@@ -1,0 +1,21 @@
+commit c643b2938143ff59d5e854489880e12b39cbfb86
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jun 12 11:26:28 2023 -0700
+
+    cmd/compile: use callsite as line number for argument marshaling
+    
+    Don't use the line number of the argument itself, as that may be from
+    arbitrarily earlier in the function.
+    
+    Fixes #60673
+    
+    Change-Id: Ifc0a2aaae221a256be3a4b0b2e04849bae4b79d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502656
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go |  4 ++--
+ test/codegen/issue60673.go                   | 18 ++++++++++++++++++
+ 2 files changed, 20 insertions(+), 2 deletions(-)

@@ -1,0 +1,30 @@
+commit 839c84255034d5181bb69e8d10070119ab97d9fe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 9 11:46:15 2023 -0800
+
+    go/types, cmd/compile/internal/types2: minor adjustments (cleanups)
+    
+    go/types:
+    - gofmt a couple of files
+    
+    types2:
+    - add loong64 to sizes list (present in go/types)
+    - fix a type in validtype.go
+    - co-locate an accessor with others in typeparam.go
+    
+    This changes further reduce discrepancy between types2 and go/types.
+    
+    Change-Id: I2e6a09f1c4b8dbc947c48af13031ff58a2bc6f4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460996
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/gccgosizes.go | 1 +
+ src/cmd/compile/internal/types2/typeparam.go  | 6 +++---
+ src/cmd/compile/internal/types2/validtype.go  | 2 +-
+ src/go/types/errorcalls_test.go               | 2 +-
+ src/go/types/testdata/manual.go               | 1 -
+ 5 files changed, 6 insertions(+), 6 deletions(-)

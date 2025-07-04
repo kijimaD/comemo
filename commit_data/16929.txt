@@ -1,0 +1,14 @@
+commit 3abaf5cae0557452264272331c7a7e308e14258f
+Author: Shivakumar GN <shivakumar.gn@gmail.com>
+Date:   Tue Jul 30 18:25:08 2013 -0700
+
+    net/http: skip TestDirJoin on Windows, even if /etc/hosts exists
+    
+    Fixes #5460.
+    
+    R=golang-dev, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12123043
+
+ src/pkg/net/http/fs_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

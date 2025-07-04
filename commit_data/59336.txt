@@ -1,0 +1,20 @@
+commit a204ed53d907c3b325e3c2bdd6f847a8f97e90d9
+Author: 1911860538 <alxps1911@gmail.com>
+Date:   Fri Apr 18 14:11:29 2025 +0000
+
+    net: simplify readProtocols via sync.OnceFunc
+    
+    In this case, using sync.OnceFunc is a better choice.
+    
+    Change-Id: I52d27b9741265c90300a04a03537020e1aaaaaa7
+    GitHub-Last-Rev: a281daea255f1508a9042e8c8c7eb7ca1cef2430
+    GitHub-Pull-Request: golang/go#73434
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/666635
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+
+ src/net/lookup_unix.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

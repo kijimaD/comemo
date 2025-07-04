@@ -1,0 +1,18 @@
+commit a18638c0f2ce487e08bbe67674a95faef5b43651
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Nov 15 12:15:18 2018 -0500
+
+    cmd/vendor: update to golang.org/x/tools@f62bfb54
+    
+    Change-Id: I3b3035784ce89ba2ac5ab8f6448c45a3d38fa97d
+    Reviewed-on: https://go-review.googlesource.com/c/149778
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ .../x/tools/go/analysis/cmd/vet-lite/main.go       | 133 +++-----
+ .../vendor/golang.org/x/tools/go/analysis/doc.go   |  18 +-
+ .../go/analysis/internal/analysisflags/help.go     |  23 +-
+ .../x/tools/go/analysis/passes/printf/printf.go    |  25 +-
+ .../x/tools/go/analysis/unitchecker/unitchecker.go | 356 +++++++++++++++++++++
+ 5 files changed, 446 insertions(+), 109 deletions(-)

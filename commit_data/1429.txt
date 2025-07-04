@@ -1,0 +1,13 @@
+commit a577ea3176387fa150d7a0b766416a2d67237ef2
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 7 10:35:43 2009 -0800
+
+    uncomment a BUG that is now fixed
+    
+    R=rsc
+    DELTA=3  (1 added, 0 deleted, 2 changed)
+    OCL=22195
+    CL=22207
+
+ test/complit.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

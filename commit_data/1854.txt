@@ -1,0 +1,16 @@
+commit 54aa835b44cf62fa503edb174f507a6331da8b7a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 20 11:32:58 2009 -0700
+
+    range over channels.
+    
+    also fix multiple-evaluation bug in range over arrays.
+    
+    R=ken
+    OCL=26576
+    CL=26576
+
+ src/cmd/gc/walk.c  | 37 ++++++++++++++++++++++++++++++----
+ test/chan/sieve.go |  6 +++---
+ test/range.go      | 59 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 95 insertions(+), 7 deletions(-)

@@ -1,0 +1,16 @@
+commit d7223c6cc162d89d56b3a23902033aaa93f052db
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 27 10:41:41 2015 -0700
+
+    runtime: correct implementation of raiseproc on Solaris
+    
+    I forgot that the libc raise function only sends the signal to the
+    current thread.  We need to actually use kill and getpid here, as we
+    do on other systems.
+    
+    Change-Id: Iac34af822c93468bf68cab8879db3ee20891caaf
+    Reviewed-on: https://go-review.googlesource.com/12704
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/os3_solaris.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

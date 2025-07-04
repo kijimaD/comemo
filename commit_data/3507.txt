@@ -1,0 +1,19 @@
+commit 10c7d19e0760c8d867dcd87ee2efc7b7a538b3c5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 12 10:09:35 2009 -0700
+
+    fix comment on strings.LastIndex.
+    add bytes.LastIndex.
+    add strings.Reader.
+    
+    R=r
+    DELTA=59  (56 added, 0 deleted, 3 changed)
+    OCL=35585
+    CL=35601
+
+ src/pkg/Make.deps          |  4 ++--
+ src/pkg/bytes/bytes.go     | 15 +++++++++++++++
+ src/pkg/strings/Makefile   |  1 +
+ src/pkg/strings/reader.go  | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/strings/strings.go |  2 +-
+ 5 files changed, 59 insertions(+), 3 deletions(-)

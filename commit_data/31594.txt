@@ -1,0 +1,14 @@
+commit f700f89b0be0eda0cda20427fbdae4ff1cb7e6a8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 17 15:28:14 2017 -0700
+
+    test: add missing copyright header to checkbce.go
+    
+    Change-Id: Iafeb8e033c876f482caa17cca414fe13b0fadb12
+    Reviewed-on: https://go-review.googlesource.com/43613
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ test/checkbce.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,23 @@
+commit 8bcc490667d4dd44c633c536dd463bbec0a3838f
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Dec 12 10:53:17 2022 -0500
+
+    os/user,net: add -fno-stack-protector to CFLAGS
+    
+    Some compilers default to having -fstack-protector on, which breaks
+    when using internal linking because the linker doesn't know how to
+    find the support functions.
+    
+    Updates #52919.
+    Updates #54313.
+    Fixes #57261.
+    
+    Change-Id: Iaae731851407af4521fff2dfefc5b7e3e92cf284
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456855
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/cgo_unix_cgo.go       | 1 +
+ src/os/user/cgo_lookup_cgo.go | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,35 @@
+commit a41b1d50523c3fc6fb874310d4340b845b13b250
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 12 14:42:24 2017 -0700
+
+    runtime: convert hmap.overflow into hmap.extra
+    
+    Any change to how we allocate overflow buckets
+    will require some extra hmap storage,
+    but we don't want hmap to grow,
+    particular as small maps usually don't need overflow buckets.
+    
+    This CL converts the existing hmap overflow field,
+    which is usually used for pointer-free maps,
+    into a generic extra field.
+    
+    This extra field can be used to hold data that is optional.
+    If it is valuable enough to do have special
+    handling of overflow buckets, which are medium-sized,
+    it is valuable enough to pay an extra alloc and two extra words for.
+    
+    Adding fields to extra would entail adding overhead to pointer-free maps;
+    any mapextra fields added would need to be weighed against that.
+    This CL is just rearrangement, though.
+    
+    Updates #19931
+    Updates #19992
+    
+    Change-Id: If8537a206905b9d4dc6cd9d886184ece671b3f80
+    Reviewed-on: https://go-review.googlesource.com/40976
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go | 35 ++++++++++++++++++++---------------
+ 1 file changed, 20 insertions(+), 15 deletions(-)

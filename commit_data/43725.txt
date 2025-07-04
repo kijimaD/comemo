@@ -1,0 +1,73 @@
+commit ecc3f5112ebaf23c4b1ac4c5eedfa406d82ecc9a
+Author: Jonathan Swinney <jswinney@amazon.com>
+Date:   Wed Nov 4 16:18:23 2020 +0000
+
+    cmd/compile: improve atomic swap intrinsics on arm64
+    
+    ARMv8.1 has added new instructions for atomic memory operations. This
+    change builds on the previous change which added support for atomic add,
+    0a7ac93c27c9ade79fe0f66ae0bb81484c241ae5, to include similar support for
+    atomic-compare-and-swap, atomic-swap, atomic-or, and atomic-and
+    intrinsics. Since the new instructions are not guaranteed to be present,
+    we guard their usages with a branch on a CPU feature.
+    
+    Peformance on an ARMv8.1 machine:
+    name                 old time/op  new time/op  delta
+    CompareAndSwap-16    37.9ns ±16%  24.1ns ± 4%  -36.44%  (p=0.000 n=10+9)
+    CompareAndSwap64-16  38.6ns ±15%  24.1ns ± 3%  -37.47%  (p=0.000 n=10+10)
+    
+    name       old time/op  new time/op  delta
+    Swap-16    46.9ns ±32%  12.5ns ± 6%  -73.40%  (p=0.000 n=10+10)
+    Swap64-16  53.4ns ± 1%  12.5ns ± 6%  -76.56%  (p=0.000 n=10+10)
+    
+    name            old time/op  new time/op  delta
+    Or8-16          8.81ns ± 0%  5.61ns ± 0%  -36.32%  (p=0.000 n=10+10)
+    Or-16           7.21ns ± 0%  5.61ns ± 0%  -22.19%  (p=0.000 n=10+10)
+    Or8Parallel-16  59.8ns ± 3%  12.5ns ± 2%  -79.10%  (p=0.000 n=10+10)
+    OrParallel-16   51.7ns ± 3%  12.5ns ± 2%  -75.84%  (p=0.000 n=10+10)
+    
+    name             old time/op  new time/op  delta
+    And8-16          8.81ns ± 0%  5.61ns ± 0%  -36.32%  (p=0.000 n=10+10)
+    And-16           7.21ns ± 0%  5.61ns ± 0%  -22.19%  (p=0.000 n=10+10)
+    And8Parallel-16  59.1ns ± 6%  12.8ns ± 3%  -78.33%  (p=0.000 n=10+10)
+    AndParallel-16   51.4ns ± 7%  12.8ns ± 3%  -75.03%  (p=0.000 n=10+10)
+    
+    Performance on an ARMv8.0 machine (no atomics instructions):
+    name                 old time/op  new time/op  delta
+    CompareAndSwap-16    61.3ns ± 0%  62.4ns ± 0%  +1.70%  (p=0.000 n=8+9)
+    CompareAndSwap64-16  62.0ns ± 3%  61.3ns ± 2%    ~     (p=0.093 n=10+10)
+    
+    name       old time/op  new time/op  delta
+    Swap-16     127ns ± 2%   131ns ± 2%  +2.91%  (p=0.001 n=10+10)
+    Swap64-16   128ns ± 1%   131ns ± 2%  +2.43%  (p=0.001 n=10+10)
+    
+    name            old time/op  new time/op  delta
+    Or8-16          14.9ns ± 0%  15.3ns ± 0%  +2.68%  (p=0.000 n=10+10)
+    Or-16           11.8ns ± 0%  12.3ns ± 0%  +4.24%  (p=0.000 n=10+10)
+    Or8Parallel-16   137ns ± 1%   144ns ± 1%  +4.97%  (p=0.000 n=10+10)
+    OrParallel-16    128ns ± 1%   136ns ± 1%  +6.34%  (p=0.000 n=10+10)
+    
+    name             old time/op  new time/op  delta
+    And8-16          14.9ns ± 0%  15.3ns ± 0%  +2.68%  (p=0.000 n=10+10)
+    And-16           11.8ns ± 0%  12.3ns ± 0%  +4.24%  (p=0.000 n=10+10)
+    And8Parallel-16   134ns ± 2%   141ns ± 1%  +5.29%  (p=0.000 n=10+10)
+    AndParallel-16    125ns ± 2%   134ns ± 1%  +7.10%  (p=0.000 n=10+10)
+    
+    Fixes #39304
+    
+    Change-Id: Idaca68701d4751650be6b4bedca3d57f51571712
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234217
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+
+ src/cmd/compile/internal/arm64/ssa.go          | 125 ++++++++++++++++
+ src/cmd/compile/internal/gc/ssa.go             | 109 ++++++++++----
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  13 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  35 +++++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  12 +-
+ src/cmd/compile/internal/ssa/opGen.go          | 200 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  96 ++++++++++++
+ src/runtime/internal/atomic/bench_test.go      |  51 +++++++
+ 8 files changed, 604 insertions(+), 37 deletions(-)

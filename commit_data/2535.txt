@@ -1,0 +1,15 @@
+commit a2a827542aa4aeb86f45e13527c24fc1debb5d36
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Jun 25 21:05:44 2009 -0700
+
+    http Request parsing, plus a convenient accessor.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=95  (40 added, 14 deleted, 41 changed)
+    OCL=30727
+    CL=30784
+
+ src/pkg/http/request.go      | 78 ++++++++++++++++++++++++++++++--------------
+ src/pkg/http/request_test.go | 38 +++++++++++++--------
+ 2 files changed, 78 insertions(+), 38 deletions(-)

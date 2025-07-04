@@ -1,0 +1,22 @@
+commit a5bf45e389fe14bce859d007c1cd3b59ea6a6bb1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 12 13:19:27 2009 -0700
+
+    convert gob to whole-package compilation.
+    had to reorder some init code.
+    
+    R=r
+    DELTA=136  (15 added, 110 deleted, 11 changed)
+    OCL=33071
+    CL=33102
+
+ src/pkg/gob/Makefile        | 87 +++++----------------------------------------
+ src/pkg/gob/codec_test.go   |  1 -
+ src/pkg/gob/decode.go       |  6 +---
+ src/pkg/gob/decoder.go      |  1 -
+ src/pkg/gob/encode.go       |  3 --
+ src/pkg/gob/encoder.go      |  1 -
+ src/pkg/gob/encoder_test.go |  1 -
+ src/pkg/gob/type.go         | 46 +++++++++---------------
+ src/pkg/gob/type_test.go    |  1 -
+ 9 files changed, 26 insertions(+), 121 deletions(-)

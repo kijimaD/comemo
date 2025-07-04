@@ -1,0 +1,17 @@
+commit 1de2267bf1e7b867acf2137f15e61ba2b75d7d42
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Oct 21 18:12:40 2017 +1100
+
+    image/png: fix width * height * bpp overflow check.
+    
+    Previously, the code would only check (w*h), not (w*h*bpp).
+    
+    Fixes #22304
+    
+    Change-Id: Iaca26d916fe4b894d460448c416b1e0b9fd68e44
+    Reviewed-on: https://go-review.googlesource.com/72350
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/png/reader.go      |  6 ++++++
+ src/image/png/reader_test.go | 18 ++++++++++++++++++
+ 2 files changed, 24 insertions(+)

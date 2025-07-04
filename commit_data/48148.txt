@@ -1,0 +1,26 @@
+commit 0bde2cf5fe1fea62bb0975a7098c55abd8f3da34
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 11 11:32:11 2022 -0500
+
+    runtime: skip TestSegv/SegvInCgo failures with "runtime: unknown pc"
+    
+    This test has failed on four different builders in the past month.
+    Moreover, because every Go program depends on "runtime", it is likely
+    to be run any time a user runs 'go test all' in their own program.
+    
+    Since the test is known to be flaky, let's skip it to avoid
+    introducing testing noise until someone has time to investigate. It
+    seems like we have enough samples in the builder logs to at least
+    start with.
+    
+    For #50979
+    
+    Change-Id: I9748a82fbb97d4ed95d6f474427e5aa6ecdb023d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385154
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/crash_cgo_test.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

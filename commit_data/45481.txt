@@ -1,0 +1,30 @@
+commit 8e91458b19b19584f2026c227265a02724700a55
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Jan 28 23:50:30 2021 +1100
+
+    runtime,syscall: convert syscall on openbsd/386 to libc
+    
+    Convert the syscall package on openbsd/386 to use libc rather than performing
+    direct system calls.
+    
+    Updates #36435
+    
+    Change-Id: Ifcfbca0e6b933762596a564243caa850dac01442
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287654
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/sys_openbsd3.go         |   4 +-
+ src/runtime/sys_openbsd_386.s       | 369 +++++++++++++++
+ src/syscall/asm_openbsd_386.s       |  32 ++
+ src/syscall/asm_unix_386.s          |   2 +-
+ src/syscall/exec_bsd.go             |   4 +-
+ src/syscall/exec_libc2.go           |   4 +-
+ src/syscall/exec_unix.go            |   2 +-
+ src/syscall/mkall.sh                |   3 +-
+ src/syscall/syscall_openbsd1.go     |   4 +-
+ src/syscall/syscall_openbsd_libc.go |   4 +-
+ src/syscall/zsyscall_openbsd_386.go | 867 ++++++++++++++++++++++++++++++------
+ src/syscall/zsyscall_openbsd_386.s  | 233 ++++++++++
+ 12 files changed, 1380 insertions(+), 148 deletions(-)

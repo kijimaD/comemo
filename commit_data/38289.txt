@@ -1,0 +1,33 @@
+commit fee84cc90542884edda60d3eec2cd47f72d67118
+Author: erifan01 <eric.fang@arm.com>
+Date:   Mon Feb 11 09:40:02 2019 +0000
+
+    cmd/compile: add an optimization rule for math/bits.ReverseBytes16 on arm
+    
+    This CL adds two rules to turn patterns like ((x<<8) | (x>>8)) (the type of
+    x is uint16, "|" can also be "+" or "^") to a REV16 instruction on arm v6+.
+    This optimization rule can be used for math/bits.ReverseBytes16.
+    
+    Benchmarks on arm v6:
+    name               old time/op  new time/op  delta
+    ReverseBytes-32    2.86ns ± 0%  2.86ns ± 0%   ~     (all equal)
+    ReverseBytes16-32  2.86ns ± 0%  2.86ns ± 0%   ~     (all equal)
+    ReverseBytes32-32  1.29ns ± 0%  1.29ns ± 0%   ~     (all equal)
+    ReverseBytes64-32  1.43ns ± 0%  1.43ns ± 0%   ~     (all equal)
+    
+    Change-Id: I819e633c9a9d308f8e476fb0c82d73fb73dd019f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/159019
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/arm/ssa.go          |   1 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules   |   6 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 138 +++++++-------
+ src/cmd/compile/internal/ssa/gen/ARMOps.go   |   7 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  14 ++
+ src/cmd/compile/internal/ssa/rewrite.go      |   8 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go   | 210 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 268 +++++++++++++--------------
+ test/codegen/mathbits.go                     |   3 +
+ 9 files changed, 445 insertions(+), 210 deletions(-)

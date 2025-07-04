@@ -1,0 +1,16 @@
+commit 5e94fe931613111c170e4798131790b3db2bbe90
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Feb 23 15:05:33 2021 +0100
+
+    go/build/constraint: fix splitPlusBuild func doc comment
+    
+    Noticed while reading the code of the new package; likely a copy-paste
+    from the splitGoBuild function, which is almost identical.
+    
+    Change-Id: I869272123708d25d237a4f0445f8e853865747f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295469
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/go/build/constraint/expr.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

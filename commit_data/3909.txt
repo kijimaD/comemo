@@ -1,0 +1,13 @@
+commit ceb6031ecd310f5aced49ae4bac8ba200f471dc4
+Author: Rob Pike <r@golang.org>
+Date:   Sun Nov 8 20:45:39 2009 -0800
+
+    delete TODO now that compiler is better at %
+    adjust an inconsistency in reflect/type.go's package comment
+    
+    R=rsc
+    http://go/go-review/1026029
+
+ src/pkg/reflect/type.go |  2 +-
+ test/bench/fasta.go     | 20 +-------------------
+ 2 files changed, 2 insertions(+), 20 deletions(-)

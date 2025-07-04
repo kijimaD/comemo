@@ -1,0 +1,14 @@
+commit 149ac34893ad1cc5023ae2fbabd0d553f21b0313
+Author: Mikhail Gusarov <dottedmag@dottedmag.net>
+Date:   Mon May 9 19:28:28 2016 +0200
+
+    doc: update number of supported instruction sets
+    
+    Current  number was out-of-date since adding MIPS.
+    
+    Change-Id: I565342a92de3893b75cdfb76fa39f7fdf15672da
+    Reviewed-on: https://go-review.googlesource.com/22952
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/install-source.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

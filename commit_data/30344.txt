@@ -1,0 +1,17 @@
+commit 2774085bdc9f0e64a3dd00633d5d6ae860988c78
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 20 22:55:51 2017 -0800
+
+    cmd/vet/all: update windows whitelist
+    
+    A last-minute rollback of a change left some
+    unreachable code that we don't want to remove.
+    
+    Change-Id: Ida0af5b18ed1a2e13ef66c303694afcc49d7bff4
+    Reviewed-on: https://go-review.googlesource.com/37304
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/all/whitelist/windows.txt | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

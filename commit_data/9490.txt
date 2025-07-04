@@ -1,0 +1,14 @@
+commit 987649e09b2ec5085a55c3bb6097107b8723f4d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 25 16:29:56 2011 -0400
+
+    build: fix more unused parameters
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4971042
+
+ src/cmd/5g/gsubr.c | 2 ++
+ src/cmd/8g/gobj.c  | 2 ++
+ src/cmd/8g/gsubr.c | 5 +++++
+ 3 files changed, 9 insertions(+)

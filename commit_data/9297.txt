@@ -1,0 +1,12 @@
+commit 88233e89db2d3df45c2b6d9fdb5b930cf219aabb
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 5 15:10:06 2011 +1000
+
+    asn1: fix build
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4830061
+
+ src/pkg/asn1/asn1_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

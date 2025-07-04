@@ -1,0 +1,17 @@
+commit 9144ef332191f6a85d16d261ccaea9a998750aea
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Dec 19 14:06:28 2013 -0500
+
+    crypto/x509: import crypto/sha256
+    
+    Since SHA-256 is now the default hash function, x509 should import it
+    otherwise some programs may fail because it hasn't been linked in.
+    
+    R=golang-dev, dave, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/44010047
+
+ src/pkg/crypto/x509/x509.go             |  1 +
+ src/pkg/crypto/x509/x509_test.go        |  7 +++++
+ src/pkg/crypto/x509/x509_test_import.go | 53 +++++++++++++++++++++++++++++++++
+ 3 files changed, 61 insertions(+)

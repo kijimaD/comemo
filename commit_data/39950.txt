@@ -1,0 +1,24 @@
+commit 09824ccfe5dce385e4f02894883b635a52a30cac
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Wed Jun 19 18:02:09 2019 -0600
+
+    reflect: give type hints in error messages
+    
+    Currently, if you call various reflect methods you might get a panic with a
+    message like, "reflect: Field of non-struct type". Sometimes it's easy to
+    grok what's going on, but other times you need to laboriously go perform
+    reflect.ValueOf(myType).Kind().
+    
+    This CL just adds that detail to the error message, saving debuggers the
+    extra step and making the error message more clear.
+    
+    Change-Id: I7e0c211a3001e6b217b828cbcf50518080b5cb1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183097
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/reflect/type.go | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

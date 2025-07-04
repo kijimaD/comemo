@@ -1,0 +1,18 @@
+commit 49d0b239cb83e62c7b67e68ef9440ddc055a9c53
+Author: Andrey Bokhanko <andreybokhanko@gmail.com>
+Date:   Mon Dec 21 16:33:55 2020 +0000
+
+    doc: fix a typo in contribute.html
+    
+    A fix for a trivial (yet still confusing for neophytes like me!) typo in
+    contribute.html.
+    
+    Change-Id: Ic68673fb2a3855c2b9e8042047087450e8793e6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279452
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

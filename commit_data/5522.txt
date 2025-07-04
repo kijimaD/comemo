@@ -1,0 +1,14 @@
+commit eadebba36fcfb57a4da9469b61b786c30d2e2ee0
+Author: Adam Langley <agl@golang.org>
+Date:   Mon May 24 14:32:55 2010 -0400
+
+    big: prevent errors in Exp in the face of aliasing
+    
+    R=gri
+    CC=golang-dev, golang-dev
+    https://golang.org/cl/1244044
+
+ src/pkg/big/int.go      | 3 ++-
+ src/pkg/big/int_test.go | 2 +-
+ src/pkg/big/nat.go      | 5 +++++
+ 3 files changed, 8 insertions(+), 2 deletions(-)

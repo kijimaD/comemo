@@ -1,0 +1,15 @@
+commit e4791066c8a46131462f3af4135dd401651c16b9
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Feb 26 09:44:41 2015 -0500
+
+    os/exec: disable tests on darwin/arm
+    
+    There is only one process under the iOS sandboxd.
+    
+    Change-Id: I21b5528366a0248a034801a717f24c60f0733c5f
+    Reviewed-on: https://go-review.googlesource.com/6101
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/exec/exec_test.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

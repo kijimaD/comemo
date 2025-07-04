@@ -1,0 +1,46 @@
+commit e1faebe7b40c23811a6025ed104d3ce9882f0c3b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Oct 13 12:39:13 2020 -0400
+
+    runtime: manage gcBgMarkWorkers with a global pool
+    
+    Background mark workers perform per-P marking work. Currently each
+    worker is assigned a P at creation time. The worker "attaches" to the P
+    via p.gcBgMarkWorker, making itself (usually) available to
+    findRunnableGCWorker for scheduling GC work.
+    
+    While running gcMarkDone, the worker "detaches" from the P (by clearing
+    p.gcBgMarkWorker), since it may park for other reasons and should not be
+    scheduled by findRunnableGCWorker.
+    
+    Unfortunately, this design is complex and difficult to reason about. We
+    simplify things by changing the design to eliminate the hard P
+    attachment. Rather than workers always performing work from the same P,
+    workers perform work for whichever P they find themselves on. On park,
+    the workers are placed in a pool of free workers, which each P's
+    findRunnableGCWorker can use to run a worker for its P.
+    
+    Now if a worker parks in gcMarkDone, a P may simply use another worker
+    from the pool to complete its own work.
+    
+    The P's GC worker mode is used to communicate the mode to run to the
+    selected worker. It is also used to emit the appropriate worker
+    EvGoStart tracepoint. This is a slight change, as this G may be
+    preempted (e.g., in gcMarkDone). When it is rescheduled, the trace
+    viewer will show it as a normal goroutine again. It is currently a bit
+    difficult to connect to the original worker tracepoint, as the viewer
+    does not display the goid for the original worker (though the data is in
+    the trace file).
+    
+    Change-Id: Id7bd3a364dc18a4d2b1c99c4dc4810fae1293c1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262348
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgc.go      | 222 ++++++++++++++++++++++++++----------------------
+ src/runtime/proc.go     |  69 +++++++++------
+ src/runtime/runtime2.go |  19 ++++-
+ src/runtime/trace.go    |   2 +-
+ 4 files changed, 182 insertions(+), 130 deletions(-)

@@ -1,0 +1,13 @@
+commit b47bbecf7a90b94a54db6871fcbec9c9c47bb564
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 14 13:29:31 2011 -0700
+
+    src: fix a couple of govet-discovered errors.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5021042
+
+ src/pkg/exp/regexp/exec_test.go  | 2 +-
+ src/pkg/image/png/reader_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

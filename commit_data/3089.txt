@@ -1,0 +1,24 @@
+commit 396b47bbbd8380fa1ac7f227518fbbc397e31afc
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 26 16:01:31 2009 -0700
+
+    generate the unicode tables directly from web database
+    
+    after this CL, two more to come:
+            1) add an exhaustive test, probably as a variant of maketables
+            2) add ToUpper, ToLower, ToTitle and associated tests
+    
+    R=rsc
+    DELTA=1578  (1007 added, 559 deleted, 12 changed)
+    OCL=33902
+    CL=33907
+
+ src/pkg/regexp/regexp.go        |   2 +-
+ src/pkg/unicode/Makefile        |   9 +
+ src/pkg/unicode/decimaldigit.go |  40 ---
+ src/pkg/unicode/digittables.go  |  43 +++
+ src/pkg/unicode/letter.go       | 530 +-------------------------------
+ src/pkg/unicode/letter_test.go  |  20 +-
+ src/pkg/unicode/lettertables.go | 664 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/unicode/maketables.go   | 281 +++++++++++++++++
+ 8 files changed, 1019 insertions(+), 570 deletions(-)

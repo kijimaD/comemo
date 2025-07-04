@@ -1,0 +1,16 @@
+commit 5bcdd639331cd7f8d844fd38a674c4751423f938
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 18 21:54:12 2016 +0000
+
+    net: don't return io.EOF from zero byte reads
+    
+    Updates #15735
+    
+    Change-Id: I42ab2345443bbaeaf935d683460fc2c941b7679c
+    Reviewed-on: https://go-review.googlesource.com/23227
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/fd_unix.go    |  8 ++++++++
+ src/net/fd_windows.go |  4 +++-
+ src/net/net_test.go   | 54 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 65 insertions(+), 1 deletion(-)

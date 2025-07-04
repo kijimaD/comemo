@@ -1,0 +1,21 @@
+commit 745cdc3ad7556ba073d2a55fa7cebb3fc683b94f
+Author: David Chase <drchase@google.com>
+Date:   Mon Sep 28 16:13:57 2015 -0400
+
+    cmd/compile: repair escape analysis of range &fixedArray
+    
+    The existing test did not take into account the implicit
+    dereference of &fixedArray and thus heap-escaped when it
+    was not necessary.
+    
+    Also added a detailed test for this and related cases.
+    
+    Fixes #12588
+    
+    Change-Id: I951e9684a093082ccdca47710f69f4366bd6b3cf
+    Reviewed-on: https://go-review.googlesource.com/15130
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/cmd/compile/internal/gc/esc.go |  9 +++-
+ test/fixedbugs/issue12588.go       | 88 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 95 insertions(+), 2 deletions(-)

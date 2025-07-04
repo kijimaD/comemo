@@ -1,0 +1,16 @@
+commit 2bfc2d777232bd8e3220fac71ba5585c39f71eb1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 27 10:59:33 2010 -0700
+
+    gofmt: don't strip mandatory ()'s around composite literals in control clauses
+    
+    Fixes #748.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/946043
+
+ src/pkg/go/printer/nodes.go                   | 17 ++++++++----
+ src/pkg/go/printer/testdata/statements.golden | 40 ++++++++++++++++++++++++++-
+ src/pkg/go/printer/testdata/statements.input  | 23 +++++++++++++++
+ 3 files changed, 73 insertions(+), 7 deletions(-)

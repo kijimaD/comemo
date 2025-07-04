@@ -1,0 +1,17 @@
+commit c4e3f6c4c78f52060d409a549b83b72644069137
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Mar 2 06:10:58 2021 +0000
+
+    cmd/compile: remove 8-byte alignment requirement of stack slot on s390x
+    
+    This CL applies CL 267999 to s390x.
+    
+    Updates #42385
+    
+    Change-Id: Ie8e69ad1b3f7ddc2c8f05125f4af617aeac035ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297769
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: eric fang <eric.fang@arm.com>
+
+ src/cmd/compile/internal/ssagen/pgen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

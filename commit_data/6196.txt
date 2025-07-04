@@ -1,0 +1,12 @@
+commit ae2dc7633587d4466384188e709d437f81bfbbe3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 8 13:56:49 2010 -0700
+
+    test: Actually run bug296.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2156045
+
+ test/fixedbugs/bug296.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

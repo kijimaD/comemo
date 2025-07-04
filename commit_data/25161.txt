@@ -1,0 +1,14 @@
+commit c2290feeeb02b6b730efe4087572bf6c51c51503
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Dec 4 16:24:35 2015 -0700
+
+    net/http: sniff tests ported to h2
+    
+    Change-Id: Icad6cc130252ac177946b23c12f36d6ba3275bf0
+    Reviewed-on: https://go-review.googlesource.com/17436
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/sniff_test.go | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)

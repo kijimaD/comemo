@@ -1,0 +1,17 @@
+commit 0e13da8fae55d17c0c4ca64b1b8f259d633cee51
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 5 14:35:24 2021 -0700
+
+    cmd/internal/obj: allow more gcbits content addressability
+    
+    Follow-up to feedback on CL 352189.
+    
+    Change-Id: I3d9fa87878a74a5a725812c7852050c02c433fa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354137
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/objfile.go | 3 ---
+ 1 file changed, 3 deletions(-)

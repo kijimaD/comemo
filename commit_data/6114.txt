@@ -1,0 +1,12 @@
+commit 9f24d3686f6789187d5112cd52884be9bd5307d4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 26 20:21:34 2010 -0400
+
+    Make.pkg: never use quietgcc
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/2033041
+
+ src/Make.pkg | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

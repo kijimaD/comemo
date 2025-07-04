@@ -1,0 +1,15 @@
+commit 97edf7790375604f4b22d30b22b88968ff199ce9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 24 17:09:15 2019 -0700
+
+    cmd/compile: refactor expandiface
+    
+    Move checkdupfields call into expandiface, and inline/simplify offmod.
+    More prep work for implementing #6977.
+    
+    Change-Id: I958ae87f761ec25a8fa7298a2a3019eeca5b25ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187518
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/align.go | 29 +++++++++--------------------
+ 1 file changed, 9 insertions(+), 20 deletions(-)

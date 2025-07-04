@@ -1,0 +1,14 @@
+commit 77067c169737eee8af4320ae2278f36d50291b14
+Author: Erik Aigner <aigner.erik@gmail.com>
+Date:   Mon Feb 2 08:52:41 2015 +0100
+
+    net/http: remove redundant strings.TrimPrefix
+    
+    We already checked for the prefix with strings.HasPrefix
+    
+    Change-Id: I33852fd19ffa92aa33b75b94b4bb505f4043a54a
+    Reviewed-on: https://go-review.googlesource.com/3691
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

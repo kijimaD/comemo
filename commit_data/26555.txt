@@ -1,0 +1,22 @@
+commit 621aa713d46c3eebbc03e352436d109f28779e47
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 28 14:12:10 2016 -0700
+
+    cmd/compile: avoid allocation in Nodes.Set in common case
+    
+    When building make.bash, calling Nodes.Set(s) where len(s) == 0 occurs
+    4738678 times vs 1465415 calls where len(s) > 0; i.e., it is over 3x
+    more common to set Nodes.slice to nil rather than to s.
+    
+    Make a copy of slice (header) and take address of that copy instead
+    to avoid allocating the argument slice on the heap always even when
+    not needed.
+    
+    Saves 4738678 slice header allocations and slice header value copies.
+    
+    Change-Id: I88e8e919ea9868ceb2df46173d187af4109bd947
+    Reviewed-on: https://go-review.googlesource.com/21241
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/gc/syntax.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit dfd13ce59d74638baff4f94d64851cda53e63bdc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 5 16:17:56 2022 -0800
+
+    go/types, types2: better error message for invalid method expression
+    
+    Fixes #53358.
+    
+    Change-Id: I38528da1596b6e1aaedcab89b1513fb8acac596c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455335
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/call.go             |  6 +++++-
+ src/go/types/call.go                                |  6 +++++-
+ src/internal/types/testdata/check/expr3.go          |  4 ++--
+ src/internal/types/testdata/check/methodsets.go     |  4 ++--
+ src/internal/types/testdata/fixedbugs/issue53358.go | 19 +++++++++++++++++++
+ 5 files changed, 33 insertions(+), 6 deletions(-)

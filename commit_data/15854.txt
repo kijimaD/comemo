@@ -1,0 +1,12 @@
+commit a63d5dd118aa3e36f60c358f1221356825acc502
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 20 17:20:32 2013 -0400
+
+    cmd/gc: add OCHECKNOTNIL to race walker (fix build)
+    
+    TBR=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/7635046
+
+ src/cmd/gc/racewalk.c | 1 +
+ 1 file changed, 1 insertion(+)

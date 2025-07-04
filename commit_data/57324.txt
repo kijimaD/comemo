@@ -1,0 +1,21 @@
+commit 2f3165973f9bf1e1a95d108c57e5257f4655ee59
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Wed Aug 14 22:28:00 2024 +0200
+
+    cmd/compile: compute Complement's limits from argument's limits
+    
+    I was not sure this was correct so I exhaustively checked all possibilities:
+    https://go.dev/play/p/hjmCLm4Iagz
+    https://go.dev/play/p/R9RuRGKwCbN
+    
+    Change-Id: I85f053df825a4d77f978de42f8a1fcaf4b881def
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605696
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/cmd/compile/internal/ssa/prove.go | 39 +++++++++++++++++++++++++++++++++++
+ test/prove.go                         | 21 +++++++++++++++++++
+ 2 files changed, 60 insertions(+)

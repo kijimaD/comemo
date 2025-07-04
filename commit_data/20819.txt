@@ -1,0 +1,12 @@
+commit 3ce6a4fb971491b58ec8157496a1f56348cc62c0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 00:02:29 2014 -0400
+
+    runtime: fix windows build
+    
+    TBR=austin
+    CC=golang-codereviews
+    https://golang.org/cl/167820043
+
+ src/runtime/crash_cgo_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

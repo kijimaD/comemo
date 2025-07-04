@@ -1,0 +1,74 @@
+commit 9c8809f82aa59e0725e93cffb03de863e61cbbae
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 29 17:41:50 2016 -0400
+
+    runtime/internal/sys: implement Ctz and Bswap in assembly for 386
+    
+    Ctz is a hot-spot in the Go 1.7 memory manager. In SSA it's
+    implemented as an intrinsic that compiles to a few instructions, but
+    on the old backend (all architectures other than amd64), it's
+    implemented as a fairly complex Go function. As a result, switching to
+    bitmap-based allocation was a significant hit to allocation-heavy
+    workloads like BinaryTree17 on non-SSA platforms.
+    
+    For unknown reasons, this hit 386 particularly hard. We can regain a
+    lot of the lost performance by implementing Ctz in assembly on the
+    386. This isn't as good as an intrinsic, since it still generates a
+    function call and prevents useful inlining, but it's much better than
+    the pure Go implementation:
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              3.59s ± 1%     3.06s ± 1%  -14.74%  (p=0.000 n=19+20)
+    Fannkuch11-12                3.72s ± 1%     3.64s ± 1%   -2.09%  (p=0.000 n=17+19)
+    FmtFprintfEmpty-12          52.3ns ± 3%    52.3ns ± 3%     ~     (p=0.829 n=20+19)
+    FmtFprintfString-12          156ns ± 1%     148ns ± 3%   -5.20%  (p=0.000 n=18+19)
+    FmtFprintfInt-12             137ns ± 1%     136ns ± 1%   -0.56%  (p=0.000 n=19+13)
+    FmtFprintfIntInt-12          227ns ± 2%     225ns ± 2%   -0.93%  (p=0.000 n=19+17)
+    FmtFprintfPrefixedInt-12     210ns ± 1%     208ns ± 1%   -0.91%  (p=0.000 n=19+17)
+    FmtFprintfFloat-12           375ns ± 1%     371ns ± 1%   -1.06%  (p=0.000 n=19+18)
+    FmtManyArgs-12               995ns ± 2%     978ns ± 1%   -1.63%  (p=0.000 n=17+17)
+    GobDecode-12                9.33ms ± 1%    9.19ms ± 0%   -1.59%  (p=0.000 n=20+17)
+    GobEncode-12                7.73ms ± 1%    7.73ms ± 1%     ~     (p=0.771 n=19+20)
+    Gzip-12                      375ms ± 1%     374ms ± 1%     ~     (p=0.141 n=20+18)
+    Gunzip-12                   61.8ms ± 1%    61.8ms ± 1%     ~     (p=0.602 n=20+20)
+    HTTPClientServer-12         87.7µs ± 2%    86.9µs ± 3%   -0.87%  (p=0.024 n=19+20)
+    JSONEncode-12               20.2ms ± 1%    20.4ms ± 0%   +0.53%  (p=0.000 n=18+19)
+    JSONDecode-12               65.3ms ± 0%    65.4ms ± 1%     ~     (p=0.385 n=16+19)
+    Mandelbrot200-12            4.11ms ± 1%    4.12ms ± 0%   +0.29%  (p=0.020 n=19+19)
+    GoParse-12                  3.75ms ± 1%    3.61ms ± 2%   -3.90%  (p=0.000 n=20+20)
+    RegexpMatchEasy0_32-12       104ns ± 0%     103ns ± 0%   -0.96%  (p=0.000 n=13+16)
+    RegexpMatchEasy0_1K-12       805ns ± 1%     803ns ± 1%     ~     (p=0.189 n=18+18)
+    RegexpMatchEasy1_32-12       111ns ± 0%     111ns ± 3%     ~     (p=1.000 n=14+19)
+    RegexpMatchEasy1_1K-12      1.00µs ± 1%    1.00µs ± 1%   +0.50%  (p=0.003 n=19+19)
+    RegexpMatchMedium_32-12      133ns ± 2%     133ns ± 2%     ~     (p=0.218 n=20+20)
+    RegexpMatchMedium_1K-12     41.2µs ± 1%    42.2µs ± 1%   +2.52%  (p=0.000 n=18+16)
+    RegexpMatchHard_32-12       2.35µs ± 1%    2.38µs ± 1%   +1.53%  (p=0.000 n=18+18)
+    RegexpMatchHard_1K-12       70.9µs ± 2%    72.0µs ± 1%   +1.42%  (p=0.000 n=19+17)
+    Revcomp-12                   1.06s ± 0%     1.05s ± 0%   -1.36%  (p=0.000 n=20+18)
+    Template-12                 86.2ms ± 1%    84.6ms ± 0%   -1.89%  (p=0.000 n=20+18)
+    TimeParse-12                 425ns ± 2%     428ns ± 1%   +0.77%  (p=0.000 n=18+19)
+    TimeFormat-12                517ns ± 1%     519ns ± 1%   +0.43%  (p=0.001 n=20+19)
+    [Geo mean]                  74.3µs         73.5µs        -1.05%
+    
+    Prior to this commit, BinaryTree17-12 on 386 was 33% slower than at
+    the go1.6 tag. With this commit, it's 13% slower.
+    
+    On arm and arm64, BinaryTree17-12 is only ~5% slower than it was at
+    go1.6. It may be worth implementing Ctz for them as well.
+    
+    I consider this change low risk, since the functions it replaces are
+    simple, very well specified, and well tested.
+    
+    For #16117.
+    
+    Change-Id: Ic39d851d5aca91330134596effd2dab9689ba066
+    Reviewed-on: https://go-review.googlesource.com/24640
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/internal/sys/intrinsics.go       |  2 +
+ src/runtime/internal/sys/intrinsics_386.s    | 68 ++++++++++++++++++++++++++++
+ src/runtime/internal/sys/intrinsics_stubs.go | 14 ++++++
+ 3 files changed, 84 insertions(+)

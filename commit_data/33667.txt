@@ -1,0 +1,17 @@
+commit 9adfe0f4755aad4e81e8f1d624cec99e8c212e77
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 22 11:27:16 2017 -0800
+
+    os/signal: don't run TestTerminalSignal on Solaris
+    
+    Fixes #22849
+    
+    Change-Id: Icf7f07d0d1d0669f5db4943030588646c819c62a
+    Reviewed-on: https://go-review.googlesource.com/79495
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/signal/internal/pty/pty.go | 2 +-
+ src/os/signal/signal_cgo_test.go  | 4 +++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

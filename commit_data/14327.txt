@@ -1,0 +1,12 @@
+commit 451b91b4d1e37996129368f8de4b7b5335ac8a5f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 6 15:58:18 2012 -0800
+
+    CONTRIBUTORS: Add Carl Mastrangelo (Google CLA).
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6812095
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

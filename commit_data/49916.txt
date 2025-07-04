@@ -1,0 +1,22 @@
+commit 805305e24f762887a10eb5c410683aa541d1b3c3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 27 16:33:36 2022 -0400
+
+    cmd/go: stamp VCS information in test binaries when -buildvcs=true
+    
+    (But still not when -buildvcs=auto, the default.)
+    
+    Fixes #52648.
+    
+    Change-Id: I87a87d4ea84e8bf9635a4f7c8674c9311c3e21be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409177
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/list/list.go             |  2 +-
+ src/cmd/go/internal/load/pkg.go              | 23 ++++++++++++++++++-----
+ src/cmd/go/internal/work/build.go            |  4 ++--
+ src/cmd/go/testdata/script/test_buildvcs.txt | 24 +++++++++++++++++-------
+ 4 files changed, 38 insertions(+), 15 deletions(-)

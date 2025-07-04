@@ -1,0 +1,12 @@
+commit e7b1d0a9cfad0347748dc9478641f76f60808a64
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Apr 15 23:03:12 2018 +0200
+
+    test: add missing copyright header
+    
+    Change-Id: Ia64535492515f725fe3c4b59ea300363a0c4ce10
+    Reviewed-on: https://go-review.googlesource.com/107136
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/codegen/condmove.go | 4 ++++
+ 1 file changed, 4 insertions(+)

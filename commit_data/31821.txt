@@ -1,0 +1,34 @@
+commit 296b35382c82081d6c90dcec570e6491a2b2598a
+Author: thoeni <thoeni@gmail.com>
+Date:   Thu Dec 1 21:57:39 2016 +0000
+
+    encoding/json: don't marshal unexported embedded fields of non struct type
+    
+    Marshal must process unexported embedded fields of struct type,
+    looking for exported fields in those structs. However, it must
+    not process unexported embedded fields of non-struct type.
+    
+    For example, consider:
+    
+        type t1 struct {
+            X int
+        }
+        type t2 int
+        type T struct {
+            t1
+            t2
+        }
+    
+    When considering T, Marshal must process t1 to find t1.X.
+    Marshal must not process t2, but it was. Fix that.
+    
+    Fixes #18009
+    
+    Change-Id: I62ba0b65ba30fd927990e101a26405a9998787a3
+    Reviewed-on: https://go-review.googlesource.com/33773
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/json/encode.go      |  2 +-
+ src/encoding/json/encode_test.go | 53 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+), 1 deletion(-)

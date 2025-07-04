@@ -1,0 +1,16 @@
+commit 7fd51f2fb4f60a8cdce7053e953b145ba463391d
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Jun 15 17:41:07 2011 -0700
+
+    syscall: use strict in perl scripts
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4609047
+
+ src/pkg/syscall/mksyscall.pl         | 14 ++++++++------
+ src/pkg/syscall/mksyscall_windows.pl | 30 ++++++++++++++----------------
+ src/pkg/syscall/mksysnum_darwin.pl   |  2 ++
+ src/pkg/syscall/mksysnum_freebsd.pl  |  2 ++
+ src/pkg/syscall/mksysnum_linux.pl    |  2 ++
+ 5 files changed, 28 insertions(+), 22 deletions(-)

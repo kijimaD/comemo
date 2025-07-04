@@ -1,0 +1,21 @@
+commit e3755434b8790288a1d48ae3ebf9f4e49c881849
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 7 16:46:33 2012 -0500
+
+    5l, 6l, 8l: implement -X flag
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5643050
+
+ src/cmd/5l/doc.go | 32 +++-----------------------------
+ src/cmd/5l/obj.c  | 10 +++++-----
+ src/cmd/6l/doc.go | 45 +++------------------------------------------
+ src/cmd/6l/obj.c  |  9 +++++----
+ src/cmd/8l/doc.go | 47 +++--------------------------------------------
+ src/cmd/8l/obj.c  |  9 +++++----
+ src/cmd/ld/data.c | 19 +++++++++++++++++++
+ src/cmd/ld/doc.go | 46 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/ld/lib.h  |  1 +
+ test/linkx.go     | 15 +++++++++++++++
+ 10 files changed, 103 insertions(+), 130 deletions(-)

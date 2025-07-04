@@ -1,0 +1,24 @@
+commit f5d59d0e382dc59195537a128fe9423a49a4cea8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 16 15:41:47 2020 -0700
+
+    cmd/compile: skip looking for OCLOSURE nodes in xtop
+    
+    xtop holds package's top-level declaration statements, but OCLOSURE
+    only appears in expression contexts. xtop will instead hold the
+    synthetic ODCLFUNC representing OCLOSURE's function body.
+    
+    This CL makes the loop consistent with the later phases that only look
+    for ODCLFUNC nodes in xtop.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I852a10ef1bf75bb3351e3da0357ca8b2e26aec6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255340
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

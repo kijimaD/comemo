@@ -1,0 +1,33 @@
+commit 451b6b38fd3f87957c39fdb6572740f74ea27931
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Dec 11 16:45:28 2020 -0500
+
+    cmd/go: refactor error reporting in internal/load
+    
+    Replaced load.PackagesForBuild with a new function,
+    load.CheckPackageErrors. Callers should now call PackagesAndErrors,
+    then CheckPackageErrors for the same functionality.
+    
+    Removed load.Packages. Callers should call base.Errorf and filter the
+    package list as needed.
+    
+    This gives callers more flexibility in handling package load errors.
+    
+    For #42638
+    
+    Change-Id: Id75463ba695adc1ca3f8693ceb2c8978b74a3500
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277354
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/fix/fix.go    | 14 +++++++++-
+ src/cmd/go/internal/get/get.go    |  7 +++--
+ src/cmd/go/internal/list/list.go  | 17 ++++++++----
+ src/cmd/go/internal/load/pkg.go   | 58 +++++++++++++--------------------------
+ src/cmd/go/internal/modget/get.go |  4 ++-
+ src/cmd/go/internal/test/test.go  |  7 +++--
+ src/cmd/go/internal/vet/vet.go    |  3 +-
+ src/cmd/go/internal/work/build.go | 11 +++++---
+ 8 files changed, 65 insertions(+), 56 deletions(-)

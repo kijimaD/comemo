@@ -1,0 +1,12 @@
+commit 37a6adf1d376dc3331b01dc59eed718c9ec2316c
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Thu May 20 09:43:13 2010 -0700
+
+    syscall: linux, implement BindToDevice
+    
+    R=rsc
+    CC=adg, golang-dev, r
+    https://golang.org/cl/1253043
+
+ src/pkg/syscall/syscall_linux.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,18 @@
+commit 4a2408289c0a714fa57fa5921cf5dba518149637
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Nov 21 15:37:49 2023 -0500
+
+    syscall: check SyscallIsNotSupported in TestPidFDWithUserNS
+    
+    For #51246.
+    
+    Change-Id: Ief2e2e14f039123a6580cb60be7ee74f4a20a649
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544318
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/exec_linux_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

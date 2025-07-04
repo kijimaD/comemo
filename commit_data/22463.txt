@@ -1,0 +1,15 @@
+commit 2ce82c6c65ce07f85523a05ec7cf94332e496452
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 19:41:26 2015 -0400
+
+    cmd/go: run darwin/arm64 tests sequentially
+    
+    Just like darwin/arm, the test devices can only install and execute
+    a single app at a time.
+    
+    Change-Id: I74e6130ef83537c465b4585a366d02953fd907bf
+    Reviewed-on: https://go-review.googlesource.com/8827
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/go/build.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

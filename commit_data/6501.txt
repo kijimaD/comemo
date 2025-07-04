@@ -1,0 +1,12 @@
+commit 2a198650123508a601a5537c5774409a272453cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 12 10:24:55 2010 -0400
+
+    arm: regenerate ztypes_linux_arm.go (fix build)
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/2404043
+
+ src/pkg/syscall/ztypes_linux_arm.go | 52 +++++++++++++++++++++++++------------
+ 1 file changed, 36 insertions(+), 16 deletions(-)

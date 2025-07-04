@@ -1,0 +1,16 @@
+commit 583975b9348a7c80998e79967c06862bb8e8d893
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 15 18:12:28 2019 -0500
+
+    cmd/link: fix TestUnresolved in module mode
+    
+    Updates #30228
+    
+    Change-Id: I9f0e7e59922bd56b17889f72124b7d14b2433218
+    Reviewed-on: https://go-review.googlesource.com/c/162833
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/link/link_test.go | 1 +
+ 1 file changed, 1 insertion(+)

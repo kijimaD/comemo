@@ -1,0 +1,17 @@
+commit da2d7e92caed6ef7bb33b837bbe4d4934f799ad0
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Oct 17 15:21:15 2023 -0400
+
+    misc: drop old +build lines
+    
+    This is all there was outside of the src and test top-level directories.
+    
+    Change-Id: Id29b1c92cab7087681f89504e861a47dc30ba834
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536238
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ misc/ios/detect.go | 1 -
+ 1 file changed, 1 deletion(-)

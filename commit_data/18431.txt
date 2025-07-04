@@ -1,0 +1,13 @@
+commit 193f4151ee62c5f893ae2aff0cc26b3aced84bd3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Feb 10 08:25:47 2014 +1100
+
+    C: add Robert Sesek (Google CLA)
+    
+    LGTM=bradfitz
+    R=dave, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/61310043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

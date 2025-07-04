@@ -1,0 +1,25 @@
+commit f7c967259254fa90e1f1951f83fb66850ae3809a
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Apr 8 16:57:13 2019 -0400
+
+    cmd/go: describe dependencies in build list error messages
+    
+    mvs.BuildList reports errors with a chain of modules to make it
+    clear why the module where the error occurred was part of the
+    build. This is a little confusing with "go get -u" since there are
+    edges in the module graph for requirements and for updates.
+    
+    With this change, we now print "requires" or "updates to" between
+    each module version in the chain.
+    
+    Updates #30661
+    
+    Change-Id: Ie689500ea86857e715b250b9e0cae0bc6686dc32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171150
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/mvs/mvs.go                   | 45 ++++++++++++++++--------
+ src/cmd/go/testdata/script/mod_load_badchain.txt | 24 ++++++-------
+ 2 files changed, 42 insertions(+), 27 deletions(-)

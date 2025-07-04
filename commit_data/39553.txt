@@ -1,0 +1,18 @@
+commit 39d4178735d6ca90e076b3fc3d7e38f56fd6b945
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 30 16:16:03 2019 -0700
+
+    spec: add an example of a trivially invalid interface
+    
+    In preparation for the forthcoming spec changes for #6977.
+    While at it, modernize existing File example that dates
+    back all the way to commit 18c5b488a3b.
+    
+    Change-Id: Id10e4df0513e3de15bd58867222923eefa9473ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187978
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 24 ++++++++++++++++--------
+ 1 file changed, 16 insertions(+), 8 deletions(-)

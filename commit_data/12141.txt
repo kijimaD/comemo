@@ -1,0 +1,14 @@
+commit 775f0058acb166ef10e1e34f492bef482f950aa8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 22 11:25:21 2012 -0800
+
+    godoc: proper index range checking when extracting example code
+    
+    Fixes #3092.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5683075
+
+ src/cmd/godoc/godoc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

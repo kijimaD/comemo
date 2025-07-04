@@ -1,0 +1,16 @@
+commit 6965a752a799792997fc0cbf971b1893bcaf3d5b
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Fri Dec 6 15:49:47 2013 -0800
+
+    cmd/gc: do not generate dead value maps yet
+    
+    We are not clearing dead values in the garbage collector so it
+    is not worth the RSS cost to materialize the data and write it
+    out to the binary.
+    
+    R=golang-dev, iant, cshapiro
+    CC=golang-dev
+    https://golang.org/cl/38650043
+
+ src/cmd/gc/pgen.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

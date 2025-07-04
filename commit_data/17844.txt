@@ -1,0 +1,15 @@
+commit 3b0e6c21aef32c5439fdcdaff44418a875565fcc
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Tue Oct 29 11:14:56 2013 -0400
+
+    misc/emacs: support godef-jump on import statements
+    
+    The newest version of godef supports jumping to a package's source
+    directory if point is on an import statement.
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/18230043
+
+ misc/emacs/go-mode.el | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

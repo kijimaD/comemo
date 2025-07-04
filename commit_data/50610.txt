@@ -1,0 +1,22 @@
+commit 17f83e347312ce3e7a0369f1db50d60e6104f4cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 21 13:30:18 2022 -0700
+
+    go/types, types2: report "undefined: p.x" instead of "x not declared by package p"
+    
+    This matches the compiler's long-standing behavior.
+    
+    For #55326.
+    
+    Change-Id: Icd946b031b1b6e65498fb52bceb4a53807732463
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432556
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/call.go      | 8 ++------
+ src/go/types/call.go                         | 4 ++--
+ src/internal/types/testdata/check/decls1.go  | 2 +-
+ src/internal/types/testdata/check/issues0.go | 2 +-
+ 4 files changed, 6 insertions(+), 10 deletions(-)

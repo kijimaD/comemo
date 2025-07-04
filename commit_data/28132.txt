@@ -1,0 +1,42 @@
+commit 8c85e23087d90e831a70ccd199cac49a38d91027
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jun 17 16:27:23 2016 -0700
+
+    cmd/compile: recognize integer ranges in switch statements
+    
+    Consider a switch statement like:
+    
+    switch x {
+    case 1:
+      // ...
+    case 2, 3, 4, 5, 6:
+      // ...
+    case 5:
+      // ...
+    }
+    
+    Prior to this CL, the generated code treated
+    2, 3, 4, 5, and 6 independently in a binary search.
+    With this CL, the generated code checks whether
+    2 <= x && x <= 6.
+    walkinrange then optimizes that range check
+    into a single unsigned comparison.
+    
+    Experiments suggest that the best min range size
+    is 2, using binary size as a proxy for optimization.
+    
+    Binary sizes before/after this CL:
+    
+    cmd/compile: 14209728 / 14165360
+    cmd/go:       9543100 /  9539004
+    
+    Change-Id: If2f7fb97ca80468fa70351ef540866200c4c996c
+    Reviewed-on: https://go-review.googlesource.com/26770
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go    |  22 ++++--
+ src/cmd/compile/internal/gc/swt.go    | 139 ++++++++++++++++++++++++++++++----
+ src/cmd/compile/internal/gc/syntax.go |   2 +-
+ 3 files changed, 141 insertions(+), 22 deletions(-)

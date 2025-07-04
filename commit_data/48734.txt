@@ -1,0 +1,34 @@
+commit 036b615c2c69c0e800d0cc4e1a18ac086b1e7ea6
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 3 16:16:46 2022 -0400
+
+    go/doc/comment: parse and print explicit links
+    
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
+    
+    Implement parsing and printing of explicit links, like:
+    
+            Visit the [Go home page].
+    
+            [Go home page]: https://go.dev
+    
+    For #51082.
+    
+    Change-Id: If8104e45558314dae0346df614b03d5664421cf1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397282
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/doc/comment/parse.go           | 50 ++++++++++++++++++++++-
+ src/go/doc/comment/print.go           | 31 +++++++++++++-
+ src/go/doc/comment/testdata/link2.txt | 29 +++++++++++++
+ src/go/doc/comment/testdata/link3.txt | 14 +++++++
+ src/go/doc/comment/testdata/link4.txt | 77 +++++++++++++++++++++++++++++++++++
+ src/go/doc/comment/testdata/link5.txt | 36 ++++++++++++++++
+ src/go/doc/comment/testdata/link6.txt | 47 +++++++++++++++++++++
+ src/go/doc/comment/testdata/link7.txt | 25 ++++++++++++
+ src/go/doc/comment/text.go            | 15 +++++++
+ 9 files changed, 321 insertions(+), 3 deletions(-)

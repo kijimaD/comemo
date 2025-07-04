@@ -1,0 +1,18 @@
+commit 6488201b9b980277b41de540a88f4289aee64e1c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 13 19:04:25 2016 -0400
+
+    cmd/internal/obj: regenerate stringer values
+    
+    Created by running 'go generate'.
+    
+    That made debugging fun today.
+    
+    Change-Id: I9ffe00877851f2b198275220ad6058b9005daa72
+    Reviewed-on: https://go-review.googlesource.com/29117
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/symkind_string.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

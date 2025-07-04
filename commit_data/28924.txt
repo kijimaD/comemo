@@ -1,0 +1,17 @@
+commit f2f8d58b92cd7fd9616c98fb012467656de5a3cb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 19 08:48:25 2016 -0400
+
+    reflect: update FieldByNameFunc comment
+    
+    This was supposed to be in CL 31354
+    but was dropped due to a Git usage error.
+    
+    For #16573.
+    
+    Change-Id: I3d99087c8efc8cbc016c55e8365d0005f79d1b2f
+    Reviewed-on: https://go-review.googlesource.com/31461
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/type.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,11 @@
+commit f4ccabdea6ef7266605a44ac5b1c8f2737c95047
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jun 4 16:44:48 2008 -0700
+
+    stuff
+    
+    SVN=121190
+
+ src/cmd/clean.bash | 12 ++++++++++++
+ src/cmd/make.bash  | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+)

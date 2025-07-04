@@ -1,0 +1,17 @@
+commit 5bf9b39acc7c4e9658190d8606b5d719678db14a
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Fri Apr 29 21:02:59 2016 +0100
+
+    os/exec: re-enable TestExtraFiles for plan9
+    
+    This test should now succeed after CL 22610 which fixes issue #7118
+    
+    Change-Id: Ie785a84d77b27c832a1ddd81699bf25dab24b97d
+    Reviewed-on: https://go-review.googlesource.com/22640
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/exec/exec_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

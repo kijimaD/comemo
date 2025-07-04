@@ -1,0 +1,29 @@
+commit 752cc07c77767d28a61525daa359d087b035f5c1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Oct 1 16:19:27 2021 -0700
+
+    cmd, runtime: mark assembly routines in FuncFlags
+    
+    There's no good way to ascertain at runtime whether
+    a function was implemented in assembly.
+    The existing workaround doesn't play nicely
+    with some upcoming linker changes.
+    
+    This change introduces an explicit marker for routines
+    implemented in assembly.
+    
+    This change doesn't use the new bit anywhere,
+    it only introduces it.
+    
+    Change-Id: I4051dc0afc15b260724a04b9d18aeeb94911bb29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353671
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/objfile.go   | 3 +++
+ src/cmd/internal/obj/plist.go     | 7 +++++--
+ src/cmd/internal/objabi/funcid.go | 1 +
+ src/runtime/symtab.go             | 3 +++
+ 4 files changed, 12 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit e94b9d41432a0560328c786b908e59c27a0a6c47
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Thu May 4 16:14:59 2017 +0300
+
+    cmd/link/internal/ld: fix external linking on windows
+    
+    gcc on windows writes invalid location for .debug_gdb_scripts
+    which causes the executable loading to fail.
+    
+    Fixes #20183
+    
+    Change-Id: I5134013bc926b44a55b528f66ab79555855d1f4d
+    Reviewed-on: https://go-review.googlesource.com/42651
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 5 +++++
+ 1 file changed, 5 insertions(+)

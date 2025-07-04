@@ -1,0 +1,16 @@
+commit b948c437a1173152cc375b5cb98cd322e9eaf30b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 29 15:15:07 2009 -0700
+
+    integer encode/decode
+    
+    R=rsc
+    DELTA=185  (175 added, 10 deleted, 0 changed)
+    OCL=30863
+    CL=30871
+
+ src/pkg/gob/codec_test.go | 98 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/gob/decode.go     | 40 +++++++++++++++++++
+ src/pkg/gob/encode.go     | 40 +++++++++++++++++++
+ src/pkg/gob/type_test.go  | 10 -----
+ 4 files changed, 178 insertions(+), 10 deletions(-)

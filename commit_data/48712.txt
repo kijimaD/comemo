@@ -1,0 +1,17 @@
+commit 6f6942ef7afc34c6b7e1eea3031ed61acc458d2a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 7 13:02:35 2022 -0700
+
+    doc/go1.19: use the right package error.Is arguments
+    
+    They were swapped.
+    
+    Fixes #52205
+    
+    Change-Id: Iea2626aa2204f3bc96d08c571a1aa669436a32ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398895
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ doc/go1.19.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

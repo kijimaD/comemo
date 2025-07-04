@@ -1,0 +1,18 @@
+commit 596df2424d1304442dbb5f5aa4eab153013d4d50
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Sun Feb 28 01:11:23 2016 -0800
+
+    cmd/go: set GOPATH in list's Context
+    
+    Fixes #14547.
+    
+    Change-Id: Ic175ee8f7e65b9b99f1f47fbf267a2aba7c8fec7
+    Reviewed-on: https://go-review.googlesource.com/20010
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/context.go |  1 +
+ src/cmd/go/go_test.go | 31 +++++++++++++++++++++++++++----
+ 2 files changed, 28 insertions(+), 4 deletions(-)

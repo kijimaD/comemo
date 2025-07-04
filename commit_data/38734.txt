@@ -1,0 +1,18 @@
+commit 8c7564deadedda87097e0eedd3e8f85bcd895ff0
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Apr 12 14:23:13 2019 +0200
+
+    runtime: add //go:cgo_unsafe_args to AIX syscallX functions
+    
+    On AIX, syscallX functions are using the first argument to retrieve the
+    next arguments when calling asmcgocall. Therefore,//go:cgo_unsafe_args
+    is needed.
+    
+    Change-Id: I7fe0fbf0c961250a6573c66a8b0eb897dff94bfe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171723
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os2_aix.go | 5 +++++
+ 1 file changed, 5 insertions(+)

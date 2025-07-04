@@ -1,0 +1,26 @@
+commit d177539877a82a2a2f907f7d2f1ecd00f17e63e7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 25 16:07:55 2010 -0800
+
+    go/printer, gofmt: align comments in multi-line expression lists
+    - gofmt -w src misc
+    - improves several lists and fixes minor degradation introduced
+      with the fix for issue 628
+    - removed some dead code (stringList)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/223058
+
+ src/cmd/cgo/gcc.go                             | 14 ++++----
+ src/cmd/godoc/godoc.go                         |  2 +-
+ src/pkg/exp/4s/xs.go                           | 14 ++++----
+ src/pkg/go/printer/nodes.go                    | 41 +++++++++++----------
+ src/pkg/go/printer/printer.go                  | 10 +++---
+ src/pkg/go/printer/testdata/expressions.golden | 15 ++++++++
+ src/pkg/go/printer/testdata/expressions.input  | 15 ++++++++
+ src/pkg/go/printer/testdata/expressions.raw    | 15 ++++++++
+ src/pkg/go/scanner/scanner_test.go             |  4 +--
+ src/pkg/http/response_test.go                  |  2 +-
+ src/pkg/strconv/decimal.go                     | 50 +++++++++++++-------------
+ 11 files changed, 115 insertions(+), 67 deletions(-)

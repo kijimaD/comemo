@@ -1,0 +1,12 @@
+commit f4c775eb70f732000e5260214a1f6e100089a1b0
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 30 15:53:10 2015 +1000
+
+    doc: in go1.5.html fix claim about linking for ppc64(le)?
+    
+    Change-Id: If61c2063a8b63f0e3e498a5e86803b5ddba9fa3c
+    Reviewed-on: https://go-review.googlesource.com/12886
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.5.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

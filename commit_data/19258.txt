@@ -1,0 +1,14 @@
+commit ace8bc35efa7fffb2a9cc751a9bc5097853e0b48
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 30 23:26:07 2014 +0900
+
+    net: enable builtin dns resolver tests on solaris
+    
+    LGTM=aram
+    R=golang-codereviews, aram
+    CC=golang-codereviews
+    https://golang.org/cl/99890045
+
+ src/pkg/net/dnsclient_unix_test.go | 2 +-
+ src/pkg/net/dnsconfig_unix_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

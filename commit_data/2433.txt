@@ -1,0 +1,18 @@
+commit 01b695dbffe857f73cdd580523204c514ebd9368
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 8 22:10:48 2009 -0700
+
+    mksyscall was treating 64-bit systems as 32-bit,
+    so 64-bit args like the offset in Seek were being
+    mishandled.  fix.
+    
+    R=dsymonds
+    DELTA=1269  (645 added, 611 deleted, 13 changed)
+    OCL=30082
+    CL=30082
+
+ src/lib/os/os_test.go                    |  32 ++++++++++
+ src/lib/syscall/mksyscall                |   2 +-
+ src/lib/syscall/zsyscall_darwin_amd64.go |  42 +++++++------
+ src/lib/syscall/zsyscall_linux_amd64.go  | 102 +++++++++++++++----------------
+ 4 files changed, 106 insertions(+), 72 deletions(-)

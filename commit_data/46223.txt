@@ -1,0 +1,23 @@
+commit 3342aa5f51e1299e9d86307e2dbf429cd2aca987
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Aug 29 10:57:06 2021 -0700
+
+    cmd/compile/internal/types2: more systematic error handling in typeWriter
+    
+    When using a typeWriter for debugging/error message type strings,
+    it shouldn't crash in the presence of type-checker internal bugs.
+    But when a typeHasher is used, we don't want to silently ignore
+    errors.
+    
+    Introduce an error method that panics in type hashing mode but
+    prints an error value otherwise.
+    
+    Also fixed an incorrect 'if' statement in tParamList.
+    
+    Change-Id: I26c8b8e0b14396e91ad71bf903e36ce1ca55839e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346009
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/typestring.go | 82 +++++++++++++--------------
+ 1 file changed, 40 insertions(+), 42 deletions(-)

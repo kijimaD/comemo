@@ -1,0 +1,37 @@
+commit 55f19b8d1d6a773c04228d9122db9288c5e712e7
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 25 16:30:02 2017 -0400
+
+    cmd/trace: update HTML; expand viewer to whole window
+    
+    This updates the HTML served for the trace viewer to follow the latest
+    revision of the example from the upstream tracing project.
+    
+    The main thing this adds is CSS for the trace viewer (which was
+    actually in the example at the originally referenced revision, so I'm
+    not sure why it got dropped). In particular, this expands the trace
+    viewer to use the entire browser client area, which fixes several
+    problems with the current page:
+    
+    1. The details pane gets cut off at a strange place and can get a
+    scroll bar even if there's plenty of room below it on the page. This
+    fixes the bottom of the details pane to the bottom of the window.
+    
+    2. If the track view is very tall (lots of procs), there's no way to
+    view the top tracks and the details pane at the same time. This fixes
+    this problem by limiting the height of the track view to something
+    less than the height of the window so it gets a scroll bar of its own
+    if necessary.
+    
+    3. Dragging the divider between the track pane and the details pane
+    actually moves the bottom of the details pane without moving the
+    divider. Fixing the height of the trace viewer fixes this problem.
+    
+    Change-Id: Ia811e72a7413417ca21c45e932c9db2724974633
+    Reviewed-on: https://go-review.googlesource.com/54632
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/trace/trace.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

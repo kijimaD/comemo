@@ -1,0 +1,13 @@
+commit 2c3ddf5ef6755e7a559128b6e55bf93aa6c78157
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 21 15:57:38 2008 -0700
+
+    include local types in typestrings
+    
+    R=r
+    DELTA=16  (14 added, 1 deleted, 1 changed)
+    OCL=17584
+    CL=17584
+
+ src/cmd/6l/go.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 48f0cd2bd55357b41fa2d6ac3bf82d2a0042d3dd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 23 17:30:14 2010 -0700
+
+    go spec: modification of defer statement
+    
+    R=r, rsc, ken2, iant
+    CC=golang-dev
+    https://golang.org/cl/708041
+
+ doc/go_spec.html | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)

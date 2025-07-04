@@ -1,0 +1,21 @@
+commit 84cf1f050dea573e4ef8706ace275d8d13ebe192
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Feb 14 09:18:12 2017 +1100
+
+    internal/poll: remove named return values and naked returns
+    
+    Change-Id: I283f4453e5cf8b22995b3abffccae182cfbb6945
+    Reviewed-on: https://go-review.googlesource.com/36970
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/poll/fd_plan9.go         | 12 ++---
+ src/internal/poll/fd_unix.go          | 95 ++++++++++++++++-------------------
+ src/internal/poll/fd_windows.go       | 12 ++---
+ src/internal/poll/sendfile_bsd.go     |  4 +-
+ src/internal/poll/sendfile_linux.go   |  4 +-
+ src/internal/poll/sendfile_solaris.go |  4 +-
+ src/internal/poll/writev.go           |  4 +-
+ 7 files changed, 66 insertions(+), 69 deletions(-)

@@ -1,0 +1,13 @@
+commit e06d1540c88263ddd919936c0a7e8d451216abf2
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 29 15:06:21 2008 -0700
+
+    fixes for linux system call linkage
+    
+    R=gri
+    OCL=13547
+    CL=13547
+
+ src/syscall/file_amd64_linux.go   | 12 +++++++++---
+ src/syscall/syscall_amd64_linux.s |  5 +++++
+ 2 files changed, 14 insertions(+), 3 deletions(-)

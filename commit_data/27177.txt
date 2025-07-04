@@ -1,0 +1,18 @@
+commit 5ec87ba554c2a83cdc188724f815e53fede91b66
+Author: David Chase <drchase@google.com>
+Date:   Thu Apr 28 10:46:08 2016 -0400
+
+    cmd/compile: fix.gc.Type.cmp for map.notBucket cmp map.Bucket
+    
+    Comparison of certain map types could fail to be antisymmetric.
+    This corrects that.
+    
+    Change-Id: I88c6256053ce29950ced4ba4d538e241ee8591fe
+    Reviewed-on: https://go-review.googlesource.com/22552
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: jcd . <jcd@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/type.go | 2 ++
+ 1 file changed, 2 insertions(+)

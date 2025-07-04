@@ -1,0 +1,22 @@
+commit 5383e28ea0d98e76bb625949dc38b90cee2f2b5b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 22 20:12:15 2008 -0700
+
+    change string([]byte) to pass array, rather than &a[0],
+    to string convert.  if the byte array has length 0,
+    the computation of &a[0] throws an index bounds error.
+    
+    for fixed size arrays, this ends up invoking arrays2d
+    unnecessarily, but it works.
+    
+    R=ken
+    DELTA=304  (44 added, 28 deleted, 232 changed)
+    OCL=15674
+    CL=15678
+
+ src/cmd/gc/sys.go      |   2 +
+ src/cmd/gc/sysimport.c | 489 +++++++++++++++++++++++++------------------------
+ src/cmd/gc/walk.c      |  24 +--
+ src/runtime/string.c   |   9 +
+ test/bugs/bug102.go    |  12 ++
+ 5 files changed, 276 insertions(+), 260 deletions(-)

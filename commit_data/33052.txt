@@ -1,0 +1,19 @@
+commit 0bede7f34e20a77052b433a3c8ee402aa731183e
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 11 10:34:35 2017 -0400
+
+    cmd/compile: split TestNexting into subtests
+    
+    This makes it more obvious which of the two builds is failing by
+    putting "dbg" or "opt" directly in the test name. It also makes it
+    possible for them to fail independently, so a failure in "dbg" doesn't
+    mask a failure in "opt", and to visibly skip the opt test when run
+    with an unoptimized runtime.
+    
+    Change-Id: I3403a7fd3c1a13ad51a938bb95dfe54c320bb58e
+    Reviewed-on: https://go-review.googlesource.com/69970
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/ssa/debug_test.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

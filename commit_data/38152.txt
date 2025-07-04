@@ -1,0 +1,27 @@
+commit 7fa195c1b9650db3e91b90af6b16405e7e0ba9ce
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 27 17:12:23 2019 -0800
+
+    cmd/compile: fix false positives in isGoConst
+    
+    isGoConst could spuriously return true for variables that shadow a
+    constant declaration with the same name.
+    
+    Because even named constants are always represented by OLITERAL nodes,
+    the easy fix is to just ignore ONAME nodes in isGoConst. We can
+    similarly ignore ONONAME nodes.
+    
+    Confirmed that k8s.io/kubernetes/test/e2e/storage builds again with
+    this fix.
+    
+    Fixes #30430.
+    
+    Change-Id: I899400d749982d341dc248a7cd5a18277c2795ec
+    Reviewed-on: https://go-review.googlesource.com/c/164319
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/const.go | 13 -------------
+ test/fixedbugs/issue30430.go         | 17 +++++++++++++++++
+ 2 files changed, 17 insertions(+), 13 deletions(-)

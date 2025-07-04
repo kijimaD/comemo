@@ -1,0 +1,17 @@
+commit 019c8fc6255c21e4b7aa556269ae51d355728ef6
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Tue Apr 2 13:45:56 2013 -0700
+
+    runtime: fix a comment regarding default floating point precision
+    
+    The expected precision setting for the x87 on Win32 is 53-bit
+    but MinGW resets the floating point unit to 64-bit.  Win32
+    object code generally expects values to be rounded to double,
+    not double extended, precision.
+    
+    R=golang-dev, khr
+    CC=golang-dev
+    https://golang.org/cl/8175044
+
+ src/pkg/runtime/asm_386.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

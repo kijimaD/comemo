@@ -1,0 +1,30 @@
+commit e7f9e17b7927cad7a93c5785e864799e8d9b4381
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jan 28 19:59:19 2020 +0000
+
+    runtime: ensure that searchAddr always refers to inUse memory
+    
+    This change formalizes an assumption made by the page allocator, which
+    is that (*pageAlloc).searchAddr should never refer to memory that is not
+    represented by (*pageAlloc).inUse. The portion of address space covered
+    by (*pageAlloc).inUse reflects the parts of the summary arrays which are
+    guaranteed to mapped, and so looking at any summary which is not
+    reflected there may cause a segfault.
+    
+    In fact, this can happen today. This change thus also removes a
+    micro-optimization which is the only case which may cause
+    (*pageAlloc).searchAddr to point outside of any region covered by
+    (*pageAlloc).inUse, and adds a test verifying that the current segfault
+    can no longer occur.
+    
+    Change-Id: I98b534f0ffba8656d3bd6d782f6fc22549ddf1c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216697
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/export_test.go     |  1 +
+ src/runtime/mpagealloc.go      |  7 ++++--
+ src/runtime/mpagealloc_test.go | 48 +++++++++++++++++++++++++++++++++++++++---
+ src/runtime/mpallocbits.go     | 10 ++-------
+ 4 files changed, 53 insertions(+), 13 deletions(-)

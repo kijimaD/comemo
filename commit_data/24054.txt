@@ -1,0 +1,15 @@
+commit 8ca785621e7239b2f11ae2e02f00ef961241712f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Aug 22 10:40:01 2015 +0100
+
+    mime: move examples to external test file
+    
+    Fixes #11257
+    
+    Change-Id: I3f75db47b0f8e877d81e3c2dcea01ff747b47685
+    Reviewed-on: https://go-review.googlesource.com/13779
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/encodedword_test.go | 87 ---------------------------------------
+ src/mime/example_test.go     | 98 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 98 insertions(+), 87 deletions(-)

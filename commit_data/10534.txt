@@ -1,0 +1,12 @@
+commit b2329e997bd64a8a0a9b7800665fb7f3cc9c6bda
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Nov 29 14:40:34 2011 +1100
+
+    cgo: fix incorrect print found by govet
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5445052
+
+ misc/cgo/test/helpers.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

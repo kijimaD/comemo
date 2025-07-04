@@ -1,0 +1,17 @@
+commit fd19bc64de61e33537b90a7d7ed489fd83412ced
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 7 15:05:43 2019 +1100
+
+    doc: add missing paragraph break in Effective Go
+    
+    A recent edit broke the flow; add a paragraph break when the subject
+    switches from maps to structs.
+    
+    No changes in wording.
+    
+    Change-Id: I5df88ec36b9d81931cfdbc684424440d01ac06d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165917
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/effective_go.html | 2 ++
+ 1 file changed, 2 insertions(+)

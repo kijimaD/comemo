@@ -1,0 +1,14 @@
+commit f62444547317764f9d77b4e4ce730a8414607c6b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Mar 6 10:16:13 2018 -0500
+
+    cmd/internal/obj/arm64: gofmt
+    
+    Change-Id: Ica778fef2d0245fbb14f595597e45c7cf6adef84
+    Reviewed-on: https://go-review.googlesource.com/98895
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/arm64/asm7.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

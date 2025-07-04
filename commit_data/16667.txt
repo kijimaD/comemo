@@ -1,0 +1,13 @@
+commit f99158c8ad70a47ba51ce63f0e9a54d25e267292
+Author: Paul van Brouwershaven <paul@vanbrouwershaven.com>
+Date:   Thu Jun 27 17:16:25 2013 -0400
+
+    crypto/x509: Added RFC 5280, section 4.2.2.1 Authority Information Access
+    
+    R=agl, agl
+    CC=gobot, golang-dev
+    https://golang.org/cl/10245048
+
+ src/pkg/crypto/x509/x509.go      | 58 +++++++++++++++++++++++++++++++++++++++-
+ src/pkg/crypto/x509/x509_test.go | 11 ++++++++
+ 2 files changed, 68 insertions(+), 1 deletion(-)

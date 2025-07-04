@@ -1,0 +1,14 @@
+commit 2100947d4a25dcf875be1941d0e3a409ea85051e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 11 14:21:19 2012 +1100
+
+    doc/faq: discuss virtual memory use by go processes
+    
+    Fixes #3948.
+    
+    R=golang-dev, r, dave, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6639064
+
+ doc/go_faq.html | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

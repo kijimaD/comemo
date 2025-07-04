@@ -1,0 +1,33 @@
+commit 72aa757dddad7e915f4faad87aacf8010d91561b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 14 00:17:50 2017 -0500
+
+    encoding/xml: fix incorrect indirect code in chardata, comment, innerxml fields
+    
+    The new tests in this CL have been checked against Go 1.7 as well
+    and all pass in Go 1.7, with the one exception noted in a comment
+    (an intentional change to omitempty already present before this CL).
+    
+    CL 15684 made the intentional change to omitempty.
+    This CL fixes bugs introduced along the way.
+    
+    Most of these are corner cases that are arguably not that important,
+    but they've always worked all the way back to Go 1, and someone
+    cared enough to file #19063. The most significant problem found
+    while adding tests is that in the case of a nil *string field with
+    `xml:",chardata"`, the existing code silently stops processing not just
+    that field but the entire remainder of the struct.
+    Even if #19063 were not worth fixing, this chardata bug would be.
+    
+    Fixes #19063.
+    
+    Change-Id: I318cf8f9945e1a4615982d9904e109fde577ebf9
+    Reviewed-on: https://go-review.googlesource.com/36954
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/xml/marshal.go      |  26 +-
+ src/encoding/xml/marshal_test.go | 544 ++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 554 insertions(+), 16 deletions(-)

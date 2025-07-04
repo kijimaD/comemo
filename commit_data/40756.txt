@@ -1,0 +1,23 @@
+commit 5b17b6575036e1e4f4c6a2cf75e34f7ada806624
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Nov 3 21:04:48 2019 -0500
+
+    crypto/tls: implement Certificate.SupportedSignatureAlgorithms
+    
+    This will let applications stop crypto/tls from using a certificate key
+    with an algorithm that is not supported by its crypto.Signer, like
+    hardware backed keys that can't do RSA-PSS.
+    
+    Fixes #28660
+    
+    Change-Id: I294cc06bddf813fff35c5107540c4a1788e1dace
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205062
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/auth.go      | 37 ++++++++++++++++++++++++++++---------
+ src/crypto/tls/auth_test.go | 15 +++++++++++++++
+ src/crypto/tls/common.go    |  3 +++
+ src/crypto/tls/tls_test.go  | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 91 insertions(+), 9 deletions(-)

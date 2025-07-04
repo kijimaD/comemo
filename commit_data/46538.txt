@@ -1,0 +1,30 @@
+commit 3664950ef68089716b9f22062db66a347c7246d4
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Sep 21 18:15:25 2021 -0400
+
+    go/types: tweaks to ArgumentError to be more idiomatic
+    
+    This CL makes a few changes to the new ArgumentError type to be more
+    idiomatic:
+     - Use a pointer receiver for methods.
+     - Export fields, similarly to Error. ArgumentError has a clear meaning
+       (an error associated with an index), so there is no need to hide its
+       representation.
+     - Add an Unwrap method to access the underlying error.
+     - Say explicitly that the error returned from Instantiate may wrap
+       *ArgumentError. There is no need to commit to an API that always
+       returns an error with dynamic type *ArgumentError.
+    
+    Updates #47916
+    
+    Change-Id: Ib1a43e921f247794e7155280ccbf5a6775ed3978
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351335
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/api.go         | 11 ++++-------
+ src/go/types/api_test.go    | 11 ++++++++---
+ src/go/types/instantiate.go |  6 +++---
+ 3 files changed, 15 insertions(+), 13 deletions(-)

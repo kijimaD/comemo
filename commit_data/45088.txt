@@ -1,0 +1,15 @@
+commit 3d5e3a15f65f1dd622c87ffba58914c877c8112c
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Mon Apr 12 22:49:07 2021 +0200
+
+    debug/pe: replace os.MkdirTemp with T.TempDir
+    
+    Updates #45402
+    
+    Change-Id: I3d83a66270ca38e82d6bb7f8a1367af3d5343a98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309352
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/pe/file_test.go | 21 ++++-----------------
+ 1 file changed, 4 insertions(+), 17 deletions(-)

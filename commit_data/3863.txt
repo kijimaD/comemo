@@ -1,0 +1,12 @@
+commit c1bbc4ae2bcf9ae0da512b8ae14f851f6f95d461
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 6 14:27:41 2009 -0800
+
+    - one-line funcs in misc
+    gofmt -w misc
+    
+    R=rsc
+    http://go/go-review/1025007
+
+ misc/cgo/gmp/gmp.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

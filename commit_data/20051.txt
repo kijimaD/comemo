@@ -1,0 +1,18 @@
+commit b95ed834801517f79f4d1c4331d765769f5e5360
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Aug 20 13:17:45 2014 +1000
+
+    syscall: replace zsyscall_windows_*.go files with a single file
+    
+    zsyscall_windows_386.go and zsyscall_windows_amd64.go contain same bytes
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/124640043
+
+ src/pkg/syscall/mkall.sh                           |    2 +-
+ src/pkg/syscall/mkall_windows.bat                  |   10 +-
+ ...zsyscall_windows_386.go => zsyscall_windows.go} |    0
+ src/pkg/syscall/zsyscall_windows_amd64.go          | 1846 --------------------
+ 4 files changed, 3 insertions(+), 1855 deletions(-)

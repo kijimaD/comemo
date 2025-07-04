@@ -1,0 +1,17 @@
+commit 2eae691d56125c62e0e5f0e4a3bd42e67e423f01
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 20 17:59:37 2016 +0000
+
+    net/http, doc: more redirect documentation
+    
+    Updates #18347
+    Updates #9348
+    
+    Change-Id: I115203b0be3eb2e7e269ff28e2f3c47eeca86038
+    Reviewed-on: https://go-review.googlesource.com/34657
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.8.html          | 14 +++++++++++---
+ src/net/http/client.go  | 21 +++++++++++++++++++++
+ src/net/http/request.go |  6 ++++++
+ 3 files changed, 38 insertions(+), 3 deletions(-)

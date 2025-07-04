@@ -1,0 +1,16 @@
+commit 622780b1c1ba73a5e61d26949bbdcc33851d7709
+Author: Tamir Duberstein <tamird@gmail.com>
+Date:   Fri Feb 26 18:26:04 2016 -0500
+
+    crypto/tls: don't log expected errors in test
+    
+    This is minor cleanup that reduces test output noise.
+    
+    Change-Id: Ib6db4daf8cb67b7784b2d5b222fa37c7f78a6a04
+    Reviewed-on: https://go-review.googlesource.com/19997
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/handshake_server_test.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

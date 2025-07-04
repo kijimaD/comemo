@@ -1,0 +1,61 @@
+commit d58d90152ba172dfa52d3135f5fea9b57927e230
+Author: David Chase <drchase@google.com>
+Date:   Fri Oct 27 17:02:11 2017 -0400
+
+    cmd/compile: adjust locationlist lifetimes
+    
+    A statement like
+    
+      foo = bar + qux
+    
+    might compile to
+    
+      AX := AX + BX
+    
+    resulting in a regkill for AX before this instruction.
+    The buggy behavior is to kill AX "at" this instruction,
+    before it has executed.  (Code generation of no-instruction
+    values like RegKills applies their effects at the
+    next actual instruction emitted).
+    
+    However, bar is still associated with AX until after the
+    instruction executes, so the effect of the regkill must
+    occur at the boundary between this instruction and the
+    next.  Similarly, the new value bound to AX is not visible
+    until this instruction executes (and in the case of values
+    that require multiple instructions in code generation, until
+    all of them have executed).
+    
+    The ranges are adjusted so that a value's start occurs
+    at the next following instruction after its evaluation,
+    and the end occurs after (execution of) the first
+    instruction following the end of the lifetime as a value.
+    
+    (Notice the asymmetry; the entire value must be finished
+    before it is visible, but execution of a single instruction
+    invalidates.  However, the value *is* visible before that
+    next instruction executes).
+    
+    The test was adjusted to make it insensitive to the result
+    numbering for variables printed by gdb, since that is not
+    relevant to the test and makes the differences introduced
+    by small changes larger than necessary/useful.
+    
+    The test was also improved to present variable probes
+    more intuitively, and also to allow explicit indication
+    of "this variable was optimized out"
+    
+    Change-Id: I39453eead8399e6bb05ebd957289b112d1100c0e
+    Reviewed-on: https://go-review.googlesource.com/74090
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go                 |  16 ++-
+ src/cmd/compile/internal/ssa/debug.go              |   7 +-
+ src/cmd/compile/internal/ssa/debug_test.go         |  23 ++--
+ .../internal/ssa/testdata/hist.dbg-dlv.nexts       |   8 +-
+ .../internal/ssa/testdata/hist.dbg-gdb.nexts       |  58 ++++-----
+ src/cmd/compile/internal/ssa/testdata/hist.go      |   8 +-
+ .../internal/ssa/testdata/hist.opt-dlv.nexts       |   8 +-
+ .../internal/ssa/testdata/hist.opt-gdb.nexts       | 136 +++++++++++----------
+ 8 files changed, 143 insertions(+), 121 deletions(-)

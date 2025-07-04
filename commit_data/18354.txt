@@ -1,0 +1,28 @@
+commit bd997b24f7a7cdb57bb9bf02fbfacef1f59f0f89
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 27 10:18:22 2014 -0800
+
+    debug/dwarf, debug/elf: add support for reading DWARF 4 type info
+    
+    In DWARF 4 the debug info for large types is put into
+    .debug_type sections, so that the linker can discard duplicate
+    info.  This change adds support for reading type units.
+    
+    Another small change included here is that DWARF 3 supports
+    storing the byte offset of a struct field as a formData rather
+    than a formDwarfBlock.
+    
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/56300043
+
+ src/pkg/debug/dwarf/const.go              |  31 ++++--
+ src/pkg/debug/dwarf/entry.go              |  12 +++
+ src/pkg/debug/dwarf/open.go               |  10 ++
+ src/pkg/debug/dwarf/testdata/typedef.elf4 | Bin 0 -> 9496 bytes
+ src/pkg/debug/dwarf/type.go               |  75 +++++++++-----
+ src/pkg/debug/dwarf/type_test.go          |   2 +
+ src/pkg/debug/dwarf/typeunit.go           | 166 ++++++++++++++++++++++++++++++
+ src/pkg/debug/dwarf/unit.go               |   2 +-
+ src/pkg/debug/elf/file.go                 |  39 ++++++-
+ 9 files changed, 300 insertions(+), 37 deletions(-)

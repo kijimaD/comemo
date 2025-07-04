@@ -1,0 +1,12 @@
+commit c7e91724c0e1f514982e90d7d08bb2c291a2bc43
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 9 14:24:05 2012 +1100
+
+    go/build: handle and warn of duplicate GOPATH entries
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5519050
+
+ src/pkg/go/build/path.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

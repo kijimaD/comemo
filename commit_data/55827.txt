@@ -1,0 +1,30 @@
+commit afb105056dc62b3f2f569341a9fff080023ee812
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Thu Jan 18 12:51:13 2024 -0800
+
+    crypto/x509: make sure pub key is non-nil before interface conversion
+    
+    alreadyInChain assumes all keys fit a interface which contains the
+    Equal method (which they do), but this ignores that certificates may
+    have a nil key when PublicKeyAlgorithm is UnknownPublicKeyAlgorithm. In
+    this case alreadyInChain panics.
+    
+    Check that the key is non-nil as part of considerCandidate (we are never
+    going to build a chain containing UnknownPublicKeyAlgorithm anyway).
+    
+    Fixes #65390
+    Fixes CVE-2024-24783
+    
+    Change-Id: Ibdccc0a487e3368b6812be35daad2512220243f3
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/2137282
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569339
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/crypto/x509/verify.go      |  2 +-
+ src/crypto/x509/verify_test.go | 19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

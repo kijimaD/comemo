@@ -1,0 +1,12 @@
+commit afa233a8932f181a583ef1b4ee156135c632c102
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 14:36:07 2012 -0400
+
+    CONTRIBUTORS: add Jonathan Feinberg (Google CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6553067
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

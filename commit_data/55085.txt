@@ -1,0 +1,27 @@
+commit 4bfed5ce748a2dbb3f1e35b42949dd3a53601186
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Tue Nov 21 01:02:31 2023 +0000
+
+    runtime/internal/atomic: deduplicate And/Or code on arm
+    
+    Turns out after adding the generic implementation for And/Or we ended up
+    with duplicated ops that are exactly the same for arm.
+    
+    Apologies for the oversight, this CL removes the redundant arm code and
+    adds arm to the generic build flags.
+    
+    For #61395
+    
+    Change-Id: Id5e5a5cf113774948f8e772592e898d0810ad1f6
+    GitHub-Last-Rev: 4d8c857d15f0267ee0c8bb88a202afd49a6075dc
+    GitHub-Pull-Request: golang/go#64299
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544017
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ .../internal/atomic/atomic_andor_generic.go        |  2 +-
+ src/runtime/internal/atomic/atomic_arm.go          | 60 ----------------------
+ 2 files changed, 1 insertion(+), 61 deletions(-)

@@ -1,0 +1,15 @@
+commit 88ee849a8a1c4e3b63874fcbb8a5bb6eebeeb98b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 19 23:09:24 2013 +0400
+
+    net: annotate Read/Write for race detector
+    Fixes #6167.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13052043
+
+ src/pkg/net/fd_windows.go | 11 ++++++++++-
+ src/pkg/net/race.go       | 31 +++++++++++++++++++++++++++++++
+ src/pkg/net/race0.go      | 26 ++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+), 1 deletion(-)

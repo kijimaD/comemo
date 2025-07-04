@@ -1,0 +1,16 @@
+commit 06ef022ba33a19d99ba86aff17c1c31a511c2481
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 10 14:40:47 2015 -0700
+
+    cmd/go: add some parallelism to the testsuite
+    
+    As these tests were originally in bash, they are not designed to be
+    particularly hermetic.  This CL adds various protective mechanisms to
+    try to catch cases where the tests can not run in parallel.
+    
+    Change-Id: I983bf7b6ffba04eda58b4939eb89b0bdfcda8eff
+    Reviewed-on: https://go-review.googlesource.com/10911
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/go_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 57 insertions(+), 1 deletion(-)

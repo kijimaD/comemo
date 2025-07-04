@@ -1,0 +1,12 @@
+commit c8bfcf5c557ea70f44cabe5a58d0909cf8ae4fb0
+Author: Kang Hu <hukangustc@gmail.com>
+Date:   Sun Dec 14 16:17:48 2014 +0800
+
+    doc: replace hg commands with git commands in release.html
+    
+    Change-Id: I5cc4740a858c40d820eeb7c00cf0508b20807c90
+    Reviewed-on: https://go-review.googlesource.com/1533
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/devel/release.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

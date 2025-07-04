@@ -1,0 +1,46 @@
+commit 7c74b0db8a27188d0ca3bb2f4bd46d00c0dc8eea
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Apr 7 15:15:31 2022 -0400
+
+    crypto/ed25519/internal/edwards25519: move to crypto/internal/edwards25519
+    
+    This will allow us to use crypto/internal/edwards25519/field from
+    crypto/ecdh to implement X25519, dropping the dependency on
+    golang.org/x/crypto/curve25519.
+    
+    For #52182
+    
+    Change-Id: I3be9debc6e13bf06944b98668f34313a975914d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402556
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/ed25519/ed25519.go                                      | 2 +-
+ src/crypto/{ed25519 => }/internal/edwards25519/doc.go              | 0
+ src/crypto/{ed25519 => }/internal/edwards25519/edwards25519.go     | 7 +++----
+ .../{ed25519 => }/internal/edwards25519/edwards25519_test.go       | 2 +-
+ .../{ed25519 => }/internal/edwards25519/field/_asm/fe_amd64_asm.go | 2 +-
+ src/crypto/{ed25519 => }/internal/edwards25519/field/_asm/go.mod   | 0
+ src/crypto/{ed25519 => }/internal/edwards25519/field/_asm/go.sum   | 0
+ src/crypto/{ed25519 => }/internal/edwards25519/field/fe.go         | 0
+ .../{ed25519 => }/internal/edwards25519/field/fe_alias_test.go     | 0
+ src/crypto/{ed25519 => }/internal/edwards25519/field/fe_amd64.go   | 0
+ src/crypto/{ed25519 => }/internal/edwards25519/field/fe_amd64.s    | 0
+ .../{ed25519 => }/internal/edwards25519/field/fe_amd64_noasm.go    | 0
+ src/crypto/{ed25519 => }/internal/edwards25519/field/fe_arm64.go   | 0
+ src/crypto/{ed25519 => }/internal/edwards25519/field/fe_arm64.s    | 0
+ .../{ed25519 => }/internal/edwards25519/field/fe_arm64_noasm.go    | 0
+ .../{ed25519 => }/internal/edwards25519/field/fe_bench_test.go     | 0
+ src/crypto/{ed25519 => }/internal/edwards25519/field/fe_generic.go | 0
+ src/crypto/{ed25519 => }/internal/edwards25519/field/fe_test.go    | 0
+ src/crypto/{ed25519 => }/internal/edwards25519/scalar.go           | 0
+ .../{ed25519 => }/internal/edwards25519/scalar_alias_test.go       | 0
+ src/crypto/{ed25519 => }/internal/edwards25519/scalar_test.go      | 0
+ src/crypto/{ed25519 => }/internal/edwards25519/scalarmult.go       | 0
+ src/crypto/{ed25519 => }/internal/edwards25519/scalarmult_test.go  | 0
+ src/crypto/{ed25519 => }/internal/edwards25519/tables.go           | 0
+ src/crypto/{ed25519 => }/internal/edwards25519/tables_test.go      | 0
+ src/go/build/deps_test.go                                          | 4 ++--
+ 26 files changed, 8 insertions(+), 9 deletions(-)

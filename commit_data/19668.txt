@@ -1,0 +1,13 @@
+commit 735e38caceb3121ac8147449e56299a2f7df49f7
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Jul 5 08:48:46 2014 +0400
+
+    debug/elf: fix nil deref in test
+    
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
+    CC=golang-codereviews
+    https://golang.org/cl/109470044
+
+ src/pkg/debug/elf/file_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

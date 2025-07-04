@@ -1,0 +1,12 @@
+commit 55badd474b628de0c6c2144fe925eded1c7652b3
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Aug 2 09:52:15 2010 +1000
+
+    image/png: use image-specific methods for checking opacity.
+    
+    R=rsc
+    CC=golang-dev, mpl
+    https://golang.org/cl/1894047
+
+ src/pkg/image/png/writer.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

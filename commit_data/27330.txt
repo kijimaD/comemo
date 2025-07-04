@@ -1,0 +1,24 @@
+commit 0b6e5e3d733c1da53244753b42940eddb7401c6c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun May 8 01:27:45 2016 +1000
+
+    cmd/link: specify correct size for dynamic symbols in 386 elf output
+    
+    Currently 386 ELF binaries are generated with dynamic symbols that have
+    a size of zero bytes, even though the symbol in the symbol table has
+    the correct size. Fix this by specifying the correct size when creating
+    dynamic symbols.
+    
+    Issue found on OpenBSD -current, where ld.so is now producing link
+    warnings due to mismatched symbol sizes.
+    
+    Fixes #15593.
+    
+    Change-Id: Ib1a12b23ff9159c61ac980bf48a983b86f3df256
+    Reviewed-on: https://go-review.googlesource.com/22912
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/elf.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit a0917eb959c881521e1407f90e27329f673d3e75
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 19 13:52:14 2020 -0700
+
+    internal/poll: merge a couple of common definitions
+    
+    (*FD).Shutdown and (*FD).RawControl were exactly identical in fd_unix.go
+    and fd_windows.go, so merge them into fd_posix.go.
+    
+    Change-Id: Ie751edb06d293e08f1493682d6bc5f22e8f3e628
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224137
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/internal/poll/fd_posix.go   | 20 ++++++++++++++++++++
+ src/internal/poll/fd_unix.go    | 20 --------------------
+ src/internal/poll/fd_windows.go | 20 --------------------
+ 3 files changed, 20 insertions(+), 40 deletions(-)

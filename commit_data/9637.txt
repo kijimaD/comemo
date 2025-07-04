@@ -1,0 +1,16 @@
+commit 177dca77e12e0c4add014801dd8e993ef56a2c66
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 8 14:18:02 2011 -0400
+
+    exp/regexp/syntax: import all RE2 parse tests + fix bugs
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4952061
+
+ src/pkg/exp/regexp/syntax/parse.go         |  75 +++++++++--
+ src/pkg/exp/regexp/syntax/parse_test.go    | 198 ++++++++++++++++++++++++++++-
+ src/pkg/exp/regexp/syntax/prog.go          |   2 +-
+ src/pkg/exp/regexp/syntax/regexp.go        |  15 ++-
+ src/pkg/exp/regexp/syntax/simplify_test.go |  12 +-
+ 5 files changed, 273 insertions(+), 29 deletions(-)

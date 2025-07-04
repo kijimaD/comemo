@@ -1,0 +1,16 @@
+commit a630783ba0d1816f684bdab18b6f9f03dc93a209
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Sep 21 14:55:23 2021 -0400
+
+    cmd/internal/obj: remove ABI aliases from object file
+    
+    Change-Id: I8a51f054e017e0116dee4e435b60c08d72e998e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351331
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/obj/link.go | 10 ----------
+ src/cmd/internal/obj/sym.go  |  4 ++--
+ 2 files changed, 2 insertions(+), 12 deletions(-)

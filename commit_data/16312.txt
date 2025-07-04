@@ -1,0 +1,23 @@
+commit a1dbfee15b7283a41ae01c482a3862d2148798b8
+Author: Adam Langley <agl@golang.org>
+Date:   Wed May 15 10:25:54 2013 -0400
+
+    crypto/tls: ignore empty TLS records.
+    
+    OpenSSL can be configured to send empty records in order to randomise
+    the CBC IV. This is an early version of 1/n-1 record splitting (that Go
+    does) and is quite reasonable, but it results in tls.Conn.Read
+    returning (0, nil).
+    
+    This change ignores up to 100 consecutive, empty records to avoid
+    returning (0, nil) to callers.
+    
+    Fixes 5309.
+    
+    R=golang-dev, r, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/8852044
+
+ src/pkg/crypto/tls/conn.go                  |  35 +-
+ src/pkg/crypto/tls/handshake_client_test.go | 594 ++++++++++++++++++++++++++++
+ 2 files changed, 617 insertions(+), 12 deletions(-)

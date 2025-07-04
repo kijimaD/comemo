@@ -1,0 +1,22 @@
+commit 53d091c5ffdcf2f587274e7e97914fe96b183338
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 5 22:36:23 2012 -0800
+
+    net/http: populate ContentLength in HEAD responses
+    
+    Also fixes a necessary TODO in the process.
+    
+    Fixes #4126
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6869053
+
+ src/pkg/net/http/client_test.go    | 35 +++++++++++++++++++++++++++++++++
+ src/pkg/net/http/response.go       |  4 ++--
+ src/pkg/net/http/response_test.go  |  2 +-
+ src/pkg/net/http/server.go         |  2 +-
+ src/pkg/net/http/transfer.go       | 40 ++++++++++++++++++++++++++++++--------
+ src/pkg/net/http/transport.go      |  5 +----
+ src/pkg/net/http/transport_test.go |  2 +-
+ 7 files changed, 73 insertions(+), 17 deletions(-)

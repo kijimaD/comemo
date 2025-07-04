@@ -1,0 +1,45 @@
+commit 2c6df2e35dd95621d025306a49b863efd77ebf3a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 22 15:22:52 2020 -0400
+
+    cmd/compile: reject misplaced go:build comments
+    
+    We are converting from using error-prone ad-hoc syntax // +build lines
+    to less error-prone, standard boolean syntax //go:build lines.
+    The timeline is:
+    
+    Go 1.16: prepare for transition
+     - Builds still use // +build for file selection.
+     - Source files may not contain //go:build without // +build.
+     - Builds fail when a source file contains //go:build lines without // +build lines. <<<
+    
+    Go 1.17: start transition
+     - Builds prefer //go:build for file selection, falling back to // +build
+       for files containing only // +build.
+     - Source files may contain //go:build without // +build (but they won't build with Go 1.16).
+     - Gofmt moves //go:build and // +build lines to proper file locations.
+     - Gofmt introduces //go:build lines into files with only // +build lines.
+     - Go vet rejects files with mismatched //go:build and // +build lines.
+    
+    Go 1.18: complete transition
+     - Go fix removes // +build lines, leaving behind equivalent // +build lines.
+    
+    This CL provides part of the <<< marked line above in the Go 1.16 step:
+    rejecting files containing //go:build but not // +build.
+    The standard go command checks only consider the top of the file.
+    This compiler check, along with a separate go vet check for ignored files,
+    handles the remainder of the file.
+    
+    For #41184.
+    
+    Change-Id: I014006eebfc84ab5943de18bc90449e534f150a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240601
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go   | 5 +++++
+ src/cmd/compile/internal/gc/noder.go | 1 +
+ test/directive.go                    | 7 +++++++
+ 3 files changed, 13 insertions(+)

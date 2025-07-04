@@ -1,0 +1,19 @@
+commit e48a83f077e47bd015d4b57e63e9b6fb5e77dc8b
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Fri Feb 28 20:14:18 2020 +0800
+
+    internal/cpu: add MIPS64x feature detection
+    
+    Change-Id: Iacdad1758aa15e4703fccef38c08ecb338b95fd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200579
+    Run-TryBot: Meng Zhuo <mengzhuo1203@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/internal/cpu/cpu.go          |  8 ++++++++
+ src/internal/cpu/cpu_mips64.go   |  7 -------
+ src/internal/cpu/cpu_mips64le.go |  7 -------
+ src/internal/cpu/cpu_mips64x.go  | 32 ++++++++++++++++++++++++++++++++
+ src/internal/cpu/cpu_no_init.go  |  2 ++
+ src/runtime/os_linux_mips64x.go  |  6 ++++++
+ 6 files changed, 48 insertions(+), 14 deletions(-)

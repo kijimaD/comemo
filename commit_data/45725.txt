@@ -1,0 +1,15 @@
+commit 79bda650410c8617f0ae20dc552c6d5b8f8dcfc8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 28 17:32:15 2021 -0700
+
+    doc/go1.17: mention time.Layout
+    
+    For #44513
+    
+    Change-Id: Id4624e977654f7e8c489508a9dce98c9fab621a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323490
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.17.html | 5 +++++
+ 1 file changed, 5 insertions(+)

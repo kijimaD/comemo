@@ -1,0 +1,18 @@
+commit 89c3f7c119cc3909104abaa55a6438d7b54d4a42
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Feb 16 21:19:42 2023 +0700
+
+    cmd/compile/internal/walk: remove unused eqFor
+    
+    CL 436436 replaced eqFor with reflectdata.EqFor, but forgot removing it.
+    
+    Change-Id: I3f2bf02da2e161a27718226b970b81815e9f0a46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468815
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/walk/compare.go | 27 ---------------------------
+ 1 file changed, 27 deletions(-)

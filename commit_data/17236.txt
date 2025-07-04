@@ -1,0 +1,12 @@
+commit 2560f8fe223a35aa5a6b203a3bfd922cb4bd819e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 14 14:54:08 2013 -0400
+
+    runtime/cgo: use old-style indirect call on arm
+    
+    TBR=elias.naur
+    CC=golang-dev
+    https://golang.org/cl/12943043
+
+ src/pkg/runtime/cgo/gcc_arm.S | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

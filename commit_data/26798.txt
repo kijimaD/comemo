@@ -1,0 +1,20 @@
+commit 59af53d681845a8b0be2a728ca1b59aee5ad9ea6
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Thu Apr 7 23:22:30 2016 -0700
+
+    bytes: add ContainsRune
+    
+    Make package bytes consistent with strings
+    by adding missing function ContainsRune.
+    
+    Fixes #15189
+    
+    Change-Id: Ie09080b389e55bbe070c57aa3bd134053a805423
+    Reviewed-on: https://go-review.googlesource.com/21710
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/bytes/bytes.go      |  5 +++++
+ src/bytes/bytes_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

@@ -1,0 +1,18 @@
+commit 1207ee896c193fbd629f9d9bf746f69a60e15b96
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 20:07:22 2022 +0800
+
+    cmd/doc: use strings.Builder
+    
+    Change-Id: Ib33d1f1c2e9aed0cb9e00bd699c4ae4a2df5dfca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428288
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Rob Pike <r@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/doc/doc_test.go | 4 ++--
+ src/cmd/doc/pkg.go      | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

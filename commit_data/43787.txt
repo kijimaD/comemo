@@ -1,0 +1,20 @@
+commit 4bc5f6f45f6e887f74b22dfdfffd6df2a2f97094
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Nov 11 19:43:26 2020 -0500
+
+    cmd/link: put DYLD_INFO at beginning of LINKEDIT segment on darwin
+    
+    Apparently, code signing requires DYLD_INFO tables are at the
+    beginning of the LINKEDIT segment. Put it there.
+    
+    May fix #42507.
+    
+    Change-Id: I1836e0f495719cf75f66d0831fe1544bbe3ff1a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269377
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/macho.go | 72 +++++++++++++++++++--------------------
+ 1 file changed, 36 insertions(+), 36 deletions(-)

@@ -1,0 +1,20 @@
+commit c108a682ff4571d1fd45e9c05cfad7b9a6c86a3d
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Aug 27 03:29:19 2022 +0800
+
+    internal/poll: use sync.Once instead to guard CopyFileRange() with kernel 5.3
+    
+    The existing implementation creates more branches with more states: -1, 0, 1,
+    which makes it not very intuitive to understand, let's use sync.Once and boolean
+    instead to make it more straightforward.
+    
+    Change-Id: I05766e5fdf7dba37d6565f84d3db4373f9342fe5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425880
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/copy_file_range_linux.go | 31 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 16 deletions(-)

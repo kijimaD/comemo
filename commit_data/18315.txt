@@ -1,0 +1,14 @@
+commit db37050f21466d4890dbe31362b7090a63ad3d8c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jan 22 12:19:11 2014 +1100
+
+    cmd/go: do not require a valid archChar when using -compiler gccgo
+    
+    Fixes #7152.
+    
+    R=iant, rsc, gobot
+    CC=golang-codereviews
+    https://golang.org/cl/54790044
+
+ src/cmd/go/build.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

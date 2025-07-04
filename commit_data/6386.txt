@@ -1,0 +1,13 @@
+commit 2f80d328e87b8155239ed950f4edaf02f1527dea
+Author: Rob Pike <r@golang.org>
+Date:   Sat Sep 25 08:52:29 2010 +1000
+
+    utf8.String: Slice(i,j)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2225048
+
+ src/pkg/utf8/string.go      | 38 +++++++++++++++++++++++++++++++++++++-
+ src/pkg/utf8/string_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 76 insertions(+), 1 deletion(-)

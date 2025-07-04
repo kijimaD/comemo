@@ -1,0 +1,12 @@
+commit 6c08859b0e95839d0dfbd9047d6d789b180d0bad
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 14 22:40:35 2010 -0700
+
+    Effective Go: update ... discussion.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1698041
+
+ doc/effective_go.html | 39 ++++++++++++++++++++++++++++-----------
+ 1 file changed, 28 insertions(+), 11 deletions(-)

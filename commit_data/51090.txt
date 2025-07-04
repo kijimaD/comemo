@@ -1,0 +1,24 @@
+commit b07e845e764806fa888cb4e99c8ace4625f0472f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Nov 1 12:33:58 2022 -0400
+
+    cmd/compile: use CDF to determine PGO inline threshold
+    
+    Currently in PGO we use a percentage threshold to determine if a
+    callsite is hot. This CL uses a different method -- treating the
+    hottest callsites that make up cumulatively top X% of total edge
+    weights as hot (X=95 for now). This default might work better for
+    a wider range of profiles. (The absolute threshold can still be
+    changed by a flag.)
+    
+    For #55022.
+    
+    Change-Id: I7e3b6f0c3cf23f9a89dd5994c10075b498bf14ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447016
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/base/debug.go | 66 +++++++++++++++++-----------------
+ src/cmd/compile/internal/inline/inl.go | 52 +++++++++++++++++++++++----
+ 2 files changed, 79 insertions(+), 39 deletions(-)

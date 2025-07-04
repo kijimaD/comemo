@@ -1,0 +1,13 @@
+commit 1afa2a1b2dc0802fa4e92c81e40324a4b436d94c
+Author: Brad Fitzpatrick <brad@danga.com>
+Date:   Wed May 19 17:48:53 2010 -0700
+
+    os: add Chtimes function
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/1103041
+
+ src/pkg/os/file.go    | 16 ++++++++++++++++
+ src/pkg/os/os_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+)

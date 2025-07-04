@@ -1,0 +1,12 @@
+commit 4fd7880d81be995922f0babf26466ff6a893e483
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 18 20:33:03 2010 -0700
+
+    Effective Go: minor change to correct a comment in an example
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1689042
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 34396adac1949438e8f059a199d813ac4619f158
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Fri Mar 17 23:03:34 2017 +0000
+
+    net/http: Fix TestLinuxSendfile without strace permissions
+    
+    If go doesn't have permission to run strace, this test hangs while
+    waiting for strace to run. Instead try invoking strace with
+    Run() first - on fail skip and report error, otherwise run
+    the test normally using strace.
+    
+    Also fix link to open mips64 issue in same test.
+    
+    Fixes #9711
+    
+    Change-Id: Ibbc5fbb143ea6d0f8b6cfdca4b385ef4c8960b3d
+    Reviewed-on: https://go-review.googlesource.com/38633
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/fs_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

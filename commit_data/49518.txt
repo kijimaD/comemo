@@ -1,0 +1,20 @@
+commit 2a3b467d5f8de04a3493b7ab8cd886e109bd9283
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Sat May 7 16:10:16 2022 -0500
+
+    cmd/go: make module .zip files group/world readable
+    
+    os.CreateTemp in downloadZip leaves downloaded .zip files readable only
+    by the owner. Make them group/world readable.
+    
+    Fixes #52765
+    
+    Change-Id: Iace13e4ad813201a533a1a5fc0c6d9b2e5349a42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404854
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/fetch.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

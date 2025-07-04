@@ -1,0 +1,26 @@
+commit 911c78fe54fe9fc0655c013d2aa303e147d63529
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Feb 1 17:13:53 2022 -0500
+
+    go/parser: fix incorrect resolution of receiver type parameters
+    
+    Declare receiver type parameters in the function scope, but don't
+    resolve them (for now), as ast.Object.Decl is not documented to hold
+    *ast.Idents. This avoids incorrect resolution of identifiers to names
+    outside the function scope.
+    
+    Also make tracing and error reporting more consistent.
+    
+    For golang/go#50956
+    
+    Change-Id: I8cd61dd25f4c0f6b974221599b00e23d8da206a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382247
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/parser/resolver.go                        | 93 ++++++++++++++++++++----
+ src/go/parser/short_test.go                      |  4 +
+ src/go/parser/testdata/resolution/typeparams.go2 | 10 ++-
+ 3 files changed, 91 insertions(+), 16 deletions(-)

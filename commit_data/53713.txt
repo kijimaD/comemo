@@ -1,0 +1,18 @@
+commit 2627d2d1897741d0839fc57047741c3c8ce9ffa4
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu May 25 12:37:52 2023 +0200
+
+    os: remove unused containsAny
+    
+    It's unused since CL 455716.
+    
+    Change-Id: I78bf7ad0e546c7dda8e78b911feb6399e1e6e088
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498235
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/file.go | 12 ------------
+ 1 file changed, 12 deletions(-)

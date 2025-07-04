@@ -1,0 +1,25 @@
+commit 7141d1e6d820241de321f8a9d336871737560950
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jul 23 05:21:31 2023 -0400
+
+    make.bash,bat,rc: use Go 1.20.6 instead of Go 1.17.13
+    
+    This was missed in the update of the bootstrap toolchain
+    and should help people who don't set GOROOT_BOOTSTRAP
+    and instead assume these scripts will find the right one.
+    
+    For #54265.
+    
+    Change-Id: I37a0d0976006d13b73df00013780be5abf202e91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512275
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/README | 22 ++++++++--------------
+ src/make.bash       |  8 ++++----
+ src/make.bat        |  2 +-
+ src/make.rc         |  2 +-
+ 4 files changed, 14 insertions(+), 20 deletions(-)

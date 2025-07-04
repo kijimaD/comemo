@@ -1,0 +1,12 @@
+commit d4e6df98f47bf1d1514ee22cb0cfc49ef5fb3816
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 1 00:18:07 2010 -0400
+
+    arm: enable 9 more package tests
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2345041
+
+ src/pkg/Makefile | 9 ---------
+ 1 file changed, 9 deletions(-)

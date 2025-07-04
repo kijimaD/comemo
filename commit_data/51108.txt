@@ -1,0 +1,17 @@
+commit 7ddbadb397b18ffadd308fea84884ae363e87b58
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Fri Nov 4 10:48:39 2022 +0800
+
+    api: add newline to 55301.txt
+    
+    Change-Id: I9bcaba0ca9c30b204bf126dbfec4cd48d9ebe2ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447896
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/55301.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

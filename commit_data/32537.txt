@@ -1,0 +1,18 @@
+commit d30f99647a0a5c7f5a84f9832497ea22e938c578
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Wed Aug 16 03:39:13 2017 +0200
+
+    runtime: don't publish new itab table before growth is finished
+    
+    This change could improve the hit rate on itabTable during growth.
+    
+    While we are here patch comments to refer to existing functions.
+    
+    Change-Id: I76f81c860a3d6107e077e7e3932550858a8b7651
+    Reviewed-on: https://go-review.googlesource.com/55912
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/iface.go | 28 ++++++++++++++++------------
+ 1 file changed, 16 insertions(+), 12 deletions(-)

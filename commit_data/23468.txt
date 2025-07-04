@@ -1,0 +1,17 @@
+commit ef4a17bc8030d7d800db76a7a57c4fb9dd2360ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 22 16:01:17 2015 -0700
+
+    go/types: add missing test for constant shifts
+    
+    Port of https://go-review.googlesource.com/11344 to std repo.
+    
+    Fixes #11325.
+    
+    Change-Id: I634beaf77cbaeb09de50aa1410e8c53fc37b19df
+    Reviewed-on: https://go-review.googlesource.com/11317
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/expr.go             |  8 +++++++-
+ src/go/types/testdata/shifts.src | 12 ++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

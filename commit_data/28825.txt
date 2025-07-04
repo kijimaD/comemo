@@ -1,0 +1,25 @@
+commit a9e6cebde21875379ccc05d680b3c3a78adbf089
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 10 16:46:28 2016 -0400
+
+    cmd/compile, runtime: add go:yeswritebarrierrec pragma
+    
+    This pragma cancels the effect of go:nowritebarrierrec. This is useful
+    in the scheduler because there are places where we enter a function
+    without a valid P (and hence cannot have write barriers), but then
+    obtain a P. This allows us to annotate the function with
+    go:nowritebarrierrec and split out the part after we've obtained a P
+    into a go:yeswritebarrierrec function.
+    
+    Change-Id: Ic8ce4b6d3c074a1ecd8280ad90eaf39f0ffbcc2a
+    Reviewed-on: https://go-review.googlesource.com/30938
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go | 11 ++++--
+ src/cmd/compile/internal/gc/lex.go | 30 ++++++++++-----
+ src/cmd/compile/internal/gc/ssa.go |  4 +-
+ src/runtime/HACKING.md             | 49 ++++++++++++++++++++++++
+ src/runtime/proc.go                | 56 ++++++++++++++++++---------
+ test/nowritebarrier.go             | 78 ++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 194 insertions(+), 34 deletions(-)

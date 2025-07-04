@@ -1,0 +1,14 @@
+commit 7d1d94462684e14cd46ff27f75e0d3ba51034222
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 4 17:04:02 2019 +0000
+
+    math/rand: update comment to avoid use of ^ for exponentiation
+    
+    Fixes #35920
+    
+    Change-Id: I1a4d26c5f7f3fbd4de13fc337de482667d83c47f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209758
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/math/rand/rand.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

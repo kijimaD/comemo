@@ -1,0 +1,17 @@
+commit 86324f29c6892e56ea756e7a5d81a26c86ce2e12
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 20 15:45:51 2016 -0400
+
+    go/build: do not record go:binary-only-package if build tags not satisfied
+    
+    This is the documented (and now implemented) behavior.
+    
+    Fixes #16841.
+    
+    Change-Id: Ic75adc5ba18303ed9578e04284f32933f905d6a3
+    Reviewed-on: https://go-review.googlesource.com/31577
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/cmd/go/go_test.go | 10 ++++++++++
+ src/go/build/build.go | 11 +++++++----
+ 2 files changed, 17 insertions(+), 4 deletions(-)

@@ -1,0 +1,19 @@
+commit 199bc0003d3a2444da604f0d073efc550632bae6
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 9 12:44:52 2020 -0500
+
+    doc/go1.14: -d=checkptr is not yet recommended on Windows
+    
+    Hopefully we'll have the remaining safety violations in the standard
+    library ironed out by 1.15.
+    
+    We also fix a minor (but important) typo while we're here.
+    
+    Updates #34964, #34972.
+    
+    Change-Id: Ic72fd4d9411b749f8c0cea87e95ab68347009893
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214118
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.14.html | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

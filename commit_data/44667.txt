@@ -1,0 +1,37 @@
+commit bd6aeca9686d5e672ffda1ea0cfeac7a3e7a20a4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 16 21:57:32 2020 +0000
+
+    runtime: prepare arenas for use incrementally
+    
+    This change moves the call of sysMap from (*mheap).sysAlloc into
+    (*mheap).grow, so we only sysMap what we're going to use in the near
+    future (thanks to the curArena mechanism). The purpose of this change is
+    to better support systems with strict overcommit rules which generally
+    accept reserved memory but not prepared memory (see malloc.go for exact
+    descriptions of these states).
+    
+    This move requires changing linearAlloc to only optionally map memory.
+    In one case, with mheap.heapArenaAlloc, we do want it to map memory. But
+    now in the other case, with mheap.arena, we don't, because we want grow
+    to take care of it.
+    
+    The risk with this change is we may make more syscalls than before on
+    systems with 64 MiB arenas, but because heap growth is relatively rare
+    this is unlikely to be a noticable issue. We also bound the amount of
+    syscalls made by only extending curArena (and thus mapping) by
+    pallocChunkPages*pageSize which is 4 MiB.
+    
+    Fixes #42612.
+    
+    Change-Id: I736df696afe78ddb1a747a896caa0db8726027e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270537
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/export_test.go |  3 ---
+ src/runtime/malloc.go      | 30 +++++++++++++++++-------------
+ src/runtime/mheap.go       | 43 ++++++++++++++++++++++++++++++++-----------
+ 3 files changed, 49 insertions(+), 27 deletions(-)

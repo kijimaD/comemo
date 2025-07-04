@@ -1,0 +1,19 @@
+commit b625810d28adde8c24da4838525694e74e131520
+Author: Tormod Erevik Lea <tormodlea@gmail.com>
+Date:   Sat Sep 17 19:04:46 2016 +0200
+
+    cmd/vet: hard-code program name in usage message
+    
+    Example on linux_amd64 for 'go tool vet -h':
+    
+    Before:
+            Usage of /usr/local/go/pkg/tool/linux_amd64/vet:
+    After:
+            Usage of vet:
+    
+    Change-Id: I11cb16b656bd097062d57a8c7441fbe66caaef78
+    Reviewed-on: https://go-review.googlesource.com/29294
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

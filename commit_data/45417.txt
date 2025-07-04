@@ -1,0 +1,22 @@
+commit 42953bc9f5ded1bcf4ff727d82ddd3b7a8a2b8de
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 28 11:10:07 2021 -0700
+
+    runtime: remove walltime function
+    
+    There was only one meaningful caller, which changes to call time_now.
+    
+    This clearly separates systems that use walltime1 to be just those
+    that use the stub version of time_now. That is to say, those that do
+    not provide an assembler version of time_now.
+    
+    Change-Id: I14c06cc402070bd705f953af6f9966785015e2a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314769
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/time_fake.go         | 7 +------
+ src/runtime/time_nofake.go       | 4 ----
+ src/runtime/timestub.go          | 2 +-
+ src/runtime/write_err_android.go | 2 +-
+ 4 files changed, 3 insertions(+), 12 deletions(-)

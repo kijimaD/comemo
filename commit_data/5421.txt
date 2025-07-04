@@ -1,0 +1,12 @@
+commit 1964417e4115e21fca6fa53f3e452b9ca0eb9662
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 3 00:04:48 2010 -0700
+
+    fix nacl build
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/1063042
+
+ src/cmd/8l/pass.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

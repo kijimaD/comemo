@@ -1,0 +1,26 @@
+commit 29c2838cb476b57246137cf20153da7bda59547d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 13 15:41:48 2011 -0700
+
+    go/types: move to exp/types per Go 1 plan
+    
+    This package is only used by gotype at the moment.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5266042
+
+ src/cmd/gotype/gotype.go                      | 2 +-
+ src/pkg/Makefile                              | 2 +-
+ src/pkg/{go => exp}/types/Makefile            | 2 +-
+ src/pkg/{go => exp}/types/check.go            | 0
+ src/pkg/{go => exp}/types/check_test.go       | 0
+ src/pkg/{go => exp}/types/const.go            | 0
+ src/pkg/{go => exp}/types/exportdata.go       | 0
+ src/pkg/{go => exp}/types/gcimporter.go       | 0
+ src/pkg/{go => exp}/types/gcimporter_test.go  | 0
+ src/pkg/{go => exp}/types/testdata/exports.go | 0
+ src/pkg/{go => exp}/types/testdata/test0.src  | 0
+ src/pkg/{go => exp}/types/types.go            | 0
+ src/pkg/{go => exp}/types/universe.go         | 0
+ 13 files changed, 3 insertions(+), 3 deletions(-)

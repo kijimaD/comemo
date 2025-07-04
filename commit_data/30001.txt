@@ -1,0 +1,47 @@
+commit 302474c61c15095406325773172bfb0a819ce3af
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jan 27 14:04:23 2017 -0800
+
+    cmd/compile: disable memory profiling when not in use
+    
+    The default value of runtime.MemProfileRate
+    is non-zero, which means that a small portion
+    of allocations go through the (slow) profiled
+    allocation path.
+    
+    This is never useful in the compiler
+    unless the -memprofile flag has been passed.
+    I noticed this when samples from mprof.go
+    showed up in a compiler cpu pprof listing.
+    
+    name       old time/op      new time/op      delta
+    Template        207ms ± 4%       205ms ± 4%  -0.86%  (p=0.001 n=97+90)
+    Unicode        91.8ms ± 4%      91.4ms ± 4%  -0.44%  (p=0.030 n=93+93)
+    GoTypes         628ms ± 4%       624ms ± 3%  -0.73%  (p=0.001 n=95+92)
+    Compiler        2.70s ± 3%       2.69s ± 3%  -0.39%  (p=0.000 n=97+95)
+    Flate           131ms ± 5%       130ms ± 4%  -0.82%  (p=0.000 n=93+90)
+    GoParser        154ms ± 5%       153ms ± 4%  -0.57%  (p=0.019 n=98+96)
+    Reflect         394ms ± 5%       392ms ± 5%  -0.62%  (p=0.026 n=94+97)
+    Tar             112ms ± 6%       112ms ± 5%    ~     (p=0.455 n=97+98)
+    XML             214ms ± 3%       213ms ± 4%  -0.68%  (p=0.000 n=91+93)
+    
+    name       old user-ns/op   new user-ns/op   delta
+    Template   246user-ms ± 3%  244user-ms ± 4%  -0.48%  (p=0.016 n=92+91)
+    Unicode    114user-ms ± 5%  113user-ms ± 4%  -0.78%  (p=0.002 n=98+94)
+    GoTypes    817user-ms ± 3%  813user-ms ± 2%  -0.50%  (p=0.006 n=96+94)
+    Compiler   3.58user-s ± 2%  3.57user-s ± 2%  -0.38%  (p=0.003 n=97+95)
+    Flate      158user-ms ± 5%  157user-ms ± 4%  -0.80%  (p=0.000 n=94+90)
+    GoParser   191user-ms ± 4%  191user-ms ± 4%    ~     (p=0.122 n=98+98)
+    Reflect    500user-ms ± 4%  498user-ms ± 4%    ~     (p=0.057 n=95+99)
+    Tar        134user-ms ± 3%  134user-ms ± 4%    ~     (p=0.529 n=98+98)
+    XML        265user-ms ± 3%  265user-ms ± 3%  -0.30%  (p=0.033 n=92+96)
+    
+    
+    Change-Id: Ied5384e337800d567895ff8d47f15d631edf4f0b
+    Reviewed-on: https://go-review.googlesource.com/35916
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/util.go | 3 +++
+ 1 file changed, 3 insertions(+)

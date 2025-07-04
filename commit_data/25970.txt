@@ -1,0 +1,18 @@
+commit 8096881927ecad4acb195ccca8404c5eaa1b24d7
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Mon Feb 29 16:46:18 2016 +0200
+
+    cmd/link: batch allocations of Lsym
+    
+    Reduces best of 10 linking of cmd/go by ~5%
+    
+    Change-Id: If673b877ee12595dae517d7eb48430451e5cadba
+    Reviewed-on: https://go-review.googlesource.com/20060
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/link.go | 1 +
+ src/cmd/link/internal/ld/sym.go  | 8 ++++++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)

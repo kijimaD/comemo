@@ -1,0 +1,14 @@
+commit 60db3d6d3ff1f306d889a24f22615469740995a9
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 20 23:16:31 2008 -0800
+
+    don't print (incorrect anyway) line numbers in panic.
+    
+    R=rsc
+    DELTA=4  (0 added, 2 deleted, 2 changed)
+    OCL=19757
+    CL=19763
+
+ src/runtime/runtime.c | 4 +---
+ test/golden.out       | 2 +-
+ 2 files changed, 2 insertions(+), 4 deletions(-)

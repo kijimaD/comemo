@@ -1,0 +1,13 @@
+commit 1971e1bd211d0922092e5b8ad8097bfa2290a333
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 11 12:00:34 2009 -0800
+
+    os: do not test error case of TestRemoveAll when root
+    
+    Fixes #22.
+    
+    R=r1, r
+    https://golang.org/cl/152073
+
+ src/pkg/os/path_test.go | 53 ++++++++++++++++++++++++++-----------------------
+ 1 file changed, 28 insertions(+), 25 deletions(-)

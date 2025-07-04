@@ -1,0 +1,21 @@
+commit 08da8201ca3c2c1068fddf2ab33bc8eedae24ce4
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 11 15:02:16 2017 -0800
+
+    misc/cgo/testshared: test that types and itabs are unique
+    
+    Make sure that the same type and itab generated in two
+    different shared library are actually the same thing.
+    
+    Change-Id: Ica45862d65ff8bc7ad04d59a41f57223f71224cd
+    Reviewed-on: https://go-review.googlesource.com/35115
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testshared/shared_test.go    | 11 +++++++++++
+ misc/cgo/testshared/src/iface/main.go | 17 +++++++++++++++++
+ misc/cgo/testshared/src/iface_a/a.go  | 17 +++++++++++++++++
+ misc/cgo/testshared/src/iface_b/b.go  | 17 +++++++++++++++++
+ misc/cgo/testshared/src/iface_i/i.go  | 17 +++++++++++++++++
+ 5 files changed, 79 insertions(+)

@@ -1,0 +1,20 @@
+commit e1fd51e0765a5d7b2dd72b2f82b9c3eed2764035
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 17 14:56:18 2022 +0700
+
+    runtime: convert p.timer0When to atomic type
+    
+    Updates #53821
+    
+    Change-Id: I523ec61116d290ecf7b7e3eb96e468695766cb4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424396
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/proc.go     |  4 ++--
+ src/runtime/runtime2.go |  3 +--
+ src/runtime/time.go     | 10 +++++-----
+ 3 files changed, 8 insertions(+), 9 deletions(-)

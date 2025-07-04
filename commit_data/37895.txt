@@ -1,0 +1,16 @@
+commit c077c74312563aad8117fe9f40fa85e1b5c87ac2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Dec 16 16:06:13 2018 -0800
+
+    cmd/go: don't modify GOROOT in TestNewReleaseRebuildsStalePackagesInGOPATH
+    
+    Fixes #29263
+    
+    Change-Id: I06ba135dc491fd01fc06ccaad4ef98103d4b86c4
+    Reviewed-on: https://go-review.googlesource.com/c/154460
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/go_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 45 insertions(+), 6 deletions(-)

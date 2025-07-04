@@ -1,0 +1,38 @@
+commit 469f030dcaad765b3a40b2e0a88f4000357e61be
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Dec 2 12:36:28 2021 -0500
+
+    all: update vendored golang.org/x/tools
+    
+    Update the vendored x/tools to pick up CL 364678, which updates vet
+    analyzers following a change to the underlying of type parameters.
+    
+    This also pulls in significant changes to the typeutil package to
+    support new constructs in typeutil.Map, but this is not used by vet.
+    
+    The following commands were used:
+    
+      go get -d golang.org/x/tools@e212aff8fd146c44ddb0167c1dfbd5531d6c9213
+      go mod tidy
+      go mod vendor
+    
+    Fixes #49855
+    
+    Change-Id: I3ffc59f3693710c83b81d390999aeabc8043723b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368774
+    Trust: Robert Findley <rfindley@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../x/tools/go/analysis/passes/printf/printf.go    |   8 +-
+ .../x/tools/go/analysis/passes/printf/types.go     |   6 +-
+ .../golang.org/x/tools/go/types/typeutil/map.go    | 138 ++++++++++++++++++++-
+ .../x/tools/internal/typeparams/common.go          |   7 ++
+ .../x/tools/internal/typeparams/normalize.go       |  38 ++++--
+ .../tools/internal/typeparams/typeparams_go117.go  |   1 +
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 9 files changed, 187 insertions(+), 19 deletions(-)

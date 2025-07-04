@@ -1,0 +1,19 @@
+commit 2abf280a282a24486a819b0a916dd77c50b48d22
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 25 12:31:25 2021 -0700
+
+    cmd/compile/internal/types2: remove 'strict' argument from several methods
+    
+    The value is always 'false'. Brings the code closer in line with go/types.
+    Follow-up on https://golang.org/cl/304129.
+    
+    Change-Id: I8bea550033f3187b44e9a54258e0cf642c11c369
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304849
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api.go    | 2 +-
+ src/cmd/compile/internal/types2/expr.go   | 6 +++---
+ src/cmd/compile/internal/types2/lookup.go | 8 ++++----
+ src/cmd/compile/internal/types2/stmt.go   | 6 +++---
+ 4 files changed, 11 insertions(+), 11 deletions(-)

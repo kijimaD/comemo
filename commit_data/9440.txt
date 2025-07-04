@@ -1,0 +1,13 @@
+commit d9c9c487975023f4b9d6a1bda66ef1aeea47be58
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Aug 22 12:52:04 2011 +0200
+
+    exp/norm: added implemenation for []byte versions of methods.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4925041
+
+ src/pkg/exp/norm/normalize.go      | 337 +++++++++++++++++++--
+ src/pkg/exp/norm/normalize_test.go | 578 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 894 insertions(+), 21 deletions(-)

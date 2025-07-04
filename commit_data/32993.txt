@@ -1,0 +1,33 @@
+commit 51cfe6849a2b945c9a2bb9d271bf142f3bb99eca
+Author: griesemer <gri@golang.org>
+Date:   Mon Sep 25 15:54:48 2017 +0200
+
+    math/big: provide support for conversion bases up to 62
+    
+    Increase MaxBase from 36 to 62 and extend the conversion
+    alphabet with the upper-case letters 'A' to 'Z'. For int
+    conversions with bases <= 36, the letters 'A' to 'Z' have
+    the same values (10 to 35) as the corresponding lower-case
+    letters. For conversion bases > 36 up to 62, the upper-case
+    letters have the values 36 to 61.
+    
+    Added MaxBase to api/except.txt: Clients should not make
+    assumptions about the value of MaxBase being constant.
+    
+    The core of the change is in natconv.go. The remaining
+    changes are adjusted tests and documentation.
+    
+    Fixes #21558.
+    
+    Change-Id: I5f74da633caafca03993e13f32ac9546c572cc84
+    Reviewed-on: https://go-review.googlesource.com/65970
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ api/except.txt               |  1 +
+ api/next.txt                 |  1 +
+ src/math/big/int.go          |  5 +++++
+ src/math/big/intconv.go      |  7 ++++---
+ src/math/big/intconv_test.go | 16 ++++++++++++++--
+ src/math/big/natconv.go      | 28 +++++++++++++++++++---------
+ src/math/big/natconv_test.go | 14 +++++++++++++-
+ 7 files changed, 57 insertions(+), 15 deletions(-)

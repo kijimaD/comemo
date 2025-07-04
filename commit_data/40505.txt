@@ -1,0 +1,21 @@
+commit a05934639bde593326f8d7ed9eb3f73f9ba6eb53
+Author: Sam Whited <sam@samwhited.com>
+Date:   Tue Aug 21 17:11:30 2018 -0500
+
+    encoding/xml: fix token decoder on early EOF
+    
+    The documentation for TokenReader suggests that implementations of the
+    interface may return a token and io.EOF together, indicating that it is
+    the last token in the stream. This is similar to io.Reader. However, if
+    you wrap such a TokenReader in a Decoder it complained about the EOF.
+    A test was added to ensure this behavior on Decoder's.
+    
+    Change-Id: I9083c91d9626180d3bcf5c069a017050f3c7c4a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/130556
+    Run-TryBot: Sam Whited <sam@samwhited.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/xml/xml.go      |  5 ++++-
+ src/encoding/xml/xml_test.go | 45 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 382c461a89bf2ee1ab91ba9c193f5cb7d257246c
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Fri Jun 20 12:18:33 2014 -0700
+
+    strings: speed up byteReplacer.Replace
+    
+    benchmark                         old ns/op    new ns/op    delta
+    BenchmarkByteReplacerWriteString       7359         3661  -50.25%
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/102550043
+
+ src/pkg/strings/replace.go      | 11 ++++++-----
+ src/pkg/strings/replace_test.go | 11 ++++++++++-
+ 2 files changed, 16 insertions(+), 6 deletions(-)

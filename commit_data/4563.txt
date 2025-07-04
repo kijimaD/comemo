@@ -1,0 +1,18 @@
+commit 307a899d5b725567b283840a6477ea216304a190
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 8 00:01:03 2010 -0800
+
+    gc: bug238
+    
+    Fixes #471.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/181184
+
+ src/cmd/gc/const.c       |  4 ++++
+ src/cmd/gc/walk.c        |  5 ++++-
+ test/bugs/bug238.go      | 19 -------------------
+ test/fixedbugs/bug238.go | 19 +++++++++++++++++++
+ test/golden.out          | 15 ---------------
+ 5 files changed, 27 insertions(+), 35 deletions(-)

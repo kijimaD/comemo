@@ -1,0 +1,16 @@
+commit 11c5bf521e676a379fbf17d956c61acd3d33eb31
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Sep 3 07:09:54 2022 +0800
+
+    go/doc: using strings.Builder
+    
+    Change-Id: I9658c37a548a386c57d83dc13d5e9925a9c13211
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428140
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/go/doc/headscan.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

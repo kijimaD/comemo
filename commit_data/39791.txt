@@ -1,0 +1,13 @@
+commit 671bcb59666c37cb32b154c36aa91b29fdbf0835
+Author: Andrew <andybons@golang.org>
+Date:   Tue Sep 3 16:00:13 2019 -0400
+
+    doc: add Go 1.13 to release history
+    
+    Change-Id: I3340561c0b17bf28d8d480e00f5bc8afb2a897ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193041
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ doc/contrib.html | 1 +
+ 1 file changed, 1 insertion(+)

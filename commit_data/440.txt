@@ -1,0 +1,12 @@
+commit 4a9b4e66042be65ca9a32ebb9c20cda62157adba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 28 12:08:06 2008 -0700
+
+    - parameters must be named
+    
+    R=r
+    OCL=13520
+    CL=13520
+
+ test/bugs/bug079.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

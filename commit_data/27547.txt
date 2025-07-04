@@ -1,0 +1,33 @@
+commit dec1bae916fc75a6718fb7fa667e419cc902097a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 25 10:01:58 2016 -0400
+
+    cmd/compile: additional paranoia and checking in plive.go
+    
+    The main check here is that liveness now crashes if it finds an instruction
+    using a variable that should be tracked but is not.
+    
+    Comments and adjustments in nodarg to explain what's going on and
+    to remove the "-1" argument added a few months ago, plus a sketch
+    of a future simplification.
+    
+    The need for n.Orig in the earlier CL seems to have been an intermediate
+    problem rather than fundamental: the new explanations in nodarg make
+    clear that nodarg is not causing the problem I thought, and in fact now
+    using n instead of n.Orig works fine in plive.go.
+    
+    Change-Id: I3f5cf9f6e4438a6d27abac7d490e7521545cd552
+    Reviewed-on: https://go-review.googlesource.com/23450
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/closure.go  |   2 +-
+ src/cmd/compile/internal/gc/dcl.go      |  12 ++--
+ src/cmd/compile/internal/gc/fmt.go      |   4 +-
+ src/cmd/compile/internal/gc/gsubr.go    |  81 ++++++++++++++++------
+ src/cmd/compile/internal/gc/plive.go    | 115 +++++++++++++-------------------
+ src/cmd/compile/internal/gc/type.go     |  18 +++--
+ src/cmd/compile/internal/gc/universe.go |   6 +-
+ src/cmd/compile/internal/gc/walk.go     |  12 ++--
+ 8 files changed, 139 insertions(+), 111 deletions(-)

@@ -1,0 +1,28 @@
+commit 23be728950be7973a4c4852449e1987c64dc2739
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 4 16:54:50 2017 -0800
+
+    runtime: optimize slicebytestostring
+    
+    Inline rawstringtmp and simplify.
+    Use memmove instead of copy.
+    
+    name                     old time/op  new time/op  delta
+    SliceByteToString/1-8    19.4ns ± 2%  14.1ns ± 1%  -27.04%  (p=0.000 n=20+17)
+    SliceByteToString/2-8    20.8ns ± 2%  15.5ns ± 2%  -25.46%  (p=0.000 n=20+20)
+    SliceByteToString/4-8    20.7ns ± 1%  14.9ns ± 1%  -28.30%  (p=0.000 n=20+20)
+    SliceByteToString/8-8    23.2ns ± 1%  17.1ns ± 1%  -26.22%  (p=0.000 n=19+19)
+    SliceByteToString/16-8   29.4ns ± 1%  23.6ns ± 1%  -19.76%  (p=0.000 n=17+20)
+    SliceByteToString/32-8   31.4ns ± 1%  26.0ns ± 1%  -17.11%  (p=0.000 n=16+19)
+    SliceByteToString/64-8   36.1ns ± 0%  30.0ns ± 0%  -16.96%  (p=0.000 n=16+16)
+    SliceByteToString/128-8  46.9ns ± 0%  38.9ns ± 0%  -17.15%  (p=0.000 n=17+19)
+    
+    Change-Id: I422e688830e4a9bd21897d1f74964625b735f436
+    Reviewed-on: https://go-review.googlesource.com/37791
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/string.go | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

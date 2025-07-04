@@ -1,0 +1,12 @@
+commit 0164ada30f40f945ead14063f6231642e86ba722
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Mon Apr 16 23:41:21 2018 +0900
+
+    time: go fmt
+    
+    Change-Id: I0e6b308333b84409bb0bb034c17fef9b63ad44c4
+    Reviewed-on: https://go-review.googlesource.com/107377
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/time_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

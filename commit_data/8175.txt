@@ -1,0 +1,20 @@
+commit a260de44e96edbd7e4e99e0c73ba2960460ffc25
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Thu Apr 21 10:23:03 2011 -0400
+
+    net: try /etc/hosts before loading DNS config.
+    
+    On Mac X 10.6 /etc/resolv.conf is changed dynamically,
+    and may not exist at all when all network connections
+    are turned off, thus any lookup, even for "localhost"
+    would fail with "error reading DNS config: open
+    /etc/resolv.conf: no such file or directory". This
+    change avoids the error by trying to lookup addresses
+    in /etc/hosts before loading DNS config.
+    
+    R=golang-dev, rsc1, rsc
+    CC=golang-dev
+    https://golang.org/cl/4431054
+
+ src/pkg/net/dnsclient.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

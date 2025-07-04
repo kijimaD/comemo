@@ -1,0 +1,14 @@
+commit 47dc18313684383ea2432b57f34e353db0593a4d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 14 07:36:38 2014 +0900
+
+    net: fix incorrect internal IPv6 address representation in test
+    
+    Also fixes a dialgoogle test glitch after issue 6628 fix.
+    
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/50660044
+
+ src/pkg/net/dialgoogle_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

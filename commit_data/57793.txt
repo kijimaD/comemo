@@ -1,0 +1,32 @@
+commit 201b9f6d6b46e0ae311e8a8b2cbe2ad6652f5680
+Author: Matt T. Proud <mtp@google.com>
+Date:   Thu Oct 3 07:57:46 2024 +0000
+
+    cmd/go: clarify that -coverpkg uses import paths
+    
+    This change amends the long-form help output for 'go help build' and
+    'go help testflag' to specify that the '-coverpkg' flag operates
+    explicitly on import paths as well as package names. Import paths are
+    fundamental for precise specification of packages versus unqualified
+    package names, and the naming of the flag '-coverpkg' and its original
+    documentation leads a user to assume that it only operates on the
+    simple, unqualified package name form. The situation warrants
+    clarification.
+    
+    Fixes #69653
+    
+    Change-Id: Ifde6a974405ce1614e28898fc2b92ed5bad94e57
+    GitHub-Last-Rev: 466c662a70d13560f2fb7affb0d7d900889c7aa7
+    GitHub-Pull-Request: golang/go#69655
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616257
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/go/alldocs.go               | 28 +++++++++++++++++++---------
+ src/cmd/go/internal/help/helpdoc.go | 11 ++++++++++-
+ src/cmd/go/internal/test/test.go    |  8 ++++----
+ src/cmd/go/internal/work/build.go   |  9 +++++----
+ 4 files changed, 38 insertions(+), 18 deletions(-)

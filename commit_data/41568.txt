@@ -1,0 +1,35 @@
+commit bfb903f2521ff24639aa7a5219330df38b06f412
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 10 22:02:47 2020 -0800
+
+    cmd/compile/internal/syntax: better scanner error messages
+    
+    This is one of several changes that were part of a larger rewrite
+    which I made in early 2019 after switching to the new number literal
+    syntax implementation. The purpose of the rewrite was to simplify
+    reading of source code (Unicode character by character) and speed up
+    the scanner but was never submitted for review due to other priorities.
+    
+    Part 2 of 3:
+    
+    This change contains improvements to the scanner error messages:
+    
+    - Use "rune literal" rather than "character literal" to match the
+      spec nomenclature.
+    
+    - Shorter, more to the point error messages.
+      (For instance, "more than one character in rune literal" rather
+      than "invalid character literal (more than one character)", etc.)
+    
+    Change-Id: I1aaf79003374a68dbb05926437ed305cf2a8ec96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221602
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/scanner.go      | 18 ++++-----
+ src/cmd/compile/internal/syntax/scanner_test.go | 54 ++++++++++++-------------
+ test/fixedbugs/bug169.go                        |  2 +-
+ test/fixedbugs/issue15611.go                    |  8 ++--
+ test/fixedbugs/issue32133.go                    |  2 +-
+ 5 files changed, 42 insertions(+), 42 deletions(-)

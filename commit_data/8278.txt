@@ -1,0 +1,14 @@
+commit db16bca18f44af824127dbe0bf31e81b97f2ee1b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun May 1 18:23:39 2011 -0700
+
+    multipart: return an error on Reader EOF, not (nil, nil)
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/4430074
+
+ src/pkg/mime/multipart/formdata.go       |  6 +++---
+ src/pkg/mime/multipart/multipart.go      | 11 ++++-------
+ src/pkg/mime/multipart/multipart_test.go |  8 ++++----
+ 3 files changed, 11 insertions(+), 14 deletions(-)

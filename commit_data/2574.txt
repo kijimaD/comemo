@@ -1,0 +1,15 @@
+commit 7ae0c67825f80a8de88e739731b5231fc249fd42
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 2 15:55:17 2009 -0700
+
+    Recognize gccgo error message.
+    
+    bug022.go:8:13: error: attempt to index object which is not array, string, or map
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=31082
+    CL=31089
+
+ test/fixedbugs/bug022.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

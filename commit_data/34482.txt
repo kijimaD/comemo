@@ -1,0 +1,15 @@
+commit 18ae5eca3b12a64a81ecc994f4e79b1c3dbbecbc
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Mar 6 12:55:41 2018 +0100
+
+    test/codegen: port math/bits.OnesCount tests to codegen
+    
+    And remove them from ssa_test.
+    
+    Change-Id: I3efac5fea529bb0efa2dae32124530482ba5058e
+    Reviewed-on: https://go-review.googlesource.com/98815
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 52 ---------------------------------
+ test/codegen/mathbits.go                | 28 ++++++++++++++++++
+ 2 files changed, 28 insertions(+), 52 deletions(-)

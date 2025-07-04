@@ -1,0 +1,20 @@
+commit 2b4274d66767039bab5dee4639a7558b101f46a0
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Mon Mar 27 11:14:53 2017 +0200
+
+    runtime/cgo: CFRelease result from CFBundleCopyResourceURL
+    
+    The result from CFBundleCopyResourceURL is owned by the caller. This
+    CL adds the necessary CFRelease to release it after use.
+    
+    Fixes #19722
+    
+    Change-Id: I7afe22ef241d21922a7f5cef6498017e6269a5c3
+    Reviewed-on: https://go-review.googlesource.com/38639
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/cgo/gcc_darwin_arm.c   | 4 +++-
+ src/runtime/cgo/gcc_darwin_arm64.c | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

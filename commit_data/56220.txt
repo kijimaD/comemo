@@ -1,0 +1,33 @@
+commit 5bb4f4947158311255583ff2d6acd427ac2cb0d8
+Author: Lasse Folger <lassefolger@google.com>
+Date:   Wed Apr 17 13:30:58 2024 +0000
+
+    Revert "go/types, types2: track gotypesalias non-default behavior"
+    
+    This reverts commit c51f6c62576ab3088a981b9cef90e413ac99e333.
+    
+    Reason for revert: This breaks toolchain bootstrapping in Google. Root cause investigation is pending.
+    
+    Error message is:
+    
+    ```
+    <unknown line number>: internal compiler error: panic: godebug: Value of name not listed in godebugs.All: gotypesalias
+    ```
+    
+    Change-Id: Ie3dff566a29b3b0846ebc8fe0a371c656a043a4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579575
+    Reviewed-by: Chressie Himpel <chressie@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Lasse Folger <lassefolger@google.com>
+
+ src/cmd/compile/internal/types2/check.go      |  6 ------
+ src/cmd/compile/internal/types2/check_test.go |  2 +-
+ src/cmd/compile/internal/types2/decl.go       | 16 ----------------
+ src/go/types/check.go                         |  8 +-------
+ src/go/types/check_test.go                    |  2 +-
+ src/go/types/decl.go                          |  4 ----
+ src/internal/godebugs/table.go                |  2 +-
+ src/runtime/metrics/doc.go                    |  4 ----
+ 8 files changed, 4 insertions(+), 40 deletions(-)

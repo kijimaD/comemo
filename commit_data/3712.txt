@@ -1,0 +1,16 @@
+commit 49d295d5924ea083d3a21fd97682958342258398
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 2 09:25:39 2009 -0800
+
+    - initial steps towards showing directory tree instead of
+      just a single directory
+    - all pieces present but not well integrated
+    - directory tree served at the moment under /tree
+    
+    R=rsc
+    http://go/go-review/1018016
+
+ lib/godoc/dirs.html    |  6 ++++
+ src/cmd/godoc/godoc.go | 92 ++++++++++++++++++++++++++++++++++++++++++++++----
+ src/cmd/godoc/main.go  | 25 +++++++++-----
+ 3 files changed, 108 insertions(+), 15 deletions(-)

@@ -1,0 +1,15 @@
+commit 9acd814c2a53a10de39a891bf7b6f4d12fc7b329
+Author: Dmitry Savintsev <dsavints@gmail.com>
+Date:   Mon May 29 12:01:45 2017 +0200
+
+    runtime: fix file reference in comments
+    
+    cmd/compile/internal/ld/decodesym.go is now
+    cmd/link/internal/ld/decodesym.go
+    
+    Change-Id: I16ec5c89aa3507e70676c2b50d70f1fde533a085
+    Reviewed-on: https://go-review.googlesource.com/44373
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

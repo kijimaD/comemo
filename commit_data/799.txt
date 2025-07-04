@@ -1,0 +1,14 @@
+commit 569a107e0dd54657b3cf337a72757703ffa6fea8
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 3 11:18:45 2008 -0700
+
+    Revised wording about sends.
+    Evaluation is done before communication starts.
+    
+    R=gri
+    DELTA=19  (4 added, 1 deleted, 14 changed)
+    OCL=16357
+    CL=16416
+
+ doc/go_spec.txt | 33 ++++++++++++++++++---------------
+ 1 file changed, 18 insertions(+), 15 deletions(-)

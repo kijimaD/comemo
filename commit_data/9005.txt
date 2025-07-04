@@ -1,0 +1,15 @@
+commit d366c369450991ad9d942fc5aa3ea7e6c99e40a0
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 11 18:06:24 2011 +1000
+
+    exp/template: fix bug in argument evaluation.
+    Must keep dot and the receiver separate - variables broke that symmetry.
+    Also clean up function invocation and rename "data" to "dot" for clarity.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4678048
+
+ src/pkg/exp/template/exec.go      | 123 +++++++++++++++++++-------------------
+ src/pkg/exp/template/exec_test.go |   4 ++
+ 2 files changed, 66 insertions(+), 61 deletions(-)

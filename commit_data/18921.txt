@@ -1,0 +1,13 @@
+commit 160649ff9adaffddf91c45da2767f3fdc99f6d73
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Sun Mar 23 15:07:26 2014 -0700
+
+    unicode/utf16: remove unnecessary type conversions
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/79080044
+
+ src/pkg/unicode/utf16/utf16.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

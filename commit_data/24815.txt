@@ -1,0 +1,20 @@
+commit 424738e43ec3c775f7d0c36a90791eaca5dd85d1
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:25:58 2015 -0400
+
+    runtime: added assembly part of linux/mips64{,le} support
+    
+    Change-Id: I9e94027ef66c88007107de2b2b75c3d7cf1352af
+    Reviewed-on: https://go-review.googlesource.com/14467
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/asm_mips64x.s       | 820 ++++++++++++++++++++++++++++++++++++++++
+ src/runtime/atomic_mips64x.s    |  13 +
+ src/runtime/duff_mips64x.s      | 268 +++++++++++++
+ src/runtime/memclr_mips64x.s    |  42 ++
+ src/runtime/memmove_mips64x.s   | 105 +++++
+ src/runtime/mkduff.go           |  23 ++
+ src/runtime/rt0_linux_mips64x.s |  31 ++
+ src/runtime/sys_linux_mips64x.s | 427 +++++++++++++++++++++
+ src/runtime/tls_mips64x.s       |  23 ++
+ 9 files changed, 1752 insertions(+)

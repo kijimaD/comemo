@@ -1,0 +1,15 @@
+commit bec4481dd39cdbbee2c0bc6e2c392ff73ca3f2f7
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sat Apr 4 20:51:00 2015 +1300
+
+    cmd/internal/ld: remove extraneous parentheses
+    
+    Ian complained about these in a review and then submitted the change
+    before I could fix them.
+    
+    Change-Id: I23d890db2f3648ed1003ed3d13e7247435b913e5
+    Reviewed-on: https://go-review.googlesource.com/8480
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/symtab.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

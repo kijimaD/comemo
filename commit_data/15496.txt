@@ -1,0 +1,17 @@
+commit 1300fb54491496ac19b33c5ef3b4e92fbe89b4e4
+Author: Matt Brown <mdbrown@google.com>
+Date:   Thu Feb 28 10:08:05 2013 -0800
+
+    strconv: use Quote to escape the input string for failed conversion errors
+    
+    This reveals the presence of control and non-printable characters in the
+    errors returned by the Parse functions.  Also add unit tests for NumError.
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/7393075
+
+ src/pkg/strconv/atof_test.go |  1 +
+ src/pkg/strconv/atoi.go      |  2 +-
+ src/pkg/strconv/atoi_test.go | 24 ++++++++++++++++++++++++
+ 3 files changed, 26 insertions(+), 1 deletion(-)

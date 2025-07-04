@@ -1,0 +1,21 @@
+commit 22f5e33031042ca2ac8521e4e7dc0783e8c0cdca
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 15:32:00 2024 -0400
+
+    runtime: allow omitting virtual PCs from runtime.CallersFrames input
+    
+    This makes CL 561635's test pass without any changes to the
+    traceback textual format.
+    
+    The test in this CL is copied identically from CL 561635.
+    
+    Change-Id: I5130abdfefd9940f98f20c283cca6cd159e37617
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571798
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/crash_test.go            |  13 ++
+ src/runtime/symtab.go                |  34 ++++-
+ src/runtime/traceback.go             |   7 +-
+ src/runtime/traceback_system_test.go | 238 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 288 insertions(+), 4 deletions(-)

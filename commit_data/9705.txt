@@ -1,0 +1,14 @@
+commit bd80b1198bf26e6abd317638d3861101b6ff72ad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 15 16:21:21 2011 -0700
+
+    index/suffixarray: support for serialization
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5040041
+
+ src/pkg/index/suffixarray/qsufsort.go         | 38 +++++++++---------
+ src/pkg/index/suffixarray/suffixarray.go      | 56 +++++++++++++++++++++++++--
+ src/pkg/index/suffixarray/suffixarray_test.go | 29 +++++++++++++-
+ 3 files changed, 99 insertions(+), 24 deletions(-)

@@ -1,0 +1,15 @@
+commit 35b8e511c282a4d03f50dca0570a5f65795926b9
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jan 26 22:31:25 2015 +0000
+
+    Revert "crypto/ecdsa: make Sign safe with broken entropy sources"
+    
+    This reverts commit 8d7bf2291b095d3a2ecaa2609e1101be46d80deb.
+    
+    Change-Id: Iad2c74a504d64bcf7ca707b00bda29bc796a2ae9
+    Reviewed-on: https://go-review.googlesource.com/3320
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/ecdsa/ecdsa.go      | 59 +---------------------------------
+ src/crypto/ecdsa/ecdsa_test.go | 72 ------------------------------------------
+ 2 files changed, 1 insertion(+), 130 deletions(-)

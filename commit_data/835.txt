@@ -1,0 +1,16 @@
+commit f960840a0e7a90e1dcb08dfaabf7722c353fe594
+Author: Cary Hull <chull@google.com>
+Date:   Thu Oct 9 00:15:37 2008 -0700
+
+    Adding Mkdir.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=21  (21 added, 0 deleted, 0 changed)
+    OCL=16794
+    CL=16803
+
+ src/lib/os/os_file.go          | 5 +++++
+ src/lib/syscall/file_darwin.go | 8 ++++++++
+ src/lib/syscall/file_linux.go  | 8 ++++++++
+ 3 files changed, 21 insertions(+)

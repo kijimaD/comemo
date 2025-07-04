@@ -1,0 +1,20 @@
+commit 60f11c44c02ff815e02d1e59839c6c0bf3f6605e
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Wed Feb 5 11:09:34 2020 -0800
+
+    doc/go1.14: document http.ServeFile large file fix for Windows
+    
+    Document that for Windows, net/http.ServeFile can now
+    correctly serve files >2GB after we fixed internal/poll.SendFile
+    to transmit files larger than the default Windows limit of 2GB.
+    
+    References: CL 192518, CL 194218
+    
+    Updates #36878
+    
+    Change-Id: Ibefc8b2841bc0cee3a89884a680085f99d2b6928
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217779
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.14.html | 5 +++++
+ 1 file changed, 5 insertions(+)

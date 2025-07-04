@@ -1,0 +1,20 @@
+commit 12e2933bbea8e19a733b100aea14ab7919a5bdbd
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Nov 14 15:50:38 2017 -0500
+
+    cmd/dist: return dropped tests from misc/cgo/test
+    
+    In a previous change to cmd/dist/test.go to fix some pie
+    testcases, a few other tests were incorrectly dropped.
+    This returns the testcases that shouldn't have been removed.
+    
+    Fixes #22708
+    
+    Change-Id: I2f735f4fd3a378f0f45d12a99768638aeb4787c7
+    Reviewed-on: https://go-review.googlesource.com/77650
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

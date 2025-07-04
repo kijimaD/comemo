@@ -1,0 +1,12 @@
+commit b2bc1db9acf2796646b71e1d275dabc3b52f1a4c
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Nov 24 15:01:44 2009 -0800
+
+    bad sin/cos for large angles.
+    fixes #326.
+    
+    R=rsc
+    https://golang.org/cl/160059
+
+ src/pkg/math/sin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

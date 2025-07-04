@@ -1,0 +1,14 @@
+commit d1b66439f91377bceee1dd190a0be6c8367f7268
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 13 14:14:24 2013 +0400
+
+    runtime: eliminate excessive notewakeup calls in timers
+    If the timer goroutine is wakeup by timeout,
+    other goroutines will still notewakeup because sleeping is still set.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12763043
+
+ src/pkg/runtime/time.goc | 1 +
+ 1 file changed, 1 insertion(+)

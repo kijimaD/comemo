@@ -1,0 +1,17 @@
+commit c69dd3f0547e5846ce259a02d0b6ad9f19b566b6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 26 16:17:54 2016 -0400
+
+    cmd/compile: enable DUFFZERO in defframe on MIPS64
+    
+    DUFFZERO was disabled due to issue #12108. CL 27592 fixed it and
+    enabled DUFFZERO in general, but this one was forgotten.
+    
+    Change-Id: I0476a3a0524c7b54218f7a747bdba76cd823fbc5
+    Reviewed-on: https://go-review.googlesource.com/32181
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/mips64/ggen.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

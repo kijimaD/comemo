@@ -1,0 +1,12 @@
+commit d75391af736757ab46f17394b476c697f620de7f
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Nov 13 03:12:26 2015 -0500
+
+    doc: add mips64/mips64le to supported GOARCHes
+    
+    Change-Id: If9dc08d6c29bf60b63d75d973033897ad8bf8cc4
+    Reviewed-on: https://go-review.googlesource.com/16905
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/install-source.html | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

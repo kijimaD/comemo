@@ -1,0 +1,18 @@
+commit 133c68e9ac911670cde197c456050aebc004d2e0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 26 14:04:21 2008 -0700
+
+    Simplification of Conversions section:
+    - leave only basic type conversions in that section
+    - we have a section of composite literals which covers those
+    - we have a section prepared (but not written) on type guards
+    - the built-in function "convert" doesn't need to be exposed
+      as it is redundant
+    
+    R=r
+    DELTA=101  (6 added, 77 deleted, 18 changed)
+    OCL=15986
+    CL=15991
+
+ doc/go_spec.txt | 111 ++++++++++----------------------------------------------
+ 1 file changed, 20 insertions(+), 91 deletions(-)

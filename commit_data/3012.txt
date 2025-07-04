@@ -1,0 +1,13 @@
+commit 5e87fb81675af3277e3cb36c51e00616eba02e16
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 18 16:19:07 2009 -0700
+
+    delete obsolete file of notes
+    
+    R=rsc
+    DELTA=263  (0 added, 263 deleted, 0 changed)
+    OCL=33466
+    CL=33485
+
+ doc/candl.txt | 263 ----------------------------------------------------------
+ 1 file changed, 263 deletions(-)

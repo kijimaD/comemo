@@ -1,0 +1,14 @@
+commit e10e913d08b6eb53b81f18ea9fc7b7caaf599b4a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Jan 14 14:36:17 2015 -0500
+
+    syscall: use name+(NN)FP on linux/arm
+    
+    Generated with a modified version of go vet and tested on android.
+    
+    Change-Id: I1ff20135c5ab9de5a6dbf76ea2991167271ee70d
+    Reviewed-on: https://go-review.googlesource.com/2815
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/asm_linux_arm.s | 110 ++++++++++++++++++++++----------------------
+ 1 file changed, 55 insertions(+), 55 deletions(-)

@@ -1,0 +1,12 @@
+commit 709e3a3fbde355cf557e8fde4d977131f0982fcd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 6 17:23:22 2008 -0700
+
+    - tests for type forward declarations
+    
+    SVN=121560
+
+ test/bugs/bug041.go | 15 +++++++++++++++
+ test/bugs/bug042.go | 20 ++++++++++++++++++++
+ test/golden.out     |  7 +++++++
+ 3 files changed, 42 insertions(+)

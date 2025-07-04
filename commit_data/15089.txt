@@ -1,0 +1,17 @@
+commit f607c479eabab497b3e7d3dead472a19bd27e063
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 1 21:21:27 2013 -0500
+
+    cmd/gc: silence redundant error prints for misuse of [...]int
+    
+    Fixes #4452.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7241065
+
+ src/cmd/gc/align.c          |  8 ++++++--
+ src/cmd/gc/const.c          |  3 ++-
+ src/cmd/gc/typecheck.c      | 17 +++++++++++++----
+ test/fixedbugs/issue4452.go | 13 +++++++++++++
+ 4 files changed, 34 insertions(+), 7 deletions(-)

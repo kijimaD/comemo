@@ -1,0 +1,21 @@
+commit d6859465e5e9049dd38929881da6eedb9a16dee5
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Nov 21 11:46:23 2022 -0500
+
+    testing: skip TestVectoredHandlerExceptionInNonGoThread on windows-amd64-2012-*
+    
+    Modify skip rule for TestVectoredHandlerExceptionInNonGoThread to
+    trigger on both the base builder (windows-amd64-2012) and the newcc
+    canary builder (windows-amd64-2012-newcc).
+    
+    Updates #49681.
+    
+    Change-Id: I58109fc2e861b943cb66be0feec348671be84ab3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452436
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/signal_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

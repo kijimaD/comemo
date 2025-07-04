@@ -1,0 +1,25 @@
+commit 69a143e3888982a64427375b3f4bdbd2fee07198
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Sep 7 15:00:52 2015 +1200
+
+    cmd/internal/obj: remove dead code and small cleanups
+    
+    Change-Id: I88fa0cc245a2141af04acced8716e08b1133abd1
+    Reviewed-on: https://go-review.googlesource.com/14350
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 15 ++++++++-------
+ src/cmd/internal/obj/arm64/asm7.go |  1 -
+ src/cmd/internal/obj/data.go       | 15 ---------------
+ src/cmd/internal/obj/fmt.go        |  7 -------
+ src/cmd/internal/obj/funcdata.go   |  1 -
+ src/cmd/internal/obj/libc.go       | 12 ------------
+ src/cmd/internal/obj/mgc0.go       | 30 ------------------------------
+ src/cmd/internal/obj/objfile.go    |  2 --
+ src/cmd/internal/obj/sym.go        |  7 +------
+ src/cmd/internal/obj/util.go       | 27 +++++++--------------------
+ src/cmd/internal/obj/x86/asm6.go   | 12 ------------
+ src/cmd/link/internal/ld/ldpe.go   |  5 +++--
+ src/cmd/link/internal/ld/lib.go    |  4 ++--
+ src/cmd/link/internal/ld/sym.go    |  7 +------
+ 14 files changed, 22 insertions(+), 123 deletions(-)

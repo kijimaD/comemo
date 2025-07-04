@@ -1,0 +1,20 @@
+commit aa2d4dee60131b4c05d90efbb9a2bc414aea8240
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 25 15:19:58 2014 -0700
+
+    net/http: disable recently-introduced flaky test on Windows
+    
+    Disable it until it's debugged so it doesn't hide other real
+    problems on Windows. The test was known to be unreliable
+    anyway (which is why it only needed 1 of 20 runs to pass), but
+    apparently it never passes on Windows. Figure out why later.
+    
+    Update #7634
+    
+    LGTM=alex.brainman
+    R=adg, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/80110043
+
+ src/pkg/net/http/transport_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,22 @@
+commit 68b655f2b91c4407ccd781271039857e0d332989
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 26 16:32:07 2022 -0700
+
+    runtime: disable windowed Smhasher test on 32-bit systems
+    
+    This test tends to be flaky on 32-bit systems.
+    There's not enough bits in the hash output, so we
+    expect a nontrivial number of collisions, and it is
+    often quite a bit higher than expected.
+    
+    Fixes #43130
+    
+    Change-Id: If35413b7c45eed778a08b834dacf98009ceca840
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402456
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/hash_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

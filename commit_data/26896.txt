@@ -1,0 +1,31 @@
+commit 24967ec122710e73b35893925fd9a8390d7524ab
+Author: Tal Shprecher <tshprecher@gmail.com>
+Date:   Sun Apr 10 18:12:41 2016 -0700
+
+    cmd/compile: make enqueued map keys fail validation on forward types
+    
+    Map keys are currently validated in multiple locations but share
+    a common validation routine. The problem is that early validations
+    should be lenient enough to allow for forward types while the final
+    validations should not. The final validations should fail on forward
+    types since they've already settled.
+    
+    This change also separates the key type checking from the creation
+    of the map via typMap. Instead of the mapqueue being populated in
+    copytype() by checking the map line number, it's populated in the
+    same block that validates the key type. This isolates key validation
+    logic while type checking.
+    
+    Fixes #14988
+    
+    Change-Id: Ia47cf6213585d6c63b3a35249104c0439feae658
+    Reviewed-on: https://go-review.googlesource.com/21830
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go      | 24 ------------------
+ src/cmd/compile/internal/gc/type.go      |  4 ---
+ src/cmd/compile/internal/gc/typecheck.go | 42 +++++++++++++++++++-------------
+ test/fixedbugs/issue14988.go             | 13 ++++++++++
+ 4 files changed, 38 insertions(+), 45 deletions(-)

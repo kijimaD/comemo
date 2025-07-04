@@ -1,0 +1,15 @@
+commit 34dd450fb88f8ee1750f9601a20b83b48ac87da8
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Feb 14 14:51:08 2011 -0800
+
+    rpc: properly discard values.
+    
+    R=r, rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/4171050
+
+ src/pkg/rpc/client.go         | 7 ++++---
+ src/pkg/rpc/jsonrpc/client.go | 3 +++
+ src/pkg/rpc/jsonrpc/server.go | 3 +++
+ src/pkg/rpc/server.go         | 7 ++++---
+ 4 files changed, 14 insertions(+), 6 deletions(-)

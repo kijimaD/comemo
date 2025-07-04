@@ -1,0 +1,28 @@
+commit efd93a412eb5941d767b70097e93a589747de34f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 12 15:34:03 2016 -0800
+
+    runtime: minimize time between lockextra/unlockextra
+    
+    This doesn't fix a bug, but may improve performance in programs that
+    have many concurrent calls from C to Go.  The old code made several
+    system calls between lockextra and unlockextra.  That could be happening
+    while another thread is spinning acquiring lockextra.  This changes the
+    code to not make any system calls while holding the lock.
+    
+    Change-Id: I50576478e478670c3d6429ad4e1b7d80f98a19d8
+    Reviewed-on: https://go-review.googlesource.com/18548
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/os1_darwin.go    |  4 ++--
+ src/runtime/os1_dragonfly.go |  4 ++--
+ src/runtime/os1_freebsd.go   |  4 ++--
+ src/runtime/os1_linux.go     |  5 ++---
+ src/runtime/os1_nacl.go      |  2 +-
+ src/runtime/os1_netbsd.go    |  4 ++--
+ src/runtime/os1_openbsd.go   |  4 ++--
+ src/runtime/os1_plan9.go     |  2 +-
+ src/runtime/os1_windows.go   |  2 +-
+ src/runtime/os3_solaris.go   |  5 +++--
+ src/runtime/proc.go          | 10 +++++++---
+ 11 files changed, 25 insertions(+), 21 deletions(-)

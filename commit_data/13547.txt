@@ -1,0 +1,21 @@
+commit 152279f203e75f923c510e4cabae6405046ba7f6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 31 19:30:18 2012 -0700
+
+    exp/types: Replace String method with TypeString function
+    
+    This is more in sync with the rest of the package;
+    for instance, we have functions (not methods) to
+    deref or find the underlying type of a Type.
+    
+    In the process use a single bytes.Buffer to create
+    the string representation for a type rather than
+    the (occasional) string concatenation.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6458057
+
+ src/pkg/exp/types/types.go      | 199 ++++++++++++++++++++--------------------
+ src/pkg/exp/types/types_test.go |   2 +-
+ 2 files changed, 102 insertions(+), 99 deletions(-)

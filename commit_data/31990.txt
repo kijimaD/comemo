@@ -1,0 +1,13 @@
+commit d58125ecd22649eb0a4b33715f39d6696b13c5fb
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 6 12:36:25 2017 -0400
+
+    runtime: document FuncForPC behavior with inlining
+    
+    Change-Id: I1c02aa4f7131ae984fda66b32e8a993c0a40b8f4
+    Reviewed-on: https://go-review.googlesource.com/47690
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/symtab.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,20 @@
+commit 589fc314af46e0d65a91fa1048ba319f1bf390a6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Aug 11 08:43:30 2017 -0700
+
+    runtime: calculate k only once in mapiternext
+    
+    Make the calculation of k and v a bit lazier.
+    None of the following code cares about indirect-vs-direct k,
+    and it happens on all code paths, so check t.indirectkey earlier.
+    
+    Simplifies the code and reduces both machine code and stack size.
+    
+    Change-Id: I5ea4c0772848d7a4b15383baedb9a1f7feb47201
+    Reviewed-on: https://go-review.googlesource.com/55092
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go | 28 ++++++++++------------------
+ 1 file changed, 10 insertions(+), 18 deletions(-)

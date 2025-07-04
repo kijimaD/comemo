@@ -1,0 +1,13 @@
+commit 1cdcfda140102c422eed9b4c8757dcf2b169d96b
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Mar 18 12:13:42 2009 -0700
+
+    remove assignment cases from switch
+    
+    R=r
+    OCL=26480
+    CL=26480
+
+ src/cmd/gc/swt.c   | 60 ++--------------------------------
+ test/typeswitch.go | 96 +++++++++++++++++++++++++++---------------------------
+ 2 files changed, 51 insertions(+), 105 deletions(-)

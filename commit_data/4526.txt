@@ -1,0 +1,16 @@
+commit cfbee34a277d75c19b843c27ef053b78c493b32d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 5 16:49:05 2010 -0800
+
+    big: fix ProbablyPrime bug, comments
+    
+    (changes adopted from alc, agl)
+    
+    R=agl1, agl
+    CC=golang-dev
+    https://golang.org/cl/181137
+
+ src/pkg/big/int.go      | 2 +-
+ src/pkg/big/int_test.go | 7 +++++++
+ src/pkg/big/nat.go      | 9 ++++++---
+ 3 files changed, 14 insertions(+), 4 deletions(-)

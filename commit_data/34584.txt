@@ -1,0 +1,17 @@
+commit c74aa39f47840a36ddf10cfac96a2c49bd0786f1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 13 12:58:56 2018 -0700
+
+    cmd/compile: eliminate mkinlcall's isddd parameter
+    
+    These are always set to n.Isddd(), which is readily available within
+    mkinlcall.
+    
+    Change-Id: I3d7fbc9dc19a40d6b905691c666eee9bcd031a00
+    Reviewed-on: https://go-review.googlesource.com/100455
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

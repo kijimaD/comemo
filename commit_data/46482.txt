@@ -1,0 +1,26 @@
+commit 50e450826916c777a7d61edab52793ed77314f7a
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Sep 17 12:18:19 2021 -0700
+
+    cmd/compile: fix import/export of Init and Def fields.
+    
+    Change so that the Init and Def fields of assignments and OSELREVC2
+    nodes are exported/imported properly.
+    
+    A quirk of iimport.go is that it automatically converts an ODCL node to
+    an ODCL/OAS sequence (where the OAS is to just zero out the declared
+    variable). Given that the Inits are properly fixed, o.stmt needs
+    adjustment for the OSELRECV2 case to skip over the new OAS nodes that
+    are inserted only on re-import.
+    
+    Change-Id: Ic38017efca4b7ca9b3952ffbbfca067380902b7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350809
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/iexport.go | 25 ++++++++++++++++++++++---
+ src/cmd/compile/internal/typecheck/iimport.go | 21 ++++++++++++++++++---
+ src/cmd/compile/internal/walk/order.go        |  6 ++++++
+ 3 files changed, 46 insertions(+), 6 deletions(-)

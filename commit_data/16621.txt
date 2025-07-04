@@ -1,0 +1,21 @@
+commit 05a5de30f099ee60987646ff88238d561b12ddeb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 24 17:17:45 2013 +1000
+
+    runtime: do not generate code during runtime in windows NewCallback
+    
+    Update #5494
+    
+    R=golang-dev, minux.ma, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/10368043
+
+ src/cmd/dist/a.h                                   |   1 +
+ src/cmd/dist/build.c                               |   2 +
+ src/cmd/dist/buildruntime.c                        |  44 +++++++++
+ .../{callback_windows_386.c => callback_windows.c} |  84 +++++------------
+ src/pkg/runtime/callback_windows_amd64.c           | 105 ---------------------
+ src/pkg/runtime/runtime.h                          |   8 ++
+ src/pkg/runtime/sys_windows_386.s                  |  74 ++++++++++-----
+ src/pkg/runtime/sys_windows_amd64.s                |  56 +++++------
+ 8 files changed, 163 insertions(+), 211 deletions(-)

@@ -1,0 +1,33 @@
+commit 7ebb96a4890de3245f00cfb969945ff2438cc267
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sat Aug 29 11:30:10 2015 +0000
+
+    cmd/compile/internal/gc: fix panic in Type Stringer
+    
+    The following code:
+    
+    func n() {(interface{int})}
+    
+    generates:
+    
+    3: interface contains embedded non-interface int
+    3: type %!v(PANIC=runtime error: invalid memory address or nil pointer dereference) is not an expression
+    
+    It is because the corresponding symbol (Sym field in Type object)
+    is nil, resulting in a panic in typefmt.
+    
+    Just skip the symbol if it is nil, so that the error message becomes:
+    
+    3: interface contains embedded non-interface int
+    3: type interface { int } is not an expression
+    
+    Fixes #11614
+    
+    Change-Id: I219ae7eb01edca264fad1d4a1bd261d026294b00
+    Reviewed-on: https://go-review.googlesource.com/14015
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go |  9 +++++++--
+ test/fixedbugs/issue11614.go       | 26 ++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 2 deletions(-)

@@ -1,0 +1,10 @@
+commit 53ec6500bc8f9ecc3059bfc95a6ec14d400e72c5
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jun 17 17:59:06 2008 -0700
+
+    yata
+    
+    SVN=123246
+
+ src/cmd/gc/go.h | 1 +
+ 1 file changed, 1 insertion(+)

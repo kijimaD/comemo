@@ -1,0 +1,28 @@
+commit 0f52292e72ebbb79b2d41c8dca8e23ef9597e17d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Oct 7 09:55:43 2021 +0200
+
+    os: don't use wait6 on netbsd
+    
+    CL 315281 changed the os package use wait6 on netbsd. This seems to be
+    causing frequent test failures as reported in #48789. Revert that change
+    using wait6 on netbsd for now.
+    
+    Updates #13987
+    Updates #16028
+    For #48789
+    
+    Change-Id: Ieddffc65611c7f449971eaa8ed6f4299a5f742c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354249
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/wait_unimp.go | 12 +++++++++---
+ src/os/wait_wait6.go |  4 ++--
+ 2 files changed, 11 insertions(+), 5 deletions(-)

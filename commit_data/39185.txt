@@ -1,0 +1,14 @@
+commit 6c842cc610bff3e025236dfe4ececbdf91aa66e3
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu May 16 16:16:26 2019 -0700
+
+    cmd/compile: mention issue 28603 when discussing where inline marks go
+    
+    Update #28603
+    
+    Change-Id: I8bdbea57b3661e15dcc760d27252b794daa476db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177697
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/cmd/compile/internal/gc/inl.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

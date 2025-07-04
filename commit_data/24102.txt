@@ -1,0 +1,24 @@
+commit de786965e63ef95b6a295761ea63b93e1ea9380d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Aug 27 16:15:00 2015 +1000
+
+    syscall: remove nacl srpc helper
+    
+    Fixes #11961
+    
+    Minux removed the use of SRPC in 003dccfa, but the SRPC name service
+    code was left in the tree. SRPC was removed in pepper_42 making the
+    code, which ran on startup, fail, even though it was not used.
+    
+    Removing srpc_nacl.go for a total diff of -822 lines has got to count
+    as one of the easiest nacl fixes we've had to date.
+    
+    Change-Id: Ic4e348146bfe47450bbb9cabb91699ba153e6bf0
+    Reviewed-on: https://go-review.googlesource.com/13958
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/srpc_nacl.go | 822 -----------------------------------------------
+ 1 file changed, 822 deletions(-)

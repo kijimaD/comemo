@@ -1,0 +1,15 @@
+commit 3b39f523e1181499827321cedd8b7370b14ee762
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Mar 22 12:38:09 2017 -0400
+
+    cmd/vet: -lostcancel: fix crash in ill-typed code
+    
+    Fixes golang/go#19656
+    
+    Change-Id: Ied20d3f25b6e147cc693a1dd1aeb9480adc6687e
+    Reviewed-on: https://go-review.googlesource.com/38405
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/vet/lostcancel.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

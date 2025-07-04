@@ -1,0 +1,12 @@
+commit 8091ac1b5dab9fe9e9b5c083bcd7fd6a77ee1fb8
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Feb 3 13:25:26 2012 +1100
+
+    .hgignore: update to ignore tmpltohtml.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5617055
+
+ .hgignore | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

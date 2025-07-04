@@ -1,0 +1,17 @@
+commit e45141b86cad1b907b4193dd7401630acd55d5d0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 14 17:20:30 2014 -0700
+
+    os/exec: quiet distracting log output during test
+    
+    TLS handshake failures didn't use to log, but do in Go 1.3.
+    Shut it up so the actual failure can be seen in e.g.
+    http://build.golang.org/log/ede7e12362a941d93bf1fe21db9208a3e298029e
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/87870043
+
+ src/pkg/os/exec/exec_test.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

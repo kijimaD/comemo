@@ -1,0 +1,14 @@
+commit 262b6462aa645902d261ab14fe43d30ec43d5e4b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 3 10:59:52 2009 -0700
+
+    fix bug187 (itself buggy)
+    
+    R=austin
+    DELTA=26  (0 added, 26 deleted, 0 changed)
+    OCL=34294
+    CL=34317
+
+ test/bugs/bug187.go | 23 -----------------------
+ test/golden.out     |  3 ---
+ 2 files changed, 26 deletions(-)

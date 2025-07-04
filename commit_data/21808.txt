@@ -1,0 +1,13 @@
+commit 41f5bafc514dc97f4de72e413cb451a0d83bf711
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 27 22:56:12 2015 -0500
+
+    cmd/dist: build linkers written in Go
+    
+    Change-Id: Ia36fa5e617ceacbbca9f30f4e109d94e515b38ef
+    Reviewed-on: https://go-review.googlesource.com/6336
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/dist/buildtool.go | 5 +++++
+ 1 file changed, 5 insertions(+)

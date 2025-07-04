@@ -1,0 +1,12 @@
+commit b5eddae55416127e2186e12f0c20efa9c3f196db
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 2 14:31:31 2008 -0700
+
+    fix bug: was writing off end of array
+    
+    R=gri
+    OCL=14728
+    CL=14728
+
+ src/syscall/errstr_darwin.go | 1 -
+ 1 file changed, 1 deletion(-)

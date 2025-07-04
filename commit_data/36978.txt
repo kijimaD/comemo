@@ -1,0 +1,17 @@
+commit 93e27e01af8bd6ac76c9784165d63b7cafe10a16
+Author: Ben Shi <powerman1st@163.com>
+Date:   Mon Oct 15 05:39:23 2018 +0000
+
+    test/codegen: add tests of FMA for arm/arm64
+    
+    This CL adds tests of fused multiplication-accumulation
+    on arm/arm64.
+    
+    Change-Id: Ic85d5277c0d6acb7e1e723653372dfaf96824a39
+    Reviewed-on: https://go-review.googlesource.com/c/141652
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/codegen/floats.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

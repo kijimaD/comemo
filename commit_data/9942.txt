@@ -1,0 +1,24 @@
+commit 3b5ff0fb147729f9590a00df8fb56b5d4bfeac7b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 12 13:07:55 2011 -0700
+
+    go/typechecker: delete per Go 1 plan
+    
+    (go/types will be future replacement)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5232052
+
+ src/pkg/Makefile                           |   1 -
+ src/pkg/go/typechecker/Makefile            |  14 -
+ src/pkg/go/typechecker/scope.go            |  69 -----
+ src/pkg/go/typechecker/testdata/test0.src  |  94 ------
+ src/pkg/go/typechecker/testdata/test1.src  |  13 -
+ src/pkg/go/typechecker/testdata/test3.src  |  41 ---
+ src/pkg/go/typechecker/testdata/test4.src  |  11 -
+ src/pkg/go/typechecker/type.go             | 118 --------
+ src/pkg/go/typechecker/typechecker.go      | 468 -----------------------------
+ src/pkg/go/typechecker/typechecker_test.go | 163 ----------
+ src/pkg/go/typechecker/universe.go         |  36 ---
+ 11 files changed, 1028 deletions(-)

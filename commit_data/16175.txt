@@ -1,0 +1,12 @@
+commit 03640c58e3dce5a7e6e6dfa8c4171bcf537a4b20
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 13 23:09:08 2013 -0700
+
+    crypto/ecdsa: doc cleanup
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/8592044
+
+ src/pkg/crypto/ecdsa/ecdsa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 4313c2886160613ca62742d0f46665cf8954213c
+Author: Andrey Bokhanko <andreybokhanko@gmail.com>
+Date:   Sat Mar 13 00:21:18 2021 +0800
+
+    cmd/cgo: check whether C compiler exists
+    
+    Currently we print a cryptic message if a C compiler doesn't exist.
+    This patch adds more graceful handling.
+    
+    Fixes #44271
+    
+    Change-Id: I44f16ef6eb2853fee22fa1d996e41ec6c9ee82f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301249
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/cgo/main.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

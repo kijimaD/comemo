@@ -1,0 +1,16 @@
+commit 17553c6e7154deab8501595f4fa387c0b718337a
+Author: surechen <surechen17@gmail.com>
+Date:   Mon Jul 27 12:00:19 2020 +0800
+
+    cmd/compile: move dumpFileSeq
+    
+    I noticed that there is a Todo comment here. This variable is only used for filename when dump a function's ssa passes result in details. It is no problem to print a function alone, but may be edited by not only one goroutine if dump multiple functions at the same time. Although it looks only dump one function's ssa passes now. As far as I am concerned this variable can be a member variable of the struct Func. I'm not sure if this change is necessary. Looking forward to your advices, thank you very much.
+    
+    Change-Id: I35dd7247889e0cc7f19c0b400b597206592dee75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244918
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/compile.go | 7 ++-----
+ src/cmd/compile/internal/ssa/func.go    | 7 ++++---
+ 2 files changed, 6 insertions(+), 8 deletions(-)

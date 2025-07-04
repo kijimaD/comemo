@@ -1,0 +1,12 @@
+commit e2c3ec31734b989916cd8bb4819f3f92e4f83e6f
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jun 5 16:56:23 2008 -0700
+
+    goos goarch
+    
+    SVN=121348
+
+ src/cmd/6l/asm.c | 65 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/6l/l.h   |  3 ++-
+ src/cmd/6l/obj.c | 67 ++++++++++++++++++++++++++++++++++++--------------------
+ 3 files changed, 109 insertions(+), 26 deletions(-)

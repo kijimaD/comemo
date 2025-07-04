@@ -1,0 +1,16 @@
+commit 0c3a93ceb7e2167104cdc4a34ed62e7d9e39ce8c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 16 23:10:33 2010 -0700
+
+    runtime: add GOROOT and Version
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/608041
+
+ .hgignore                   |  6 +++++-
+ src/pkg/runtime/Makefile    |  9 ++++++++-
+ src/pkg/runtime/extern.go   | 20 ++++++++++++++++++++
+ src/pkg/runtime/mkversion.c | 15 +++++++++++++++
+ src/pkg/runtime/runtime.c   |  9 +++++++++
+ 5 files changed, 57 insertions(+), 2 deletions(-)

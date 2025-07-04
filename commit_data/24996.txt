@@ -1,0 +1,18 @@
+commit bda885511d804a8a588df97080c2ea8207d637e3
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Fri Nov 6 17:28:58 2015 -0500
+
+    cmd: allow buildmode=c-shared for android/386
+    
+    Update golang/go#9327.
+    
+    Change-Id: Iab7dad31cf6b9f9347c3f34faebb67ecb38b17fc
+    Reviewed-on: https://go-review.googlesource.com/16701
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/test.go            | 4 +++-
+ src/cmd/go/build.go             | 2 +-
+ src/cmd/link/internal/ld/lib.go | 9 ++++++++-
+ 3 files changed, 12 insertions(+), 3 deletions(-)

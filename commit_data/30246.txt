@@ -1,0 +1,17 @@
+commit 02de5ed748e419f43d12d2bfaad35fdc3af5143b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 13 13:34:30 2017 -0800
+
+    cmd/internal/obj: add AddrName type and cleanup AddrType values
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ida3eda9bd9d79a34c1c3f18cb41aea9392698076
+    Reviewed-on: https://go-review.googlesource.com/36950
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/pgen.go |  2 +-
+ src/cmd/internal/obj/link.go        | 15 ++++++++-------
+ 2 files changed, 9 insertions(+), 8 deletions(-)

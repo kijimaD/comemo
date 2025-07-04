@@ -1,0 +1,27 @@
+commit 639a20da908c2646de46b93ca2933651363ec22a
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Fri Apr 29 17:39:33 2016 +0100
+
+    syscall: simplify closing of extra fds in plan9 StartProcess
+    
+    Reviving earlier work by @ality in https://golang.org/cl/57890043
+    to make the closing of extra file descriptors in syscall.StartProcess
+    less race-prone. Instead of making a list of open fds in the parent
+    before forking, the child can read through the list of open fds and
+    close the ones not explicitly requested.  Also eliminate the
+    complication of keeping open any extra fds which were inherited by
+    the parent when it started.
+    
+    This CL will be followed by one to eliminate the ForkLock in plan9,
+    which is now redundant.
+    
+    Fixes #5605
+    
+    Change-Id: I6b4b942001baa54248b656c52dced3b62021c486
+    Reviewed-on: https://go-review.googlesource.com/22610
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/syscall/exec_plan9.go    | 158 +++++++++++++++++++++++++------------------
+ src/syscall/syscall_plan9.go |   1 +
+ 2 files changed, 95 insertions(+), 64 deletions(-)

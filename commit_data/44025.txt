@@ -1,0 +1,28 @@
+commit 731bb540381e1b79c85b0bdcb95af90f6bde7b89
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 15 13:15:07 2020 -0800
+
+    test: update for gofrontend error message changes
+    
+    fixedbugs/bug195.go:9:20: error: interface contains embedded non-interface
+    fixedbugs/bug195.go:12:20: error: interface contains embedded non-interface
+    fixedbugs/bug195.go:15:22: error: interface contains embedded non-interface
+    fixedbugs/bug195.go:18:9: error: invalid recursive interface
+    fixedbugs/bug195.go:26:9: error: invalid recursive interface
+    
+    fixedbugs/bug251.go:15:9: error: invalid recursive interface
+    
+    fixedbugs/issue23823.go:15:9: error: invalid recursive interface
+    
+    Change-Id: If4c22430557459d5b361beda7168f8cb42b58811
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278512
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ test/fixedbugs/bug195.go     | 2 +-
+ test/fixedbugs/bug251.go     | 2 +-
+ test/fixedbugs/issue23823.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

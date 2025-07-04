@@ -1,0 +1,26 @@
+commit 097aaa9cd68fdce10b81fbba43fbb6569a95b53f
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 10 11:21:57 2021 -0500
+
+    go/doc: don't treat functions returning type parameters as constructors
+    
+    Functions returning type parameters were erroneously being interpreted
+    as 'constructors' of their type parameter, resulting in them being
+    excluded from documentation. Fix this by explicitly excluding type
+    parameters when looking for defined type names among function results.
+    
+    Fixes #49477
+    
+    Change-Id: I22510f655f47e192a852332df5b91740f46c51eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362758
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/doc/reader.go                  | 21 +++++++++++++++++++++
+ src/go/doc/testdata/generics.0.golden |  6 ++++++
+ src/go/doc/testdata/generics.1.golden |  6 ++++++
+ src/go/doc/testdata/generics.2.golden |  6 ++++++
+ src/go/doc/testdata/generics.go       | 13 +++++++++++++
+ 5 files changed, 52 insertions(+)

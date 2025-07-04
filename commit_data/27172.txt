@@ -1,0 +1,16 @@
+commit c04bc70cd1b290436917301846992e492944805f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 28 11:50:48 2016 +0900
+
+    net: fix misrecongnization of IPv6 zone on Windows
+    
+    Fixes #15463.
+    
+    Change-Id: Ic85886861c650ffcb71240d847941534152b92bc
+    Reviewed-on: https://go-review.googlesource.com/22540
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/interface_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

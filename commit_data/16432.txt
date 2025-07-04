@@ -1,0 +1,12 @@
+commit 322c08f2f79c6b2939e3b8f70dcc75e12cf94ab7
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Wed May 29 11:46:14 2013 -0700
+
+    cmd/gc: remove unused bit vector comparison code
+    
+    R=golang-dev, dave, iant
+    CC=golang-dev
+    https://golang.org/cl/9738045
+
+ src/cmd/gc/bv.c | 15 ---------------
+ 1 file changed, 15 deletions(-)

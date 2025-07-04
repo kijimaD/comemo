@@ -1,0 +1,26 @@
+commit f613015e0eeb9560579bf40dbdb40fac5e371bbc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 22 10:03:14 2010 -0700
+
+    go ast/parser/printer: permit elision of composite literal types for composite literal elements
+    gofmt: added -s flag to simplify composite literal expressions through type elision where possible
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2319041
+
+ src/cmd/gofmt/Makefile                         |   4 +-
+ src/cmd/gofmt/doc.go                           |   2 +
+ src/cmd/gofmt/gofmt.go                         |   5 ++
+ src/cmd/gofmt/simplify.go                      |  57 ++++++++++++++
+ src/cmd/gofmt/testdata/composites.golden       | 104 +++++++++++++++++++++++++
+ src/cmd/gofmt/testdata/composites.input        | 104 +++++++++++++++++++++++++
+ src/cmd/gofmt/testdata/test.sh                 |  65 ++++++++++++++++
+ src/pkg/go/ast/ast.go                          |  11 ++-
+ src/pkg/go/parser/parser.go                    |  19 +++--
+ src/pkg/go/parser/parser_test.go               |  24 +++---
+ src/pkg/go/printer/nodes.go                    |   5 +-
+ src/pkg/go/printer/testdata/expressions.golden |  21 +++++
+ src/pkg/go/printer/testdata/expressions.input  |  21 +++++
+ src/pkg/go/printer/testdata/expressions.raw    |  21 +++++
+ 14 files changed, 438 insertions(+), 25 deletions(-)

@@ -1,0 +1,18 @@
+commit 48ba6fe553a5480de8a5fd6da1ab7709c0becc3b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Oct 4 09:45:06 2013 +1000
+
+    doc: move spec and memory model back to /ref/
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/14364043
+
+ doc/articles/wiki/index.html | 4 ++--
+ doc/docs.html                | 4 ++--
+ doc/effective_go.html        | 6 +++---
+ doc/go1.1.html               | 6 +++---
+ doc/go_faq.html              | 8 ++++----
+ doc/go_mem.html              | 2 +-
+ doc/go_spec.html             | 2 +-
+ 7 files changed, 16 insertions(+), 16 deletions(-)

@@ -1,0 +1,16 @@
+commit 5107aa82a133f909f53f6a2478842ba17152b91c
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Jan 5 17:06:41 2010 -0800
+
+    8a, 8l: Add FCOMI, FCOMIP, FUCOMI, FUCOMIP instructions
+    
+    Fixes #447
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/183047
+
+ src/cmd/8a/lex.c   | 4 ++++
+ src/cmd/8l/8.out.h | 4 ++++
+ src/cmd/8l/optab.c | 6 +++++-
+ 3 files changed, 13 insertions(+), 1 deletion(-)

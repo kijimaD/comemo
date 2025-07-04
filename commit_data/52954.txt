@@ -1,0 +1,20 @@
+commit 3d33532d1cb25955d2bb236394a0afa99899a35c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 10 12:47:06 2023 -0700
+
+    net/http: let ErrNotSupported match errors.ErrUnsupported
+    
+    For #41198
+    
+    Change-Id: Ibb030e94618a1f594cfd98ddea214ad7a88d2e73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494122
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/41198.txt           | 1 +
+ src/net/http/request.go      | 5 +++++
+ src/net/http/request_test.go | 7 +++++++
+ 3 files changed, 13 insertions(+)

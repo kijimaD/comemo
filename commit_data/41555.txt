@@ -1,0 +1,14 @@
+commit 96acb74655531794d6f563242736d25f4e716b11
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Tue Mar 3 07:08:06 2020 -0600
+
+    encoding/hex: remove unused variable from BenchmarkDump
+    
+    Change-Id: I1fd47e5eab27346cec488098d4f6102a0749bd28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221788
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/hex/hex_test.go | 1 -
+ 1 file changed, 1 deletion(-)

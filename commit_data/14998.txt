@@ -1,0 +1,12 @@
+commit cf1f542420415826040be93bc2a252ec605a1196
+Author: Vega Garcia Luis Alfonso <vegacom@gmail.com>
+Date:   Mon Jan 28 12:54:27 2013 -0500
+
+    xml: differentiate between float32 and float64 for marshalSimple
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7235045
+
+ src/pkg/encoding/xml/marshal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

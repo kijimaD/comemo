@@ -1,0 +1,26 @@
+commit 4c8f48ed4f3db0e3ba376e6b7a261d26b41d8dd0
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 29 15:38:56 2021 +1000
+
+    syscall: do not change stdio handle inheritance
+    
+    Before the CL 288297 all Go process handles had to be made
+    non-inheritable - otherwise they would escape into the child process.
+    But now this is not necessary.
+    
+    This CL stops changing inheritance flag of stdint, stdout and stderr
+    handles.
+    
+    Fixes #44876
+    
+    Change-Id: Ib8fcf8066c30282293d96c34486b01b4c04f7116
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316269
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/syscall/syscall_windows.go      |  1 -
+ src/syscall/syscall_windows_test.go | 65 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 65 insertions(+), 1 deletion(-)

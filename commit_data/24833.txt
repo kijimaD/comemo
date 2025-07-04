@@ -1,0 +1,13 @@
+commit fa61945cf21cce6d435ec69e8167400aa55bc108
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:33:48 2015 -0400
+
+    runtime/debug: skip TestFreeOSMemory for mips64{,le}
+    
+    Change-Id: I419f3b8bf1bddffd4a775b0cd7b98f0239fe19cb
+    Reviewed-on: https://go-review.googlesource.com/14458
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/debug/garbage_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

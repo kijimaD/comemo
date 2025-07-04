@@ -1,0 +1,18 @@
+commit 59d0baeb335647663b135a52af5d345d989f218f
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jul 17 15:07:26 2018 -0700
+
+    cmd/compile: add test for OPmodify ops clobbering flags
+    
+    Code fix was in CL 122556.  This is a corresponding test case.
+    
+    Fixes #26426
+    
+    Change-Id: Ib8769f367aed8bead029da0a8d2ddccee1d1dccb
+    Reviewed-on: https://go-review.googlesource.com/124535
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue26426.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

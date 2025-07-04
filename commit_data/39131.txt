@@ -1,0 +1,17 @@
+commit 7a43f8a5fb355a9cff73314d234da9a817695cbd
+Author: Tamir Duberstein <tamird@google.com>
+Date:   Mon May 13 11:26:26 2019 -0400
+
+    runtime: resolve latent function type TODO
+    
+    This was left over from the C->Go transition.
+    
+    Change-Id: I52494af3d49a388dc45b57210ba68292ae01cf84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176897
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/proc.go     |  5 ++---
+ src/runtime/runtime2.go | 10 +++++-----
+ 2 files changed, 7 insertions(+), 8 deletions(-)

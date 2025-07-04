@@ -1,0 +1,16 @@
+commit b4bb970e1852e9f5340b846379ce4a434a1b9d26
+Author: Stephen Ma <stephenm@golang.org>
+Date:   Mon Jun 13 22:50:51 2011 +1000
+
+    gc: handle go print() and go println()
+    
+    Fixes #1952.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4611041
+
+ src/cmd/gc/walk.c | 11 ++++++++++-
+ test/golden.out   |  3 +++
+ test/goprint.go   | 14 ++++++++++++++
+ 3 files changed, 27 insertions(+), 1 deletion(-)

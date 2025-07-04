@@ -1,0 +1,19 @@
+commit eb715fbbbdc6b155512aed7c577e39b81bd35840
+Author: Chew Choon Keat <choonkeat@gmail.com>
+Date:   Mon Mar 13 03:21:21 2017 +0000
+
+    net/http: unset proxy environment after test
+    
+    Fix last proxy in TestProxyFromEnvironment bleeds into other tests
+    Change ResetProxyEnv to use the newer os.Unsetenv, instead of hard
+    coding as ""
+    
+    Change-Id: I67cf833dbcf4bec2e10ea73c354334160cf05f84
+    Reviewed-on: https://go-review.googlesource.com/38115
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/proxy_test.go     | 2 +-
+ src/net/http/transport_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

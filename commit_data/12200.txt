@@ -1,0 +1,12 @@
+commit 04f110e5302f9846cb110d8fcab2666ce4220623
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Feb 25 01:16:17 2012 +0800
+
+    cmd/vet: don't give error for Printf("%+5.2e", x)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5696048
+
+ src/cmd/vet/print.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

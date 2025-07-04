@@ -1,0 +1,32 @@
+commit b57413d9ca3c6ff082758ab0e6aad484b824dc55
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Sun Sep 3 19:58:01 2017 +0200
+
+    cmd/dist: restore behavior of branchtag
+    
+    The behavior was changed unintentionally during the conversion from C to Go.
+    Reviewed-on: https://go-review.googlesource.com/2470
+    
+    This belongs to a series of clean-up changes (see below) for cmd/dist.
+    This is change (2).
+    
+    These changes include:
+    (1)  apply minor fixes
+    (2)  restore behavior of branchtag
+    (3)  unleash bootstrap optimization for windows
+    (4)  use standard generated code header
+    (5)  remove trivial variables + functions
+    (6)  move functions for the better
+    (7)  simplify code segments
+    (8)  use bytes.Buffer for code generation
+    (9)  rename variables + functions
+    (10) remove doc.go
+    
+    Change-Id: I53373c7211b35ed68da485c55e510871bfb81267
+    Reviewed-on: https://go-review.googlesource.com/61022
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

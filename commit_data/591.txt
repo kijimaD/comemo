@@ -1,0 +1,13 @@
+commit ffbccb66c2f79ed0f23ad90250c811b3cac9fcee
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 8 18:50:35 2008 -0700
+
+    fixed sorting.go to use proper composite literal {}'s instead of
+    "conversion"
+    
+    R=r
+    OCL=14976
+    CL=14976
+
+ test/sorting.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,11 @@
+commit c6f8df0827e3d767dc9f5c7d0650252b88fe0ec5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 24 14:11:53 2009 -0800
+
+    fix for broken build (built-in new was invisible due to a parameter called 'new')
+    
+    R=iant
+    https://golang.org/cl/160057
+
+ src/pkg/debug/proc/proc_linux.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

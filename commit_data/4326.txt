@@ -1,0 +1,11 @@
+commit 01f0f16ebc9e5bba1b4974fb06f77146fd711dc8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 17:08:54 2009 -0800
+
+    gotest: ignore *_test.pb.go
+    
+    R=r
+    https://golang.org/cl/166064
+
+ src/cmd/gotest/gotest | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

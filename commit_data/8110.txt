@@ -1,0 +1,18 @@
+commit 71f9dc2cead14dff1b00206ceeb3b711ba91e363
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 14 20:36:52 2011 -0700
+
+    http: add NewRequest helper
+    
+    NewRequest will save a lot of boilerplate code.
+    
+    This also updates some docs on Request.Write and
+    adds some tests.
+    
+    R=rsc, petar-m, r
+    CC=golang-dev
+    https://golang.org/cl/4406047
+
+ src/pkg/http/request.go           | 31 ++++++++++++++++++--
+ src/pkg/http/requestwrite_test.go | 61 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 90 insertions(+), 2 deletions(-)

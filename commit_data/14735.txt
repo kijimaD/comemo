@@ -1,0 +1,24 @@
+commit 3aed92f81136da6dc5848593fcf6f8b8d5c65c5e
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 22 17:23:33 2012 -0500
+
+    cmd/gc: add diagnostic for var, type, const named init
+    
+    Before this CL, defining the variable worked fine, but then when
+    the implicit package-level init func was created, that caused a
+    name collision and a confusing error about the redeclaration.
+    
+    Also add a test for issue 3705 (func init() needs body).
+    
+    Fixes #4517.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7008045
+
+ src/cmd/gc/dcl.c             | 3 +++
+ test/fixedbugs/issue3705.go  | 9 +++++++++
+ test/fixedbugs/issue4517a.go | 9 +++++++++
+ test/fixedbugs/issue4517b.go | 9 +++++++++
+ test/fixedbugs/issue4517c.go | 9 +++++++++
+ 5 files changed, 39 insertions(+)

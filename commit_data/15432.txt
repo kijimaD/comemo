@@ -1,0 +1,15 @@
+commit ffa0f8306020387ed7004b680f678473bf9fa65d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Feb 26 11:55:41 2013 +1100
+
+    exp/cookiejar: implement IDNA/Punycode's toASCII.
+    
+    R=dr.volker.dobler
+    CC=golang-dev
+    https://golang.org/cl/7398049
+
+ src/pkg/exp/cookiejar/jar.go           |   9 +-
+ src/pkg/exp/cookiejar/jar_test.go      |   4 +-
+ src/pkg/exp/cookiejar/punycode.go      | 159 ++++++++++++++++++++++++++++++++
+ src/pkg/exp/cookiejar/punycode_test.go | 161 +++++++++++++++++++++++++++++++++
+ 4 files changed, 323 insertions(+), 10 deletions(-)

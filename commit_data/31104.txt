@@ -1,0 +1,16 @@
+commit 700574e7912a166b6b52d0586c2b030a6830f903
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 12 10:05:33 2017 -0700
+
+    cmd/compile/internal/ssa: ExternSymbol's Typ field is unused too
+    
+    Change-Id: I5b692eb0586c40f3735a6b9c928e97ffa00a70e6
+    Reviewed-on: https://go-review.googlesource.com/40471
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go           | 10 +++++-----
+ src/cmd/compile/internal/ssa/value.go        |  1 -
+ src/cmd/compile/internal/ssa/writebarrier.go |  4 ++--
+ 3 files changed, 7 insertions(+), 8 deletions(-)

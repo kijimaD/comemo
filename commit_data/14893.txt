@@ -1,0 +1,14 @@
+commit 5a4a197d7b692c5725d0364a51ad1cb76f1b99e4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 16 15:08:19 2013 -0800
+
+    go/types: correct result type for append (bug fix)
+    
+    Rewrote existing code to prevent similar mistakes.
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/7129046
+
+ src/pkg/go/types/builtins.go | 50 ++++++++++++++++++++++----------------------
+ 1 file changed, 25 insertions(+), 25 deletions(-)

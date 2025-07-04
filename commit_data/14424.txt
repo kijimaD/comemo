@@ -1,0 +1,15 @@
+commit 7ec76e25b627cae9c94a3757823613b240c3e3df
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Nov 18 00:45:47 2012 +1100
+
+    archive/zip: handle extra data headers with no body
+    
+    Fixes #4393.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6854058
+
+ src/pkg/archive/zip/reader.go   |  2 +-
+ src/pkg/archive/zip/zip_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 1 deletion(-)

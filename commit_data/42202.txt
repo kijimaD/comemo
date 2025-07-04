@@ -1,0 +1,23 @@
+commit b3863fbbc2fe1dbf516111992854aa9178d01410
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 15 13:56:05 2020 -0400
+
+    runtime: make newproc1 not start the goroutine
+    
+    Currently, newproc1 allocates, initializes, and schedules a new
+    goroutine. We're about to change debug call injection in a way that
+    will need to create a new goroutine without immediately scheduling it.
+    To prepare for that, make scheduling the responsibility of newproc1's
+    caller. Currently, there's exactly one caller (newproc), so this
+    simply shifts that responsibility.
+    
+    For #36365.
+    
+    Change-Id: Idacd06b63e738982e840fe995d891bfd377ce23b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229298
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/proc.go | 44 +++++++++++++++++++++++++++++++-------------
+ 1 file changed, 31 insertions(+), 13 deletions(-)

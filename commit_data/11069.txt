@@ -1,0 +1,15 @@
+commit 024952fb8a75ca12e30cda9d9b52fb9ad653b6c4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 9 16:51:20 2012 -0800
+
+    syscall: make Environ return original order
+    
+    Fixes #2619
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5528058
+
+ src/pkg/os/env_test.go      | 11 ++++++++
+ src/pkg/syscall/env_unix.go | 64 +++++++++++++++++++++++++++++++--------------
+ 2 files changed, 55 insertions(+), 20 deletions(-)

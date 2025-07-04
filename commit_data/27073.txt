@@ -1,0 +1,20 @@
+commit 32302d6289e9721015d5d7ac99bbce30de47746c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 22 07:08:13 2016 -0700
+
+    runtime/cgo: use normal libinit on PPC GNU/Linux
+    
+    The special case was because PPC did not support external linking, but
+    now it does.
+    
+    Fixes #10410.
+    
+    Change-Id: I9b024686e0f03da7a44c1c59b41c529802f16ab0
+    Reviewed-on: https://go-review.googlesource.com/22372
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/cgo/gcc_libinit.c              |  1 -
+ src/runtime/cgo/gcc_libinit_linux_ppc64x.c | 26 --------------------------
+ 2 files changed, 27 deletions(-)

@@ -1,0 +1,15 @@
+commit 9d3b39986cd5ac5158412bdb2d61275262796a4d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 23 14:29:26 2011 -0700
+
+    http: don't chunk 304 responses
+    
+    rsc's earlier fix, plus tests.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4285062
+
+ src/pkg/http/serve_test.go | 55 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/server.go     |  4 +---
+ 2 files changed, 56 insertions(+), 3 deletions(-)

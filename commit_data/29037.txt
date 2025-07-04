@@ -1,0 +1,16 @@
+commit b4ce38ec5769a270f0545dce43b2e926230609c3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 24 10:19:04 2016 -0700
+
+    cmd/cgo: throw if C.malloc returns nil
+    
+    Change-Id: If7740ac7b6c4190db5a1ab4100d12cf16dc79c84
+    Reviewed-on: https://go-review.googlesource.com/31768
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/errors/malloc.go | 23 +++++++++++++++++++++++
+ misc/cgo/errors/test.bash | 10 ++++++++++
+ src/cmd/cgo/out.go        |  6 ++++++
+ 3 files changed, 39 insertions(+)

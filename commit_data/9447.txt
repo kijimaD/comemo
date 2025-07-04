@@ -1,0 +1,16 @@
+commit 9969803f6ccddc503d7595237cde81d3f3c55466
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Aug 23 13:22:26 2011 +1000
+
+    exp/template/html: differentiate URL-valued attributes (such as href)
+    from others (such as title) during escaping.
+    
+    R=r, mikesamuel, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4919042
+
+ src/pkg/exp/template/html/Makefile       |   3 +-
+ src/pkg/exp/template/html/context.go     |  51 ++---
+ src/pkg/exp/template/html/escape.go      | 307 ++++++++++++++++++++++++-------
+ src/pkg/exp/template/html/escape_test.go | 297 +++++++++++++++++++++++++-----
+ 4 files changed, 520 insertions(+), 138 deletions(-)

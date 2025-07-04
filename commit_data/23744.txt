@@ -1,0 +1,17 @@
+commit aadd84e0c4ac2476644d0f60b4873867c9549306
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jul 17 17:31:49 2015 +0900
+
+    net: classify site-local unicast in address selection
+    
+    This change adds site-local unicast classification for users still using
+    the deprecated addresses internally.
+    
+    Change-Id: If50870c6d4a85fe471c002b161eec59efcebe2f4
+    Reviewed-on: https://go-review.googlesource.com/12344
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/addrselect.go      | 10 +++++++---
+ src/net/addrselect_test.go |  1 +
+ 2 files changed, 8 insertions(+), 3 deletions(-)

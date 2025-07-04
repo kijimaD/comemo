@@ -1,0 +1,12 @@
+commit e05c3668d2bfa37e16f274a8e1666fed36bab824
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 22 16:11:21 2010 -0700
+
+    regexp: restore accidentally deleted test item.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1714044
+
+ src/pkg/regexp/all_test.go | 1 +
+ 1 file changed, 1 insertion(+)

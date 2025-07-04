@@ -1,0 +1,16 @@
+commit 2975b27bbd3d4e85a2488ac289e112bc0dedfebe
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 26 09:32:27 2020 +1100
+
+    scan: for style, adjust code for bad scan read counts
+    
+    Make the code more consistent with the rest of the file.
+    Should have caught this in review of CL 225357.
+    
+    Change-Id: I12824cb436539c31604684e043ebb7587cc92471
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225557
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/bufio/scan.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

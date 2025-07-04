@@ -1,0 +1,24 @@
+commit 7b15e297a26842f1f3408ee9d7942f8cfab2e5ea
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Mon Mar 7 01:54:14 2022 -0600
+
+    cmd/compile: fix PrefetchStreamed builtin implementation on PPC64
+    
+    This CL fixes encoding of PrefetchStreamed on PPC64 to be consistent
+    with what is implemented on AMD64 and ARM64 platforms which is
+    prefetchNTA (prefetch non-temporal access). Looking at the definition
+    of prefetchNTA, the closest corresponding Touch hint (TH) value to be
+    used on PPC64 is 16 that states that the address is accessed in a
+    transient manner. Current usage of TH=8 may cause degraded
+    performance.
+    
+    Change-Id: I393bf5a9b971a22f632b3cbfb4fa659062af9a27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390316
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 8 ++++++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 4 ++--
+ 2 files changed, 8 insertions(+), 4 deletions(-)

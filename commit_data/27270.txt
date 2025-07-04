@@ -1,0 +1,12 @@
+commit c5a95e47a02fa32a5a560d1e1cccc30f0a502dda
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed May 4 12:48:20 2016 -0400
+
+    doc: update go1.7.txt
+    
+    Change-Id: I78efbfe0d7e9825126109a568c99f548a099b0fb
+    Reviewed-on: https://go-review.googlesource.com/22771
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ doc/go1.7.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

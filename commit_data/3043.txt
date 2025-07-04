@@ -1,0 +1,12 @@
+commit ef45e64afc7b6b49083dd3aa82d8363044e6aaaf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 21 11:25:00 2009 -0700
+
+    - unifying rules for var decls, short var decls, and assignments
+    
+    DELTA=39  (4 added, 15 deleted, 20 changed)
+    OCL=33639
+    CL=33649
+
+ doc/go_spec.html | 53 +++++++++++++++++++++--------------------------------
+ 1 file changed, 21 insertions(+), 32 deletions(-)

@@ -1,0 +1,46 @@
+commit 2643a591728b0fd2bd1e007443442254d1200201
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 11 13:28:25 2023 -0800
+
+    go/types, types2: better error message for cases of reverse type inference
+    
+    Introduce a new type "target" to pass around target types together
+    with a suitable description (typically a variable name) for a better
+    error message.
+    
+    As a side effect, using a specific type (target), rather than just Type
+    avoids accidental confusion with other types.
+    
+    Use the target type description for a better error message in some
+    cases.
+    
+    The error message can be further improved by flipping the order of
+    the sentence (for another CL to keep this one small and simple).
+    
+    Also, and unrelated to this fix, remove the first argument to errorf
+    in infer.go: the argument is always "type" (there's only one call).
+    
+    For #60747.
+    
+    Change-Id: I2118d0fe9e2b4aac959371941064e0e9ca7b3b6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548995
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/assignments.go     | 15 ++++++-
+ src/cmd/compile/internal/types2/call.go            | 14 +++---
+ src/cmd/compile/internal/types2/decl.go            |  2 +-
+ src/cmd/compile/internal/types2/expr.go            | 51 +++++++++++++---------
+ src/cmd/compile/internal/types2/infer.go           | 10 ++---
+ src/go/types/assignments.go                        | 15 ++++++-
+ src/go/types/call.go                               | 14 +++---
+ src/go/types/decl.go                               |  2 +-
+ src/go/types/expr.go                               | 51 +++++++++++++---------
+ src/go/types/infer.go                              | 10 ++---
+ src/internal/types/testdata/examples/inference2.go | 16 ++++---
+ .../types/testdata/fixedbugs/issue60688.go         |  2 +-
+ .../types/testdata/fixedbugs/issue60747.go         | 13 ++++++
+ 13 files changed, 138 insertions(+), 77 deletions(-)

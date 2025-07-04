@@ -1,0 +1,24 @@
+commit 670cb9c37769f07fd8c2aac6270a9f2342d2b970
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 3 13:57:01 2020 +1100
+
+    cmd/doc: don't print package clauses on error
+    
+    Everybody was deferring a flush when main already
+    did that, so drop all that nonsense. (Flush was doing
+    the package clause stuff.) But then make sure we do
+    get a package clause when there is correctly no output,
+    as for an empty package. Do that by triggering a
+    package clause in allDoc and packageDoc.
+    
+    Slightly tricky but way less intricate than before.
+    
+    Fixes #37969.
+    
+    Change-Id: Ia86828436e6c4ab46e6fdaf2c550047f37f353f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226998
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/doc/doc_test.go | 19 +++++++++++++++++++
+ src/cmd/doc/pkg.go      | 13 ++-----------
+ 2 files changed, 21 insertions(+), 11 deletions(-)

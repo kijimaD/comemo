@@ -1,0 +1,18 @@
+commit b55cee1893283cc55e99fb041fc0067f56924926
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 21 18:22:13 2016 -0400
+
+    cmd/internal/obj/mips: store LR before update SP in function prologue
+    
+    This prevents the traceback code from seeing a half-updated
+    stack frame when a profiling signal comes during the execution
+    of function prologue. Also fixes mips64x part of #17381.
+    
+    Change-Id: Iec9683427e546e3648b2e8b1dde956d13f6eb938
+    Reviewed-on: https://go-review.googlesource.com/31721
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/obj/mips/obj0.go | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)

@@ -1,0 +1,19 @@
+commit 139891e81517231647ad48bade57604021b3fd1d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 31 00:28:10 2016 -0700
+
+    net/http/httptest: clean up unnecessary goroutine
+    
+    Finishes cleanup which was too late to do when discovered during the
+    Go 1.6 cycle.
+    
+    Fixes #14291
+    
+    Change-Id: Idc69fadbba10baf246318a22b366709eff088a75
+    Reviewed-on: https://go-review.googlesource.com/21360
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/httptest/server.go | 28 ++++++++--------------------
+ 1 file changed, 8 insertions(+), 20 deletions(-)

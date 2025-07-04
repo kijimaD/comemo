@@ -1,0 +1,22 @@
+commit 689fae2d7861fe14032762479011f9e48562e1e0
+Author: Gergely Brautigam <skarlso777@gmail.com>
+Date:   Wed Nov 28 18:10:28 2018 +0000
+
+    runtime: node ordering in mTreap; adjust code to reflect description.
+    
+    Adjust mTreap ordering logic to reflect the description of mTreap ordering.
+    Before it was using unsafe.Pointer in order to gather the base address of
+    a span. This has been changed to use base, which is the startAddress of a
+    span as the description is telling us in mgclarge.go.
+    
+    Fixes: golang/go#28805
+    
+    Change-Id: Ib3cd94a0757e23d135b5d41830f38fc08bcf16a3
+    GitHub-Last-Rev: 93f749b6700b1e179de16607a18395d5e162ecc1
+    GitHub-Pull-Request: golang/go#28973
+    Reviewed-on: https://go-review.googlesource.com/c/151499
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgclarge.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

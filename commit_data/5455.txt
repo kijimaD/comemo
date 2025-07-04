@@ -1,0 +1,15 @@
+commit e1b47159ab8218973e49eb0103f4fda57e6db864
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 6 22:07:03 2010 -0700
+
+    Save the scheduling state even predawn.
+    
+    This permits cgo callbacks to work when run in init code.
+    Otherwise cgocallback switches to the wrong stack address.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1123043
+
+ src/pkg/runtime/proc.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit 6bf531384dd233d7620181d5086a52571d64c5c0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 27 17:09:58 2018 -0800
+
+    doc: preannounce dropping macOS 10.10 support
+    
+    Updates #23011
+    
+    Change-Id: I0eccea5d08a8758585f183540787b78fb80aa36a
+    Reviewed-on: https://go-review.googlesource.com/c/151360
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 5 +++++
+ 1 file changed, 5 insertions(+)

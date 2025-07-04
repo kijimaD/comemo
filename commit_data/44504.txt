@@ -1,0 +1,16 @@
+commit 9c54f878d26e106f8e375c31aabceb1e36ff4050
+Author: LeonardWang <wangdeyu0907@gmail.com>
+Date:   Thu Jan 7 00:36:34 2021 +0800
+
+    runtime: remove GODEBUG=scavenge mode
+    
+    Change-Id: Ic4c7b5086303c7faa49f4cbf6738e66d5de35c7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282012
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/extern.go   | 2 --
+ src/runtime/runtime1.go | 2 --
+ 2 files changed, 4 deletions(-)

@@ -1,0 +1,17 @@
+commit a3765723c60b4cbbec3c8e62e3b2ee9e4080eb0b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun May 8 22:05:21 2016 -0700
+
+    cmd/compile: remove inl escape analysis hack
+    
+    Relevant issues: #5056, #9537, and #11053.
+    Their tests all pass.
+    
+    Change-Id: Ibbe05982ed5f332149ffd2cb6a232b8d677c4454
+    Reviewed-on: https://go-review.googlesource.com/27464
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go | 7 -------
+ 1 file changed, 7 deletions(-)

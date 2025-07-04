@@ -1,0 +1,13 @@
+commit 8ce3362f4e4ac0850aacb4fc6361128d4387b814
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 4 10:30:13 2010 -0400
+
+    A+C: add Chris Jones (individual CLA)
+    
+    R=r
+    CC=cjyar, golang-dev
+    https://golang.org/cl/2818041
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

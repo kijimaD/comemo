@@ -1,0 +1,14 @@
+commit 4161dfc4feafa08870e347c5ca7da155a9790867
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 19 11:12:32 2012 +1100
+
+    syscall: delete passfd_test.go
+    
+    We can revisit the issue of testing in syscall after Go 1.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5844057
+
+ src/pkg/syscall/passfd_test.go | 150 -----------------------------------------
+ 1 file changed, 150 deletions(-)

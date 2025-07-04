@@ -1,0 +1,17 @@
+commit ceefebd7952e7a65ec1da82caf13c101debc369d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 4 21:43:30 2015 -0400
+
+    runtime: rename ptrsize to ptrdata
+    
+    I forgot there is already a ptrSize constant.
+    Rename field to avoid some confusion.
+    
+    Change-Id: I098fdcc8afc947d6c02c41c6e6de24624cc1c8ff
+    Reviewed-on: https://go-review.googlesource.com/9700
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/gc/reflect.go | 12 ++++++------
+ src/reflect/type.go            | 12 ++++++------
+ src/runtime/type.go            |  2 +-
+ 3 files changed, 13 insertions(+), 13 deletions(-)

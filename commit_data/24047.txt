@@ -1,0 +1,14 @@
+commit e288271773d128c2eff80317ffa532f22ee990a5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 21 11:30:19 2015 -0700
+
+    math/big: fix TestBytes test
+    
+    Fixes #12231.
+    
+    Change-Id: I1f07c444623cd864667e21b2fee534eacdc193bb
+    Reviewed-on: https://go-review.googlesource.com/13814
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/big/int_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

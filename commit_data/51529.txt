@@ -1,0 +1,18 @@
+commit 3ec5085eacf28129122a0315b388f1318a6dcdee
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Dec 7 11:24:49 2022 -0500
+
+    doc/go1.20: delete remaining TODO
+    
+    This section is complete.
+    
+    For #54202.
+    
+    Change-Id: I304cc55a5b8ed53e8b8dff73a5feb5ef39207846
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455895
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.20.html | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,0 +1,31 @@
+commit 3526d8031a26a959734664955a44704af980c4a3
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 22 18:10:08 2017 -0400
+
+    runtime: allow write barriers in gchelper
+    
+    We're about to start tracking nowritebarrierrec through systemstack
+    calls, which detects that we're calling markroot (which has write
+    barriers) from gchelper, which is called from the scheduler during STW
+    apparently without a P.
+    
+    But it turns out that func helpgc, which wakes up blocked Ms to run
+    gchelper, installs a P for gchelper to use. This means there *is* a P
+    when gchelper runs, so it is allowed to have write barriers. Tell the
+    compiler this by marking gchelper go:yeswritebarrierrec. Also,
+    document the call to gchelper so I don't have to spend another half a
+    day puzzling over how on earth this could possibly work before
+    discovering the spooky action-at-a-distance in helpgc.
+    
+    Updates #22384.
+    For #22460.
+    
+    Change-Id: I7394c9b4871745575f87a2d4fbbc5b8e54d669f7
+    Reviewed-on: https://go-review.googlesource.com/72772
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go  | 13 ++++++++++---
+ src/runtime/proc.go |  2 ++
+ 2 files changed, 12 insertions(+), 3 deletions(-)

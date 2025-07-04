@@ -1,0 +1,15 @@
+commit 7faf70239670c3c1f8b4b530aba8847a03860f2a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 4 21:15:42 2016 -0700
+
+    runtime: avoid endless loop if printing the panic value panics
+    
+    Change-Id: I56de359a5ccdc0a10925cd372fa86534353c6ca0
+    Reviewed-on: https://go-review.googlesource.com/30358
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/crash_test.go                 |  7 +++++++
+ src/runtime/panic.go                      |  5 +++++
+ src/runtime/testdata/testprog/deadlock.go | 11 +++++++++++
+ 3 files changed, 23 insertions(+)

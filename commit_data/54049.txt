@@ -1,0 +1,22 @@
+commit 14a3ffc3d2165ef03c3ffd0037a4fa6dbb776026
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jun 28 12:03:22 2023 +0700
+
+    cmd/compile: use types2.Sizes instead of compiler own implementation
+    
+    With #61035 fixed, types2.Sizes matches the compiler behavior, so use its
+    Sizes implementation instead of rolling our own copy.
+    
+    Updates #61035
+    
+    Change-Id: I7b9efd27a01f729a04c79cd6b4ee5f417fe6e664
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506716
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/noder/irgen.go |   3 +-
+ src/cmd/compile/internal/noder/sizes.go | 185 --------------------------------
+ 2 files changed, 2 insertions(+), 186 deletions(-)

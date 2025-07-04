@@ -1,0 +1,19 @@
+commit 336ae0d242bca424d0a0a48b663d290af7968ba9
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Thu Feb 28 13:58:11 2019 +0100
+
+    cmd: update vendored golang.org/x/sys/unix
+    
+    This pulls in CL 164497.
+    
+    Fixes #24771
+    
+    Change-Id: I88f2062e2c42363591dcb9e592a7a8381268ddeb
+    Reviewed-on: https://go-review.googlesource.com/c/164460
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vendor/golang.org/x/sys/unix/sockcmsg_unix.go | 4 ++--
+ src/cmd/vendor/vendor.json                            | 6 +++---
+ 2 files changed, 5 insertions(+), 5 deletions(-)

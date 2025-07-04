@@ -1,0 +1,21 @@
+commit 95483f262b619a53793baf86512aeabf44fc9d3a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 29 19:20:51 2016 -0700
+
+    os/exec: start checking for context cancelation in Start
+    
+    Previously we started checking for context cancelation in Wait, but
+    that meant that when using StdoutPipe context cancelation never took
+    effect.
+    
+    Fixes #16222.
+    
+    Change-Id: I89cd26d3499a6080bf1a07718ce38d825561899e
+    Reviewed-on: https://go-review.googlesource.com/24650
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/exec/exec.go      | 36 ++++++++++++++++---------
+ src/os/exec/exec_test.go | 70 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 93 insertions(+), 13 deletions(-)

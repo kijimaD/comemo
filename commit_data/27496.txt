@@ -1,0 +1,13 @@
+commit ba867a86fa28f9edca64b682bc2df66e73967f56
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 24 02:50:17 2016 -0400
+
+    api: update next.txt
+    
+    Change-Id: I7b38309d927409a92f68f5d26f491b0166eba838
+    Reviewed-on: https://go-review.googlesource.com/23378
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ api/next.txt | 59 +++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 55 insertions(+), 4 deletions(-)

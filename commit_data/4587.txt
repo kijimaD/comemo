@@ -1,0 +1,13 @@
+commit cbd3b2e8d594ac0298b32de111bf99319342c494
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jan 12 15:43:20 2010 -0800
+
+    Add 'bench' target to makefiles.
+    
+    R=rsc, agl, r
+    CC=golang-dev
+    https://golang.org/cl/188043
+
+ src/Make.pkg     |  3 +++
+ src/pkg/Makefile | 12 ++++++++++++
+ 2 files changed, 15 insertions(+)

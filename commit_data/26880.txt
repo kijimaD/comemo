@@ -1,0 +1,25 @@
+commit 6fb8bf9d7940b2e2a90249e1894ad4e3d24fd3e7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 12 14:04:01 2016 -0700
+
+    net: make two tests not parallel
+    
+    Running
+    
+    stress -p 1 go test -short std
+    
+    on a heavily loaded machine causes net timeouts
+    every 15 or 20 runs.
+    Making these tests not run in parallel helps.
+    With this change, I haven’t seen a single failure
+    in over 100 runs.
+    
+    Fixes #14986
+    
+    Change-Id: Ibaa14869ce8d95b00266aee94d62d195927ede68
+    Reviewed-on: https://go-review.googlesource.com/21905
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/timeout_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,0 +1,44 @@
+commit 1d547e4a68f1acff6b7d1c656ea8aa665e34055f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 6 02:17:24 2017 -0500
+
+    hash: add MarshalBinary/UnmarshalBinary round trip + golden test for all implementations
+    
+    There are some basic tests in the packages implementing the hashes,
+    but this one is meant to be comprehensive for the standard library
+    as a whole.
+    
+    Most importantly, it locks in the current representations and makes
+    sure that they do not change from release to release (and also, as a
+    result, that future releases can parse the representations generated
+    by older releases).
+    
+    The crypto/* MarshalBinary implementations are being changed
+    in this CL to write only d.x[:d.nx] to the encoding, with zeros for
+    the remainder of the slice d.x[d.nx:]. The old encoding wrote the
+    whole d.x, but that exposed an internal detail: whether d.x is
+    cleared after a full buffer is accumulated, and also whether d.x was
+    used at all for previous blocks (consider 1-byte writes vs 1024-byte writes).
+    The new encoding writes only what the decoder needs to know,
+    nothing more.
+    
+    In fact the old encodings were arguably also a security hole,
+    because they exposed data written even before the most recent
+    call to the Reset method, data that clearly has no impact on the
+    current hash and clearly should not be exposed. The leakage
+    is clearly visible in the old crypto/sha1 golden test tables also
+    being modified in this CL.
+    
+    Change-Id: I4e9193a3ec5f91d27ce7d0aa24c19b3923741416
+    Reviewed-on: https://go-review.googlesource.com/82136
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/crypto/md5/md5.go        |   3 +-
+ src/crypto/sha1/sha1.go      |   3 +-
+ src/crypto/sha1/sha1_test.go |  64 +++++++++++++-------------
+ src/crypto/sha256/sha256.go  |   3 +-
+ src/crypto/sha512/sha512.go  |   3 +-
+ src/hash/marshal_test.go     | 107 +++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 147 insertions(+), 36 deletions(-)

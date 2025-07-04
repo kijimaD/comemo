@@ -1,0 +1,16 @@
+commit 0830f64bf0a95c310b6396ea53279b17e35f82ad
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 18 10:33:47 2013 -0800
+
+    liblink: don't search for an import file with an absolute path
+    
+    This restores the old behaviour, and makes it possible to
+    continue to use 6g and 6l directly, rather than the go tool,
+    with dot imports.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/43710043
+
+ src/liblink/ld.c | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

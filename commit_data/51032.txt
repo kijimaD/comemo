@@ -1,0 +1,19 @@
+commit 3aebf682e4928ab490b64b3ba6729c78c9d066ba
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 31 14:58:40 2022 -0400
+
+    cmd/api: skip tests when 'os/exec' is supported but 'go build' is not
+    
+    This may fix the android-.*-emu builders, which are currently broken.
+    
+    For #47257.
+    
+    Change-Id: I370dad2cb8031f8f5fdfbeb9c284c4f79f58d929
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446638
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/api/goapi_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

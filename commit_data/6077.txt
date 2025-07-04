@@ -1,0 +1,12 @@
+commit 2b73ad592ca7569e3653afae448217af202b3ceb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 24 17:24:40 2010 -0700
+
+    time: Remove unused zoneinfo.go (replaced by zoneinfo_unix.go).
+    
+    R=r, rsc
+    CC=brainman, golang-dev
+    https://golang.org/cl/2020043
+
+ src/pkg/time/zoneinfo.go | 243 -----------------------------------------------
+ 1 file changed, 243 deletions(-)

@@ -1,0 +1,18 @@
+commit 0f4b53c1c2db3ae7f3ed25ba7e5149baf14fc46c
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 17 00:36:23 2014 -0700
+
+    runtime: reconstitute runetochar for use by gostringw.
+    
+    Fixes windows builds (hopefully).
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/103470045
+
+ src/pkg/runtime/export_test.go |  4 ++
+ src/pkg/runtime/string.c       | 92 +++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/runtime/string_test.go | 23 +++++++++++
+ src/pkg/runtime/stubs.goc      |  6 +++
+ 4 files changed, 123 insertions(+), 2 deletions(-)

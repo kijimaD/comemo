@@ -1,0 +1,21 @@
+commit 030ca34f5786f0b924dcab26379ee2f82104220d
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Dec 1 21:59:00 2022 +0100
+
+    path/filepath: remove extra Clean call in EvalSymlinks on Windows
+    
+    EvalSymlinks calls Clean twice, one in walkSymlinks and another in
+    toNorm. The later is not necessary, as toNorm is only called by
+    EvalSymlinks and just after walkSymlinks cleans the path without any
+    path manipulation in between.
+    
+    Change-Id: Ibdb782c7eed59468f0ebb913e98d2a7db0df010d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454615
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+
+ src/path/filepath/path_windows_test.go | 10 ++++++++--
+ src/path/filepath/symlink_windows.go   |  2 --
+ 2 files changed, 8 insertions(+), 4 deletions(-)

@@ -1,0 +1,13 @@
+commit 6b8ac0a9e40668402d7b5f692b6e41cfa290a5b4
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 5 19:26:27 2009 -0800
+
+    document rand
+    
+    R=rsc
+    DELTA=27  (16 added, 8 deleted, 3 changed)
+    OCL=25804
+    CL=25813
+
+ src/lib/rand.go | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

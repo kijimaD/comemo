@@ -1,0 +1,20 @@
+commit 73483df406af39e6c244fd2fb90b41c4cfecd51e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 8 21:30:01 2021 -0700
+
+    cmd/compile/internal/syntax: better error message for missing type constraint
+    
+    For #43527.
+    
+    Change-Id: I8c706e68572286d5675383eb2dfd75b5618b646b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348730
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go          | 22 +++++++++++++++------
+ .../internal/syntax/testdata/issue43527.go2        | 23 ++++++++++++++++++++++
+ .../compile/internal/syntax/testdata/tparams.go2   |  8 ++++----
+ .../types2/testdata/fixedbugs/issue47996.go2       |  2 +-
+ 4 files changed, 44 insertions(+), 11 deletions(-)

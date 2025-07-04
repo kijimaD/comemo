@@ -1,0 +1,20 @@
+commit fb59aed60b64319ad6fb1d6e6f18e7b1d96aaf77
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 6 16:57:14 2013 -0500
+
+    cmd/cgo: split cgo_export into cgo_export_static and cgo_export_dynamic
+    
+    Also emit cgo_ldflag pragmas.
+    
+    R=golang-dev, remyoudompheng, iant
+    CC=golang-dev
+    https://golang.org/cl/7530043
+
+ src/cmd/cc/dpchk.c  | 22 ++++++++++++++++++----
+ src/cmd/cgo/doc.go  | 14 +++++++++++---
+ src/cmd/cgo/gcc.go  |  6 +-----
+ src/cmd/cgo/main.go |  4 ++--
+ src/cmd/cgo/out.go  | 11 +++++++++--
+ src/cmd/ld/go.c     | 29 ++++++++++++++++++++++-------
+ src/cmd/ld/lib.h    |  2 ++
+ 7 files changed, 65 insertions(+), 23 deletions(-)

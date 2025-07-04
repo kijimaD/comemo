@@ -1,0 +1,18 @@
+commit 814c749c8fa815a8ddf8184bcac8990ef0dea006
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 4 14:32:59 2018 -0700
+
+    cmd/go: force untranslated output when running GCC/clang driver
+    
+    When we look for the tool ID to use for a compiler, force untranslated
+    output so that we can match the literal string "version".
+    
+    Fixes https://gcc.gnu.org/PR84765
+    
+    Change-Id: I607df445dbd3c5a7c3a6907601adcb039ac16fc1
+    Reviewed-on: https://go-review.googlesource.com/111575
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/work/buildid.go | 2 ++
+ 1 file changed, 2 insertions(+)

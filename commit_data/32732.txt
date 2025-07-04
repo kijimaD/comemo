@@ -1,0 +1,16 @@
+commit af860838123548e67232373d86453cdc4838e9d6
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Sep 14 19:47:18 2017 -0500
+
+    cmd/compile: fix typo in floating point rule
+    
+    Change-Id: Idfb64fcb26f48d5b70bab872f9a3d96a036be681
+    Reviewed-on: https://go-review.googlesource.com/63950
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/float_test.go      | 13 +++++++++++++
+ src/cmd/compile/internal/ssa/gen/generic.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  4 ++--
+ 3 files changed, 16 insertions(+), 3 deletions(-)

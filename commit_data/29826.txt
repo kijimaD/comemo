@@ -1,0 +1,18 @@
+commit 34bd7d5d4bf93484f920d2ccb12183f530a684e6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Dec 15 18:00:12 2016 +0900
+
+    net: fix comment on IPv4bcast
+    
+    In Go 1.8, almost all the platforms except NaCl provide network
+    interface and address identification and applications can use IPv4
+    limited or directed broadcast addresses appropriately.
+    
+    Fixes #18176.
+    
+    Change-Id: Ie5de834d19c0aaeb4128a3ca655f6c4c9ae5e501
+    Reviewed-on: https://go-review.googlesource.com/34435
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/ip.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

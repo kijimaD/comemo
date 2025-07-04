@@ -1,0 +1,18 @@
+commit 3af5280c003038e5fea1a84e7e57e85e96e131a3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 27 14:10:08 2022 -0700
+
+    net: really skip Windows PTR tests if we say we are skipping them
+    
+    For #38111
+    
+    Change-Id: I2651687367af68ee070ea91106f4bc18adab2762
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414634
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/lookup_windows_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

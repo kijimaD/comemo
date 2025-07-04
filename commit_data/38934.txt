@@ -1,0 +1,17 @@
+commit 6b692300a136ab92bd16ccc6134a0f19f2cd63be
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Apr 28 18:02:36 2019 +1000
+
+    runtime: remove spurious register loads for openbsd/amd64 kqueue
+    
+    The kqueue system call takes no arguments, hence there should be no need
+    to zero the registers used for the first syscall arguments.
+    
+    Change-Id: Ia79b2d4f4d568bb6795cb885e1464cf1fc2bf7c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174128
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ src/runtime/sys_openbsd_amd64.s | 3 ---
+ 1 file changed, 3 deletions(-)

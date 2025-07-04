@@ -1,0 +1,21 @@
+commit f50ced6d734038b7231bef3c674d541f95b2f23b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 16 16:43:34 2016 -0700
+
+    cmd/compile: remove encoding of safemode bit from export data
+    
+    Removes the encoding of this bit which was ignored but left behind
+    for 1.7 to minimize pre-1.7 export format changes. See the issue
+    for more details.
+    
+    Fixes #15772.
+    
+    Change-Id: I46cd7a66ad4c6003b78c64295cf3bda503ebf2dd
+    Reviewed-on: https://go-review.googlesource.com/27201
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 1 -
+ src/cmd/compile/internal/gc/bimport.go | 3 ---
+ src/cmd/compile/internal/gc/builtin.go | 6 +++---
+ 3 files changed, 3 insertions(+), 7 deletions(-)

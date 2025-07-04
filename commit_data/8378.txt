@@ -1,0 +1,14 @@
+commit cc5ac676da74807a8328ec240b268cd2b53a0b7e
+Author: Sameer Ajmani <ajmani@gmail.com>
+Date:   Fri May 13 11:05:03 2011 -0400
+
+    misc/emacs: bug fix: use UTF-8 when invoking gofmt as a subprocess.
+    Without this, Unicode characters are stripped out by M-x gofmt.
+    
+    R=rsc, amdragon
+    CC=golang-dev
+    https://golang.org/cl/4523065
+
+ misc/emacs/go-mode-load.el | 2 +-
+ misc/emacs/go-mode.el      | 4 +++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

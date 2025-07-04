@@ -1,0 +1,15 @@
+commit 59be46ca3587725bde3708605f818cbbce7cf64c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 8 16:36:46 2009 -0700
+
+    use exitgroup on linux to exit whole process.
+    
+    R=r
+    DELTA=60  (38 added, 19 deleted, 3 changed)
+    OCL=28589
+    CL=28589
+
+ src/lib/os/Makefile                    |  6 +++---
+ src/lib/os/{proc.go => proc_darwin.go} |  0
+ src/lib/os/proc_linux.go               | 20 ++++++++++++++++++++
+ 3 files changed, 23 insertions(+), 3 deletions(-)

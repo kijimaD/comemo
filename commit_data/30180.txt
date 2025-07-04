@@ -1,0 +1,29 @@
+commit e24228af2566593a18932b563e548d288ea3cbb7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 6 20:54:41 2016 -0800
+
+    runtime: enable/disable SIGPROF if needed when profiling
+    
+    This ensures that SIGPROF is handled correctly when using
+    runtime/pprof in a c-archive or c-shared library.
+    
+    Separate profiler handling into pre-process changes and per-thread
+    changes. Simplify the Windows code slightly accordingly.
+    
+    Fixes #18220.
+    
+    Change-Id: I5060f7084c91ef0bbe797848978bdc527c312777
+    Reviewed-on: https://go-review.googlesource.com/34018
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ misc/cgo/testcarchive/carchive_test.go      | 35 ++++++++++++++++++++++++
+ misc/cgo/testcarchive/main6.c               | 34 ++++++++++++++++++++++++
+ misc/cgo/testcarchive/src/libgo6/sigprof.go | 25 ++++++++++++++++++
+ src/runtime/os3_plan9.go                    |  5 +++-
+ src/runtime/os_nacl.go                      |  3 ++-
+ src/runtime/os_windows.go                   |  8 +++---
+ src/runtime/proc.go                         | 15 ++++++-----
+ src/runtime/signal_unix.go                  | 41 ++++++++++++++++++++++++++++-
+ 8 files changed, 152 insertions(+), 14 deletions(-)

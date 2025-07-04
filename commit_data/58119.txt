@@ -1,0 +1,24 @@
+commit e82308c198fbc26800fd1780cbd9f29935b210c5
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Nov 19 13:38:42 2024 +0100
+
+    internal/syscall/unix, os: add and use Waitid syscall wrapper on linux
+    
+    Instead of open-coding the waitid syscall wrapper add it to
+    internal/syscall/unix. As the syscall is currently only used on Linux,
+    switch the implementation in os.(*Process).blockUntilWaitable to use the
+    128-byte unix.SiginfoChild type instead of a plain 128-byte buffer.
+    
+    Also use ignoringEINTR for the waitid calls instead of open-coding it.
+    
+    Change-Id: I8dc47e361faa1f5e912d5de021f119c91c9f12f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629655
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/internal/syscall/unix/waitid_linux.go | 23 +++++++++++++++++++++++
+ src/os/pidfd_linux.go                     | 28 +++++++++-------------------
+ src/os/wait_waitid.go                     | 17 +++--------------
+ 3 files changed, 35 insertions(+), 33 deletions(-)

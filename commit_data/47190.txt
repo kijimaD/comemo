@@ -1,0 +1,22 @@
+commit 1011e26b9cec8b5e7b0b827805b2fe079904521a
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Nov 2 11:52:36 2021 -0700
+
+    net/http: deflake TestServerKeepAlivesEnabled_h{1,2}
+    
+    This test assumes that two successive TCP connections will use different
+    source ports. This does not appear to be a universally safe assumption.
+    
+    Rewrite the test to use httptrace to detect connection reuse instead.
+    
+    Fixes #46707
+    
+    Change-Id: Iebfbdfdeb77a1e6663a0c654dc847cc270c5d54d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360854
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/net/http/serve_test.go | 42 +++++++++++++++++++++++++++++-------------
+ 1 file changed, 29 insertions(+), 13 deletions(-)

@@ -1,0 +1,12 @@
+commit 00d838b7b5f1b41f4b29363d727fe2830daef4fe
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jun 22 15:22:49 2010 +0100
+
+    misc/vim: always override filetype detection for .go files
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/1665043
+
+ misc/vim/ftdetect/gofiletype.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 573c2fd4fe12a724629f8eb7e9ed13fc153f0a6b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jun 7 10:46:56 2013 +1000
+
+    godoc: always use local jQuery script
+    
+    Fixes #5075.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/10084044
+
+ lib/godoc/godoc.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

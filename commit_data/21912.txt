@@ -1,0 +1,56 @@
+commit 0bf79b2de8bf75093629b1861a49efca1dbc0356
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 4 15:46:52 2015 -0500
+
+    cmd/internal/obj/x86: take over i386 duty, clean up PINSRQ, CMPSD
+    
+    Make cmd/internal/obj/x86 support 32-bit mode and use
+    instead of cmd/internal/obj/i386. Delete cmd/internal/obj/i386.
+    
+    Clean up encoding of PINSRQ, CMPSD to use explicit third arg
+    instead of jamming it into an unused slot of a different arg.
+    
+    Also fix bug in old6a, which declared the wrong grammar.
+    The accepted (and encoded) arguments to CMPSD etc are mem,reg not reg,mem.
+    Code that did try to use mem,reg before would be rejected by liblink,
+    so only reg,reg ever worked, so existing code is not affected.
+    After this change, code can use mem,reg successfully.
+    
+    The real bug here is that the encoding tables inverted the argument
+    order, making the comparisons all backward from what they say on the page.
+    It's too late to swap them, though: people have already written code that
+    expects the inverted comparisons (like in package math, and likely externally).
+    The best we can do is make the argument that should and can take a
+    memory operand accept it.
+    
+    Bit-for-bit compatibility checked against tree without this CL.
+    
+    Change-Id: Ife5685bc98c95001f64407f35066b34b4dae11c1
+    Reviewed-on: https://go-review.googlesource.com/6810
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/8g/cgen.go                        |   2 +-
+ src/cmd/8g/cgen64.go                      |   2 +-
+ src/cmd/8g/galign.go                      |   2 +-
+ src/cmd/8g/gg.go                          |   2 +-
+ src/cmd/8g/ggen.go                        |   2 +-
+ src/cmd/8g/gsubr.go                       |   2 +-
+ src/cmd/8g/peep.go                        |   2 +-
+ src/cmd/8g/prog.go                        |   2 +-
+ src/cmd/8g/reg.go                         |   2 +-
+ src/cmd/asm/internal/arch/arch.go         |  89 +---
+ src/cmd/asm/internal/asm/endtoend_test.go |   2 +
+ src/cmd/dist/buildtool.go                 |   4 +-
+ src/cmd/internal/obj/link.go              |   1 +
+ src/cmd/internal/obj/x86/6.out.go         |  13 +
+ src/cmd/internal/obj/x86/anames6.go       |  13 +
+ src/cmd/internal/obj/x86/asm6.go          | 673 +++++++++++++++++++++++-------
+ src/cmd/internal/obj/x86/list6.go         |  53 ++-
+ src/cmd/internal/obj/x86/obj6.go          | 137 ++++--
+ src/cmd/old6a/a.y                         |  17 +-
+ src/cmd/old6a/lex.go                      |   6 +-
+ src/cmd/old6a/y.go                        | 231 +++++-----
+ src/cmd/old8a/a.y                         |   4 +-
+ src/cmd/old8a/lex.go                      |   2 +-
+ src/cmd/old8a/y.go                        | 178 ++++----
+ 24 files changed, 907 insertions(+), 534 deletions(-)

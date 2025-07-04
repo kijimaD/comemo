@@ -1,0 +1,15 @@
+commit 10c36fbc9d413062de4a1ecd59b9c5f7dc82b0c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 9 16:42:07 2013 -0400
+
+    encoding/xml: fix panic in Marshal
+    
+    Fixes #6341.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13512048
+
+ src/pkg/encoding/xml/marshal.go      | 10 ++++++++--
+ src/pkg/encoding/xml/marshal_test.go |  8 ++++++++
+ 2 files changed, 16 insertions(+), 2 deletions(-)

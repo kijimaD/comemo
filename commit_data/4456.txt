@@ -1,0 +1,13 @@
+commit 7fcf4221812c8e875b4ff56632b82d2d0f560519
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 17 14:10:49 2009 -0800
+
+    use new tab indentation format in godoc, but convert
+    leading tabs into spaces to ensure a good outcome in
+    most browsers
+    
+    R=rsc
+    https://golang.org/cl/165051
+
+ src/cmd/godoc/godoc.go | 72 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 70 insertions(+), 2 deletions(-)

@@ -1,0 +1,28 @@
+commit 82f902ae8e2b7f7eff0cdb087e47e939cc296a62
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Mon Nov 1 06:42:01 2021 +0100
+
+    strings: align Clone output with string([]byte(""))
+    
+    Add a comment how strings of length 0 are treated and
+    that they always will result in the return of a string
+    equal to the constant string "".
+    
+    The previous implementation would return a string header that uses
+    runtime.zerobase as the backing array pointer while the string constant
+    "" has 0 as pointer value.
+    
+    Using 0 has the backing array pointer is also the behaviour of
+    string([]byte(input)) which makes the new behaviour a better drop in
+    replacement.
+    
+    Change-Id: Ic5460e9494b6708edbdfa4361e878d50db54ba10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360255
+    Trust: Martin Möhrmann <martin@golang.org>
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/strings/clone.go      |  5 +++++
+ src/strings/clone_test.go | 11 ++++++++++-
+ 2 files changed, 15 insertions(+), 1 deletion(-)

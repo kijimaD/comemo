@@ -1,0 +1,123 @@
+commit 08ca30bbfad04d3ca1bf7ae75c291b91ecb00aef
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 19 03:05:37 2008 -0800
+
+    change *map to map; *chan to chan; new(T) to new(*T)
+    fix bugs left over from *[] to [] conversion.
+    
+    TBR=r
+    OCL=21576
+    CL=21581
+
+ src/cmd/gotest/gotest               |   2 +-
+ src/lib/bignum.go                   |  30 +--
+ src/lib/bufio.go                    |  30 +--
+ src/lib/bufio_test.go               |  10 +-
+ src/lib/container/array/array.go    |   2 +-
+ src/lib/container/array/intarray.go |   2 +-
+ src/lib/flag.go                     |   8 +-
+ src/lib/hash/adler32.go             |   2 +-
+ src/lib/hash/crc32.go               |   2 +-
+ src/lib/hash/md5.go                 |   2 +-
+ src/lib/hash/sha1.go                |   2 +-
+ src/lib/http/conn.go                |   2 +-
+ src/lib/http/request.go             |  10 +-
+ src/lib/http/url.go                 |   2 +-
+ src/lib/io/bytebuffer.go            |   2 +-
+ src/lib/json/generic.go             |  10 +-
+ src/lib/json/parse.go               |   4 +-
+ src/lib/json/struct_test.go         |   4 +-
+ src/lib/net/dialgoogle_test.go      |   2 +-
+ src/lib/net/dnsclient.go            |  16 +-
+ src/lib/net/dnsconfig.go            |   2 +-
+ src/lib/net/dnsmsg.go               |  35 ++--
+ src/lib/net/fd.go                   |  12 +-
+ src/lib/net/fd_darwin.go            |   6 +-
+ src/lib/net/fd_linux.go             |   8 +-
+ src/lib/net/ip.go                   |  40 ++--
+ src/lib/net/net.go                  |  30 ++-
+ src/lib/net/net_darwin.go           |  23 ++-
+ src/lib/net/net_linux.go            |  10 +-
+ src/lib/net/port.go                 |   4 +-
+ src/lib/net/tcpserver_test.go       |  12 +-
+ src/lib/once.go                     |   6 +-
+ src/lib/regexp/regexp.go            |  40 ++--
+ src/lib/strconv/atof.go             |   2 +-
+ src/lib/strconv/decimal.go          |   2 +-
+ src/lib/sync/mutex_test.go          |   8 +-
+ src/lib/syscall/file_linux.go       |  10 +-
+ src/lib/tabwriter/tabwriter.go      |  22 +--
+ src/lib/testing.go                  |   4 +-
+ src/lib/time/tick.go                |   6 +-
+ src/lib/time/time.go                |   2 +-
+ src/lib/time/zoneinfo.go            |  34 ++--
+ src/run.bash                        |   5 +-
+ test/235.go                         |  10 +-
+ test/bugs/bug121.go                 |   2 +-
+ test/chan/fifo.go                   |   2 +-
+ test/chan/goroutines.go             |   4 +-
+ test/chan/nonblock.go               |  32 ++--
+ test/chan/powser1.go                |  29 ++-
+ test/chan/powser2.go                |  27 ++-
+ test/chan/select.go                 |   2 +-
+ test/chan/sieve.go                  |   6 +-
+ test/complit.go                     |   8 +-
+ test/fixedbugs/bug011.go            |   2 +-
+ test/fixedbugs/bug026.go            |   4 +-
+ test/fixedbugs/bug027.go            |  14 +-
+ test/fixedbugs/bug038.go            |   2 +-
+ test/fixedbugs/bug045.go            |   2 +-
+ test/fixedbugs/bug054.go            |   8 +-
+ test/fixedbugs/bug058.go            |   4 +-
+ test/fixedbugs/bug059.go            |   2 +-
+ test/fixedbugs/bug066.go            |   2 +-
+ test/fixedbugs/bug067.go            |   2 +-
+ test/fixedbugs/bug069.go            |   2 +-
+ test/fixedbugs/bug071.go            |   2 +-
+ test/fixedbugs/bug075.go            |   4 +-
+ test/fixedbugs/bug078.go            |   2 +-
+ test/fixedbugs/bug084.go            |   2 +-
+ test/fixedbugs/bug099.go            |   2 +-
+ test/fixedbugs/bug111.go            |   2 +-
+ test/fixedbugs/bug118.go            |   2 +-
+ test/func.go                        |   2 +-
+ test/hashmap.go                     |  26 +--
+ test/hilbert.go                     |   2 +-
+ test/initcomma.go                   |   2 +-
+ test/interface1.go                  |   4 +-
+ test/ken/array.go                   |   2 +-
+ test/ken/chan.go                    |   6 +-
+ test/ken/embed.go                   |   8 +-
+ test/ken/interfun.go                |   2 +-
+ test/ken/intervar.go                |   6 +-
+ test/ken/ptrfun.go                  |   2 +-
+ test/ken/range.go                   |   2 +-
+ test/ken/rob1.go                    |   6 +-
+ test/ken/rob2.go                    |   6 +-
+ test/ken/robfunc.go                 |   2 +-
+ test/ken/simparray.go               |   2 +-
+ test/ken/simpbool.go                |   2 +-
+ test/ken/string.go                  |   2 +-
+ test/map.go                         |  16 +-
+ test/nil.go                         |   6 +-
+ test/peano.go                       |   4 +-
+ test/sieve.go                       |   4 +-
+ test/test0.go                       |   4 +-
+ test/utf.go                         |   2 +-
+ test/vectors.go                     |   4 +-
+ usr/gri/gosrc/ast.go                |   6 +-
+ usr/gri/gosrc/compilation.go        |   6 +-
+ usr/gri/gosrc/decls.go              |   2 +-
+ usr/gri/gosrc/globals.go            |  16 +-
+ usr/gri/gosrc/go.go                 |  14 +-
+ usr/gri/gosrc/parser.go             | 364 ++++++++++++++++++------------------
+ usr/gri/gosrc/scanner.go            |  82 ++++----
+ usr/gri/gosrc/test_scanner.go       |   4 +-
+ usr/gri/gosrc/verifier.go           |  20 +-
+ usr/gri/pretty/ast.go               |  16 +-
+ usr/gri/pretty/compilation.go       |  30 +--
+ usr/gri/pretty/globals.go           |  18 +-
+ usr/gri/pretty/parser.go            | 224 +++++++++++-----------
+ usr/gri/pretty/scanner.go           |  82 ++++----
+ usr/gri/pretty/selftest2.go         |   2 +-
+ 111 files changed, 814 insertions(+), 845 deletions(-)

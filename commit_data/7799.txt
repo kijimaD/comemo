@@ -1,0 +1,13 @@
+commit 2ca46a789b287c2c265dab8b4a05911b5304921d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 17 13:46:05 2011 -0400
+
+    time: isolate syscall reference in sys.go
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4291052
+
+ src/pkg/time/sleep.go |  5 ++---
+ src/pkg/time/sys.go   | 14 +++++++++++---
+ 2 files changed, 13 insertions(+), 6 deletions(-)

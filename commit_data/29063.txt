@@ -1,0 +1,29 @@
+commit 45b43f6198436b18a0b5f64a3176d632e4f1c855
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Oct 25 15:13:07 2016 -0500
+
+    cmd/objdump: updates from golang.org/x/arch/ppc64/ppc64asm
+    
+    Update the ppc64x disassembly code for use by objdump
+    from golang.org/x/arch/ppc64/ppc64asm commit fcea5ea.
+    Enable the objdump testcase for external linking on ppc64le
+    make a minor fix to the expected output.
+    
+    Fixes #17447
+    
+    Change-Id: I769cc7f8bfade594690a476dfe77ab33677ac03b
+    Reviewed-on: https://go-review.googlesource.com/32015
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/objdump/objdump_test.go                    |   4 +-
+ .../golang.org/x/arch/ppc64/ppc64asm/decode.go     |   5 +
+ .../golang.org/x/arch/ppc64/ppc64asm/ext_test.go   |   2 +-
+ .../golang.org/x/arch/ppc64/ppc64asm/inst.go       | 102 ++++---
+ .../x/arch/ppc64/ppc64asm/objdump_test.go          |   5 +-
+ .../x/arch/ppc64/ppc64asm/objdumpext_test.go       |   2 +-
+ .../golang.org/x/arch/ppc64/ppc64asm/plan9.go      |  13 +-
+ .../golang.org/x/arch/ppc64/ppc64asm/tables.go     | 329 +++++++++++----------
+ .../x/arch/ppc64/ppc64asm/testdata/decode.txt      |   2 +-
+ 9 files changed, 259 insertions(+), 205 deletions(-)

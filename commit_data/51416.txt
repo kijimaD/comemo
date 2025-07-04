@@ -1,0 +1,26 @@
+commit f41fdc126786ced31e58649d2a1f5ec8da13c439
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 15 11:30:55 2022 -0500
+
+    doc/go1.20: document changes to the loopclosure vet analysis
+    
+    Address the release notes TODO regarding the loopclosure analyzer,
+    documenting the new warning for parallel subtests.
+    
+    In doing so, choose a structure for the vet section, opting for h4
+    headings. In recent years, we have used either h4 headings or simple
+    paragraphs to document vet changes. This year, I thought it worthwhile
+    to put the timeformat and loopclosure changes into separate sections.
+    
+    Also document the improvements to reference capture detection introduced
+    in CL 452615.
+    
+    Change-Id: I05886f7025d66bb7f2609f787f69d1a769ca6f5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450735
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.20.html | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

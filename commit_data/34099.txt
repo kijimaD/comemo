@@ -1,0 +1,24 @@
+commit ce5fa6d5e9977f30bbcc16b0b42d51896a1c40cc
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Feb 8 11:39:50 2018 -0500
+
+    cmd/internal/obj/mips: fix use of R28 on 32-bit MIPS
+    
+    R28 is used as the SB register on MIPS64, and it was printed as
+    "RSB" on both 32-bit and 64-bit MIPS. This is confusing on MIPS32
+    as there R28 is just a general purpose register. Further, this
+    string representation is used in the assembler's frontend to parse
+    register symbols, and this leads to failure in parsing R28 in
+    MIPS32 assembly code. Change rconv to always print the register
+    as R28. This fixes the parsing problem on MIPS32, and this is
+    a reasonable representation on both MIPS32 and MIPS64.
+    
+    Change-Id: I30d6c0a442fbb08ea615f32f1763b5baadcee1da
+    Reviewed-on: https://go-review.googlesource.com/92915
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/asm/internal/asm/operand_test.go | 3 ++-
+ src/cmd/internal/obj/mips/list0.go       | 4 ----
+ 2 files changed, 2 insertions(+), 5 deletions(-)

@@ -1,0 +1,15 @@
+commit 17596948e355e3b875472b7e754d72adddd8e606
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 4 14:08:47 2008 -0800
+
+    get rid of bignum leftovers
+    
+    R=r
+    OCL=18475
+    CL=18475
+
+ usr/gri/bignum/Makefile        |  20 --
+ usr/gri/bignum/integer.go      | 635 -----------------------------------------
+ usr/gri/bignum/make.bash       |  16 --
+ usr/gri/bignum/test_integer.go | 137 ---------
+ 4 files changed, 808 deletions(-)

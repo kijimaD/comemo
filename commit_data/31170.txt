@@ -1,0 +1,20 @@
+commit 94b6011c78484357ef632f3cce3b382a0bc4c2cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 11 13:39:24 2017 -0700
+
+    spec: clarify use of fused-floating point operations
+    
+    Added a paragraph and examples explaining when an implementation
+    may use fused floating-point operations (such as FMA) and how to
+    prevent operation fusion.
+    
+    For #17895.
+    
+    Change-Id: I64c9559fc1097e597525caca420cfa7032d67014
+    Reviewed-on: https://go-review.googlesource.com/40391
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go_spec.html | 31 +++++++++++++++++++++++++++++--
+ 1 file changed, 29 insertions(+), 2 deletions(-)

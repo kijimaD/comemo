@@ -1,0 +1,50 @@
+commit d79aea6b9622650b01df64c7930567ad0267a3fc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 15 09:39:29 2019 -0700
+
+    cmd/link: deduplicate pctab info in pclntab
+    
+    The existing pclntab construction took care to re-use strings:
+    filenames and fully qualified function names.
+    
+    It did not try to deduplicate pctab information,
+    perhaps because the author assumed that there
+    wouldn't be much duplication.
+    
+    This change introduces that deduplication.
+    The cache gets a 33% hit rate during make.bash.
+    
+    This doesn't require any changes to the file format,
+    and shrinks binaries by about 1%.
+    
+    Updates #6853
+    
+    file      before    after     Δ        %
+    go        14659236  14515876  -143360  -0.978%
+    addr2line 4272424   4223272   -49152   -1.150%
+    api       6050808   5993464   -57344   -0.948%
+    asm       4906416   4869552   -36864   -0.751%
+    buildid   2861104   2824240   -36864   -1.288%
+    cgo       4859784   4810632   -49152   -1.011%
+    compile   25749656  25213080  -536576  -2.084%
+    cover     5286952   5229608   -57344   -1.085%
+    dist      3634192   3597328   -36864   -1.014%
+    doc       4691080   4641928   -49152   -1.048%
+    fix       3397960   3361096   -36864   -1.085%
+    link      6113568   6064432   -49136   -0.804%
+    nm        4221928   4172776   -49152   -1.164%
+    objdump   4636600   4587448   -49152   -1.060%
+    pack      2281184   2256608   -24576   -1.077%
+    pprof     14641204  14485556  -155648  -1.063%
+    test2json 2814536   2785864   -28672   -1.019%
+    trace     11602204  11487516  -114688  -0.989%
+    vet       8399528   8313512   -86016   -1.024%
+    
+    Change-Id: I59c6aae522700a0d36ddd2cbca6e22ecdf17eea2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172079
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/pcln.go | 32 ++++++++++++++++++--------------
+ 1 file changed, 18 insertions(+), 14 deletions(-)

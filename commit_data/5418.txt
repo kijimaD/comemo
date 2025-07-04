@@ -1,0 +1,14 @@
+commit 26078c395a185550d29538650943c19b7adff479
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat May 1 15:11:27 2010 -0700
+
+    big: cleanup and removal of redundant functionality
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1048041
+
+ src/pkg/big/arith.go    | 25 +++++++++++++++-----
+ src/pkg/big/nat.go      | 63 ++++++++-----------------------------------------
+ src/pkg/big/nat_test.go |  8 +++----
+ 3 files changed, 33 insertions(+), 63 deletions(-)

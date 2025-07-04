@@ -1,0 +1,13 @@
+commit 97fdfdb52c28cab9251d1a610382d257c39682da
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Sep 4 11:34:01 2014 +0400
+
+    runtime: fix solaris netpoll
+    
+    TBR=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/141030043
+
+ src/pkg/runtime/netpoll.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

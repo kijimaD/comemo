@@ -1,0 +1,13 @@
+commit f4b430c90a001fdca0dd3219f8c8d1e5203c1419
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 13 17:44:44 2011 -0500
+
+    A+C: Florian Weimer (individual CLA)
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5486056
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

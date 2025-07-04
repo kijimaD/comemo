@@ -1,0 +1,17 @@
+commit e25de44ef2990a1aadf6c5ece09e41cf158461d7
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Mon Nov 4 03:51:25 2019 +0900
+
+    runtime/pprof: correct inlined function location encoding for non-CPU profiles
+    
+    Change-Id: Id270a3477bf1a581755c4311eb12f990aa2260b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205097
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/pprof/mprof_test.go | 106 ++++++++++++++++++++++++--------
+ src/runtime/pprof/pprof.go      |  26 ++------
+ src/runtime/pprof/proto.go      | 130 +++++++++++++++++++++-------------------
+ src/runtime/pprof/protomem.go   |  23 ++++---
+ 4 files changed, 166 insertions(+), 119 deletions(-)

@@ -1,0 +1,26 @@
+commit c14ed5b37c6cc387b29a7939cad7c7cbccd59934
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Wed May 11 23:22:45 2022 +0000
+
+    Revert "net/http: close accepted connection"
+    
+    This reverts CL 353714.
+    
+    The change closes accepted connection also in graceful shutdown which
+    breaks the fix for #33313 (and apparent duplicate #36819).
+    
+    The proper fix should close accepted connection only if server is closed
+    but not in graceful shutdown.
+    
+    Updates #48642
+    
+    Change-Id: I2f7005f3f3037e6563745731bb2693923b654004
+    GitHub-Last-Rev: f6d885aa37e793811c1624f73a3d90bc733db048
+    GitHub-Pull-Request: golang/go#52823
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405454
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/http/serve_test.go | 25 -------------------------
+ src/net/http/server.go     | 24 +++++++++---------------
+ 2 files changed, 9 insertions(+), 40 deletions(-)

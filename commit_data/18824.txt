@@ -1,0 +1,19 @@
+commit 4e5f31a760be4321777a57d1fa991a05c2d6a233
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 11 14:04:44 2014 -0400
+
+    liblink: fix bad code generated for MOVFD/MOVDF when reg > 7
+    
+    The byte that r is or'd into is already 0x7, so the failure to zero r only
+    impacts the generated machine code if the register is > 7.
+    
+    Fixes #7044.
+    
+    LGTM=dave, minux.ma, rsc
+    R=dave, minux.ma, bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/73730043
+
+ src/liblink/asm5.c          |  3 ++-
+ test/fixedbugs/issue7044.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 1 deletion(-)

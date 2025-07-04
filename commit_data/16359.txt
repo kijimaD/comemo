@@ -1,0 +1,16 @@
+commit bea7b5187283cf73638332e5051c8e9333ccf4dd
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed May 22 00:32:03 2013 +0800
+
+    cmd/go: fix LDFLAGS handling, enable misc/cgo/testso on Darwin
+    Fixes #5479.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/9416047
+
+ misc/cgo/testso/cgoso.go  | 10 +++++++++-
+ misc/cgo/testso/test.bash | 18 +++++++++++++++---
+ src/cmd/go/build.go       | 20 +++++++++++++++-----
+ src/run.bash              |  1 -
+ 4 files changed, 39 insertions(+), 10 deletions(-)

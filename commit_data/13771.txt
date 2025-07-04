@@ -1,0 +1,12 @@
+commit 2a391f467d25354477013cc28f2d41f8dae39604
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 7 16:28:15 2012 -0700
+
+    go/scanner: add missing BOM test
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6498106
+
+ src/pkg/go/scanner/scanner_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

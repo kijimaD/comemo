@@ -1,0 +1,20 @@
+commit 5ee32ff2527b64197f2eb09bc45e73e61c9c1ac3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 21 16:05:57 2021 -0400
+
+    cmd/go: proceed with GOPATH unset if the command doesn't use it
+    
+    For #43938
+    
+    Change-Id: I0937b9bb6de3d29d7242ee61f053d4803277dc0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351329
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/cache.go         |  2 +-
+ src/cmd/go/internal/modload/init.go           | 17 +++++++++++------
+ src/cmd/go/testdata/script/mod_gomodcache.txt | 13 ++++++++++---
+ src/cmd/go/testdata/script/mod_no_gopath.txt  | 15 +++++++++++++++
+ 4 files changed, 37 insertions(+), 10 deletions(-)

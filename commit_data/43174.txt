@@ -1,0 +1,21 @@
+commit d888f1d5c06828e9d7b0166f770a443f6315c2d1
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 1 16:06:03 2020 -0400
+
+    runtime: add debugging to TestTimePprof
+    
+    We've seen timeouts of TestTimePprof, but the tracebacks aren't useful
+    because goroutines are running on other threads. Add GOTRACEBACK=crash
+    to catch these in the future.
+    
+    For #41120.
+    
+    Change-Id: I97318172ef78d0cbab10df5e4ffcbfeadff579e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258802
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/runtime/crash_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

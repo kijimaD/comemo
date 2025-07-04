@@ -1,0 +1,21 @@
+commit 08a8fa9c471603c7ec44895392c6bfa31a8ddcb6
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun May 23 23:06:43 2021 +0200
+
+    misc/wasm: ensure correct stack pointer in catch clauses
+    
+    The stack pointer may have changed after a call from JavaScript into Go
+    code because of stack growth. The normal case already updated the
+    sp variable accordingly, but the catch case did not yet.
+    
+    Fixes #45433
+    
+    Change-Id: I3e0a33381929626f6b21902948935eb5ffb26c96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321936
+    Trust: Richard Musiol <neelance@gmail.com>
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ misc/wasm/wasm_exec.js | 3 +++
+ 1 file changed, 3 insertions(+)

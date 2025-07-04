@@ -1,0 +1,12 @@
+commit 57fcdcca2127973e8467973ff6d3f18ccefb99c5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 31 15:35:25 2008 -0700
+
+    fixed bug in FixExt routine
+    
+    R=r
+    OCL=13695
+    CL=13695
+
+ usr/gri/gosrc/utils.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

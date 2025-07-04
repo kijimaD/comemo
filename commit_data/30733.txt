@@ -1,0 +1,51 @@
+commit 17570a9afb5dc2d7d11eb3e132917e8d153a1ec9
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Mar 13 14:39:17 2017 -0400
+
+    cmd/compile: emit fused multiply-{add,subtract} on ppc64x
+    
+    A follow on to CL 36963 adding support for ppc64x.
+    
+    Performance changes (as posted on the issue):
+    
+    poly1305:
+    benchmark               old ns/op new ns/op delta
+    Benchmark64-16          172       151       -12.21%
+    Benchmark1K-16          1828      1523      -16.68%
+    Benchmark64Unaligned-16 172       151       -12.21%
+    Benchmark1KUnaligned-16 1827      1523      -16.64%
+    
+    math:
+    BenchmarkAcos-16        43.9      39.9      -9.11%
+    BenchmarkAcosh-16       57.0      45.8      -19.65%
+    BenchmarkAsin-16        35.8      33.0      -7.82%
+    BenchmarkAsinh-16       68.6      60.8      -11.37%
+    BenchmarkAtan-16        19.8      16.2      -18.18%
+    BenchmarkAtanh-16       65.5      57.5      -12.21%
+    BenchmarkAtan2-16       45.4      34.2      -24.67%
+    BenchmarkGamma-16       37.6      26.0      -30.85%
+    BenchmarkLgamma-16      40.0      28.2      -29.50%
+    BenchmarkLog1p-16       35.1      29.1      -17.09%
+    BenchmarkSin-16         22.7      18.4      -18.94%
+    BenchmarkSincos-16      31.7      23.7      -25.24%
+    BenchmarkSinh-16        146       131       -10.27%
+    BenchmarkY0-16          130       107       -17.69%
+    BenchmarkY1-16          127       107       -15.75%
+    BenchmarkYn-16          278       235       -15.47%
+    
+    Updates #17895.
+    
+    Change-Id: I1c16199715d20c9c4bd97c4a950bcfa69eb688c1
+    Reviewed-on: https://go-review.googlesource.com/38095
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/compile/internal/gc/asm_test.go      |  41 +++++++++
+ src/cmd/compile/internal/ppc64/prog.go       |   4 +
+ src/cmd/compile/internal/ppc64/ssa.go        |  19 ++++
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  12 ++-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   9 ++
+ src/cmd/compile/internal/ssa/opGen.go        |  92 +++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 132 +++++++++++++++++++++++++--
+ src/cmd/internal/obj/ppc64/asm9.go           |   2 +-
+ 8 files changed, 302 insertions(+), 9 deletions(-)

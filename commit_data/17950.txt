@@ -1,0 +1,15 @@
+commit de8549dfd36bc46ca9c10903dad6e504e1444a86
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 10 14:02:42 2013 -0500
+
+    test/run: make -v output look like go test output
+    
+    Among other things, it makes it easier to scan to
+    see what is slow.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/40040044
+
+ test/run.go | 47 ++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 32 insertions(+), 15 deletions(-)

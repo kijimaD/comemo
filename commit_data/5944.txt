@@ -1,0 +1,12 @@
+commit d0b913fe37292c25b44569c724f5a7a395ece44c
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Aug 3 13:09:16 2010 -0700
+
+    bikeshed: only output bug when we have a regression
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1897046
+
+ test/run | 4 ++++
+ 1 file changed, 4 insertions(+)

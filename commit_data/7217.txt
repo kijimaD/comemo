@@ -1,0 +1,18 @@
+commit 7f6ffade325818730357eed4e0b7d3bf3adc31b7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 21 16:10:39 2011 -0800
+
+    gob: fix the grammar comments to match the encoder
+    (or at least a correct encoder, still to come).
+    Change the debug structure slightly to better represent
+    the grammar.
+    Minor tweaks for consistency in type.go.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4007044
+
+ src/pkg/gob/debug.go | 33 ++++++++++++---------------------
+ src/pkg/gob/doc.go   | 12 ++++++------
+ src/pkg/gob/type.go  |  4 ++--
+ 3 files changed, 20 insertions(+), 29 deletions(-)

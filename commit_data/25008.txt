@@ -1,0 +1,16 @@
+commit 7e312243292866e73d2f2346a81eceffa1890f64
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 20 16:01:45 2015 -0800
+
+    net: don't run multicast listen test on nil interface in short mode
+    
+    The gccgo bug report https://gcc.gnu.org/PR65785 points out that the
+    multicast listen tests will use the network even with -test.short.
+    Fix test by checking testing.Short with a nil interface.
+    
+    Change-Id: I7eab8df34fe3b78fc376912312fac9d0f94977f1
+    Reviewed-on: https://go-review.googlesource.com/17154
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/net/listen_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

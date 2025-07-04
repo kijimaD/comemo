@@ -1,0 +1,22 @@
+commit 284a4a734662b3c1a93f993ef55c8c2f42513c06
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Jan 21 10:25:07 2018 +0100
+
+    cmd/compile: replace misleading variable name
+    
+    One of the variables declared in cleantempnopop named 'kill'
+    does not hold a OVARKILL node but an OVARLIVE node.
+    Rename that variable to 'live' to differentiate it from the other
+    variable named kill that holds a OVARKILL node.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I34c8729e5c303b8cdabe44c9af980d4f16000e4b
+    Reviewed-on: https://go-review.googlesource.com/88816
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/order.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

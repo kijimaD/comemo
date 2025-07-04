@@ -1,0 +1,26 @@
+commit 532e34dd383549cdb415bc3e09b70d23f280524e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 1 16:43:05 2022 -0800
+
+    cmd/compile: remove -d=typecheckinl flag
+    
+    This flag forced the compiler to eagerly type check all available
+    inline function bodies, which presumably was useful in the early days
+    of implementing inlining support. However, it shouldn't have any
+    significance with the unified frontend, since the same code paths are
+    used for constructing normal function bodies as for inlining.
+    
+    Updates #57410.
+    
+    Change-Id: I6842cf86bcd0fbf22ac336f2fc0b7b8fe14bccca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458617
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/base/debug.go | 1 -
+ src/cmd/compile/internal/gc/main.go    | 6 ------
+ src/cmd/compile/internal/inline/inl.go | 4 ----
+ 3 files changed, 11 deletions(-)

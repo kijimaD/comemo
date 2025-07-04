@@ -1,0 +1,16 @@
+commit b8be809c10e86dcee31317d78d84710ef8b67c82
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Mar 24 16:40:38 2009 -0700
+
+    ^ type(const) now inverts "enough" bits
+    ^ signed(const) becomes illegal
+    ^ unsigned(const) becomes legal
+    
+    R=r
+    OCL=26697
+    CL=26697
+
+ src/cmd/gc/const.c                 | 32 ++++++++++++++++++++++++++++++--
+ test/const1.go                     |  2 +-
+ test/{bugs => fixedbugs}/bug115.go |  0
+ 3 files changed, 31 insertions(+), 3 deletions(-)

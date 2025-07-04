@@ -1,0 +1,19 @@
+commit 475e7d037299c3187054319f5e984c57524cabef
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Feb 19 08:19:27 2014 +0100
+
+    cmd/gc: fix handling of append with -race.
+    
+    Also re-enable race tests in run.bash.
+    
+    Fixes #7334.
+    
+    LGTM=rsc
+    R=rsc, dvyukov, iant, bradfitz, dave
+    CC=golang-codereviews
+    https://golang.org/cl/65740043
+
+ src/cmd/gc/walk.c | 8 +++++---
+ src/run.bash      | 6 ++----
+ src/run.bat       | 4 +---
+ 3 files changed, 8 insertions(+), 10 deletions(-)

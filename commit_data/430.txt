@@ -1,0 +1,17 @@
+commit eccea1980d961a6ac6ab4cf3294edce8ca6e9c11
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 26 16:22:14 2008 -0700
+
+    add fstat, stat
+    
+    R=ken
+    OCL=13497
+    CL=13497
+
+ src/syscall/Makefile               |  1 +
+ src/syscall/stat_amd64_darwin.go   | 49 ++++++++++++++++++++++
+ src/syscall/stat_amd64_linux.go    | 47 +++++++++++++++++++++
+ src/syscall/syscall.go             |  8 +++-
+ src/syscall/syscall_amd64_darwin.s | 70 ++++++++++++-------------------
+ src/syscall/syscall_amd64_linux.s  | 84 ++++++++++++++------------------------
+ 6 files changed, 159 insertions(+), 100 deletions(-)

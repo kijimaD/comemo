@@ -1,0 +1,18 @@
+commit 28792f5d83578d9087be5d3b2490ae8a10e189de
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Thu Mar 13 18:26:01 2014 +1100
+
+    runtime: avoid runtime·cgocall in functions called by forkAndExecInChild
+    
+    Calling runtime·cgocall could trigger a GC in the child while
+    gclock was held by the parent.
+    
+    Fixes #7511
+    
+    LGTM=bradfitz, dvyukov, dave
+    R=golang-codereviews, bradfitz, dvyukov, dave
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/75210044
+
+ src/pkg/runtime/syscall_solaris.goc | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

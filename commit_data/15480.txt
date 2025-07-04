@@ -1,0 +1,13 @@
+commit f12796e9f7233266163d4003b528dd099b0f1799
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 27 16:11:17 2013 -0800
+
+    builtin: document appending a string to a byte slice
+    Fixes #4873.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7421043
+
+ src/pkg/builtin/builtin.go | 2 ++
+ 1 file changed, 2 insertions(+)

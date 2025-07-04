@@ -1,0 +1,13 @@
+commit 8253edcb4c2d78e8fdfbc455beaadaa2c932b635
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 6 17:15:46 2011 +1000
+
+    wingui: fix Makefile after rename
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4477046
+
+ src/pkg/exp/wingui/Makefile   | 2 +-
+ src/pkg/exp/wingui/zwinapi.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 1e9de4db88089f0959462f2932666c9aed273d70
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 4 13:24:13 2023 -0800
+
+    doc: add release note for go/types.Alias type and Unalias function
+    
+    Also, add some missing <code></code> tags.
+    
+    For #63223.
+    
+    Change-Id: I570b82be830b3c124420c5715ab1165ca53725f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546358
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+
+ doc/go1.22.html | 26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)

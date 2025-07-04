@@ -1,0 +1,12 @@
+commit 161f109cad49f0fb8aa0cc8e7c53477247bb1144
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Mon Jan 31 14:54:58 2011 -0500
+
+    os: add ETIMEDOUT
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4017045
+
+ src/pkg/os/error.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

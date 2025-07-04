@@ -1,0 +1,18 @@
+commit c143661568dc23badd4ba04f4193658fc1fd9c33
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Nov 2 20:42:21 2021 -0700
+
+    test/typeparam: add test for indexing on typeparams with various constraints
+    
+    Add test for indexing on variables whose types are constrained to
+    various kinds of types.
+    
+    Change-Id: I991eecfe39dba5d817c0fbe259ba558d4881ea84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360867
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ test/typeparam/index2.go | 67 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 67 insertions(+)

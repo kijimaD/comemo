@@ -1,0 +1,30 @@
+commit 41d0dc49d2e6bfb96bd87c7a1ded9ed20b602281
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 11 17:23:14 2018 -0800
+
+    go/format: add simple benchmark framework and basic benchmark
+    
+    For now, this CL adds as a first benchmark the formatting of
+    a 10,000 element array literal. It is easy to add additional
+    test cases as we see fit.
+    
+            name                   time/op
+            Format/array1-10000-4    26.7ms ± 7%
+    
+            name                   speed
+            Format/array1-10000-4  2.43MB/s ± 6%
+    
+            name                   alloc/op
+            Format/array1-10000-4    5.52MB ± 0%
+    
+            name                   allocs/op
+            Format/array1-10000-4      119k ± 0%
+    
+    Updates #26528.
+    
+    Change-Id: Ic8ec8f70160d122b877740412d4d4406f5f4b345
+    Reviewed-on: https://go-review.googlesource.com/c/153642
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/format/benchmark_test.go | 91 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 91 insertions(+)

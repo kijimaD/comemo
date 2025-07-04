@@ -1,0 +1,28 @@
+commit d4395ebc0c90a11a5f31fab0808baf3cb25d6ba8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 8 23:17:23 2024 +0000
+
+    runtime: remove overlap in the GC CPU pause time metrics
+    
+    Currently the GC CPU pause time metrics start measuring before the STW
+    is complete. This results in a slightly less accurate measurement and
+    creates some overlap with other timings (for example, the idle time of
+    idle Ps) that will cause double-counting.
+    
+    This CL adds a field to worldStop to track the point at which the world
+    actually stopped and uses that as the basis for the GC CPU pause time
+    metrics, basically eliminating this overlap.
+    
+    Note that this will cause Ps in _Pgcstop before the world is fully
+    stopped to be counted as user time. A follow-up CL will fix this
+    discrepancy.
+    
+    Change-Id: I287731f08415ffd97d327f582ddf7e5d2248a6f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570258
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
+
+ src/runtime/mgc.go  | 10 +++++-----
+ src/runtime/proc.go | 12 +++++++-----
+ 2 files changed, 12 insertions(+), 10 deletions(-)

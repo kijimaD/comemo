@@ -1,0 +1,22 @@
+commit 2fad7dbb893737a01c7ab4f382720a2b0440b736
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Sep 28 13:13:49 2021 -0700
+
+    debug/gosym: add hook to disable recovers
+    
+    debug/gosym assumes throughout that bogus input means a malformed file.
+    That's generally true, but not when you're changing the package.
+    In that case, the panic usually indicates a newly introduced bug,
+    and seeing the panic is really useful.
+    
+    Add a manually-enabled way to make panics panic.
+    
+    Change-Id: I07af6c7b982c4cf61180db29f07aa63576ba7837
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352949
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/debug/gosym/pclntab.go | 36 +++++++++++++++++++++++-------------
+ 1 file changed, 23 insertions(+), 13 deletions(-)

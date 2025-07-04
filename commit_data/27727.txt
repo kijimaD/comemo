@@ -1,0 +1,24 @@
+commit 4fcb4eb27986e5fa7d26aeb85b04909e03d11ff9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 24 16:59:39 2016 -0700
+
+    cmd/pprof: don't use local symbolization for remote source
+    
+    If we are using a remote source (a URL), and the user did not specify
+    the executable file to use, then don't try to use a local source.
+    This was misbehaving because the local symbolizer will not fail
+    if there is any memory map available, but the presence of a memory map
+    does not ensure that the files and symbols are actually available.
+    
+    We still need a pprof testsuite.
+    
+    Fixes #16159.
+    
+    Change-Id: I0250082a4d5181c7babc7eeec6bc95b2f3bcaec9
+    Reviewed-on: https://go-review.googlesource.com/24464
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/pprof/pprof.go | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)

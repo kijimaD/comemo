@@ -1,0 +1,27 @@
+commit d96221f206ee0f74446fc47b955b716ac8667667
+Author: jimmyfrasche <soapboxcicero@gmail.com>
+Date:   Sun Apr 22 15:58:49 2018 -0700
+
+    doc: make front page video respond to layout changes (1/2)
+    
+    The videos on the front page are always the same width, regardless of
+    the viewport width. These changes let the video fill the space given
+    to its container regardless of layout. It uses the standard hack for
+    making iframes responsive, but the videos are loaded at random and do
+    not have uniform aspect ratios so that information is injected into the
+    DOM using custom properties. If these are not supported, it falls back
+    to the same layout present before this change.
+    
+    Note: this change also requires CL 108678 to complete the fix,
+    though either CL without the other is harmless.
+    
+    Updates #24997.
+    
+    Change-Id: I2f93dc21ffe01d99ce0e175e9dd0e3d486fddc9f
+    Reviewed-on: https://go-review.googlesource.com/108677
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/root.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,37 @@
+commit e82003e750ee2952b1902748b0cc821e27166025
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 21 22:19:15 2015 -0500
+
+    cmd/gc: simplify code for c2go
+    
+    - Change forward reference to struct Node* to void* in liblink.
+    - Use explicit (Node*) casts in cmd/gc to get at that field.
+    - Define struct Array in go.h instead of hiding it in array.c.
+    - Remove some sizeof(uint32), sizeof(uint64) uses.
+    - Remove some ? : expressions.
+    - Rewrite some problematic mid-expression assignments.
+    
+    Change-Id: I308c70140238a0cfffd90e133f86f442cd0e17d4
+    Reviewed-on: https://go-review.googlesource.com/3276
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ include/link.h         |  2 +-
+ src/cmd/5g/ggen.c      | 12 ++++++------
+ src/cmd/5g/reg.c       |  2 +-
+ src/cmd/6g/ggen.c      | 12 ++++++------
+ src/cmd/6g/reg.c       |  2 +-
+ src/cmd/8g/ggen.c      | 12 ++++++------
+ src/cmd/8g/reg.c       |  2 +-
+ src/cmd/9g/ggen.c      | 12 ++++++------
+ src/cmd/9g/reg.c       |  2 +-
+ src/cmd/gc/array.c     |  8 --------
+ src/cmd/gc/bv.c        |  2 +-
+ src/cmd/gc/cplx.c      | 20 ++++++++++++++------
+ src/cmd/gc/export.c    |  4 ++--
+ src/cmd/gc/go.h        | 18 ++++++++++++------
+ src/cmd/gc/plive.c     | 32 ++++++++++++++++++--------------
+ src/cmd/gc/popt.c      | 12 ++++++++----
+ src/cmd/gc/subr.c      | 14 +++++++-------
+ src/cmd/gc/typecheck.c |  5 ++++-
+ src/cmd/gc/unsafe.c    |  4 +++-
+ 19 files changed, 98 insertions(+), 79 deletions(-)

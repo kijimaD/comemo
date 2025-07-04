@@ -1,0 +1,22 @@
+commit 99fed2be279934f0e4d806833f810a3ac78f0e60
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Jan 4 09:51:15 2012 +1100
+
+    html: parse <frameset> inside body
+    
+    Pass tests6.dat, test 47:
+    <param><frameset></frameset>
+    
+    | <html>
+    |   <head>
+    |   <frameset>
+    
+    Also pass remaining tests in tests6.dat.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5489136
+
+ src/pkg/html/parse.go      | 13 +++++++++++++
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 9dbfda5857ca5481135c960ead3e9bce153cc8b6
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 21 00:42:53 2012 +0800
+
+    doc/debugging_with_gdb: format & content update
+    
+    R=adg, lvd
+    CC=golang-dev
+    https://golang.org/cl/5845065
+
+ doc/debugging_with_gdb.html | 77 +++++++++++++++++++++++----------------------
+ 1 file changed, 39 insertions(+), 38 deletions(-)

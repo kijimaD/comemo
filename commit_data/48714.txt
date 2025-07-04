@@ -1,0 +1,23 @@
+commit c451a02a6d3e95d279260bd8c1edae676d62997d
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Thu Apr 7 23:53:12 2022 +0800
+
+    strings, bytes: improve the description of simple case-folding in EqualFold
+    
+    This CL removes the problem description pointed out by @bjkail.
+    Second, synchronously modify the comments of the bytes package.
+    
+    Updates #52022
+    Fixes #52204
+    
+    Change-Id: I0aa52c774f40bb91f32bebdd2a62a11067a77be0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398736
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/bytes/bytes.go     | 2 +-
+ src/strings/strings.go | 2 --
+ 2 files changed, 1 insertion(+), 3 deletions(-)

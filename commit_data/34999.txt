@@ -1,0 +1,43 @@
+commit 2b2348ab143368a35031a814a8d41eb5a437aa33
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Apr 8 13:39:10 2018 +0100
+
+    cmd/compile/internal/gc: add some Node methods
+    
+    Focus on "isfoo" funcs that take a *Node, and conver them to isFoo
+    methods instead. This makes for more idiomatic Go code, and also more
+    readable func names.
+    
+    Found candidates with grep, and applied most changes with sed. The funcs
+    chosen were isgoconst, isnil, and isblank. All had the same signature,
+    func(*Node) bool.
+    
+    While at it, camelCase the isliteral and iszero function names. Don't
+    move these to methods, as they are only used in the backend part of gc,
+    which might one day be split into a separate package.
+    
+    Passes toolstash -cmp on std cmd.
+    
+    Change-Id: I4df081b12d36c46c253167c8841c5a841f1c5a16
+    Reviewed-on: https://go-review.googlesource.com/105555
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/closure.go   |  2 +-
+ src/cmd/compile/internal/gc/const.go     | 12 +++++++-----
+ src/cmd/compile/internal/gc/dcl.go       | 10 +++++-----
+ src/cmd/compile/internal/gc/esc.go       |  2 +-
+ src/cmd/compile/internal/gc/gsubr.go     |  2 +-
+ src/cmd/compile/internal/gc/init.go      |  2 +-
+ src/cmd/compile/internal/gc/inl.go       |  4 ++--
+ src/cmd/compile/internal/gc/noder.go     |  2 +-
+ src/cmd/compile/internal/gc/order.go     | 18 +++++++++---------
+ src/cmd/compile/internal/gc/range.go     |  8 ++++----
+ src/cmd/compile/internal/gc/sinit.go     | 28 ++++++++++++++--------------
+ src/cmd/compile/internal/gc/ssa.go       | 10 +++++-----
+ src/cmd/compile/internal/gc/subr.go      |  6 +++---
+ src/cmd/compile/internal/gc/swt.go       |  4 ++--
+ src/cmd/compile/internal/gc/typecheck.go | 12 ++++++------
+ src/cmd/compile/internal/gc/walk.go      | 16 ++++++++--------
+ 16 files changed, 70 insertions(+), 68 deletions(-)

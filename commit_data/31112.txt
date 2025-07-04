@@ -1,0 +1,60 @@
+commit 3692925c5e7e2f2b7728b8c0559403862d7bc681
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 12 13:23:07 2017 -0700
+
+    cmd/compile: move Text.From.Sym initialization earlier
+    
+    The initialization of an ATEXT Prog's From.Sym
+    can race with the assemblers in a concurrent compiler.
+    CL 40254 contains an initial, failed attempt to
+    fix that race.
+    
+    This CL takes a different approach: Rather than
+    expose an API to initialize the Prog,
+    expose an API to initialize the Sym.
+    
+    The initialization of the Sym can then be
+    moved earlier in the compiler, avoiding the race.
+    
+    The growth of gc.Func has negligible
+    performance impact; see below.
+    
+    Passes toolstash -cmp.
+    
+    Updates #15756
+    
+    name       old alloc/op      new alloc/op      delta
+    Template        38.8MB ± 0%       38.8MB ± 0%    ~     (p=0.968 n=9+10)
+    Unicode         29.8MB ± 0%       29.8MB ± 0%    ~     (p=0.684 n=10+10)
+    GoTypes          113MB ± 0%        113MB ± 0%    ~     (p=0.912 n=10+10)
+    SSA             1.25GB ± 0%       1.25GB ± 0%    ~     (p=0.481 n=10+10)
+    Flate           25.3MB ± 0%       25.3MB ± 0%    ~     (p=0.105 n=10+10)
+    GoParser        31.7MB ± 0%       31.8MB ± 0%  +0.09%  (p=0.016 n=8+10)
+    Reflect         78.3MB ± 0%       78.2MB ± 0%    ~     (p=0.190 n=10+10)
+    Tar             26.5MB ± 0%       26.6MB ± 0%  +0.13%  (p=0.011 n=10+10)
+    XML             42.4MB ± 0%       42.4MB ± 0%    ~     (p=0.971 n=10+10)
+    
+    name       old allocs/op     new allocs/op     delta
+    Template          378k ± 1%         378k ± 0%    ~     (p=0.315 n=10+9)
+    Unicode           321k ± 1%         321k ± 0%    ~     (p=0.436 n=10+10)
+    GoTypes          1.14M ± 0%        1.14M ± 0%    ~     (p=0.079 n=10+9)
+    SSA              9.70M ± 0%        9.70M ± 0%  -0.04%  (p=0.035 n=10+10)
+    Flate             233k ± 1%         234k ± 1%    ~     (p=0.529 n=10+10)
+    GoParser          315k ± 0%         316k ± 0%    ~     (p=0.095 n=9+10)
+    Reflect           980k ± 0%         980k ± 0%    ~     (p=0.436 n=10+10)
+    Tar               249k ± 1%         250k ± 0%    ~     (p=0.280 n=10+10)
+    XML               391k ± 1%         391k ± 1%    ~     (p=0.481 n=10+10)
+    
+    Change-Id: I3c93033dddd2e1df8cc54a106a6e615d27859e71
+    Reviewed-on: https://go-review.googlesource.com/40496
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/asm.go            |  4 +--
+ src/cmd/compile/internal/gc/gsubr.go       | 39 ++++++++++++++++++------------
+ src/cmd/compile/internal/gc/pgen.go        |  3 +++
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/syntax.go      |  2 ++
+ src/cmd/internal/obj/plist.go              |  7 +-----
+ 6 files changed, 33 insertions(+), 24 deletions(-)

@@ -1,0 +1,12 @@
+commit 6ffed3020c0fb749868b71d5b13fef65ff248902
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 17 17:01:34 2015 -0700
+
+    runtime: fix minor typo
+    
+    Change-Id: I79b7ed8f7e78e9d35b5e30ef70b98db64bc68a7b
+    Reviewed-on: https://go-review.googlesource.com/7720
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/error.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

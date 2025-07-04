@@ -1,0 +1,14 @@
+commit 2d8e2482cc0f290042f49dc3628922dcf40db5c9
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 11 10:41:01 2010 -0400
+
+            crypto/tls: make SetReadTimeout work.
+    
+            Fixes #1181.
+    
+    R=rsc, agl1, cw, r2
+    CC=golang-dev
+    https://golang.org/cl/2414041
+
+ src/pkg/crypto/tls/conn.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

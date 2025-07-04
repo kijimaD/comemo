@@ -1,0 +1,11 @@
+commit d05fa26a7d4f27cc8384be468df7a9b80c21d9b2
+Author: Josh Goebel <dreamer3@gmail.com>
+Date:   Tue Nov 17 16:46:58 2009 -0800
+
+    Let us have side by side git if we want
+    
+    R=r, rsc
+    https://golang.org/cl/156046
+
+ .hgignore | 1 +
+ 1 file changed, 1 insertion(+)

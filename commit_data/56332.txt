@@ -1,0 +1,26 @@
+commit cf058730293ac95ce0df40db8068219fe21cbb8a
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Sat Apr 27 08:04:28 2024 -0400
+
+    net/http: represent multi wildcards properly
+    
+    The routing tree used for matching ServeMux patterns used the
+    key "*" to hold a child node for a multi-segment wildcard.
+    The problem is that "*" is a valid path segment, which confused
+    the matching algorithm: it would fetch the multi wildcard child
+    when looking for the literal child for "*".
+    
+    Eschew clever encodings. Use a separate field in the node to
+    represent the multi wildcard child.
+    
+    Fixes #67067.
+    
+    Change-Id: I300ca08b8628f5367626cf41979f6c238ed8c831
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582115
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/request_test.go      |  8 ++++++++
+ src/net/http/routing_tree.go      |  8 +++++---
+ src/net/http/routing_tree_test.go | 11 +++++++++--
+ 3 files changed, 22 insertions(+), 5 deletions(-)

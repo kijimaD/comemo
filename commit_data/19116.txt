@@ -1,0 +1,15 @@
+commit a0cc854455511c0cb39a9f78c0feeb1eb358b157
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Apr 11 10:11:21 2014 -0700
+
+    C: add Yan Zou (Google CLA).
+    
+    R=adg
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/86930043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,12 @@
+commit 01464cf9564c57accd427e90fdd760a35377d9c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 17 09:53:50 2010 -0800
+
+    ld: allow relocations pointing at ELF .bss symbols
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/3710042
+
+ src/cmd/ld/ldelf.c | 25 +++++++++----------------
+ 1 file changed, 9 insertions(+), 16 deletions(-)

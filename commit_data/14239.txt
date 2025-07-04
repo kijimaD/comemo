@@ -1,0 +1,20 @@
+commit e53a2c40b119509356edcffc1655331c9beb6df5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 30 11:23:44 2012 +0100
+
+    cmd/api: add more tests
+    
+    Feature extraction was tested before, but not the final diffs.
+    
+    This CL breaks function main into a smaller main + testable
+    compareAPI.
+    
+    No functional changes.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6820057
+
+ src/cmd/api/goapi.go      | 59 +++++++++++++++++++++++++----------------------
+ src/cmd/api/goapi_test.go | 51 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+), 27 deletions(-)

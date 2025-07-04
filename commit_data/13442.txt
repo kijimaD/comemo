@@ -1,0 +1,18 @@
+commit a54f920bfe473721ef98d94feb88f395cb642cd4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jul 4 14:52:51 2012 +0400
+
+    runtime: move panic/defer/recover-related stuff to a separate file
+    Move panic/defer/recover-related stuff from proc.c/runtime.c to a new file panic.c.
+    No semantic changes.
+    proc.c is 1800+ LOC and is a bit difficult to work with.
+    
+    R=golang-dev, dave, r
+    CC=golang-dev
+    https://golang.org/cl/6343071
+
+ src/pkg/runtime/panic.c   | 392 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/proc.c    | 314 +------------------------------------
+ src/pkg/runtime/runtime.c | 126 +++------------
+ src/pkg/runtime/runtime.h |   1 +
+ 4 files changed, 419 insertions(+), 414 deletions(-)

@@ -1,0 +1,25 @@
+commit c23657e76e73d808530068b95a8021d979f65763
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 8 21:03:51 2010 -0700
+
+    test: Match gccgo error messages.
+    
+    named1.go:40:11: error: argument 1 has incompatible type (cannot use type bool as type Bool)
+    named1.go:41:11: error: argument 1 has incompatible type (cannot use type bool as type Bool)
+    named1.go:43:7: error: incompatible types in assignment (cannot use type bool as type Bool)
+    named1.go:44:12: error: argument 4 has incompatible type (cannot use type Bool as type bool)
+    named1.go:46:4: error: incompatible types in assignment (cannot use type bool as type Bool)
+    named1.go:48:11: error: argument 1 has incompatible type (cannot use type bool as type Bool)
+    named1.go:50:7: error: incompatible types in assignment (cannot use type bool as type Bool)
+    named1.go:54:7: error: incompatible types in assignment (cannot use type bool as type Bool)
+    named1.go:60:7: error: incompatible types in assignment (cannot use type bool as type Bool)
+    named1.go:63:9: error: argument 1 has incompatible type (cannot use type bool as type Bool)
+    named1.go:64:4: error: incompatible types in assignment (cannot use type bool as type Bool)
+    named1.go:67:17: error: invalid type conversion (cannot use type Slice as type String)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2146044
+
+ test/named1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

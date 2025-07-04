@@ -1,0 +1,12 @@
+commit 16a82828a2a552d01285d2cd3f01ed36b000b680
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Wed Aug 15 10:32:44 2012 +1000
+
+    5l: trivial whitespace cleanup
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/6446131
+
+ src/cmd/5l/asm.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

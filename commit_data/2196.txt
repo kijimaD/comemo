@@ -1,0 +1,13 @@
+commit 98b4f6ac3812b9114740af98447ddde6c8f100a1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 12 21:37:46 2009 -0700
+
+    cleanup of unsafe documentation
+    
+    R=r
+    DELTA=19  (4 added, 7 deleted, 8 changed)
+    OCL=28723
+    CL=28732
+
+ doc/go_spec.html | 25 +++++++++++--------------
+ 1 file changed, 11 insertions(+), 14 deletions(-)

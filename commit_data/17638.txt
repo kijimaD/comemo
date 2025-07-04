@@ -1,0 +1,12 @@
+commit b27e09331c2aba431e3ba91ebeac7da74e3b86e0
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Sep 18 10:15:52 2013 +1000
+
+    cmd/gc: fix set but not used error
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/13749044
+
+ src/cmd/gc/popt.c | 2 --
+ 1 file changed, 2 deletions(-)

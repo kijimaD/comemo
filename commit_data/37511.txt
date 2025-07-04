@@ -1,0 +1,14 @@
+commit 96d41786c5bd5b3597b6a28a7e8c412c33f15086
+Author: James Craig Burley <james-github@burleyarch.com>
+Date:   Wed Nov 28 18:53:16 2018 +0000
+
+    doc: fix typo in FAQ
+    
+    Change-Id: I956d6d1dbf8516cb65eb3a0686a3b0584b4a6840
+    GitHub-Last-Rev: 1c928f3c67eceae424cbcd6b0935605a78728604
+    GitHub-Pull-Request: golang/go#28991
+    Reviewed-on: https://go-review.googlesource.com/c/151324
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

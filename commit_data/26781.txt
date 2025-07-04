@@ -1,0 +1,12 @@
+commit 39f1ecd157941420693239fa269643ce8a34c267
+Author: Burcu Dogan <jbd@google.com>
+Date:   Thu Apr 7 10:50:47 2016 -0700
+
+    C: fix jbd's identity
+    
+    Change-Id: Ib4353710a742b1067723c7c6186e8639559668a3
+    Reviewed-on: https://go-review.googlesource.com/21655
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

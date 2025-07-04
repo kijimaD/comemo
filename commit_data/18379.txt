@@ -1,0 +1,17 @@
+commit 7a73f32725ff8b13a4cca703972fa76e598f4436
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Jan 30 07:54:57 2014 +0100
+
+    encoding/gob: fix two crashes on corrupted data.
+    
+    Fixes #6323.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/56870043
+
+ src/pkg/encoding/gob/codec_test.go   | 56 ++++++++++++++++++++++++++++++++----
+ src/pkg/encoding/gob/decode.go       |  6 +++-
+ src/pkg/encoding/gob/encoder_test.go |  2 ++
+ 3 files changed, 58 insertions(+), 6 deletions(-)

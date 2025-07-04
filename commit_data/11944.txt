@@ -1,0 +1,15 @@
+commit 88f8af127ab675b94e18f161c59415edd92110e9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 16 10:15:36 2012 +1100
+
+    bufio: don't return errors from good Peeks
+    
+    Fixes #3022
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5674060
+
+ src/pkg/bufio/bufio.go      |  9 ++++++---
+ src/pkg/bufio/bufio_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 3 deletions(-)

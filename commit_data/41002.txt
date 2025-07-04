@@ -1,0 +1,19 @@
+commit d7b4428c1ff29920309571414b1f957df3206b3b
+Author: Gert Cuykens <gert.cuykens@gmail.com>
+Date:   Fri Oct 18 04:13:50 2019 +0200
+
+    cmd/doc: flag usage() inconsistency
+    
+    Inconsistency between cmd/doc/main.go and cmd/go/internal/doc/doc.go
+    
+    Fixes #34976
+    
+    Change-Id: I429200f9305d473edb4505216bb4840ba92af818
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201857
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/doc/main.go                |  7 ++--
+ src/cmd/go/testdata/script/doc.txt | 75 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 79 insertions(+), 3 deletions(-)

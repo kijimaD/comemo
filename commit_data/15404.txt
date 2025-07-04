@@ -1,0 +1,16 @@
+commit 83e22f1a47ee3bb7ceb1ceb5fbe1c5e13f7fe131
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 24 13:18:21 2013 -0800
+
+    cmd/vet: eliminate false positives for slices in untagged literal test
+    Made possible by go/types, as long as the package type-checks OK.
+    
+    Fixes #4684.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7407045
+
+ src/cmd/vet/Makefile  |  2 +-
+ src/cmd/vet/taglit.go | 38 +++++++++++++++++++++++++++++++++++---
+ 2 files changed, 36 insertions(+), 4 deletions(-)

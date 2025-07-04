@@ -1,0 +1,15 @@
+commit 45cba57e89f4278347aeb204732252660ecc65c7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 18:26:16 2009 -0800
+
+    gofmt'ed more stragglers
+    
+    R=rsc
+    http://go/go-review/1019004
+
+ src/pkg/strconv/decimal_test.go  |  2 +-
+ src/pkg/testing/regexp.go        | 18 +++++++++---------
+ src/pkg/testing/script/script.go |  4 ++--
+ src/pkg/unicode/maketables.go    | 22 +++++++++++-----------
+ src/pkg/xml/xml.go               | 32 ++++++++++++++++----------------
+ 5 files changed, 39 insertions(+), 39 deletions(-)

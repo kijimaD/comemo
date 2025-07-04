@@ -1,0 +1,30 @@
+commit 538b3a5f37a5316a4ba081fd5a8eb5fb09992ba7
+Author: Pravendra Singh <hackpravj@gmail.com>
+Date:   Tue Jun 13 22:13:07 2017 +0530
+
+    reflect: prevent structs with invalid field name
+    
+    According to the language spec, a struct field name should
+    be an identifier.
+    
+      identifier = letter { letter | unicode_digit } .
+      letter = unicode_letter | "_" .
+    
+    Implements a function 'isValidFieldName(fieldName string) bool'.
+    To check if the field name is a valid identifier or not.
+    It will panic if the field name is invalid.
+    
+    It uses the non-exported function implementation 'isLetter'
+    from the package 'scanner', used to parse an identifier.
+    
+    Fixes #20600.
+    
+    Change-Id: I1db7db1ad88cab5dbea6565be15cc7461cc56c44
+    Reviewed-on: https://go-review.googlesource.com/45590
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/reflect/all_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/type.go     | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 78 insertions(+)

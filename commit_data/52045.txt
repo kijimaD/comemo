@@ -1,0 +1,19 @@
+commit cad872f75a1946ea49397a33e269dabe56febff6
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Feb 22 13:17:30 2023 -0500
+
+    doc: start draft Go 1.21 release notes
+    
+    This initial release notes template is based on previous releases.
+    
+    For #58645.
+    
+    Change-Id: I8bae25d6dd9778a69963b8b4903a6dc1c180e15f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470296
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/go1.21.html | 77 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 77 insertions(+)

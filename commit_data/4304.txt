@@ -1,0 +1,12 @@
+commit fcc4dd6d64817fd19bdd48f45a786a8532953f03
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 3 17:12:57 2009 -0800
+
+    error propagation in gob/encoder.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/165048
+
+ src/pkg/gob/encoder.go | 38 +++++++++++++++++++++++++++-----------
+ 1 file changed, 27 insertions(+), 11 deletions(-)

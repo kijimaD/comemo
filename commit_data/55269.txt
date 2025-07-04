@@ -1,0 +1,16 @@
+commit 1541af5ce81b9f58845fdbf0bf72b7b6965b5e96
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 11 16:37:49 2023 -0500
+
+    doc/go1.22: document bufio changes
+    
+    For #61422.
+    
+    Change-Id: I1b20c536a5b1c105286c84e7c1c7e37eb89bbc93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548879
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/go1.22.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

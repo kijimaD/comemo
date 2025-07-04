@@ -1,0 +1,46 @@
+commit 4c2ffd26ec3fe2fb9552b5a38c2b731e86a85abf
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri May 31 18:56:28 2019 -0400
+
+    cmd/go: avoid accidental downgrades in 'go get' with latest and patch
+    
+    Currently, 'go get -u' and 'go get -u=patch' avoid accidentally
+    downgrading modules by preventing upgrades in two cases:
+    
+    1) If the current version is a prerelease that is semantically later
+       than the "latest" or "patch" version.
+    2) If the current version is a pseudoversion that is chronologically
+       newer than the "latest" or "patch" version.
+    
+    With this change, 'go get m@latest' and 'go get m@patch' prevent
+    downgrades using the same checks.
+    
+    Also: 'go get m@patch' now works if m is a module path but not a
+    package path (i.e., there is no package in the module root directory).
+    
+    Fixes #30634
+    Fixes #32537
+    
+    Change-Id: I916630c385b5f3ba7c13e0d65ba08f73a1a67829
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180337
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                              |  11 +-
+ src/cmd/go/internal/modget/get.go                  | 156 +++++++++++++--------
+ src/cmd/go/internal/modload/build.go               |   4 +-
+ src/cmd/go/internal/modload/init.go                |   2 +-
+ src/cmd/go/internal/modload/list.go                |  20 ++-
+ src/cmd/go/internal/modload/query.go               |  99 +++++++++----
+ src/cmd/go/internal/modload/query_test.go          |  26 +++-
+ src/cmd/go/internal/mvs/mvs.go                     |   2 +-
+ .../go/testdata/mod/example.com_noroot_v1.0.0.txt  |   8 ++
+ .../go/testdata/mod/example.com_noroot_v1.0.1.txt  |   8 ++
+ ...upgrade_v0.0.0-20190430073000-30950c05d534.txt} |   2 +-
+ src/cmd/go/testdata/script/mod_get_pseudo.txt      |   1 +
+ .../go/testdata/script/mod_get_upgrade_pseudo.txt  |  29 +++-
+ .../go/testdata/script/mod_list_upgrade_pseudo.txt |   9 +-
+ src/cmd/go/testdata/script/mod_load_badchain.txt   |   2 +-
+ src/cmd/go/testdata/script/mod_upgrade_patch.txt   |   7 +
+ 16 files changed, 272 insertions(+), 114 deletions(-)

@@ -1,0 +1,18 @@
+commit 5fa2d9915f8311d7996e93a3a42cf438278e3886
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 21 13:36:44 2015 -0700
+
+    net/http: make ServeContent errors return more specific HTTP status codes
+    
+    Previously all errors were 404 errors, even if the real error had
+    nothing to do with a file being non-existent.
+    
+    Fixes #10283
+    
+    Change-Id: I5b08b471a9064c347510cfcf8557373704eef7c0
+    Reviewed-on: https://go-review.googlesource.com/9200
+    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
+
+ src/net/http/fs.go      | 24 ++++++++++++++++++++----
+ src/net/http/fs_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit 637e1aad5cecbdd12fb5f957e2b28ced5c3261fc
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Feb 26 13:01:56 2016 -0700
+
+    net/http: defer idleMu.Unlock() in tryPutIdleConn + minor typo fixes.
+    
+    Change-Id: Ia2273c3a9f0001d16b0c767fea91498a9acb0af5
+    Reviewed-on: https://go-review.googlesource.com/19963
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

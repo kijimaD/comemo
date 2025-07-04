@@ -1,0 +1,19 @@
+commit d7e3e442febea1d4ba7b6b456f46b2fd9c3b69e6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 20 14:59:54 2021 -0700
+
+    internal/buildcfg: fix test for GOAMD64=v3 ./all.bash
+    
+    If GOAMD64 is set to a bogus value, goamd64() will return the default
+    value, which may not necessarily be 1. Instead, just test that it sets
+    Error.
+    
+    Change-Id: Ibbc26608c1ae24e645c7753ef5765b9c2fdc089e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351129
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/buildcfg/cfg_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

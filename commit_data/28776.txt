@@ -1,0 +1,16 @@
+commit 6d702d8ed2a980cd0c96499379eee5eb218f8339
+Author: Jean-Nicolas Moal <jn.moal@gmail.com>
+Date:   Mon Aug 22 19:02:33 2016 +0200
+
+    os: add examples of environment functions
+    
+    For #16360.
+    
+    Change-Id: Iaa3548704786018eacec530f7a907b976fa532fe
+    Reviewed-on: https://go-review.googlesource.com/27443
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/example_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 43 insertions(+)

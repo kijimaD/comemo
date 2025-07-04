@@ -1,0 +1,23 @@
+commit 19648622d244f301f03d287b075e19d71d79864e
+Author: Tyson Andre <tysonandre775@gmail.com>
+Date:   Sat Apr 25 20:53:42 2020 +0000
+
+    math/cmplx: fix typo in code comment
+    
+    Everywhere else is using "cancellation" as of 2019
+    
+    The reasoning is mentioned in 170060.
+    
+    > Though there is variation in the spelling of canceled,
+    > cancellation is always spelled with a double l.
+    >
+    > Reference: https://www.grammarly.com/blog/canceled-vs-cancelled/
+    
+    Change-Id: I933ea68d7251986ce582b92c33b7cb13cee1d207
+    GitHub-Last-Rev: fc3d5ada2bd0087ea9cfb3f105689876e7a2ee4f
+    GitHub-Pull-Request: golang/go#38661
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230199
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/cmplx/sqrt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

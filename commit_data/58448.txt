@@ -1,0 +1,27 @@
+commit 15f232456a8741c84ee0bd38dce28978eab6a491
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Dec 27 17:24:30 2024 -0800
+
+    encoding/json: remove suggestion on Unmarshaler with JSON null
+    
+    It is not true that Unmarshal always treats a JSON null
+    as being equivalent to a no-op.
+    For bools, ints, uints, floats, strings, arrays, and structs,
+    it treats a JSON null as a no-op. However, for []byte, slice,
+    map, pointer, or interface, it zeros the underlying value.
+    
+    Remove this suggestion as the actual behavior is inconsistent.
+    
+    Note that the proposed behavior in v2 Unmarshal is to consistently
+    zero out the underlying value.
+    
+    Change-Id: I02cef0bf7919f25cfd0aceb04486d37498761181
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638416
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+
+ src/encoding/json/decode.go | 3 ---
+ 1 file changed, 3 deletions(-)

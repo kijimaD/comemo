@@ -1,0 +1,29 @@
+commit 4e215554aa0e76e534327b9e6721971b9e82c113
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Sep 12 17:56:57 2019 +1000
+
+    compress/lzw: clarify code invariants
+    
+    This follows on from https://go-review.googlesource.com/c/go/+/191358
+    which was submitted as a comment-only change.
+    
+    Benchmarks don't show any significant change:
+    
+    compress/lzw
+    name            old speed      new speed      delta
+    Decoder/1e4-56  92.8MB/s ± 1%  92.7MB/s ± 1%   ~     (p=1.000 n=5+5)
+    Decoder/1e5-56   100MB/s ± 1%   100MB/s ± 1%   ~     (p=0.746 n=5+5)
+    Decoder/1e6-56   101MB/s ± 1%   101MB/s ± 1%   ~     (p=0.381 n=5+5)
+    
+    image/gif
+    name                old speed      new speed      delta
+    Decode-56           63.2MB/s ± 1%  63.2MB/s ± 1%   ~     (p=0.690 n=5+5)
+    
+    Change-Id: Ic36b5410cb06ca258da32e40da1f1ff6c44cff86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194938
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/compress/lzw/reader.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

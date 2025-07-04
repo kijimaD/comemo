@@ -1,0 +1,18 @@
+commit 02913aa51c1f1c1338596310ceafc63d4a93a19d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 22 22:11:17 2021 -0700
+
+    test/fixedbugs: adjust test case (fix longtest builders)
+    
+    For #33232.
+    
+    Change-Id: Id95a92bfdad91e3ccde9f5654c3b1b02ca95f6ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351731
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ test/fixedbugs/issue14652.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 255056395e5da17c0f660bba289725bd12c1f024
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 21 10:54:13 2021 -0700
+
+    test: add a field tracking test
+    
+    Now that we can set experiments at build time instead of make.bash time,
+    we can actually write a test for field tracking!
+    
+    Update #20014
+    
+    This CL contains a test for the functionality fixed in CL 312069.
+    
+    Change-Id: I7569a7057bbc7c88ae25ae7bf974b0c8a4e35be8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312217
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/fixedbugs/issue20014.dir/a/a.go  | 21 ++++++++++++++
+ test/fixedbugs/issue20014.dir/main.go | 54 +++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue20014.go          |  7 +++++
+ test/fixedbugs/issue20014.out         |  6 ++++
+ 4 files changed, 88 insertions(+)

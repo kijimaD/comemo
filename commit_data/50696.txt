@@ -1,0 +1,28 @@
+commit 9861e8b2fd83dec24a6ced44998dca52abd6ccff
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Sep 29 09:19:38 2022 -0400
+
+    cmd/{cover,go}: avoid use of os.PathListSeparator in cmd/cover flag
+    
+    Rework the mechanism for passing a list of output files from cmd/go to
+    cmd/cover when running new-style package-scope coverage
+    instrumentation (-pkgcfg mode). The old scheme passed a single string
+    with all output files joined together with os.PathListSeparator, but
+    this scheme is not viable on plan9, where strings containing the
+    separator character are not permitted when running exec.Command().
+    Instead, switch cmd/cover to use an arguments file (a file containing
+    a list of names) to specify names of instrumented output files. This
+    fixes the cmd/cover test failures on the plan9 builders.
+    
+    Updates #51430.
+    
+    Change-Id: I919f5e0a79500e28648fb9177225a9b938e4fdee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436675
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/cmd/cover/cfg_test.go        | 25 ++++++++++++++++------
+ src/cmd/cover/cover.go           | 46 ++++++++++++++++++++++++++++------------
+ src/cmd/go/internal/work/exec.go | 20 +++++++++++------
+ 3 files changed, 65 insertions(+), 26 deletions(-)

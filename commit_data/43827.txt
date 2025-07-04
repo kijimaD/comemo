@@ -1,0 +1,20 @@
+commit b4f3d52f6a90aa520799f836e5951d5cf65f7fe4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Nov 17 16:47:08 2020 -0500
+
+    sync: document RWMutex race semantics
+    
+    RWMutex provides explicit acquire/release synchronization events to the
+    race detector to model the mutex. It disables sync events within the
+    methods to avoid e.g., the atomics from adding false synchronization
+    events, which could cause false negatives in the race detector.
+    
+    Change-Id: I5126ce2efaab151811ac264864aab1fa025a4aaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270865
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+
+ src/sync/rwmutex.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

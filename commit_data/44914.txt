@@ -1,0 +1,17 @@
+commit 41cf18eda79be6fa8142ab2e99dc756d4b08369b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Apr 2 19:06:33 2021 +0000
+
+    reflect: fix methodValueCall frame size on mips64
+    
+    Fixes a mistake from golang.org/cl/298670.
+    
+    Change-Id: I2f789f9fe003c856a993f7d462a2e84936743a1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306930
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/reflect/asm_mips64x.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

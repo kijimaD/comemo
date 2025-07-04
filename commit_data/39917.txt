@@ -1,0 +1,22 @@
+commit c1000c500cb4cec2991f8c1924cd5fff05279658
+Author: Lucas Bremgartner <lucas@bremis.ch>
+Date:   Mon Sep 16 19:46:12 2019 +0000
+
+    encoding/json: validate strings when decoding into Number
+    
+    Unmarshaling a string into a json.Number should first check that the string is a valid Number.
+    If not, we should fail without decoding it.
+    
+    Fixes #14702
+    
+    Change-Id: I286178e93df74ad63c0a852c3f3489577072cf47
+    GitHub-Last-Rev: fe69bb68eed06d056639f440d2daf4bb7c99013b
+    GitHub-Pull-Request: golang/go#34272
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195045
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/decode.go      |  3 +++
+ src/encoding/json/decode_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

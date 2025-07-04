@@ -1,0 +1,15 @@
+commit b2a66adc59404b4fbc54a0c1431c22eb0a594bab
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 13 11:41:02 2009 -0700
+
+    the name of the type was being sent twice.  drop the outer instance.
+    
+    R=rsc
+    DELTA=10  (5 added, 1 deleted, 4 changed)
+    OCL=31523
+    CL=31526
+
+ src/pkg/gob/decoder.go      | 2 +-
+ src/pkg/gob/encoder_test.go | 4 ++--
+ src/pkg/gob/type.go         | 8 ++++++--
+ 3 files changed, 9 insertions(+), 5 deletions(-)

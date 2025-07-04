@@ -1,0 +1,12 @@
+commit f5bc87cb75a45040e3fd0702a2f248c7ada9a389
+Author: Anschel Schaffer-Cohen <anschelsc@gmail.com>
+Date:   Mon Nov 29 09:25:31 2010 +1100
+
+    exp/eval: build fix for parser.ParseFile API change.
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/3283042
+
+ src/pkg/exp/eval/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

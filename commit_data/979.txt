@@ -1,0 +1,18 @@
+commit bc67ea4f8fad7dde046edc622e73cb69238f2227
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 13:09:39 2008 -0700
+
+    adapt to new compiler types
+    
+    R=r
+    OCL=18024
+    CL=18024
+
+ src/lib/flag.go                  |  2 +-
+ src/lib/fmt/format.go            | 36 ++++++++++++++++++------------------
+ src/lib/math/pow.go              |  6 +++---
+ src/lib/math/sin.go              |  4 ++--
+ src/lib/math/tan.go              |  4 ++--
+ src/lib/strings.go               |  1 +
+ src/lib/syscall/socket_darwin.go | 10 +++++-----
+ 7 files changed, 32 insertions(+), 31 deletions(-)

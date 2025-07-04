@@ -1,0 +1,18 @@
+commit d4953725099792e625decc1a812bff44356dce37
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 18 14:12:14 2008 -0800
+
+    new gotest shell script (will be a proper command some day, probably)
+    automates construction and execution of unit tests.
+    
+    R=rsc
+    DELTA=60  (58 added, 0 deleted, 2 changed)
+    OCL=19482
+    CL=19484
+
+ src/cmd/clean.bash      |  2 +-
+ src/cmd/gotest/Makefile | 13 +++++++++++++
+ src/cmd/gotest/gotest   | 51 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/make.bash       |  2 +-
+ src/lib/make.bash       |  1 +
+ 5 files changed, 67 insertions(+), 2 deletions(-)

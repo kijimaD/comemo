@@ -1,0 +1,15 @@
+commit 4888781f2485e276938867c5d9fe6f5d0477520b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Mar 10 12:20:16 2014 +0900
+
+    runtime: fix flakiness on futexsleep test
+    
+    Fixes #7496.
+    
+    LGTM=jsing
+    R=golang-codereviews, jsing
+    CC=golang-codereviews
+    https://golang.org/cl/72840043
+
+ src/pkg/runtime/futex_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

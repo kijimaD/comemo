@@ -1,0 +1,26 @@
+commit 9ee23e97a2079f7953c351bdb678c1b25a804d1c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jul 14 13:24:55 2023 -0400
+
+    cmd/cgo/internal/testcshared: remove an arbitrary timeout in TestSignalHandlersWithNotify
+    
+    Also log verbose information when -test.v is set.
+    
+    We need an arbitrary delay when checking that a signal is *not*
+    delivered, but when we expect the signal to arrive we don't need to
+    set an arbitrary limit on how long that can take.
+    
+    Fixes #61264.
+    
+    Change-Id: If3bbbf78e3c22694bf825d90d7ee9564ce8daedd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509636
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/cgo/internal/testcshared/cshared_test.go   | 18 +++++--
+ .../internal/testcshared/testdata/libgo5/libgo5.go | 19 +++++--
+ src/cmd/cgo/internal/testcshared/testdata/main4.c  | 22 ++++----
+ src/cmd/cgo/internal/testcshared/testdata/main5.c  | 62 ++++++++++++----------
+ 4 files changed, 72 insertions(+), 49 deletions(-)

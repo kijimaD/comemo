@@ -1,0 +1,13 @@
+commit 329b27a5666c469212a73626a278feb49b1b0e89
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Sep 17 01:11:28 2012 +0800
+
+    run.bash: set appropriate ulimits
+        mainly for NetBSD/OpenBSD.
+    
+    R=bradfitz, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/6453154
+
+ src/run.bash | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,0 +1,16 @@
+commit 7c9ed7946c64bf3edda408dba95bdcc76c9169c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 30 20:45:50 2010 -0700
+
+    8g: out of register bug fix
+    
+    Fixes #868.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1695049
+
+ src/cmd/8g/ggen.c        |  4 +++-
+ test/fixedbugs/bug287.go | 11 +++++++++++
+ test/fixedbugs/bug288.go | 18 ++++++++++++++++++
+ 3 files changed, 32 insertions(+), 1 deletion(-)

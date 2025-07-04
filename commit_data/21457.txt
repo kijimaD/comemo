@@ -1,0 +1,16 @@
+commit 027e47b7b105a71eb6fe375166ee807d5d06e40d
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Feb 3 12:13:31 2015 -0600
+
+    runtime:  Change memprofrate to memprofilerate
+    
+    Use memprofilerate in GODEBUG instead of memprofrate to be
+    consistent with other uses.
+    
+    Change-Id: Iaf6bd3b378b1fc45d36ecde32f3ad4e63ca1e86b
+    Reviewed-on: https://go-review.googlesource.com/3800
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/extern.go   | 2 +-
+ src/runtime/runtime1.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

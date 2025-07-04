@@ -1,0 +1,23 @@
+commit 156c60709e7775a6f1baa9685155b5974fefdea9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jul 8 18:11:23 2019 -0400
+
+    cmd/go/internal/search: record errors in the Match struct
+    
+    Previously, we would either invoke base.Fatalf (which is too aggressive),
+    or log.Print (which is too passive).
+    
+    Updates #32917
+    
+    Change-Id: I5475e873e76948de7df65dca08bc0ce67a7fc827
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185344
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/get/get.go       |  9 +++--
+ src/cmd/go/internal/load/pkg.go      |  3 ++
+ src/cmd/go/internal/modget/get.go    |  4 +++
+ src/cmd/go/internal/modload/load.go  |  8 +++--
+ src/cmd/go/internal/search/search.go | 66 ++++++++++++++++++++++++++++++------
+ 5 files changed, 75 insertions(+), 15 deletions(-)

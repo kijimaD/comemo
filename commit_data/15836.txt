@@ -1,0 +1,21 @@
+commit 40d356e9ab116fbf0f44b5b562ceb787f69fdc09
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 19 16:31:52 2013 -0400
+
+    cmd/ld: generate relocated DWARF in hostobj mode
+    
+    While we're here, downgrade DWARF to version 2.
+    We're not using any version 3 features, and OS X gdb
+    only supports version 2.
+    
+    Fixes #3436.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7891044
+
+ src/cmd/ld/dwarf.c      | 192 ++++++++++++++++++++++++++++++++++++++----------
+ src/cmd/ld/dwarf_defs.h |   1 +
+ src/cmd/ld/lib.c        |  20 ++++-
+ src/cmd/ld/macho.c      |  25 ++++---
+ 4 files changed, 184 insertions(+), 54 deletions(-)

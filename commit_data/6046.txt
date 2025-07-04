@@ -1,0 +1,12 @@
+commit 632417e5e7a8ad7d7aa4043f55f0fbf42e1d8fcc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 18 10:22:57 2010 -0400
+
+    run.bash: fix freebsd build (i hope)
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/2012041
+
+ src/run.bash | 1 +
+ 1 file changed, 1 insertion(+)

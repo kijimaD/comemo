@@ -1,0 +1,22 @@
+commit d39a89fd5843f535d634620d27110b320431f584
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Aug 6 21:59:13 2020 +0000
+
+    runtime,runtime/metrics: add metric for distribution of GC pauses
+    
+    For #37112.
+    
+    Change-Id: Ibb0425c9c582ae3da3b2662d5bbe830d7df9079c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247047
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/metrics.go             |  9 +++++++++
+ src/runtime/metrics/description.go |  5 +++++
+ src/runtime/metrics/doc.go         |  3 +++
+ src/runtime/metrics_test.go        | 22 ++++++++++++++++++++++
+ src/runtime/mgc.go                 |  3 +++
+ src/runtime/mstats.go              | 12 ++++++++++++
+ 6 files changed, 54 insertions(+)

@@ -1,0 +1,15 @@
+commit b198c8612e6972fc9e1ac6423d493e0fa739ceb7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 19 12:57:47 2010 -0700
+
+    runtime: allow large map values
+    
+    Fixes #772.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1206043
+
+ src/pkg/runtime/hashmap.c | 71 +++++++++++++++++++++++++++++++++++++++--------
+ test/bigmap.go            | 34 +++++++++++++++++++++++
+ 2 files changed, 93 insertions(+), 12 deletions(-)

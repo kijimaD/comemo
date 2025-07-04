@@ -1,0 +1,24 @@
+commit 249af5c85eb0ba05592ea3ffac71c4a2f824a216
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Thu Jan 24 01:20:17 2013 +0800
+
+    crypto/x509: skip SystemRootsError test on Windows
+    
+    On Windows, crypto/x509 passes through to Windows's CryptoAPI
+    to verify certificate chains. This method can't produce a
+    SystemRootsError, so make sure we always skip the test on
+    Windows.
+    
+    This is needed because testVerify is called in both
+    TestGoVerify and TestSystemVerify on Windows - one is for
+    testing the Go verifier, the other one is for testing the
+    CryptoAPI verifier. The orignal CL tried to sidestep
+    this issue by setting systemSkip to true, but that only
+    affected TestSystemVerify.
+    
+    R=golang-dev, agl, snaury, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7185043
+
+ src/pkg/crypto/x509/verify_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

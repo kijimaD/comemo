@@ -1,0 +1,18 @@
+commit 3d5e219e020115e98762821ac688e77b1b50787d
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Mar 7 20:28:18 2014 +0100
+
+    cmd/gc: enforce register-width alignment for stack sizes.
+    
+    This fixes the following amd64p32 issue:
+        pkg/time/format.go:724: internal compiler error: twobitwalktype1: invalid initial alignment, Time
+    
+    caused by the pointer zone ending on a 32-bit-aligned boundary.
+    
+    LGTM=rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/72270046
+
+ src/cmd/gc/pgen.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit f2503e612a4635cf77a6f1ea0cdafa7f6cadb969
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Nov 3 18:11:24 2017 +0100
+
+    cmd/vendor/github.com/google/pprof: refresh from upstream
+    
+    Updating to commit 79c4198ef7bd1069f8f56501fc05f0f1d2c33d8a
+    from github.com/google/pprof
+    
+    Fixes #22561.
+    
+    Change-Id: Ib92fd443ccc067aef7214e59f594db7f2521535b
+    Reviewed-on: https://go-review.googlesource.com/75870
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .../github.com/google/pprof/internal/driver/fetch_test.go  | 14 ++++++++++++--
+ src/cmd/vendor/vendor.json                                 |  4 ++--
+ 2 files changed, 14 insertions(+), 4 deletions(-)

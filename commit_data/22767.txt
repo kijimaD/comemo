@@ -1,0 +1,15 @@
+commit 282db6273e1194f62af9cebfdd165dea3c63b1a3
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Apr 30 00:59:36 2015 +1000
+
+    cmd/objdump: disable external linking test on openbsd/arm
+    
+    Disable disassembly with external linking test on openbsd/arm, since this
+    platform does not currently support cgo/external linking.
+    
+    Change-Id: I6eab6fcaac21407ce05075a4a1407fbfe0e6142b
+    Reviewed-on: https://go-review.googlesource.com/9481
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/objdump/objdump_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

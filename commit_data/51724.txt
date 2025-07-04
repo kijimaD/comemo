@@ -1,0 +1,24 @@
+commit ba913774543d7388b7bb1843fc7c1b935aebedda
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jan 20 13:54:36 2023 -0800
+
+    test: test that we schedule OpArgIntReg early
+    
+    If OpArgIntReg is incorrectly scheduled, that causes it to be spilled
+    incorrectly, which causes the argument to not be considered live
+    at the start of the function.
+    
+    This is the test for CL 462858
+    
+    Add a brief mention of why CL 462858 is needed in the scheduling code.
+    
+    Change-Id: Id199456f88d9ee5ca46d7b0353a3c2049709880e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462899
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/schedule.go |  6 ++++--
+ test/live_regabi.go                      | 22 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit 6407b3c80ea7051f01615097afc60da671a688e8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Oct 20 12:44:00 2017 +1100
+
+    os: simplify windows Pipe
+    
+    windows version of Pipe function is implemented by calling
+    syscall.Pipe which returns handles inheritable by client process,
+    and then adjusting returned handles with syscall.CloseOnExec.
+    
+    Just create non-inheritable handles in the first place.
+    Now that we don't have a race window in the code, drop use
+    of syscall.ForkLock.
+    
+    Change-Id: Ie325da7c2397b5995db4a5ddb0117e2ce1745187
+    Reviewed-on: https://go-review.googlesource.com/72010
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/file_windows.go | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)

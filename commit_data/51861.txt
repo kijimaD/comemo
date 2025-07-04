@@ -1,0 +1,20 @@
+commit 780db9a63d73f26dd9614b67e6129b55e854a174
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 20 19:31:40 2022 -0500
+
+    cmd/link: add debug print in hostobjCopy
+    
+    In external linking mode, when the external linker fails to handle
+    something in a host object file, it usually reports the name of
+    the host object which is a copied file named 000NNN.o. This is
+    often not helpful to determine what file it is. Add some debug
+    print so at least in -v mode it is more helpful.
+    
+    Change-Id: Ibe762bff6a25640d16ee0dc082736ba5161b7522
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458735
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

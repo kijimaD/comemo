@@ -1,0 +1,16 @@
+commit d98970963081585c3c2e85fa68740cc854d08f92
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Thu Nov 10 12:40:50 2011 -0800
+
+    time: add ISOWeek method to Time
+    
+    As the ISO 8601 week number is untrivial to compute a new method
+    on *Time provides year and number of week.
+    
+    R=golang-dev, rsc, r, r
+    CC=golang-dev
+    https://golang.org/cl/5316074
+
+ src/pkg/time/time.go      | 60 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/time/time_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 122 insertions(+)

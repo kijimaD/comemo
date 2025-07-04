@@ -1,0 +1,16 @@
+commit bb3b24bffc4f50c64504c1c5f899aad0281a449a
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 26 15:58:56 2018 +1100
+
+    fmt: update formatting example for maps
+    
+    Now that maps are printed in deterministic order, the map example
+    can have multiple keys without breaking the build.
+    
+    Change-Id: Iccec0cd76a3d41c75d8d4eb768ec0ac09ad9f2ad
+    Reviewed-on: https://go-review.googlesource.com/c/151218
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/fmt/example_test.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

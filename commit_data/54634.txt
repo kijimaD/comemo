@@ -1,0 +1,30 @@
+commit b455e239aeeeb1d33eaa34e62c397f3408245a0c
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 18 10:13:18 2023 -0700
+
+    cmd/compile: use descriptors for type assertion runtime calls
+    
+    Mostly a reorganization to make further changes easier.
+    
+    This reorganization will make it easier to add a cache in front
+    of the runtime call.
+    
+    Leave the old code alone for dynamic type assertions (aka generics).
+    
+    Change-Id: Ia7dcb7aeb1f63baf93584ccd792e8e31510e8aea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529196
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ir/expr.go                |  3 +
+ src/cmd/compile/internal/ir/symtab.go              |  1 +
+ src/cmd/compile/internal/objw/objw.go              |  8 +++
+ src/cmd/compile/internal/ssagen/ssa.go             | 75 +++++++++++++++++-----
+ .../compile/internal/typecheck/_builtin/runtime.go |  3 +-
+ src/cmd/compile/internal/typecheck/builtin.go      |  3 +-
+ src/cmd/compile/internal/walk/expr.go              | 28 ++++++++
+ src/internal/abi/switch.go                         |  5 ++
+ src/runtime/iface.go                               | 28 ++++----
+ 9 files changed, 119 insertions(+), 35 deletions(-)

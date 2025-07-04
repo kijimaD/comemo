@@ -1,0 +1,16 @@
+commit bbe5c93e93922154d330cc4b7eecf148c830515c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Jul 1 18:24:43 2014 -0400
+
+    misc/nacl, syscall: lazily initialize fs on nacl.
+    On amd64, the real time is reduced from 176.76s to 140.26s.
+    On ARM, the real time is reduced from 921.61s to 726.30s.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/101580043
+
+ misc/nacl/mkzip.go         | 10 ++++++++--
+ src/pkg/syscall/fs_nacl.go | 23 ++++++++++++++++++++---
+ 2 files changed, 28 insertions(+), 5 deletions(-)

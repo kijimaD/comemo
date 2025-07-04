@@ -1,0 +1,23 @@
+commit dda2991c2ea0c5914714469c4defc2562a907230
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu Dec 3 16:41:57 2020 +0100
+
+    internal/cpu: disable FMA when OSXSAVE is not enabled on x86
+    
+    All instructions in the FMA extension on x86 are VEX prefixed.
+    VEX prefixed instructions generally require OSXSAVE to be enabled.
+    
+    The execution of FMA instructions emitted by the Go compiler on amd64
+    will generate an invalid opcode exception if OSXSAVE is not enabled.
+    
+    Fixes #41022
+    
+    Change-Id: I49881630e7195c804110a2bd81b5bec8cac31ba8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274479
+    Trust: Martin Möhrmann <moehrmann@google.com>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/internal/cpu/cpu_x86.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

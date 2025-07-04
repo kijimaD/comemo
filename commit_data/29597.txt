@@ -1,0 +1,15 @@
+commit f39050c8ebf894ccedc0b99de96f7412be97af89
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jun 6 16:58:27 2016 -0700
+
+    cmd/cover: handle multiple samples from the same location
+    
+    So we can merge cover profiles from multiple runs.
+    
+    Change-Id: I1bf921e2b02063a2a62b35d21a6823062d10e5d0
+    Reviewed-on: https://go-review.googlesource.com/23831
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/cover/profile.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

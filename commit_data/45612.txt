@@ -1,0 +1,33 @@
+commit 5c489514bc5e61ad9b5b07bd7d8ec65d66a0512a
+Author: Roberto Clapis <roberto@golang.org>
+Date:   Wed Apr 7 14:36:40 2021 +0200
+
+    net/http: switch HTTP1 to ASCII equivalents of string functions
+    
+    The current implementation uses UTF-aware functions
+    like strings.EqualFold and strings.ToLower.
+    
+    This could, in some cases, cause http smuggling.
+    
+    Change-Id: I0e76a993470a1e1b1b472f4b2859ea0a2b22ada0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308009
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Roberto Clapis <roberto@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/go/build/deps_test.go                  |  5 +-
+ src/net/http/client.go                     |  6 +-
+ src/net/http/cookie.go                     | 13 +++-
+ src/net/http/cookiejar/jar.go              | 17 +++++-
+ src/net/http/cookiejar/punycode.go         | 14 +----
+ src/net/http/header.go                     |  3 +-
+ src/net/http/http.go                       |  9 ---
+ src/net/http/httputil/reverseproxy.go      | 12 +++-
+ src/net/http/httputil/reverseproxy_test.go |  5 +-
+ src/net/http/internal/ascii/print.go       | 61 +++++++++++++++++++
+ src/net/http/internal/ascii/print_test.go  | 95 ++++++++++++++++++++++++++++++
+ src/net/http/request.go                    |  7 ++-
+ src/net/http/transfer.go                   |  3 +-
+ src/net/http/transport.go                  |  3 +-
+ 14 files changed, 215 insertions(+), 38 deletions(-)

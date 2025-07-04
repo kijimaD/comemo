@@ -1,0 +1,23 @@
+commit 5b1885c241172fc1f89221b1a83789032c13cf5a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 14 13:36:40 2013 -0800
+
+    go/parser: cleanups following CL 7307085
+    
+    - use the new AllErrors flag where appropriate
+    - unless AllErrors is set, eliminate spurious
+      errors before they are added to the errors list
+      (it turns out that reporting spurious errors always
+      leads to too many uninformative errors after all)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7323065
+
+ src/cmd/gofmt/gofmt.go          |  4 ++--
+ src/pkg/exp/gotype/gotype.go    |  4 ++--
+ src/pkg/go/parser/error_test.go |  2 +-
+ src/pkg/go/parser/interface.go  |  6 +++---
+ src/pkg/go/parser/parser.go     | 18 +++++++++++++++---
+ src/pkg/go/types/check_test.go  |  2 +-
+ 6 files changed, 24 insertions(+), 12 deletions(-)

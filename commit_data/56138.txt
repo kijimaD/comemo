@@ -1,0 +1,37 @@
+commit 2e064cf14441460290fd25d9d61f02a9d0bae671
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Apr 4 13:05:13 2024 +0900
+
+    encoding/csv: port the go-fuzz function to native fuzzing
+    
+    Beyond the required file move and refactor to use the testing package,
+    a number of changes were made to get the fuzzing working properly.
+    
+    First, add more logs to see what is going on.
+    
+    Second, some option combinations set Comma to the null character,
+    which simply never worked at all. I suspect the author meant to leave
+    the comma character as the default instead.
+    This was spotted thanks to the added logging.
+    
+    Third, the round-trip DeepEqual check did not work at all
+    when any comments were involved, as the writer does not support them.
+    
+    Fourth and last, massage the first and second parsed records before
+    comparing them with DeepEqual, as the nature of Reader and Writer
+    causes empty quoted records and CRLF sequences to change.
+    
+    With all the changes above, the fuzzing function appears to work
+    normally on my laptop now. I fuzzed for a solid five minutes and
+    could no longer encounter any errors or panics.
+    
+    Change-Id: Ie27f65f66099bdaa076343cee18b480803d2e4d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576375
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/csv/fuzz.go      | 70 -------------------------------
+ src/encoding/csv/fuzz_test.go | 96 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 96 insertions(+), 70 deletions(-)

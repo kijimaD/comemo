@@ -1,0 +1,46 @@
+commit 9770b8be687278eaf80730a6bb2ddef991c3d87a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 6 14:52:33 2022 -0700
+
+    go/types: use internal/types/errors instead of local error codes
+    
+    This change adds a new dependency to go/types.
+    
+    Change-Id: I7e40b95c8c1e1356b638fc1aa2ef16ce91e9a496
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439563
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/go/build/deps_test.go       |    3 +-
+ src/go/types/api.go             |    3 +-
+ src/go/types/assignments.go     |   33 +-
+ src/go/types/builtins.go        |   81 +--
+ src/go/types/call.go            |   47 +-
+ src/go/types/check.go           |    5 +-
+ src/go/types/check_test.go      |    6 +
+ src/go/types/conversions.go     |    5 +-
+ src/go/types/decl.go            |   37 +-
+ src/go/types/errorcodes.go      | 1423 ---------------------------------------
+ src/go/types/errorcodes_test.go |  199 ------
+ src/go/types/errors.go          |   17 +-
+ src/go/types/expr.go            |  145 ++--
+ src/go/types/index.go           |   27 +-
+ src/go/types/infer.go           |   11 +-
+ src/go/types/initorder.go       |    9 +-
+ src/go/types/instantiate.go     |    3 +-
+ src/go/types/interface.go       |    5 +-
+ src/go/types/labels.go          |   17 +-
+ src/go/types/mono.go            |    7 +-
+ src/go/types/operand.go         |   21 +-
+ src/go/types/resolver.go        |   39 +-
+ src/go/types/signature.go       |   21 +-
+ src/go/types/stmt.go            |   79 +--
+ src/go/types/struct.go          |   11 +-
+ src/go/types/typeset.go         |   17 +-
+ src/go/types/typexpr.go         |   49 +-
+ src/go/types/union.go           |   19 +-
+ src/go/types/version.go         |    9 +-
+ 29 files changed, 379 insertions(+), 1969 deletions(-)

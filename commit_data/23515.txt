@@ -1,0 +1,16 @@
+commit 21a4c93166fe4d13b8b40d098f7d9ec380c13562
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri May 1 03:55:17 2015 -0400
+
+    runtime: slightly clean up softfloat code
+    
+    Removes the remains of the old C based stepflt implementation.
+    Also removed goto usage.
+    
+    Change-Id: Ida4742c49000fae4fea4649f28afde630ce4c577
+    Reviewed-on: https://go-review.googlesource.com/9600
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/softfloat64.go   |  13 ----
+ src/runtime/softfloat_arm.go | 160 +++++++++++++++++--------------------------
+ 2 files changed, 62 insertions(+), 111 deletions(-)

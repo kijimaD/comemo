@@ -1,0 +1,20 @@
+commit e6a49555a723e176dbcc45ca9201006575fd3e56
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 09:57:05 2013 -0400
+
+    cmd/go: use pattern to prune file tree walk
+    
+    For example, if the pattern is m... there is
+    no need to look in directories not beginning with m.
+    
+    Fixes #5214.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/13253049
+
+ src/cmd/go/main.go                  | 39 +++++++++++++++++++++
+ src/cmd/go/match_test.go            | 70 ++++++++++++++++++++++++++++++++-----
+ src/cmd/go/test.bash                | 16 +++++++++
+ src/cmd/go/testdata/src/badpkg/x.go |  1 +
+ 4 files changed, 117 insertions(+), 9 deletions(-)

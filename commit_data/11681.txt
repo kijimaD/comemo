@@ -1,0 +1,15 @@
+commit 518ee115b75c72c68364e1f376d9d9d3f808ffda
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 7 18:00:30 2012 -0800
+
+    net/http/httputil: preserve query params in reverse proxy
+    
+    Fixes #2853
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5642056
+
+ src/pkg/net/http/httputil/reverseproxy.go      |  7 ++++-
+ src/pkg/net/http/httputil/reverseproxy_test.go | 38 ++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 1 deletion(-)

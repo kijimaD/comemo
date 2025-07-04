@@ -1,0 +1,27 @@
+commit d5cd4ab46ab4deb15b0f1a12cb03126840d8240d
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:33:09 2015 -0400
+
+    cmd/compile: added support for mips64{,le}
+    
+    It is based on ppc64 compiler.
+    
+    Change-Id: I15a101df05f2919ba5292136957ba0009227d067
+    Reviewed-on: https://go-review.googlesource.com/14445
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/compile/internal/gc/cgen.go       |  32 +-
+ src/cmd/compile/internal/gc/gsubr.go      |   4 +-
+ src/cmd/compile/internal/gc/pgen.go       |   4 +-
+ src/cmd/compile/internal/gc/reg.go        |   4 +-
+ src/cmd/compile/internal/gc/walk.go       |   4 +-
+ src/cmd/compile/internal/mips64/cgen.go   |  60 +--
+ src/cmd/compile/internal/mips64/galign.go |  32 +-
+ src/cmd/compile/internal/mips64/ggen.go   | 240 +++++-------
+ src/cmd/compile/internal/mips64/gsubr.go  | 581 ++++++++++++++++--------------
+ src/cmd/compile/internal/mips64/opt.go    |  12 -
+ src/cmd/compile/internal/mips64/peep.go   | 497 ++++++-------------------
+ src/cmd/compile/internal/mips64/prog.go   | 325 +++++------------
+ src/cmd/compile/internal/mips64/reg.go    |  20 +-
+ src/cmd/compile/main.go                   |   3 +
+ 14 files changed, 689 insertions(+), 1129 deletions(-)

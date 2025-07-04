@@ -1,0 +1,16 @@
+commit d7543094892eaaa4693afcf23c3f0dc370a67900
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 10 09:52:02 2010 -0700
+
+    godoc: report Status 404 if a pkg or file is not found
+    
+    Fixes #1005.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/1935041
+
+ src/cmd/godoc/codewalk.go |  1 +
+ src/cmd/godoc/godoc.go    | 24 +++++++++++++++---------
+ src/cmd/godoc/main.go     |  8 ++++++--
+ 3 files changed, 22 insertions(+), 11 deletions(-)

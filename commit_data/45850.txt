@@ -1,0 +1,35 @@
+commit a0400420ade001265f656c5dd9be1b48d7c8e6fe
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 16 14:34:54 2021 -0400
+
+    cmd/internal/moddeps: use -mod=readonly instead of -mod=mod
+    
+    TestAllDependencies is attempting to check that the modules in GOROOT
+    satisfy certain properties; it should not modify those modules itself.
+    
+    The “quick” part of the test checks that vendored packages are present
+    and complete, without constructing a parallel GOROOT. It shouldn't
+    resolve new dependencies or change formatting in any way.
+    
+    The longer version of the test already constructs a parallel GOROOT
+    and tidies the modules within it. That part of the test will flag any
+    modifications needed to the go.mod and go.sum files, without modifying
+    the original GOROOT.
+    
+    From what I can tell, the failure mode in #46695 is caused by running
+    the test on a module rooted in $GOROOT proper. There is no such module
+    in the mainline Go repo, but it may have been introduced in the fork
+    and could also be introduced by stray edits in contributor CLs. It
+    should be diagnosed clearly.
+    
+    For #46695
+    
+    Change-Id: I62b90ccbd54cb3e3b413017021c952a7b1d455e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328770
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/internal/moddeps/moddeps_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

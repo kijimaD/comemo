@@ -1,0 +1,22 @@
+commit bee2d5b0ad241bb15ce79d22661a12dd01f8e992
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 30 14:59:41 2010 -0400
+
+    gc, spec, tests: no auto-indirect of pointer to interface value
+    
+    Implies no embedding of pointer to interface value either.
+    
+    R=gri, iant, ken2, r, r2
+    CC=golang-dev
+    https://golang.org/cl/2289041
+
+ doc/go_spec.html         | 23 +++++++---------
+ src/cmd/gc/dcl.c         |  5 +++-
+ src/cmd/gc/reflect.c     |  9 -------
+ src/cmd/gc/typecheck.c   |  2 +-
+ test/hashmap.go          | 12 ++++-----
+ test/interface/embed.go  | 23 +---------------
+ test/interface/embed2.go | 70 ++++++++++++++++++++++++++++++++++++++++++++++++
+ test/method.go           |  5 ----
+ test/method2.go          |  5 ++++
+ 9 files changed, 97 insertions(+), 57 deletions(-)

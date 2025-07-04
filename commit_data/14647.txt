@@ -1,0 +1,14 @@
+commit a719700e8904283ba7aab02d9cf8faeadd6857a8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Dec 14 13:23:43 2012 +0400
+
+    runtime/race: update runtime to r170112.
+    This includes GORACE history_size and log_path flags.
+    
+    R=golang-dev, bradfitz, rsc, remyoudompheng, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6947046
+
+ src/pkg/runtime/race/race_darwin_amd64.syso  | Bin 145460 -> 180892 bytes
+ src/pkg/runtime/race/race_windows_amd64.syso | Bin 123196 -> 121144 bytes
+ 2 files changed, 0 insertions(+), 0 deletions(-)

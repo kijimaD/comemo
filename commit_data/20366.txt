@@ -1,0 +1,16 @@
+commit c93f74d34bf45bcbfa1cfda5ccd198ed5682ddf4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 8 17:47:12 2014 -0700
+
+    syscall: keep Windows syscall pointers live too
+    
+    Like https://golang.org/cl/139360044
+    
+    LGTM=rsc, alex.brainman
+    R=alex.brainman, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/138250043
+
+ src/syscall/mksyscall_windows.go | 24 ++++++++++++++++++++++--
+ src/syscall/zsyscall_windows.go  | 15 +++++++++++----
+ 2 files changed, 33 insertions(+), 6 deletions(-)

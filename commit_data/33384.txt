@@ -1,0 +1,16 @@
+commit 2da1446bb11cdfaac1f86d7c2134c36487dd2d66
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Thu Nov 2 12:35:25 2017 +0000
+
+    time: fix incorrect "zero padding" comments
+    
+    The comment on invalid time values in Constants and example
+    refers to _ zero padding when it should refer to space padding.
+    
+    Change-Id: I5784356e389d324703e20eec6203f147db92880f
+    Reviewed-on: https://go-review.googlesource.com/75410
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/example_test.go | 2 +-
+ src/time/format.go       | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

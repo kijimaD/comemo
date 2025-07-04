@@ -1,0 +1,30 @@
+commit 9cf06ed6cd624ab1d84acbabf30d57b9753651c0
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Jan 12 17:35:53 2017 -0500
+
+    cmd/link: only exclude C-only symbols on darwin
+    
+    C-only symbols are excluded from pclntab because of a quirk of darwin,
+    where functions are referred to by an exported symbol so dynamic
+    relocations de-duplicate to the host binary module and break unwinding.
+    
+    This doesn't happen on ELF systems because the linker always refers to
+    unexported module-local symbols, so we don't need this condition.
+    And the current logic for excluding some functions breaks the module
+    verification code in moduledataverify1. So disable this for plugins
+    on linux.
+    
+    (In 1.9, it will probably be necessary to introduce a module-local
+    symbol reference system on darwin to fix a different bug, so all of
+    this onlycsymbol code made be short-lived.)
+    
+    With this CL, the tests in CL 35116 pass.
+    
+    Change-Id: I517d7ca4427241fa0a91276c462827efb9383be9
+    Reviewed-on: https://go-review.googlesource.com/35190
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/pcln.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

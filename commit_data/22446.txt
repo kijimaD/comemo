@@ -1,0 +1,45 @@
+commit d7d133736888f011c7746ff6edb3cb90c6cf0309
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 2 11:19:00 2015 -0400
+
+    debug/dwarf: add DWARF attribute value class to Field
+    
+    To return DWARF attribute values, debug/dwarf maps the DWARF attribute
+    value classes to Go types. Unfortunately, this mapping is ambiguous in
+    a way that makes it impossible to correctly interpret some DWARF
+    attributes as of DWARF 4. For example, AttrStartScope can be either a
+    constant or a rangelistptr. The attribute is interpreted differently
+    depending on its class, but debug/dwarf maps both classes to int64, so
+    the caller can't distinguish them from the Go type.
+    AttrDataMemberLocation is similar.
+    
+    To address this, this change adds a field to type Field that indicates
+    the exact DWARF attribute value class of that field's value. This
+    makes it possible to distinguish value classes that can't be
+    distinguished by their Go type alone.
+    
+    The root of this type ambiguity was DWARF itself. For example, DWARF 2
+    made no distinction between constants that were just constants and
+    constants that were section offsets because no attribute could have
+    both meanings. Hence, the single int64 type was sufficient. To avoid
+    introducing just another layer of ambiguity, this change takes pains
+    to canonicalize ambiguous classes in DWARF 2 and 3 files into the
+    unambiguous classes of DWARF 4.
+    
+    Of course, there's no guarantee that future DWARF versions won't do
+    the same thing again and further subdivide the DWARF 4 classes. This
+    change gets ahead of this somewhat by distinguishing the various *ptr
+    classes even though the encoding does not. If there's some other form
+    of split, we can handle this in a backwards-compatible way by
+    introducing, for example, a Class5 field and type.
+    
+    Change-Id: I4ef96d1223b0fd7f96ecf44fcc0e704a36af02b4
+    Reviewed-on: https://go-review.googlesource.com/8502
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/dwarf/class_string.go |  17 +++
+ src/debug/dwarf/entry.go        | 240 ++++++++++++++++++++++++++++++++++++----
+ src/debug/dwarf/typeunit.go     |   6 +-
+ src/debug/dwarf/unit.go         |   2 +-
+ src/debug/elf/file_test.go      |  20 ++--
+ 5 files changed, 252 insertions(+), 33 deletions(-)

@@ -1,0 +1,20 @@
+commit 0db5534d7acb3c5ce39145ec3aaa490cca1a81ea
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Jan 31 22:05:49 2019 -0700
+
+    encoding/csv: document that Writer is buffered
+    
+    Add documentation that individual Write calls are buffered and
+    copy documentation from bufio.Writer notifying the user to call
+    Flush and Error when all writes are complete. Remove reference
+    to "file" since the implementation is general and allows any
+    io.Writer.
+    
+    Fixes #30045
+    
+    Change-Id: I50165470e548f296494e764707fbabe36c665015
+    Reviewed-on: https://go-review.googlesource.com/c/160680
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/csv/writer.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 60ddf42b4627fb4ff5f92d2193c294456175af9a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jul 2 16:41:22 2021 -0400
+
+    cmd/go: change link in error message from /wiki to /doc.
+    
+    The /doc link is currently a redirect (CL 334389),
+    but I plan to update it soon with a more detailed guide.
+    
+    Updates #36460
+    
+    Change-Id: I9e4a47ad0c8bcb7361cfa3e5b9d07ad241b13ba6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332573
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/load.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

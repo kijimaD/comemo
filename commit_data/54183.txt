@@ -1,0 +1,48 @@
+commit f92741b1d82316db15516b82e3812e262202de40
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 22 17:44:19 2023 -0700
+
+    cmd/compile/internal/noder: elide statically known "if" statements
+    
+    In go.dev/cl/517775, I moved the frontend's deadcode elimination pass
+    into unified IR. But I also made a small enhancement: a branch like
+    "if x || true" is now detected as always taken, so the else branch can
+    be eliminated.
+    
+    However, the inliner also has an optimization for delaying the
+    introduction of the result temporary variables when there's a single
+    return statement (added in go.dev/cl/266199). Consequently, the
+    inliner turns "if x || true { return true }; return true" into:
+    
+            if x || true {
+                    ~R0 := true
+                    goto .i0
+            }
+            .i0:
+            // code that uses ~R0
+    
+    In turn, this confuses phi insertion, because it doesn't recognize
+    that the "if" statement is always taken, and so ~R0 will always be
+    initialized.
+    
+    With this CL, after inlining we instead produce:
+    
+            _ = x || true
+            ~R0 := true
+            goto .i0
+            .i0:
+    
+    Fixes #62211.
+    
+    Change-Id: Ic8a12c9eb85833ee4e5d114f60e6c47817fce538
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522096
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/noder/reader.go | 33 ++++++++++++++++++++++++++------
+ src/cmd/compile/internal/noder/writer.go | 18 +++++++++--------
+ test/inline.go                           | 30 +++++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+), 14 deletions(-)

@@ -1,0 +1,25 @@
+commit 6c877e5da7ab14f0d8a206c09f24cf51fbbc393a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 7 20:30:28 2017 -0800
+
+    net: avoid race on test hooks with DNS goroutines
+    
+    The DNS code can start goroutines and not wait for them to complete.
+    This does no harm, but in tests this can cause a race condition with
+    the test hooks that are installed and unintalled around the tests.
+    Add a WaitGroup that tests of DNS can use to avoid the race.
+    
+    Fixes #21090
+    
+    Change-Id: I6c1443a9c2378e8b89d0ab1d6390c0e3e726b0ce
+    Reviewed-on: https://go-review.googlesource.com/82795
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/singleflight/singleflight.go | 10 +++++---
+ src/net/cgo_unix_test.go                  |  6 +++++
+ src/net/dnsclient_unix.go                 |  2 ++
+ src/net/dnsclient_unix_test.go            | 41 +++++++++++++++++++++++++++++++
+ src/net/lookup.go                         | 12 ++++++++-
+ src/net/lookup_test.go                    | 28 +++++++++++++++++++++
+ src/net/netgo_unix_test.go                |  1 +
+ 7 files changed, 95 insertions(+), 5 deletions(-)

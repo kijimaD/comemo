@@ -1,0 +1,20 @@
+commit 2069543bf11fe0432f51231c8a2cd1d4629f5a05
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 2 20:42:00 2018 +0000
+
+    encoding/xml: document HTMLAutoClose and HTMLEntity more
+    
+    They didn't even have public types, which made them pretty mysterious.
+    
+    Give them types and reference the Decoder, which uses them.
+    
+    Also, refer them qualified by their package name in the examples, as
+    we usually do in example*.go files, which usually use package foo_test
+    specifically so we can show the package names along with the symbols.
+    
+    Change-Id: I50ebbbf43778c1627bfa526f8824f52c7953454f
+    Reviewed-on: https://go-review.googlesource.com/127663
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/encoding/xml/xml.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

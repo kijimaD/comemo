@@ -1,0 +1,17 @@
+commit 53c66543e022b1a96a599fee0819f6b16e92bead
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 25 13:08:37 2014 -0400
+
+    cmd/gc: avoid infinite recursion on invalid recursive type
+    
+    Fixes #8507.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews, r
+    https://golang.org/cl/144560043
+
+ src/cmd/gc/align.c          |  4 +++-
+ src/cmd/gc/subr.c           |  3 ++-
+ test/fixedbugs/issue8507.go | 16 ++++++++++++++++
+ 3 files changed, 21 insertions(+), 2 deletions(-)

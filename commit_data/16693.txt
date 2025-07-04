@@ -1,0 +1,12 @@
+commit efced7c6e984f26b4c275b19ba61f2c2629d95ea
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Jul 2 15:24:09 2013 +1000
+
+    misc/vim: Allow multiple GOOS/GOARCH.
+    
+    R=golang-dev, dsymonds, dominik.honnef
+    CC=golang-dev
+    https://golang.org/cl/9293043
+
+ misc/vim/autoload/go/complete.vim | 45 ++++++++++++++++++++++-----------------
+ 1 file changed, 26 insertions(+), 19 deletions(-)

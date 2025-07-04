@@ -1,0 +1,19 @@
+commit a0262b201f6d66142ae1e01723430a2471799404
+Author: David Chase <drchase@google.com>
+Date:   Fri Nov 8 17:11:48 2019 -0500
+
+    cmd/compile: intrinsify functions added to runtime/internal/sys
+    
+    This restores intrinsic status to functions copied from math/bits
+    into runtime/internal/sys, as an aid to runtime performance.
+    
+    Updates #35112.
+    
+    Change-Id: I41a7d87cf00f1e64d82aa95c5b1000bc128de820
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206200
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 5 +++++
+ 1 file changed, 5 insertions(+)

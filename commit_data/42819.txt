@@ -1,0 +1,18 @@
+commit 41bc0a1713b9436e96c2d64211ad94e42cafd591
+Author: SparrowLii <liyuancylx@gmail.com>
+Date:   Mon Aug 24 14:43:32 2020 +0800
+
+    math/big: fix TestShiftOverlap for test -count arguments > 1
+    
+    Don't overwrite incoming test data.
+    
+    The change uses copy instead of assigning statement to avoid this.
+    
+    Change-Id: Ib907101822d811de5c45145cb9d7961907e212c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250137
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/arith_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

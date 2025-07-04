@@ -1,0 +1,24 @@
+commit 6f6276ce366f0f9cd9748d9c910310e0bc7dc8e5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 3 12:11:44 2023 -0800
+
+    cmd/compile/internal/inline: adjust isBigFunc to recognize unified IR codegen
+    
+    Unified IR generates uniform IR for "a, b = f()" to be able to insert
+    implicit conversion expressions, but the result is somewhat more
+    verbose and trips up the inliner's naive cost metrics.
+    
+    The hairyVisitor.doNode method was already adjusted to account for
+    this, but isBigFunc needs the same adjustment.
+    
+    Fixes #57563.
+    
+    Change-Id: Ia8d86a6e314ec60190c78f40ace4fb30dadc4413
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460395
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/inline/inl.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

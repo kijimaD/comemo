@@ -1,0 +1,19 @@
+commit 04e80fb2c9e502c011d367ad36307290df07cb41
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 1 16:31:57 2019 -0700
+
+    runtime: don't return from netpollGenericInit until init is complete
+    
+    As a side-effect ensure that netpollinited only reports true when
+    netpoll initialization is complete.
+    
+    Fixes #35282
+    Updates #35353
+    
+    Change-Id: I21f08a04fcf229e0de5e6b5ad89c990426ae9b89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204937
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/netpoll.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

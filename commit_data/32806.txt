@@ -1,0 +1,12 @@
+commit 5993a75869310212763b0055c2e68faa1349fb2d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Sep 22 10:42:12 2017 +0200
+
+    runtime: fix typo in the word "preceding"
+    
+    Change-Id: I6d8c8ca0dee972cabfcc95fda23aea25692633a5
+    Reviewed-on: https://go-review.googlesource.com/65350
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/runtime/race.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

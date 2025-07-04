@@ -1,0 +1,29 @@
+commit 1fffeddfe9c977510d855277da57e0564700d6c3
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jul 20 14:37:53 2021 -0700
+
+    cmd/go: add -testsum flag to update go.sum in script tests
+    
+    -testsum may be set to "tidy", "listm", or "listall". When set,
+    TestScript runs 'go mod tidy', 'go list -m -mod=mod all', or
+    'go list -mod=mod all' at the beginning of each test that has a go.mod
+    file in its root directory. If the test passes and go.mod or go.sum
+    was updated, TestScript will rewrite the test file with the initial
+    content of go.mod and go.sum (after the above command).
+    
+    This is useful for writing tests that need a working go.sum and for
+    fixing tests that rely on -mod=mod.
+    
+    For golang/go#41302
+    
+    Change-Id: I63a5667621a5082ccedfc1bff33c3969c29e8b3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336150
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341932
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/script_test.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 81 insertions(+)

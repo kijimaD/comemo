@@ -1,0 +1,15 @@
+commit bc15b94181baaed5ae3e8afef7dfedb9bb43956a
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Aug 29 20:33:21 2009 -0700
+
+    sped up optimization by not optimizing
+    very large functions.
+    
+    R=r
+    OCL=34080
+    CL=34080
+
+ src/cmd/6g/ggen.c |  6 +++-
+ src/cmd/6g/opt.h  |  3 +-
+ src/cmd/6g/reg.c  | 92 +++++++++++++++++++++++++++++++++----------------------
+ 3 files changed, 62 insertions(+), 39 deletions(-)

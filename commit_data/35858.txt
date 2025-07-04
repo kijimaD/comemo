@@ -1,0 +1,14 @@
+commit 5110d19fc2986b702ba0cfcbeacfe692154c77b1
+Author: cch123 <buaa.cch@gmail.com>
+Date:   Mon Jul 2 04:32:48 2018 +0000
+
+    runtime: fix typo in mapextra comment
+    
+    Change-Id: Idbd8a1b5bfeb1c23c86cef0697cf0380900e95f3
+    GitHub-Last-Rev: a8c2b27046582c4eef932a8502826a3b23b8dab3
+    GitHub-Pull-Request: golang/go#26175
+    Reviewed-on: https://go-review.googlesource.com/121821
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/map.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

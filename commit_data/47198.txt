@@ -1,0 +1,27 @@
+commit 80065cf2f6cdf56616c87036af91afa7f2fb2913
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 2 11:34:11 2021 -0400
+
+    go/types: implement singleType and structure (type)
+    
+    This is a clean port of CL 359015 to go/types.
+    
+    Change-Id: Iea4e3bfe0a4ae0e5a9052cb6e66c01405bd57c3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360756
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/builtins.go                     | 26 +++++++++++++-------------
+ src/go/types/call.go                         |  2 +-
+ src/go/types/expr.go                         |  2 +-
+ src/go/types/index.go                        |  2 +-
+ src/go/types/infer.go                        | 13 +++++++++----
+ src/go/types/stmt.go                         |  2 +-
+ src/go/types/termlist.go                     |  4 ++--
+ src/go/types/termlist_test.go                |  6 +++---
+ src/go/types/testdata/examples/inference.go2 | 23 +++++++++++++++++++++++
+ src/go/types/typeparam.go                    |  6 +++---
+ src/go/types/typeset.go                      |  4 ++--
+ 11 files changed, 59 insertions(+), 31 deletions(-)

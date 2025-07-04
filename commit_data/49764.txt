@@ -1,0 +1,28 @@
+commit 0a86cd6857b9fb12a798b3dbcfb6974384aa07d6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Aug 5 11:37:47 2022 +0200
+
+    all: use io.Seek* instead of deprecated os.SEEK_*
+    
+    These are available since Go 1.7. The version used for bootstrap is Go
+    1.17 for Go 1.20.
+    
+    For #44505
+    
+    Change-Id: I497c9f617baefdeb273cd115b08b6e31bd10aad2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421634
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/typecheck/iimport.go |  3 +--
+ src/cmd/internal/archive/archive.go           | 10 +++++-----
+ src/cmd/link/internal/loader/loader.go        |  3 ++-
+ src/internal/pkgbits/decoder.go               |  2 +-
+ src/internal/xcoff/ar.go                      |  6 +++---
+ src/internal/xcoff/file.go                    | 26 +++++++++++++-------------
+ src/net/sendfile_test.go                      |  2 +-
+ src/testing/run_example_js.go                 |  2 +-
+ 8 files changed, 27 insertions(+), 27 deletions(-)

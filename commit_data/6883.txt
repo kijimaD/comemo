@@ -1,0 +1,12 @@
+commit cf42a455878329d827852c58c5394f602e459666
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 13:53:24 2010 -0500
+
+    ld: reading of Mach-O object files
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/3431045
+
+ src/cmd/ld/ldmacho.c | 789 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 789 insertions(+)

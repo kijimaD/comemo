@@ -1,0 +1,56 @@
+commit 8a360d68c41f9afd3749636f9fd76802e697832d
+Author: Mitar <mitar.github@tnode.com>
+Date:   Mon Nov 6 11:00:51 2023 +0000
+
+    net/http: set/override Content-Length for encoded range requests
+    
+    Currently, http.ServeContent returns invalid Content-Length header if:
+    
+    * Request is a range request.
+    * Content is encoded (e.g., gzip compressed).
+    * Content-Length of the encoded content has been set before calling
+      http.ServeContent, as suggested in https://github.com/golang/go/issues/19420.
+    
+    Example:
+    
+            w.Header().Set("Content-Type", "application/json")
+            w.Header().Set("Content-Length", strconv.Itoa(len(compressedJsonBody)))
+            w.Header().Set("Content-Encoding", "gzip")
+            w.Header().Set("Etag", etag)
+            http.ServeContent(
+                    w, req, "", time.Time{},
+                    bytes.NewReader(compressedJsonBody),
+            )
+    
+    The issue is that http.ServeContent currently sees Content-Length as
+    something optional when Content-Encoding is set, but that is a problem
+    with range request which can send a payload of different size. So this
+    reverts https://go.dev/cl/4538111 and makes Content-Length be set
+    always to the number of bytes which will actually be send (both for
+    range and non-range requests).
+    
+    Without this fix, this is an example response:
+    
+            HTTP/1.1 206 Partial Content
+            Accept-Ranges: bytes
+            Content-Encoding: gzip
+            Content-Length: 351
+            Content-Range: bytes 100-350/351
+            Content-Type: application/json; charset=UTF-8
+            Etag: "amCTP_vgT5PQt5OsAEI7NFJ6Hx1UfEpR5nIaYEInfOA"
+            Date: Sat, 29 Jan 2022 14:42:15 GMT
+    
+    As you see, Content-Length is invalid and should be 251.
+    
+    Change-Id: I4d2ea3a8489a115f92ef1f7e98250d555b47a94e
+    GitHub-Last-Rev: 3aff9126f5d62725c7d539df2d0eb2b860a84ca6
+    GitHub-Pull-Request: golang/go#50904
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381956
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: t hepudds <thepudds1460@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/fs.go      | 4 +---
+ src/net/http/fs_test.go | 4 ++--
+ 2 files changed, 3 insertions(+), 5 deletions(-)

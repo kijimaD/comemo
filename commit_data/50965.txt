@@ -1,0 +1,26 @@
+commit d5efd0dd63a8beb5cc57ae7d25f9c60d5dea5c65
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Wed Jun 15 16:21:07 2022 -0400
+
+    net/netip: add IPv6LinkLocalAllRouters and IPv6Loopback
+    
+    Fixes #51766
+    Fixes #51777
+    
+    Change-Id: I0510175c20c06442d78b2581cfe218e66be1c35b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412475
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ api/next/51766.txt          |  1 +
+ api/next/51777.txt          |  1 +
+ src/net/netip/netip.go      |  7 +++++++
+ src/net/netip/netip_test.go | 12 ++++++++++++
+ 4 files changed, 21 insertions(+)

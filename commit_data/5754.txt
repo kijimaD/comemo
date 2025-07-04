@@ -1,0 +1,13 @@
+commit 9038de0373b7d7210348685f34cda7a6e4ce94d9
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Wed Jun 30 23:34:33 2010 -0700
+
+    cmath: correct IsNaN for argument cmplx(Inf, NaN)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1705041
+
+ src/pkg/cmath/cmath_test.go | 36 ++++++++++++++++++++++++++++++++----
+ src/pkg/cmath/isnan.go      |  8 ++++++--
+ 2 files changed, 38 insertions(+), 6 deletions(-)

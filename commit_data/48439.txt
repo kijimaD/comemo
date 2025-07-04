@@ -1,0 +1,17 @@
+commit a682a5c711097378a72e6cf3d498832e813a14e8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 17 17:55:59 2022 -0700
+
+    sort: generate generic variants with E rather than Elem
+    
+    For #51698
+    
+    Change-Id: Ifc5bef2cc41b163644ac80ace7c1470c8a130467
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393700
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Eli Bendersky‎ <eliben@golang.org>
+
+ src/sort/gen_sort_variants.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

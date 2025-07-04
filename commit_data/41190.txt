@@ -1,0 +1,12 @@
+commit 07957b794c7b99034f41976bbab560ff4615bbc4
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Wed Jan 29 16:09:33 2020 -0700
+
+    doc/go1.14: edit "Go command" section, adding note about go test -v streaming
+    
+    Change-Id: Ie88fe441521d60a4ba54ebb418860d0f71073387
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216917
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.14.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

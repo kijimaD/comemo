@@ -1,0 +1,13 @@
+commit 85f2d18a726a999b446a16039aa4bef4e8a4e9e9
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Feb 18 17:39:40 2012 +1100
+
+    bytes: document Compare/Equal semantics for nil arguments, and add tests.
+    
+    R=golang-dev, bradfitz, r, r
+    CC=golang-dev
+    https://golang.org/cl/5676090
+
+ src/pkg/bytes/bytes.go      |  2 ++
+ src/pkg/bytes/bytes_test.go | 41 ++++++++++++++++++++++++-----------------
+ 2 files changed, 26 insertions(+), 17 deletions(-)

@@ -1,0 +1,22 @@
+commit cb702a2a5670d4fa599f573b37b1a01abc9f995a
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 13 17:33:24 2022 -0700
+
+    cmd/compile: fold constant shifts into (SHL|SHR|SAR)Xload ops
+    
+    We should prefer a constant shift op to a X shift op.
+    That way we don't have to materialize the constant to shift by.
+    
+    Should fix GOAMD64=v3 builder
+    
+    Change-Id: I56b45d2940c959382b970e3f962ed4a09cc2a239
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400254
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   4 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 240 +++++++++++++++++++++++++++
+ 2 files changed, 244 insertions(+)

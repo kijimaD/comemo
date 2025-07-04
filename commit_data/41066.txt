@@ -1,0 +1,16 @@
+commit 562fabcac7762b150fce2dfcd54e05a0639b622f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 6 12:35:19 2020 -0500
+
+    cmd/go/testdata/script: delete trailing space in test
+    
+    Addressing comment in golang.org/cl/212620. I submitted the
+    change before I addressed the comment.
+    
+    Change-Id: I008fdb4fed1e0b2d24d739991fe10122695b90b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213419
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/script/list_wildcard_skip_nonmatching.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

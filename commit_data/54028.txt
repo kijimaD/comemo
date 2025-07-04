@@ -1,0 +1,65 @@
+commit de4d50316fb5c6d1529aa5377dc93b26021ee843
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 18 14:01:13 2023 -0400
+
+    cmd/go: delete GOPATH-mode get
+    
+    We've decided to keep basic GOPATH mode running
+    for trees that already exist, but GOPATH-mode get is
+    being removed. It is old and not useful and probably
+    full of security holes. See #60915 for more details.
+    
+    Fixes #60915.
+    
+    Change-Id: I9db4c445579bf0b79f6543624602652555b66c1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518775
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                              |  66 ---
+ src/cmd/go/go_test.go                              | 100 ----
+ src/cmd/go/internal/get/get.go                     | 640 ---------------------
+ src/cmd/go/internal/get/tag_test.go                | 100 ----
+ src/cmd/go/internal/help/help.go                   |   7 -
+ src/cmd/go/internal/modget/get.go                  |  17 -
+ src/cmd/go/main.go                                 |  10 -
+ src/cmd/go/testdata/script/get_404_meta.txt        |   3 -
+ src/cmd/go/testdata/script/get_brace.txt           |  51 --
+ .../testdata/script/get_custom_domain_wildcard.txt |   6 -
+ src/cmd/go/testdata/script/get_dash_t.txt          |   9 -
+ src/cmd/go/testdata/script/get_domain_root.txt     |  20 -
+ .../go/testdata/script/get_dot_slash_download.txt  |  10 -
+ src/cmd/go/testdata/script/get_dotfiles.txt        |  64 ---
+ src/cmd/go/testdata/script/get_go_file.txt         |  60 --
+ src/cmd/go/testdata/script/get_goroot.txt          |  53 --
+ src/cmd/go/testdata/script/get_insecure.txt        |  16 -
+ .../testdata/script/get_insecure_custom_domain.txt |   8 -
+ src/cmd/go/testdata/script/get_insecure_env.txt    |  29 -
+ .../go/testdata/script/get_insecure_redirect.txt   |  14 -
+ src/cmd/go/testdata/script/get_insecure_update.txt |  14 -
+ .../go/testdata/script/get_internal_wildcard.txt   |   6 -
+ src/cmd/go/testdata/script/get_issue11307.txt      |   9 -
+ src/cmd/go/testdata/script/get_issue16471.txt      |  23 -
+ src/cmd/go/testdata/script/get_issue22125.txt      |  14 -
+ src/cmd/go/testdata/script/get_legacy.txt          |  58 --
+ src/cmd/go/testdata/script/get_non_pkg.txt         |  14 -
+ src/cmd/go/testdata/script/get_race.txt            |   8 -
+ src/cmd/go/testdata/script/get_test_only.txt       |   6 -
+ src/cmd/go/testdata/script/get_tilde.txt           |  25 -
+ src/cmd/go/testdata/script/get_update.txt          |  25 -
+ src/cmd/go/testdata/script/get_update_all.txt      |   7 -
+ .../script/get_update_unknown_protocol.txt         |  14 -
+ src/cmd/go/testdata/script/get_update_wildcard.txt |  16 -
+ .../go/testdata/script/get_vcs_error_message.txt   |   9 -
+ src/cmd/go/testdata/script/get_vendor.txt          |  95 ---
+ src/cmd/go/testdata/script/get_with_git_trace.txt  |   9 -
+ src/cmd/go/testdata/script/gopath_moved_repo.txt   |  67 ---
+ src/cmd/go/testdata/script/govcs.txt               |  83 ---
+ src/cmd/go/testdata/script/help.txt                |   2 +-
+ src/cmd/go/testdata/script/mod_versions.txt        |   2 +-
+ .../go/testdata/script/vendor_list_issue11977.txt  |  78 ++-
+ .../go/testdata/script/vendor_test_issue11864.txt  |  79 ++-
+ .../go/testdata/script/vendor_test_issue14613.txt  |  46 +-
+ 44 files changed, 191 insertions(+), 1801 deletions(-)

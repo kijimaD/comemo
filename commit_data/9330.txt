@@ -1,0 +1,13 @@
+commit ebb2f4af3506f788213cb7c741340226f601b4c5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 10 14:05:52 2011 -0700
+
+    A+C: Dave Grijalva (ngmoco CLA)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4855051
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

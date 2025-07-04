@@ -1,0 +1,13 @@
+commit f54d61061cd903fdfdaa94ace66d53f0362db032
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jun 7 09:37:05 2012 +1000
+
+    runtime: include "typekind.h" to fix windows build
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6305059
+
+ src/pkg/runtime/callback_windows_386.c   | 1 +
+ src/pkg/runtime/callback_windows_amd64.c | 1 +
+ 2 files changed, 2 insertions(+)

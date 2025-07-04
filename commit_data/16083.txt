@@ -1,0 +1,16 @@
+commit 12b7db3d578f9764416ae987a4fa2e90125f379c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Apr 4 09:11:34 2013 +1100
+
+    runtime: fix data/bss shadow memory mapping for race detector
+    Fixes #5175.
+    Race detector runtime expects values passed to MapShadow() to be page-aligned,
+    because they are used in mmap() call. If they are not aligned mmap() trims
+    either beginning or end of the mapping.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8325043
+
+ src/pkg/runtime/race.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

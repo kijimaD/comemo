@@ -1,0 +1,28 @@
+commit adf261b7d6ed17bdefadc29ff71ddaba667b1a99
+Author: Stephen McQuay (smcquay) <stephen@mcquay.me>
+Date:   Fri Jun 3 02:12:17 2016 -0700
+
+    cmd/go: match go-import package prefixes by slash
+    
+    The existing implementation for path collision resolution would
+    incorrectly determine that:
+    
+        example.org/aa
+    
+    collides with:
+    
+        example.org/a
+    
+    This change splits by slash rather than comparing on a byte-by-byte
+    basis.
+    
+    Fixes: #15947
+    
+    Change-Id: I18b3aaafbc787c81253203cf1328bb3c4420a0c4
+    Reviewed-on: https://go-review.googlesource.com/23732
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/vcs.go      | 18 +++++++++-
+ src/cmd/go/vcs_test.go | 94 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 111 insertions(+), 1 deletion(-)

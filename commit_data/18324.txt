@@ -1,0 +1,14 @@
+commit b7b93a7154ea1b569019e9d993f21a52d8aeda14
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jan 22 13:30:12 2014 +0400
+
+    runtime: fix code formatting
+    Place && at the end of line.
+    Offset expression continuation.
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/55380044
+
+ src/pkg/runtime/msize.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

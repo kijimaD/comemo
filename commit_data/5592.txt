@@ -1,0 +1,17 @@
+commit 4fc97c4703a8fdaf05df5399bdb458a524aa6baf
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 2 14:58:31 2010 -0700
+
+    fmt.Scanf: implement formats, provide Sscanf (strings)
+    - provide convenience functions for scanning strings
+    - enable Scanf etc.
+    - update doc comments
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1451044
+
+ src/pkg/fmt/print.go     |  39 +++++++++++--
+ src/pkg/fmt/scan.go      | 145 ++++++++++++++++++++++++++++++++++-------------
+ src/pkg/fmt/scan_test.go |  45 +++++++++++----
+ 3 files changed, 173 insertions(+), 56 deletions(-)

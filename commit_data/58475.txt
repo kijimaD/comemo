@@ -1,0 +1,24 @@
+commit 3f002abb60b86a851e190d9246278aa53db11f87
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jan 6 18:23:21 2025 +0000
+
+    internal/sync: add test from issue 70970
+    
+    This test checks a use-case of sync.Map that's expected to be more
+    common in Go 1.24 and beyond, as a concurrent weak cache.
+    
+    The test will also fail if CompareAndSwap is not properly atomic with
+    CompareAndDelete, which is what #70970 is actually about. We should have
+    more explicit tests checking mutual atomicity of operations, but
+    for now this is OK, and still useful.
+    
+    For #70970.
+    
+    Change-Id: I6db508660691586a8af9ad511c9a96432d333343
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640737
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/sync/hashtriemap_test.go | 59 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 59 insertions(+)

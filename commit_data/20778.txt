@@ -1,0 +1,11 @@
+commit 737a9e0da87da05f8655c5a2ab258a679cc3f641
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 24 00:48:34 2014 -0400
+
+    doc/go1.4: encoding/csv
+    
+    CC=golang-codereviews
+    https://golang.org/cl/162140043
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,16 @@
+commit 6f42fe914169ef237423fb07e9c8321884b58c23
+Author: Sean Liao <sean@liao.dev>
+Date:   Tue Dec 3 21:19:24 2024 +0000
+
+    bufio: document Reader must be created with New functions
+    
+    Fixes #37347
+    
+    Change-Id: Id642dbe7e52933f8d6cf7116c3c27ddb74efba9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633315
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/bufio/bufio.go | 3 +++
+ 1 file changed, 3 insertions(+)

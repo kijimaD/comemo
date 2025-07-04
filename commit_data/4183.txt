@@ -1,0 +1,28 @@
+commit 19dae0799b045b27715a0105020347f8a6a69109
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 20 13:11:42 2009 -0800
+
+    gofmt -r 'α[β:len(α)] -> α[β:]' -w test/bench
+    except chameneosredux which i know is being edited
+    
+    require gofmt for test/bench
+    
+    R=r
+    https://golang.org/cl/157110
+
+ lib/codereview/codereview.py         |   3 +-
+ test/bench/binary-tree-freelist.go   |  26 ++--
+ test/bench/binary-tree.go            |  20 +--
+ test/bench/fannkuch.go               |  32 +++--
+ test/bench/fasta.go                  |   2 +-
+ test/bench/k-nucleotide.go           |  32 ++---
+ test/bench/mandelbrot.go             |   8 +-
+ test/bench/meteor-contest.go         | 256 +++++++++++++++++------------------
+ test/bench/nbody.go                  |  26 ++--
+ test/bench/pidigits.go               |  30 ++--
+ test/bench/regex-dna.go              |  36 ++---
+ test/bench/reverse-complement.go     |  14 +-
+ test/bench/spectral-norm-parallel.go |  18 ++-
+ test/bench/spectral-norm.go          |  14 +-
+ test/bench/threadring.go             |   2 +-
+ 15 files changed, 257 insertions(+), 262 deletions(-)

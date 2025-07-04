@@ -1,0 +1,12 @@
+commit a025e1caac516c967486f4644fbe4c647100b632
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Wed Dec 18 10:20:25 2013 -0800
+
+    html: add tests for UnescapeString edge cases
+    
+    R=golang-dev, gobot, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/40810044
+
+ src/pkg/html/escape_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

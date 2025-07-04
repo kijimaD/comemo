@@ -1,0 +1,19 @@
+commit 6c527aa58355b936fa173828139a3e245a3ddba6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 11 23:23:08 2019 -0400
+
+    cmd/dist: revert mod=vendor change accidentally included in CL 164623
+    
+    I thought I had removed all of the 'mod=vendor' hacks I had inserted
+    previously, but apparently missed this one in a bad merge or rebase.
+    
+    Updates #30228
+    
+    Change-Id: Ia5aea754bf986458373fefd08fa9dd3941e31e43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167077
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/dist/build.go | 15 ---------------
+ 1 file changed, 15 deletions(-)

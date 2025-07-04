@@ -1,0 +1,47 @@
+commit 2e5b065ac24912be82e7082eeb136afd18d9734b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 29 20:19:07 2015 -0500
+
+    liblink: define fixed A-numbers for common instructions
+    
+    This makes names like ANOP, ATEXT, AGLOBL, ACALL, AJMP, ARET
+    available for use by architecture-independent processing passes.
+    
+    On arm and ppc64, the alternate names are now aliases for the
+    official ones (ABL for ACALL, AB or ABR for AJMP, ARETURN for ARET).
+    
+    Change-Id: Id027771243795af2b3745199c645b6e1bedd7d18
+    Reviewed-on: https://go-review.googlesource.com/3577
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ include/link.h          | 44 +++++++++++++++++++++++++++++---------------
+ src/cmd/5g/galign.c     | 16 ----------------
+ src/cmd/5g/opt.h        |  7 -------
+ src/cmd/5g/peep.c       |  3 ---
+ src/cmd/5l/5.out.h      | 32 +++++---------------------------
+ src/cmd/6g/galign.c     | 16 ----------------
+ src/cmd/6l/6.out.h      | 26 +-------------------------
+ src/cmd/8g/galign.c     | 16 ----------------
+ src/cmd/8l/8.out.h      | 26 +-------------------------
+ src/cmd/9g/galign.c     | 16 ----------------
+ src/cmd/9g/opt.h        |  8 --------
+ src/cmd/9l/9.out.h      | 34 +++++++---------------------------
+ src/cmd/dist/buildgc.go | 14 ++++++++++++--
+ src/cmd/gc/go.h         | 18 +-----------------
+ src/cmd/gc/pgen.c       | 20 ++++++++++----------
+ src/cmd/gc/plive.c      | 42 +++++++++++++++++++++---------------------
+ src/cmd/gc/popt.c       | 26 +++++++++++++-------------
+ src/liblink/asm5.c      | 16 ++++++++--------
+ src/liblink/asm6.c      |  2 --
+ src/liblink/asm8.c      | 20 ++++++++++----------
+ src/liblink/asm9.c      | 12 ++++++------
+ src/liblink/list9.c     |  2 +-
+ src/liblink/obj5.c      | 27 ---------------------------
+ src/liblink/obj6.c      | 42 ------------------------------------------
+ src/liblink/obj8.c      | 27 ---------------------------
+ src/liblink/obj9.c      | 42 ------------------------------------------
+ src/liblink/objfile.c   | 16 ++++++++--------
+ src/liblink/pass.c      |  6 ++++--
+ src/liblink/pcln.c      | 14 +++++++-------
+ 29 files changed, 144 insertions(+), 446 deletions(-)

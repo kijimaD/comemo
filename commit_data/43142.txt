@@ -1,0 +1,25 @@
+commit 8b0d00b1645c47076f5b20dc692b2ca6d9bac19b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Sep 29 16:40:57 2020 -0400
+
+    cmd/go: error if -modfile used with 'go install pkg@version'
+    
+    'go install pkg@version' runs without a main module or a module root
+    directory. The -modfile flag cannot be used to set the module root
+    directory or to substitute a different go.mod file.
+    
+    This error won't be reported if -modfile is set in
+    GOFLAGS. Unsupported flags there are generally ignored.
+    
+    For #40276
+    
+    Change-Id: I0b39b1fa9184c15c6e863b647d43c328710920f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258297
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/init.go                    |  5 +++--
+ src/cmd/go/testdata/script/mod_install_pkg_version.txt | 11 +++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)

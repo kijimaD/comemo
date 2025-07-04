@@ -1,0 +1,25 @@
+commit 5cd8c830374627af75bd30b2ff1106b6d4e48773
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 22 14:01:33 2010 -0700
+
+    FileInfo: regularize the types of some fields.
+    Uid, Gid become int.
+    File size info becomes int64.
+    Times become int64.
+    
+    R=rsc, cw
+    CC=golang-dev
+    https://golang.org/cl/968042
+
+ src/pkg/archive/tar/common.go    |  4 ++--
+ src/pkg/archive/tar/reader.go    |  4 ++--
+ src/pkg/archive/tar/writer.go    |  4 ++--
+ src/pkg/io/ioutil/ioutil.go      |  2 +-
+ src/pkg/io/ioutil/ioutil_test.go |  4 ++--
+ src/pkg/os/os_test.go            | 16 ++++++++--------
+ src/pkg/os/stat_darwin.go        | 16 ++++++++--------
+ src/pkg/os/stat_freebsd.go       | 14 +++++++-------
+ src/pkg/os/stat_linux.go         | 18 +++++++++---------
+ src/pkg/os/stat_mingw.go         |  2 +-
+ src/pkg/os/types.go              | 16 ++++++++--------
+ 11 files changed, 50 insertions(+), 50 deletions(-)

@@ -1,0 +1,14 @@
+commit 94b42fb14a0ceda1763f842e52c55020e96705ad
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 20 14:45:46 2013 +1000
+
+    os: fix windows build
+    The os windows source uses file as the receiver, not f.
+    TBR=golang-dev@googlegroups.com
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/12922044
+
+ src/pkg/os/file_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 131526f64d0573b0070454bb82d9820518322668
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 26 10:01:28 2014 -0700
+
+    C: add Evan Kroske (Google CLA)
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/110160045
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

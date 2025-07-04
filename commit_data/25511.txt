@@ -1,0 +1,24 @@
+commit beb1741ae380d4e196f9d6e2e720fc0dc007ef00
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Jan 8 23:22:12 2016 +1100
+
+    cmd/dist: fix cgoTestSO on FreeBSD amd64 with GOHOSTARCH=386
+    
+    The cgoTestSO test currently fails when run on FreeBSD amd64 with
+    GOHOSTARCH=386. This is due to it failing to find the shared object.
+    
+    On FreeBSD 64-bit architectures, the linker for 32-bit objects
+    looks for a separate environment variable. Export both LD_LIBRARY_PATH
+    and LD_32_LIBRARY_PATH on FreeBSD when GOHOSTARCH=386.
+    
+    Update issue #13873.
+    
+    Change-Id: I1fb20dd04eb2007061768b2e4530886521813d42
+    Reviewed-on: https://go-review.googlesource.com/18420
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

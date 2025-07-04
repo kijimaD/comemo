@@ -1,0 +1,18 @@
+commit 60d4e30dbb15192494e516ecb7b8087d909d2d62
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 10 11:25:54 2009 -0800
+
+    make test/fixedbugs save for optional semis
+    
+    R=rsc
+    https://golang.org/cl/173045
+
+ test/fixedbugs/bug036.go | 3 +--
+ test/fixedbugs/bug055.go | 2 +-
+ test/fixedbugs/bug064.go | 3 +--
+ test/fixedbugs/bug076.go | 4 ++--
+ test/fixedbugs/bug089.go | 4 ++--
+ test/fixedbugs/bug194.go | 6 +++---
+ test/fixedbugs/bug203.go | 6 ++----
+ test/import1.go          | 2 +-
+ 8 files changed, 13 insertions(+), 17 deletions(-)

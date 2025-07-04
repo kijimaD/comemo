@@ -1,0 +1,19 @@
+commit 41d8e61a6b9d8f9db912626eb2bbc535e929fefc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 11 13:32:14 2020 -0500
+
+    doc: make clear that Go 1.4 is not required for bootstrap
+    
+    Go 1.4 does not work on some systems, including the most
+    recent versions of macOS. Make it clearer that that's not the only
+    way to bootstrap Go.
+    
+    Change-Id: I7c03d6808e43bf26283a53eab2bb0b2dc4af73af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277216
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/install-source.html | 67 ++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 44 insertions(+), 23 deletions(-)

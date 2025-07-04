@@ -1,0 +1,12 @@
+commit c90b05bf7dab3a03a018f018d56b456b7ce7c2c5
+Author: Stephen Weinberg <stephen@q5comm.com>
+Date:   Mon Jan 25 18:50:51 2010 -0800
+
+    xml: add Escape, copied from template.HTMLEscape.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/186282
+
+ src/pkg/xml/xml.go | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)

@@ -1,0 +1,25 @@
+commit 155aefe0c182f3788e44596db5f09cf94d2c6a3e
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Fri Jan 26 22:29:55 2018 -0400
+
+    os/exec: remove "binary" when talking about executables
+    
+    The use of binary was incorrect as executable files can also be scripts.
+    
+    The docs for Error are also reworded. The old docs implied that Error was
+    returned when attempting to start an executable, which is not correct: it
+    was returned by LookPath when the file was not found or did not have the
+    attributes of an executable.
+    
+    Change-Id: I757a44b16612936df4498b43c45c12e4c14956d2
+    Reviewed-on: https://go-review.googlesource.com/90315
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/exec/exec.go       |  8 +++++---
+ src/os/exec/exec_test.go  | 10 +++++-----
+ src/os/exec/lp_plan9.go   |  4 ++--
+ src/os/exec/lp_unix.go    |  4 ++--
+ src/os/exec/lp_windows.go |  4 ++--
+ 5 files changed, 16 insertions(+), 14 deletions(-)

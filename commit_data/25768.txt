@@ -1,0 +1,21 @@
+commit 98cc8b4cf219384792e19dec9bc17a0e49c466f6
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Thu Feb 18 13:35:49 2016 -0800
+
+    cmd/link/internal/ld: remove unused call to os.Getwd
+    
+    This call to os.Getwd (or getwd) has been part of the linker since the C
+    implementation in 7d507dc6e6. It stopped being used in 26438d4d80, and
+    survived the conversion to Go in 1f9dbb60ef.
+    
+    Its return value goes unused (the linker gets the value for AT_comp_dir in
+    dwarf.go), remove it.
+    
+    Change-Id: I3d4594813bb4ee0a6af31a36e19d99ec4b863677
+    Reviewed-on: https://go-review.googlesource.com/19655
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/sym.go | 9 ---------
+ 1 file changed, 9 deletions(-)

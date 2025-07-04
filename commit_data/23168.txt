@@ -1,0 +1,12 @@
+commit 80864cf1f7804e23be215245a70d70efd1116bb4
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri May 29 14:29:57 2015 +1000
+
+    io: minor improvements to doc comment on WriteString.
+    
+    Change-Id: Iddcd0cfb8f2c2f1c4ad7a94b50a9f65b543862c4
+    Reviewed-on: https://go-review.googlesource.com/10473
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/io/io.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

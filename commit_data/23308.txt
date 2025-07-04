@@ -1,0 +1,15 @@
+commit 442959ec474c78ee082f518eac8ce60527c9a993
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jun 9 14:12:39 2015 -0700
+
+    cmd/compile: fix builtin generation
+    
+    This was a refactoring bug during
+    'go tool compile', CL 10289.
+    
+    Change-Id: Ibfd333be39ec72bba331fdf352df619cc21851a9
+    Reviewed-on: https://go-review.googlesource.com/10849
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/compile/internal/gc/mkbuiltin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

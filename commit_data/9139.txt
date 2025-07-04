@@ -1,0 +1,12 @@
+commit dbba5ccfabc1019cc1bae5c161f272598fa9dd36
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jul 20 16:07:40 2011 +1000
+
+    gobuilder: goinstall with -dashboard=false instead of -log=false
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4801043
+
+ misc/dashboard/builder/package.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

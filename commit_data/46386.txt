@@ -1,0 +1,18 @@
+commit 66f0d35f7145ca8d4e45b04292f44831d6610b3b
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Sep 8 19:03:37 2021 -0400
+
+    go/types: reduce number of delayed functions
+    
+    This is a port of CL 348018 to go/types. It differs from that CL due to
+    the way that field lists are represented in go/ast.
+    
+    Change-Id: Ib5a0243b44d0bf9e95d039f624c668f8c329f8fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348691
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/decl.go | 40 ++++++++++++++++++++--------------------
+ 1 file changed, 20 insertions(+), 20 deletions(-)

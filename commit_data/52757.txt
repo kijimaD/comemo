@@ -1,0 +1,20 @@
+commit f229787affbcaafb55dac2ceae65282b172e253a
+Author: Lucien Coffe <lucien.coffe@botify.com>
+Date:   Fri Apr 21 17:20:19 2023 +0200
+
+    runtime: prevent double lock in checkdead by unlocking before throws
+    
+    This change resolves an issue where checkdead could result in a double lock when shedtrace is enabled. This fix involves adding unlocks before all throws in the checkdead function to ensure the scheduler lock is properly released.
+    
+    Fixes #59758
+    
+    Change-Id: If3ddf9969f4582c3c88dee9b9ecc355a63958103
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487375
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go | 4 ++++
+ 1 file changed, 4 insertions(+)

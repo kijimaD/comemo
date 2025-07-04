@@ -1,0 +1,14 @@
+commit b2935330b03bd9c8c691b3d98ce416d9017ce656
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 1 15:10:14 2012 -0800
+
+    net/http/httputil: fix race in DumpRequestOut
+    
+    Fixes #2715
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5614043
+
+ src/pkg/net/http/httputil/dump.go | 55 ++++++++++++++++++++++++++-------------
+ 1 file changed, 37 insertions(+), 18 deletions(-)

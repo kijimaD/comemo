@@ -1,0 +1,17 @@
+commit b7ac426ee31cfe4464345754745e38bc0af02a66
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jun 3 12:05:32 2016 -0700
+
+    cmd/compile: split genCaseClauses by switch type
+    
+    The implementations are going to start diverging more.
+    Instead of more if clauses and empty parameters,
+    specialize.
+    
+    Change-Id: I44584450592e8c9f72a10d8ada859c07e9d9aa19
+    Reviewed-on: https://go-review.googlesource.com/26764
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/swt.go | 81 +++++++++++++++++++++++---------------
+ 1 file changed, 49 insertions(+), 32 deletions(-)

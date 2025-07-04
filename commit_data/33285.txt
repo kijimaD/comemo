@@ -1,0 +1,49 @@
+commit 4d0151ede5473e9eddcadde604924fb9284501fb
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Sep 28 17:11:31 2017 -0400
+
+    cmd/compile,cmd/internal/obj/ppc64: make math.Abs,math.Copysign instrinsics on ppc64x
+    
+    This adds support for math Abs, Copysign to be instrinsics on ppc64x.
+    
+    New instruction FCPSGN is added to generate fcpsgn. Some new
+    rules are added to improve the int<->float conversions that are
+    generated mainly due to the Float64bits and Float64frombits in
+    the math package. PPC64.rules is also modified as suggested
+    in the review for CL 63290.
+    
+    Improvements:
+    benchmark                           old ns/op     new ns/op     delta
+    BenchmarkAbs-16                   1.12          0.69          -38.39%
+    BenchmarkCopysign-16              1.30          0.93          -28.46%
+    BenchmarkNextafter32-16           9.34          8.05          -13.81%
+    BenchmarkFrexp-16                 8.81          7.60          -13.73%
+    
+    Others that used Copysign also saw smaller improvements.
+    
+    I attempted to make this work using rules since that
+    seems to be preferred, but due to the use of Float64bits and
+    Float64frombits in these functions, several rules had to be added and
+    even then not all cases were matched. Using rules became too
+    complicated and seemed too fragile for these.
+    
+    Updates #21390
+    
+    Change-Id: Ia265da9a18355e08000818a4fba1a40e9e031995
+    Reviewed-on: https://go-review.googlesource.com/67130
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s      |   3 +
+ src/cmd/compile/internal/gc/asm_test.go        |  18 ++
+ src/cmd/compile/internal/gc/ssa.go             |  10 +
+ src/cmd/compile/internal/ppc64/ssa.go          |   4 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  33 +++-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   |   3 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   4 +
+ src/cmd/compile/internal/ssa/opGen.go          |  55 ++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 246 +++++++++++++++++++++++++
+ src/cmd/internal/obj/ppc64/a.out.go            |   2 +
+ src/cmd/internal/obj/ppc64/anames.go           |   2 +
+ src/cmd/internal/obj/ppc64/asm9.go             |   6 +
+ 12 files changed, 378 insertions(+), 8 deletions(-)

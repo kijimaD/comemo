@@ -1,0 +1,39 @@
+commit 07e72666ec6da774860c6f796c3adbdc57c92480
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 27 00:29:43 2016 +0000
+
+    net/http: update bundled http2
+    
+    Updates http2 to x/net git rev b626cca for:
+    
+        http2: implement support for server push
+        https://golang.org/cl/29439
+    
+        http2: reject stream self-dependencies
+        https://golang.org/cl/31858
+    
+        http2: optimize server frame writes
+        https://golang.org/cl/31495
+    
+        http2: interface to support pluggable schedulers
+        https://golang.org/cl/25366
+        (no user-visible behavior change or API surface)
+    
+        http2: add Server.IdleTimeout
+        https://golang.org/cl/31727
+    
+        http2: make Server return conn protocol errors on bad idle stream frames
+        https://golang.org/cl/31736
+    
+        http2: fix optimized write scheduling
+        https://golang.org/cl/32217 (fix for CL 31495 above)
+    
+    Change-Id: Ie894c72943d355115c8391573bf6b96dc1bd5894
+    Reviewed-on: https://go-review.googlesource.com/32215
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/h2_bundle.go | 1737 +++++++++++++++++++++++++++++++++------------
+ 1 file changed, 1284 insertions(+), 453 deletions(-)

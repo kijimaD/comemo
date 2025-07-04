@@ -1,0 +1,13 @@
+commit 72d867660d73107681da68c7f79b1b9442476f0a
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 10 17:58:10 2009 -0700
+
+    bug142 is fixed
+    
+    R=rsc
+    OCL=27331
+    CL=27331
+
+ test/{bugs => fixedbugs}/bug142.go | 0
+ test/golden.out                    | 5 -----
+ 2 files changed, 5 deletions(-)

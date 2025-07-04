@@ -1,0 +1,20 @@
+commit 406d2fa2f3034974e94620bacf6c09bcabaf85fd
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Nov 28 20:31:18 2016 -0500
+
+    net/http: fix test TestServeMuxHandlerRedirects
+    
+    The code was intended to test that mux handler should redirect at
+    most once, but the added loop condition defeated that. Remove the
+    loop condition and document the intention better.
+    
+    Fixes #18068.
+    
+    Change-Id: I2a4ea041eae27168b45a09aa46e740ac03921594
+    Reviewed-on: https://go-review.googlesource.com/33654
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

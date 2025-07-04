@@ -1,0 +1,19 @@
+commit fb5594153975f960fe961d8a4b1c96b54f248489
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 7 14:34:21 2011 -0800
+
+    loader: move the XputY routines into the ld directory.
+    Fixes the build for 5l, and also removes an inconsequential bug in 8l.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4127051
+
+ src/cmd/5l/asm.c    | 21 ---------------------
+ src/cmd/5l/l.h      |  1 +
+ src/cmd/6l/asm.c    | 46 ----------------------------------------------
+ src/cmd/6l/l.h      |  1 +
+ src/cmd/8l/asm.c    | 39 ---------------------------------------
+ src/cmd/ld/lib.c    |  3 +--
+ src/cmd/ld/symtab.c | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 49 insertions(+), 108 deletions(-)

@@ -1,0 +1,21 @@
+commit 64533374941d238c542167d67711a66ebac4ef67
+Author: Clément Chigot <chigot.c@gmail.com>
+Date:   Tue Oct 29 15:35:42 2019 +0100
+
+    runtime: initialize netpoll in TestNetpollBreak
+    
+    Netpoll must be always be initialized when TestNetpollBreak is launched.
+    However, when it is run in standalone, it won't be the case, so it must
+    be forced.
+    
+    Updates: #27707
+    
+    Change-Id: I28147f3834f3d6aca982c6a298feadc09b55f66e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204058
+    Run-TryBot: Clément Chigot <clement.chigot%atos.net@gtempaccount.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/export_test.go | 2 ++
+ src/runtime/proc_test.go   | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

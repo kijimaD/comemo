@@ -1,0 +1,20 @@
+commit e27702545ac2d1e5f545fa6b3e39dbcf36bdb023
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 14 10:40:23 2011 -0700
+
+    http: consume request bodies before replying
+    
+    This fixes our http behavior (even if Handlers forget to
+    consume a request body, we do it for them before we send
+    their response header), fixes the racy TestServerExpect,
+    and adds TestServerConsumesRequestBody.
+    
+    With GOMAXPROCS>1, the http tests now seem race-free.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4419042
+
+ src/pkg/http/serve_test.go | 48 +++++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/http/server.go     | 15 +++++++++++++++
+ 2 files changed, 62 insertions(+), 1 deletion(-)

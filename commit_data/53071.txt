@@ -1,0 +1,24 @@
+commit 1bb2f73237f8375d364564c4bb2c2ab16a31da87
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 16 12:02:52 2023 -0700
+
+    hash/maphash: weaken avalanche test a bit
+    
+    Give the test a bit more wiggle room.
+    
+    Previously the allowed range was about 46.5% to 53.5%. Now it is about 43% TO 57%.
+    
+    Fixes #60170
+    
+    Change-Id: Ieda471e0986c52edb9f6d31beb8e41917876d6c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495415
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/hash/maphash/smhasher_test.go | 2 +-
+ src/runtime/hash_test.go          | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

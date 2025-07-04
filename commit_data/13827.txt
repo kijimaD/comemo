@@ -1,0 +1,23 @@
+commit cc06593c681878a2a87f3612aa024e69a1ac074b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 14 11:31:56 2012 -0700
+
+    spec: clarify section on string types
+    
+    Strings happen to be represented similarly to
+    byte slices internally, but they don't quite
+    behave like them: While strings can be indexed,
+    sliced, and have their len() taken like byte
+    slices, string elements are not addressable,
+    make() and cap() is not supported, range loops
+    operate differently, and they are immutable (and
+    thus behave like values rather then references).
+    
+    Fixes #4018.
+    
+    R=r, rsc, iant, ken
+    CC=golang-dev
+    https://golang.org/cl/6503116
+
+ doc/go_spec.html | 28 +++++++++++++++-------------
+ 1 file changed, 15 insertions(+), 13 deletions(-)

@@ -1,0 +1,14 @@
+commit c3a86dab36dfbe3ae6a36832ddf3e96ae3175baa
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jul 21 11:31:07 2011 -0400
+
+    testing: output benchmark name before executing it
+    It makes it clear what benchmark is currently running.
+    Especially useful in case of hangup or crash.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4816043
+
+ src/pkg/testing/benchmark.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

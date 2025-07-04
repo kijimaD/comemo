@@ -1,0 +1,35 @@
+commit db82cf4e506938a36a57a64dbe1f79eb0365ea89
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Sep 26 16:44:35 2016 +1000
+
+    runtime: use RtlGenRandom instead of CryptGenRandom
+    
+    This change replaces the use of CryptGenRandom with RtlGenRandom in
+    Windows to generate cryptographically random numbers during process
+    startup. RtlGenRandom uses the same RNG as CryptGenRandom, but it has many
+    fewer DLL dependencies and so does not affect process startup time as
+    much.
+    
+    This makes running simple Go program on my computers faster.
+    
+    Windows XP:
+    benchmark                      old ns/op     new ns/op     delta
+    BenchmarkRunningGoProgram-2     47408573      10784148      -77.25%
+    
+    Windows 7 (VM):
+    benchmark                    old ns/op     new ns/op     delta
+    BenchmarkRunningGoProgram     16260390      12792150      -21.33%
+    
+    Windows 7:
+    benchmark                      old ns/op     new ns/op     delta
+    BenchmarkRunningGoProgram-2     13600778      10050574      -26.10%
+    
+    Fixes #15589
+    
+    Change-Id: I2816239a2056e3d4a6dcd86a6fa2bb619c6008fe
+    Reviewed-on: https://go-review.googlesource.com/29700
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os_windows.go           | 35 ++++++++++++++++++----------------
+ src/runtime/syscall_windows_test.go | 38 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 16 deletions(-)

@@ -1,0 +1,12 @@
+commit 783c46b197890f17fd112a28a9706d0d25b5fe87
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 20 11:53:41 2011 +1000
+
+    8a: delete dreg l.s
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4631053
+
+ src/cmd/8a/l.s | 734 ---------------------------------------------------------
+ 1 file changed, 734 deletions(-)

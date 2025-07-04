@@ -1,0 +1,12 @@
+commit e7d010a6a7c19c3af6a8157356d09cea23eab198
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 8 12:41:26 2014 -0800
+
+    runtime: deallocate specials before deallocating the underlying object.
+    
+    R=dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/48840043
+
+ src/pkg/runtime/malloc.goc | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

@@ -1,0 +1,18 @@
+commit 495e3c60aa61615dd603050ac47f86468f8222b6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue May 17 12:20:16 2016 +0900
+
+    net: use IPv4/IPv6 reserved address blocks for documentation
+    
+    Also replaces google.com with golang.org in package documentation.
+    
+    Updates #15228.
+    
+    Change-Id: I554fa960878fa44557a522635ed412d8d7548d3f
+    Reviewed-on: https://go-review.googlesource.com/23126
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial.go |  8 ++++----
+ src/net/ip.go   | 18 +++++++++---------
+ src/net/net.go  |  2 +-
+ 3 files changed, 14 insertions(+), 14 deletions(-)

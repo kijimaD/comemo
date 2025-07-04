@@ -1,0 +1,20 @@
+commit 9d088fbfda273e26f78c9b05bcc97a8f674cf69b
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 11 15:43:54 2019 -0400
+
+    runtime: abstract initializing and destroying Ps out of procresize
+    
+    procresize is rather ungainly because it includes all of the code to
+    initialize new Ps and tear down unused Ps. Pull these out into their
+    own methods on the p type. This also tweaks the initialization loop in
+    procresize so we only initialize new Ps (and Ps we previously
+    destroyed) rather than asking each P "have you been initialized?"
+    
+    This is for #10958 and #24543, but it's also just a nice cleanup.
+    
+    Change-Id: Ic1242066f572c94a23cea8ea4dc47c918e31d559
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171762
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go | 168 ++++++++++++++++++++++++++++------------------------
+ 1 file changed, 91 insertions(+), 77 deletions(-)

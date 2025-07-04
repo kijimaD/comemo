@@ -1,0 +1,31 @@
+commit d661bdeabf479c39fe98c6fc598a6d8114047914
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 15 22:49:12 2022 -0700
+
+    cmd/compile: remove OIOTA
+    
+    OIOTA used to be used to represent "iota" in the pre-typechecked IR,
+    before we knew whether it was safe to replace it with a constant
+    (because it could be redefined as a global symbol later).
+    
+    However, now types2 handles constant folding, including handling of
+    "iota". So this can go away.
+    
+    Updates #51691.
+    
+    Change-Id: I3cec45b22c4c8f1c357dcc4003292c21ae32aa90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393255
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ir/func.go             |   2 -
+ src/cmd/compile/internal/ir/name.go             |  10 ---
+ src/cmd/compile/internal/ir/node.go             |   1 -
+ src/cmd/compile/internal/ir/op_string.go        | 105 ++++++++++++------------
+ src/cmd/compile/internal/ir/sizeof_test.go      |   2 +-
+ src/cmd/compile/internal/typecheck/func.go      |   6 --
+ src/cmd/compile/internal/typecheck/typecheck.go |  23 ------
+ src/cmd/compile/internal/typecheck/universe.go  |   4 -
+ 8 files changed, 53 insertions(+), 100 deletions(-)

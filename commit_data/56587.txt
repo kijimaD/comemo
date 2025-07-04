@@ -1,0 +1,21 @@
+commit 4b778470f834f80aaa84d2066da12889e8ab285f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 21 15:05:55 2024 -0700
+
+    go/types, types2: coreType/String must consider Alias types
+    
+    Fixes regression from Go 1.22.
+    
+    For #67547.
+    
+    Change-Id: Idd319b9d2a73c824caa2c821df0e2fcd4f58cb08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587176
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/under.go            |  2 ++
+ src/go/types/under.go                               |  2 ++
+ src/internal/types/testdata/fixedbugs/issue67547.go | 12 ++++++++++++
+ 3 files changed, 16 insertions(+)

@@ -1,0 +1,16 @@
+commit d18f186b9b05be6efdba2b54e3506083ae7c4efc
+Author: ludweeg <mursalimovemeel@gmail.com>
+Date:   Mon Apr 23 16:20:32 2018 +0300
+
+    crypto/md5: unnecessary conversion
+    
+    Fixes go lint warning.
+    
+    Change-Id: I5a7485a4c8316b81e6aa50b95fe75e424f2fcedc
+    Reviewed-on: https://go-review.googlesource.com/109055
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/md5/md5.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

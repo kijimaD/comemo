@@ -1,0 +1,19 @@
+commit 305fd9179d2199cd1bb64402405857d2f2d02478
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 29 13:46:38 2017 +1000
+
+    flag: document that custom usage functions are free to call os.Exit
+    
+    Some custom usage functions call it for clarity; others rely on the default
+    behavior, which makes an explicit call redundant. Document that it's
+    safe to be explicit.
+    
+    Fixes #21671.
+    
+    Change-Id: I08e9f47265582821cfd35995dff0c589cd85809d
+    Reviewed-on: https://go-review.googlesource.com/59792
+    Reviewed-by: Dominik Honnef <dominik@honnef.co>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/flag/flag.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

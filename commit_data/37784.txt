@@ -1,0 +1,22 @@
+commit b32ee0a3c004d4ef79d92bd63200008456da50f3
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Fri Dec 21 11:21:02 2018 +0700
+
+    path/filepath: walkSymlinks: return correct error for file with trailing slash
+    
+    Rather than return os.ErrNotExist for /path/to/existing_file/,
+    walkSymLinks now returns syscall.ENOTDIR.
+    
+    This is consistent with behavior of os.Lstat.
+    
+    Fixes #29372
+    
+    Change-Id: Id5c471d901db04b2f35d60f60a81b2a0be93cae9
+    Reviewed-on: https://go-review.googlesource.com/c/155597
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/path/filepath/path_test.go       | 37 ++++++++++++++++++++++++++++++++++++
+ src/path/filepath/symlink.go         |  9 ++++++---
+ src/path/filepath/symlink_windows.go | 18 +++++++++++++++++-
+ 3 files changed, 60 insertions(+), 4 deletions(-)

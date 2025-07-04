@@ -1,0 +1,12 @@
+commit bc2d977d677c433910ea705508acd7ed644ddee8
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 9 13:22:05 2010 -0700
+
+    Update roadmap: delete many accomplishments
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/854045
+
+ doc/devel/roadmap.html | 23 +----------------------
+ 1 file changed, 1 insertion(+), 22 deletions(-)

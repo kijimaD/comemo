@@ -1,0 +1,23 @@
+commit 0168fdb5520c0a77e9a27822caf307e739d4142a
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Sep 23 19:39:08 2017 +0100
+
+    cmd/compile: refactor some more gotos away
+    
+    The ones in racewalk.go are almost all useless, since they were just
+    breaks.
+    
+    typecheck.go wasn't trivial, but still doable with an if/else chain.
+    
+    Also remove a single silly goto in const.go, while at it.
+    
+    Change-Id: I776a78df6bb3b6bd4f7e5feec546c772baf4e02e
+    Reviewed-on: https://go-review.googlesource.com/65652
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go     |  2 --
+ src/cmd/compile/internal/gc/racewalk.go  | 37 +-------------------------------
+ src/cmd/compile/internal/gc/typecheck.go | 15 +++++--------
+ 3 files changed, 6 insertions(+), 48 deletions(-)

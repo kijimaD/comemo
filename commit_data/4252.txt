@@ -1,0 +1,12 @@
+commit 1cf5d0d4a5c013dcfbbc6125f866eb2268748464
+Author: Anthony Starks <ajstarks@gmail.com>
+Date:   Mon Nov 30 19:24:11 2009 -0800
+
+    Adding to AUTHORS and CONTRIBUTORS as per http://golang.org/doc/contribute.html#copyright
+    
+    R=rsc
+    https://golang.org/cl/163050
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

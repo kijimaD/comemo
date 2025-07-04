@@ -1,0 +1,15 @@
+commit 0e67654f947c26834b624924a91b0925fea0b3f7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 16 17:00:48 2008 -0700
+
+    - changed channel operators
+    - more work on packages
+    
+    SVN=127671
+
+ usr/gri/gosrc/compilation.go | 51 ++++++++++++++++++++++++++++++++++++++------
+ usr/gri/gosrc/export.go      |  5 +++--
+ usr/gri/gosrc/package.go     |  3 ++-
+ usr/gri/gosrc/parser.go      | 15 +++++++------
+ usr/gri/gosrc/scanner.go     | 23 ++++++++++++++++++--
+ 5 files changed, 79 insertions(+), 18 deletions(-)

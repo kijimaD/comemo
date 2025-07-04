@@ -1,0 +1,12 @@
+commit a9e890d5cfa33d19ee4999ab822c4c2eaa869a0b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 10 21:20:48 2008 -0800
+
+    looks like i broke the build
+    
+    TBR=r
+    OCL=20963
+    CL=20963
+
+ src/lib/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

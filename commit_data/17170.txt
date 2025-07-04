@@ -1,0 +1,14 @@
+commit 954d14741d56c271a95d7b4dee1e8da35d7347af
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 13 11:32:32 2013 +1000
+
+    go/build: change the wording of NoGoError and comment it better
+    Out of context, it can be very confusing because there can be lots of Go
+    files in the directory, but the error message says there aren't.
+    
+    R=golang-dev, dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/12823043
+
+ src/pkg/go/build/build.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

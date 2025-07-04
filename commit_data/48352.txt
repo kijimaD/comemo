@@ -1,0 +1,22 @@
+commit 8cf11694abbfbdbd4fe0b2c08511f81b8bfe5017
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 10 09:02:34 2022 -0800
+
+    cmd/compile: fix transform of OEQ/ONE when one arg is a type param
+    
+    At this point in stenciling, we have shape types, not raw type parameters.
+    The code was correct in the other part of this function.
+    
+    Update #51522
+    
+    Change-Id: Ife495160a2be5f6af5400363c3efb68dda518b5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391475
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/noder/transform.go |  2 +-
+ test/typeparam/issue51522a.go               | 42 +++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 1 deletion(-)

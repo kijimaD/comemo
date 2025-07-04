@@ -1,0 +1,12 @@
+commit 8cab7f570395ba07b732a935fc1c916d28f8b7ef
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jun 22 16:20:37 2011 -0400
+
+    sync: restore GOMAXPROCS during benchmarks
+    
+    R=golang-dev
+    CC=dvyukov, golang-dev
+    https://golang.org/cl/4631060
+
+ src/pkg/sync/mutex_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

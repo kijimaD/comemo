@@ -1,0 +1,13 @@
+commit 467f8751f91516fa13c85f1604212d5974190ec4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 8 08:47:02 2012 -0800
+
+    gofmt: replace defunct test.sh with a go test
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5639053
+
+ src/cmd/gofmt/long_test.go | 157 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofmt/test.sh      | 168 ---------------------------------------------
+ 2 files changed, 157 insertions(+), 168 deletions(-)

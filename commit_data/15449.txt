@@ -1,0 +1,15 @@
+commit 98d44d140d7abde9fdfbdbf7adec5be7bb0892ce
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Feb 27 09:13:15 2013 +1100
+
+    syscall: fix FD passing on FreeBSD and NetBSD
+    
+    Fixes #3348.
+    
+    R=devon.odell, minux.ma, bradfitz, mdempsky
+    CC=golang-dev
+    https://golang.org/cl/7406050
+
+ src/pkg/syscall/passfd_test.go   | 2 +-
+ src/pkg/syscall/sockcmsg_unix.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

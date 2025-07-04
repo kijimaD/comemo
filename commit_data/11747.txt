@@ -1,0 +1,16 @@
+commit 54f1e1b1634cc0292fa8a1ecaf2569caafb257bf
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Feb 9 20:47:12 2012 -0200
+
+    cmd/dist: fix GOROOT_FINAL
+    
+    R=rsc, gustavo
+    CC=golang-dev
+    https://golang.org/cl/5642045
+
+ src/cmd/dist/a.h            |  2 +-
+ src/cmd/dist/build.c        | 21 +++++----------------
+ src/cmd/dist/buildruntime.c |  2 +-
+ src/make.bash               |  4 +++-
+ src/make.bat                | 10 ++++++----
+ 5 files changed, 16 insertions(+), 23 deletions(-)

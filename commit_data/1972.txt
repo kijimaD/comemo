@@ -1,0 +1,15 @@
+commit f13ce3ab34b3b7ab52ace53ad60b5fc163f99bfb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 7 00:40:50 2009 -0700
+
+    throw away . and .. in directory listings
+    
+    R=r
+    DELTA=13  (11 added, 0 deleted, 2 changed)
+    OCL=27147
+    CL=27154
+
+ src/lib/os/dir_amd64_darwin.go | 6 +++++-
+ src/lib/os/dir_amd64_linux.go  | 6 +++++-
+ src/lib/os/os_test.go          | 3 +++
+ 3 files changed, 13 insertions(+), 2 deletions(-)

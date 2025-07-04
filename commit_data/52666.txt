@@ -1,0 +1,19 @@
+commit 47e2d7495fabaae8cfe2e1a0f0ff1e38f6e7b851
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Apr 13 09:31:41 2023 +0700
+
+    cmd/compile: move unsafe operation out of EvalConst
+    
+    So future CLs can get rid of EvalConst entirely.
+    
+    Change-Id: Ic8e147fd76e53c002a6ceda2fb3be979459bf865
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484315
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/const.go     | 4 ----
+ src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
+ 2 files changed, 1 insertion(+), 5 deletions(-)

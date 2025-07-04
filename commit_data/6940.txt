@@ -1,0 +1,15 @@
+commit 1b31c37428d48ab3e5e4b86a6851293418fbf328
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 13 16:51:19 2010 -0500
+
+    gc: issue 1231
+    
+    Fixes #1231.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/3627041
+
+ src/cmd/gc/gen.c |  2 +-
+ test/closure.go  | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

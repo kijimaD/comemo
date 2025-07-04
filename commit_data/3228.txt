@@ -1,0 +1,15 @@
+commit bd0c13e9f8ebe9ecab9cd7fca10342ee584fd3ed
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 8 12:27:09 2009 -0700
+
+    documentation edits:
+    add comments showing Go syntax for each token.
+    move doc comments below hidden begin constants
+    
+    R=gri
+    DELTA=66  (3 added, 3 deleted, 60 changed)
+    OCL=34334
+    CL=34445
+
+ src/pkg/go/token/token.go | 126 +++++++++++++++++++++++-----------------------
+ 1 file changed, 63 insertions(+), 63 deletions(-)

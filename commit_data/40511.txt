@@ -1,0 +1,59 @@
+commit 02a5502ab8d862309aaec3c5ec293b57b913d01d
+Author: Olivier Poitrey <rs@netflix.com>
+Date:   Thu May 9 17:31:34 2019 -0700
+
+    crypto/tls: send ec_points_format extension in ServerHello
+    
+    Follow the recommandation from RFC 8422, section 5.1.2 of sending back the
+    ec_points_format extension when requested by the client. This is to fix
+    some clients declining the handshake if omitted.
+    
+    Fixes #31943
+    
+    Change-Id: I7b04dbac6f9af75cda094073defe081e1e9a295d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176418
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Olivier Poitrey <rs@rhapsodyk.net>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/handshake_messages.go               |  15 ++
+ src/crypto/tls/handshake_messages_test.go          |   1 +
+ src/crypto/tls/handshake_server.go                 |   9 ++
+ src/crypto/tls/handshake_server_test.go            |  73 +++++++++
+ .../tls/testdata/Server-TLSv10-ECDHE-ECDSA-AES     | 139 ++++++++---------
+ .../testdata/Server-TLSv10-ExportKeyingMaterial    | 159 +++++++++----------
+ src/crypto/tls/testdata/Server-TLSv10-RSA-3DES     | 131 ++++++++--------
+ src/crypto/tls/testdata/Server-TLSv10-RSA-AES      | 137 ++++++++---------
+ src/crypto/tls/testdata/Server-TLSv10-RSA-RC4      | 125 +++++++--------
+ src/crypto/tls/testdata/Server-TLSv11-RSA-RC4      | 125 +++++++--------
+ src/crypto/tls/testdata/Server-TLSv12-ALPN         | 151 +++++++++---------
+ src/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch | 150 +++++++++---------
+ .../Server-TLSv12-CipherSuiteCertPreferenceECDSA   | 137 ++++++++---------
+ .../Server-TLSv12-CipherSuiteCertPreferenceRSA     | 145 +++++++++---------
+ .../Server-TLSv12-ClientAuthRequestedAndECDSAGiven | 157 +++++++++----------
+ ...erver-TLSv12-ClientAuthRequestedAndEd25519Given | 149 +++++++++---------
+ .../Server-TLSv12-ClientAuthRequestedAndGiven      | 139 ++++++++---------
+ ...rver-TLSv12-ClientAuthRequestedAndPKCS1v15Given | 157 +++++++++----------
+ .../Server-TLSv12-ClientAuthRequestedNotGiven      | 139 ++++++++---------
+ .../tls/testdata/Server-TLSv12-ECDHE-ECDSA-AES     | 137 ++++++++---------
+ src/crypto/tls/testdata/Server-TLSv12-Ed25519      |  92 +++++------
+ .../testdata/Server-TLSv12-ExportKeyingMaterial    | 150 +++++++++---------
+ src/crypto/tls/testdata/Server-TLSv12-IssueTicket  | 150 +++++++++---------
+ .../testdata/Server-TLSv12-IssueTicketPreDisable   | 150 +++++++++---------
+ src/crypto/tls/testdata/Server-TLSv12-P256         | 143 +++++++++---------
+ src/crypto/tls/testdata/Server-TLSv12-RSA-3DES     | 131 ++++++++--------
+ src/crypto/tls/testdata/Server-TLSv12-RSA-AES      | 135 +++++++++--------
+ src/crypto/tls/testdata/Server-TLSv12-RSA-AES-GCM  | 135 +++++++++--------
+ .../testdata/Server-TLSv12-RSA-AES256-GCM-SHA384   | 135 +++++++++--------
+ src/crypto/tls/testdata/Server-TLSv12-RSA-RC4      | 125 +++++++--------
+ .../tls/testdata/Server-TLSv12-RSA-RSAPKCS1v15     | 135 +++++++++--------
+ src/crypto/tls/testdata/Server-TLSv12-RSA-RSAPSS   |  87 +++++------
+ src/crypto/tls/testdata/Server-TLSv12-Resume       |  66 ++++----
+ .../tls/testdata/Server-TLSv12-ResumeDisabled      | 151 +++++++++---------
+ src/crypto/tls/testdata/Server-TLSv12-SNI          | 135 +++++++++--------
+ .../tls/testdata/Server-TLSv12-SNI-GetCertificate  | 135 +++++++++--------
+ .../Server-TLSv12-SNI-GetCertificateNotFound       | 135 +++++++++--------
+ src/crypto/tls/testdata/Server-TLSv12-X25519       | 135 +++++++++--------
+ .../tls/testdata/Server-TLSv13-AES128-SHA256       | 168 ++++++++++-----------
+ 39 files changed, 2497 insertions(+), 2371 deletions(-)

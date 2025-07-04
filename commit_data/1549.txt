@@ -1,0 +1,12 @@
+commit d2117ad43874c6729ee532da1f73ddfa7ab2ed46
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 23 17:04:56 2009 -0800
+
+    make test/chan/nonblock work even with real os threads
+    
+    R=ken
+    OCL=23422
+    CL=23422
+
+ test/chan/nonblock.go | 95 +++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 62 insertions(+), 33 deletions(-)

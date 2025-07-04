@@ -1,0 +1,12 @@
+commit 4e5e12e305d2847a95a986d0e32b036b29ecd6ba
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Fri Jul 22 21:21:08 2011 -0400
+
+    ld: fixes ldpe link with SXREF global values.
+    
+    R=golang-dev, mattn.jp, rsc
+    CC=golang-dev
+    https://golang.org/cl/4794052
+
+ src/cmd/ld/ldpe.c | 4 ++++
+ 1 file changed, 4 insertions(+)

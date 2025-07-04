@@ -1,0 +1,13 @@
+commit c08ff027c42807ecf3fdab75e13dca5caab96323
+Author: Thomas Alan Copeland <talan.copeland@gmail.com>
+Date:   Mon Jun 25 17:18:50 2012 -0400
+
+    encoding/base32, encoding/base64: removed unneeded break label
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6305086
+
+ src/pkg/encoding/base32/base32.go | 3 +--
+ src/pkg/encoding/base64/base64.go | 3 +--
+ 2 files changed, 2 insertions(+), 4 deletions(-)

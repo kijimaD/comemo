@@ -1,0 +1,19 @@
+commit 17770315280330ff3cbe4fb32620e020b0218bd6
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Wed Apr 5 13:07:14 2023 +0300
+
+    cmd/go: improve packages help description
+    
+    Clarify that 'action' is not the valid 'go' command.
+    
+    Change-Id: I0a77722c46a3dc56f81c5e6e177e0c73bc60adc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482455
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/internal/help/helpdoc.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

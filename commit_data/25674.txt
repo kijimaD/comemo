@@ -1,0 +1,22 @@
+commit 9202e9e1b81d1c6d07b516eae2d1da28951c7a76
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 27 00:09:50 2016 +0000
+
+    runtime: add more debug info to flaky TestNumGoroutine
+    
+    This has been flaking on the new OpenBSD 5.8 builders lately:
+    https://storage.googleapis.com/go-build-log/808270e7/openbsd-amd64-gce58_61ce2663.log
+    (as one example)
+    
+    Add more debug info when it fails.
+    
+    Updates #14107
+    
+    Change-Id: Ie30bc0c703d2e9ee993d1e232ffc5f2d17e65c97
+    Reviewed-on: https://go-review.googlesource.com/18938
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/proc_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

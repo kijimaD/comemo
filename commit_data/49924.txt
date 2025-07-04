@@ -1,0 +1,20 @@
+commit 71424806fa76d5b5d1b2492741d2564664af136c
+Author: Abirdcfly <fp544037857@gmail.com>
+Date:   Tue Aug 9 15:04:25 2022 +0800
+
+    archive/tar: delete unreachable continue code
+    
+    Change-Id: Id492ee4e614a38880a6a5830371dcd9a8b37129a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422214
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: hopehook <hopehook@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: hopehook <hopehook@qq.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/archive/tar/reader_test.go | 2 --
+ 1 file changed, 2 deletions(-)

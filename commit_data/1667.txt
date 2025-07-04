@@ -1,0 +1,16 @@
+commit 6f8df7aa3e8cb6251d4aec424b395ebc686353c7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 11 21:57:15 2009 -0800
+
+    - syntax for composite literals use () instead of {}
+    - do not permit + for array concatenation anymore
+      (not implemented and not a good idea)
+    - document that unsafe function results are compile time constants
+    - fixed minor typos
+    
+    DELTA=41  (7 added, 11 deleted, 23 changed)
+    OCL=24899
+    CL=24927
+
+ doc/go_spec.txt | 62 +++++++++++++++++++++++++++------------------------------
+ 1 file changed, 29 insertions(+), 33 deletions(-)

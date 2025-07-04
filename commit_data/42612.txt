@@ -1,0 +1,21 @@
+commit 3a4322627e781c05418a8cc40ebb9f547a6c4ac8
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Wed Jul 8 16:57:10 2020 -0400
+
+    net: hangup TCP connection after Dial timeout in Plan 9
+    
+    After Dial timeout, force close the TCP connection by writing "hangup"
+    to the control file. This unblocks the "connect" command if the
+    connection is taking too long to establish, and frees up the control
+    file FD.
+    
+    Fixes #40118
+    
+    Change-Id: I1cef8539cd9fe0793e32b49c9d0ef636b4b26e1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241638
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/net/ipsock_plan9.go | 28 ++++++++++++++++++++++++++--
+ 1 file changed, 26 insertions(+), 2 deletions(-)

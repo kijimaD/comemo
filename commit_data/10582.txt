@@ -1,0 +1,28 @@
+commit a5d300862b683e6a6d0e503c213d191155d1f63b
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Dec 2 11:46:24 2011 +1100
+
+    html: allow whitespace between head and body
+    
+    Also ignore <head> tag after </head>.
+    
+    Pass tests6.dat, test 0:
+    <!doctype html></head> <head>
+    
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |   " "
+    |   <body>
+    
+    Also pass tests through test 6:
+    <body>
+    <div>
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5447064
+
+ src/pkg/html/parse.go      | 17 +++++++++++++++--
+ src/pkg/html/parse_test.go |  1 +
+ 2 files changed, 16 insertions(+), 2 deletions(-)

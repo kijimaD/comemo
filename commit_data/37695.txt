@@ -1,0 +1,16 @@
+commit a6293995c55659f51e0662e7656f395633c99b5b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 13 15:23:35 2018 -0800
+
+    mime/multipart: quote boundary in Content-Type if necessary
+    
+    Fixes #26532
+    
+    Change-Id: Ic086c90503c7b24982f947c828c7ccf016ddbf69
+    Reviewed-on: https://go-review.googlesource.com/c/154120
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/multipart/writer.go      |  8 +++++++-
+ src/mime/multipart/writer_test.go | 13 +++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

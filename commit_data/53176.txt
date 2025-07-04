@@ -1,0 +1,19 @@
+commit 10fbd925d6cd6b63acead9fbbfba8963f70a410e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 22 11:18:30 2023 -0400
+
+    net: skip TestFileFdBlocks if the "unix" network is not supported
+    
+    This may fix the android failures observed starting at CL 496080, such
+    as the one in
+    https://build.golang.org/log/7bfc4bd192e21c02a167d2d6a5649f1a2b63a8f1.
+    
+    Change-Id: I4e8eaf9890da269bd1758f59a29fa2a8131d8ae6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496955
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/net/file_unix_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

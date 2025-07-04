@@ -1,0 +1,20 @@
+commit fdc04223c5ed16ba568f6ce1b4859bc06e43df5e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 13 11:54:14 2016 -0700
+
+    cmd/compile: clean up savedata
+    
+    Simplify function signature.
+    Remove unused Ctxt field Enforce_data_order.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I5caa270ca9ae725708fe415b2c978b5f40780255
+    Reviewed-on: https://go-review.googlesource.com/20644
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/data.go    |  8 ++--
+ src/cmd/internal/obj/link.go    | 97 ++++++++++++++++++++---------------------
+ src/cmd/internal/obj/objfile.go |  2 +-
+ 3 files changed, 52 insertions(+), 55 deletions(-)

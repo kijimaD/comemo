@@ -1,0 +1,13 @@
+commit db3474f1bb17e8443c7c4369a79d65242db08a14
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 29 13:24:53 2012 +1000
+
+    A+C: add Patrick Crosby (individual contributor)
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6489049
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

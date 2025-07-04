@@ -1,0 +1,35 @@
+commit 4201c2077ec3446a4fea5ed768c82aa96df69233
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Jun 27 11:40:24 2018 -0500
+
+    cmd/compile: omit racefuncentry/exit when they are not needed
+    
+    When compiling with -race, we insert calls to racefuncentry,
+    into every function. Add a rule that removes them in leaf functions,
+    without instrumented loads/stores.
+    Shaves ~30kb from "-race" version of go tool:
+    
+    file difference:
+    go_old 15626192
+    go_new 15597520 [-28672 bytes]
+    
+    section differences:
+    global text (code) = -24513 bytes (-0.358598%)
+    read-only data = -5849 bytes (-0.167064%)
+    Total difference -30362 bytes (-0.097928%)
+    
+    Fixes #24662
+    
+    Change-Id: Ia63bf1827f4cf2c25e3e28dcd097c150994ade0a
+    Reviewed-on: https://go-review.googlesource.com/121235
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/racewalk.go        |  6 +++++-
+ src/cmd/compile/internal/gc/ssa.go             |  1 +
+ src/cmd/compile/internal/ssa/config.go         |  1 +
+ src/cmd/compile/internal/ssa/gen/generic.rules |  2 ++
+ src/cmd/compile/internal/ssa/rewrite.go        | 28 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 14 +++++++++++++
+ 6 files changed, 51 insertions(+), 1 deletion(-)

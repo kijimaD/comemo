@@ -1,0 +1,20 @@
+commit 36454187dbd9d543c4ff2f4c9c41e513fcae54ab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 3 10:09:35 2018 -0800
+
+    net: report connect error as coming from "connect"
+    
+    We retrieve an error using getsockopt with SO_ERROR. We were reporting
+    the error as coming from "getsockopt", but really it is coming from
+    "connect". It is not getsockopt that failed.
+    
+    Fixes #19302
+    
+    Change-Id: I510ab76e4b04c70cd9dfdfc46d9a410bf653d017
+    Reviewed-on: https://go-review.googlesource.com/85997
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/fd_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

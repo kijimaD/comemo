@@ -1,0 +1,15 @@
+commit 1d901f55bd9d6ee12bc4692cd60a6a2311366799
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 26 11:50:51 2016 -0500
+
+    cmd/compile: remove -h spam
+    
+    This debugging print crept into an earlier CL of mine.
+    
+    Change-Id: If6e8609e69a60aec50c06889c2d98a8b8a4bd02b
+    Reviewed-on: https://go-review.googlesource.com/18971
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/gen.go | 3 ---
+ 1 file changed, 3 deletions(-)

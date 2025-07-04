@@ -1,0 +1,34 @@
+commit 191efbc419d7e5dec842c20841f6f716da4b561d
+Author: Tom Limoncelli <tal@whatexit.org>
+Date:   Sun Apr 8 16:05:04 2018 -0400
+
+    io/ioutil: change TempFile prefix to a pattern
+    
+    Users of TempFile need to be able to supply the suffix, especially
+    when using operating systems that give semantic meaning to the
+    filename extension such as Windows.  Renaming the file to include
+    an extension after the fact is insufficient as it could lead to
+    race conditions.
+    
+    If the string given to TempFile includes a "*", the random string
+    replaces the "*". For example "myname.*.bat" will result in a random
+    filename such as "myname.123456.bat".  If no "*' is included the
+    old behavior is retained, and the random digits are appended to the
+    end.
+    
+    If multiple "*" are included, the final one is replaced, thus
+    permitting a pathological programmer to create filenames such as
+    "foo*.123456.bat" but not "foo.123456.*.bat"
+    
+    Fixes #4896
+    
+    Change-Id: Iae7f0980b4de6d7d31b87c8c3c3d40767b283c1f
+    Reviewed-on: https://go-review.googlesource.com/105675
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/io/ioutil/example_test.go  | 18 ++++++++++++++++++
+ src/io/ioutil/tempfile.go      | 24 +++++++++++++++++-------
+ src/io/ioutil/tempfile_test.go | 27 ++++++++++++++++++---------
+ 3 files changed, 53 insertions(+), 16 deletions(-)

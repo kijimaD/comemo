@@ -1,0 +1,36 @@
+commit 38f1231f3ed39b03758a7508eb1b2951ba5ef0a8
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 1 14:08:14 2010 -0700
+
+    strings and bytes.Split: make count of 0 mean 0, not infinite.
+    Use a count of -1 for infinity.  Ditto for Replace.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1704044
+
+ src/cmd/cgo/gcc.go              |  6 ++--
+ src/cmd/godoc/godoc.go          |  4 +--
+ src/cmd/godoc/index.go          |  2 +-
+ src/cmd/godoc/mapping.go        |  2 +-
+ src/cmd/gofmt/rewrite.go        |  2 +-
+ src/cmd/hgpatch/main.go         |  2 +-
+ src/pkg/asn1/common.go          |  2 +-
+ src/pkg/bytes/bytes.go          | 16 ++++++++---
+ src/pkg/bytes/bytes_test.go     | 64 ++++++++++++++++++++++-------------------
+ src/pkg/crypto/x509/x509.go     |  4 +--
+ src/pkg/exec/exec.go            |  2 +-
+ src/pkg/exp/nacl/srpc/client.go |  2 +-
+ src/pkg/exp/ogle/cmd.go         |  2 +-
+ src/pkg/go/doc/comment.go       |  2 +-
+ src/pkg/http/request.go         |  2 +-
+ src/pkg/http/transfer.go        |  4 +--
+ src/pkg/nntp/nntp_test.go       |  4 +--
+ src/pkg/patch/patch.go          |  2 +-
+ src/pkg/rpc/server.go           |  2 +-
+ src/pkg/strconv/fp_test.go      |  2 +-
+ src/pkg/strings/strings.go      | 22 +++++++++-----
+ src/pkg/strings/strings_test.go | 63 +++++++++++++++++++++-------------------
+ src/pkg/template/template.go    |  2 +-
+ src/pkg/unicode/maketables.go   |  6 ++--
+ 24 files changed, 123 insertions(+), 98 deletions(-)

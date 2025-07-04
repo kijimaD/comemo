@@ -1,0 +1,16 @@
+commit 8d701f092d5dba49a79fada561e90cfdb84f2bd1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 24 16:36:08 2015 -0700
+
+    math/big: implement Int.Text, Int.Append
+    
+    This makes the Int conversion routines match the respective strconv
+    and big.Float conversion routines.
+    
+    Change-Id: I5cfcda1632ee52fe87c5bb75892bdda76cc3af15
+    Reviewed-on: https://go-review.googlesource.com/14994
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/intconv.go      | 39 ++++++++++++++++---
+ src/math/big/intconv_test.go | 89 ++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 102 insertions(+), 26 deletions(-)

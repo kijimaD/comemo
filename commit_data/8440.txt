@@ -1,0 +1,17 @@
+commit 24b2f48a4a5abc4a35e0ddf104e1d22e6ba1cdaa
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed May 18 18:55:06 2011 -0700
+
+    crypto/rand: add utility functions for number generation
+    
+    This code is extracted from crypto/rsa with
+    a few variables renamed and a comment fixed.
+    
+    R=agl, rsc, agl
+    CC=golang-dev
+    https://golang.org/cl/4446068
+
+ src/pkg/crypto/rand/Makefile |  1 +
+ src/pkg/crypto/rand/util.go  | 80 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/rsa/rsa.go    | 86 +++++++-------------------------------------
+ 3 files changed, 93 insertions(+), 74 deletions(-)

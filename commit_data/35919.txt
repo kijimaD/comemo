@@ -1,0 +1,18 @@
+commit 7951d90bc6fab62b2baacdc985156c50f1063706
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Mon Jul 9 23:08:22 2018 +0300
+
+    cmd/compile/internal/ssa: fix partsByVarOffset.Less method
+    
+    Fix duplicated index in LHS and RHS of the < operator.
+    
+    Found using https://go-critic.github.io/overview#dupSubExpr-ref
+    
+    Change-Id: I9a5a40bbd436b32e8117579a01bc50afe3608c97
+    Reviewed-on: https://go-review.googlesource.com/122776
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/debug.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 31f8310c45205a38311e4b82f24eabe29c7c79a0
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 23 13:45:58 2014 -0800
+
+    reflect: fix func layout test for nacl build
+    
+    This test code is ugly.  There must be a better way.
+    But for now, fix the build.
+    
+    Change-Id: I33064145ea37f11abf040ec97caa87669be1a9fa
+    Reviewed-on: https://go-review.googlesource.com/2114
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/all_test.go | 24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)

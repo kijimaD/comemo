@@ -1,0 +1,15 @@
+commit 8537ccdd7ff42aac384f278d55f975ba447f16fd
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 20 14:01:51 2015 -0700
+
+    time: add a thorough example for time.Format
+    
+    People will still not look at it, but at least we will have a stronger defense.
+    
+    Change-Id: Ieea6a3d42d06e1067e424e35b87dbcb01c9523cb
+    Reviewed-on: https://go-review.googlesource.com/7859
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/example_test.go | 124 ++++++++++++++++++++++++++++++++++++++++++++---
+ src/time/format.go       |   3 ++
+ 2 files changed, 120 insertions(+), 7 deletions(-)

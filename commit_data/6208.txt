@@ -1,0 +1,19 @@
+commit c4e27b7cfba530d3dea367aba9294b50aab13a24
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 8 22:01:48 2010 -0700
+
+    gofmt, go/printer: update internal estimated position correctly
+    
+    Fixes #1089.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2172043
+
+ src/pkg/go/printer/printer.go                  |  5 ++++
+ src/pkg/go/printer/testdata/comments.golden    | 32 ++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/comments.input     | 34 ++++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/expressions.golden |  4 +--
+ src/pkg/go/printer/testdata/expressions.input  |  1 -
+ src/pkg/go/printer/testdata/expressions.raw    |  4 +--
+ 6 files changed, 73 insertions(+), 7 deletions(-)

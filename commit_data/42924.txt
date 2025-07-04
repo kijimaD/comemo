@@ -1,0 +1,49 @@
+commit bdb480fd623e58d0d1d0689a3755367379ea57bc
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Sep 8 15:28:43 2020 +0700
+
+    cmd/compile: fix mishandling of unsafe-uintptr arguments in go/defer
+    
+    Currently, the statement:
+    
+            go g(uintptr(f()))
+    
+    gets rewritten into:
+    
+            tmp := f()
+            newproc(8, g, uintptr(tmp))
+            runtime.KeepAlive(tmp)
+    
+    which doesn't guarantee that tmp is still alive by time the g call is
+    scheduled to run.
+    
+    This CL fixes the issue, by wrapping g call in a closure:
+    
+            go func(p unsafe.Pointer) {
+                    g(uintptr(p))
+            }(f())
+    
+    then this will be rewritten into:
+    
+            tmp := f()
+            go func(p unsafe.Pointer) {
+                    g(uintptr(p))
+                    runtime.KeepAlive(p)
+            }(tmp)
+            runtime.KeepAlive(tmp)  // superfluous, but harmless
+    
+    So the unsafe.Pointer p will be kept alive at the time g call runs.
+    
+    Updates #24491
+    
+    Change-Id: Ic10821251cbb1b0073daec92b82a866c6ebaf567
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253457
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/order.go  |  1 +
+ src/cmd/compile/internal/gc/syntax.go | 41 +++++++++++++++++---------
+ src/cmd/compile/internal/gc/walk.go   | 54 ++++++++++++++++++++++++++++-------
+ test/fixedbugs/issue24491.go          | 45 +++++++++++++++++++++++++++++
+ 4 files changed, 117 insertions(+), 24 deletions(-)

@@ -1,0 +1,14 @@
+commit 68fe6d40377a5746b6351a96aa795318a1343677
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 8 20:06:04 2016 +0000
+
+    api: more go1.6 API additions
+    
+    Change-Id: Ib838d2b98e3f84ffd240849817cafc69415ba74e
+    Reviewed-on: https://go-review.googlesource.com/18376
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ api/go1.6.txt | 3 +++
+ 1 file changed, 3 insertions(+)

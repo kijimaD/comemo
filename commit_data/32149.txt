@@ -1,0 +1,15 @@
+commit 762a0bae06b61f58a3783042167c54752c533aa1
+Author: Wembley G. Leach, Jr <wembley.gl@gmail.com>
+Date:   Mon Aug 7 21:22:14 2017 -0400
+
+    math/bits: Add examples for Reverse functions
+    
+    Change-Id: I30563d31f6acea594cc853cc6b672ec664f90d48
+    Reviewed-on: https://go-review.googlesource.com/53636
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/bits/example_test.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

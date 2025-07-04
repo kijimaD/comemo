@@ -1,0 +1,19 @@
+commit 63457d089ea4aebe35223dc6b70feae804a6a926
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Feb 3 12:39:11 2011 -0800
+
+    sync: Proposal for barrier implementation
+    
+    As discussed in the mailing list, this adds a simple barrier
+    implementation to the sync package which enables one or more
+    goroutines to wait for a counter to go down to zero.
+    
+    R=rsc, rog, r
+    CC=golang-dev
+    https://golang.org/cl/3770045
+
+ src/pkg/sync/Makefile          |  1 +
+ src/pkg/sync/mutex.go          |  8 ++--
+ src/pkg/sync/waitgroup.go      | 86 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/sync/waitgroup_test.go | 60 +++++++++++++++++++++++++++++
+ 4 files changed, 151 insertions(+), 4 deletions(-)

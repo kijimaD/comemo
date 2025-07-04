@@ -1,0 +1,32 @@
+commit bc047b62b2ec0c6eae3437a26410039c82365f60
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Aug 27 14:44:16 2024 -0500
+
+    crypto/internal/nistec: fix p256Select (PPC64) and p256SelectAffine (PPC64/s390x)
+    
+    They are constant time, but some constants were incorrect. This
+    resulting in reading beyond the tables.
+    
+    I've added linux specific tests which verify these functions are not
+    reading beyond the limits of their table.
+    
+    Thank you Sun Yimin, @emmansun for catching this bug and suggesting
+    corrected constants.
+    
+    Fixes #69080
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10,gotip-linux-ppc64_power8,gotip-linux-ppc64le_power10,gotip-linux-ppc64le_power8,gotip-linux-ppc64le_power9
+    
+    Change-Id: Id37e0e22b2278ea20adaa1c84cbb32c3f20d4cf7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608816
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Archana Ravindar <aravinda@redhat.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/nistec/p256_asm_ppc64le.s |  4 +-
+ src/crypto/internal/nistec/p256_asm_s390x.s   |  2 +-
+ src/crypto/internal/nistec/p256_asm_test.go   | 53 +++++++++++++++++++++++++++
+ 3 files changed, 56 insertions(+), 3 deletions(-)

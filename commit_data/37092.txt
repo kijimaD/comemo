@@ -1,0 +1,16 @@
+commit 127c51e48c641675b363fbda62c88263267a4f44
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Tue Oct 23 23:59:07 2018 -0600
+
+    math/bits: correct BenchmarkSub64
+    
+    Previously, the benchmark was measuring Add64 instead of Sub64.
+    
+    Change-Id: I0cf30935c8a4728bead9868834377aae0b34f008
+    Reviewed-on: https://go-review.googlesource.com/c/144380
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/bits/bits_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

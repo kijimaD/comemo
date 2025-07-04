@@ -1,0 +1,20 @@
+commit 1bcfdc777ad38bbb4faec8e1db2eaa92873f4e10
+Author: David Chase <drchase@google.com>
+Date:   Fri Nov 4 11:23:12 2022 -0400
+
+    cmd/compile: change the multiple (gossa)hash separator from ; to /
+    
+    Semicolon has bad copy-paste ergonomics; it requires quoting.
+    Slash is okay, and won't be a separator ever in debug strings
+    because it is already used in e.g. ssa/phase/debug=etc.
+    
+    Change-Id: I493360e9282666eea1a342971a77df2ebd6c92ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447975
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/base/hashdebug.go      | 2 +-
+ src/cmd/compile/internal/base/hashdebug_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

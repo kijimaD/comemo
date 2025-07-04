@@ -1,0 +1,19 @@
+commit 48a1f6989ccd74ad2cb7eab14cdfab1e06bc36b4
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Wed Aug 7 09:20:30 2024 +0000
+
+    hash: mention encoding.BinaryAppender in Hash docs
+    
+    For #62384
+    
+    Change-Id: I4eeb83a4708544777815eacd6a5b6d293580c5e5
+    GitHub-Last-Rev: 6fdb6db4811a7b19742fec556fd5a1d5002b4e5e
+    GitHub-Pull-Request: golang/go#68758
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603405
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/hash/hash.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

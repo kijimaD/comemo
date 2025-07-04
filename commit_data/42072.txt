@@ -1,0 +1,21 @@
+commit 952f7de3b403d2ffb45708ea5f69168bbdbfe1f0
+Author: Andrei Tudor Călin <mail@acln.ro>
+Date:   Thu Apr 23 04:04:33 2020 +0300
+
+    testing: make TempDir work for subtests
+    
+    ioutil.TempDir doesn't like path separators in its pattern. Modify
+    (*common).TempDir to replace path separators with underscores before
+    using the test name as a pattern for ioutil.TempDir.
+    
+    Fixes #38465.
+    
+    Change-Id: I9e8ae48b99648b2bf9f561762e845165aff01972
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229399
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/testing.go      | 7 ++++++-
+ src/testing/testing_test.go | 5 +++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

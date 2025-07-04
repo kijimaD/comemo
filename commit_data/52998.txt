@@ -1,0 +1,48 @@
+commit af64b75b67f15154ed13279212d40474cf061fff
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 5 22:29:11 2023 -0400
+
+    misc/cgo/test: add cgo build constraints
+    
+    We're about to move this package to cmd/cgo/internal, where it will
+    get caught up in the "CGO_ENABLED=0 go install cmd" done by make.bash.
+    Currently, building this package with CGO_ENABLED=0 fails because it
+    contains several source files that don't themselves import "C", but do
+    import a subdirectory where that package imports "C" and thus has no
+    exported API.
+    
+    Fix the CGO_ENABLED=0 build of this package by adding the necessary
+    cgo build tags. Not all source files need it, but this CL makes
+    "CGO_ENABLED=0 go test -c" work in this package.
+    
+    For #37486.
+    
+    Change-Id: Id137cdfbdd950eea802413536d990ab642ebcd7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493215
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ misc/cgo/test/cgo_linux_test.go         | 2 ++
+ misc/cgo/test/cgo_test.go               | 2 ++
+ misc/cgo/test/cgo_unix_test.go          | 2 +-
+ misc/cgo/test/gcc68255.go               | 2 ++
+ misc/cgo/test/issue18146.go             | 2 +-
+ misc/cgo/test/issue23555.go             | 2 ++
+ misc/cgo/test/issue24161_darwin_test.go | 2 ++
+ misc/cgo/test/issue26430.go             | 2 ++
+ misc/cgo/test/issue26743.go             | 2 ++
+ misc/cgo/test/issue27340.go             | 2 ++
+ misc/cgo/test/issue29563.go             | 2 +-
+ misc/cgo/test/issue30527.go             | 2 ++
+ misc/cgo/test/issue43639.go             | 2 ++
+ misc/cgo/test/issue52611.go             | 2 ++
+ misc/cgo/test/issue8828.go              | 4 ++--
+ misc/cgo/test/issue9026.go              | 6 ++++++
+ misc/cgo/test/issue9400/stubs.go        | 2 +-
+ misc/cgo/test/issue9510.go              | 2 ++
+ misc/cgo/test/test26213.go              | 2 ++
+ misc/cgo/test/test_unix.go              | 2 +-
+ 20 files changed, 39 insertions(+), 7 deletions(-)

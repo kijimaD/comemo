@@ -1,0 +1,25 @@
+commit 548e1f89363fd3054a0bd8961c6c6b8b8ecbcfaf
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 25 13:17:17 2018 -0700
+
+    cmd/compile: recognize some OpRsh64Ux64 Values as non-negative
+    
+    Proves IsSliceInBounds one additional time building std+cmd,
+    at encoding/hex/hex.go:187:8.
+    
+    The code is:
+    
+            if numAvail := len(d.in) / 2; len(p) > numAvail {
+                    p = p[:numAvail]
+            }
+    
+    Previously we were unable to prove that numAvail >= 0.
+    
+    Change-Id: Ie74e0aef809f9194c45e129ee3dae60bc3eae02f
+    Reviewed-on: https://go-review.googlesource.com/109415
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 4 ++++
+ 1 file changed, 4 insertions(+)

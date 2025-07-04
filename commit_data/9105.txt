@@ -1,0 +1,14 @@
+commit ab55133ca937c0085de5594773e2b55a0bb20e3b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jul 18 17:30:00 2011 +1000
+
+    doc: fix padding on h1 tags
+    
+    See /doc/codewalk/sharemem/ for an example of how it's broken.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4742044
+
+ doc/all.css | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 772d22885bec8e38816b41b9ec6befac77e5a671
+Author: Carl Chatfield <carlchatfield@gmail.com>
+Date:   Tue Apr 8 22:35:23 2014 -0400
+
+    reflect: fix variadic arg for funcs created by MakeFunc.
+    
+    Short circuit for calling values funcs by MakeFunc was placed
+    before variadic arg rearrangement code in reflect.call.
+    Fixes #7534.
+    
+    LGTM=khr
+    R=golang-codereviews, bradfitz, khr, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/75370043
+
+ src/pkg/reflect/all_test.go | 17 +++++++++++++++++
+ src/pkg/reflect/value.go    | 22 +++++++++++-----------
+ 2 files changed, 28 insertions(+), 11 deletions(-)

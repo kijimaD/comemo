@@ -1,0 +1,31 @@
+commit 08c84420bc40d1cd5eb71b85cbe3a36f707bdb3f
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Fri May 3 09:21:39 2024 -0400
+
+    encoding/gob: cover missed cases when checking ignore depth
+    
+    This change makes sure that we are properly checking the ignored field
+    recursion depth in decIgnoreOpFor consistently. This prevents stack
+    exhaustion when attempting to decode a message that contains an
+    extremely deeply nested struct which is ignored.
+    
+    Thanks to Md Sakib Anwar of The Ohio State University (anwar.40@osu.edu)
+    for reporting this issue.
+    
+    Fixes #69139
+    Fixes CVE-2024-34156
+    
+    Change-Id: Iacce06be95a5892b3064f1c40fcba2e2567862d6
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1440
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611239
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/encoding/gob/decode.go         | 19 +++++++++++--------
+ src/encoding/gob/decoder.go        |  2 ++
+ src/encoding/gob/gobencdec_test.go | 14 ++++++++++++++
+ 3 files changed, 27 insertions(+), 8 deletions(-)

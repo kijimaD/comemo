@@ -1,0 +1,17 @@
+commit ab844022eeedc6c16d0cdb7fb6fee01dd9e6307a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 11 23:58:11 2014 -0400
+
+    cmd/gc: fix crash in -live mode
+    
+    debuglive >= 1 is not the condition under which we
+    start recording messages (we avoid printing for
+    init functions even if debuglive is set).
+    
+    LGTM=bradfitz, iant
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews, iant, khr
+    https://golang.org/cl/74390043
+
+ src/cmd/gc/plive.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

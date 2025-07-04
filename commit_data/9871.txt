@@ -1,0 +1,13 @@
+commit 3e26862c1a0c83503d08696b2ceef131755626b3
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Oct 5 10:49:23 2011 -0700
+
+    documentation: Debugging Go code with GDB tutorial.
+    
+    R=adg, cw, lvd
+    CC=golang-dev
+    https://golang.org/cl/5168046
+
+ doc/debugging_with_gdb.html | 479 ++++++++++++++++++++++++++++++++++++++++++++
+ doc/docs.html               |   5 +
+ 2 files changed, 484 insertions(+)

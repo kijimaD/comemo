@@ -1,0 +1,18 @@
+commit cf6cfba4d5358404dd890f6025e573a4b2156543
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Oct 28 12:07:31 2020 +0100
+
+    cmd/go/internal/modfetch: update expected tags for TestCodeRepoVersions
+    
+    Updates #28856
+    
+    Change-Id: I89c564cefd7c5777904bc00c74617dab693373bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265819
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/coderepo_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 82a7de9dfdcec23b05264c1df00ef3db6a4bc09d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 22 07:12:54 2010 -0800
+
+    Fix build: add new file to Makefile.
+    
+    TBR=frm.adiputra
+    CC=golang-dev
+    https://golang.org/cl/193055
+
+ src/pkg/xgb/Makefile | 1 +
+ 1 file changed, 1 insertion(+)

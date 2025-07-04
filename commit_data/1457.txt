@@ -1,0 +1,16 @@
+commit ae167bf08f0d40f9c0446b42cd09823d9c50508b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 9 15:21:41 2009 -0800
+
+    clean up automatic indirect, delete some dead code.
+    
+    R=ken
+    OCL=22454
+    CL=22457
+
+ src/cmd/6g/cgen.c  |  95 +++++-------------------------------------
+ src/cmd/6g/gsubr.c |   1 -
+ src/cmd/gc/go.h    |   9 ++--
+ src/cmd/gc/subr.c  |  51 +++--------------------
+ src/cmd/gc/walk.c  | 119 ++++++++++++++++++++++++-----------------------------
+ 5 files changed, 71 insertions(+), 204 deletions(-)

@@ -1,0 +1,37 @@
+commit e83bcd95a4a86e4caf2faa78158170d512dd9de5
+Author: Steven Hartland <steven.hartland@multiplay.co.uk>
+Date:   Thu Feb 2 00:34:06 2017 +0000
+
+    crypto/x509: load certs from env vars + extra locations
+    
+    Add the ability to override the default file and directory from
+    which certificates are loaded by setting the OpenSSL compatible
+    environment variables: SSL_CERT_FILE, SSL_CERT_DIR.
+    
+    If the variables are set the default locations are not checked.
+    
+    Added new default file "/usr/local/etc/ssl/cert.pem" for FreeBSD.
+    
+    Certificates in the first valid location found for both file and
+    directory are added, instead of only the first file location if
+    a valid one was found, which is consistent with OpenSSL.
+    
+    Fixes #3905
+    Fixes #14022
+    Fixes #14311
+    Fixes #16920
+    Fixes #18813 - If user sets SSL_CERT_FILE.
+    
+    Change-Id: Ia24fb7c1c2ffff4338b4cf214bd040326ce27bb0
+    Reviewed-on: https://go-review.googlesource.com/36093
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/root_bsd.go           |   3 +-
+ src/crypto/x509/root_unix.go          |  34 ++++++++-
+ src/crypto/x509/root_unix_test.go     | 127 ++++++++++++++++++++++++++++++++++
+ src/crypto/x509/test-file.crt         |  32 +++++++++
+ src/crypto/x509/testdata/test-dir.crt |  31 +++++++++
+ src/crypto/x509/x509.go               |   4 ++
+ 6 files changed, 227 insertions(+), 4 deletions(-)

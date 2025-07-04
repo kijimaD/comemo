@@ -1,0 +1,17 @@
+commit 2ddc3e940e180d3466a364f224b3e54a1749d827
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 31 15:38:34 2017 -0700
+
+    reflect: check pkgPath for unexported methods in Implements
+    
+    Fixes #20541.
+    
+    Change-Id: Ifdfdf3616482b71761daf6d114b779a8ec532051
+    Reviewed-on: https://go-review.googlesource.com/44495
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/reflect/set_test.go | 18 ++++++++++++++++++
+ src/reflect/type.go     | 34 ++++++++++++++++++++++++++++++++--
+ 2 files changed, 50 insertions(+), 2 deletions(-)

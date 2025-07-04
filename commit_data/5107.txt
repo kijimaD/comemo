@@ -1,0 +1,16 @@
+commit 29f1ca528b574528cc8e0ececf934b737c75de7d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 23 14:01:51 2010 -0700
+
+    Go spec: map indexing never raises a runtime exception.
+    Also: Actual map key must be assignment-compatible with
+    formal map key type.
+    
+    Fixes #357.
+    
+    R=r, iant, rsc, ken2
+    CC=golang-dev
+    https://golang.org/cl/673042
+
+ doc/go_spec.html | 53 ++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 28 insertions(+), 25 deletions(-)

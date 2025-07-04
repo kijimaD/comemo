@@ -1,0 +1,16 @@
+commit aeac77dce6335395309ad236adb1627b389a1d86
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Mar 7 13:09:05 2017 +0000
+
+    net: remove unused Interface parameter
+    
+    Found by github.com/mvdan/unparam.
+    
+    Change-Id: I4795dd0221784d10cf7c9f7b84ea00787d5789f2
+    Reviewed-on: https://go-review.googlesource.com/37892
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/interface_linux.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

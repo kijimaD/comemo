@@ -1,0 +1,22 @@
+commit a861eee51ad897807df7968b32c823dbad37276e
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jun 24 16:50:59 2022 -0400
+
+    cmd/go: compile runtime/internal/syscall as a runtime package
+    
+    runtime/internal/syscall is a runtime package, so it should be built
+    with -+.
+    
+    Specifically, we don't want libfuzzer instrumentation in Go functions
+    defined in runtime/internal/syscall, which is disabled with -+.
+    
+    For #53190.
+    
+    Change-Id: I9f16f5c7c7ce10b98371e9de82fcea6da854e163
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413818
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/work/gc.go | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

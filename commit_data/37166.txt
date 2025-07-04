@@ -1,0 +1,20 @@
+commit 239341f3b6b5c921c2352ce8267d74948476d8fa
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 25 18:18:53 2018 +0000
+
+    runtime: add successor method to treap
+    
+    This change adds a method for computing a treap node's successor
+    to the treap, which will simplify the implementation of algorithms
+    used for heap growth scavenging.
+    
+    For #14045.
+    
+    Change-Id: If2af3f2707dbcbef5fb6e42cb2712061f9da5129
+    Reviewed-on: https://go-review.googlesource.com/c/144718
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgclarge.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

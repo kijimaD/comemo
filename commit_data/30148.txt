@@ -1,0 +1,14 @@
+commit 04e0a7622c6f0f55c6a8cc4f16f7877b743ac5bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 27 14:14:50 2017 -0500
+
+    hash/crc32: use sub-benchmarks
+    
+    Change-Id: Iae68a097a6897f1616f94fdc3548837ef200e66f
+    Reviewed-on: https://go-review.googlesource.com/36541
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/hash/crc32/crc32_test.go | 81 ++++++++++++--------------------------------
+ 1 file changed, 21 insertions(+), 60 deletions(-)

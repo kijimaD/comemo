@@ -1,0 +1,18 @@
+commit 398f9e1e1a2f9af255d6b6036f07ec93c5c61ddd
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Fri Nov 15 12:32:43 2019 +0530
+
+    cmd/go: document the -mod=mod option
+    
+    Updates #33848
+    
+    Change-Id: I505490906be7cd6fbcdc6a05c1017c779dbf7bba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207397
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go               | 5 ++++-
+ src/cmd/go/internal/modload/help.go | 3 +++
+ src/cmd/go/internal/work/build.go   | 2 +-
+ 3 files changed, 8 insertions(+), 2 deletions(-)

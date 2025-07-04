@@ -1,0 +1,18 @@
+commit 8930ce2dc1590c21d22a658723d05f08a8e4f6a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 19 08:22:20 2011 -0700
+
+    godoc: implement http.FileSystem for zip files
+    
+    R=rsc, adg, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4750047
+
+ lib/godoc/dirlist.html      |   6 +-
+ src/cmd/godoc/Makefile      |   1 +
+ src/cmd/godoc/filesystem.go |   5 ++
+ src/cmd/godoc/godoc.go      |  48 +++++++-----
+ src/cmd/godoc/httpzip.go    | 184 ++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/godoc/main.go       |  32 +++++---
+ src/cmd/godoc/zip.go        |  11 ++-
+ 7 files changed, 252 insertions(+), 35 deletions(-)

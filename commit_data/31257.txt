@@ -1,0 +1,28 @@
+commit 2397cd0fbfd5ede1a52575f5e6dfa4456e967cc4
+Author: David Lazar <lazard@golang.org>
+Date:   Wed Apr 19 12:57:52 2017 -0400
+
+    cmd/compile: don't inline functions that call runtime.getcaller{pc,sp}
+    
+    runtime.getcaller{pc,sp} expect their argument to be a pointer to the
+    caller's first function argument. This assumption breaks when the caller
+    is inlined. For example, with -l=4, calls to runtime.entersyscall (which
+    calls getcallerpc) are inlined and that breaks multiple cgo tests.
+    
+    This change modifies the compiler to refuse to inline functions that
+    call runtime.getcaller{pc,sp}. Alternatively, we could mark these
+    functions //go:noinline but that limits optimization opportunities if
+    the calls to getcaller{pc,sp} are eliminated as dead code.
+    
+    Previously TestCgoPprofPIE, TestCgoPprof, and TestCgoCallbackGC failed
+    with -l=4. Now all of the runtime tests pass with -l=4.
+    
+    Change-Id: I258bca9025e20fc451e673a18f862b5da1e07ae7
+    Reviewed-on: https://go-review.googlesource.com/40998
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/inl.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

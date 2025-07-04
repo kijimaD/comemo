@@ -1,0 +1,14 @@
+commit c0b8b969ae353f48445a18ea9e856f1997fba270
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 29 18:51:12 2009 -0700
+
+    Bug in reflect found by gri.  Structs in 6g have a minimum alignment.
+    iant: will this be ok in gccgo?
+    
+    R=rsc
+    DELTA=9  (8 added, 0 deleted, 1 changed)
+    OCL=28059
+    CL=28062
+
+ src/lib/reflect/type.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

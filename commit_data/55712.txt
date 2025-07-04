@@ -1,0 +1,26 @@
+commit 856355a9133a3c96efcd35f355637d33c9fde7ea
+Author: Zxilly <zhouxinyu1001@gmail.com>
+Date:   Thu Feb 22 21:09:55 2024 +0000
+
+    cmd/compile: use quotes to wrap user-supplied token
+    
+    Use quotes to wrap user-supplied token in the syntax error message.
+    Updates #65790
+    
+    Change-Id: I631a63df4a6bb8615b7850a324d812190bc15f30
+    GitHub-Last-Rev: f291e1d5a6adee558d21bb7e0a3a17471bad7eb6
+    GitHub-Pull-Request: golang/go#65840
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565518
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/syntax/parser.go              |  4 +++-
+ src/cmd/compile/internal/syntax/testdata/issue20789.go |  2 +-
+ src/cmd/compile/internal/syntax/testdata/issue47704.go |  2 +-
+ src/cmd/compile/internal/syntax/testdata/issue49205.go |  8 ++++----
+ src/cmd/compile/internal/syntax/testdata/issue52391.go |  2 +-
+ src/cmd/compile/internal/syntax/testdata/issue65970.go | 14 ++++++++++++++
+ test/fixedbugs/issue20789.go                           |  2 +-
+ test/fixedbugs/issue23664.go                           |  4 ++--
+ 8 files changed, 27 insertions(+), 11 deletions(-)

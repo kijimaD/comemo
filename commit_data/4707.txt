@@ -1,0 +1,13 @@
+commit 9f48f7e67db568c1c2e6e4c03a19281987eb89a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 15:50:29 2010 -0800
+
+    ucsd cns talk, focused on networking
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/186230
+
+ doc/talks/go_talk-20100112.html |  10 +-
+ doc/talks/go_talk-20100121.html | 453 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 458 insertions(+), 5 deletions(-)

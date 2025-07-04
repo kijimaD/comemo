@@ -1,0 +1,13 @@
+commit 34de45c435b7a59aade947148f666231aa5f3025
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 16 15:34:27 2012 +1100
+
+    exp/winfsnotify: remove reference to _test
+    Updates #2573.
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/5677063
+
+ src/pkg/exp/winfsnotify/winfsnotify_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

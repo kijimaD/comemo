@@ -1,0 +1,29 @@
+commit fa4f951026f697bc042422d95a0806dcbab7ddd0
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Sep 29 06:06:40 2023 +0000
+
+    syscall: make origRlimitNofile atomic.Pointer[Rlimit]
+    
+    Currently we are bootstrapping with Go 1.20, origRlimitNofile can
+    be changed to atomic.Pointer[Rlimit].
+    
+    Change-Id: I00ce9d1a9030bd5dbd34e3dc6c4e38683a87be86
+    GitHub-Last-Rev: f2ccdb38412019d10661ed6be42086b445e411bf
+    GitHub-Pull-Request: golang/go#63274
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531516
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/syscall/exec_bsd.go           |  6 +++---
+ src/syscall/exec_freebsd.go       |  6 +++---
+ src/syscall/exec_libc.go          |  6 +++---
+ src/syscall/exec_libc2.go         |  6 +++---
+ src/syscall/exec_linux.go         |  6 +++---
+ src/syscall/exec_unix.go          |  6 +++---
+ src/syscall/export_rlimit_test.go |  4 ++--
+ src/syscall/rlimit.go             | 12 +++++-------
+ src/syscall/syscall_linux.go      |  2 +-
+ 9 files changed, 26 insertions(+), 28 deletions(-)

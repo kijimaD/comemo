@@ -1,0 +1,17 @@
+commit 853f1a1a63b759686421196d419ddaa626a44bf5
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Thu Apr 7 19:59:59 2016 -0700
+
+    net/http: fixed trivial go vet warnings
+    
+    Updates #15177
+    
+    Change-Id: I748f025461f313b5b426821ead695f90d3011a6b
+    Reviewed-on: https://go-review.googlesource.com/21677
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client_test.go            | 2 +-
+ src/net/http/httptest/httptest_test.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

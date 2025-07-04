@@ -1,0 +1,14 @@
+commit c884f6594a594d2d18c4d21106592bd3cdfcbe9b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 28 22:04:30 2016 -0500
+
+    context: produce a nicer panic message for a nil WithValue key
+    
+    Change-Id: I2e8ae403622ba7131cadaba506100d79613183f1
+    Reviewed-on: https://go-review.googlesource.com/22601
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/context/context.go      | 3 +++
+ src/context/context_test.go | 4 ++++
+ 2 files changed, 7 insertions(+)

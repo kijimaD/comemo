@@ -1,0 +1,30 @@
+commit d93b549f0502ad9f44b7eacc282c304b22d2603b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 6 16:02:38 2025 -0500
+
+    cmd/go/internal/cache: handle cacheprog not responding to close
+    
+    Allow a gocacheprog to not respond to close. The intention of the code
+    is that after we send the close message we'd ignore errors reading from
+    the cacheprog's stdout. But before this change if a cacheprog
+    did not respond to close and we got an EOF reading from the cacheprog's
+    stdout we'd just ignore all pending requests. The send operation would
+    then block forever waiting for a response. With this change, we close
+    all response channels for pending responses if there's an error reading
+    from the cacheprog's stdout while we're closing. The receives from the
+    response channels would then proceed (but now have to handle a nil
+    value). Then the send operation would return and the (*ProgCache).Close
+    function can proceed.
+    
+    Fixes #70848
+    
+    Change-Id: I6631d317ba7aea3f25f714f31cd2aeef0f4d4e3e
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640516
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/cache/prog.go                  | 22 +++++++++++++++++-
+ .../testdata/script/build_cacheprog_issue70848.txt | 27 ++++++++++++++++++++++
+ 2 files changed, 48 insertions(+), 1 deletion(-)

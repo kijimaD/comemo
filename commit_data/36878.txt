@@ -1,0 +1,16 @@
+commit 3d19d95932e2d864c5b9a71f9c78ef5c8b2eafbe
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Fri Oct 5 13:12:18 2018 -0700
+
+    debug/pe: fix TestDWARF to work with relocations
+    
+    Fixes #27904
+    
+    Change-Id: Ie2aad20cd66785b6cc1018c0048824382cb39f8c
+    Reviewed-on: https://go-review.googlesource.com/c/140158
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/debug/pe/file_test.go | 77 +++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 71 insertions(+), 6 deletions(-)

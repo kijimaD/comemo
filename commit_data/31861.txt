@@ -1,0 +1,16 @@
+commit fddc598370255d64165cea947a59df5e7123f435
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Jun 16 16:01:02 2017 -0400
+
+    doc: fix description of Duration.Round
+    
+    Round doesn't always round away from zero.
+    
+    Feel free to suggest better wording.
+    
+    Change-Id: I52b3815013fff4c656ae8d861521c342bc4135b7
+    Reviewed-on: https://go-review.googlesource.com/46032
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.9.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit 085529bd5fa3ab508784f6a3d42f15d2dafddc65
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon May 30 21:34:01 2022 +0700
+
+    cmd/compile: fix wrong unsafe.Offsetof evaluation inside generic function
+    
+    For instantiated generic functions, all implicit dot operations are
+    resolved. Thus unsafe.Offsetof may calculating the offset against the
+    wrong base selector.
+    
+    To fix it, we must remove any implicit dot operations to find the first
+    non-implicit one, which is the right base selector for calculating the
+    offset.
+    
+    Fixes #53137
+    
+    Change-Id: I38504067ce0f274615b306edc8f7d7933bdb631a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409355
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/typecheck/const.go | 12 +++++++++++
+ test/fixedbugs/issue53137.go                | 32 +++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

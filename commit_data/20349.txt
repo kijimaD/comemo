@@ -1,0 +1,72 @@
+commit c81a0ed3c50606d1ada0fd9b571611b3687c90e1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 8 14:05:23 2014 -0400
+
+    liblink, runtime: diagnose and fix C code running on Go stack
+    
+    This CL contains compiler+runtime changes that detect C code
+    running on Go (not g0, not gsignal) stacks, and it contains
+    corrections for what it detected.
+    
+    The detection works by changing the C prologue to use a different
+    stack guard word in the G than Go prologue does. On the g0 and
+    gsignal stacks, that stack guard word is set to the usual
+    stack guard value. But on ordinary Go stacks, that stack
+    guard word is set to ^0, which will make any stack split
+    check fail. The C prologue then calls morestackc instead
+    of morestack, and morestackc aborts the program with
+    a message about running C code on a Go stack.
+    
+    This check catches all C code running on the Go stack
+    except NOSPLIT code. The NOSPLIT code is allowed,
+    so the check is complete. Since it is a dynamic check,
+    the code must execute to be caught. But unlike the static
+    checks we've been using in cmd/ld, the dynamic check
+    works with function pointers and other indirect calls.
+    For example it caught sigpanic being pushed onto Go
+    stacks in the signal handlers.
+    
+    Fixes #8667.
+    
+    LGTM=khr, iant
+    R=golang-codereviews, khr, iant
+    CC=golang-codereviews, r
+    https://golang.org/cl/133700043
+
+ src/liblink/obj5.c           |   7 ++-
+ src/liblink/obj6.c           |  11 ++++
+ src/liblink/obj8.c           |  11 +++-
+ src/runtime/cgo/callbacks.c  |  30 ++--------
+ src/runtime/cgo/cgo.go       |   7 ---
+ src/runtime/cgocallback.go   |  37 +++++++++++++
+ src/runtime/heapdump.c       |  34 ++++++++----
+ src/runtime/mgc0.c           | 128 ++++++++++++++++++++++++++++---------------
+ src/runtime/mgc0.go          |  35 ++++++++++++
+ src/runtime/os_darwin.c      |  42 +++-----------
+ src/runtime/os_dragonfly.c   |  42 +++-----------
+ src/runtime/os_freebsd.c     |  42 +++-----------
+ src/runtime/os_linux.c       |  42 +++-----------
+ src/runtime/os_nacl.c        |  13 -----
+ src/runtime/os_nacl.go       |  11 ++++
+ src/runtime/os_netbsd.c      |  42 +++-----------
+ src/runtime/os_openbsd.c     |  42 +++-----------
+ src/runtime/os_plan9.c       |  78 --------------------------
+ src/runtime/os_plan9.go      |  72 ++++++++++++++++++++++++
+ src/runtime/os_solaris.c     |  42 +++-----------
+ src/runtime/os_windows.c     |  29 ----------
+ src/runtime/os_windows.go    |  27 +++++++++
+ src/runtime/panic.c          |   1 +
+ src/runtime/panic.go         |  20 +++++++
+ src/runtime/print1.go        |   3 -
+ src/runtime/proc.c           |  83 +++-------------------------
+ src/runtime/proc.go          |  73 ++++++++++++++++++++++++
+ src/runtime/race.go          |   2 +
+ src/runtime/runtime.h        |   2 +
+ src/runtime/sigpanic_unix.go |  40 ++++++++++++++
+ src/runtime/stack.c          |  28 +++++++---
+ src/runtime/string.c         |  73 +-----------------------
+ src/runtime/string.go        |  57 +++++++++++++++++++
+ src/runtime/stubs.go         |   1 -
+ src/runtime/thunk.s          |  13 ++++-
+ src/runtime/traceback.go     |  16 ------
+ 36 files changed, 605 insertions(+), 631 deletions(-)

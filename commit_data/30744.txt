@@ -1,0 +1,23 @@
+commit ea8c7dae4fe2fa9cc5ef258582086941aec751ae
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 10 16:03:56 2017 -0800
+
+    cmd/compile: sort CFG blocks in PC order during liveness
+    
+    This CL changes the order that liveness analysis visits CFG blocks to
+    PC order, rather than RPO. This doesn't meaningfully change anything
+    except that the PCDATA_StackMapIndex values will be assigned in PC
+    order too.
+    
+    However, this does have the benefit that the subsequent CL to port
+    liveness analysis to the SSA CFG (which has blocks in PC order) will
+    now pass toolstash-check.
+    
+    Change-Id: I1de5a2eecb8027723a6e422d46186d0c63d48c8d
+    Reviewed-on: https://go-review.googlesource.com/38086
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/plive.go | 41 +++++++++++-------------------------
+ 1 file changed, 12 insertions(+), 29 deletions(-)

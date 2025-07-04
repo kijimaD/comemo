@@ -1,0 +1,36 @@
+commit 194bbe84cbb2fa970a22b70b1e5d715c82334dfb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 9 04:54:59 2018 +0000
+
+    net/http: update bundled http2
+    
+    Adds tests for #122590 and updates x/net/http2 to git rev 6a8eb5e2b1 for:
+    
+         http2: call httptrace.ClientTrace.GetConn in Transport when needed
+         https://golang.org/cl/122590
+    
+         http2: fire httptrace.ClientTrace.WroteHeaderField if set
+         https://golang.org/cl/122816
+    
+         http2: compare Connection header value case-insensitively
+         https://golang.org/cl/122588
+    
+    This also includes the code for graceful shutdown, but it has no
+    public API surface via net/http, and should not affect any existing
+    code paths, as it's purely new stuff:
+    
+         http2: implement client initiated graceful shutdown
+         https://golang.org/cl/30076
+    
+    Fixes #19761
+    Fixes #23041
+    
+    Change-Id: I5558a84591014554cad15ee3852a349ed717530f
+    Reviewed-on: https://go-review.googlesource.com/122591
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/h2_bundle.go      | 173 +++++++++++++++++++++++++++++++++++++++--
+ src/net/http/transport_test.go |  30 ++++++-
+ 2 files changed, 195 insertions(+), 8 deletions(-)

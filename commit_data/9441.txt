@@ -1,0 +1,12 @@
+commit 93134e06ba7bd3629a56d11f3bf05f8259d9be76
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 22 22:43:49 2011 +1000
+
+    gob: explain that Debug isn't useful unless it's compiled in.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4930044
+
+ src/pkg/gob/debug.go | 1 +
+ 1 file changed, 1 insertion(+)

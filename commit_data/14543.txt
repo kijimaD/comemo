@@ -1,0 +1,24 @@
+commit 3167c12eb2bea4c96ccb0308159925d5f4e8cd21
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Dec 4 08:27:30 2012 +1100
+
+    cmd/dist: support building on debian/kFreeBSD
+    
+    The debian/kFreeBSD project uses the FreeBSD kernel and the debian userspace. From our point of view, this is freebsd not linux as GOOS talks about the kernel syscall interface, not the userspace (although cgo alters that). As debian/kFreeBSD is experimental at this time, I do not think it is worth the effort of duplicating all the freebsd specific code so this is proposal represents a reasonable workaround.
+    
+    Currently cgo is not supported, make.bash will detect this and disable cgo automatically during the build.
+    
+    dfc@debian:~/go/src$ uname -a
+    GNU/kFreeBSD debian 8.1-1-686 #0 Sat Jul 21 17:02:04 UTC 2012 i686 i386 Intel(R) Core(TM) i5-2415M CPU @ 2.30GHz GNU/kFreeBSD
+    dfc@debian:~/go/src$ ../bin/go version
+    go version devel +d05272f402ec Sat Dec 01 15:15:14 2012 -0800
+    
+    Tested with GOOS=freebsd GOARCH=386
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6868046
+
+ src/cmd/dist/unix.c | 4 ++++
+ src/make.bash       | 7 +++++++
+ 2 files changed, 11 insertions(+)

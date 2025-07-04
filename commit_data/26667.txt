@@ -1,0 +1,19 @@
+commit ac8d97b6796aad8ca33db9d377064ddb3952a834
+Author: Todd Neal <todd@tneal.org>
+Date:   Fri Apr 1 23:28:14 2016 -0500
+
+    cmd/compile: fix inlining of switch issue
+    
+    The issue was seen when inlining an exported function that contained
+    a fallthrough statement.
+    
+    Fixes #15071
+    
+    Change-Id: I1e8215ad49d57673dba7e8f8bd2ed8ad290dc452
+    Reviewed-on: https://go-review.googlesource.com/21452
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/fmt.go       |  1 +
+ test/fixedbugs/issue15071.dir/exp/exp.go | 24 ++++++++++++++++++++++++
+ test/fixedbugs/issue15071.dir/main.go    | 14 ++++++++++++++
+ 3 files changed, 39 insertions(+)

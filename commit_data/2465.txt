@@ -1,0 +1,37 @@
+commit 76c87d58cdcc033ab3ef89a26b197427b70183f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 16 17:17:02 2009 -0700
+
+    386 system call fixes:
+      * use 64-bit file system calls (Linux, Darwin)
+      * use 32-bit [sic] uid/gid calls (Linux)
+      * fix sockets on Linux
+    
+    Darwin/386 works again.
+    
+    Linux/386 is better but must never have worked;
+    there are still bugs surrounding the creation of new
+    threads in the runtime package.
+    
+    R=austin
+    DELTA=1332  (673 added, 614 deleted, 45 changed)
+    OCL=30327
+    CL=30380
+
+ src/pkg/os/os_test.go                    |  14 +-
+ src/pkg/syscall/PORT                     |   1 +
+ src/pkg/syscall/asm_darwin_386.s         |   6 +-
+ src/pkg/syscall/asm_linux_386.s          |  41 ++++-
+ src/pkg/syscall/mksyscall                |  12 ++
+ src/pkg/syscall/syscall_darwin.go        |   8 +-
+ src/pkg/syscall/syscall_darwin_386.go    |   2 +-
+ src/pkg/syscall/syscall_linux.go         |  22 ---
+ src/pkg/syscall/syscall_linux_386.go     |  28 +++
+ src/pkg/syscall/syscall_linux_amd64.go   |  28 ++-
+ src/pkg/syscall/types_linux.c            |   6 +-
+ src/pkg/syscall/zsyscall_darwin_386.go   |  17 +-
+ src/pkg/syscall/zsyscall_darwin_amd64.go |  14 +-
+ src/pkg/syscall/zsyscall_linux_386.go    | 269 ++++++++++++++---------------
+ src/pkg/syscall/zsyscall_linux_amd64.go  | 286 +++++++++++++++----------------
+ src/pkg/syscall/ztypes_linux_386.go      |  31 ++--
+ 16 files changed, 422 insertions(+), 363 deletions(-)

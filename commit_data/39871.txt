@@ -1,0 +1,19 @@
+commit cc39d8087b20fce14e60b7e5f287593da2c72749
+Author: William Poussier <william.poussier@gmail.com>
+Date:   Wed Sep 11 15:33:25 2019 +0000
+
+    encoding/json: encode nil encoding.TextMarshaler instance as "null"
+    
+    Fixes #34235.
+    
+    Change-Id: Ia3795fd18860530fa6a4b171545f525e784ffdcb
+    GitHub-Last-Rev: 1a319c452857818f7aaf22ef46823b43ca9b2276
+    GitHub-Pull-Request: golang/go#34238
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194642
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/encode.go      |  6 +++++-
+ src/encoding/json/encode_test.go | 31 ++++++++++++++++++++++++-------
+ 2 files changed, 29 insertions(+), 8 deletions(-)

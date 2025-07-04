@@ -1,0 +1,22 @@
+commit 30b8af98c0d9ab172842feebf38d1a7ef00a6afa
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 13 01:09:38 2014 -0400
+
+    runtime: handle decommit failure gracefully on Windows
+    
+    I have no test case for this at tip.
+    The original report included a program crashing at revision 88ac7297d2fa.
+    I tested this code at that revision and it does fix the crash.
+    However, at tip the reported code no longer crashes, presumably
+    because some allocation patterns have changed. I believe the
+    bug is still present at tip and that this code still fixes it.
+    
+    Fixes #7143.
+    
+    LGTM=alex.brainman
+    R=golang-codereviews, alex.brainman
+    CC=dvyukov, golang-codereviews
+    https://golang.org/cl/96300046
+
+ src/pkg/runtime/mem_windows.c | 24 ++++++++++++++++++++++--
+ 1 file changed, 22 insertions(+), 2 deletions(-)

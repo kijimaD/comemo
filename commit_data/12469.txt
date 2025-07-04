@@ -1,0 +1,14 @@
+commit 40807282acad30201ae0979db24dca01e684e694
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 11:37:56 2012 -0500
+
+    doc: delete faq question about 6g
+    
+    Fixes #3230.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5753071
+
+ doc/go_faq.html | 14 --------------
+ 1 file changed, 14 deletions(-)

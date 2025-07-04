@@ -1,0 +1,13 @@
+commit fe252584f5bae7d1ce3b729b83d968c0e3b77139
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Apr 27 23:16:54 2012 +1000
+
+    misc/dashboard/codereview: simplify parallel operations for front page, and capture timing info.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6128044
+
+ misc/dashboard/codereview/dashboard/front.go | 66 ++++++++++++++++------------
+ misc/dashboard/codereview/dashboard/gc.go    |  2 +-
+ 2 files changed, 38 insertions(+), 30 deletions(-)

@@ -1,0 +1,20 @@
+commit c8110c3df64a4eea12334a627cca2b78d6ff3082
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Apr 1 19:15:32 2022 -0400
+
+    runtime: use proper C ABI for race call on PPC64LE
+    
+    On PPC64LE, the C ABI requires SP to be 16-byte aligned. Also, in
+    the C ABI the callee may save LR, CR, R2 etc. to the 4 reserved
+    words of the caller's frame. This CL aligns the SP and reserves
+    the space on stack.
+    
+    Change-Id: I738880028815b7d3402647e4ebbdae37f45acc77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397675
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/race_ppc64le.s | 3 +++
+ 1 file changed, 3 insertions(+)

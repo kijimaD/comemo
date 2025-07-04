@@ -1,0 +1,16 @@
+commit d45f22e3c843c4c19fd547684e51f249d9fd53dd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 21 11:07:27 2012 -0700
+
+    net/http: fix duplicate status code in Response.Write
+    
+    Fixes #3636
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6203094
+
+ src/pkg/net/http/response.go      |  9 ++++++---
+ src/pkg/net/http/response_test.go | 15 +++++++++++++++
+ src/pkg/net/http/transfer.go      |  6 ++++--
+ 3 files changed, 25 insertions(+), 5 deletions(-)

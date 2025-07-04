@@ -1,0 +1,18 @@
+commit 97daa6e94296980b4aa2dac93a938a5edd95ce93
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jan 17 11:59:10 2024 -0800
+
+    doc/go1.22: document net/netip changes
+    
+    For #61422
+    
+    Change-Id: Ide818366b035eada4ba04b70b4741fb1891585d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556396
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/go1.22.html | 25 +++++++++++--------------
+ 1 file changed, 11 insertions(+), 14 deletions(-)

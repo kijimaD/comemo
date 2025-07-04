@@ -1,0 +1,14 @@
+commit c1f2ec384fe9874cb506bfb1bc9083efe276bf70
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jul 24 21:57:18 2012 +0900
+
+    net: fix comment
+    
+    RemoteAddr returns not only UDPAddr but IPAddr.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/6401054
+
+ src/pkg/net/net_posix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

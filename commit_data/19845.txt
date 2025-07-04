@@ -1,0 +1,16 @@
+commit fe4fc94b044df5e6d08ad9e480f0bce70cc4e5d5
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Tue Jul 29 18:24:50 2014 -0700
+
+    mime/multipart: delay reading random source
+    
+    If a user sets his/her own boundary string with SetBoundary,
+    we don't need to call randomBoundary at all.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/95760043
+
+ src/pkg/mime/multipart/writer.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

@@ -1,0 +1,20 @@
+commit 33b71dfa1c993d2e06d7723e3205c792df3b383d
+Author: David Chase <drchase@google.com>
+Date:   Thu Oct 20 11:05:45 2016 -0400
+
+    cmd/compile: add patterns to improve PPC64 FP comparisons
+    
+    Uncommented 4 comparison rules of this form:
+    (NE (CMPWconst [0] (FLessThan cc)) yes no) -> (FLT cc yes no)
+    
+    Fixes #17507.
+    
+    Change-Id: I74f34f13526aeee619711c8281a66652d90a962a
+    Reviewed-on: https://go-review.googlesource.com/31612
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  8 +--
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 96 ++++++++++++++++++++++++++++
+ 2 files changed, 100 insertions(+), 4 deletions(-)

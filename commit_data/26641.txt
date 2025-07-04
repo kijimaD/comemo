@@ -1,0 +1,16 @@
+commit ec5083e49bea8fdd25a3df9b93f35374f524c7df
+Author: Alexandru Moșoi <brtzsnr@gmail.com>
+Date:   Fri Apr 1 00:33:29 2016 +0200
+
+    cmd/compile: combine SHLQ into loads and stores
+    
+    Very common, cuts about 70k from pkg/tools/linux_amd64/* binaries.
+    
+    Change-Id: Ied0c049e56e56a56810c781435d79027fbcaf274
+    Reviewed-on: https://go-review.googlesource.com/21374
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  12 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 222 +++++++++++++++++++++++++++
+ 2 files changed, 234 insertions(+)

@@ -1,0 +1,14 @@
+commit 0c4f4587d7b9acb6bdfb32a4d23fefc935cbee55
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Mar 10 16:49:34 2009 -0700
+
+    bug with interaction of variables
+    declared in cases and heap allocation
+    
+    R=r
+    OCL=26064
+    CL=26064
+
+ src/cmd/6g/reg.c |  4 +++-
+ src/cmd/gc/swt.c | 31 ++++++++++++++++++++++++++-----
+ 2 files changed, 29 insertions(+), 6 deletions(-)

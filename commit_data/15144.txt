@@ -1,0 +1,12 @@
+commit 4360ef8de295ee7929ed408e044e14c8a1044a73
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 6 00:33:25 2013 +0800
+
+    lib9: fix build for windows
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7311044
+
+ src/lib9/main.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

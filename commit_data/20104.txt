@@ -1,0 +1,13 @@
+commit 4af79b6376f8430963470a36f9a6ab1dfe9fdc59
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 24 21:26:07 2014 -0400
+
+    cmd/gc: fix build
+    
+    TBR=dfc
+    CC=golang-codereviews
+    https://golang.org/cl/126210047
+
+ src/cmd/6g/gg.h | 1 -
+ src/cmd/gc/go.h | 1 +
+ 2 files changed, 1 insertion(+), 1 deletion(-)

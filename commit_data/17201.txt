@@ -1,0 +1,14 @@
+commit 0df438c683d7a2b8acb47d767ff37c3b22c1b61d
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 13 12:36:03 2013 -0700
+
+    runtime: tell GC not to scan internal hashmap structures.
+    We'll do it ourselves via hash_gciter, thanks.
+    Fixes bug 6119.
+    
+    R=golang-dev, dvyukov, cookieo9, rsc
+    CC=golang-dev
+    https://golang.org/cl/12840043
+
+ src/pkg/runtime/hashmap.c | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

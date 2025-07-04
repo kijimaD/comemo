@@ -1,0 +1,12 @@
+commit 81cf9f7e6390d95ad772b4368272eb8e4275f5e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 5 23:03:53 2010 -0400
+
+    libmach: detail for darwin errors
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2937041
+
+ src/libmach/darwin.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

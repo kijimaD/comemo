@@ -1,0 +1,15 @@
+commit 52c02c2d5d8fd4078ad76d12e60913d2a536238a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 11 13:46:30 2009 -0800
+
+    Added section on package unsafe:
+    - contains a (proposed) constant Maxalign
+    - contains some text re" alignment guarantees
+    
+    R=ken,r
+    DELTA=97  (94 added, 1 deleted, 2 changed)
+    OCL=24791
+    CL=24871
+
+ doc/go_spec.txt | 99 +++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 96 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit 35132a6be8cbfd6be2adfb1096e6f4de6c9cea4e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jan 5 15:27:20 2015 +0900
+
+    crypto/x509: fix nacl build
+    
+    Change-Id: Ie47c6460c1749aef3cf6d7c6ba44d43305d7ca7b
+    Reviewed-on: https://go-review.googlesource.com/2305
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/crypto/x509/root_nacl.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

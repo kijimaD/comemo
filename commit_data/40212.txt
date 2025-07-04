@@ -1,0 +1,71 @@
+commit 03ef105daeff4fef1fd66dbffb8e17d1f779b9ea
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 10 16:16:54 2019 +0000
+
+    all: remove nacl (part 3, more amd64p32)
+    
+    Part 1: CL 199499 (GOOS nacl)
+    Part 2: CL 200077 (amd64p32 files, toolchain)
+    Part 3: stuff that arguably should've been part of Part 2, but I forgot
+            one of my grep patterns when splitting the original CL up into
+            two parts.
+    
+    This one might also have interesting stuff to resurrect for any future
+    x32 ABI support.
+    
+    Updates #30439
+    
+    Change-Id: I2b4143374a253a003666f3c69e776b7e456bdb9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200318
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/asm/internal/arch/arch.go                  |  2 --
+ src/cmd/compile/internal/amd64/galign.go           |  5 ----
+ src/cmd/compile/internal/ssa/config.go             | 13 ----------
+ src/cmd/compile/internal/ssa/rewrite.go            |  4 +--
+ src/cmd/compile/main.go                            |  1 -
+ src/cmd/dist/build.go                              |  2 +-
+ src/cmd/go/internal/imports/build.go               |  4 +--
+ src/cmd/go/internal/work/exec.go                   |  2 +-
+ src/cmd/internal/obj/x86/obj6.go                   | 10 --------
+ src/cmd/internal/objfile/disasm.go                 | 30 ++++++++++------------
+ src/cmd/internal/sys/arch.go                       | 13 +---------
+ src/cmd/link/internal/amd64/obj.go                 |  3 ---
+ src/cmd/link/main.go                               |  2 +-
+ src/crypto/md5/md5block_decl.go                    |  2 +-
+ src/crypto/md5/md5block_generic.go                 |  2 +-
+ src/crypto/sha1/sha1block_decl.go                  |  2 +-
+ src/crypto/sha1/sha1block_generic.go               |  2 +-
+ src/go/build/syslist.go                            |  3 +++
+ src/hash/crc32/crc32_otherarch.go                  |  2 +-
+ src/internal/bytealg/compare_generic.go            |  2 +-
+ src/internal/bytealg/compare_native.go             |  2 +-
+ src/internal/bytealg/indexbyte_generic.go          |  2 +-
+ src/internal/bytealg/indexbyte_native.go           |  2 +-
+ src/internal/cpu/cpu_no_init.go                    |  1 -
+ src/internal/cpu/cpu_x86.go                        |  6 ++---
+ src/internal/cpu/cpu_x86.s                         |  2 +-
+ src/internal/cpu/cpu_x86_test.go                   |  2 +-
+ src/math/exp_asm.go                                |  2 +-
+ src/reflect/all_test.go                            |  3 ---
+ src/reflect/type.go                                |  7 -----
+ src/reflect/value.go                               | 14 ++--------
+ src/runtime/asm.s                                  |  3 ---
+ src/runtime/gcinfo_test.go                         |  8 ------
+ src/runtime/go_tls.h                               |  5 ----
+ src/runtime/hash64.go                              |  2 +-
+ .../atomic/{atomic_amd64x.go => atomic_amd64.go}   |  2 --
+ src/runtime/internal/atomic/atomic_test.go         | 10 ++------
+ src/runtime/panic32.go                             |  2 +-
+ src/runtime/runtime2.go                            |  2 +-
+ src/runtime/{signal_amd64x.go => signal_amd64.go}  |  2 +-
+ src/runtime/stubs32.go                             |  2 +-
+ src/runtime/{stubs_amd64x.go => stubs_amd64.go}    |  2 --
+ src/runtime/sys_x86.go                             |  2 +-
+ src/runtime/trace.go                               |  2 +-
+ src/runtime/traceback.go                           |  4 +--
+ src/sync/atomic/atomic_test.go                     | 11 ++------
+ src/syscall/endian_little.go                       |  2 +-
+ 47 files changed, 56 insertions(+), 154 deletions(-)

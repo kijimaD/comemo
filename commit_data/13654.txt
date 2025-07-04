@@ -1,0 +1,15 @@
+commit db645a024d5b152ffa219ef51de0be0e8240af99
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Mon Aug 20 22:30:04 2012 +1000
+
+    strconv: consistent parameter names for ParseUint
+    
+    If ParseUint is like ParseInt it should have the same parameter
+    names, thus rename b to to base as in ParseInt's documentation.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6453152
+
+ src/pkg/strconv/atoi.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

@@ -1,0 +1,15 @@
+commit d12a7d39d1cfa7a0cd824673d7aacc4615b461cb
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Wed Oct 31 09:58:05 2012 +1100
+
+    net: use read deadline in Accept on windows
+    
+    Fixes #4296.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/6815044
+
+ src/pkg/net/fd_windows.go   |  2 +-
+ src/pkg/net/timeout_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

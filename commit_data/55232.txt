@@ -1,0 +1,21 @@
+commit 5e724ccb2b092a6bc294b63c4e33ed1da317ca87
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 6 16:36:10 2023 -0800
+
+    go/types, types2: don't print aliased type (in comments) for Alias types
+    
+    Fixes #64584.
+    
+    Change-Id: I756d6026d10f130c1dd5026891b7cc3c640d7f78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548135
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/issues_test.go | 2 +-
+ src/cmd/compile/internal/types2/typestring.go  | 2 --
+ src/go/types/issues_test.go                    | 2 +-
+ src/go/types/typestring.go                     | 2 --
+ 4 files changed, 2 insertions(+), 6 deletions(-)

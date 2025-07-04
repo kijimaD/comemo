@@ -1,0 +1,16 @@
+commit cad04e7e66d51486b9d3b63bf1b9281a0153dd9f
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Apr 28 01:01:15 2016 +0200
+
+    net/http: skip TestTransportRemovesDeadIdleConnections on Plan 9
+    
+    Updates #15464.
+    
+    Change-Id: If3221034bb10751c6fcf1fbeba401a879c18079f
+    Reviewed-on: https://go-review.googlesource.com/22513
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,15 @@
+commit 5261be20ebafedd878ccc22aa716ee4af7ddd16e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 21 17:42:41 2009 -0700
+
+    A test for an interface which uses a forward declared type
+    which turns out to be invalid.
+    
+    R=rsc
+    DELTA=15  (15 added, 0 deleted, 0 changed)
+    OCL=33691
+    CL=33693
+
+ test/bugs/bug195.go | 12 ++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 15 insertions(+)

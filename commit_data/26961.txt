@@ -1,0 +1,21 @@
+commit d57a118afabdd5b0f516d8d3225b2c7f8c96d64a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 15 14:22:27 2016 -0700
+
+    cmd/compile: remove dead flags
+    
+    For some time now, the -d flag has been used to control various named
+    debug options, rather than setting Debug['d']. Consequently, that
+    means dflag() always returns false, which means the -y flag is also
+    useless.
+    
+    Similarly, Debug['L'] is never used anywhere, so the -L flag can be
+    dropped too.
+    
+    Change-Id: I4bb12454e462410115ec4f5565facf76c5c2f255
+    Reviewed-on: https://go-review.googlesource.com/22121
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go  | 22 ----------------------
+ src/cmd/compile/internal/gc/main.go |  2 --
+ 2 files changed, 24 deletions(-)

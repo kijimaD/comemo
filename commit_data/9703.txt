@@ -1,0 +1,14 @@
+commit e30b9fd87e9ba25a724a2a373ed74adda46b8502
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 15 14:26:22 2011 -0700
+
+    http: MaxBytesReader doc cleanups
+    
+    Comments from rsc after 4921049 was submitted.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5034042
+
+ src/pkg/http/request.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

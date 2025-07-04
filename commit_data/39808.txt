@@ -1,0 +1,18 @@
+commit 3aae49b8b48a458837abb2dc6bb09f5e5ad976c6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 5 16:04:06 2019 -0700
+
+    cmd/dist: default to clang on OpenBSD
+    
+    OpenBSD ships with GCC 4.2, the last version of GCC that used GPLv2.
+    As that is quite old (current GCC version is GCC 9, GCC 4.2 was
+    released in 2007), default to clang.
+    
+    Change-Id: Ib93e7b4f4f3ffb9e047e60ffca3696d26ab08aac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193621
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/main.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

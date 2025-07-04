@@ -1,0 +1,22 @@
+commit 0a33b703e61c89cc883304eb627826c875aa4bf2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 24 13:44:22 2012 -0800
+
+    go/doc, godoc: fix range of type declarations
+    
+    For grouped type declarations, go/doc introduces
+    fake individual declarations. Don't use the original
+    location of the "type" keyword because it will lead
+    to an overly large source code range for that fake
+    declaration, and thus an overly large selection shown
+    via godoc (e.g.: click on the AssignStmt link for:
+    http://golang.org/pkg/go/ast/#AssignStmt ).
+    
+    Also: Don't create a fake declaration if not needed.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5694061
+
+ src/pkg/go/doc/reader.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

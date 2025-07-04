@@ -1,0 +1,15 @@
+commit 560283c8800dff50a2a8a28731ebe57a841764d3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 30 13:04:16 2010 -0700
+
+    gc: bug270
+    
+    Fixes #746.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1040042
+
+ src/cmd/gc/walk.c        |  5 +----
+ test/fixedbugs/bug270.go | 21 +++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 4 deletions(-)

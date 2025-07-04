@@ -1,0 +1,14 @@
+commit 337af317813d14fd6ed0e5a62072923a6f181570
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 17 18:11:36 2008 -0800
+
+    - allow for multiple method names per function type in an interface decl.
+    - added some initial language with respect to exports
+    
+    R=r
+    DELTA=95  (47 added, 31 deleted, 17 changed)
+    OCL=19407
+    CL=19426
+
+ doc/go_spec.txt | 98 +++++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 57 insertions(+), 41 deletions(-)

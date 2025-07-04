@@ -1,0 +1,24 @@
+commit 3454ac0d63fc18b61839192333cd03a84ad17130
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 14 14:59:03 2024 +0000
+
+    cmd/link/internal/ld: clean tmpdir obj timestamps
+    
+    This patch changes the Go linker to "clean" (reset to Unix epoch) the
+    timestamps on object files copied to the tmpdir that is presented to
+    the external linker or archive tool. The intent is to improve build
+    reproducibility on Darwin, where later versions of xcode seem to want
+    to incorporate object file timestamps into the hash used for the final
+    build ID (which precludes the possibility of having reproducible Go
+    builds). Credit for this idea goes to Cherry (see
+    https://github.com/golang/go/issues/64947#issuecomment-1887667189).
+    
+    Updates #64947.
+    
+    Change-Id: I2eb7dddff538e247122b04fdcf8a57c923f61201
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585355
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/ld/lib.go | 35 +++++++++++++++++++++++++++++++----
+ 1 file changed, 31 insertions(+), 4 deletions(-)

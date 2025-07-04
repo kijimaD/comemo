@@ -1,0 +1,13 @@
+commit 9cdb8bd50240ba2b9251f61ad0b79c562f290556
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 13:58:12 2008 -0700
+
+    minor int/float fixes
+    
+    R=ken
+    OCL=18032
+    CL=18032
+
+ test/float_lit.go | 6 +++---
+ test/utf.go       | 4 ++--
+ 2 files changed, 5 insertions(+), 5 deletions(-)

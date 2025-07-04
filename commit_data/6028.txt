@@ -1,0 +1,13 @@
+commit e235a04f372e08b898d3f96478fce0df163116b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 16 11:21:33 2010 -0400
+
+    A+C: Mikkel Krautz (individual CLA)
+    
+    R=agl, agl1
+    CC=golang-dev
+    https://golang.org/cl/1959042
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

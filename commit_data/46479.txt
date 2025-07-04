@@ -1,0 +1,48 @@
+commit 974b0166d6a7c20b98f7e517e49197bea46fc5e2
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Sep 17 14:25:54 2021 +0200
+
+    syscall: implement Pipe using pipe2 syscall on all linux platforms
+    
+    Most architectures currently already implement Pipe using the pipe2
+    syscall. Only 386, amd64 and mips{,le} still use the pipe syscall.
+    However, some systems (e.g. Android seccomp policies) block that
+    syscall, see #40828 for an example.
+    
+    The pipe2 syscall was added in Linux kernel version 2.6.27. The minimum
+    required Linux kernel version for Go 1.18 will be changed to 2.6.32
+    per #45964 so it is possible to unify the implementation of Pipe using
+    the pipe2 syscall.
+    
+    For #45964
+    
+    Change-Id: I8ed6a391300c95f3107b4ec6b27d320e42fb535b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350530
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_linux.go           | 17 +++++++++++++++++
+ src/syscall/syscall_linux_386.go       | 26 --------------------------
+ src/syscall/syscall_linux_amd64.go     | 26 --------------------------
+ src/syscall/syscall_linux_arm.go       | 26 --------------------------
+ src/syscall/syscall_linux_arm64.go     | 24 ------------------------
+ src/syscall/syscall_linux_mips64x.go   | 24 ------------------------
+ src/syscall/syscall_linux_mipsx.go     | 23 -----------------------
+ src/syscall/syscall_linux_ppc64x.go    | 24 ------------------------
+ src/syscall/syscall_linux_riscv64.go   | 24 ------------------------
+ src/syscall/syscall_linux_s390x.go     | 24 ------------------------
+ src/syscall/zsyscall_linux_386.go      | 30 ++++++++++--------------------
+ src/syscall/zsyscall_linux_amd64.go    | 30 ++++++++++--------------------
+ src/syscall/zsyscall_linux_arm.go      | 30 ++++++++++--------------------
+ src/syscall/zsyscall_linux_arm64.go    | 20 ++++++++++----------
+ src/syscall/zsyscall_linux_mips.go     | 32 ++++++++++----------------------
+ src/syscall/zsyscall_linux_mips64.go   | 20 ++++++++++----------
+ src/syscall/zsyscall_linux_mips64le.go | 20 ++++++++++----------
+ src/syscall/zsyscall_linux_mipsle.go   | 32 ++++++++++----------------------
+ src/syscall/zsyscall_linux_ppc64.go    | 20 ++++++++++----------
+ src/syscall/zsyscall_linux_ppc64le.go  | 20 ++++++++++----------
+ src/syscall/zsyscall_linux_riscv64.go  | 20 ++++++++++----------
+ src/syscall/zsyscall_linux_s390x.go    | 20 ++++++++++----------
+ 22 files changed, 137 insertions(+), 395 deletions(-)

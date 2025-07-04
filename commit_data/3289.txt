@@ -1,0 +1,12 @@
+commit 9d7538b42b603ce0e64b5e70c7f43445b43b3fa9
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 16 11:49:35 2009 -0700
+
+    slight refinement of select: evaluation is top to bottom, as in switches.
+    
+    DELTA=9  (2 added, 4 deleted, 3 changed)
+    OCL=34690
+    CL=34692
+
+ doc/go_spec.html | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

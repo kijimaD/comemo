@@ -1,0 +1,23 @@
+commit 6d087c807e558a7e4f7da29fd44998e6f605c27d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 29 16:36:50 2020 -0400
+
+    cmd/go/internal/modload: handle NotExist errors in (*mvsReqs).Previous
+    
+    Previous is used during downgrading. If the module proxy does not
+    advertise any versions (for example, because it contains only
+    pseudo-versions), then Previous should return "none" instead of a
+    non-nil error.
+    
+    For #37438
+    
+    Change-Id: I4edfec19cfeb3ffe50df4979f99a01321c442509
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266370
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/mvs.go | 4 ++++
+ 1 file changed, 4 insertions(+)

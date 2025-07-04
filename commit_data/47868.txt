@@ -1,0 +1,31 @@
+commit e39ab9b01cbbdac0750fc13fa8fb1de4f07aa79a
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Dec 15 18:42:00 2021 -0800
+
+    cmd/compile: pop instantiations of local types when leaving scope
+    
+    Since we use existing instantiations from the symbol table when possible
+    (to make sure each instantiation is unique), we need to pop
+    instantiations of local types when leaving the containing scope.
+    g.stmts() now pushes and pops scope, and we do a Pushdcl() in g.typ0()
+    when creating an instantiation of a local type.
+    
+    Non-instantiated local types (generic or not) are translated directly
+    from types2, so they don't need to be pushed/popped. We don't export
+    function bodies with local types, so there is no issue during import.
+    
+    We still don't support local types in generic functions/methods.
+    
+    Fixes #50177
+    
+    Change-Id: If2d2fe71aec003d13f0338565c7a0da2c9580a14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372654
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/stmt.go  |   3 +
+ src/cmd/compile/internal/noder/types.go |   9 ++-
+ test/typeparam/issue50177.go            | 101 ++++++++++++++++++++++++++++++++
+ 3 files changed, 112 insertions(+), 1 deletion(-)

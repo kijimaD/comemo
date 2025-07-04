@@ -1,0 +1,15 @@
+commit 86cfe93515cf3387e4a1e0a3d07e4b44e34c7e3a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 27 16:55:47 2017 -0700
+
+    bytes: clarify documentation for UnreadByte/Rune
+    
+    Fixes #19522.
+    
+    Change-Id: Ib3cf0336e0bf91580d533704ec1a9d45eb0bf62d
+    Reviewed-on: https://go-review.googlesource.com/42020
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/bytes/buffer.go      | 13 +++++++------
+ src/bytes/buffer_test.go | 42 +++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 44 insertions(+), 11 deletions(-)

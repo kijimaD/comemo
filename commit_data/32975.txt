@@ -1,0 +1,24 @@
+commit 6b8a3c88894cdd2f501a6497c1fc5cfd89861a7f
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Oct 3 14:12:00 2017 -0500
+
+    cmd/compile/internal/amd64: add SETccmem
+    
+    Combine setcc and store of result into setcc that writes directly to memory.
+    Triggers 200+ times in go tool.
+    
+    Fixes #21630
+    
+    Change-Id: Iafa22607426f4120140c88fae4b9aecb46e0bba8
+    Reviewed-on: https://go-review.googlesource.com/67950
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go        |   11 +
+ src/cmd/compile/internal/gc/asm_test.go      |    8 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   33 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |   11 +
+ src/cmd/compile/internal/ssa/opGen.go        |  140 ++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 1123 +++++++++++++++++++++++++-
+ 6 files changed, 1324 insertions(+), 2 deletions(-)

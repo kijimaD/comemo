@@ -1,0 +1,69 @@
+commit ced7ffe95ba176b26ef835b2f225255d1cd7808f
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 9 10:44:05 2015 -0400
+
+    cmd/interal/ld: darwin c-archive buildmode support
+    
+    Uses ar to create an archive when -buildmode=c-archive.
+    
+    A small example (that I hope to turn into a test in a later CL):
+    
+    goarchive.go:
+            package main
+    
+            import "fmt"
+    
+            import "C"
+    
+            func init() {
+                    fmt.Println("ran go init")
+            }
+    
+            //export FuncInGo
+            func FuncInGo() {
+                    fmt.Println("called a go function")
+            }
+    
+            func main() {
+                    fmt.Println("in main")
+            }
+    
+    This can be compiled with:
+    
+            go build -ldflags=-buildmode=c-archive -o=libgo.a goarchive.go
+    
+    main.c:
+    
+            #include <stdio.h>
+    
+            extern void FuncInGo();
+    
+            int main(void) {
+                    printf("c hello\n");
+                    FuncInGo();
+                    printf("c goodbye\n");
+                    return 0;
+            }
+    
+    Can be compiled with:
+    
+            cc main.c libgo.a
+    
+    Apple provide a warning about the lack of PIE, but still produce a
+    binary which runs and outputs (on darwin/amd64):
+    
+            c hello
+            ran go init
+            called a go function
+            c goodbye
+    
+    Change-Id: I7611925f210a83afa6bd1e66a5601dd636a428c8
+    Reviewed-on: https://go-review.googlesource.com/8711
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/data.go |  11 +++-
+ src/cmd/internal/ld/elf.go  |   4 +-
+ src/cmd/internal/ld/go.go   |   9 ++-
+ src/cmd/internal/ld/lib.go  | 138 +++++++++++++++++++++++++++++---------------
+ src/cmd/internal/ld/pobj.go |   1 +
+ 5 files changed, 110 insertions(+), 53 deletions(-)

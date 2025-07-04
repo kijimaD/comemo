@@ -1,0 +1,16 @@
+commit b586f56e76f67bd482b51186bf45d6ada47421ad
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Mar 6 00:08:34 2014 +1100
+
+    syscall: fix mksysnum_dragonfly.pl
+    
+    The format of the DragonFly BSD syscalls.master file has changed
+    slightly - update mksysnum_dragonfly.pl to match.
+    
+    LGTM=mikioh.mikioh
+    R=golang-codereviews, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/71460044
+
+ src/pkg/syscall/mksysnum_dragonfly.pl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

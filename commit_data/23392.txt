@@ -1,0 +1,25 @@
+commit 08e25fc1ba397e02ec776561ed73b7f9a8b94392
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 7 21:45:39 2015 -0400
+
+    cmd/compile: introduce //go:systemstack annotation
+    
+    //go:systemstack means that the function must run on the system stack.
+    
+    Add one use in runtime as a demonstration.
+    
+    Fixes #9174.
+    
+    Change-Id: I8d4a509cb313541426157da703f1c022e964ace4
+    Reviewed-on: https://go-review.googlesource.com/10840
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/go.go     |  12 +-
+ src/cmd/compile/internal/gc/go.y      |   2 +
+ src/cmd/compile/internal/gc/lex.go    |   5 +
+ src/cmd/compile/internal/gc/pgen.go   |   6 +-
+ src/cmd/compile/internal/gc/syntax.go |   1 +
+ src/cmd/compile/internal/gc/y.go      | 234 +++++++++++++++++-----------------
+ src/runtime/malloc.go                 |  11 ++
+ 7 files changed, 148 insertions(+), 123 deletions(-)

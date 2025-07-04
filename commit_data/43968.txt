@@ -1,0 +1,39 @@
+commit 01b76d5fbc4d4acdd28b08a061b072b73b22f44e
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Dec 8 09:44:48 2020 -0500
+
+    go/types: correct error position for inherited const init expressions
+    
+    This is a port of CL 275517 from the dev.typeparams branch, to fix the
+    positioning of error messages for invalid const init expressions that
+    are inherited.
+    
+    Differences from CL 275517:
+     + The inherited flag is added to the constDecl intermediate
+       representation.
+     + The errpos override is made a positioner, the internal interface
+       used by go/types to capture error position and span. For const decls
+       errpos is just set to a singular point, but using positioner is
+       correct and causes span start and end positions to also be
+       overridden.
+     + Test cases are updated to assert on just 'overflows', as the go/types
+       error message is, for example, "cannot use 255 + iota (untyped int
+       constant 256) as byte value in constant declaration (overflows)".
+       This is more verbose than the compiler's "constant 256 overflows
+       byte", but changing that is out of scope.
+    
+    Fixes #42991
+    
+    Change-Id: I0a71d2290f7fff5513f2a6e49b83e6f0f4da30e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276172
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/check.go               |  1 +
+ src/go/types/decl.go                | 35 ++++++++++++++++++++++++++---------
+ src/go/types/errors.go              | 20 ++++++++++++++++----
+ src/go/types/resolver.go            | 15 ++++++++-------
+ src/go/types/testdata/constdecl.src | 31 +++++++++++++++++++++++++++++++
+ 5 files changed, 82 insertions(+), 20 deletions(-)

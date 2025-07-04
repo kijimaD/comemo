@@ -1,0 +1,16 @@
+commit 14b654369dcf62505ad9bf8650cbd19d95e1f026
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Jan 3 16:30:25 2013 +1100
+
+    go/types: add more logging to gc import test
+    
+    * Extended deadline to 30 seconds
+    * Added logging of the duration of each package import
+    * Fail the test immediately if directories cannot be read
+    
+    R=gri, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7030055
+
+ src/pkg/go/types/gcimporter_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

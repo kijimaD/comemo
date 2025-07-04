@@ -1,0 +1,18 @@
+commit a3dc6da6d6d25666d24bab293c0990d1b07bb798
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Thu Nov 21 04:09:17 2019 -0500
+
+    os/exec: ignore hungup error while copying stdin on Plan 9
+    
+    Fixes #35753
+    
+    Change-Id: I38674c59c601785eb25b778dc25efdb92231dd9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208223
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/exec/exec.go       |  1 -
+ src/os/exec/exec_plan9.go | 19 +++++++++++++++++++
+ src/os/exec/exec_test.go  |  5 -----
+ 3 files changed, 19 insertions(+), 6 deletions(-)

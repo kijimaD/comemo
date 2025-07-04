@@ -1,0 +1,12 @@
+commit 1c5ac0827d2d0d2f5fb3b7f2b34b37e170beff1d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Sep 14 14:10:14 2016 -0700
+
+    cmd/vet/all: check platforms concurrently
+    
+    Change-Id: I63e7fd7f62aa80e1252b0c5b6c472439aa66da73
+    Reviewed-on: https://go-review.googlesource.com/29169
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/all/main.go | 34 +++++++++++++++++++++++++---------
+ 1 file changed, 25 insertions(+), 9 deletions(-)

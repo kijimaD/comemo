@@ -1,0 +1,61 @@
+commit 06b0babf3138d189f6e741561f77ac6146696377
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 15 20:49:39 2019 -0400
+
+    all: shorten some tests
+    
+    Shorten some of the longest tests that run during all.bash.
+    Removes 7r 50u 21s from all.bash.
+    
+    After this change, all.bash is under 5 minutes again on my laptop.
+    
+    For #26473.
+    
+    Change-Id: Ie0460aa935808d65460408feaed210fbaa1d5d79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177559
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/zip/zip_test.go                     |  5 ++--
+ src/cmd/dist/test.go                            | 17 ++++++++---
+ src/cmd/go/internal/cache/cache_test.go         |  2 +-
+ src/cmd/internal/obj/x86/pcrelative_test.go     |  3 ++
+ src/cmd/link/dwarf_test.go                      |  6 ++--
+ src/cmd/link/link_test.go                       |  5 +++-
+ src/cmd/pack/pack_test.go                       |  3 ++
+ src/compress/flate/deflate_test.go              |  6 ++++
+ src/container/ring/ring_test.go                 |  2 +-
+ src/crypto/cipher/xor_test.go                   |  3 ++
+ src/crypto/elliptic/fuzz_test.go                |  2 +-
+ src/crypto/rand/util_test.go                    |  3 ++
+ src/crypto/tls/handshake_client_test.go         |  6 ++++
+ src/crypto/x509/x509_test.go                    |  3 ++
+ src/debug/gosym/pclntab_test.go                 |  3 ++
+ src/encoding/json/encode_test.go                |  6 ++++
+ src/go/internal/srcimporter/srcimporter_test.go |  4 +--
+ src/internal/trace/gc_test.go                   |  4 +++
+ src/internal/trace/parser_test.go               | 13 ++++++--
+ src/math/big/floatmarsh_test.go                 |  3 ++
+ src/math/big/natconv_test.go                    |  3 ++
+ src/math/big/prime_test.go                      | 14 +++++++--
+ src/math/big/sqrt_test.go                       |  3 ++
+ src/math/rand/rand_test.go                      |  2 +-
+ src/mime/multipart/formdata_test.go             |  9 +++++-
+ src/mime/multipart/multipart_test.go            |  5 +++-
+ src/mime/quotedprintable/reader_test.go         | 13 +++++++-
+ src/net/http/serve_test.go                      |  8 +++--
+ src/os/exec/exec_test.go                        |  3 ++
+ src/runtime/internal/atomic/atomic_test.go      | 10 +++++--
+ src/runtime/pprof/pprof_test.go                 | 29 ++++++++++++------
+ src/runtime/pprof/proto_test.go                 |  8 ++---
+ src/runtime/pprof/testdata/mappingtest/main.go  |  2 +-
+ src/runtime/semasleep_test.go                   | 40 +++++--------------------
+ src/runtime/testdata/testprog/deadlock.go       |  4 +++
+ src/runtime/testdata/testprog/sleep.go          | 17 +++++++++++
+ src/runtime/trace/trace_test.go                 |  4 +++
+ src/sync/pool_test.go                           |  3 ++
+ src/syscall/getdirentries_test.go               |  3 ++
+ src/testing/quick/quick_test.go                 |  2 +-
+ src/text/template/exec_test.go                  |  3 ++
+ 41 files changed, 207 insertions(+), 77 deletions(-)

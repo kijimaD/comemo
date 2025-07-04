@@ -1,0 +1,26 @@
+commit 002c69e05d6a24693ac1052d98845ec635f34c19
+Author: Morten Siebuhr <sbhr@sbhr.dk>
+Date:   Fri Feb 19 21:53:17 2016 +0100
+
+    net: fix looking up port numbers starting with numbers.
+    
+    LookupPort() correctly parses service names beginning with numerals by
+    implementing a new parser, mainly taken from strconv/atoi.go.
+    
+    Also testes some previously undefined behaviours around port numbers
+    larger than 65535 that previously could lead to some tests fail with
+    EOPNOTSUPP (Operation Not Supported).
+    
+    Fixes #14322
+    
+    Change-Id: I1b90dbed434494723e261d84e73fe705e5c0507a
+    Reviewed-on: https://go-review.googlesource.com/19720
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/net/lookup.go      |  9 ++------
+ src/net/lookup_test.go |  3 ++-
+ src/net/port.go        | 62 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/port_test.go   | 52 ++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 118 insertions(+), 8 deletions(-)

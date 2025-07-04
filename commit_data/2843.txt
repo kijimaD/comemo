@@ -1,0 +1,26 @@
+commit 90e6656c518f25c46a00b93fe35b1120c9cee19e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 30 18:13:55 2009 -0700
+
+    go/ast/filter.go:
+    - more orthogonal functionality of filter functions for better re-use
+    
+    go/doc/doc.go:
+    - simplified interface
+    - collect filenames of packages so that they can be shown
+    
+    godoc:
+    - removed TODO, show list of package (linked) files used to create documentation
+    
+    R=rsc
+    DELTA=130  (68 added, 24 deleted, 38 changed)
+    OCL=32549
+    CL=32552
+
+ lib/godoc/package.html             | 13 +++++--
+ src/cmd/godoc/godoc.go             |  8 ++---
+ src/cmd/gofmt/gofmt.go             |  4 +--
+ src/pkg/go/ast/filter.go           | 59 ++++++++++++++++++------------
+ src/pkg/go/doc/doc.go              | 74 +++++++++++++++++++++++++-------------
+ src/pkg/go/printer/printer_test.go |  2 +-
+ 6 files changed, 102 insertions(+), 58 deletions(-)

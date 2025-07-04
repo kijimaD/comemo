@@ -1,0 +1,22 @@
+commit 7f20bcbbcb04f8239d894045afc9482018dc2bab
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Dec 27 09:49:19 2011 -0500
+
+    exp/ssh: various small fixes
+    
+    transport.go:
+    * remove unused nil check.
+    
+    doc.go:
+    * improve documentation about supported auth
+    methods and update Run example.
+    
+    Thanks Jacek Masiulaniec for both reports.
+    
+    R=jacek.masiulaniec, agl
+    CC=golang-dev
+    https://golang.org/cl/5501075
+
+ src/pkg/exp/ssh/doc.go       | 28 +++++++++++++++++++++++-----
+ src/pkg/exp/ssh/transport.go |  4 +---
+ 2 files changed, 24 insertions(+), 8 deletions(-)

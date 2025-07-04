@@ -1,0 +1,20 @@
+commit 22cf1e7f7eefb6c53249ea4f92e37197b0c8ce02
+Author: Briheet Singh Yadav <briheetyadav@gmail.com>
+Date:   Mon Jun 17 16:30:16 2024 +0000
+
+    go/doc: added the predeclared identifiers clear, min, max
+    
+    Fixes: #68028
+    
+    Change-Id: Ib341b9f57b001cccc5dc9e822b7feaabcdb77e63
+    GitHub-Last-Rev: 8dd3467016088ab2a8797f14065d2e6104eb0505
+    GitHub-Pull-Request: golang/go#68029
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593015
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/go/doc/reader.go | 3 +++
+ 1 file changed, 3 insertions(+)

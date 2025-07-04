@@ -1,0 +1,29 @@
+commit 3f0b293e70f8e29865ea5893fd1be97f2d75521a
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Nov 14 13:06:55 2024 +0100
+
+    runtime/cgo: report a meaningful error message when using Cygwin
+    
+    Go has never supported Cygwin as a C compiler, but users get the
+    following cryptic error message when they try to use it:
+    
+        implicit declaration of function '_beginthread'
+    
+    This is because Cygwin doesn't implement _beginthread. Note that
+    this is not the only problem with Cygwin, but it's the one that
+    users are most likely to run into first.
+    
+    This CL improves the error message to make it clear that Cygwin
+    is not supported, and suggests using MinGW instead.
+    
+    Fixes #59490
+    Fixes #36691
+    
+    Change-Id: Ifeec7a2cb38d7c5f50d6362c95504f72818c6a76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627935
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/cgo/gcc_libinit_windows.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)

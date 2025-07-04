@@ -1,0 +1,12 @@
+commit 797cc4904ce97b7263bf3a2ca6be7d7c749e9296
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 18 15:31:22 2009 -0800
+
+    test for copy()
+    
+    R=rsc, ken2
+    CC=golang-dev
+    https://golang.org/cl/156084
+
+ test/copy.go | 193 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 193 insertions(+)

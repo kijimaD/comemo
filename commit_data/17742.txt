@@ -1,0 +1,15 @@
+commit e59db90bfbdeb48ccd70e8c1d228f007f07906ca
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 3 13:23:02 2013 -0700
+
+    reflect: add a test that gccgo mishandled
+    
+    Failure occurred when using reflect.Call to pass a func value
+    following a non-pointer value.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/14186043
+
+ src/pkg/reflect/all_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

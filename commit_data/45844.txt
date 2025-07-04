@@ -1,0 +1,15 @@
+commit ced0fdbad0655d63d535390b1a7126fd1fef8348
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jun 18 15:07:00 2021 -0700
+
+    doc/go1.17: note deprecation of 'go get' for installing commands
+    
+    Fixes #43684
+    
+    Change-Id: I8982f6816c002c71e62f37a926c8543e34b8b785
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329549
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.17.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

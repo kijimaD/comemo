@@ -1,0 +1,23 @@
+commit 4ae25ff1405f9d6b25f40141f42196e8f142f207
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 11 17:57:58 2019 -0700
+
+    os/signal: split up sleeps waiting for signal
+    
+    Try to deflake TestNohup.
+    
+    The kernel will deliver a signal as a thread returns from a syscall.
+    If the only active thread is sleeping, and the system is busy,
+    the kernel may not get around to waking up a thread to catch the signal.
+    Try splitting up the sleep, to give the kernel another change to deliver.
+    
+    I don't know if this will help, but it seems worth a try.
+    
+    Fixes #33174
+    
+    Change-Id: I34b3240af706501ab8538cb25c4846d1d30d7691
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194879
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/os/signal/signal_test.go | 34 +++++++++++++++++++++++++---------
+ 1 file changed, 25 insertions(+), 9 deletions(-)

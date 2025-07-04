@@ -1,0 +1,20 @@
+commit e0deacd1c096367ba341b43413ec5ccea8253db2
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 24 16:46:49 2020 +0000
+
+    Revert "cmd/compile: disable mem+op operations on 386"
+    
+    This reverts commit CL 224837.
+    
+    Reason for revert: Reverting partial reverts of 222782.
+    
+    Update #37881
+    
+    Change-Id: Ie9bf84d6e17ed214abe538965e5ff03936886826
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225217
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/ssa/addressingmodes.go | 37 ++++++++++++-----------
+ test/codegen/arithmetic.go                      |  4 +++
+ test/codegen/memops.go                          | 39 +++++++++++++++++++++++++
+ 3 files changed, 61 insertions(+), 19 deletions(-)

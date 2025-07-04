@@ -1,0 +1,24 @@
+commit 946cb0ece13eb9055e0670e2c7423a2adaab225f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 4 00:22:52 2011 -0400
+
+    net: joined group addresses for a specific interface for darwin, freebsd, linux
+    
+    This CL enables to list the multicast, joined group addresses
+    for a specific interface by using Interface.MulticastAddrs
+    method.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4808062
+
+ src/pkg/net/Makefile             |   2 +
+ src/pkg/net/interface.go         |   9 ++++
+ src/pkg/net/interface_bsd.go     |  44 ++++++++++++++---
+ src/pkg/net/interface_darwin.go  |  49 +++++++++++++++++++
+ src/pkg/net/interface_freebsd.go |  49 +++++++++++++++++++
+ src/pkg/net/interface_linux.go   | 100 ++++++++++++++++++++++++++++++++++++---
+ src/pkg/net/interface_stub.go    |   7 +++
+ src/pkg/net/interface_test.go    |   7 +++
+ src/pkg/net/interface_windows.go |   7 +++
+ 9 files changed, 260 insertions(+), 14 deletions(-)

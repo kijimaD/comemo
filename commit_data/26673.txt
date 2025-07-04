@@ -1,0 +1,25 @@
+commit 163ff700b8ac3192fa1cb1424e5facf060683dd2
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Mar 18 16:57:54 2016 -0400
+
+    cmd/link/internal/ld: add s390x support
+    
+    Introduces the new relocation variant RV_390_DBL which indicates
+    that the relocation value should be shifted right by 1 (to make
+    it 2-byte aligned).
+    
+    Change-Id: I03fa96b4759ee19330c5298c3720746622fb1a03
+    Reviewed-on: https://go-review.googlesource.com/20878
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/arch.go   |   9 +++
+ src/cmd/link/internal/ld/data.go   |  16 ++++-
+ src/cmd/link/internal/ld/dwarf.go  |   4 +-
+ src/cmd/link/internal/ld/elf.go    | 118 +++++++++++++++++++++++++++++++------
+ src/cmd/link/internal/ld/ldelf.go  |  38 +++++++++++-
+ src/cmd/link/internal/ld/lib.go    |   4 +-
+ src/cmd/link/internal/ld/link.go   |   6 ++
+ src/cmd/link/internal/ld/symtab.go |   3 +-
+ 8 files changed, 170 insertions(+), 28 deletions(-)

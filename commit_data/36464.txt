@@ -1,0 +1,17 @@
+commit d8cf1514cadb512de6972e760ccef76452e3a67c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Aug 22 14:01:52 2018 +0200
+
+    internal/syscall/unix: don't use linkname to refer to syscall.fcntl
+    
+    Just open-code the fcntl syscall instead of relying on the obscurity of
+    go:linkname.
+    
+    Change-Id: I3e4ec9db6539e016f56667d7b8b87aa37671d0e7
+    Reviewed-on: https://go-review.googlesource.com/130736
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/syscall/unix/nonblocking.go | 14 ++++----------
+ 1 file changed, 4 insertions(+), 10 deletions(-)

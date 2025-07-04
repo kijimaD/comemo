@@ -1,0 +1,27 @@
+commit 82e3ca7b7a1f7401e02d227f06c8b208a90c775b
+Author: Rodrigo Moraes de Oliveira <rodrigo.moraes@gmail.com>
+Date:   Mon Mar 11 15:03:07 2013 -0400
+
+    net/url: better path resolution
+    
+    This includes a simplified resolvePath function and tests for all normal and abnormal path resolution examples described in RFC 3986, sections 5.4.1 and 5.4.2 [1]. Some of those examples failed before (see http://play.golang.org/p/F0ApSaXniv).
+    
+    Also, parsing a reference "//foo" now works as expected. It was treated as an absolute path with very weird results (see http://play.golang.org/p/089b-_xoNe).
+    
+    During path resolution, all dot segments are removed as described by the RFC.
+    
+    A few existing tests had to be changed because they expected the wrong output.
+    
+    Fixes #4700.
+    
+    Fixes #4706.
+    
+    [1] http://tools.ietf.org/html/rfc3986#section-5.4.1
+    
+    R=rsc, adg, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7203059
+
+ src/pkg/net/url/url.go      | 102 +++++++++++-------------
+ src/pkg/net/url/url_test.go | 190 +++++++++++++++++++++++---------------------
+ 2 files changed, 146 insertions(+), 146 deletions(-)

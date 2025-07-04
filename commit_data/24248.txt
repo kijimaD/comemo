@@ -1,0 +1,17 @@
+commit 4f33436004605a086a2c981ac2fad93a3dbe90db
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sun Aug 23 13:18:14 2015 +0000
+
+    runtime,internal/trace: map/slice literals janitoring
+    
+    Simplify slice/map literal expressions.
+    Caught with gofmt -d -s, fixed with gofmt -w -s
+    Checked that the result can still be compiled with Go 1.4.
+    
+    Change-Id: I06bce110bb5f46ee2f45113681294475aa6968bc
+    Reviewed-on: https://go-review.googlesource.com/13839
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/internal/trace/parser.go          |   2 +-
+ src/runtime/trace/trace_stack_test.go | 154 +++++++++++++++++-----------------
+ 2 files changed, 78 insertions(+), 78 deletions(-)

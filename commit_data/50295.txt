@@ -1,0 +1,17 @@
+commit d1681120be027579f0556dfd3b07f205cab3ff6b
+Author: Julie Qiu <julie@golang.org>
+Date:   Fri Sep 2 14:32:36 2022 -0400
+
+    .github: change label for vulndb and vulndb issues
+    
+    Change-Id: Ie384bfb366abc4005e9333b24dbbb70d66b74c0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427956
+    Reviewed-by: Tatiana Bradley <tatiana@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Julie Qiu <julieqiu@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Julie Qiu <julieqiu@google.com>
+
+ .github/ISSUE_TEMPLATE/04-vuln.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

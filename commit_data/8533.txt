@@ -1,0 +1,12 @@
+commit 5d5d84f3df7f735563a411b5dc940bcf731bc771
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon May 30 10:48:08 2011 +1000
+
+    gob: fix documentation on Decoder.Decode.
+    
+    R=r, adg
+    CC=golang-dev
+    https://golang.org/cl/4515159
+
+ src/pkg/gob/decoder.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit 713edf8b31de04dce26f603576f074133e95de47
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Tue Sep 18 01:04:41 2018 +0300
+
+    cmd/compile/internal/gc: simplify `x = x <op> y` to `x <op>= y`
+    
+    Change-Id: I5afba2c10372252be4b65dae7a95461722de904f
+    Reviewed-on: https://go-review.googlesource.com/135835
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go  | 4 ++--
+ src/cmd/compile/internal/gc/walk.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

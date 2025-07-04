@@ -1,0 +1,18 @@
+commit 90eca36a23cf5ec59a46626771f8074e2b68df60
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jan 21 10:24:42 2014 +0400
+
+    runtime: ensure fair scheduling during frequent GCs
+    What was happenning is as follows:
+    Each writer goroutine always triggers GC during its scheduling quntum.
+    After GC goroutines are shuffled so that the timer goroutine is always second in the queue.
+    This repeats infinitely, causing timer goroutine starvation.
+    Fixes #7126.
+    
+    R=golang-codereviews, shanemhansen, khr, khr
+    CC=golang-codereviews
+    https://golang.org/cl/53080043
+
+ src/pkg/runtime/proc.c       | 27 ++++++++++++++++++++++-----
+ src/pkg/runtime/proc_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 65 insertions(+), 5 deletions(-)

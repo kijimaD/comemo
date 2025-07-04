@@ -1,0 +1,12 @@
+commit 4248607ffe8aeff628bc692d53c0acf8aa5bec3a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 14 18:47:24 2008 -0700
+
+    simplify comma code per ken's suggestion
+    
+    R=ken
+    OCL=17164
+    CL=17164
+
+ src/cmd/gc/go.y | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)

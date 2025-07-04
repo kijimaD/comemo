@@ -1,0 +1,25 @@
+commit 5fac45a320561b45b52cdcae933882a70699a21d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 9 06:37:49 2020 -0700
+
+    cmd/compile: use only bit patterns in isNonNegative
+    
+    CL 212777 added a check to isNonNegative
+    to return true for unsigned values.
+    However, the SSA backend isn't type safe
+    enough for that to be sound.
+    The other checks in isNonNegative
+    look only at the pattern of bits.
+    Remove the type-based check.
+    
+    Updates #37753
+    
+    Change-Id: I059d0e86353453133f2a160dce53af299f42e533
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222620
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/prove.go |  6 +++---
+ test/fixedbugs/issue37753.go          | 18 ++++++++++++++++++
+ 2 files changed, 21 insertions(+), 3 deletions(-)

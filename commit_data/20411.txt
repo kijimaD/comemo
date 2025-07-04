@@ -1,0 +1,15 @@
+commit e3d2e5550e525308e9e9323fbaf05c4ea6588215
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 12 16:35:40 2014 -0700
+
+    cmd/8g: remove unused variable (fix build)
+    
+    http://build.golang.org/log/0434a945e3351eedaf56aa824d2bfe9c0d5e6735
+    
+    LGTM=dave
+    R=bradfitz, dave
+    CC=golang-codereviews
+    https://golang.org/cl/144800043
+
+ src/cmd/8g/ggen.c | 1 -
+ 1 file changed, 1 deletion(-)

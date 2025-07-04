@@ -1,0 +1,18 @@
+commit 9d5f8eaa8a4207bd89926eae40c6b0edf7bd4d11
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 15 01:49:04 2017 +0000
+
+    cmd/dist: increase default cmd/go test timeout
+    
+    cmd/go has grown slow, even in short mode, and it's now regularly
+    failing on a number of builders where it's taking over the previous 3
+    minute timeout. for now, give it more time.
+    
+    Change-Id: If565baf71c2770880b2e2139b47e03433951331f
+    Reviewed-on: https://go-review.googlesource.com/84235
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

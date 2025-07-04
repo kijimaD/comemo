@@ -1,0 +1,12 @@
+commit ac65eaa5b976e07829f8a7cd3388be5ba984f7d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 13 12:14:31 2011 -0400
+
+    dashboard: delay hg pull until needed
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4526052
+
+ misc/dashboard/builder/main.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

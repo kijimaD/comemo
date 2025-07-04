@@ -1,0 +1,13 @@
+commit 16e543163bbfc40d6360cded8437160bbd994000
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Mar 25 16:15:52 2010 +1100
+
+    Sydney University tech talk.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/744042
+
+ doc/talks/go_talk-20100323.html | 395 ++++++++++++++++++++++++++++++++++++++++
+ doc/talks/java-typing.png       | Bin 0 -> 19328 bytes
+ 2 files changed, 395 insertions(+)

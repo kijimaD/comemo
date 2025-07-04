@@ -1,0 +1,33 @@
+commit 30f93f09944c54147bec9e5c39631f17addd94c7
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Feb 18 06:31:57 2016 -0500
+
+    cmd/compile: remove rtype.ptrToThis
+    
+    Simplifies some code as ptrToThis was unreliable under dynamic
+    linking. Now the same type lookup is used regardless of execution
+    mode.
+    
+    A synthetic relocation, R_USETYPE, is introduced to make sure the
+    linker includes *T on use of T, if *T is carrying methods.
+    
+    Changes the heap dump format. Anything reading the format needs to
+    look at the last bool of a type of an interface value to determine
+    if the type should be the pointer-to type.
+    
+    Reduces binary size of cmd/go by 0.2%.
+    For #6853.
+    
+    Change-Id: I79fcb19a97402bdb0193f3c7f6d94ddf061ee7b2
+    Reviewed-on: https://go-review.googlesource.com/19695
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 46 ++++++++++++----------------------
+ src/cmd/internal/obj/link.go           |  5 ++++
+ src/cmd/link/internal/ld/decodesym.go  |  2 +-
+ src/reflect/type.go                    | 20 +++------------
+ src/runtime/heapdump.go                | 28 ++++-----------------
+ src/runtime/type.go                    |  1 -
+ 6 files changed, 30 insertions(+), 72 deletions(-)

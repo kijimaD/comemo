@@ -1,0 +1,23 @@
+commit 6412750f32224f6820f781d09b2092c5c358dddc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 17 15:17:22 2020 -0400
+
+    cmd/go: add a missing curly-brace in the 'stale' command format string
+    
+    The missing brace made the 'stale' command a no-op in the non-error case.
+    
+    Fix the 'short' skip in install_cross_gobin (it was backward) and
+    update it to no longer check staleness of a not-necessarily-stale
+    target and to no longer expect to be able to install into GOROOT/pkg.
+    (This was missed in #30316 because that part of the test was
+    erroneously skipped in non-short mode.)
+    
+    Change-Id: I6a276fec5fa5e5da3fe0daf0c2b5086116ed7c1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223747
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/script_test.go                          | 2 +-
+ src/cmd/go/testdata/script/install_cross_gobin.txt | 9 ++++-----
+ 2 files changed, 5 insertions(+), 6 deletions(-)

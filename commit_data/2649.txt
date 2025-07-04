@@ -1,0 +1,12 @@
+commit a68b1da3cc7b454f110253534624c5ac4e065e72
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jul 8 17:58:15 2009 -0700
+
+    another nil reference
+    
+    R=rsc
+    OCL=31373
+    CL=31373
+
+ src/cmd/gc/dcl.c | 2 ++
+ 1 file changed, 2 insertions(+)

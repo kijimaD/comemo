@@ -1,0 +1,12 @@
+commit 8251e72aea030eec445d7cb8eed38732f7b0f9c7
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Aug 5 11:43:53 2010 +1000
+
+    path: fix comment for Split()
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/1905050
+
+ src/pkg/path/path.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

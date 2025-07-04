@@ -1,0 +1,12 @@
+commit c34aadf0636b4b368358df29bc43786db882172f
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Apr 12 11:48:05 2011 -0300
+
+    openpgp: Fix improper := shadowing
+    
+    R=golang-dev, agl1, jnml
+    CC=golang-dev
+    https://golang.org/cl/4381058
+
+ src/pkg/crypto/openpgp/armor/encode.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

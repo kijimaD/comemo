@@ -1,0 +1,16 @@
+commit 5e35845a4aedd86d51a6b189bbcac688af446ce3
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Dec 10 11:57:35 2019 +0100
+
+    runtime: use MRS instruction to read system registers on freebsd/arm64
+    
+    Support for these was added in CL 189577
+    
+    Change-Id: Iaf2a774b141995cbbdfb3888aea67ae9c7f928b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210677
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_freebsd_arm64.s | 25 ++++++++++---------------
+ 1 file changed, 10 insertions(+), 15 deletions(-)

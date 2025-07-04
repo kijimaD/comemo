@@ -1,0 +1,22 @@
+commit 2dcc9acbd27902c9e551f54ca29d2519418b45c4
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 25 18:40:54 2022 +0800
+
+    cmd/go: show an error when a package in a module conflicts with one in std
+    
+    Fixes #35270
+    
+    Change-Id: I5d2a04359702be6dc04affb867540091b926bc23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/434095
+    Run-TryBot: xie cui <523516579@qq.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/import.go              | 42 ++++++++++------
+ .../go/testdata/script/mod_go_version_missing.txt  |  3 +-
+ src/cmd/go/testdata/script/mod_issue35270.txt      | 57 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_std_vendor.txt      |  5 +-
+ src/cmd/go/testdata/script/mod_vendor.txt          |  2 +-
+ 5 files changed, 90 insertions(+), 19 deletions(-)

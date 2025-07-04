@@ -1,0 +1,14 @@
+commit 9c5669bd0b7f65903776dcc0a6bd10578c6e42e2
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Sep 2 16:21:30 2008 -0700
+
+    bug in conv(string, bytearray)
+    
+    R=r
+    OCL=14732
+    CL=14732
+
+ src/cmd/gc/go.h   |   3 +-
+ src/cmd/gc/subr.c |  12 +++--
+ src/cmd/gc/walk.c | 133 ++++++++++++++++++++++++++++++++++--------------------
+ 3 files changed, 93 insertions(+), 55 deletions(-)

@@ -1,0 +1,17 @@
+commit 625866a9779d290d6617730091d45b9d3c0ae5c7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 29 20:15:59 2009 -0700
+
+    Conversion from array to slices should work like assignment:
+    you should be able to convert a pointer to an array to a
+    slice, you should not be able to convert an array to a slice.
+    Currently 6g works the other way around.
+    
+    R=ken,rsc
+    DELTA=17  (17 added, 0 deleted, 0 changed)
+    OCL=28033
+    CL=28067
+
+ test/bugs/bug146.go | 14 ++++++++++++++
+ test/golden.out     |  7 +++++++
+ 2 files changed, 21 insertions(+)

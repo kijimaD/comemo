@@ -1,0 +1,18 @@
+commit df781cc4abf83225ec2e0dbd6e16dc8dd6cab36d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 13:50:53 2014 -0400
+
+    liblink: fix cmd/ld -X flag
+    
+    This fixes the test/linkx.go test, which does not run by default.
+    (Issue 4139 is about fixing that.)
+    
+    Fixes #8806.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=bradfitz, golang-codereviews, iant
+    https://golang.org/cl/145420043
+
+ src/liblink/objfile.c | 2 ++
+ 1 file changed, 2 insertions(+)

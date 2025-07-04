@@ -1,0 +1,14 @@
+commit ae42beafd330d0f6a247a61933fb562b10f42d13
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 14 12:21:57 2012 -0400
+
+    cmd/go: fix build
+    
+    TBR=r
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/6496124
+
+ src/cmd/go/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

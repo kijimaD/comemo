@@ -1,0 +1,21 @@
+commit 37f390aa20bf629feed4c6ce47c8eb452fdd0bc4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Sep 6 09:59:08 2011 +1000
+
+    os: use GetFileAttributesEx to implement Stat on windows
+    
+    Fixes #2129.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4934049
+
+ src/pkg/os/file_posix.go                  | 33 ---------------
+ src/pkg/os/file_unix.go                   | 33 +++++++++++++++
+ src/pkg/os/file_windows.go                | 40 ++++--------------
+ src/pkg/os/stat_windows.go                | 68 +++++++++++++++++++++++++++----
+ src/pkg/syscall/syscall_windows.go        | 34 +---------------
+ src/pkg/syscall/zsyscall_windows_386.go   | 18 +++++++-
+ src/pkg/syscall/zsyscall_windows_amd64.go | 18 +++++++-
+ src/pkg/syscall/ztypes_windows.go         | 20 ++++++---
+ 8 files changed, 150 insertions(+), 114 deletions(-)

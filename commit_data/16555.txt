@@ -1,0 +1,29 @@
+commit d67e7e3acff13d845f8952b45daf9b794fa4ad51
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 12 15:22:26 2013 -0400
+
+    runtime: add lr, ctxt, ret to Gobuf
+    
+    Add gostartcall and gostartcallfn.
+    The old gogocall = gostartcall + gogo.
+    The old gogocallfn = gostartcallfn + gogo.
+    
+    R=dvyukov, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/10036044
+
+ misc/cgo/test/callback.go       |  2 +-
+ src/pkg/runtime/asm_386.s       | 67 ++++++++++++++---------------------------
+ src/pkg/runtime/asm_amd64.s     | 63 ++++++++++++--------------------------
+ src/pkg/runtime/asm_arm.s       | 67 ++++++++++++++---------------------------
+ src/pkg/runtime/mgc0.c          | 14 +++++++--
+ src/pkg/runtime/panic.c         |  3 +-
+ src/pkg/runtime/proc.c          | 51 ++++++++++++++++++++-----------
+ src/pkg/runtime/runtime.h       | 13 +++++---
+ src/pkg/runtime/stack.c         | 24 +++++++++++----
+ src/pkg/runtime/stack.h         |  2 +-
+ src/pkg/runtime/sys_arm.c       | 17 +++++++++++
+ src/pkg/runtime/sys_x86.c       | 21 +++++++++++++
+ src/pkg/runtime/traceback_arm.c | 20 ++++++------
+ src/pkg/runtime/traceback_x86.c | 11 ++-----
+ 14 files changed, 188 insertions(+), 187 deletions(-)

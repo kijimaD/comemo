@@ -1,0 +1,28 @@
+commit 582a421a8c245268f7c081fa1191374d50a601f7
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Nov 13 15:04:54 2016 +0100
+
+    net: enable timeout tests on Plan 9
+    
+    Deadlines have been implemented on Plan 9 in CL 31521.
+    
+    Enable the following tests:
+    
+     - TestReadTimeout
+     - TestReadFromTimeout
+     - TestWriteTimeout
+     - TestWriteToTimeout
+     - TestReadTimeoutFluctuation
+     - TestVariousDeadlines
+     - TestVariousDeadlines1Proc
+     - TestVariousDeadlines4Proc
+     - TestReadWriteDeadlineRace
+    
+    Change-Id: I221ed61d55f7f1e4345b37af6748c04e1e91e062
+    Reviewed-on: https://go-review.googlesource.com/33196
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/timeout_test.go | 31 +++----------------------------
+ 1 file changed, 3 insertions(+), 28 deletions(-)

@@ -1,0 +1,17 @@
+commit cb859021d123b506541126ea0ddaed60e0f7ee32
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 20 14:02:33 2015 -0500
+
+    runtime: fix new stack barrier check
+    
+    During a crash showing goroutine stacks of all threads
+    (with GOTRACEBACK=crash), it can be that f == nil.
+    
+    Only happens on Solaris; not sure why.
+    
+    Change-Id: Iee2c394a0cf19fa0a24f6befbc70776b9e42d25a
+    Reviewed-on: https://go-review.googlesource.com/17110
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/traceback.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 072b560ee66adda276757456cfbb7569b6b871b4
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Fri Feb 5 14:55:19 2010 -0800
+
+    math: Atan2 special cases and tests; atan2_386
+    
+    Added special cases, tests and benchmarks for Atan2;
+    added 386 FPU version of Atan2.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/201068
+
+ src/pkg/math/Makefile      |  1 +
+ src/pkg/math/all_test.go   | 89 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/math/atan2.go      | 61 +++++++++++++++++++++++++++++--
+ src/pkg/math/atan2_386.s   | 11 ++++++
+ src/pkg/math/atan2_decl.go |  7 ++++
+ 5 files changed, 166 insertions(+), 3 deletions(-)

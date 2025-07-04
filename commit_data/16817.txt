@@ -1,0 +1,20 @@
+commit 9bfb69187fc76cce47032111f4cbe055a28704ae
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jul 19 23:44:22 2013 +1000
+
+    regexp: exclude exhaustive RE2 test from running under race detector.
+    
+    It is an expensive test to run, and even more so with -race,
+    and causes timeouts on builders. It is doubtful that it would
+    find a race that other tests in this package wouldn't, so there
+    is little loss in excluding it.
+    
+    Update #5837.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/11568043
+
+ src/pkg/regexp/exec2_test.go | 20 ++++++++++++++++++++
+ src/pkg/regexp/exec_test.go  |  7 -------
+ 2 files changed, 20 insertions(+), 7 deletions(-)

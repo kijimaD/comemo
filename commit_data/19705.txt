@@ -1,0 +1,15 @@
+commit 418b39d436ceda146bbbced0bd716bff2f8371e2
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jul 10 14:23:50 2014 +1000
+
+    runtime: align stack before calling windows in usleep2
+    
+    Fixes #8174.
+    
+    LGTM=minux
+    R=golang-codereviews, minux
+    CC=golang-codereviews
+    https://golang.org/cl/102360043
+
+ src/pkg/runtime/sys_windows_amd64.s | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

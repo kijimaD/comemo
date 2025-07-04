@@ -1,0 +1,26 @@
+commit 223a563f58f3b6f9b5d874b7e1e33d6f36992caa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 28 11:03:57 2022 -0400
+
+    os/exec: refactor goroutine error reporting
+    
+    Use a separate channel to report the final error of the copying
+    goroutines, receiving a value only when all of the copying goroutines
+    have completed. In a followup change (CL 401835), that will allow
+    waiters to select on goroutine completion alongside other events (such
+    as Context cancellation).
+    
+    Also mildly refactor the watchCtx helper method so that its structure
+    better matches what will be needed to implement WaitDelay.
+    
+    For #50436.
+    
+    Change-Id: I54b3997fb6931d204814d8382f0a388a67b520f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435995
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/os/exec/exec.go | 136 +++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 76 insertions(+), 60 deletions(-)

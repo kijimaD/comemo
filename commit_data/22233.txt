@@ -1,0 +1,25 @@
+commit f78dc1dac1890ff58c6c82b1097620bf171ec149
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sun Mar 29 23:38:20 2015 +0000
+
+    runtime: rename ·main·f to ·mainPC to avoid duplicate symbol
+    
+    runtime·main·f is normalized by the linker to runtime.main.f, as is
+    the compiler-generated symbol runtime.main·f.  Change the former to
+    runtime·mainPC instead.
+    
+    Fixes issue #9934
+    
+    Change-Id: I656a6fa6422d45385fa2cc55bd036c6affa1abfe
+    Reviewed-on: https://go-review.googlesource.com/8234
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/asm_386.s      | 6 +++---
+ src/runtime/asm_amd64.s    | 6 +++---
+ src/runtime/asm_amd64p32.s | 6 +++---
+ src/runtime/asm_arm.s      | 6 +++---
+ src/runtime/asm_arm64.s    | 6 +++---
+ src/runtime/asm_ppc64x.s   | 6 +++---
+ 6 files changed, 18 insertions(+), 18 deletions(-)

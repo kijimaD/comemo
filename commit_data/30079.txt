@@ -1,0 +1,29 @@
+commit cc03ba3289eb1a3bd4b6454fff24646912f5bf12
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 18 13:36:46 2017 -0500
+
+    cmd/go: split out cmd/go/internal/web
+    
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
+    
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
+    
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
+    
+    For #18653.
+    
+    Change-Id: I2f349150659b6ddf6be4c675abba38dfe57ff652
+    Reviewed-on: https://go-review.googlesource.com/36201
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/bug.go                          |  7 ++++---
+ src/cmd/go/get.go                          | 16 ++++++++-------
+ src/cmd/go/{ => internal/web}/bootstrap.go | 20 ++++++++----------
+ src/cmd/go/{ => internal/web}/http.go      | 33 +++++++++++++++---------------
+ src/cmd/go/internal/web/security.go        | 16 +++++++++++++++
+ src/cmd/go/vcs.go                          | 33 +++++++++++-------------------
+ src/cmd/go/vcs_test.go                     |  4 +++-
+ 7 files changed, 69 insertions(+), 60 deletions(-)

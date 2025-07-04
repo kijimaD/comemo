@@ -1,0 +1,14 @@
+commit 500effe79ebbb9b130d2ad5a86c92c2f960f2456
+Author: Roger Pau Monné <royger@gmail.com>
+Date:   Fri Mar 25 09:33:45 2011 -0700
+
+    http: modified perl cgi test to remove newline from env variables
+    
+    Fixes #1639
+    
+    R=golang-dev, bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4291069
+
+ src/pkg/http/cgi/testdata/test.cgi | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

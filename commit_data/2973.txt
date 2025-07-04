@@ -1,0 +1,14 @@
+commit f8295fcd0dfce54122e982b2662ed4ad0bc17f75
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 13 14:23:35 2009 -0700
+
+    rename mkasmh to mkasmh.sh
+    
+    R=rsc
+    DELTA=204  (153 added, 49 deleted, 2 changed)
+    OCL=33213
+    CL=33213
+
+ src/pkg/runtime/Makefile              | 4 ++--
+ src/pkg/runtime/{mkasmh => mkasmh.sh} | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

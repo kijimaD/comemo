@@ -1,0 +1,13 @@
+commit 8a511cccb59d1004122004253fca79d1000a7eb7
+Author: Chris Manghane <cmang@golang.org>
+Date:   Mon Mar 17 20:26:19 2014 -0700
+
+    cmd/gc: fix error check for self-referential array type.
+    
+    LGTM=gri, iant
+    R=gri, iant
+    CC=golang-codereviews
+    https://golang.org/cl/75920044
+
+ test/fixedbugs/issue7525.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

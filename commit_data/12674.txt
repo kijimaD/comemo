@@ -1,0 +1,12 @@
+commit 1dd78b7e7bbfecbe2bb7eae3073541c0150bdac9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Mar 17 18:13:02 2012 +0800
+
+    doc/install: remove reference to "Go Tutorial"
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5841054
+
+ doc/install.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

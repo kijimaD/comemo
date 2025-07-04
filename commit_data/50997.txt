@@ -1,0 +1,21 @@
+commit 5d59fa143ae1d0d8fdcc677297ce58bbfc592111
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Mon Oct 17 21:58:56 2022 +0800
+
+    all: delete riscv64 non-register ABI fallback path
+    
+    Change-Id: I9e997b59ffb868575b780b9660df1f5ac322b79a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443556
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/bytealg/compare_riscv64.s   | 18 ------
+ src/internal/bytealg/count_riscv64.s     | 19 -------
+ src/internal/bytealg/equal_riscv64.s     | 20 -------
+ src/internal/bytealg/indexbyte_riscv64.s | 22 --------
+ src/runtime/asm_riscv64.s                | 97 --------------------------------
+ src/runtime/memclr_riscv64.s             |  6 +-
+ src/runtime/memmove_riscv64.s            |  8 +--
+ 7 files changed, 5 insertions(+), 185 deletions(-)

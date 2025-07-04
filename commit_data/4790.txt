@@ -1,0 +1,14 @@
+commit 987e1198dbc4981a72e2815beb87e8d76fff718a
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Thu Feb 4 13:09:09 2010 -0800
+
+    Added mingw specific build stubs.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/198071
+
+ src/pkg/debug/proc/proc_mingw.go       | 17 +++++++++++++++++
+ src/pkg/debug/proc/regs_mingw_386.go   |  5 +++++
+ src/pkg/debug/proc/regs_mingw_amd64.go |  5 +++++
+ 3 files changed, 27 insertions(+)

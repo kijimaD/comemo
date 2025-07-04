@@ -1,0 +1,20 @@
+commit ab5923572984651af05a47755109642bfc529cb5
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 25 11:50:50 2016 -0400
+
+    runtime: consistency check for G rescan position
+    
+    Issue #17099 shows a failure that indicates we rescanned a stack twice
+    concurrently during mark termination, which suggests that the rescan
+    list became inconsistent. Add a simple check when we dequeue something
+    from the rescan list that it claims to be at the index where we found
+    it.
+    
+    Change-Id: I6a267da4154a2e7b7d430cb4056e6bae978eaf62
+    Reviewed-on: https://go-review.googlesource.com/29280
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcmark.go | 5 +++++
+ 1 file changed, 5 insertions(+)

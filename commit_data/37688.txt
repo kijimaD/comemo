@@ -1,0 +1,26 @@
+commit d177e10d2268d92e1babbbdf98fa992cb55bcff4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 13 19:50:40 2018 +0000
+
+    cmd/vendor: update vendored golang.org/x/sys/unix
+    
+    To x/sys git rev 4d1cda033e0619309c606fc686de3adcf599539e
+    
+    Fixes #29224
+    
+    Change-Id: I696c815b4c2d26e8340c77cb77d1a37245c40ed2
+    Reviewed-on: https://go-review.googlesource.com/c/154117
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ .../golang.org/x/sys/unix/example_exec_test.go     |  19 ++
+ .../{example_test.go => example_flock_test.go}     |   7 +-
+ src/cmd/vendor/golang.org/x/sys/unix/mksyscall.pl  | 341 ---------------------
+ .../vendor/golang.org/x/sys/unix/sockcmsg_unix.go  |  14 +-
+ .../vendor/golang.org/x/sys/unix/syscall_aix.go    |   9 +-
+ .../golang.org/x/sys/unix/syscall_linux_arm.go     |   8 +
+ .../golang.org/x/sys/unix/zsyscall_linux_arm.go    |  10 +
+ src/cmd/vendor/vendor.json                         |   6 +-
+ 8 files changed, 48 insertions(+), 366 deletions(-)

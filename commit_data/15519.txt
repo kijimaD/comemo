@@ -1,0 +1,14 @@
+commit 3889d8afe531ddabc1833e7ef60aba45d99d532e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Mar 1 14:49:55 2013 +1100
+
+    path/filepath: better error reporting during TestWinSplitListTestsAreValid
+    
+    Fixes #4930.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7424043
+
+ src/pkg/path/filepath/path_windows_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

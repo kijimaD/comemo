@@ -1,0 +1,13 @@
+commit 56b983c112ddca28cf29e4d1b0ab9f590ea69976
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 3 19:55:40 2014 -0500
+
+    cmd/gc: fix internal crash
+    
+    TBR=ken2
+    CC=golang-codereviews
+    https://golang.org/cl/70200053
+
+ src/cmd/gc/typecheck.c      |  2 ++
+ test/fixedbugs/issue7310.go | 15 +++++++++++++++
+ 2 files changed, 17 insertions(+)

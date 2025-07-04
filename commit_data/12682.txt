@@ -1,0 +1,12 @@
+commit 6230569e841543a68b3a68c96f8856b6180199b4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 19 13:52:26 2012 +1100
+
+    doc: move sub-repos lower on reference page
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5846065
+
+ doc/reference.html | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

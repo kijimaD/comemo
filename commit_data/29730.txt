@@ -1,0 +1,14 @@
+commit e7a0df35b3b9d3fe2a84ef0ea186fdc6c203e318
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Dec 2 16:34:03 2016 -0800
+
+    cmd/go: add missing newline at end of error message
+    
+    Change-Id: I9277e869e171d9e051ff9a70ac578b8127fa74f8
+    Reviewed-on: https://go-review.googlesource.com/33897
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

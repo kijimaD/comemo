@@ -1,0 +1,28 @@
+commit 1ed932d22b7f602d3aa0a4a5ab12ff479a2c1dce
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Oct 13 22:33:18 2019 +0100
+
+    cmd/go: refuse -w with an invalid GO111MODULE
+    
+    It was possible to get 'go env' to break itself:
+    
+            $ go env -w GO111MODULE=bad
+            $ go env
+            go: unknown environment setting GO111MODULE=bad
+    
+    We already check if the variable name is known. In some cases like
+    GO111MODULE, we also know what the variable's valid values are. Enforce
+    it when writing the variable, not just when fetching it.
+    
+    Fixes #34880.
+    
+    Change-Id: I10d682087c69f3445f314fd4473644f694e255f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200867
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/envcmd/env.go        | 12 ++++++++++++
+ src/cmd/go/testdata/script/env_write.txt |  4 ++++
+ 2 files changed, 16 insertions(+)

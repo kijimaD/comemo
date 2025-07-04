@@ -1,0 +1,18 @@
+commit 30a28aec2535488d1b7296c19ab66f80e8aa5ba5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 15 20:15:59 2009 -0700
+
+    b/1909731
+    
+    package main
+    func f(a *c.b) {}
+    func main() {}
+    
+    BUG=1909731
+    R=ken
+    OCL=30322
+    CL=30322
+
+ src/cmd/gc/dcl.c | 2 ++
+ src/cmd/gc/go.y  | 5 +++++
+ 2 files changed, 7 insertions(+)

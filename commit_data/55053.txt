@@ -1,0 +1,20 @@
+commit 28a8896d57f315b241b77eff26d9302cfe88c13b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Nov 19 21:00:17 2023 -0800
+
+    cmd/compile/internal/inline: allow inlining of checkptr arguments
+    
+    The early return here is meant to suppress inlining of the function
+    call itself. However, it also suppresses recursing to visit the call
+    arguments, which are safe to inline.
+    
+    Change-Id: I75887574c00931cb622277d04a822bc84c29bfa2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543658
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/inline/inl.go           |  2 +-
+ test/fixedbugs/{issue35073.go => issue35073a.go} |  0
+ test/fixedbugs/issue35073b.go                    | 23 +++++++++++++++++++++++
+ 3 files changed, 24 insertions(+), 1 deletion(-)

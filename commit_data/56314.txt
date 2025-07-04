@@ -1,0 +1,19 @@
+commit d69f87445cb28d68b4d62d8b80dff8a8d5a9203e
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Apr 24 09:52:52 2024 -0700
+
+    strings, internal/stringslite: lite version of strings package
+    
+    To be used by internal/filepathlite, which is to be used by os.
+    There are probably other places where it would be convenient
+    to have strings functions accessible to RUNTIME level packages.
+    
+    Change-Id: Icda59e7a9e26d9e8f3692db0ea4fb7b3dbf570d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581516
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go/build/deps_test.go           |   1 +
+ src/internal/stringslite/strings.go | 124 ++++++++++++++++++++++++++++++++++++
+ src/strings/strings.go              | 100 +++--------------------------
+ 3 files changed, 133 insertions(+), 92 deletions(-)

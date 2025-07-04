@@ -1,0 +1,13 @@
+commit a790388afb85f04ed65d3795eb22edee44df69af
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Aug 19 13:47:43 2013 +1000
+
+    cmd/gc: regenerate y.tab.{c,h} with Bison 2.5.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12744048
+
+ src/cmd/gc/y.tab.c | 1256 ++++++++++++++++++++++++++++++++++++++--------------
+ src/cmd/gc/y.tab.h |   46 +-
+ 2 files changed, 953 insertions(+), 349 deletions(-)

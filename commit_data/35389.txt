@@ -1,0 +1,28 @@
+commit 15f2cbf43752cd69ba7b00a713f5db82fd535f1f
+Author: Diogo Pinela <diogoid7400@gmail.com>
+Date:   Sun Apr 22 22:48:56 2018 +0100
+
+    testing: allow marking subtest and subbenchmark functions as Helpers
+    
+    Since subtests and subbenchmarks run in a separate goroutine, and thus
+    a separate stack, this entails capturing the stack trace at the point
+    tb.Run is called. The work of getting the file and line information from
+    this stack is only done when needed, however.
+    
+    Continuing the search into the parent test also requires temporarily
+    holding its mutex. Since Run does not hold it while waiting for the
+    subtest to complete, there should be no risk of a deadlock due to this.
+    
+    Fixes #24128
+    
+    Change-Id: If0bb169f3ac96bd48794624e619ade7edb599f83
+    Reviewed-on: https://go-review.googlesource.com/108658
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+
+ src/testing/benchmark.go        | 15 ++++----
+ src/testing/helper_test.go      |  8 ++---
+ src/testing/helperfuncs_test.go | 18 +++++-----
+ src/testing/testing.go          | 78 ++++++++++++++++++++++++++++++-----------
+ 4 files changed, 81 insertions(+), 38 deletions(-)

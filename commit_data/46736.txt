@@ -1,0 +1,19 @@
+commit f1f626de5382220f3b34fd3f5616d5c0868b3561
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Oct 5 10:48:24 2021 -0400
+
+    cmd/link: mangle function name with ABI on XCOFF
+    
+    This is like CL 304432 and CL 307229, for XCOFF.
+    
+    With this, GOEXPERIMENT=regabi works on AIX/PPC64.
+    
+    Change-Id: I8cf00681df5c93f397913febd78f38099d91e7c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353972
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/xcoff.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

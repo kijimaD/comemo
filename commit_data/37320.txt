@@ -1,0 +1,20 @@
+commit 2b534f28ce4b7d9bd1fb09ab1bfcbf36f720bc01
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 9 17:27:39 2018 +0000
+
+    Revert "cmd/vet: lostcancel: suppress the check in the main.main function"
+    
+    This reverts CL 148758 (commit 5e17ce22ece18571597ef9a214cdfcd461894e9c)
+    
+    Reason for revert: breaks the build.
+    
+    Change-Id: I6ed15b7b8f6b74d84edab9402ddf7ae87a0d0387
+    Reviewed-on: https://go-review.googlesource.com/c/148817
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/lostcancel.go          | 5 -----
+ src/cmd/vet/testdata/lostcancel.go | 8 +-------
+ 2 files changed, 1 insertion(+), 12 deletions(-)

@@ -1,0 +1,26 @@
+commit 6b165577fee2e9313bfd1ae2a07c89e41c86426e
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 17 15:51:29 2023 -0700
+
+    cmd/compile: remove memequal call from string compares in more cases
+    
+    Add more rules to ensure that order doesn't matter.
+    
+    Add memequal 0 rule.
+    
+    Try to use a constant argument to memequal when one is available.
+    
+    Fixes #59684
+    
+    Change-Id: I36e85ffbd949396ed700ed6e8ec2bc3ae013f5d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485535
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/compare/compare.go     |  33 ++++-
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  27 ++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 161 ++++++++++++++++++++++--
+ test/codegen/comparisons.go                     |  41 ++++++
+ 4 files changed, 251 insertions(+), 11 deletions(-)

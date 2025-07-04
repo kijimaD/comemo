@@ -1,0 +1,20 @@
+commit e755a5649aac75f43283a5ec160445b4478c8182
+Author: penglei <penglei@ybyte.org>
+Date:   Mon May 9 08:55:41 2022 +0000
+
+    cmd/go/internal/mvs: Delete redundant searching  for maximum version when building minimal requirement list
+    
+    mvs.Req performs an unnecessary search for the maximum version when building minimal requirement list. Someone may be confused when reading this piece of code. The comment of the BuildList function also states that the build list contains the maximum version of each module. We just need to create a maximum version cache that maps from path to version, in the beginning of the Req function body.
+    
+    Change-Id: I4b353e167f2dcc96bc13cc2e1c602bce47c72bc9
+    GitHub-Last-Rev: fce11d3c728450f71cb0b6e5478792f0133b8cfc
+    GitHub-Pull-Request: golang/go#50345
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374277
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/go/internal/mvs/mvs.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

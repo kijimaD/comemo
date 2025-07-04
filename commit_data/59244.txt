@@ -1,0 +1,26 @@
+commit d584d2b3dda9ab88a51a3e9cffe8ecd140479cef
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Mon Mar 31 19:06:43 2025 +0000
+
+    cmd/go: fix version stamping for v2 modules and subdirectories
+    
+    We were not passing the module path to newCodeRepo which caused it to
+    incorrectly parse the major version. This allowed v0 and v1 modules to
+    work because an empty major version is allowed in that case.
+    
+    Additionally we need to pass the root module path to derive the correct tag
+    for subdirectories.
+    
+    Fixes: #72877
+    Fixes: #71738
+    Change-Id: Id792923f426858513972e713623270edbc76c545
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661875
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/load/pkg.go                    | 11 ++-
+ src/cmd/go/internal/modfetch/repo.go               | 12 ++--
+ .../testdata/script/build_version_stamping_git.txt | 82 ++++++++++++++++++++--
+ .../go/testdata/script/version_buildvcs_bzr.txt    |  8 ++-
+ src/cmd/go/testdata/script/version_buildvcs_hg.txt | 14 ++--
+ 5 files changed, 110 insertions(+), 17 deletions(-)

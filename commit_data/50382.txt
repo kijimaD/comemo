@@ -1,0 +1,18 @@
+commit f4bf9bceac20868fb692bacf02ee5b4ccd99b778
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 18:53:24 2022 +0800
+
+    runtime: use strings.Builder
+    
+    Change-Id: I9274d36ca983fdf59088b71a97b139ea262370dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428276
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/align_test.go          | 3 +--
+ src/runtime/debuglog_test.go       | 5 ++---
+ src/runtime/signal_windows_test.go | 4 ++--
+ src/runtime/stack_test.go          | 3 +--
+ 4 files changed, 6 insertions(+), 9 deletions(-)

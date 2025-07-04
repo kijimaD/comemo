@@ -1,0 +1,15 @@
+commit a7d8b35aacf00a87953a67c9d1f793c16a5440ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 9 12:00:16 2013 -0400
+
+    cmd/gc: fix 'internal error: typename ideal bool'
+    
+    Fixes #6298.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/13624043
+
+ src/cmd/gc/walk.c           |  2 ++
+ test/fixedbugs/issue6298.go | 15 +++++++++++++++
+ 2 files changed, 17 insertions(+)

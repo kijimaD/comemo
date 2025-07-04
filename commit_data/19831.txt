@@ -1,0 +1,26 @@
+commit c0325f50832489f2060549d6b19ce156df45b044
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jul 29 16:48:11 2014 +0900
+
+    net: prevent spurious on-connect events via epoll on linux
+    
+    On Linux, adding a socket descriptor to epoll instance before getting
+    the EINPROGRESS return value from connect system call could be a root
+    cause of spurious on-connect events.
+    
+    See golang.org/issue/8276, golang.org/issue/8426 for further information.
+    
+    All credit to Jason Eggleston <jason@eggnet.com>
+    
+    Fixes #8276.
+    Fixes #8426.
+    
+    LGTM=dvyukov
+    R=dvyukov, golang-codereviews, adg, dave, iant, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/120820043
+
+ src/pkg/net/fd_unix.go    | 18 ++++++++++++++----
+ src/pkg/net/fd_windows.go |  9 ++++++++-
+ src/pkg/net/sock_posix.go | 22 ++++++++--------------
+ 3 files changed, 30 insertions(+), 19 deletions(-)

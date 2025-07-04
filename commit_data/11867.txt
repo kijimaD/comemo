@@ -1,0 +1,14 @@
+commit adc1e0bcef9e7e4a7bf4fa6d5b83681d578b9e0f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 14 11:20:39 2012 +0900
+
+    syscall: update BSD variants to sync with new os/signal
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5661051
+
+ src/pkg/syscall/syscall_freebsd.go | 2 +-
+ src/pkg/syscall/syscall_netbsd.go  | 2 +-
+ src/pkg/syscall/syscall_openbsd.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

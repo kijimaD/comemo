@@ -1,0 +1,19 @@
+commit fec40bd106f30d95939ec7ca6066dd3cd90c0af1
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Mar 4 01:44:45 2017 +0100
+
+    Revert "cmd/go, misc: switch from breakpoint to SIGUSR2"
+    
+    This reverts commit 333f764df3d78930a5a3097fc34ac1374b7c3187.
+    
+    Replaced by a improved strategy later in the CL relation chain.
+    
+    Change-Id: I70a1d2f0aa5aa0d3d0ec85b5a956c6fb60d88908
+    Reviewed-on: https://go-review.googlesource.com/36069
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go   |  7 ++++---
+ src/cmd/go/internal/test/test.go | 21 ++++-----------------
+ 2 files changed, 8 insertions(+), 20 deletions(-)

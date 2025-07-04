@@ -1,0 +1,16 @@
+commit df91b8044dbe790c69c16058330f545be069cc1f
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Tue Jul 25 13:03:48 2017 -0700
+
+    doc: list editor options by name, not plugin name
+    
+    So the users can recognize their option by their editor's name.
+    
+    Fixes #20398.
+    
+    Change-Id: Id314d4dbe26f40231a479b179620d7e66512b506
+    Reviewed-on: https://go-review.googlesource.com/51114
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/editors.html | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

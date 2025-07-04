@@ -1,0 +1,16 @@
+commit c1e332020ddf1dd31f39d86464136fe06fe6d7fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 16 15:26:00 2014 -0400
+
+    os/signal: increase timeout from 10ms to 100ms
+    
+    Might make test less flaky.
+    Fixes #8682.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/143160043
+
+ src/os/signal/signal_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

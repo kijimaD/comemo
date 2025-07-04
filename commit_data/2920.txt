@@ -1,0 +1,15 @@
+commit 6be0f50b973d24d930b341ee6c66d13cff21ecff
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 7 16:47:54 2009 -0700
+
+    bug159
+    
+    R=ken
+    OCL=32902
+    CL=32914
+
+ src/cmd/gc/walk.c                  | 15 ++++++++++++++-
+ test/{bugs => fixedbugs}/bug159.go |  0
+ test/golden.out                    |  4 ----
+ test/simassign.go                  | 27 +++++++++++++--------------
+ 4 files changed, 27 insertions(+), 19 deletions(-)

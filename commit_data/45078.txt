@@ -1,0 +1,19 @@
+commit 865d2bc78e5b6170c8b773880dc5fa3405791dc2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 9 18:02:48 2021 -0400
+
+    cmd/compile: do not allocate space for unspilled in-register results
+    
+    For function results, if in register, we allocate spill slots
+    within the frame like locals. Currently, even if we never spill
+    to it the slot is still allocated. This CL makes it not allocate
+    the slot if it is never used.
+    
+    Change-Id: Idbd4e3096cfac6d2bdfb501d8efde48ee2191d7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309150
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/ssagen/pgen.go | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)

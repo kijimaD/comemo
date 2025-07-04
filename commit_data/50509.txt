@@ -1,0 +1,25 @@
+commit 0a1118b8a172e64247ce44fcaa7483f24d834c18
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 12 15:51:32 2022 -0700
+
+    go/types, types2: allow (string...) signature with NewSignatureType
+    
+    Includes cases where the core type of the variadic parameter is
+    a slice or bytestring. Permits a client to create the signature
+    for various instantiations of append.
+    
+    Fixes #55030.
+    
+    Change-Id: I0f4983eb00c088cbe1d87954ee0b2df0ccc3bc49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430455
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/issues_test.go | 37 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/signature.go   | 15 +++++++----
+ src/go/types/issues_test.go                    | 37 ++++++++++++++++++++++++++
+ src/go/types/signature.go                      | 11 +++++---
+ 4 files changed, 91 insertions(+), 9 deletions(-)

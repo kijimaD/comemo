@@ -1,0 +1,14 @@
+commit d1ee5d6e8fa2a00d63963fe461bb4d937fb1f705
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 7 14:00:18 2009 -0700
+
+    bug184 - assignment compatibility in unpacked multireturn
+    
+    R=ken
+    OCL=32890
+    CL=32894
+
+ src/cmd/gc/typecheck.c   |  2 ++
+ src/cmd/gc/walk.c        | 45 +++++++++++++++++++++++++++---------------
+ test/fixedbugs/bug184.go | 51 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 82 insertions(+), 16 deletions(-)

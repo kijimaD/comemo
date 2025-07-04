@@ -1,0 +1,18 @@
+commit b1eec186f282f3852cb5e35c1726374507a3321b
+Author: Rob Pike <r@golang.org>
+Date:   Sun Aug 23 17:45:58 2015 +1000
+
+    fmt: in Scanf, %c can scan a space, so don't skip spaces at %c
+    
+    In short, %c should just give you the next rune, period.
+    Apparently this is the design. I use the term loosely.
+    
+    Fixes #12275
+    
+    Change-Id: I6f30bed442c0e88eac2244d465c7d151b29cf393
+    Reviewed-on: https://go-review.googlesource.com/13821
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/fmt/scan.go      | 13 +++++++++----
+ src/fmt/scan_test.go | 11 +++++++----
+ 2 files changed, 16 insertions(+), 8 deletions(-)

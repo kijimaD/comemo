@@ -1,0 +1,26 @@
+commit 335e44d265e7b7741b00237f4fcd97a1b80bfd9a
+Author: Patrick Mezard <patrick@mezard.eu>
+Date:   Sat May 9 15:51:45 2015 +0200
+
+    internal/syscall/windows/registry: fix read overrun in GetStringsValue
+    
+    According to MSDN RegQueryValueEx page:
+    
+      If the data has the REG_SZ, REG_MULTI_SZ or REG_EXPAND_SZ type, the
+      string may not have been stored with the proper terminating null
+      characters. Therefore, even if the function returns ERROR_SUCCESS, the
+      application should ensure that the string is properly terminated before
+      using it; otherwise, it may overwrite a buffer. (Note that REG_MULTI_SZ
+      strings should have two terminating null characters.)
+    
+    Test written by Alex Brainman <alex.brainman@gmail.com>
+    
+    Change-Id: I8c0852e0527e27ceed949134ed5e6de944189986
+    Reviewed-on: https://go-review.googlesource.com/9806
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+
+ .../syscall/windows/registry/export_test.go        | 11 ++++
+ .../syscall/windows/registry/registry_test.go      | 65 ++++++++++++++++++++++
+ src/internal/syscall/windows/registry/value.go     | 12 +++-
+ 3 files changed, 86 insertions(+), 2 deletions(-)

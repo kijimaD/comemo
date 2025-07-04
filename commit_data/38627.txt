@@ -1,0 +1,16 @@
+commit 20389553c7d287a4fffb9718e328a514640a915c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Mar 20 03:58:42 2019 +1100
+
+    crypto/tls: simplify intermediate certificate handling
+    
+    The certificates argument to verifyServerCertificate must contain
+    at least one certificate. Simplify the intermediate certificate
+    handling code accordingly.
+    
+    Change-Id: I8292cdfb51f418e011d6d97f47d10b4e631aa932
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169657
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/tls/handshake_client.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

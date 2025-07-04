@@ -1,0 +1,25 @@
+commit 9f4dd09bf555632a39a01a4c171e713acb55fda9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 21 15:37:29 2020 -0700
+
+    cmd/compile: refactor variadac call desugaring
+    
+    In mid-Walk, we rewrite calls to variadic functions to use explicit
+    slice literals; e.g., rewriting f(a,b,c) into f([]T{a,b,c}...).
+    However, it would be useful to do that rewrite much earlier in the
+    compiler, so that other compiler passes can be simplified.
+    
+    This CL refactors the rewrite logic into a new fixVariadicCall
+    function, which subsequent CLs can more easily move into earlier
+    compiler passes.
+    
+    Passes toolstash-check -race.
+    
+    Change-Id: I408e655f2d3aa00446a2e6accf8765abc3b16a8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229486
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/gc/walk.go | 76 ++++++++++++++++++++-----------------
+ 1 file changed, 41 insertions(+), 35 deletions(-)

@@ -1,0 +1,62 @@
+commit 0fbf6818407366d79a7a388b58718f6c32ef16d2
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Mar 13 11:57:29 2019 +0000
+
+    cmd/compile: reduce rulegen's for loop verbosity
+    
+    A lot of the naked for loops begin like:
+    
+            for {
+                    v := b.Control
+                    if v.Op != OpConstBool {
+                            break
+                    }
+                    ...
+                    return true
+            }
+    
+    Instead, write them out in a more compact and readable way:
+    
+            for v.Op == OpConstBool {
+                    ...
+                    return true
+            }
+    
+    This requires the addition of two bytes.Buffer writers, as this helps us
+    make a decision based on future pieces of generated code. This probably
+    makes rulegen slightly slower, but that's not noticeable; the code
+    generation still takes ~3.5s on my laptop, excluding build time.
+    
+    The "v := b.Control" declaration can be moved to the top of each
+    function. Even though the rules can modify b.Control when firing, they
+    also make the function return, so v can't be used again.
+    
+    While at it, remove three unnecessary lines from the top of each
+    rewriteBlock func.
+    
+    In total, this results in ~4k lines removed from the generated code, and
+    a slight improvement in readability.
+    
+    Change-Id: I317e4c6a4842c64df506f4513375475fad2aeec5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167399
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go        |   74 +-
+ src/cmd/compile/internal/ssa/rewrite386.go         |  637 ++------
+ .../compile/internal/ssa/rewrite386splitload.go    |    5 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       |  877 ++--------
+ .../compile/internal/ssa/rewriteAMD64splitload.go  |    5 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go         | 1711 ++++----------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go       | 1207 +++-----------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go        |  223 +--
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go      |  199 +--
+ src/cmd/compile/internal/ssa/rewritePPC64.go       |  475 +-----
+ src/cmd/compile/internal/ssa/rewriteS390X.go       |  247 +--
+ src/cmd/compile/internal/ssa/rewriteWasm.go        |    5 +-
+ src/cmd/compile/internal/ssa/rewritedec.go         |    5 +-
+ src/cmd/compile/internal/ssa/rewritedec64.go       |    5 +-
+ src/cmd/compile/internal/ssa/rewritedecArgs.go     |    5 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go     |   23 +-
+ 16 files changed, 991 insertions(+), 4712 deletions(-)

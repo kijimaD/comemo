@@ -1,0 +1,16 @@
+commit cdcb8271a411bac78aa886a5998ac2c10b23f058
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 18 01:00:32 2016 +0000
+
+    regexp/syntax: clarify that \Z means Perl's \Z
+    
+    Fixes #14793
+    
+    Change-Id: I408056d096cd6a999fa5e349704b5ea8e26d2e4e
+    Reviewed-on: https://go-review.googlesource.com/23201
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/regexp/syntax/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

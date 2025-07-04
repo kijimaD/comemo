@@ -1,0 +1,16 @@
+commit 240ae7e304c3fe2c22cc903964e19783f9cd6bac
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 19 14:35:02 2018 -0700
+
+    cmd/vet: if a function modifies its args, it's not a print wrapper
+    
+    Fixes #26486
+    Updates #26555
+    
+    Change-Id: I402137b796e574e9b085ab54290d1b4ef73d3fcc
+    Reviewed-on: https://go-review.googlesource.com/125039
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/vet/print.go          | 39 +++++++++++++++++++++++++++++++++------
+ src/cmd/vet/testdata/print.go | 11 +++++++++++
+ 2 files changed, 44 insertions(+), 6 deletions(-)

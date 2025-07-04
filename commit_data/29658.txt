@@ -1,0 +1,12 @@
+commit 7a92d0b1ae0c6a0f997a4282251e45668ca4ed75
+Author: Michal Bohuslávek <mbohuslavek@gmail.com>
+Date:   Tue Nov 29 09:58:35 2016 +0000
+
+    net/http/httptest: fix typo in doc comment
+    
+    Change-Id: I89f276b32015882437e128814573343a4ca53569
+    Reviewed-on: https://go-review.googlesource.com/33615
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httptest/httptest.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

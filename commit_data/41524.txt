@@ -1,0 +1,27 @@
+commit e44cda3aa97ba0870806e65fc66641eb2cf6682a
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 1 17:01:58 2020 +0100
+
+    syscall: fix Fchdir on js/wasm
+    
+    NodeJS does not support fchdir so it has to be emulated with chdir by
+    saving the path when opening a directory.
+    
+    However, if the path opened is relative, saving this path is not
+    sufficient, because after changing the working directory the path
+    does not resolve correctly any more, thus a subsequent fd.Chdir() fails.
+    
+    This change fixes the issue by resolving a relative path when
+    opening the directory and saving the absolute path instead.
+    
+    Fixes #37448
+    
+    Change-Id: Id6bc8c4232b0019fc11e850599a526336608ce54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221717
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/os/os_test.go    | 35 +++++++++++++++++++++++++++++++++++
+ src/syscall/fs_js.go |  4 ++++
+ 2 files changed, 39 insertions(+)

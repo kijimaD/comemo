@@ -1,0 +1,27 @@
+commit b8f54e57c20368db5693b941fd6f79634b067cb0
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Feb 27 16:19:06 2020 +0000
+
+    cmd/go: version command should error when given bad args
+    
+    For example, 'go version -m' happily gives you Go's own version, even
+    though the -m flag only makes sense when grabbing the version of a
+    binary on disk.
+    
+    Similarly, if any of the directly named files can't be found, the tool
+    would succeed. That's acceptable if an error is encountered while
+    walking a large directory, but not when locating a path directly given
+    by the user.
+    
+    These added test cases run even in short mode, as 'go build' is not
+    needed for them.
+    
+    Change-Id: I7bb40b72853799e31d9f86cc5e999c8d57813eef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221397
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/version/version.go |  6 ++++++
+ src/cmd/go/testdata/script/version.txt | 12 ++++++++++++
+ 2 files changed, 18 insertions(+)

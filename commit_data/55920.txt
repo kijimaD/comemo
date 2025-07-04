@@ -1,0 +1,19 @@
+commit 418e6d559e80e9d53e4a4c94656e8fb4bf72b343
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 11 18:16:16 2024 +0100
+
+    os,internal/godebugs: add missing IncNonDefault calls
+    
+    Fixes #66215
+    
+    Change-Id: Id7de15feabe08f66c048dc114c09494813c9febc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570695
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/godebugs/table.go |  4 ++--
+ src/os/file_windows.go         |  1 +
+ src/os/types_windows.go        | 13 +++++++++++--
+ src/runtime/metrics/doc.go     |  8 ++++++++
+ 4 files changed, 22 insertions(+), 4 deletions(-)

@@ -1,0 +1,16 @@
+commit 400f58a0101717639dafea2f80740bbfb250573c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Mar 23 23:13:11 2015 -0400
+
+    runtime: don't trigger write barrier in newosproc for nacl
+    
+    This should fix the intermittent calling write barrier with mp.p == nil
+    failures on the nacl/386 builder.
+    
+    Change-Id: I34aef5ca75ccd2939e6a6ad3f5dacec64903074e
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7973
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/os1_nacl.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

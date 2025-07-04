@@ -1,0 +1,20 @@
+commit a19c925eda6987d91f316639db2ce774725f7a1a
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Nov 20 11:18:15 2020 -0500
+
+    cmd/go: recommend 'go get' command to switch from retracted versions
+    
+    This CL restores a message unintentionally removed in CL 270858.
+    
+    For #24031
+    
+    Change-Id: I957c5c59e624df98e72dfff351298bfc5bf9a9e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272066
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/modget/get.go              | 9 +++++++++
+ src/cmd/go/testdata/script/mod_get_retract.txt | 1 +
+ 2 files changed, 10 insertions(+)

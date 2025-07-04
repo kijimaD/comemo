@@ -1,0 +1,23 @@
+commit a8cd10f2ab66d15ec43c6c6f688c3362f638237f
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 14 16:30:38 2023 -0500
+
+    runtime: add arg storage to ppc64le/linux runtime.sigprofNonGoWrapper frame
+    
+    CL 475935 fixed the the ELFv2 ABI violations, but in the process created a
+    Go ABI violation by failing to allocate stack space for arguments.
+    
+    Allocate this space while keeping the frame 16 byte aligned.
+    
+    Updates #58953
+    
+    Change-Id: I9942d9a433118b391ef8cd7bcea5808695cf94d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476296
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/sys_linux_ppc64x.s | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

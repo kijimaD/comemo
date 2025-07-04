@@ -1,0 +1,18 @@
+commit 940d41e386d92bda0f4fb39541df89ed424a012d
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Nov 10 11:23:41 2015 +0900
+
+    net: make TestInterfaceList work on non-English Windows
+    
+    Fixes #13198
+    
+    The output of netsh is encoded with ANSI encoding. So doesn't match with UTF-8 strings.
+    Write output as UTF-8 using powershell.
+    
+    Change-Id: I6c7e93c590ed407f24ae847601d71df9523e028c
+    Reviewed-on: https://go-review.googlesource.com/16756
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/net/net_windows_test.go | 34 ++++++++++++++++++++++++++++++++--
+ 1 file changed, 32 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit e48434887e568fa96800a0dff36ab45bc844ea04
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 20 21:46:39 2016 -0700
+
+    cmd/compile: fix ssa/check/on build
+    
+    Disable phielimValue from rewrite pass for now.
+    
+    Change-Id: I9f3bb1f527b50bc7a21cc6b7cb89f6136efd81e8
+    Reviewed-on: https://go-review.googlesource.com/22335
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/rewrite.go | 2 --
+ 1 file changed, 2 deletions(-)

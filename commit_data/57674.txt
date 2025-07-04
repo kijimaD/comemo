@@ -1,0 +1,60 @@
+commit ef3e1dae2f151ddca4ba50ed8b9a98381d7e9158
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Thu Sep 26 14:17:17 2024 +0800
+
+    cmd/compile: optimize loong64 with register indexed load/store
+    
+    goos: linux
+    goarch: loong64
+    pkg: test/bench/go1
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                          |  bench.old  |              bench.new              |
+                          |   sec/op    |   sec/op     vs base                |
+    BinaryTree17             7.766 ± 1%    7.640 ± 2%   -1.62% (p=0.000 n=20)
+    Fannkuch11               2.649 ± 0%    2.358 ± 0%  -10.96% (p=0.000 n=20)
+    FmtFprintfEmpty         35.89n ± 0%   35.87n ± 0%   -0.06% (p=0.000 n=20)
+    FmtFprintfString        59.44n ± 0%   57.25n ± 2%   -3.68% (p=0.000 n=20)
+    FmtFprintfInt           62.07n ± 0%   60.04n ± 0%   -3.27% (p=0.000 n=20)
+    FmtFprintfIntInt        97.90n ± 0%   97.26n ± 0%   -0.65% (p=0.000 n=20)
+    FmtFprintfPrefixedInt   116.7n ± 0%   119.2n ± 0%   +2.14% (p=0.000 n=20)
+    FmtFprintfFloat         204.5n ± 0%   201.9n ± 0%   -1.30% (p=0.000 n=20)
+    FmtManyArgs             455.9n ± 0%   466.8n ± 0%   +2.39% (p=0.000 n=20)
+    GobDecode               7.458m ± 1%   7.138m ± 1%   -4.28% (p=0.000 n=20)
+    GobEncode               8.573m ± 1%   8.473m ± 1%        ~ (p=0.091 n=20)
+    Gzip                    280.2m ± 0%   284.9m ± 0%   +1.67% (p=0.000 n=20)
+    Gunzip                  32.68m ± 0%   32.67m ± 0%        ~ (p=0.211 n=20)
+    HTTPClientServer        54.22µ ± 0%   53.24µ ± 0%   -1.80% (p=0.000 n=20)
+    JSONEncode              9.427m ± 1%   9.152m ± 0%   -2.92% (p=0.000 n=20)
+    JSONDecode              47.08m ± 1%   46.85m ± 1%   -0.49% (p=0.007 n=20)
+    Mandelbrot200           4.601m ± 0%   4.605m ± 0%   +0.08% (p=0.000 n=20)
+    GoParse                 4.776m ± 0%   4.655m ± 1%   -2.52% (p=0.000 n=20)
+    RegexpMatchEasy0_32     59.77n ± 0%   57.59n ± 0%   -3.66% (p=0.000 n=20)
+    RegexpMatchEasy0_1K     458.1n ± 0%   458.8n ± 0%   +0.15% (p=0.000 n=20)
+    RegexpMatchEasy1_32     59.36n ± 0%   59.24n ± 0%   -0.20% (p=0.000 n=20)
+    RegexpMatchEasy1_1K     557.7n ± 0%   560.2n ± 0%   +0.46% (p=0.000 n=20)
+    RegexpMatchMedium_32    803.1n ± 0%   772.8n ± 0%   -3.77% (p=0.000 n=20)
+    RegexpMatchMedium_1K    27.29µ ± 0%   25.88µ ± 0%   -5.18% (p=0.000 n=20)
+    RegexpMatchHard_32      1.385µ ± 0%   1.304µ ± 0%   -5.85% (p=0.000 n=20)
+    RegexpMatchHard_1K      40.92µ ± 0%   39.58µ ± 0%   -3.27% (p=0.000 n=20)
+    Revcomp                 474.3m ± 0%   410.0m ± 0%  -13.56% (p=0.000 n=20)
+    Template                78.16m ± 0%   76.32m ± 1%   -2.36% (p=0.000 n=20)
+    TimeParse               271.8n ± 0%   272.1n ± 0%   +0.11% (p=0.000 n=20)
+    TimeFormat              292.3n ± 0%   294.8n ± 0%   +0.86% (p=0.000 n=20)
+    geomean                 51.98µ        50.82µ        -2.22%
+    
+    Change-Id: Ia78f1ddee8f1d9ec7192a4b8d2a4ec6058679956
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615918
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+
+ src/cmd/compile/internal/loong64/ssa.go         |   40 +
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |   67 ++
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |   29 +
+ src/cmd/compile/internal/ssa/opGen.go           |  261 +++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 1299 ++++++++++++++++++++++-
+ test/codegen/floats.go                          |    2 +
+ test/codegen/memcombine.go                      |    6 +
+ 7 files changed, 1691 insertions(+), 13 deletions(-)

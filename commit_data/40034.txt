@@ -1,0 +1,38 @@
+commit cf03238020365e3adc86c312c78920d9dc2f780a
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Fri Sep 13 13:28:49 2019 +0100
+
+    cmd/compile: use numeric condition code masks on s390x
+    
+    Prior to this CL conditional branches on s390x always used an
+    extended mnemonic such as BNE, BLT and so on to represent branch
+    instructions with different condition code masks. This CL adds
+    support for numeric condition code masks to the s390x SSA backend
+    so that we can encode the condition under which a Block's
+    successor is chosen as a field in that Block rather than in its
+    type.
+    
+    This change will be useful as we come to add support for combined
+    compare-and-branch instructions. Rather than trying to add extended
+    mnemonics for every possible combination of mask and compare-and-
+    branch instruction we can instead use a single mnemonic for each
+    instruction.
+    
+    Change-Id: Idb7458f187b50906877d683695c291dff5279553
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197178
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/s390x/ssa.go        |   55 +-
+ src/cmd/compile/internal/ssa/check.go        |    2 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  244 ++--
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |   27 +-
+ src/cmd/compile/internal/ssa/gen/main.go     |    1 +
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |   12 +-
+ src/cmd/compile/internal/ssa/loop_test.go    |    9 +-
+ src/cmd/compile/internal/ssa/op.go           |    1 +
+ src/cmd/compile/internal/ssa/opGen.go        |  137 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 1858 ++++++++------------------
+ src/cmd/compile/internal/ssa/value.go        |    2 +-
+ src/cmd/internal/obj/s390x/asmz.go           |   48 +-
+ src/cmd/internal/obj/s390x/condition_code.go |  120 ++
+ 13 files changed, 878 insertions(+), 1638 deletions(-)

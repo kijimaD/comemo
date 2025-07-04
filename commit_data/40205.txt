@@ -1,0 +1,41 @@
+commit 3322f3e0ce6e8a8bbdd8e17803887a1f7119a52e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Oct 2 17:51:54 2019 -0400
+
+    cmd/go: forbid resolving import to modules when outside of a module
+    
+    When in module mode outside of any module, 'go build' and most other
+    commands will now report an error instead of resolving a package path
+    to a module.
+    
+    Previously, most commands would attempt to find the latest version of
+    a module providing the package. This could be very slow if many
+    packages needed to be resolved this way. Since there is no go.mod file
+    where module requirements can be saved, it's a repeatedly slow and
+    confusing experience.
+    
+    After this change, 'go build' and other commands may still be used
+    outside of a module on packages in std and source files (.go
+    arguments) that only import packages in std. Listing any other package
+    on the command line or importing a package outside std will cause an
+    error.
+    
+    'go get' is exempted from the new behavior, since it's expected that
+    'go get' resolves paths to modules at new versions.
+    
+    Updates #32027
+    
+    Change-Id: Ia9d3a3b4ad738ca5423472e17818d62b96a2c959
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198778
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modget/get.go                  |   4 +
+ src/cmd/go/internal/modload/import.go              |   6 ++
+ src/cmd/go/internal/modload/import_test.go         |   4 +
+ src/cmd/go/internal/modload/init.go                |  41 +++----
+ src/cmd/go/testdata/script/build_trimpath.txt      |   6 +-
+ .../testdata/script/mod_missingpkg_prerelease.txt  |   5 +
+ src/cmd/go/testdata/script/mod_outside.txt         | 118 +++++++++++++++------
+ 7 files changed, 130 insertions(+), 54 deletions(-)

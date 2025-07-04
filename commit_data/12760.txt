@@ -1,0 +1,12 @@
+commit 1b89d514d7d03c1c446df1fb8d4be511b34d3163
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 27 11:19:30 2012 +1100
+
+    doc: describe the Windows MSI installer as experimental
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5921043
+
+ doc/install.html | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

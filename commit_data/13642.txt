@@ -1,0 +1,16 @@
+commit 1b6557a0cf54a901db38b13b78f919b7959286ee
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Aug 17 21:53:02 2012 +1000
+
+    runtime: fix netbsd/386 stack pointer handling
+    
+    When manipulating the stack pointer use the UESP register instead
+    of the ESP register, since the UESP register is the one that gets
+    restored from the machine context. Fixes broken tests on netbsd/386.
+    
+    R=golang-dev, minux.ma, r, bsiegert
+    CC=golang-dev
+    https://golang.org/cl/6465054
+
+ src/pkg/runtime/signal_netbsd_386.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

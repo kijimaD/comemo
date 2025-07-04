@@ -1,0 +1,21 @@
+commit fc2915fabdda25912058b4e51b385e73e8ed2b4b
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Mon Oct 7 11:30:01 2019 +0800
+
+    bytes: add endian base compare test
+    
+    The current bytes test suit didn't come with endian based test
+    which causing #34549 can passed the try-bot.
+    This test will failed when little endian architecture simply using
+    load and compare uint.
+    
+    Update #34549
+    
+    Change-Id: I0973c2cd505ce21c2bed1deeb7d526f1e872118d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198358
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/compare_test.go | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

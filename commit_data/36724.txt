@@ -1,0 +1,25 @@
+commit 5b3aafe2b51b5455a42a65cca1cf0e8393970c03
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 24 17:30:48 2018 +0000
+
+    net: don't reject domain names with only numbers and hyphens
+    
+    From https://github.com/golang/go/issues/17659#issuecomment-423113606 ...
+    
+    > In kubernetes , isDomainName reject Pods "A Record" "pod-ip-address",
+    > for example: "172-17-0-16", as RFC 3696 section 2 requires
+    > "top-level domain names not be all-numeric", but this example has
+    > three hyphen, so I think it should not be reject.
+    
+    Updates #17659
+    
+    Change-Id: Ibd8ffb9473d69c45c91525953c09c6749233ca20
+    Reviewed-on: https://go-review.googlesource.com/136900
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Gudger <igudger@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/dnsclient.go    | 7 ++++---
+ src/net/dnsname_test.go | 1 +
+ 2 files changed, 5 insertions(+), 3 deletions(-)

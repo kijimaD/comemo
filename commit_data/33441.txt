@@ -1,0 +1,26 @@
+commit e247f4654ed437b2327ef2324fc0a8c9a22eae9b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 5 20:30:35 2017 -0500
+
+    cmd/dist: read dependencies from source files
+    
+    I do not remember why we require deps.go to have a hard-coded
+    copy of the dependency information for cmd/go, when we can
+    read it from the source files instead. The answer probably involves
+    cmd/dist once being a C program.
+    
+    In any event, stop doing that, which will eliminate the builder-only
+    failures in the builder-only deps test.
+    
+    Change-Id: I0abd384c47401940ca08427b5be544812edcbe7f
+    Reviewed-on: https://go-review.googlesource.com/76021
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/build.go     |  80 ++--
+ src/cmd/dist/deps.go      | 928 ----------------------------------------------
+ src/cmd/dist/deps_test.go | 104 ------
+ src/cmd/dist/imports.go   | 245 ++++++++++++
+ src/cmd/dist/mkdeps.bash  |  14 -
+ src/cmd/dist/mkdeps.go    | 187 ----------
+ 6 files changed, 295 insertions(+), 1263 deletions(-)

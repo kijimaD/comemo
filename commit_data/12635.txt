@@ -1,0 +1,15 @@
+commit 95a8bab7b6db9c63281a0055b1a2471818129cd5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 14 15:12:57 2012 -0400
+
+    cmd/go: fix directory->import path conversion
+    
+    Fixes #3306.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5821048
+
+ src/cmd/go/pkg.go    | 12 ++++++++-
+ src/cmd/go/test.bash | 71 +++++++++++++++++++++++++++++++---------------------
+ 2 files changed, 53 insertions(+), 30 deletions(-)

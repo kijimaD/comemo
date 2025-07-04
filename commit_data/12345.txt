@@ -1,0 +1,24 @@
+commit f1d3ff1660f227154d05297654dc58c052711c34
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 3 23:14:20 2012 +1100
+
+    text/template: clean up function values
+    The recent addition of automatic function invocation generated
+    some troublesome ambiguities. Restore the previous behavior
+    and compensate by providing a "call" builtin to make it easy to
+    do what the automatic invocation did, but in a clear and explicit
+    manner.
+    
+    Fixes #3140.
+    
+    At least for now.
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/5720065
+
+ src/pkg/text/template/doc.go       | 23 +++++++++++-------
+ src/pkg/text/template/exec.go      |  5 +---
+ src/pkg/text/template/exec_test.go | 28 +++++++++++++++++-----
+ src/pkg/text/template/funcs.go     | 48 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 86 insertions(+), 18 deletions(-)

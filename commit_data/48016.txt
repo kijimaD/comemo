@@ -1,0 +1,20 @@
+commit 8cfbb58bc70b9f9126a3310ac564344cc08c604b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jan 25 16:49:59 2022 -0800
+
+    cmd/compile/internal/types2: remove (*Signature).SetRecvTypeParams
+    
+    This method isn't available in go/types, and its use by unified IR is
+    non-essential. This CL refactors reader2.go to avoid using it and then
+    removes the method.
+    
+    Change-Id: I813c93a062c43292bb6760686ef91df5219534a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380834
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/noder/reader2.go    | 16 +++++++---------
+ src/cmd/compile/internal/types2/signature.go |  3 ---
+ 2 files changed, 7 insertions(+), 12 deletions(-)

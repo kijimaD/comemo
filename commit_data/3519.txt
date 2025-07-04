@@ -1,0 +1,17 @@
+commit fd4767f2c5328a14b50874ad3a25518c673ccd12
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 13 12:37:28 2009 -0700
+
+    rename the source directory for gopack from ar to gopack.
+    remove the references to 6ar
+    
+    R=rsc
+    DELTA=3547  (1770 added, 1775 deleted, 2 changed)
+    OCL=35669
+    CL=35671
+
+ src/cmd/clean.bash              | 2 +-
+ src/cmd/{ar => gopack}/Makefile | 4 ----
+ src/cmd/{ar => gopack}/ar.c     | 0
+ src/cmd/make.bash               | 2 +-
+ 4 files changed, 2 insertions(+), 6 deletions(-)

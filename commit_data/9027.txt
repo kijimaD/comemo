@@ -1,0 +1,15 @@
+commit 0f8678a74730c69ca19f2589ae45d9d2eb3d302e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jul 12 17:27:07 2011 +1000
+
+    go/build: include processing of .c files for cgo packages
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4696041
+
+ src/pkg/go/build/build.go           | 12 ++++++++++--
+ src/pkg/go/build/cgotest/cgotest.c  |  9 +++++++++
+ src/pkg/go/build/cgotest/cgotest.go |  7 +++++++
+ src/pkg/go/build/cgotest/cgotest.h  |  5 +++++
+ 4 files changed, 31 insertions(+), 2 deletions(-)

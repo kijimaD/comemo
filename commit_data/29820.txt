@@ -1,0 +1,14 @@
+commit cd2b6bd3c4a7489299e291a74ef7f845aa80c995
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 13 21:02:14 2016 -0800
+
+    net: fix consecutive dialing docs
+    
+    Update #17617.
+    
+    Change-Id: Ia0bc9954bb914b650b7c7af35ef714ca6b0740b4
+    Reviewed-on: https://go-review.googlesource.com/34376
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

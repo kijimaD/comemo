@@ -1,0 +1,24 @@
+commit fb2af2b35b8d2ad832f2398e981ea78c64b0663b
+Author: David Chase <drchase@google.com>
+Date:   Fri Feb 19 12:06:31 2016 -0500
+
+    cmd/compile: don't walk field-name syntax in esc.go
+    
+    Walking the field name as if it were an expression
+    caused a called to haspointers with a TFIELD, which panics.
+    Trigger was a field at a large offset within a large struct,
+    combined with a struct literal expression mentioning that
+    field.
+    
+    Fixes #14405
+    
+    Change-Id: I4589badae27cf3d7cf365f3a66c13447512f41f9
+    Reviewed-on: https://go-review.googlesource.com/19699
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go | 13 ++++++++++---
+ src/cmd/compile/internal/gc/fmt.go |  2 +-
+ test/fixedbugs/issue14405.go       | 17 +++++++++++++++++
+ 3 files changed, 28 insertions(+), 4 deletions(-)

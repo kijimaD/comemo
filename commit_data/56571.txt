@@ -1,0 +1,22 @@
+commit be0b569caa0eab1a7f30edf64e550bbf5f6ff235
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Mon May 13 12:23:58 2024 -0700
+
+    runtime: prepare for extensions to waiting M list
+    
+    Move the nextwaitm field into a small struct, in preparation for
+    additional metadata to track how long Ms need to wait for locks.
+    
+    For #66999
+    
+    Change-Id: Ib40e43c15cde22f7e35922641107973d99439ecd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585635
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/runtime/lock_sema.go | 10 +++++-----
+ src/runtime/mprof.go     | 11 +++++++++++
+ src/runtime/runtime2.go  |  2 +-
+ 3 files changed, 17 insertions(+), 6 deletions(-)

@@ -1,0 +1,14 @@
+commit 0f61ae7e17cb13ad530b6c6708157d7b8dc0aa8f
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Jun 28 17:40:05 2017 -0400
+
+    go/ast: improve comment on FuncDecl.Body
+    
+    "Forward declaration" suggests that declarations must precede calls.
+    
+    Change-Id: I1b3a26b58f52a39bc11d75696df928a6b66c7313
+    Reviewed-on: https://go-review.googlesource.com/47073
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/ast/ast.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

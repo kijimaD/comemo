@@ -1,0 +1,37 @@
+commit 83746fd55a13e47c9b4d33237185965a1ebdb5e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 29 10:16:40 2015 -0500
+
+    cmd/link: use current GOROOT for source file paths for standard library
+    
+    This CL changes the source file information in the
+    standard library's .a files to say "$GOROOT/src/runtime/chan.go"
+    (with a literal "$GOROOT") instead of spelling out the actual directory.
+    The linker then substitutes the actual $GOROOT (or $GOROOT_FINAL)
+    as appropriate.
+    
+    If people download a binary distribution to an alternate location,
+    following the instructions at https://golang.org/doc/install#install,
+    the code before this CL would end up with source paths pointing to
+    /usr/local/go no matter where the actual sources were.
+    Now the source paths for built binaries will point to the actual sources
+    (hopefully).
+    
+    The source line information in distributed binaries is not affected:
+    those will still say /usr/local/go. But binaries people build themselves
+    (their own programs, not the go distribution programs) will be correct.
+    
+    Fixing this path also fixes the lookup of the runtime-gdb.py file.
+    
+    Fixes #5533.
+    
+    Change-Id: I03729baae3fbd8cd636e016275ee5ad2606e4663
+    Reviewed-on: https://go-review.googlesource.com/18200
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/obj.go      |  6 +++---
+ src/cmd/link/internal/ld/pcln.go | 15 +++++++++++++++
+ src/runtime/runtime-gdb_test.go  |  6 +++++-
+ 3 files changed, 23 insertions(+), 4 deletions(-)

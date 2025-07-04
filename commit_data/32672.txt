@@ -1,0 +1,20 @@
+commit 410b73728f2cddb5e7bce3acd623e8a254af60db
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sun Sep 10 09:01:30 2017 +0900
+
+    cmd/link: remove windows-specific kludges from Adddynrel
+    
+    Adddynrel does nothing on windows. We can make code don't call Adddynrel
+    on windows in the first place.
+    
+    Change-Id: I376cc36d44a5df18bda13be57e3916ca3062f181
+    Reviewed-on: https://go-review.googlesource.com/62611
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/cmd/link/internal/amd64/asm.go | 20 +++++---------------
+ src/cmd/link/internal/ld/data.go   |  6 ++++--
+ src/cmd/link/internal/x86/asm.go   |  5 -----
+ 3 files changed, 9 insertions(+), 22 deletions(-)

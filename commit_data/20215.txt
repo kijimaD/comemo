@@ -1,0 +1,28 @@
+commit 1a976f1576f2220ca78cb7094b2fea3e88a8b4ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Aug 30 00:16:07 2014 -0400
+
+    undo CL 135230043 / 60812bad3769
+    
+    broke api check everywhere
+    
+    ««« original CL description
+    runtime: fix openbsd build
+    
+    LGTM=iant
+    R=iant, minux
+    CC=golang-codereviews, jsing
+    https://golang.org/cl/135230043
+    
+    »»»
+    
+    TBR=mdempsky
+    CC=golang-codereviews
+    https://golang.org/cl/137010043
+
+ src/pkg/runtime/defs_openbsd.go      | 4 ++--
+ src/pkg/runtime/defs_openbsd_386.h   | 4 ++--
+ src/pkg/runtime/defs_openbsd_amd64.h | 4 ++--
+ src/pkg/runtime/os_openbsd.c         | 6 +++---
+ src/pkg/runtime/os_openbsd.go        | 2 +-
+ 5 files changed, 10 insertions(+), 10 deletions(-)

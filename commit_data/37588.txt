@@ -1,0 +1,12 @@
+commit ccb8735ba2ec75457b9885382d8e56325134a50a
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Tue Dec 4 16:22:26 2018 -0500
+
+    doc/go1.12: add some package release notes
+    
+    Change-Id: I845eab3c98a3d472c71310de4e0475045eb59d4e
+    Reviewed-on: https://go-review.googlesource.com/c/152619
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.12.html | 51 +++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 41 insertions(+), 10 deletions(-)

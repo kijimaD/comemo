@@ -1,0 +1,20 @@
+commit da6cc218cbe22b865ed43a84c1198c5ee15f3371
+Author: Liam Miller-Cushon <cushon@google.com>
+Date:   Wed Apr 3 22:43:58 2024 +0000
+
+    archive/zip: fix a broken URL in a comment in writeDataDescriptor
+    
+    The comment contains a dead link to a OpenJDK bug ID 7073588
+    this change fixes the link.
+    
+    Change-Id: Ib9b10362c707507e59bb6f340d52a0025f65e292
+    GitHub-Last-Rev: 37af15b947a59346e23191dad264efa0aaa461af
+    GitHub-Pull-Request: golang/go#66669
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576335
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/archive/zip/writer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

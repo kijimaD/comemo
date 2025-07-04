@@ -1,0 +1,12 @@
+commit 52c2db7e6d68b68938d904864ee484e7b5dd5d52
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 27 12:15:04 2016 -0400
+
+    doc/go1.7.html: fix broken sentence
+    
+    Change-Id: Ia540c890767dcb001d3b3b55d98d9517b13b21da
+    Reviewed-on: https://go-review.googlesource.com/23510
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.7.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

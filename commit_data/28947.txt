@@ -1,0 +1,15 @@
+commit f35b8658dca82f317251f7947964fb2878b57a85
+Author: Quentin Smith <quentin@golang.org>
+Date:   Tue Oct 18 15:54:04 2016 -0400
+
+    doc: update install-source.html for SSA in Go 1.8
+    
+    Fixes #17491
+    
+    Change-Id: Ic070cbed60fa893fed568e8fac448b86cd3e0cbc
+    Reviewed-on: https://go-review.googlesource.com/31411
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/install-source.html | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

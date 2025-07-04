@@ -1,0 +1,10 @@
+commit 2b77d87fcaa14c57d0de9f81c897a645fad850dd
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jun 5 16:54:34 2008 -0700
+
+    goos and goarch
+    
+    SVN=121345
+
+ src/runtime/rt0_amd64_linux.s | 87 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 87 insertions(+)

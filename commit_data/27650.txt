@@ -1,0 +1,21 @@
+commit 41dd1696ab13755bf7a129e0c73523ffb9fcbe66
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 7 09:54:09 2016 -0700
+
+    cmd/compile: fix heap dump test on android
+    
+    go_android_exec is looking for "exitcode=" to decide the result
+    of running a test.  The heap dump test nondeterministically prints
+    "finalized" right at the end of the test.  When the timing is just
+    right, we print "finalizedexitcode=0" and confuse go_android_exec.
+    
+    This failure happens occasionally on the android builders.
+    
+    Change-Id: I4f73a4db05d8f40047ecd3ef3a881a4ae3741e26
+    Reviewed-on: https://go-review.googlesource.com/23861
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/debug/heapdump_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

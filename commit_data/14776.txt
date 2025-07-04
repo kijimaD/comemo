@@ -1,0 +1,32 @@
+commit 9afb34b42e5d7568dab3a12f137aa80314b2c6f8
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Jan 2 22:55:23 2013 +0100
+
+    cmd/dist, cmd/8g: implement GO386=387/sse to choose FPU flavour.
+    
+    A new environment variable GO386 is introduced to choose between
+    code generation targeting 387 or SSE2. No auto-detection is
+    performed and the setting defaults to 387 to preserve previous
+    behaviour.
+    
+    The patch is a reorganization of CL6549052 by rsc.
+    
+    Fixes #3912.
+    
+    R=minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6962043
+
+ include/libc.h       |   1 +
+ src/cmd/8g/cgen.c    | 134 ++---------
+ src/cmd/8g/gg.h      |   2 +
+ src/cmd/8g/ggen.c    | 307 +++++++++++++++++++++++++
+ src/cmd/8g/gsubr.c   | 630 ++++++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/8g/list.c    |   9 +
+ src/cmd/8g/peep.c    |  66 +++++-
+ src/cmd/8g/reg.c     |  91 +++++++-
+ src/cmd/dist/build.c |  10 +
+ src/cmd/gc/go.h      |   1 +
+ src/cmd/gc/lex.c     |   1 +
+ src/lib9/goos.c      |   6 +
+ 12 files changed, 1000 insertions(+), 258 deletions(-)

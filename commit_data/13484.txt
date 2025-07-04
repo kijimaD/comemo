@@ -1,0 +1,13 @@
+commit b575a98121a60f2c74782130d639fa636d41e98a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 20 16:58:08 2012 -0700
+
+    cgo: add -gccgopkgpath option to match gccgo -fgo-pkgpath
+    
+    R=golang-dev, r, iant
+    CC=golang-dev
+    https://golang.org/cl/6416056
+
+ src/cmd/cgo/main.go |  3 ++-
+ src/cmd/cgo/out.go  | 18 ++++++++++++++++--
+ 2 files changed, 18 insertions(+), 3 deletions(-)

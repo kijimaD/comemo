@@ -1,0 +1,24 @@
+commit 83092a40ac606d87169fd6d0ee40f20bc93adeaf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 27 14:18:31 2018 -0700
+
+    reflect: prevent additional StructOf embedded method cases
+    
+    The current implementation does not generate wrappers for methods of
+    embedded non-interface types. We can only skip the wrapper if
+    kindDirectIface of the generated struct type matches kindDirectIface
+    of the embedded type. Panic if that is not the case.
+    
+    It would be better to actually generate wrappers, but that can be done
+    later.
+    
+    Updates #15924
+    Fixes #24782
+    
+    Change-Id: I01f5c76d9a07f44e1b04861bfe9f9916a04e65ca
+    Reviewed-on: https://go-review.googlesource.com/121316
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/all_test.go | 88 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/reflect/type.go     |  6 ++++
+ 2 files changed, 93 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit fa4df6597eb7ed07a9a835a8b68c37282709f79e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 12 14:01:44 2022 -0800
+
+    go/types, types2: avoid field/method lookup error on invalid types
+    
+    Fixes #49541.
+    
+    Change-Id: I27a52d0722a7408758682e7ddcd608c0a6c4881b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378175
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go            |  5 +++
+ src/cmd/compile/internal/types2/instantiate.go     |  5 ++-
+ .../types2/testdata/fixedbugs/issue49541.go2       | 44 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/typeset.go         |  2 +-
+ src/go/types/call.go                               |  5 +++
+ src/go/types/instantiate.go                        |  5 ++-
+ src/go/types/testdata/fixedbugs/issue49541.go2     | 44 ++++++++++++++++++++++
+ src/go/types/typeset.go                            |  2 +-
+ 8 files changed, 108 insertions(+), 4 deletions(-)

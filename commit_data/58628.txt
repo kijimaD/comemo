@@ -1,0 +1,19 @@
+commit 7c6b047ea14dcc6aa948f901956511c4e8691abf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 9 14:42:16 2025 -0800
+
+    encoding/base64: use internal/byteorder
+    
+    This permits us to remove the dependency on reflect.
+    
+    Change-Id: I60b1e9fd713f340bfd5eec2edfa58fc724a8e2d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641936
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/base64/base64.go |  6 +++---
+ src/go/build/deps_test.go     | 11 ++++++-----
+ 2 files changed, 9 insertions(+), 8 deletions(-)

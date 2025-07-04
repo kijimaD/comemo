@@ -1,0 +1,12 @@
+commit 401062f720065697bf3461d8d705bf4615320ff0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 16 17:30:33 2010 -0800
+
+    gc: fix build (signed char bug)
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/210043
+
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

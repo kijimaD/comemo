@@ -1,0 +1,13 @@
+commit d446ba99a4e2b147de3afc29ff8d6ddfa4041203
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 17 16:31:56 2015 -0800
+
+    runtime: document stack barrier synchronization rules
+    
+    Change-Id: I545e53561f37bceabd26d814d272cecc3ff19847
+    Reviewed-on: https://go-review.googlesource.com/18024
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mstkbar.go  | 22 ++++++++++++++++++++++
+ src/runtime/runtime2.go |  2 +-
+ 2 files changed, 23 insertions(+), 1 deletion(-)

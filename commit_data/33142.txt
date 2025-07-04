@@ -1,0 +1,46 @@
+commit 18508740b98db671608773c5f39bfa2718370f50
+Author: Wei Xiao <Wei.Xiao@arm.com>
+Date:   Fri Jul 7 10:27:57 2017 +0800
+
+    reflect: optimize CALLFN wrapper for arm64
+    
+    Optimize arm64 CALLFN wrapper with LDP/STP instructions.
+    This provides a significant speedup for big argument copy.
+    Benchmark results for reflect:
+    
+    name                      old time/op    new time/op     delta
+    Call-8                      79.0ns ± 4%     73.6ns ± 4%    -6.78%  (p=0.000 n=10+10)
+    CallArgCopy/size=128-8      80.5ns ± 0%     60.3ns ± 0%   -25.06%  (p=0.000 n=10+9)
+    CallArgCopy/size=256-8       119ns ± 2%       67ns ± 1%   -43.59%  (p=0.000 n=8+10)
+    CallArgCopy/size=1024-8      524ns ± 1%       99ns ± 1%   -81.03%  (p=0.000 n=10+10)
+    CallArgCopy/size=4096-8      837ns ± 0%      231ns ± 1%   -72.42%  (p=0.000 n=9+9)
+    CallArgCopy/size=65536-8    13.6µs ± 6%      3.1µs ± 1%   -77.38%  (p=0.000 n=10+10)
+    PtrTo-8                     12.9ns ± 0%     13.1ns ± 3%    +1.86%  (p=0.000 n=10+10)
+    FieldByName1-8              28.7ns ± 2%     28.6ns ± 2%      ~     (p=0.408 n=9+10)
+    FieldByName2-8               928ns ± 4%      946ns ± 8%      ~     (p=0.326 n=9+10)
+    FieldByName3-8              5.35µs ± 5%     5.32µs ± 5%      ~     (p=0.755 n=10+10)
+    InterfaceBig-8              2.57ns ± 0%     2.57ns ± 0%      ~     (all equal)
+    InterfaceSmall-8            2.57ns ± 0%     2.57ns ± 0%      ~     (all equal)
+    New-8                       9.09ns ± 1%     8.83ns ± 1%    -2.81%  (p=0.000 n=10+9)
+    
+    name                      old alloc/op   new alloc/op    delta
+    Call-8                       0.00B           0.00B           ~     (all equal)
+    
+    name                      old allocs/op  new allocs/op   delta
+    Call-8                        0.00            0.00           ~     (all equal)
+    
+    name                      old speed      new speed       delta
+    CallArgCopy/size=128-8    1.59GB/s ± 0%   2.12GB/s ± 1%   +33.46%  (p=0.000 n=10+9)
+    CallArgCopy/size=256-8    2.14GB/s ± 2%   3.81GB/s ± 1%   +78.02%  (p=0.000 n=8+10)
+    CallArgCopy/size=1024-8   1.95GB/s ± 1%  10.30GB/s ± 0%  +427.99%  (p=0.000 n=10+9)
+    CallArgCopy/size=4096-8   4.89GB/s ± 0%  17.69GB/s ± 1%  +261.87%  (p=0.000 n=9+9)
+    CallArgCopy/size=65536-8  4.84GB/s ± 6%  21.36GB/s ± 1%  +341.67%  (p=0.000 n=10+10)
+    
+    Change-Id: I775d88b30c43cb2eda1d0612ac15e6d283e70beb
+    Reviewed-on: https://go-review.googlesource.com/70570
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/asm_arm64.s | 30 ++++++++++++++++++++----------
+ 1 file changed, 20 insertions(+), 10 deletions(-)

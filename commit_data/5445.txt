@@ -1,0 +1,12 @@
+commit 954ea53582eaff84a560b12ce880d084d7ea428f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 5 12:49:59 2010 -0700
+
+    CONTRIBUTORS: add Brad Fitzpatrick (Google Inc)
+    
+    R=r, bradfitzpatrick
+    CC=golang-dev
+    https://golang.org/cl/1118041
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

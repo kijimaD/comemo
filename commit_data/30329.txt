@@ -1,0 +1,21 @@
+commit 3892d507964dce100c55c3fa14f414bd14c34e98
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Feb 19 11:34:29 2017 +0100
+
+    cmd/compile: remove unused constant divide strength reduction code
+    
+    Change list https://golang.org/cl/37015/ moved the optimization
+    of division by constants to the generic ssa backend.
+    This removes the old now unused code that was used
+    for this optimization outside of the ssa backend.
+    
+    Change-Id: I86223e56742e48dbb372ba8d779681e66448c513
+    Reviewed-on: https://go-review.googlesource.com/37198
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/magic.go | 220 -----------------------------------
+ 1 file changed, 220 deletions(-)

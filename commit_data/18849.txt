@@ -1,0 +1,18 @@
+commit 12474d01c4c68f3ca4a7cbc5a3d20419cbccaba8
+Author: Michael Hudson-Doyle <michael.hudson@linaro.org>
+Date:   Wed Mar 12 23:05:54 2014 -0400
+
+    cmd/go: use correct libraries during gccgo link
+    
+    Under some circumstances, gccgoToolchain's ld can pass the path of
+    build outputs that have been deleted to the link command.
+    
+    Fixes #7303.
+    
+    LGTM=rsc
+    R=golang-codereviews, dave, michael.hudson, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/61970044
+
+ src/cmd/go/build.go | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)

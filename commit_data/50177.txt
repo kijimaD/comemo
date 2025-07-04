@@ -1,0 +1,18 @@
+commit b0144b384318e17b7b4facdbbd2fff3712085eab
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Aug 26 15:10:46 2022 -0700
+
+    sync: switch Map to use atomic.Pointer
+    
+    There was no noticeable change in performance.
+    
+    Change-Id: I9c57bf836c8b6066e0620afb3d536ce99e4b9d87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426074
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/sync/map.go | 39 +++++++++++++++++++++++----------------
+ 1 file changed, 23 insertions(+), 16 deletions(-)

@@ -1,0 +1,20 @@
+commit 37c8112b825a2c60d1b3776c0b4f4c643391d490
+Author: Abirdcfly <fp544037857@gmail.com>
+Date:   Sun Jul 24 15:05:37 2022 +0000
+
+    internal/fuzz: fix typo in function comments
+    
+    The correct word to use here is 'retrieve' not 'retrive'
+    
+    Change-Id: I8de0961a254cf429ddbaf599fe996155e24c7af2
+    GitHub-Last-Rev: 65aaeec8db14c23e7bc8a62ce9ecfde98a263a49
+    GitHub-Pull-Request: golang/go#54026
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419317
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/internal/fuzz/mem.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

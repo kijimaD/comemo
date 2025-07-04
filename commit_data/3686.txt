@@ -1,0 +1,13 @@
+commit 63e668d2ad97aa04d722af2d4f25db583ba12c34
+Author: Rob Pike <r@golang.org>
+Date:   Sat Oct 31 13:28:22 2009 -0700
+
+    return "<nil>" when calling String() on a nil bytes.Buffer.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1016005
+
+ src/pkg/bytes/buffer.go      | 6 +++++-
+ src/pkg/bytes/buffer_test.go | 8 ++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

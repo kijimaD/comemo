@@ -1,0 +1,20 @@
+commit 1f4d2e79b0aaef6a9be08b01a97fe7b40b398ae7
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Mar 12 10:21:34 2014 +0400
+
+    runtime: efence support for growable stacks
+    1. Fix the bug that shrinkstack returns memory to heap.
+       This causes growslice to misbehave (it manually initialized
+       blocks, and in efence mode shrinkstack's free leads to
+       partially-initialized blocks coming out of growslice.
+       Which in turn causes GC to crash while treating the garbage
+       as Eface/Iface.
+    2. Enable efence for stack segments.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, khr
+    https://golang.org/cl/74080043
+
+ src/pkg/runtime/stack.c | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

@@ -1,0 +1,25 @@
+commit 638df87fa4f927763f99ebf0c6bc9c4a5380d1f9
+Author: vovapi <evgrafov.vladimir@gmail.com>
+Date:   Thu Feb 20 19:29:22 2020 +0000
+
+    hash/maphash: don't discard data on random seed init
+    
+    Hash initializes seed on the first usage of seed or state with initSeed.
+    initSeed uses SetSeed which discards accumulated data.
+    This causes hash to return different sums for the same data in the first use
+    and after reset.
+    This CL fixes this issue by separating the seed set from data discard.
+    
+    Fixes #37315
+    
+    Change-Id: Ic7020702c2ce822eb700af462e37efab12f72054
+    GitHub-Last-Rev: 48b2f963e86c1b37d49b838a050cc4128bb01266
+    GitHub-Pull-Request: golang/go#37328
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220259
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/hash/maphash/maphash.go      |  9 +++++++--
+ src/hash/maphash/maphash_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 2 deletions(-)

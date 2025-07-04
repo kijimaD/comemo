@@ -1,0 +1,17 @@
+commit 45eded3afd3829adeb284a0bcdb1b049693cee07
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 31 12:47:47 2023 -0400
+
+    doc: fix template mistake in godebug.md
+    
+    This file is itself template input, so have to hide the template
+    in the go command example.
+    
+    Change-Id: Ifc4eaff35ca8dc2fb479f8e28d64c06b2a9c9d3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480995
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ doc/godebug.md | 2 ++
+ 1 file changed, 2 insertions(+)

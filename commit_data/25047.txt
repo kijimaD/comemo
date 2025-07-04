@@ -1,0 +1,18 @@
+commit 3cac3b5fca48dbd5715bb05936252eba1bb51c26
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 24 14:49:10 2015 -0800
+
+    cmd/compile: remove references to go.y and update documentation
+    
+    This is a comment/documentation change only but for a minor
+    code change in the file and package_ methods (move recognition
+    of semi to match grammar better).
+    
+    Per request from r.
+    
+    Change-Id: I81ec985cc5831074d9eb5e8ffbf7e59466284819
+    Reviewed-on: https://go-review.googlesource.com/17202
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 259 ++++++++++++++++++++--------------
+ 1 file changed, 150 insertions(+), 109 deletions(-)

@@ -1,0 +1,13 @@
+commit a978ead6e18fbcbdd5c4d1bb6d649bee98c22896
+Author: Peter Weinberger <pjw@golang.org>
+Date:   Mon Apr 2 13:05:09 2012 -0400
+
+    doc/code.html: change 'affect' to 'effect'.
+    Fixes #3429.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5966047
+
+ doc/code.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 714461740cafdcdc16e675f761544022dc25c723
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Oct 2 16:15:36 2014 +1000
+
+    run.bat: comment text properly
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/153830044
+
+ src/run.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

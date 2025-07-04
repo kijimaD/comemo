@@ -1,0 +1,33 @@
+commit 20160b37c6b7d12e25987baf2d95ba861b327a3b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed May 20 02:13:57 2020 +1000
+
+    runtime, syscall: correct openbsd/arm and openbsd/arm64 syscalls for OpenBSD 6.7
+    
+    Add two no op instructions following svc on openbsd/arm64 and swi on openbsd/arm.
+    
+    All except some of the most recent arm64 processors have a speculative execution
+    flaw that occurs across a syscall boundary, which cannot be mitigated in the
+    kernel. In order to protect against this leak a speculation barrier needs to be
+    placed after an svc or swi instruction.
+    
+    In order to avoid the performance impact of these instructions, the OpenBSD 6.7
+    kernel returns execution two instructions past the svc or swi call. For now two
+    hardware no ops are added, which allows syscalls to work with both 6.6 and 6.7.
+    These should be replaced with real speculation barriers once OpenBSD 6.8 is
+    released.
+    
+    Updates #36435
+    
+    Change-Id: I06153cb0998199242cca8761450e53599c3e7de4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234381
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/rt0_openbsd_arm64.s |  8 ++++-
+ src/runtime/sys_openbsd_arm.s   | 80 +++++++++++++++++++++++------------------
+ src/runtime/sys_openbsd_arm64.s | 75 +++++++++++++++++++++-----------------
+ src/syscall/asm_openbsd_arm.s   | 17 ++++++---
+ src/syscall/asm_openbsd_arm64.s | 16 ++++++---
+ 5 files changed, 119 insertions(+), 77 deletions(-)

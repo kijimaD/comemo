@@ -1,0 +1,12 @@
+commit ff3ea68e5272d32801410764a5e9340c62dbd9e7
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 1 21:47:00 2009 -0800
+
+    explicitly catch attempt to decode into a value - must be a pointer to see the result.
+    
+    R=rsc
+    https://golang.org/cl/163070
+
+ src/pkg/gob/decoder.go      |  7 +++++++
+ src/pkg/gob/encoder_test.go | 15 +++++++++++++--
+ 2 files changed, 20 insertions(+), 2 deletions(-)

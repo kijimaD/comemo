@@ -1,0 +1,19 @@
+commit 066c47ca5fac1c49f754029f1e61323f74f6d93d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 20 15:40:38 2020 -0700
+
+    cmd/compile: use cheaper implementation of oneBit
+    
+    Updates #38547
+    
+    file    before    after     Δ       %
+    compile 19678112  19669808  -8304   -0.042%
+    total   113143160 113134856 -8304   -0.007%
+    
+    Change-Id: I5f8afe17401dbdb7c7b3d66d95fe40821c499a92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229127
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/rewrite.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

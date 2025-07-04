@@ -1,0 +1,35 @@
+commit 1b2c7948963543286516f78f0b0d52956f58d82c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 13 15:13:22 2019 -0700
+
+    cmd/compile: tweak OIF construction for binarySearch
+    
+    When emitting base cases, previously we would emit:
+    
+        if c1 { s1 }
+        if c2 { s2 }
+        if c3 { s3 }
+    
+    With this CL, we instead emit:
+    
+        if c1 { s1 }
+        else if c2 { s2 }
+        else if c3 { s3 }
+    
+    Most of the time, this doesn't make a difference, because s1/s2/s3 are
+    typically "goto" statements. But for type switches, we currently emit:
+    
+        if hash == 271 { if _, ok := iface.(T1); ok { goto t1case } }
+        if hash == 314 { if _, ok := iface.(T2); ok { goto t2case } }
+    
+    That is, the if bodies can fallthrough, even though it's impossible
+    for them to match any of the subsequent cases.
+    
+    Change-Id: I453d424d0b5e40060a703738bbb374523f1c403c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195339
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/swt.go | 34 ++++++++++++++++------------------
+ 1 file changed, 16 insertions(+), 18 deletions(-)

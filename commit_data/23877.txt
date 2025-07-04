@@ -1,0 +1,12 @@
+commit 17efbfc5609fc9f2d95e5473250d740a9e5608bc
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Jul 28 12:59:34 2015 -0400
+
+    cmd/doc: extend darwin/arm64 test TODO to arm
+    
+    Change-Id: Iee0f3890d66b4117aa5d9f486e5775b1cf31996c
+    Reviewed-on: https://go-review.googlesource.com/12745
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/doc/doc_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

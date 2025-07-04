@@ -1,0 +1,17 @@
+commit b28b4248f94e49de4fa169e2f76e01a49647b20d
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Sun Mar 10 07:36:36 2024 +0000
+
+    cmd/trace/v2: fix typo in comment
+    
+    Change-Id: Icbf295e668335945084616a88c3ea2cef1bb2527
+    GitHub-Last-Rev: 0341d0fea71a194d7a85741f6951c8c7c21aee33
+    GitHub-Pull-Request: golang/go#66229
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570356
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/trace/v2/regions.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

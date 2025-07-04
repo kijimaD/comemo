@@ -1,0 +1,12 @@
+commit 57909b54e915430ba92aa7d6d769edfdff489b6c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 10 15:45:57 2009 -0800
+
+    implement NoSemis and NoStringConcat mode for go/printer
+    
+    R=rsc
+    https://golang.org/cl/174050
+
+ src/pkg/go/printer/nodes.go   | 25 ++++++++++++++++++++-----
+ src/pkg/go/printer/printer.go |  2 ++
+ 2 files changed, 22 insertions(+), 5 deletions(-)

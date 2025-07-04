@@ -1,0 +1,15 @@
+commit 9e56156ade484d806cdd3aceb38f100b66d490bf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 29 22:08:32 2018 +0000
+
+    net/http/httputil: pass through any "TE: trailers" header to backend
+    
+    Fixes #21096
+    
+    Change-Id: I2a4688a79bdaa25b4e8ef38e3390d93d3d0bce04
+    Reviewed-on: https://go-review.googlesource.com/115135
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 15 +++++++++++++--
+ src/net/http/httputil/reverseproxy_test.go |  4 ++++
+ 2 files changed, 17 insertions(+), 2 deletions(-)

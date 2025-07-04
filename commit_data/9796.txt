@@ -1,0 +1,12 @@
+commit 92703ff6053992f6ce1630e562afaa8eda88ba4f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 26 13:10:16 2011 -0400
+
+    unicode: fix make tables
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5131044
+
+ src/pkg/unicode/maketables.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

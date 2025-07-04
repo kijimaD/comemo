@@ -1,0 +1,13 @@
+commit 4e066e419e715eb25093a61d43456e14472d20b0
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Wed Dec 14 16:26:48 2011 -0500
+
+    misc/osx: Rename profile.go to profile_go to avoid confusing scripts
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5472043
+
+ misc/osx/etc/{profile.go => profile_go} | 0
+ misc/osx/scripts/postinstall            | 6 +++---
+ 2 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,28 @@
+commit d7d9df8a5b1a4d8a40bb606a96bd5c6abe34e5a2
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 22 12:04:51 2018 -0400
+
+    cmd/compile: introduce LivenessMap and LivenessIndex
+    
+    Currently liveness only produces a stack map index at each safe point,
+    so the information is summarized in a map[*ssa.Value]int. We're about
+    to have both a stack map index and a register map index, so replace
+    the int with a LivenessIndex type we can extend, and replace the map
+    with a LivenessMap that we can also change more easily in the future.
+    
+    This also gives us an easy hook for defining the value that means "not
+    a safe point".
+    
+    Passes toolstash -cmp.
+    
+    For #24543.
+    
+    Change-Id: Ic4c069839635efed4fd0f603899b80f8be3b56ec
+    Reviewed-on: https://go-review.googlesource.com/109347
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go | 52 +++++++++++++++++++++++++++---------
+ src/cmd/compile/internal/gc/ssa.go   | 12 ++++-----
+ 2 files changed, 46 insertions(+), 18 deletions(-)

@@ -1,0 +1,30 @@
+commit bd4753905d15035fabbc4dda79573506090fe40b
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Thu Jun 23 09:43:47 2022 -0700
+
+    internal/trace: add Go 1.19 test data
+    
+    Update instructions to match what seems to be the historical practice:
+    to generate canned traces when a version is finalized, rather than
+    waiting until it is superseded.
+    
+    Follow rename of trace-internal tests from "Span" to "Region". Update
+    the net/http test invocation to match the apparent intent and the actual
+    http_1_5_good behavior (about 7ms of total run time and trace file size
+    under 50kB).
+    
+    Change-Id: Ifd4c85882159478852e0b8f0d771b6f16b8f3c1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413776
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/trace/mkcanned.bash                       |   6 +++---
+ src/internal/trace/parser.go                           |   4 ++--
+ src/internal/trace/testdata/http_1_19_good             | Bin 0 -> 28172 bytes
+ src/internal/trace/testdata/stress_1_19_good           | Bin 0 -> 322338 bytes
+ .../trace/testdata/stress_start_stop_1_19_good         | Bin 0 -> 7448 bytes
+ ..._task_span_1_11_good => user_task_region_1_11_good} | Bin
+ src/internal/trace/testdata/user_task_region_1_19_good | Bin 0 -> 1922 bytes
+ 7 files changed, 5 insertions(+), 5 deletions(-)

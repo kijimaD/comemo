@@ -1,0 +1,17 @@
+commit 89d576c933442ce0e3e78686db17a05de0a3dc8c
+Author: Felix Kollmann <fk@konsorten.de>
+Date:   Sat Apr 14 23:01:10 2018 +0000
+
+    doc: clarify package uninstall/clean command
+    
+    Fixes #24864
+    
+    Change-Id: Iaffd23b368aff663bfc09a4e6277c01e7b5ea48d
+    GitHub-Last-Rev: 98e39b7bff6e646d48c0bf961aee0075a9034ab2
+    GitHub-Pull-Request: golang/go#24865
+    Reviewed-on: https://go-review.googlesource.com/106986
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

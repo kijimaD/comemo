@@ -1,0 +1,15 @@
+commit b47927cc2657ca1e3a1b898632b577cacb3b440c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jul 13 17:24:05 2018 -0400
+
+    cmd/go/internal/list: do not examine TestmainGo if the test fails to load
+    
+    Fixes #25980.
+    
+    Change-Id: I33c8e72871ffbb1cd1babbcd5dabc8cac0bbcaed
+    Reviewed-on: https://go-review.googlesource.com/123758
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/list/list.go           | 17 +++++++++--------
+ src/cmd/go/testdata/script/list_test_e.txt |  9 +++++++++
+ 2 files changed, 18 insertions(+), 8 deletions(-)

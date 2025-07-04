@@ -1,0 +1,25 @@
+commit 66287d55060d6ca3e9bc81f11dc66dda1cef2633
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 17 12:32:52 2023 -0400
+
+    cmd/go: drop unnecessary Package arguments
+    
+    There are several functions that take both an Action argument and a
+    Package argument. It takes a decent amount of work to determine that
+    in all cases the value of the Package argument is just Action.Package.
+    This makes these Package arguments both redundant and potentially
+    confusing because it makes these APIs look like they have more
+    flexibility than they actually do.
+    
+    Drop these unnecessary Package arguments.
+    
+    For #62067.
+    
+    Change-Id: Ibd3295cf6a79d95ceb421d60671f87e023517f8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536095
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/work/exec.go | 62 +++++++++++++++++++++++-----------------
+ 1 file changed, 36 insertions(+), 26 deletions(-)

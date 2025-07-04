@@ -1,0 +1,18 @@
+commit b60b9cf21f1b598fa1eb03a6a55c71ce6f540935
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Sun Mar 9 16:39:36 2025 +0100
+
+    cmd/compile: add constant folding for bits.Add64
+    
+    Change-Id: I0ed4ebeaaa68e274e5902485ccc1165c039440bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656275
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  1 +
+ src/cmd/compile/internal/ssa/rewrite.go         |  6 ++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 40 +++++++++++++++++++++++++
+ 3 files changed, 47 insertions(+)

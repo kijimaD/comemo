@@ -1,0 +1,20 @@
+commit a7dcfa6133cac2c1200d8003bae279a062268499
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Nov 29 15:58:43 2017 -0500
+
+    cmd/internal/objfile: make lookupFunc an alias type
+    
+    In the x/arch repo, CL 45098 introduced SymLookup type, replacing
+    the unnamed function type for lookup functions. This affects the
+    signature of x86asm.GoSyntax. In particular, it cannot convert
+    one named type, namely lookupFunc, to the other without an
+    explicit cast. Make lookupFunc unnamed to fix.
+    
+    Change-Id: I973300d29ef1dbfdbd7fc2429e89c5849e6a7329
+    Reviewed-on: https://go-review.googlesource.com/80842
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/objfile/disasm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

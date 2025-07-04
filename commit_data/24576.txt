@@ -1,0 +1,29 @@
+commit 09eb58893febcf486cb7c6ef701625288d893b10
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 20 22:57:12 2015 +0000
+
+    net/http: return error from Serve if http2.ConfigureServer returns an error
+    
+    In https://golang.org/cl/15860 http2.ConfigureServer was changed to
+    return an error if explicit CipherSuites are listed and they're not
+    compliant with the HTTP/2 spec.
+    
+    This is the net/http side of the change, to look at the return value
+    from ConfigureServer and propagate it in Server.Serve.
+    
+    h2_bundle.go will be updated in a future CL. There are too many other
+    http2 changes pending to be worth updating it now. Instead,
+    h2_bundle.go is minimally updated by hand in this CL so at least the
+    net/http change will compile.
+    
+    Updates #12895
+    
+    Change-Id: I4df7a097faff2d235742c2d310c333bd3fd5c08e
+    Reviewed-on: https://go-review.googlesource.com/16065
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go | 3 ++-
+ src/net/http/server.go    | 9 ++++++++-
+ 2 files changed, 10 insertions(+), 2 deletions(-)

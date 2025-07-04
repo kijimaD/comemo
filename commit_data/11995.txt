@@ -1,0 +1,13 @@
+commit a0c13b9d499f88cc5aa4cc060f5fcacb62b1af70
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 16 23:48:24 2012 -0500
+
+    test: add testlib
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5676077
+
+ test/run     |  3 ++-
+ test/testlib | 22 ++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit d2ab2b9f42399c9a9b481dcb2abe4dc47b4a619b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jul 21 11:30:14 2011 -0400
+
+    sync: improve Once fast path
+    Use atomic.LoadUint32(&done) instead of
+    atomic.AddInt32(&done, 0) on fast path.
+    
+    benchmark            old ns/op    new ns/op    delta
+    BenchmarkOnce            13.40         7.26  -45.82%
+    BenchmarkOnce-2          22.90         4.04  -82.36%
+    BenchmarkOnce-4          25.60         2.16  -91.56%
+    BenchmarkOnce-8          25.80         1.38  -94.65%
+    BenchmarkOnce-16         24.40         1.33  -94.55%
+    
+    (on HP Z600, 2 x Intel Xeon E5620, 8 HT cores, 2.4 GHz)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4787041
+
+ src/pkg/sync/once.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

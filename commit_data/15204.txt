@@ -1,0 +1,47 @@
+commit d8e3b16f8b1b78be15775c7d09fe9e60e6e84e72
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Feb 11 22:12:56 2013 -0500
+
+    exp/ssa: special-case 'range' loops based on type of range expression.
+    
+    The lowering of ast.RangeStmt now has three distinct cases:
+    
+    1) rangeIter for maps and strings; approximately:
+        it = range x
+        for {
+          k, v, ok = next it
+          if !ok { break }
+          ...
+        }
+       The Range instruction and the interpreter's "iter"
+       datatype are now restricted to these types.
+    
+    2) rangeChan for channels; approximately:
+        for {
+          k, ok = <-x
+          if !ok { break }
+          ...
+        }
+    
+    3) rangeIndexed for slices, arrays, and *array; approximately:
+        for k, l = 0, len(x); k < l; k++ {
+          v = x[k]
+          ...
+        }
+    
+    In all cases we now evaluate the side effects of the range expression
+    exactly once, per comments on http://code.google.com/p/go/issues/detail?id=4644.
+    
+    However the exact spec wording is still being discussed in
+    https://golang.org/cl/7307083/.  Further (small)
+    changes may be required once the dust settles.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/7303074
+
+ src/pkg/exp/ssa/builder.go      | 302 +++++++++++++++++++++++++++-------------
+ src/pkg/exp/ssa/interp/ops.go   |  10 --
+ src/pkg/exp/ssa/interp/value.go |  27 +---
+ src/pkg/exp/ssa/ssa.go          |   6 +-
+ 4 files changed, 210 insertions(+), 135 deletions(-)

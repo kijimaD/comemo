@@ -1,0 +1,17 @@
+commit 3a9bc571b0b8c4ab4cf026d68ea3b71dec608da3
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Aug 3 15:45:37 2015 +1200
+
+    cmd/internal/obj/arm64, cmd/link: use two instructions rather than three for loads from memory
+    
+    Reduces size of godoc .text section by about 75k (or 1.4%).
+    
+    Change-Id: I65850aa569aefbddd6cb07c6ae1addcc39cab6a5
+    Reviewed-on: https://go-review.googlesource.com/13993
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/arm64/asm7.go |  60 ++++++++++++--------
+ src/cmd/internal/obj/link.go       |   5 ++
+ src/cmd/link/internal/arm64/asm.go | 113 ++++++++++++++++++++++++++++---------
+ src/cmd/link/internal/ld/elf.go    |   4 ++
+ 4 files changed, 132 insertions(+), 50 deletions(-)

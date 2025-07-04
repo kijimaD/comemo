@@ -1,0 +1,25 @@
+commit 33dfd3529b8a761739da00da88eb13d39300a679
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 4 16:12:10 2019 +0000
+
+    runtime: remove old page allocator
+    
+    This change removes the old page allocator from the runtime.
+    
+    Updates #35112.
+    
+    Change-Id: Ib20e1c030f869b6318cd6f4288a9befdbae1b771
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195700
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/export_test.go | 178 +-----------
+ src/runtime/gc_test.go     |  23 --
+ src/runtime/malloc.go      |   3 -
+ src/runtime/malloc_test.go |   4 -
+ src/runtime/mgclarge.go    | 657 ---------------------------------------------
+ src/runtime/mgcscavenge.go |  24 +-
+ src/runtime/mheap.go       | 474 ++------------------------------
+ src/runtime/treap_test.go  | 270 -------------------
+ 8 files changed, 27 insertions(+), 1606 deletions(-)

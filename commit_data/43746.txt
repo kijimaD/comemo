@@ -1,0 +1,15 @@
+commit 564ec4867bd867ccf37d149243d016abfa5a857c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Oct 30 16:12:13 2020 +0100
+
+    crypto/tls: don't use CN in BuildNameToCertificate if SANs are present
+    
+    Change-Id: I18d5b9fc392a6a52fbdd240254d6d9db838073a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266540
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/tls/common.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

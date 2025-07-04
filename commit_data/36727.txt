@@ -1,0 +1,30 @@
+commit 01b7c2db156cc40e928bb95ec7f980f0ab22aa26
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 24 19:12:54 2018 +0000
+
+    cmd/vendor: update golang.org/x/sys/windows for windows/arm support
+    
+    Updates to golang.org/x/sys git rev 90868a75f.
+    
+    Updates golang/go#26148
+    
+    Change-Id: Ic687e7e0e171690e8d937c7bb29b0e55316f874a
+    Reviewed-on: https://go-review.googlesource.com/137015
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/vendor/golang.org/x/sys/windows/aliases.go |  13 ++
+ .../golang.org/x/sys/windows/asm_windows_arm.s     |  11 ++
+ .../x/sys/windows/registry/zsyscall_windows.go     |   2 +-
+ .../golang.org/x/sys/windows/security_windows.go   |   4 +-
+ src/cmd/vendor/golang.org/x/sys/windows/service.go |  18 +++
+ .../golang.org/x/sys/windows/svc/mgr/config.go     |  38 +++--
+ .../golang.org/x/sys/windows/svc/mgr/mgr_test.go   | 113 +++++++++++++
+ .../golang.org/x/sys/windows/svc/mgr/recovery.go   | 135 ++++++++++++++++
+ .../vendor/golang.org/x/sys/windows/svc/sys_arm.s  |  38 +++++
+ .../golang.org/x/sys/windows/syscall_windows.go    |  60 ++++++-
+ .../x/sys/windows/syscall_windows_test.go          |   6 +
+ .../golang.org/x/sys/windows/types_windows.go      | 180 ++++++++++++++++++---
+ .../golang.org/x/sys/windows/types_windows_arm.go  |  22 +++
+ .../golang.org/x/sys/windows/zsyscall_windows.go   |   2 +-
+ src/cmd/vendor/vendor.json                         |  32 ++--
+ 15 files changed, 613 insertions(+), 61 deletions(-)

@@ -1,0 +1,23 @@
+commit 930c2c9a6810b54d84dc499120219a6cb4563fd7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 9 17:34:09 2021 -0500
+
+    cmd/go: reject embedded files that can't be packed into modules
+    
+    If the file won't be packed into a module,
+    don't put those files into embeds.
+    Otherwise people will be surprised when things work
+    locally but not when imported by another module.
+    
+    Observed on CL 290709
+    
+    Change-Id: Ia0ef7d0e0f5e42473c2b774e57c843e68a365bc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290809
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/load/pkg.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,33 @@
+commit 0d6a7f9d2eb2e5e9b96cd1b144d122f6eb5aac81
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Aug 26 12:09:34 2022 +0200
+
+    internal/poll, internal/syscall/unix, net, runtime: convert openbsd (except mips64) to direct libc calls
+    
+    Call libc wrappers directly rather than calling using syscall(2).
+    
+    Updates golang/go#36435
+    
+    Change-Id: I40be410c7472f7d89cbec2ebdc7c841c7726ca4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425637
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+
+ src/internal/poll/fcntl_libc.go                    |  2 +-
+ src/internal/poll/fcntl_syscall.go                 |  2 +-
+ src/internal/syscall/unix/at.go                    |  2 +-
+ src/internal/syscall/unix/at_fstatat.go            |  2 +-
+ .../syscall/unix/{at_darwin.go => at_libc2.go}     |  2 ++
+ src/internal/syscall/unix/getentropy_openbsd.go    | 24 +++++++--------------
+ .../syscall/unix/getentropy_openbsd_mips64.go      | 25 ++++++++++++++++++++++
+ src/internal/syscall/unix/nonblocking.go           |  2 +-
+ src/internal/syscall/unix/nonblocking_libc.go      |  2 +-
+ src/net/fcntl_libc_test.go                         |  2 +-
+ src/net/fcntl_syscall_test.go                      |  2 +-
+ src/runtime/export_openbsd_test.go                 | 15 +++++++++++++
+ src/runtime/nbpipe_fcntl_libc_test.go              |  2 +-
+ src/runtime/nbpipe_fcntl_unix_test.go              |  2 +-
+ 14 files changed, 60 insertions(+), 26 deletions(-)

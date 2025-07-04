@@ -1,0 +1,17 @@
+commit 90df37769d6441ce550443fa7e0c008d38e53455
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 17 08:04:01 2018 -0700
+
+    cmd/cgo: rewrite pointer checking to use more function literals
+    
+    Fixes #14210
+    Fixes #25941
+    
+    Change-Id: Idde2d032290da3edb742b5b4f6ffeb625f05b494
+    Reviewed-on: https://go-review.googlesource.com/c/142884
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/errors/ptr_test.go |  49 ++++++++
+ src/cmd/cgo/gcc.go          | 296 +++++++++++++++++++++++++++++---------------
+ src/cmd/cgo/main.go         |   1 +
+ 3 files changed, 248 insertions(+), 98 deletions(-)

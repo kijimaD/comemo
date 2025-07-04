@@ -1,0 +1,20 @@
+commit ff6dd7125e70976063c412d9f52f8b19ee2c08fb
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 19 13:43:51 2023 -0400
+
+    cmd/go: move all Shell methods to shell.go
+    
+    This is a pure code movement change.
+    
+    Now that we've introduced a Shell type that lives in shell.go, move
+    all of its methods (which used to be on Builder) to shell.go as well.
+    
+    Change-Id: Ie1802353c8a64590219b08893e8c74649228e5e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536536
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/exec.go  | 574 ------------------------------------
+ src/cmd/go/internal/work/shell.go | 590 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 590 insertions(+), 574 deletions(-)

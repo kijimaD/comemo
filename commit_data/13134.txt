@@ -1,0 +1,22 @@
+commit 13a59b8c6d092075c0ff9d6ec3b5d43b6ead7b39
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 22 17:20:37 2012 -0700
+
+    math/big: implement JSON un/marshaling support for Ints
+    
+    Also: simplified some existing tests.
+    
+    No support for Rats for now because the precision-preserving
+    default notation (fractions of the form a/b) is not a valid
+    JSON value.
+    
+    Fixes #3657.
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/6211079
+
+ src/pkg/math/big/int.go      | 16 ++++++++++++
+ src/pkg/math/big/int_test.go | 60 ++++++++++++++++++++++++++++----------------
+ src/pkg/math/big/rat_test.go | 37 ++++++++++-----------------
+ 3 files changed, 67 insertions(+), 46 deletions(-)

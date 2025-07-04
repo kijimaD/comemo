@@ -1,0 +1,12 @@
+commit 3d4b55ad5b99def7f7e3f8694e590c1b44a1be97
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 13 13:57:53 2011 -0700
+
+    gofmt: minor refactor to permit easy testing
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4397046
+
+ src/cmd/gofmt/gofmt.go | 41 +++++++++++++++++++++--------------------
+ 1 file changed, 21 insertions(+), 20 deletions(-)

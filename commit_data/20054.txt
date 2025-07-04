@@ -1,0 +1,13 @@
+commit cccd66c6c446fb2d4f2ee74259898d0acb8ec803
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 20 14:36:28 2014 -0700
+
+    runtime: remove unused variable
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/128230047
+
+ src/pkg/runtime/atomic_arm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

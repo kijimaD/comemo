@@ -1,0 +1,13 @@
+commit 0976e34d654a4020ae00aecae5a0c137a6f23c08
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 3 13:37:44 2008 -0700
+
+    Composite literal syntax.
+    
+    R=r
+    DELTA=25  (14 added, 2 deleted, 9 changed)
+    OCL=14750
+    CL=14753
+
+ doc/go_spec.txt | 32 ++++++++++++++++++++++----------
+ 1 file changed, 22 insertions(+), 10 deletions(-)

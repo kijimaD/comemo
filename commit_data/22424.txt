@@ -1,0 +1,12 @@
+commit 0eadcc886e15dbd8536bb1f3450fa02f53ceeee3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 10 16:47:14 2015 -0700
+
+    doc/go1.5.txt: note new options for go, gc, asm, ld
+    
+    Change-Id: I353ff7eb35b066a1a2693c087c9876adac8e3fd0
+    Reviewed-on: https://go-review.googlesource.com/8763
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.5.txt | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

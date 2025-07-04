@@ -1,0 +1,26 @@
+commit ea42b771e9f0726b0e10278df0b5759b984e9cc3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 10 08:43:21 2020 -0400
+
+    cmd/go/internal/modget: diagnose missing transitive dependencies
+    
+    For #41315
+    
+    Change-Id: I3989bcb051ae57dd2d8f89759d241d4cdce49659
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255969
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modget/get.go                  | 25 ++++++++++------
+ .../mod/example.com_retract_rename_v1.0.0-bad.txt  |  6 ++++
+ .../mod/example.com_retract_rename_v1.9.0-new.txt  |  9 ++++++
+ .../testdata/mod/example.net_pkgadded_v1.0.0.txt   | 17 +++++++++++
+ .../testdata/mod/example.net_pkgadded_v1.1.0.txt   | 19 +++++++++++++
+ .../testdata/mod/example.net_pkgadded_v1.2.0.txt   | 20 +++++++++++++
+ .../testdata/script/mod_get_downgrade_missing.txt  | 33 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_get_errors.txt      | 28 ++++++++++++++++++
+ 8 files changed, 149 insertions(+), 8 deletions(-)

@@ -1,0 +1,73 @@
+commit 5724daa6825db0a9097254060633439e6538d845
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 19 15:53:54 2023 -0800
+
+    go/types, types2: use go.dev/issue/nnnnn when referring to an issue (cleanup)
+    
+    Apply the following regex substitutions, in order:
+    
+    golang/go#(\d+)  =>  go.dev/issue/$1
+    issue #?(\d+)    =>  go.dev/issue/$1
+    
+    Providing a link uniformly makes it easier to find the respective issue.
+    
+    Change-Id: I9b60ffa1adb95be181f6711c2f171be3afe2b315
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462856
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go      | 38 ++++++++++++------------
+ src/cmd/compile/internal/types2/assignments.go   |  2 +-
+ src/cmd/compile/internal/types2/builtins.go      |  4 +--
+ src/cmd/compile/internal/types2/builtins_test.go |  6 ++--
+ src/cmd/compile/internal/types2/call.go          |  8 ++---
+ src/cmd/compile/internal/types2/conversions.go   |  2 +-
+ src/cmd/compile/internal/types2/decl.go          | 12 ++++----
+ src/cmd/compile/internal/types2/expr.go          | 20 ++++++-------
+ src/cmd/compile/internal/types2/infer.go         |  4 +--
+ src/cmd/compile/internal/types2/instantiate.go   |  4 +--
+ src/cmd/compile/internal/types2/lookup.go        |  4 +--
+ src/cmd/compile/internal/types2/named.go         |  2 +-
+ src/cmd/compile/internal/types2/named_test.go    |  2 +-
+ src/cmd/compile/internal/types2/object_test.go   |  2 +-
+ src/cmd/compile/internal/types2/resolver.go      |  4 +--
+ src/cmd/compile/internal/types2/return.go        |  2 +-
+ src/cmd/compile/internal/types2/sizes_test.go    |  6 ++--
+ src/cmd/compile/internal/types2/stmt.go          |  2 +-
+ src/cmd/compile/internal/types2/struct.go        |  2 +-
+ src/cmd/compile/internal/types2/typeset.go       |  4 +--
+ src/cmd/compile/internal/types2/typestring.go    |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go       |  6 ++--
+ src/cmd/compile/internal/types2/unify.go         |  2 +-
+ src/cmd/compile/internal/types2/union.go         |  2 +-
+ src/go/types/api_test.go                         | 38 ++++++++++++------------
+ src/go/types/assignments.go                      |  2 +-
+ src/go/types/builtins.go                         |  4 +--
+ src/go/types/builtins_test.go                    |  6 ++--
+ src/go/types/call.go                             |  8 ++---
+ src/go/types/conversions.go                      |  2 +-
+ src/go/types/decl.go                             | 12 ++++----
+ src/go/types/expr.go                             | 20 ++++++-------
+ src/go/types/infer.go                            |  4 +--
+ src/go/types/instantiate.go                      |  4 +--
+ src/go/types/issues_test.go                      |  2 +-
+ src/go/types/lookup.go                           |  4 +--
+ src/go/types/methodset_test.go                   |  8 ++---
+ src/go/types/named.go                            |  2 +-
+ src/go/types/named_test.go                       |  2 +-
+ src/go/types/object_test.go                      |  2 +-
+ src/go/types/resolver.go                         |  4 +--
+ src/go/types/sizes_test.go                       |  6 ++--
+ src/go/types/stdlib_test.go                      |  2 +-
+ src/go/types/stmt.go                             |  2 +-
+ src/go/types/struct.go                           |  2 +-
+ src/go/types/testdata/local/shifts.go            |  2 +-
+ src/go/types/typeset.go                          |  4 +--
+ src/go/types/typestring.go                       |  2 +-
+ src/go/types/typexpr.go                          |  6 ++--
+ src/go/types/unify.go                            |  2 +-
+ src/go/types/union.go                            |  2 +-
+ 51 files changed, 148 insertions(+), 148 deletions(-)

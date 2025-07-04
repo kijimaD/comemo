@@ -1,0 +1,15 @@
+commit e86bbc2e27bc584c23acee7f26d6d5b8d27f143a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 10 06:47:44 2018 -0700
+
+    os: clarify that Close cancels pending I/O
+    
+    Change-Id: I6be6818d951a999f916c2266a6753a5ce5144ee7
+    Reviewed-on: https://go-review.googlesource.com/122955
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/os/file_plan9.go   | 3 ++-
+ src/os/file_unix.go    | 3 ++-
+ src/os/file_windows.go | 3 ++-
+ 3 files changed, 6 insertions(+), 3 deletions(-)

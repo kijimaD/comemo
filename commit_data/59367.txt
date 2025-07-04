@@ -1,0 +1,48 @@
+commit 06f96a598eb6ee1679624f955fe5e1e837e4c49c
+Author: Julian Zhu <julian.oerv@isrc.iscas.ac.cn>
+Date:   Tue Dec 31 13:35:56 2024 +0800
+
+    crypto/sha256: improve performance of riscv64 assembly
+    
+    Simplified the implementation of Ch and Maj by reducing instructions, based on CL 605495 which made the same change for SHA-512.
+    
+    goos: linux
+    goarch: riscv64
+    pkg: crypto/sha256
+    cpu: Spacemit(R) X60
+                        │  oldsha256  │              newsha256              │
+                        │   sec/op    │   sec/op     vs base                │
+    Hash8Bytes/New-8      2.303µ ± 0%   2.098µ ± 0%   -8.90% (p=0.000 n=10)
+    Hash8Bytes/Sum224-8   2.535µ ± 0%   2.329µ ± 0%   -8.13% (p=0.000 n=10)
+    Hash8Bytes/Sum256-8   2.558µ ± 0%   2.352µ ± 0%   -8.04% (p=0.000 n=10)
+    Hash1K/New-8          28.67µ ± 0%   25.21µ ± 0%  -12.06% (p=0.000 n=10)
+    Hash1K/Sum224-8       28.89µ ± 0%   25.43µ ± 0%  -11.99% (p=0.000 n=10)
+    Hash1K/Sum256-8       28.91µ ± 0%   25.43µ ± 0%  -12.04% (p=0.000 n=10)
+    Hash8K/New-8          218.0µ ± 1%   192.7µ ± 2%  -11.58% (p=0.000 n=10)
+    Hash8K/Sum224-8       218.0µ ± 1%   193.6µ ± 1%  -11.20% (p=0.000 n=10)
+    Hash8K/Sum256-8       219.1µ ± 1%   193.4µ ± 1%  -11.74% (p=0.000 n=10)
+    geomean               24.93µ        22.28µ       -10.65%
+    
+                        │  oldsha256   │              newsha256               │
+                        │     B/s      │     B/s       vs base                │
+    Hash8Bytes/New-8      3.309Mi ± 0%   3.633Mi ± 0%   +9.80% (p=0.000 n=10)
+    Hash8Bytes/Sum224-8   3.009Mi ± 0%   3.271Mi ± 0%   +8.72% (p=0.000 n=10)
+    Hash8Bytes/Sum256-8   2.985Mi ± 0%   3.242Mi ± 0%   +8.63% (p=0.000 n=10)
+    Hash1K/New-8          34.06Mi ± 0%   38.73Mi ± 0%  +13.72% (p=0.000 n=10)
+    Hash1K/Sum224-8       33.80Mi ± 0%   38.40Mi ± 0%  +13.63% (p=0.000 n=10)
+    Hash1K/Sum256-8       33.78Mi ± 0%   38.40Mi ± 0%  +13.69% (p=0.000 n=10)
+    Hash8K/New-8          35.84Mi ± 1%   40.54Mi ± 2%  +13.10% (p=0.000 n=10)
+    Hash8K/Sum224-8       35.83Mi ± 1%   40.35Mi ± 1%  +12.61% (p=0.000 n=10)
+    Hash8K/Sum256-8       35.66Mi ± 1%   40.40Mi ± 1%  +13.29% (p=0.000 n=10)
+    geomean               15.54Mi        17.39Mi       +11.89%
+    
+    Change-Id: I9aa692fcfd70634dc6c308db9b5d06bd82ac2302
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639495
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+
+ .../internal/fips140/sha256/sha256block_riscv64.s  | 27 +++++++++++-----------
+ 1 file changed, 13 insertions(+), 14 deletions(-)

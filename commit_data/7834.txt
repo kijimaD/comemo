@@ -1,0 +1,20 @@
+commit 76061f7240c4a4d840f8457ec55025921f1363c7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 22 14:14:26 2011 -0700
+
+    go/printer: Revert API change of CL 4274075.
+    
+    Revert changes to printer.Config. Pass in the
+    nodeSizes map trough an internal helper function.
+    
+    R=golang-dev, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4309042
+
+ src/cmd/godoc/godoc.go        |  2 +-
+ src/cmd/gofix/main.go         |  2 +-
+ src/cmd/gofix/main_test.go    |  4 ++--
+ src/cmd/gofmt/gofmt.go        |  2 +-
+ src/pkg/go/printer/nodes.go   |  4 ++--
+ src/pkg/go/printer/printer.go | 39 +++++++++++++++++++++------------------
+ 6 files changed, 28 insertions(+), 25 deletions(-)

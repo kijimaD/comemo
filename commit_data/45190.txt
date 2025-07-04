@@ -1,0 +1,19 @@
+commit c1e8a9a8c6315f63b7fa0eee8a79589bb02f89fa
+Author: HowJMay <vulxj0j8j8@gmail.com>
+Date:   Fri Apr 16 17:36:22 2021 +0000
+
+    net/http/cgi: Remove hard-coded ServeHTTP timeout
+    
+    Close #43624
+    
+    Change-Id: Ifaea3d8ec2aeabbd923abf5edd7497172dbf855a
+    GitHub-Last-Rev: ea3ef953a1dbbb07c4554e4062571af716e9505b
+    GitHub-Pull-Request: golang/go#43803
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284778
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/http/cgi/integration_test.go | 29 +++--------------------------
+ 1 file changed, 3 insertions(+), 26 deletions(-)

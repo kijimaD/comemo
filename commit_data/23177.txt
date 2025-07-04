@@ -1,0 +1,15 @@
+commit 8cd191b6caf506210bb50d0506c6354a2cb46a10
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat May 30 15:19:56 2015 +0300
+
+    doc/go1.5.txt: mention bugs found by go-fuzz
+    
+    I think it's worth mentioning.
+    But the final decision is up to you.
+    
+    Change-Id: I3959132600ecc554988524ede73a7f6e8eac8353
+    Reviewed-on: https://go-review.googlesource.com/10551
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ doc/go1.5.txt | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,0 +1,20 @@
+commit 8d880da1c42d0bc81e9e350df4f3fc4238c79873
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 9 14:14:58 2024 -0800
+
+    cmd/cgo/internal/test: don't skip some tests on musl
+    
+    They reportedly work at least as of Alpine 3.18.
+    
+    Fixes #39857
+    
+    Change-Id: I6a249d61d33e467bf32e8c250f870fc261b90941
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563096
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/cgo/internal/test/cgo_linux_test.go | 15 +--------------
+ 1 file changed, 1 insertion(+), 14 deletions(-)

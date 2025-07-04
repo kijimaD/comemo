@@ -1,0 +1,13 @@
+commit 8de5080f34ad738488430ec1cb5e918dc7c384ff
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 16 13:31:15 2012 -0700
+
+    faq: add status section
+    Fixes #3822.
+    
+    R=golang-dev, r, dsymonds, minux.ma, adg
+    CC=golang-dev
+    https://golang.org/cl/6395043
+
+ doc/go_faq.html | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

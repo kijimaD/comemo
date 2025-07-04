@@ -1,0 +1,45 @@
+commit d03611f628c65321b572ab0d4ce85cc61b759fc6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 15 12:20:59 2011 -0500
+
+    allow copy of struct containing unexported fields
+    
+    An experiment: allow structs to be copied even if they
+    contain unexported fields.  This gives packages the
+    ability to return opaque values in their APIs, like reflect
+    does for reflect.Value but without the kludgy hacks reflect
+    resorts to.
+    
+    In general, we trust programmers not to do silly things
+    like *x = *y on a package's struct pointers, just as we trust
+    programmers not to do unicode.Letter = unicode.Digit,
+    but packages that want a harder guarantee can introduce
+    an extra level of indirection, like in the changes to os.File
+    in this CL or by using an interface type.
+    
+    All in one CL so that it can be rolled back more easily if
+    we decide this is a bad idea.
+    
+    Originally discussed in March 2011.
+    https://groups.google.com/group/golang-dev/t/3f5d30938c7c45ef
+    
+    R=golang-dev, adg, dvyukov, r, bradfitz, jan.mercl, gri
+    CC=golang-dev
+    https://golang.org/cl/5372095
+
+ doc/go_spec.html               | 11 +------
+ src/cmd/gc/go.h                |  1 -
+ src/cmd/gc/subr.c              |  4 ---
+ src/cmd/gc/typecheck.c         | 69 ------------------------------------------
+ src/pkg/os/file_plan9.go       | 16 ++++++++--
+ src/pkg/os/file_unix.go        | 16 ++++++++--
+ src/pkg/os/file_windows.go     | 16 ++++++++--
+ src/pkg/sync/mutex.go          |  2 ++
+ test/assign.go                 | 22 +++++++-------
+ test/fixedbugs/bug226.dir/x.go |  9 ------
+ test/fixedbugs/bug226.dir/y.go | 31 -------------------
+ test/fixedbugs/bug226.go       |  7 -----
+ test/fixedbugs/bug310.go       | 20 ------------
+ test/fixedbugs/bug359.go       | 26 ----------------
+ test/fixedbugs/bug378.go       | 27 -----------------
+ 15 files changed, 56 insertions(+), 221 deletions(-)

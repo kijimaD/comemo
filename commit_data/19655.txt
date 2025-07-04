@@ -1,0 +1,13 @@
+commit 4fedb59aec525faadaa5dcdd55c9798f6b4468ae
+Author: Preetam Jinka <pj@preet.am>
+Date:   Wed Jul 2 10:46:54 2014 -0700
+
+    crypto/cipher: fix typo in example comment
+    
+    LGTM=josharian
+    R=golang-codereviews, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/110330043
+
+ src/pkg/crypto/cipher/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

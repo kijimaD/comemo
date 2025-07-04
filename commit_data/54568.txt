@@ -1,0 +1,24 @@
+commit 4a310877f23140b45bd86a45b8c1fc7d69ba2d29
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Wed Sep 27 01:53:38 2023 +0000
+
+    internal/zstd: configure window size for single segment frames
+    
+    Set window size to frame content size when single segment flag is set.
+    
+    For #62513
+    
+    Change-Id: I2a60c33123aca4f6a631e6d625f4582ff31a63cb
+    GitHub-Last-Rev: 9bafe01e45aad6a9f22abca08b25b2b8d9107040
+    GitHub-Pull-Request: golang/go#63224
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531075
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ .../zstd/testdata/1890a371.gettysburg.txt-100x.zst | Bin 0 -> 826 bytes
+ src/internal/zstd/testdata/README                  |  10 ++++++
+ src/internal/zstd/zstd.go                          |  22 +++++++------
+ src/internal/zstd/zstd_test.go                     |  35 +++++++++++++++++++++
+ 4 files changed, 58 insertions(+), 9 deletions(-)

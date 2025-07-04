@@ -1,0 +1,20 @@
+commit 3acd2576ab224d905cfd09208a6d6607ce4b0fb6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 1 11:37:14 2018 -0700
+
+    go/build: accept ! in cgo arguments
+    
+    The ! can show up when using ${SRCDIR} with uppercase letters in module names.
+    
+    Fixes #26716
+    
+    Change-Id: Ia474ed8ec40a88076e8aac21103f6c7bb3848bdb
+    Reviewed-on: https://go-review.googlesource.com/127297
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/testdata/mod/rsc.io_!c!g!o_v1.0.0.txt | 19 +++++++++++++++++++
+ src/cmd/go/testdata/script/mod_case_cgo.txt      |  7 +++++++
+ src/go/build/build.go                            |  3 ++-
+ 3 files changed, 28 insertions(+), 1 deletion(-)

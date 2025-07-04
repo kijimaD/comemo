@@ -1,0 +1,15 @@
+commit 39070313588faf3a11b2a93d9eb81178166a306b
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 31 14:56:01 2011 -0700
+
+    fmt: implement precs for %q.
+    Also fix a bug: precision was in terms of bytes; should be runes.
+    Fixes #1652.
+    
+    R=rsc, bradfitzgo, r2, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4280086
+
+ src/pkg/fmt/fmt_test.go | 10 ++++++++++
+ src/pkg/fmt/format.go   | 22 +++++++++++++++++-----
+ 2 files changed, 27 insertions(+), 5 deletions(-)

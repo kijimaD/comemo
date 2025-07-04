@@ -1,0 +1,12 @@
+commit c06bd52a2e5a38125635b770b5ddad2cb3ce6909
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Feb 5 15:16:39 2012 +1100
+
+    cmd/dist: fix bug in bsubst
+    
+    R=golang-dev, r, dsymonds, akumar
+    CC=golang-dev
+    https://golang.org/cl/5624054
+
+ src/cmd/dist/buf.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

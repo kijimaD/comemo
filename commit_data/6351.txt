@@ -1,0 +1,15 @@
+commit c10865ce536684eec13ab7b1499ef74c07420cd2
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Sep 23 12:36:52 2010 +1000
+
+    syscall: implement windows version of Utimes()
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/2215044
+
+ src/pkg/os/stat_windows.go              |  6 +++---
+ src/pkg/syscall/syscall_windows.go      | 30 ++++++++++++++++-----------
+ src/pkg/syscall/zsyscall_windows_386.go | 16 +++++++++++++++
+ src/pkg/syscall/ztypes_windows_386.go   | 36 ++++++++++++++++++++++++++-------
+ 4 files changed, 66 insertions(+), 22 deletions(-)

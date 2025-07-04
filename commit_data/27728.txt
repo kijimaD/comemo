@@ -1,0 +1,16 @@
+commit 33fa855e6cfa906e12c624663b1010862bf4df6f
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Thu May 26 09:45:57 2016 +0800
+
+    math/rand: fix comment about bits of seed used by the default Source
+    
+    Fixes #15788
+    
+    Change-Id: I5a1fd1e5992f1c16cf8d8437d742bf02e1653b9c
+    Reviewed-on: https://go-review.googlesource.com/23461
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/rand/rand.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,27 @@
+commit 724a86fcede55d0e80da4a779ef64a2eb5d235a8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 27 20:08:36 2019 +0000
+
+    context: don't depend on fmt
+    
+    So the net package doesn't indirectly depend on unicode tables.
+    
+    But we're still not quite there, because a new test added in this CL
+    reveals that we still have a path to unicode via:
+    
+    deps_test.go:570:
+      TODO(issue 30440): policy violation: net => sort => reflect => unicode
+    
+    Updates #30440
+    
+    Change-Id: I710c2061dfbaa8e866c92e6c824bd8df35784165
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169080
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/context/context.go           | 35 +++++++++++++++++++++++++++++++----
+ src/context/context_test.go      |  2 +-
+ src/go/build/deps_test.go        | 36 +++++++++++++++++++++++++++++++++++-
+ src/internal/reflectlite/type.go |  7 +++++++
+ 4 files changed, 74 insertions(+), 6 deletions(-)

@@ -1,0 +1,25 @@
+commit fca51ba24a829233ca133455fd3f161ffc9d7c55
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:55:09 2021 -0600
+
+    cmd/internal/obj: remove ppc64 msr support from MOV* insns
+    
+    These are privileged instructions, and thus will never work with
+    usermode code. I don't think there is a case where this isn't
+    true.  The motivation is to simplify handling of MOV* opcodes.
+    
+    Assembler support for recognizing the MSR as a register is
+    retained.
+    
+    Change-Id: Ic33f021a20057b64e69df8ea125e23dd8937e38d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307814
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Trust: Carlos Eduardo Seo <carlos.seo@linaro.org>
+
+ src/cmd/internal/obj/ppc64/a.out.go   |  1 -
+ src/cmd/internal/obj/ppc64/anames9.go |  1 -
+ src/cmd/internal/obj/ppc64/asm9.go    | 20 --------------------
+ 3 files changed, 22 deletions(-)

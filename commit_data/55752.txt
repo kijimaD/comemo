@@ -1,0 +1,22 @@
+commit 3be36e9b20041ed1e67a45ae2ade96c45e90031a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:56:58 2024 -0500
+
+    runtime: merge timerMoving into timerModifying
+    
+    timerMoving is just a kind of "locked for modification",
+    so merge it into timerModifying.
+    
+    This is part of a larger simplification of the state set.
+    
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: I5379122f96d9921ecda7a6a37cabd6c6b4d529a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564121
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/time.go | 47 ++++++++++++++++++-----------------------------
+ 1 file changed, 18 insertions(+), 29 deletions(-)

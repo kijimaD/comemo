@@ -1,0 +1,12 @@
+commit 63f0aac58681efdb864a7bc6988cfb835734a278
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Dec 17 16:37:30 2015 -0500
+
+    test: fix linkmain test
+    
+    Change-Id: Ie8ec4cfc68abef51e52090a75245f96af874c74a
+    Reviewed-on: https://go-review.googlesource.com/18000
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/linkmain_run.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

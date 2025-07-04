@@ -1,0 +1,30 @@
+commit 1bd35fab05252450c3f67df18f9976fdaaa4dcf4
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Thu Aug 26 09:32:38 2021 +0800
+
+    runtime: use vDSO clock_gettime on linux/riscv64
+    
+    Speed up nanotime1 and walltime on riscv64 with vDSO, just like the
+    other vDSO-enabled targets.
+    
+    name          old time/op  new time/op  delta
+    Now           1.53µs ± 1%  1.05µs ± 3%  -31.74%  (p=0.000 n=10+10)
+    NowUnixNano   1.54µs ± 0%  1.05µs ± 2%  -31.91%  (p=0.000 n=9+10)
+    NowUnixMilli  1.56µs ± 1%  1.06µs ± 1%  -31.73%  (p=0.000 n=10+10)
+    NowUnixMicro  1.56µs ± 1%  1.05µs ± 1%  -32.80%  (p=0.000 n=9+10)
+    
+    Change-Id: I69b3fe3cc57685a826c53b366c0992e8048399bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328509
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/os_linux_novdso.go    |   4 +-
+ src/runtime/signal_unix.go        |   2 +-
+ src/runtime/sys_linux_riscv64.s   | 135 ++++++++++++++++++++++++++++++++++++--
+ src/runtime/vdso_elf64.go         |   4 +-
+ src/runtime/vdso_in_none.go       |   4 +-
+ src/runtime/vdso_linux.go         |   4 +-
+ src/runtime/vdso_linux_riscv64.go |  21 ++++++
+ 7 files changed, 159 insertions(+), 15 deletions(-)

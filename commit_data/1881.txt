@@ -1,0 +1,12 @@
+commit 1141716c5c90e31c38e7a2c6c9fa51d05027139e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 24 17:45:53 2009 -0700
+
+    change notation: s/Stat/Stmt/ in grammatical productions
+    
+    DELTA=26  (0 added, 0 deleted, 26 changed)
+    OCL=26703
+    CL=26705
+
+ doc/go_spec.html | 50 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 25 insertions(+), 25 deletions(-)

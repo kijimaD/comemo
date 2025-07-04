@@ -1,0 +1,30 @@
+commit 433ba582f7c72636066ec92679a325b7ee15297c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Nov 1 13:23:39 2021 -0700
+
+    net: optimize WriteToUDPAddrPort
+    
+    See the recent change optimizing WriteMsgUDPAddrPort
+    for an explanation of why this change includes copy/paste/modify
+    instead of implementing WriteToUDP using WriteToUDPAddrPort.
+    
+    name                          old time/op    new time/op    delta
+    WriteToReadFromUDPAddrPort-8    5.02µs ± 3%    4.71µs ± 2%   -6.31%  (p=0.000 n=15+14)
+    
+    name                          old alloc/op   new alloc/op   delta
+    WriteToReadFromUDPAddrPort-8     68.0B ± 0%      4.0B ± 0%  -94.12%  (p=0.000 n=15+15)
+    
+    name                          old allocs/op  new allocs/op  delta
+    WriteToReadFromUDPAddrPort-8      3.00 ± 0%      1.00 ± 0%  -66.67%  (p=0.000 n=15+15)
+    
+    Change-Id: I301715e774de07eb6ccb4e329ccf2e554609abc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360599
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/udpsock.go       | 13 ++++++++-----
+ src/net/udpsock_plan9.go |  4 ++++
+ src/net/udpsock_posix.go | 26 ++++++++++++++++++++++++++
+ 3 files changed, 38 insertions(+), 5 deletions(-)

@@ -1,0 +1,27 @@
+commit 50f4ebbdd30f53272b5f42ab66c50939eade0a0e
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Aug 11 11:45:11 2021 -0400
+
+    cmd/compile/internal/types2: define Identical for instances
+    
+    Instantiation of parameterized types may occur in other packages, so we
+    need an intrinsic notion of type identity for instances.
+    
+    Add the natural definition: two instances are identical if their bases
+    and type arguments are identical.
+    
+    Type unification was already considering type arguments, but has some
+    inaccurate logic with respect to objects. This will be addressed in a
+    follow-up CL.
+    
+    Change-Id: Ib2ce67c05de65eb302ee588cc40c89c60018da50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341856
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/api_test.go   | 25 +++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/predicates.go | 22 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/unify.go      |  5 -----
+ 3 files changed, 47 insertions(+), 5 deletions(-)

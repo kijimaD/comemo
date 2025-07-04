@@ -1,0 +1,23 @@
+commit 38765eba739461e5c5dc463860c62daee2eef4ee
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Sep 24 17:07:35 2016 +0200
+
+    runtime/race: don't crash on invalid PCs
+    
+    Currently raceSymbolizeCode uses funcline, which is internal runtime
+    function which crashes on incorrect PCs. Use FileLine instead,
+    it is public and does not crash on invalid data.
+    
+    Note: FileLine returns "?" file on failure. That string is not NUL-terminated,
+    so we need to additionally check what FileLine returns.
+    
+    Fixes #17190
+    
+    Change-Id: Ic6fbd4f0e68ddd52e9b2dd25e625b50adcb69a98
+    Reviewed-on: https://go-review.googlesource.com/29714
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/race.go             | 30 ++++++++---------
+ src/runtime/race/output_test.go | 71 +++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 80 insertions(+), 21 deletions(-)

@@ -1,0 +1,18 @@
+commit a906d3dd099424ff17d7e46c4ecf793012d50197
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 14 10:51:56 2022 -0400
+
+    cmd/go: avoid re-enqueuing workspace dependencies with errors
+    
+    Fixes #53874.
+    
+    Change-Id: I41ab15cb9b86b807a9d9ad21fe21fb7aa5fbb46f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417594
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/buildlist.go        |  5 +--
+ src/cmd/go/testdata/script/work_goproxy_off.txt | 59 +++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+), 3 deletions(-)

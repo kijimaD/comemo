@@ -1,0 +1,13 @@
+commit bd397d2f9bf3a7cf802ba4761ac07c4d32e8c476
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Jul 27 11:42:52 2008 -0700
+
+    select
+    
+    R=r
+    DELTA=29  (27 added, 1 deleted, 1 changed)
+    OCL=13503
+    CL=13503
+
+ src/cmd/gc/walk.c | 30 ++++++++++++++++++++++++++++--
+ 1 file changed, 28 insertions(+), 2 deletions(-)

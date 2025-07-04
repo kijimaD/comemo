@@ -1,0 +1,14 @@
+commit 283373d124b39be62fb4dc0349ddf0cb1c99aeb7
+Author: Mostafa Solati <mostafa.solati@gmail.com>
+Date:   Tue Aug 3 21:39:29 2021 +0430
+
+    database/sql: fix tx.Prepare documentation
+    
+    Fixes: #45978
+    Change-Id: I3d5ccd621d670f97bb1a642b4e84b6629347a315
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339291
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/database/sql/sql.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

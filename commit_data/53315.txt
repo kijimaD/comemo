@@ -1,0 +1,18 @@
+commit 04c628935d1487632f903e4e0688fb7a34063752
+Author: Sean Liao <sean@liao.dev>
+Date:   Fri May 19 19:04:07 2023 +0100
+
+    encoding/json: document unsupported float values
+    
+    Fixes #59627
+    
+    Change-Id: Icd6a9803e213596de6136ec980b0a352c450e6f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496142
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/encoding/json/encode.go | 1 +
+ 1 file changed, 1 insertion(+)

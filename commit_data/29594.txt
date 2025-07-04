@@ -1,0 +1,17 @@
+commit 0eb26fa8ba531b21d183fd3a4d3fb8abf57db7aa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 18 09:27:18 2016 -0800
+
+    spec: remove => (alias) operator from Operators and Delimiters section
+    
+    (Revert of https://go-review.googlesource.com/#/c/32310/)
+    
+    For #16339.
+    Fixes #17975.
+    
+    Change-Id: I36062703c423a81ea1c5b00f4429a4faf00b3782
+    Reviewed-on: https://go-review.googlesource.com/33365
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

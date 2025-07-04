@@ -1,0 +1,15 @@
+commit b0360e469cc77d88bfa435d63e319c5518bd8787
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Fri Jan 20 13:34:19 2012 -0500
+
+    go/ast: respect ImportSpec.EndPos
+    
+    Fixes #2566.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5541068
+
+ src/cmd/gofix/import_test.go | 37 ++++++++++++++++++++++++++++++++++++-
+ src/pkg/go/ast/import.go     |  7 +------
+ 2 files changed, 37 insertions(+), 7 deletions(-)

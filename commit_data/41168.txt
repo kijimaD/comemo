@@ -1,0 +1,19 @@
+commit 7f331e0e1735449380299654dc915fb5c8fe84ab
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 25 03:10:04 2020 +1100
+
+    test: adjust tests for riscv64
+    
+    This disables some tests that are unsupported on riscv64 and adds support
+    for risc64 to test/nosplit.
+    
+    Updates #27532, #36739 and #36765
+    
+    Change-Id: I0a57797a05bc80236709fc240c0a0efb0ee0d16b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216263
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue10607.go | 5 ++++-
+ test/inline_sync.go          | 5 ++++-
+ test/nosplit.go              | 3 +++
+ 3 files changed, 11 insertions(+), 2 deletions(-)

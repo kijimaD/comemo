@@ -1,0 +1,21 @@
+commit b95f0b123160a67c9e0b1d8c03993fe1e8208800
+Author: Mohamed Attahri <mohamed@attahri.com>
+Date:   Tue Oct 13 02:26:19 2020 +0000
+
+    io: add a new ReadSeekCloser interface
+    
+    Research showed that this interface is defined frequently enough in
+    real-world usage to justify its addition to the standard library.
+    
+    Fixes #40962
+    
+    Change-Id: I522fe8f9b8753c3fa42ccc1def49611cf88cd340
+    GitHub-Last-Rev: 6a45be66b42e482a06d9809d9da20c195380988b
+    GitHub-Pull-Request: golang/go#41939
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261577
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/io/io.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

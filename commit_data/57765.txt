@@ -1,0 +1,18 @@
+commit 711552e98acbfda7e974dacf4e3a0a8f8dcaa371
+Author: Youlin Feng <fengyoulin@live.com>
+Date:   Tue Oct 8 12:49:30 2024 +0800
+
+    cmd/compile: optimize type switch for a single runtime known type with a case var
+    
+    Change-Id: I03ba70076d6dd3c0b9624d14699b7dd91a3c0e9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618476
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/walk/switch.go | 35 +++++++++++++++++++++++++++++----
+ test/codegen/typeswitch.go              | 22 ++++++++++++++++++++-
+ 2 files changed, 52 insertions(+), 5 deletions(-)

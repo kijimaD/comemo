@@ -1,0 +1,16 @@
+commit aaf3b71288ac09953932025898a694300eab58cf
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Nov 16 19:33:59 2012 +1100
+
+    crypto/tls: add support for loading EC X.509 key pairs
+    
+    Add support for loading X.509 key pairs that consist of a certificate
+    with an EC public key and its corresponding EC private key.
+    
+    R=agl
+    CC=golang-dev
+    https://golang.org/cl/6776043
+
+ src/pkg/crypto/tls/tls.go      | 72 ++++++++++++++++++++++++++++++------------
+ src/pkg/crypto/tls/tls_test.go | 64 +++++++++++++++++++++++++++++++------
+ 2 files changed, 107 insertions(+), 29 deletions(-)

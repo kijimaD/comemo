@@ -1,0 +1,12 @@
+commit f574371544f943b7280c1fdedac3220eccda9e86
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 20 13:38:19 2013 -0800
+
+    strconv: use Scanner in fp_test
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7385045
+
+ src/pkg/strconv/fp_test.go | 19 ++++++-------------
+ 1 file changed, 6 insertions(+), 13 deletions(-)

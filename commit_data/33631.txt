@@ -1,0 +1,17 @@
+commit f91ab6c0256877841944c57a12bd779edb2a0f66
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Nov 19 13:40:05 2017 +0000
+
+    bytes: don't use an iota for the readOp constants
+    
+    As per the comments in golang.org/cl/78617. Also leaving a comment here,
+    to make sure noone else thinks to re-introduce the iota like I did.
+    
+    Change-Id: I2a2275998b81896eaa0e9d5ee0197661ebe84acf
+    Reviewed-on: https://go-review.googlesource.com/78676
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/buffer.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

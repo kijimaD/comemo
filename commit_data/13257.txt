@@ -1,0 +1,20 @@
+commit 8801402940aa983a318ba680b7b65b5070dd35ca
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Jun 3 19:27:17 2012 +1000
+
+    syscall: correct Win32finddata definition
+    
+    Fixes #3685.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6261053
+
+ api/next.txt                              | 26 ++++++++++++++++
+ src/pkg/os/file_windows.go                |  6 ++--
+ src/pkg/syscall/syscall_windows.go        | 13 ++++++--
+ src/pkg/syscall/syscall_windows_test.go   | 50 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_windows_386.go   |  4 +--
+ src/pkg/syscall/zsyscall_windows_amd64.go |  4 +--
+ src/pkg/syscall/ztypes_windows.go         | 16 ++++++++++
+ 7 files changed, 110 insertions(+), 9 deletions(-)

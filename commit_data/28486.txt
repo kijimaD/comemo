@@ -1,0 +1,22 @@
+commit c03925edd37b504346c11656a6de5f5e4b791061
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 9 15:12:07 2016 -0400
+
+    runtime: remove unnecessary atomics from heapBitSetType
+    
+    These used to be necessary when racing with updates to the mark bit,
+    but since the mark bit is no longer in the bitmap and the checkmark is
+    only updated with the world stopped, we can now always use regular
+    writes to update the type information in the heap bitmap.
+    
+    Somewhat surprisingly, this has basically no overall performance
+    effect beyond the usual noise, but it does clean up the code.
+    
+    Change-Id: I3933d0b4c0bc1c9bcf6313613515c0b496212105
+    Reviewed-on: https://go-review.googlesource.com/29277
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mbitmap.go | 85 ++++++++++++++------------------------------------
+ 1 file changed, 23 insertions(+), 62 deletions(-)

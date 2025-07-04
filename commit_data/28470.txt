@@ -1,0 +1,18 @@
+commit b6324ef5ff212bea011d4d60ff8aeaa0ef7a5bba
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Sep 20 15:46:37 2016 +1200
+
+    cmd/link: kill off Symbols.Version
+    
+    Change-Id: Iee8f773355870f2333637a093e51c5fd36e5a6e5
+    Reviewed-on: https://go-review.googlesource.com/29349
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/ldelf.go   | 14 +++++++-------
+ src/cmd/link/internal/ld/ldmacho.go |  6 +++---
+ src/cmd/link/internal/ld/ldpe.go    | 12 ++++++------
+ src/cmd/link/internal/ld/objfile.go | 28 ++++++++++++++--------------
+ src/cmd/link/internal/ld/symbols.go | 10 ++--------
+ 5 files changed, 32 insertions(+), 38 deletions(-)

@@ -1,0 +1,15 @@
+commit 72a11c5752aec345a7cafc257f3176da4cb4f5e7
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Wed Sep 2 11:59:53 2009 -0700
+
+    Update asInterface now that 6g type switch is fixed.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=31  (0 added, 4 deleted, 27 changed)
+    OCL=34251
+    CL=34259
+
+ usr/austin/eval/expr1.go | 28 +++++++++++++---------------
+ usr/austin/eval/gen.go   |  6 ++----
+ 2 files changed, 15 insertions(+), 19 deletions(-)

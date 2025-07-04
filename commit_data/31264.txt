@@ -1,0 +1,14 @@
+commit 44fe0820c6c304cb56592b07c0d9b2f90c3a20ce
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sun Apr 9 12:33:34 2017 +0900
+
+    cmd/cgo: remove duplicate mangle definition
+    
+    Change-Id: I0f8c695146b39cff72ca2374f861f3e9f72b0f77
+    Reviewed-on: https://go-review.googlesource.com/41314
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

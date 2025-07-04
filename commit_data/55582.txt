@@ -1,0 +1,21 @@
+commit 0336d5eb43f1269060b3e89b4d4e2c0f527cfe4f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 12 11:35:29 2024 +1100
+
+    time: fix typo in ExampleParseDuration
+    
+    A typo without consequences, but confusing nonetheless. The last
+    line prints micro2 and then micro, instead of micro2 twice.
+    One-character fix.
+    
+    Fixes #65666
+    
+    Change-Id: I61d636382a2223d53eac58d6ddbcc7c15b4efc85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563275
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/time/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

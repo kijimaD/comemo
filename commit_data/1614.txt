@@ -1,0 +1,12 @@
+commit 6aabf31a83f692b1f8962154eab66e7e22cb5cab
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 4 15:13:07 2009 -0800
+
+    a few tweaks triggered by tgs's comments
+    
+    DELTA=46  (25 added, 1 deleted, 20 changed)
+    OCL=24342
+    CL=24354
+
+ doc/go_tutorial.txt | 64 ++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 44 insertions(+), 20 deletions(-)

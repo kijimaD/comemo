@@ -1,0 +1,13 @@
+commit a05c59fe914c987609a889868affe0a0f50cdb1f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 30 13:52:44 2008 -0700
+
+    cleanup export
+    
+    R=ken
+    OCL=16219
+    CL=16219
+
+ src/cmd/gc/dcl.c    |  2 +-
+ src/cmd/gc/export.c | 14 ++++++--------
+ 2 files changed, 7 insertions(+), 9 deletions(-)

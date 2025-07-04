@@ -1,0 +1,15 @@
+commit 7e11ff38160da714b3528d58021aefa42c7ed7e3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 11 15:08:38 2022 -0700
+
+    spec: correct assignment rules with respect to type parameters
+    
+    Fixes #52628.
+    
+    Change-Id: If4261abc25868d62f7689253d40f872692c23a4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405755
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit da69685ee5c800f9859c09d85fbfad6cbd643cf0
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 29 10:14:32 2010 -0700
+
+    gob: a couple of tiny simplifications using Kind()
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1695046
+
+ src/pkg/gob/decoder.go | 11 ++++++-----
+ src/pkg/gob/encode.go  | 25 +++++++++++++++++++------
+ src/pkg/gob/type.go    |  2 +-
+ 3 files changed, 26 insertions(+), 12 deletions(-)

@@ -1,0 +1,36 @@
+commit 16ad1ea8417bb842204bf7c982e3f19969b67458
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 11 16:34:01 2021 -0800
+
+    cmd/compile/internal/types2: simplify error reporting API (cleanup)
+    
+    - Remove specialized errorf functions for invalid AST/argument/operation.
+      Instead use prefix constants with the error message.
+    
+    - Replace several calls to Checker.errorf with calls to Checker.error
+      if there are no arguments to format.
+    
+    - Replace a handful of %s format verbs with %v to satisfy vet check.
+    
+    - Add a basic test that checks that we're not using Checker.errorf when
+      we should be using Checker.error.
+    
+    Change-Id: I7bc7c14f3cf774689ec8cd5782ea31b6e30dbcd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300995
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go     |  2 +-
+ src/cmd/compile/internal/types2/builtins.go        | 44 +++++++-------
+ src/cmd/compile/internal/types2/call.go            |  4 +-
+ src/cmd/compile/internal/types2/check.go           |  2 +-
+ src/cmd/compile/internal/types2/decl.go            |  6 +-
+ src/cmd/compile/internal/types2/errorcalls_test.go | 49 ++++++++++++++++
+ src/cmd/compile/internal/types2/errors.go          | 28 ++++-----
+ src/cmd/compile/internal/types2/expr.go            | 68 +++++++++++-----------
+ src/cmd/compile/internal/types2/labels.go          |  2 +-
+ src/cmd/compile/internal/types2/resolver.go        | 16 ++---
+ src/cmd/compile/internal/types2/stmt.go            | 16 ++---
+ src/cmd/compile/internal/types2/typexpr.go         | 34 +++++------
+ src/cmd/compile/internal/types2/version.go         |  8 +--
+ 13 files changed, 162 insertions(+), 117 deletions(-)

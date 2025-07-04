@@ -1,0 +1,12 @@
+commit ee5a794fbbde0bc608f91e974a9b12f887b8266c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 19 16:40:19 2013 -0700
+
+    doc/go1.1.html: add links to the text, write some new sections
+    
+    R=golang-dev, rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/7914043
+
+ doc/go1.1.html | 204 +++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 156 insertions(+), 48 deletions(-)

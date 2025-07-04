@@ -1,0 +1,18 @@
+commit 381b72a7a3cc4c7182319f84297d40bb7b459dc4
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Sep 19 09:23:04 2013 +0200
+
+    cmd/gc: cleanup SWITCH nodes after walk.
+    
+    Keeping pointers from the pre-walk phase confuses
+    the race detection instrumentation.
+    
+    Fixes #6418.
+    
+    R=golang-dev, dvyukov, r
+    CC=golang-dev
+    https://golang.org/cl/13368057
+
+ src/cmd/gc/swt.c                          |  3 +++
+ src/pkg/runtime/race/testdata/mop_test.go | 16 ++++++++++++++++
+ 2 files changed, 19 insertions(+)

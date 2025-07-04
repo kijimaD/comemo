@@ -1,0 +1,14 @@
+commit 0244bae672893adcd459b25cdd10ba65b37e894a
+Author: Rob Pike <r@golang.org>
+Date:   Fri Dec 9 14:24:51 2011 -0800
+
+    expvar: fix typo in Publish documentation
+    Found and fixed by bketelsen@gmail.com.
+    Not worth making him a CONTRIBUTOR to delete one character.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5476054
+
+ src/pkg/expvar/expvar.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

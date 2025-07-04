@@ -1,0 +1,42 @@
+commit cfb347fc0a431da6a42d89a802e19e414041ada5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 1 14:57:58 2014 -0400
+
+    runtime: use correct pc to obtain liveness info during stack copy
+    
+    The old code was using the PC of the instruction after the CALL.
+    Variables live during the call but not live when it returns would
+    not be seen as live during the stack copy, which might lead to
+    corruption. The correct PC to use is the one just before the
+    return address. After this CL the lookup matches what mgc0.c does.
+    
+    The only time this matters is if you have back to back CALL instructions:
+    
+            CALL f1 // x live here
+            CALL f2 // x no longer live
+    
+    If a stack copy occurs during the execution of f1, the old code will
+    use the liveness bitmap intended for the execution of f2 and will not
+    treat x as live.
+    
+    The only way this situation can arise and cause a problem in a stack copy
+    is if x lives on the stack has had its address taken but the compiler knows
+    enough about the context to know that x is no longer needed once f1
+    returns. The compiler has never known that much, so using the f2 context
+    cannot currently cause incorrect execution. For the same reason, it is not
+    possible to write a test for this today.
+    
+    CL 83090046 will make the compiler precise enough in some cases
+    that this distinction will start mattering. The existing stack growth tests
+    in package runtime will fail if that CL is submitted without this one.
+    
+    While we're here, print the frame PC in debug mode and update the
+    bitmap interpretation strings.
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/83250043
+
+ src/pkg/runtime/stack.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

@@ -1,0 +1,13 @@
+commit b6c2bf7127fcd65eb3de1a8cae8925ea042ad7e2
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 3 13:27:50 2010 +1000
+
+    Add Scott Lawrence to C&A
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/1899044
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

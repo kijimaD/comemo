@@ -1,0 +1,23 @@
+commit 526ee96f4992ff3a1e1c219fe8dc9870098bacba
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Nov 6 17:37:03 2020 -0800
+
+    os: avoid allocation in File.WriteString
+    
+    Instead of alloc+copy to convert the string
+    to a byte slice, do an unsafe conversion.
+    
+    Rely on the kernel not to scribble on the
+    buffer during the write.
+    
+    Fixes #42406
+    
+    Change-Id: I66f4838b43a11bcc3d67bbfa1706726318d55343
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268020
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/os/file.go    |  9 ++++++++-
+ src/os/os_test.go | 18 ++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

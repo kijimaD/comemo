@@ -1,0 +1,47 @@
+commit 48582e1524ab165a179cf0199f0049e2b3019880
+Author: Mike Strosaker <strosake@us.ibm.com>
+Date:   Fri Apr 21 14:26:38 2017 -0400
+
+    crypto/sha256,crypto/sha512: improve performance for sha{256,512}.block on ppc64le
+    
+    This updates sha256.block and sha512.block to use vector instructions.  While
+    each round must still be performed independently, this allows for the use of
+    the vshasigma{w,d} crypto acceleration instructions.
+    
+    For crypto/sha256:
+    
+    benchmark               old ns/op     new ns/op     delta
+    BenchmarkHash8Bytes     570           300           -47.37%
+    BenchmarkHash1K         7529          3018          -59.91%
+    BenchmarkHash8K         55308         21938         -60.33%
+    
+    benchmark               old MB/s     new MB/s     speedup
+    BenchmarkHash8Bytes     14.01        26.58        1.90x
+    BenchmarkHash1K         136.00       339.23       2.49x
+    BenchmarkHash8K         148.11       373.40       2.52x
+    
+    For crypto/sha512:
+    
+    benchmark               old ns/op     new ns/op     delta
+    BenchmarkHash8Bytes     725           394           -45.66%
+    BenchmarkHash1K         5062          2107          -58.38%
+    BenchmarkHash8K         34711         13918         -59.90%
+    
+    benchmark               old MB/s     new MB/s     speedup
+    BenchmarkHash8Bytes     11.03        20.29        1.84x
+    BenchmarkHash1K         202.28       485.84       2.40x
+    BenchmarkHash8K         236.00       588.56       2.49x
+    
+    Fixes #20069
+    
+    Change-Id: I28bffe6e9eb484a83a004116fce84acb4942abca
+    Reviewed-on: https://go-review.googlesource.com/41391
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/crypto/sha256/sha256block_ppc64le.s | 569 ++++++++++++++++++-----------
+ src/crypto/sha512/sha512block_ppc64le.s | 609 ++++++++++++++++++++------------
+ 2 files changed, 740 insertions(+), 438 deletions(-)

@@ -1,0 +1,23 @@
+commit 13a5b1faee06b59df456930d04edd2b5e083b019
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 26 12:16:53 2016 -0700
+
+    cmd/compile: improve domorder documentation
+    
+    domorder has some non-obvious useful properties
+    that we’re relying on in cse.
+    Document them and provide an argument that they hold.
+    While we’re here, do some minor renaming.
+    
+    The argument is a re-working of a private email
+    exchange with Todd Neal and David Chase.
+    
+    Change-Id: Ie154e0521bde642f5f11e67fc542c5eb938258be
+    Reviewed-on: https://go-review.googlesource.com/23449
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/cse.go        | 19 +++++++---------
+ src/cmd/compile/internal/ssa/sparsetree.go | 36 +++++++++++++++++++++++++++---
+ 2 files changed, 41 insertions(+), 14 deletions(-)

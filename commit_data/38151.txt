@@ -1,0 +1,14 @@
+commit b47f31f68ce7a00ce9432e656014d72f1e94734e
+Author: cia-rana <kiwamura0314@gmail.com>
+Date:   Thu Feb 28 01:04:58 2019 +0900
+
+    image/png: delete unused statement
+    
+    Change-Id: I91378d5d5ecc1fc6741127a3924c631904da736b
+    Reviewed-on: https://go-review.googlesource.com/c/164199
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/png/writer.go | 1 -
+ 1 file changed, 1 deletion(-)

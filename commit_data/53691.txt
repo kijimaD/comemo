@@ -1,0 +1,19 @@
+commit 9b335433396088d2701e8a058ae107689404ec6a
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 14 08:34:39 2023 -0700
+
+    math: test large negative values as args for trig functions
+    
+    Sin/Tan are odd, Cos is even, so it is easy to compute the correct
+    result from the positive argument case.
+    
+    Change-Id: If851d00fc7f515ece8199cf56d21186ced51e94f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509815
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Srinivas Pokala <Pokala.Srinivas@ibm.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/math/huge_test.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

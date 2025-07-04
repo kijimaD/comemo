@@ -1,0 +1,12 @@
+commit 84713d46f6acc2f64b544e7ede1326a2d3a46d09
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Dec 13 17:02:01 2010 +1100
+
+    syscall: remove terminating \r and \n from windows error messages
+    
+    R=rsc, peterGo
+    CC=golang-dev
+    https://golang.org/cl/3095042
+
+ src/pkg/syscall/syscall_windows.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

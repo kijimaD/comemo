@@ -1,0 +1,12 @@
+commit 763afe13b97dd0e3795a29afc9a43bb1189230db
+Author: Todd Neal <todd@tneal.org>
+Date:   Tue Mar 15 16:57:20 2016 -0500
+
+    cmd/compile: change logging of spills for regalloc to Warnl format
+    
+    Change-Id: I01c000ff3f6dc6b0ed691e289eeef0fa61500337
+    Reviewed-on: https://go-review.googlesource.com/20744
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,53 @@
+commit 09ed9a6585b23f41ce13201c3c35f40b8b62ed21
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Tue Aug 1 22:17:02 2023 +0800
+
+    cmd/compile: implement float min/max in hardware for riscv64
+    
+    CL 514596 adds float min/max for amd64, this CL adds it for riscv64.
+    
+    The behavior of the RISC-V FMIN/FMAX instructions almost match Go's
+    requirements.
+    
+    However according to RISCV spec 8.3 "NaN Generation and Propagation"
+    >> if at least one input is a signaling NaN, or if both inputs are quiet
+    >> NaNs, the result is the canonical NaN. If one operand is a quiet NaN
+    >> and the other is not a NaN, the result is the non-NaN operand.
+    
+    Go using quiet NaN as NaN and according to Go spec
+    >> if any argument is a NaN, the result is a NaN
+    
+    This requires the float min/max implementation to check whether one
+    of operand is qNaN before float mix/max actually execute.
+    
+    This CL also fix a typo in minmax test.
+    
+    Benchmark on Visionfive2
+    goos: linux
+    goarch: riscv64
+    pkg: runtime
+             │ float_minmax.old.bench │       float_minmax.new.bench        │
+             │         sec/op         │   sec/op     vs base                │
+    MinFloat             158.20n ± 0%   28.13n ± 0%  -82.22% (p=0.000 n=10)
+    MaxFloat             158.10n ± 0%   28.12n ± 0%  -82.21% (p=0.000 n=10)
+    geomean               158.1n        28.12n       -82.22%
+    
+    Update #59488
+    
+    Change-Id: Iab48be6d32b8882044fb8c821438ca8840e5493d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514775
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Run-TryBot: M Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/riscv64/ssa.go         | 66 ++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  3 ++
+ src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go |  4 ++
+ src/cmd/compile/internal/ssa/opGen.go           | 68 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 12 +++++
+ src/cmd/compile/internal/ssagen/ssa.go          |  2 +-
+ src/runtime/minmax_test.go                      | 22 +++++++-
+ 7 files changed, 174 insertions(+), 3 deletions(-)

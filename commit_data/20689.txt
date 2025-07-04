@@ -1,0 +1,13 @@
+commit c689abd56c05c34922f6390ac835719c4a48065a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Oct 10 13:12:32 2014 +1100
+
+    net: link skipped TestReadFromUDP to the issue
+    
+    LGTM=minux
+    R=bradfitz, minux
+    CC=golang-codereviews
+    https://golang.org/cl/154220043
+
+ src/net/udp_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 0b448bdef76ba5565f96ce33698a76683e3f4553
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sun Sep 30 15:46:37 2012 +1000
+
+    exp/types: better diagnosis for compile failures.
+    
+    R=gri, dave
+    CC=golang-dev
+    https://golang.org/cl/6587046
+
+ src/pkg/exp/types/gcimporter_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

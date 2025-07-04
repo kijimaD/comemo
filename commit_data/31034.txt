@@ -1,0 +1,42 @@
+commit 63c1aff60b68dba82ca05d0ae6d0c67bcb0583c1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 6 13:42:31 2017 -0700
+
+    cmd/internal/obj: eagerly initialize assemblers
+    
+    CL 38662 changed the x86 assembler to be eagerly
+    initialized, for a concurrent backend.
+    
+    This CL puts in place a proper mechanism for doing so,
+    and switches all architectures to use it.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: Id2aa527d3a8259c95797d63a2f0d1123e3ca2a1c
+    Reviewed-on: https://go-review.googlesource.com/39917
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/asm/internal/arch/arch.go         |  2 --
+ src/cmd/asm/internal/asm/endtoend_test.go |  1 +
+ src/cmd/asm/main.go                       |  2 ++
+ src/cmd/compile/internal/amd64/galign.go  |  2 --
+ src/cmd/compile/internal/gc/main.go       |  2 ++
+ src/cmd/compile/internal/x86/galign.go    |  2 --
+ src/cmd/internal/obj/arm/asm5.go          |  9 ++++++++-
+ src/cmd/internal/obj/arm/obj5.go          |  1 +
+ src/cmd/internal/obj/arm64/asm7.go        |  9 ++++++++-
+ src/cmd/internal/obj/arm64/obj7.go        |  1 +
+ src/cmd/internal/obj/link.go              |  1 +
+ src/cmd/internal/obj/mips/asm0.go         | 11 +++++++++--
+ src/cmd/internal/obj/mips/obj0.go         |  4 ++++
+ src/cmd/internal/obj/ppc64/asm9.go        |  9 ++++++++-
+ src/cmd/internal/obj/ppc64/obj9.go        |  2 ++
+ src/cmd/internal/obj/s390x/asmz.go        |  9 ++++++++-
+ src/cmd/internal/obj/s390x/objz.go        |  1 +
+ src/cmd/internal/obj/x86/asm6.go          | 10 +++++-----
+ src/cmd/internal/obj/x86/obj6.go          |  3 +++
+ 19 files changed, 64 insertions(+), 17 deletions(-)

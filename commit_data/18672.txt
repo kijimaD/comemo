@@ -1,0 +1,13 @@
+commit f50a87058b6773f277d139b9c85ad421b92620d2
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 27 01:45:22 2014 -0800
+
+    runtime: disable stack copying
+    TBR=dvyukov
+    
+    TBR=dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/69080045
+
+ src/pkg/runtime/proc.c | 1 +
+ 1 file changed, 1 insertion(+)

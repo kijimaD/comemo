@@ -1,0 +1,12 @@
+commit 1b0b0db6fbd6a11df18bda38eae1f46a1835b9e5
+Author: Rick Hudson <rlh@golang.org>
+Date:   Fri Dec 12 09:51:20 2014 -0500
+
+    runtime: add profiling infrastructure for the Concurrent GC
+    
+    Change-Id: Ia7a007444eeb1503cec27367a5c6699ce0bf4af6
+    Reviewed-on: https://go-review.googlesource.com/1441
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/malloc.go | 138 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 133 insertions(+), 5 deletions(-)

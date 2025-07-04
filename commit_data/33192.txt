@@ -1,0 +1,19 @@
+commit a31e0a4aacf14be0708aea1f60f25e3607813d2c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Oct 20 20:46:04 2017 -0400
+
+    misc/cgo/testplugin: speed up tests
+    
+    Running test.bash goes from 30s to 10s on a linux workstation.
+    
+    (The coming pkg cache work in cmd/go would presumably do the same thing,
+    but this makes all.bash faster today.)
+    
+    Change-Id: I8c9b0400071a412fce55b386e939906bb1c1d84d
+    Reviewed-on: https://go-review.googlesource.com/72330
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/test.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

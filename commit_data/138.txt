@@ -1,0 +1,11 @@
+commit 33f7637d6a6370a580401cef9a80b18af3cb6680
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jun 8 19:33:54 2008 -0700
+
+    fix float lit to return 1, print error
+    
+    SVN=121627
+
+ test/float_lit.go | 92 +++++++++++++++++++++++++++----------------------------
+ test/golden.out   |  1 +
+ 2 files changed, 47 insertions(+), 46 deletions(-)

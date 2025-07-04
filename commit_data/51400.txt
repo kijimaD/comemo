@@ -1,0 +1,22 @@
+commit 3732a178061f44fbde277def693368ce43e5e779
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Nov 21 13:56:19 2022 +0100
+
+    cmd/go,internal/platform: enable pie buildmode for windows/arm64
+    
+    This CL adds windows/arm64 to the list of ports that supports PIE
+    build mode. It is probably an oversight that this port is not marked
+    as pie-capable because windows/arm64 only supports PIE build mode.
+    
+    Fixes #56872
+    
+    Change-Id: I2bdd3ac207280f47ddcf8c2582f13025dafb9278
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452415
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/go_test.go              | 2 +-
+ src/internal/platform/supported.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

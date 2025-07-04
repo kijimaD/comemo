@@ -1,0 +1,17 @@
+commit e002cf4df7fcd9925916ed78df7ed2a49031ed2e
+Author: George Looshch <looshch@loosh.ch>
+Date:   Sat Jan 15 21:43:05 2022 +0200
+
+    strings: fix typo in comment
+    
+    Remove unnecessary whitespace in noescape comment
+    
+    Fixes #50634
+    
+    Change-Id: I1c8d16c020b05678577d349470fac7e7ab8a10b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378815
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/strings/builder.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

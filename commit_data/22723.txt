@@ -1,0 +1,17 @@
+commit 8cb9c21cce483d016b520838c828b4403c5dfc81
+Author: Dmitry Savintsev <dsavints@gmail.com>
+Date:   Mon Apr 27 11:57:21 2015 +0200
+
+    regexp: trivial change in comments to update code.google.com link
+    
+    Replaced code.google.com/p/re2/ with github.com/google/re2/ and
+    updated the file names (re2-exhaustive.txt.bz2 not re2.txt.gz)
+    as well as the re2 make command (make log).
+    
+    Change-Id: I15937b0b8a898d78d45366857ed86421c8d69960
+    Reviewed-on: https://go-review.googlesource.com/9372
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/regexp/exec_test.go    | 8 ++++----
+ src/regexp/testdata/README | 3 ++-
+ 2 files changed, 6 insertions(+), 5 deletions(-)

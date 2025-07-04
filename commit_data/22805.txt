@@ -1,0 +1,21 @@
+commit ccaaf1f13417b4fdc56ac571f22f8b6dd8c7c8e1
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 30 11:57:34 2015 +1000
+
+    misc/cgo/testcshared, misc/cgo/testshared: fix clang warnings and errors
+    
+    Fix several warnings generated on the linux-amd64-clang builder
+    and make it clear to clang that -znow is a linker only flag.
+    
+    Tested with
+    
+        env CC=clang-3.5 ./all.bash
+        env CC=gcc-4.8 ./all.bash
+    
+    Change-Id: I5ca7366ba8bf6221a36d25a2157dda4b4f3e16fa
+    Reviewed-on: https://go-review.googlesource.com/9523
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcshared/main0.c | 4 ++++
+ src/cmd/internal/ld/lib.go   | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

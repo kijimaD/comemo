@@ -1,0 +1,15 @@
+commit b57ac97c27e8c5b8b9ff0e11c6dec538faa3eb43
+Author: Lorenzo Stoakes <lstoakes@gmail.com>
+Date:   Fri Feb 11 17:47:58 2011 -0500
+
+    gc: correct receiver in method missing error
+    
+    Fixes #1324.
+    
+    R=rsc1, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/3435042
+
+ src/cmd/gc/typecheck.c   |  5 +++--
+ test/fixedbugs/bug322.go | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 6d622416f1088fef92d44c79af2dfcb385088ffa
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 29 15:43:05 2012 -0500
+
+    net: add test case for SplitHostPort with zone
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6854119
+
+ src/pkg/net/ip_test.go | 1 +
+ 1 file changed, 1 insertion(+)

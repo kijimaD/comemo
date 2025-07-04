@@ -1,0 +1,62 @@
+commit a2846e65dc1a09088bbebbf71eade1a232c7a6e2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Oct 4 11:09:03 2011 +1100
+
+    image: spin off a new color package out of the image package.
+    
+    The spin-off renames some types. The new names are simply better:
+    image.Color              -> color.Color
+    image.ColorModel         -> color.Model
+    image.ColorModelFunc     -> color.ModelFunc
+    image.PalettedColorModel -> color.Palette
+    image.RGBAColor          -> color.RGBA
+    image.RGBAColorModel     -> color.RGBAModel
+    image.RGBA64Color        -> color.RGBA64
+    image.RGBA64ColorModel   -> color.RGBA64Model
+    (similarly for NRGBAColor, GrayColorModel, etc)
+    
+    The image.ColorImage type stays in the image package, but is renamed:
+    image.ColorImage -> image.Uniform
+    
+    The image.Image implementations (image.RGBA, image.RGBA64, image.NRGBA,
+    image.Alpha, etc) do not change their name, and gain a nice symmetry:
+    an image.RGBA is an image of color.RGBA, etc.
+    
+    The image.Black, image.Opaque uniform images remain unchanged (although
+    their type is renamed from image.ColorImage to image.Uniform). The
+    corresponding color types (color.Black, color.Opaque, etc) are new.
+    
+    Nothing in the image/ycbcr is renamed yet. The ycbcr.YCbCrColor and
+    ycbcr.YCbCrImage types will eventually migrate to color.YCbCr and
+    image.YCbCr, but that will be a separate CL.
+    
+    R=r, bsiegert
+    CC=golang-dev
+    https://golang.org/cl/5132048
+
+ src/cmd/gofix/Makefile            |   1 +
+ src/cmd/gofix/imagecolor.go       |  87 +++++++++++
+ src/cmd/gofix/imagecolor_test.go  | 126 ++++++++++++++++
+ src/cmd/gofix/imagenew_test.go    |   6 +-
+ src/pkg/Makefile                  |   2 +
+ src/pkg/image/Makefile            |   1 -
+ src/pkg/image/bmp/reader.go       |  11 +-
+ src/pkg/image/color/Makefile      |  11 ++
+ src/pkg/image/color/color.go      | 293 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/image/decode_test.go      |   3 +-
+ src/pkg/image/draw/bench_test.go  |  55 +++----
+ src/pkg/image/draw/draw.go        |  23 ++-
+ src/pkg/image/draw/draw_test.go   | 105 +++++++-------
+ src/pkg/image/gif/reader.go       |  13 +-
+ src/pkg/image/image.go            | 182 +++++++++--------------
+ src/pkg/image/image_test.go       |  21 +--
+ src/pkg/image/jpeg/reader.go      |   3 +-
+ src/pkg/image/jpeg/writer_test.go |   3 +-
+ src/pkg/image/names.go            |  48 ++++---
+ src/pkg/image/png/reader.go       |  51 +++----
+ src/pkg/image/png/reader_test.go  |  37 ++---
+ src/pkg/image/png/writer.go       |  23 +--
+ src/pkg/image/png/writer_test.go  |  14 +-
+ src/pkg/image/tiff/reader.go      |  19 +--
+ src/pkg/image/ycbcr/ycbcr.go      |   9 +-
+ 25 files changed, 820 insertions(+), 327 deletions(-)

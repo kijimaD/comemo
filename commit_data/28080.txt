@@ -1,0 +1,12 @@
+commit 71d2b42bf6c7ccd6a92ad10e8d0ac9272e312d1a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 24 23:44:55 2016 -0700
+
+    cmd/compile: use printer in exprfmt
+    
+    Change-Id: I7376c3bb55529a575e74985c2d7f0cf07c8996e7
+    Reviewed-on: https://go-review.googlesource.com/27920
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 198 +++++++++++++++++--------------------
+ 1 file changed, 89 insertions(+), 109 deletions(-)

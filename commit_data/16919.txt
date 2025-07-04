@@ -1,0 +1,16 @@
+commit d920d8d8493635ff91194a28332b904dbf819214
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 30 14:22:14 2013 +1000
+
+    doc: don't block page load on JavaScript fetch
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/12050045
+
+ doc/codewalk/codewalk.js |  2 +-
+ doc/godocs.js            | 63 ++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/root.html            |  2 +-
+ lib/godoc/godoc.html     | 19 ++++++---------
+ lib/godoc/package.html   | 50 --------------------------------------
+ 5 files changed, 72 insertions(+), 64 deletions(-)

@@ -1,0 +1,17 @@
+commit 074a49bfe82cd4722c05c48568a43434eab639fa
+Author: Rémy Oudompheng <remyoudompheng@gmail.com>
+Date:   Tue Apr 27 08:31:49 2021 +0200
+
+    strconv: remove unused extfloat (Grisu3) ftoa code
+    
+    Change-Id: Ie8995362f9e8072b173d08820330d2d1e512aa71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314029
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/strconv/extfloat.go | 517 ------------------------------------------------
+ src/strconv/ftoaryu.go  |   5 +
+ 2 files changed, 5 insertions(+), 517 deletions(-)

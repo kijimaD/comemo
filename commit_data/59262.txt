@@ -1,0 +1,37 @@
+commit 09d76e59d2e4e1c8d2c2ea99570647890057966f
+Author: limeidan <limeidan@loongson.cn>
+Date:   Tue Mar 25 15:02:03 2025 +0800
+
+    cmd/compile: set unalignedOK to make memcombine work properly on loong64
+    
+    goos: linux
+    goarch: loong64
+    pkg: unicode/utf8
+    cpu: Loongson-3A6000-HV @ 2500.00MHz
+                                │     old     │                 new                 │
+                                │   sec/op    │   sec/op     vs base                │
+    ValidTenASCIIChars            7.604n ± 0%   6.805n ± 0%  -10.51% (p=0.000 n=10)
+    Valid100KASCIIChars           37.41µ ± 0%   16.58µ ± 0%  -55.67% (p=0.000 n=10)
+    ValidTenJapaneseChars         60.84n ± 0%   58.62n ± 0%   -3.64% (p=0.000 n=10)
+    ValidLongMostlyASCII          113.5µ ± 0%   113.5µ ± 0%        ~ (p=0.303 n=10)
+    ValidLongJapanese             204.6µ ± 0%   206.8µ ± 0%   +1.07% (p=0.000 n=10)
+    ValidStringTenASCIIChars      7.604n ± 0%   6.803n ± 0%  -10.53% (p=0.000 n=10)
+    ValidString100KASCIIChars     38.05µ ± 0%   17.14µ ± 0%  -54.97% (p=0.000 n=10)
+    ValidStringTenJapaneseChars   60.58n ± 0%   59.48n ± 0%   -1.82% (p=0.000 n=10)
+    ValidStringLongMostlyASCII    113.5µ ± 0%   113.4µ ± 0%   -0.10% (p=0.000 n=10)
+    ValidStringLongJapanese       205.9µ ± 0%   207.3µ ± 0%   +0.67% (p=0.000 n=10)
+    geomean                       3.324µ        2.756µ       -17.08%
+    
+    Change-Id: Id43b6e2e41907bd4b92f421dacde31f048db47d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662495
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/config.go |  1 +
+ src/cmd/internal/sys/arch.go           |  2 +-
+ test/codegen/memcombine.go             | 12 ++++++------
+ 3 files changed, 8 insertions(+), 7 deletions(-)

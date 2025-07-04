@@ -1,0 +1,22 @@
+commit 9ef65ff137c17bb7975859017abae4e27600c684
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Tue Nov 10 17:02:27 2020 +0100
+
+    cmd/compile: do not emit an extra debug_line entry for the end of seq addr
+    
+    Uses DW_LNS_advance_pc directly, instead of calling putpclcdelta
+    because the latter will create a new debug_line entry for the end of
+    sequence address.
+    
+    Fixes #42484
+    
+    Change-Id: Ib6355605cac101b9bf37a3b4961ab0cee678a839
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268937
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/dwarf.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

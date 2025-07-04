@@ -1,0 +1,13 @@
+commit 29aac3d91bc0ecc1aa5c03321cc0549dda436a4e
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Wed Jul 9 12:48:55 2014 +0200
+
+    debug/plan9obj: fix test build
+    
+    LGTM=0intro, dave
+    R=dave, 0intro
+    CC=golang-codereviews
+    https://golang.org/cl/106560044
+
+ src/pkg/debug/plan9obj/file_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

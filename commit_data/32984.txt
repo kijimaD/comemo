@@ -1,0 +1,17 @@
+commit 9f9bb9742080f4ca795e8c255ad381f0b6110f84
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Sep 30 17:28:05 2017 +0000
+
+    cmd/link: give the object reader its own package
+    
+    For #22095
+    
+    Change-Id: Ie9ae84c758af99ac7daed26d0b3e3b0a47599edd
+    Reviewed-on: https://go-review.googlesource.com/67315
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/buildtool.go                        |  1 +
+ src/cmd/link/internal/ld/lib.go                  |  9 +++++----
+ src/cmd/link/internal/{ld => objfile}/objfile.go | 14 +++++++++-----
+ 3 files changed, 15 insertions(+), 9 deletions(-)

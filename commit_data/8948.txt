@@ -1,0 +1,12 @@
+commit 1e6d946594953e5bc7f4b33c52b0d6280ff6c0bd
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Jul 6 13:08:52 2011 +1000
+
+    html: parse start tags that aren't explicitly otherwise dealt with.
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4626080
+
+ src/pkg/html/parse.go | 1 +
+ 1 file changed, 1 insertion(+)

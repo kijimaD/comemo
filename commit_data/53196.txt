@@ -1,0 +1,20 @@
+commit e4e8f9b8ffff9d1bcbaaf4b98307d0b88c26678f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 22 23:28:50 2023 -0400
+
+    cmd/go: clear GOOS environment variable in TestScript/env_write
+    
+    Also clear the GOOS and GOARCH from the env file before testing other
+    environment variables.
+    
+    This fixes various builders after CL 496957.
+    
+    Change-Id: Ib0308ca48f9e64c1c872f1d26a92a1dedf6330f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497256
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/env_write.txt | 1 +
+ 1 file changed, 1 insertion(+)

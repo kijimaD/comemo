@@ -1,0 +1,17 @@
+commit cf105e2fa04bb001a2331cabba2437a59760562b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Nov 8 15:13:28 2014 -0300
+
+    net/http: fix benchmark goroutine leak
+    
+    New detection because of net/http now using TestMain.
+    
+    Fixes #9033
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=adg, golang-codereviews, rsc
+    https://golang.org/cl/170210043
+
+ src/net/http/serve_test.go | 1 +
+ 1 file changed, 1 insertion(+)

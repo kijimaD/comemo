@@ -1,0 +1,18 @@
+commit 68eb3ccdec3712b9da01b812a3baa1f1e7f07ff3
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Wed Jan 23 00:22:53 2019 +0800
+
+    cmd/api: fix no go files package panic
+    
+    Fixes #29837
+    
+    Change-Id: I7d57c24d2133932c076df6f41dd6589f777b65dd
+    Reviewed-on: https://go-review.googlesource.com/c/158877
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/api/goapi.go                         | 10 ++++++++--
+ src/cmd/api/goapi_test.go                    | 13 +++++++++++++
+ src/cmd/api/testdata/src/issue29837/p/README |  1 +
+ 3 files changed, 22 insertions(+), 2 deletions(-)

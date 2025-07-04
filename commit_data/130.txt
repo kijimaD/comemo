@@ -1,0 +1,11 @@
+commit 610644a1cac0bf881cc40d375691edd890e58e61
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Jun 8 17:21:46 2008 -0700
+
+    asdf
+    
+    SVN=121615
+
+ src/cmd/6g/cgen.c | 111 ++++++++++++++++++++----------------------------------
+ src/cmd/gc/go.y   |  13 +++----
+ 2 files changed, 47 insertions(+), 77 deletions(-)

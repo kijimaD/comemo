@@ -1,0 +1,17 @@
+commit 45969825b5e502a99615fc296bc1acca1881170a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 13 14:53:05 2012 -0700
+
+    net/http: use index.html modtime (not directory) for If-Modified-Since
+    
+    Thanks to Håvid Falch for finding the problem.
+    
+    Fixes #3414
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/6300081
+
+ src/pkg/net/http/fs.go      |   8 +--
+ src/pkg/net/http/fs_test.go | 117 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 122 insertions(+), 3 deletions(-)

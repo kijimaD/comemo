@@ -1,0 +1,30 @@
+commit 6fcab648af59faab639f3453354a7a14c888e75c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Dec 19 17:32:22 2018 +0000
+
+    runtime: disable TestArenaCollision on Darwin in race mode
+    
+    This change disables the test TestArenaCollision on Darwin in race mode
+    to deal with the fact that Darwin 10.10 must use MAP_FIXED in race mode
+    to ensure we retain our heap in a particular portion of the address
+    space which the race detector needs. The test specifically checks to
+    make sure a manually mapped region's space isn't re-used, which is
+    definitely possible with MAP_FIXED because it replaces whatever mapping
+    already exists at a given address.
+    
+    This change then also makes it so that MAP_FIXED is only used in race
+    mode and on Darwin, not all BSDs, because using MAP_FIXED breaks this
+    test for FreeBSD in addition to Darwin.
+    
+    Updates #26475.
+    Fixes #29340.
+    
+    Change-Id: I1c59349408ccd7eeb30c4bf2593f48316b23ab2f
+    Reviewed-on: https://go-review.googlesource.com/c/155097
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/malloc_test.go | 8 ++++++++
+ src/runtime/mem_bsd.go     | 2 +-
+ 2 files changed, 9 insertions(+), 1 deletion(-)

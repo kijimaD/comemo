@@ -1,0 +1,21 @@
+commit 98195ed057cfd30d5cb902766602c1230bb33384
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Aug 20 14:06:17 2023 -0700
+
+    cmd/compile/internal/types: remove Funarg
+    
+    There's no need for the Funarg type anymore. A simple boolean suffices
+    to indicate whether a TSTRUCT represents a parameter tuple.
+    
+    While here, rename Struct.Funarg to ParamTuple.
+    
+    Change-Id: I657512d4ba10e51ec4cfd7c7d77e0194bdb0853b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521315
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/types/fmt.go  | 20 ++++++++------------
+ src/cmd/compile/internal/types/type.go | 25 +++++++------------------
+ 2 files changed, 15 insertions(+), 30 deletions(-)

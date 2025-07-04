@@ -1,0 +1,19 @@
+commit b60d5e12e983e7e48ffab47b15e372bd23fbad98
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 21 14:46:07 2014 -0700
+
+    runtime: warn that cputicks() might not be monotonic.
+    
+    Get rid of gocputicks(), it is no longer used.
+    
+    LGTM=bradfitz, dave
+    R=golang-codereviews, bradfitz, dave, minux
+    CC=golang-codereviews
+    https://golang.org/cl/161110044
+
+ src/runtime/asm_386.s      | 6 ------
+ src/runtime/asm_amd64.s    | 7 -------
+ src/runtime/asm_amd64p32.s | 7 -------
+ src/runtime/asm_arm.s      | 3 ---
+ src/runtime/stubs.go       | 4 ++++
+ 5 files changed, 4 insertions(+), 23 deletions(-)

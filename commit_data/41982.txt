@@ -1,0 +1,14 @@
+commit 8ce21fae6009adc0d528945b09293ff2c4530364
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 16 20:33:02 2020 -0400
+
+    test: add copyright notice to typecheck.go
+    
+    Also gofmt.
+    
+    Change-Id: I36ac990965250867574f8e2318b65b87a0beda04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228697
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/typecheck.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

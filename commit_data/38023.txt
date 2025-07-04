@@ -1,0 +1,16 @@
+commit 73b803ee532173f64a5d3fb2cd0fbe789d49571e
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Feb 24 16:46:23 2019 +0100
+
+    misc: wait for device readyness in the exec wrapper
+    
+    Updates #23824
+    
+    Change-Id: I5472a05eb2cf571ccc84c76c6f592bf4dd2e3cb4
+    Reviewed-on: https://go-review.googlesource.com/c/163621
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/android/go_android_exec.go | 5 +++++
+ 1 file changed, 5 insertions(+)

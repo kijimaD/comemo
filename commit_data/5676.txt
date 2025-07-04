@@ -1,0 +1,15 @@
+commit 2d3e47ca10fe591cf2c0f89e0a9887dd0c6f1e85
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 18 22:43:37 2010 -0700
+
+    strconv: add AtofN, FtoaN
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1700043
+
+ src/pkg/strconv/atof.go      | 13 +++++++++++++
+ src/pkg/strconv/atof_test.go | 15 +++++++++++++++
+ src/pkg/strconv/ftoa.go      | 11 +++++++++++
+ src/pkg/strconv/ftoa_test.go |  8 ++++++++
+ 4 files changed, 47 insertions(+)

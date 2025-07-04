@@ -1,0 +1,25 @@
+commit a17a21c190c3e3ea8e88af3e89ccb3c2f101c35b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 16 08:22:53 2021 -0800
+
+    cmd/compile/internal/types2: deduplicate signatures with the context
+    
+    This CL is a mostly clean port of CL 362801 from go/types to types2.
+    It deviates from go/types in some of the testing code because types2
+    already had made some of the changes.
+    
+    It also re-introduces some empty lines that got lost in earlier CLs.
+    
+    Change-Id: I0bebd68f0880fac61631a5d0c323a9f8ce853ac6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364335
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/context.go         |  41 ++++----
+ src/cmd/compile/internal/types2/instantiate.go     |  43 +++++----
+ .../compile/internal/types2/instantiate_test.go    | 107 +++++++++++++++++----
+ src/cmd/compile/internal/types2/named.go           |   2 +-
+ src/cmd/compile/internal/types2/subst.go           |   2 +-
+ src/cmd/compile/internal/types2/typestring.go      |   2 +-
+ src/cmd/compile/internal/types2/typexpr.go         |   2 +-
+ 7 files changed, 140 insertions(+), 59 deletions(-)

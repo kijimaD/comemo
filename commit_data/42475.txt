@@ -1,0 +1,15 @@
+commit d282b0f1121c475c3b435843a722a47172c20e7e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jun 5 13:18:28 2020 -0400
+
+    doc/go1.15: add release notes for regexp
+    
+    Updates #37419
+    
+    Change-Id: I340efe55b9dc41bb9ef6c9f0ec158d58a9445864
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236738
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

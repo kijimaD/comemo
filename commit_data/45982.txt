@@ -1,0 +1,15 @@
+commit 89a4f996405684c117571e3a0813742b6a8269b7
+Author: 180909 <734461790@qq.com>
+Date:   Wed Aug 11 08:52:31 2021 +0000
+
+    lib/time: fix tz-link ftp url
+    
+    Change-Id: Id09c01192dea6a6f26cbad7222946266587acfda
+    GitHub-Last-Rev: c4f99aedcdc8316f13e8d9bfe9a00e48443fae9e
+    GitHub-Pull-Request: golang/go#47639
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341389
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ lib/time/README | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

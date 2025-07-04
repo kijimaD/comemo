@@ -1,0 +1,17 @@
+commit 8ec6f7cd11ff9f376ef42a062295cd315ebc29af
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 17 10:03:43 2010 -0800
+
+    ld: ignore stab symbols
+    
+    Makes 6l work better on OS X 10.5.
+    
+    Fixes #1352.
+    Fixes #1353.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3661042
+
+ src/cmd/ld/ldmacho.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

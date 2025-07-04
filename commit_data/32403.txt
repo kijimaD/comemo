@@ -1,0 +1,33 @@
+commit 33484a6ad23d3e4d4da6c80edbae4b2a0a75e84f
+Author: Thomas Wanielista <tomwans@gmail.com>
+Date:   Thu Aug 10 18:39:18 2017 -0400
+
+    go/doc: classify function returning slice of T as constructor
+    
+    Previously, go/doc would only consider functions that return types of
+    T or any number of pointers to T: *T, **T, etc. This change expands
+    the definition of a constructor to also include functions that return
+    slices of a type (or pointer to that type) in its first return.
+    
+    With this change, the following return types classify a function
+    as a constructor of type T:
+    
+    T
+    *T
+    **T (and so on)
+    []T
+    []*T
+    []**T (and so on)
+    
+    Fixes #18063.
+    
+    Change-Id: I9a1a689933e13c6b8eb80b74ceec85bd4cab236d
+    Reviewed-on: https://go-review.googlesource.com/54971
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/doc/reader.go                    |  8 +++++-
+ src/go/doc/testdata/issue18063.0.golden | 45 +++++++++++++++++++++++++++++++++
+ src/go/doc/testdata/issue18063.1.golden | 45 +++++++++++++++++++++++++++++++++
+ src/go/doc/testdata/issue18063.2.golden | 45 +++++++++++++++++++++++++++++++++
+ src/go/doc/testdata/issue18063.go       | 33 ++++++++++++++++++++++++
+ 5 files changed, 175 insertions(+), 1 deletion(-)

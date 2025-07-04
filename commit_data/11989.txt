@@ -1,0 +1,18 @@
+commit a4d124d75b1d0610a591ede8b24110b08764feac
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 16 22:04:13 2012 -0500
+
+    log/syslog: disable on Windows
+    
+    We want to be able to implement good Windows support
+    after Go 1.  Right now Windows tries to use Unix domain
+    sockets, and I'd rather just have it not be available.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5671076
+
+ src/pkg/log/syslog/syslog.go      | 2 ++
+ src/pkg/log/syslog/syslog_test.go | 3 +++
+ src/pkg/log/syslog/syslog_unix.go | 2 ++
+ 3 files changed, 7 insertions(+)

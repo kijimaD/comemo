@@ -1,0 +1,20 @@
+commit df2999ef43ea49ce1578137017949c0ee660608a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Jan 19 20:05:15 2020 +0100
+
+    test: disable test for #36516 when cgo is not enabled
+    
+    CL 214679 added a -race test which shouldn't be run when cgo is not
+    enabled.
+    
+    Fixes the nocgo builder.
+    
+    Change-Id: Iceddf802c4ef6c0de2c3a968e86342303d2d27d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215477
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue36516.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

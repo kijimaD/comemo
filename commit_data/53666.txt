@@ -1,0 +1,20 @@
+commit 7dc62f3bda96359cc1904f4ea387f9a1c82c9f9d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Jul 7 09:21:58 2023 +0700
+
+    test: add test cases for index value with range array clear
+    
+    Updates #61127
+    
+    Change-Id: I5fb032c990b64bb4f455a7c0345cfb556bf263bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508335
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ test/for.go | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)

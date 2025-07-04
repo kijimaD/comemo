@@ -1,0 +1,30 @@
+commit 5ff3336490bdbc8e838391978306e0e2510a81c7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 21 08:14:50 2011 -0400
+
+    gc: correct handling of unexported method names in embedded interfaces
+    go/types: update for export data format change
+    reflect: require package qualifiers to match during interface check
+    runtime: require package qualifiers to match during interface check
+    test: fixed bug324, adapt to be silent
+    
+    Fixes #1550.
+    Issue 1536 remains open.
+    
+    R=gri, ken2, r
+    CC=golang-dev
+    https://golang.org/cl/4442071
+
+ src/cmd/gc/go.h                             |  1 +
+ src/cmd/gc/go.y                             |  4 +++
+ src/cmd/gc/reflect.c                        | 55 ++++++++++++++++++-----------
+ src/cmd/gc/subr.c                           |  7 +++-
+ src/pkg/go/types/gcimporter.go              |  8 ++++-
+ src/pkg/reflect/all_test.go                 | 32 ++++++++---------
+ src/pkg/reflect/type.go                     |  8 ++---
+ src/pkg/runtime/iface.c                     |  5 +--
+ test/{bugs => fixedbugs}/bug324.dir/main.go |  7 +++-
+ test/{bugs => fixedbugs}/bug324.dir/p.go    |  0
+ test/{bugs => fixedbugs}/bug324.go          |  2 +-
+ test/golden.out                             |  5 ---
+ 12 files changed, 80 insertions(+), 54 deletions(-)

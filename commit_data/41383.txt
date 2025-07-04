@@ -1,0 +1,19 @@
+commit 5bd145413a84be1afa74a82767384d9e224f7069
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 23 08:04:13 2020 -0800
+
+    time: don't get confused about day 31 when parsing 002
+    
+    The 002 parsing code had a bug that mishandled day 31.
+    
+    Fixes #37387
+    
+    Change-Id: Ia5a492a4ddd09a4bc232ce9582aead42d5099bdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220637
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/time/format.go      |  2 +-
+ src/time/format_test.go | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

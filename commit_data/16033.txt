@@ -1,0 +1,16 @@
+commit d76f28fc39400b918f7951b7e7f12b0dc4a98b0a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 1 11:49:24 2013 -0700
+
+    runtime: add concurrent map read test
+    
+    Currently crashes, so disabled.
+    
+    Update #5179
+    
+    R=golang-dev, khr
+    CC=golang-dev
+    https://golang.org/cl/8222044
+
+ src/pkg/runtime/map_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

@@ -1,0 +1,12 @@
+commit 42cea1a452a227b0c08d5bc181b590e29b5beda9
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Sat Dec 28 16:14:49 2013 +1100
+
+    archive/tar: add test case for passing nil to FileInfoHeader
+    
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/44710044
+
+ src/pkg/archive/tar/tar_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

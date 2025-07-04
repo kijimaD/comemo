@@ -1,0 +1,32 @@
+commit fdef951116ea5e201866b7d4a53c8c90056770f4
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Feb 19 15:57:58 2017 +0100
+
+    cmd/compile: make setting and accessing of node slice elements more uniform
+    
+    Add Set3 function to complement existing Set1 and Set2 functions.
+    Consistently use Set1, Set2 and Set3 for []*Node instead of Set where applicable.
+    
+    Add SetFirst and SetSecond for setting elements of []*Node to mirror
+    First and Second for accessing elements in []*Node.
+    
+    Replace uses of Index by First and Second and
+    SetIndex with SetFirst and SetSecond where applicable.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I8255aae768cf245c8f93eec2e9efa05b8112b4e5
+    Reviewed-on: https://go-review.googlesource.com/37430
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/order.go     | 12 ++++++------
+ src/cmd/compile/internal/gc/range.go     | 10 +++++-----
+ src/cmd/compile/internal/gc/select.go    |  8 ++++----
+ src/cmd/compile/internal/gc/subr.go      |  4 ++--
+ src/cmd/compile/internal/gc/swt.go       | 10 +++++-----
+ src/cmd/compile/internal/gc/syntax.go    | 21 +++++++++++++++++++--
+ src/cmd/compile/internal/gc/typecheck.go | 12 ++++++------
+ src/cmd/compile/internal/gc/walk.go      |  6 +++---
+ 8 files changed, 50 insertions(+), 33 deletions(-)

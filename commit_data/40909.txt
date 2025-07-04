@@ -1,0 +1,15 @@
+commit b11d02ef740091d15671a647f876142018613aa4
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Nov 25 14:38:34 2019 -0500
+
+    doc: add section on resolving packages to module reference doc
+    
+    Updates #33637
+    
+    Change-Id: I3b4303479b44894442a04226cbf1f1e27dbb2fb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208779
+    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/modules.md | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)

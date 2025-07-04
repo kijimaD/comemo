@@ -1,0 +1,16 @@
+commit 18160e074003fb477501760fe3a4a458afdf4a90
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 13 14:31:31 2015 -0800
+
+    cmd/compile: cleanup in parser.go
+    
+    Inlined non_dcl_stmt in stmt since it was called only from there.
+    
+    Change-Id: I616c41332cfd86bbf3493d0ce7b1256384215220
+    Reviewed-on: https://go-review.googlesource.com/16893
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 77 ++++++++++-------------------------
+ 1 file changed, 21 insertions(+), 56 deletions(-)

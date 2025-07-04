@@ -1,0 +1,21 @@
+commit f6f141ab80853b0b45f7e33aa148e497ceeb7d38
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Aug 15 21:09:16 2023 +0800
+
+    runtime: support regABI and add spill functions in runtime for loong64
+    
+    Update #40724
+    
+    Co-authored-by: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+    Change-Id: I709b818ef15c33f95251186d749ac13260ad36be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521783
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Run-TryBot: David Chase <drchase@google.com>
+    Auto-Submit: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/asm_loong64.s    | 295 ++++++++++++++++++++++++++++++++++---------
+ src/runtime/stubs_loong64.go |   7 +
+ 2 files changed, 243 insertions(+), 59 deletions(-)

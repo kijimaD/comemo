@@ -1,0 +1,12 @@
+commit 99ea99ec4ca727ec3408521b07a6eb6a6bd3b829
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jan 9 14:24:44 2019 +0100
+
+    net/http/httputil: fix typo in ReverseProxy godoc
+    
+    Change-Id: Iea33fe64403ca2e6f87a4e070af5e97d96506e41
+    Reviewed-on: https://go-review.googlesource.com/c/157118
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

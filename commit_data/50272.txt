@@ -1,0 +1,22 @@
+commit 274528eca1ebbb3aa5203e77152925ca1de98601
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Aug 31 19:05:55 2022 +0200
+
+    cmd/compile/internal/base: use runtime.KeepAlive in MapFile
+    
+    Go 1.17 will be used instead of Go 1.4 as minimum required version for
+    bootstrap, so runtime.KeepAlive introduced in Go 1.7 can be used in
+    cmd/compile.
+    
+    For #44505
+    
+    Change-Id: I96bd6619c4476e36ee1d93ca049da622a3a78f97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427114
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/base/mapfile_mmap.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

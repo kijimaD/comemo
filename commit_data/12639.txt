@@ -1,0 +1,12 @@
+commit f00872527b9e31cf3389ef49788b21b22b1a51da
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Thu Mar 15 09:15:16 2012 +1100
+
+    doc: add reference to FAQ to explain warning about concrete type
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5820048
+
+ doc/articles/error_handling.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

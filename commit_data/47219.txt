@@ -1,0 +1,23 @@
+commit 7f2463cc363fe8dbcbb89d521d1ede650de86c9b
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Nov 3 11:26:37 2021 -0700
+
+    cmd/compile: fix up shape type package
+    
+    Use go.shape instead of .shape as the package the compiler uses
+    to store shape types.
+    
+    Prevent path escaping for compiler-internal types, so we don't
+    need to see %2e everywhere.
+    
+    Change-Id: I98e39c3b6472560113bdea7e0ba6eb7b81cb35e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361174
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/types/pkg.go  | 9 ++++++++-
+ src/cmd/compile/internal/types/type.go | 2 +-
+ 2 files changed, 9 insertions(+), 2 deletions(-)

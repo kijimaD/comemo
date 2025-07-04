@@ -1,0 +1,18 @@
+commit ea48c9d2325dfe3ccd64a2bfeea9516cb5a1d2e3
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Feb 21 11:28:49 2017 -0500
+
+    runtime: more detail for crash_test.go
+    
+    This updates the testcase to display the timestamps for the
+    runtime.a, it dependent packages atomic.a and sys.a, and
+    source files.
+    
+    Change-Id: Id2901b4e8aa8eb9775c4f404ac01cc07b394ba91
+    Reviewed-on: https://go-review.googlesource.com/37332
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

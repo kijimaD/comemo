@@ -1,0 +1,15 @@
+commit 4a0765b2c95ef9ec881fbf00909554130e91c8a3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 4 17:26:24 2008 -0700
+
+    fix go build
+    
+    these files were missing from the acid change
+    (include/mach_amd64.h in particular)
+    
+    R=r
+    OCL=13858
+    CL=13858
+
+ include/mach_amd64.h | 44 ++++++++++++++++++++++++++++++--------------
+ 1 file changed, 30 insertions(+), 14 deletions(-)

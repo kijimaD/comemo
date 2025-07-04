@@ -1,0 +1,34 @@
+commit 37e9c5eaba30db61823643e761b31cdae8cc1854
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Jun 18 03:00:47 2024 +1000
+
+    cmd/internal/obj/riscv: implement vector load/store instructions
+    
+    Implement vector unit stride, vector strided, vector indexed and
+    vector whole register load and store instructions.
+    
+    The vector unit stride instructions take an optional vector mask
+    register, which if specified must be register V0. If only two
+    operands are given, the instruction is encoded as unmasked.
+    
+    The vector strided and vector indexed instructions also take an
+    optional vector mask register, which if specified must be register
+    V0. If only three operands are given, the instruction is encoded as
+    unmasked.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-riscv64
+    Change-Id: I35e43bb8f1cf6ae8826fbeec384b95ac945da50f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631937
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Pengcheng Wang <wangpengcheng.pp@bytedance.com>
+
+ src/cmd/asm/internal/asm/testdata/riscv64.s      |  98 ++++++++++
+ src/cmd/asm/internal/asm/testdata/riscv64error.s |  39 ++++
+ src/cmd/internal/obj/riscv/anames.go             |   4 +
+ src/cmd/internal/obj/riscv/cpu.go                |   4 +
+ src/cmd/internal/obj/riscv/obj.go                | 226 +++++++++++++++++++++--
+ 5 files changed, 356 insertions(+), 15 deletions(-)

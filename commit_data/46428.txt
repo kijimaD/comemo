@@ -1,0 +1,18 @@
+commit 4a4221e8187189adcc6463d2d96fe2e8da290132
+Author: Alexander Melentyev <alexander@melentyev.org>
+Date:   Sat Sep 11 06:59:17 2021 +0000
+
+    all: remove some unused code
+    
+    Change-Id: I519b8021fa79dccc5c0ee79134547491116fc4cc
+    GitHub-Last-Rev: 48869f5434c1255d33c3a14714747509235c94df
+    GitHub-Pull-Request: golang/go#48071
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346231
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Keith Randall <khr@golang.org>
+
+ src/database/sql/convert_test.go | 3 ---
+ src/time/time.go                 | 1 -
+ 2 files changed, 4 deletions(-)

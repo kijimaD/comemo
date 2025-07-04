@@ -1,0 +1,33 @@
+commit dba2eab8267599f5f59f1f586b47f31b6552938c
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 13 09:06:50 2021 -0400
+
+    runtime,runtime/cgo: save all necessary registers on entry to Go on Windows
+    
+    There are several assembly functions that transition from the Windows
+    ABI to the Go ABI. These all need to save all registers that are
+    callee-save in the Windows ABI and caller-save in the Go ABI and
+    prepare the register state for Go. However, they all do this slightly
+    differently and most of them don't save the necessary XMM registers
+    for this transition (which could corrupt them in the C caller).
+    Furthermore, now that we have a carefully specified Go ABI, it's clear
+    that none of these actually get all of the details 100% right.
+    
+    So, unify this code into two macros in a shared header in
+    runtime/cgo/abi_amd64.h that handle all necessary registers and setup
+    and use these macros everywhere on Windows that handles transitions
+    from C to Go.
+    
+    Change-Id: I62f41345a507aad1ca383814ac8b7e2a9ffb821e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309769
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/internal/obj/x86/obj6.go |  2 +-
+ src/runtime/cgo/abi_amd64.h      | 69 +++++++++++++++++++++++++++++++++
+ src/runtime/cgo/asm_amd64.s      | 58 +++++++++-------------------
+ src/runtime/sys_windows_amd64.s  | 83 ++++++++++++----------------------------
+ 4 files changed, 113 insertions(+), 99 deletions(-)

@@ -1,0 +1,30 @@
+commit f50448f531887a5fefc95fe29735e71d3542ef2c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 13 10:28:56 2018 -0400
+
+    regexp: reword Match documentation to be more like Find
+    
+    Before:
+    
+      // Find returns a slice holding the text of the leftmost match in b of the regular expression.
+    
+      // Match checks whether a textual regular expression matches a byte slice.
+    
+    After:
+    
+      // Match reports whether the byte slice b contains any match of the regular expression re.
+    
+    The use of different wording for Find and Match always makes me think
+    that Match required the entire string to match while Find clearly allows
+    a substring to match.
+    
+    This CL makes the Match wording correspond more closely to Find,
+    to try to avoid that confusion.
+    
+    Change-Id: I97fb82d5080d3246ee5cf52abf28d2a2296a5039
+    Reviewed-on: https://go-review.googlesource.com/123736
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/regexp/regexp.go | 32 ++++++++++++++++++--------------
+ 1 file changed, 18 insertions(+), 14 deletions(-)

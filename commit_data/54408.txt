@@ -1,0 +1,26 @@
+commit 06138963a2a16e0ac982ac85877092920a21e60f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 8 16:25:02 2023 -0700
+
+    cmd/compile/internal/ir: remove OSIZEOF, etc
+    
+    These are no longer needed after the previous CL, which moved handling
+    of unsafe.Sizeof, etc. directly into the unified frontend.
+    
+    Change-Id: Ieb35ffca0bc25319e58132fb5d035c5b441acea7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527098
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/escape/utils.go        |  2 +-
+ src/cmd/compile/internal/ir/expr.go             |  3 +-
+ src/cmd/compile/internal/ir/fmt.go              | 11 +--
+ src/cmd/compile/internal/ir/node.go             |  3 -
+ src/cmd/compile/internal/ir/op_string.go        | 91 ++++++++++++------------
+ src/cmd/compile/internal/typecheck/const.go     | 93 -------------------------
+ src/cmd/compile/internal/typecheck/func.go      |  2 +-
+ src/cmd/compile/internal/typecheck/typecheck.go |  5 --
+ src/cmd/compile/internal/typecheck/universe.go  |  3 -
+ 9 files changed, 48 insertions(+), 165 deletions(-)

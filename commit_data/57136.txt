@@ -1,0 +1,18 @@
+commit 820d4458768ccc886b09fa258d7faae4260a0772
+Author: cuishuang <imcusg@gmail.com>
+Date:   Thu Aug 8 11:05:23 2024 +0800
+
+    runtime: make function comments match function names
+    
+    Change-Id: I5dc9864fbb6f1745be0f7076ac72debd039c8f3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604178
+    Reviewed-by: shuang cui <imcusg@gmail.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/traceruntime.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

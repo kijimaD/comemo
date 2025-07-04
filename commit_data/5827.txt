@@ -1,0 +1,12 @@
+commit ad665e4fde1878dbc8d3893bf8b4ddbe2f83ccff
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 15 16:43:06 2010 -0700
+
+    codereview: don't run gofmt with an empty file list
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1678054
+
+ lib/codereview/codereview.py | 2 ++
+ 1 file changed, 2 insertions(+)

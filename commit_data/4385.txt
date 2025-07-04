@@ -1,0 +1,20 @@
+commit 128974adfd8384ef6d8ee90f711df6a771c9cb1f
+Author: Kei Son <hey.calmdown@gmail.com>
+Date:   Fri Dec 11 10:37:48 2009 -0800
+
+    bytes, strings: allow -1 in Map to mean "drop this character".
+    
+    xml: drop invalid characters in attribute names
+        when constructing struct field names.
+    
+    R=rsc
+    CC=r
+    https://golang.org/cl/157104
+
+ src/pkg/bytes/bytes.go          | 21 ++++++++++++---------
+ src/pkg/bytes/bytes_test.go     | 13 +++++++++++++
+ src/pkg/strings/strings.go      | 29 ++++++++++++++++-------------
+ src/pkg/strings/strings_test.go | 13 +++++++++++++
+ src/pkg/xml/read.go             | 19 +++++++++++++++++--
+ src/pkg/xml/read_test.go        | 22 ++++++++++++++++++++--
+ 6 files changed, 91 insertions(+), 26 deletions(-)

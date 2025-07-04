@@ -1,0 +1,12 @@
+commit 3975b9910ce64d1bb00031c7d137dcdae069cbc1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun May 22 11:55:02 2011 +1000
+
+    flag: fix build
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4543064
+
+ src/pkg/flag/flag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

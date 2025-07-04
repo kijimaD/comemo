@@ -1,0 +1,16 @@
+commit c88ca5906cbf022e5b63bddae44c0722054466c9
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Apr 19 11:48:17 2012 +1000
+
+    exp/html: add parseImpliedToken method to parser
+    
+    This method will allow us to be explicit about what we're doing when
+    we insert an implied token, and avoid repeating the logic involved in
+    multiple places.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6060048
+
+ src/pkg/exp/html/parse.go | 84 ++++++++++++++++++++++++++---------------------
+ 1 file changed, 47 insertions(+), 37 deletions(-)

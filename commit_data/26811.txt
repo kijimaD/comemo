@@ -1,0 +1,14 @@
+commit 824d8c10fe5e1026c15cbece41ee372b1fd333f3
+Author: Wisdom Omuya <deafgoat@gmail.com>
+Date:   Sat Apr 9 19:23:01 2016 -0400
+
+    cmd/go: fix typo in findInternal documentation
+    
+    Fixes #15217
+    
+    Change-Id: Ib8f7af714197fd209e743f61f28a5b07c04a7f5c
+    Reviewed-on: https://go-review.googlesource.com/21793
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/pkg.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

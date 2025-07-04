@@ -1,0 +1,16 @@
+commit cdb7fd6b06937aa38a7a4921f567697144448073
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jan 31 14:49:11 2020 -0800
+
+    math/big: simplify GCD docs
+    
+    We don't usually document past behavior (like "As of Go 1.14 ...") and
+    in isolation the current docs made it sound like a and b could only be
+    negative or zero.
+    
+    Change-Id: I0d3c2b8579a9c01159ce528a3128b1478e99042a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217302
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/big/int.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

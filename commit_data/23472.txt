@@ -1,0 +1,17 @@
+commit eb30fda83e0e1cb30ad8ac1fb46c9606da84bc76
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 23 14:01:45 2015 -0700
+
+    go/types: in string(x) conversions, x must be of integer type
+    
+    Port of https://go-review.googlesource.com/11365
+    
+    Fixes #11357.
+    
+    Change-Id: Icd20fa038696a8853d1d14477e1c1132938b3e2e
+    Reviewed-on: https://go-review.googlesource.com/11368
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/conversions.go           | 2 +-
+ src/go/types/testdata/conversions.src | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

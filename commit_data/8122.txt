@@ -1,0 +1,12 @@
+commit b7065c5da4794e4d5d4b68cce06acd527a7a605a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 15 11:21:29 2011 -0400
+
+    net: disable one more external network test
+    
+    R=golang-dev, r2
+    CC=golang-dev
+    https://golang.org/cl/4442042
+
+ src/pkg/net/srv_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

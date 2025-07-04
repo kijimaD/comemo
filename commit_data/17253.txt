@@ -1,0 +1,14 @@
+commit 80ca8c5d0449d7c6a2b881aa3c05d3706575e628
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Aug 15 09:44:23 2013 +1000
+
+    cmd/go: fix detached heads that are remnants of bad git clones.
+    
+    Fixes #6042.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/12923043
+
+ src/cmd/go/vcs.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

@@ -1,0 +1,16 @@
+commit f595848e9a1e1d0f64a7018d847167d85f6e83a4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Oct 28 11:51:22 2016 +1100
+
+    runtime/cgo: do not link threads lib by default on windows
+    
+    I do not know why it is included. All tests pass without it.
+    
+    Change-Id: I839076ee131816dfd177570a902c69fe8fba5022
+    Reviewed-on: https://go-review.googlesource.com/32144
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/cgo.go | 1 -
+ 1 file changed, 1 deletion(-)

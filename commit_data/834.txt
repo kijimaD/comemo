@@ -1,0 +1,17 @@
+commit aed247fdb9728c4386b1d55fb832cb2c068235c1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 8 17:05:30 2008 -0700
+
+    - make optional semicolons explicit in grammar in all places
+    except in statement list, where it is expressed in words
+    - allow for empty import, const, type, and var decl lists inside ()'s
+    - fixed grammar for inc/dec statements
+    - added empty statement as it appears to be accepted by 6g
+    
+    R=r
+    DELTA=75  (23 added, 21 deleted, 31 changed)
+    OCL=16785
+    CL=16785
+
+ doc/go_spec.txt | 104 +++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 53 insertions(+), 51 deletions(-)

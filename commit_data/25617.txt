@@ -1,0 +1,18 @@
+commit b203f88c7f0b81043a3f387136147d8193a0a8b8
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jan 19 08:27:10 2016 -0800
+
+    crypto/tls: note in comment that Certificate.Leaf is nil after parsing.
+    
+    LoadX509KeyPair and X509KeyPair don't retain the parsed form of
+    certificates in their return value because it's generally not needed.
+    This change makes that clear in the comment.
+    
+    See https://groups.google.com/d/msg/golang-dev/VResvFj2vF8/Wt6WkVT2AwAJ
+    
+    Change-Id: Ibb759cd6e84c00f4450a012992088422c0546638
+    Reviewed-on: https://go-review.googlesource.com/18734
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/tls/tls.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

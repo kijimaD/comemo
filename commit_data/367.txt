@@ -1,0 +1,12 @@
+commit f550cd67e0de68cc5a4757e05ccaf1498565bec9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 15 19:59:00 2008 -0700
+
+    - more infrastructure
+    
+    SVN=127430
+
+ usr/gri/gosrc/compilation.go | 27 +++++++++++++++++++++++++--
+ usr/gri/gosrc/globals.go     |  2 +-
+ usr/gri/gosrc/go.go          | 28 ++--------------------------
+ 3 files changed, 28 insertions(+), 29 deletions(-)

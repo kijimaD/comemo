@@ -1,0 +1,15 @@
+commit 277a7b22f1131ea2a2fb98be9d7378c0f4ab5834
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Mar 28 12:37:14 2014 +1100
+
+    runtime: do not crash when GetQueuedCompletionStatusEx is missing
+    
+    Fixes #7635
+    
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/80390043
+
+ src/pkg/runtime/os_windows.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit d2de9bd59c068c1bfcb4293de4286196dacf2e43
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 15 06:38:16 2020 -0800
+
+    runtime: ignore power notification error seen on Windows Docker
+    
+    Fixes #36557
+    
+    Change-Id: Ia8125f382d5e14e5612da811268a58971cc9ac08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214917
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/os_windows.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

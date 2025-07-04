@@ -1,0 +1,65 @@
+commit ec25210564562571aeb39cdfd6e02270d7f3fb1d
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 22 20:38:09 2018 -0500
+
+    runtime: support a two-level arena map
+    
+    Currently, the heap arena map is a single, large array that covers
+    every possible arena frame in the entire address space. This is
+    practical up to about 48 bits of address space with 64 MB arenas.
+    
+    However, there are two problems with this:
+    
+    1. mips64, ppc64, and s390x support full 64-bit address spaces (though
+       on Linux only s390x has kernel support for 64-bit address spaces).
+       On these platforms, it would be good to support these larger
+       address spaces.
+    
+    2. On Windows, processes are charged for untouched memory, so for
+       processes with small heaps, the mostly-untouched 32 MB arena map
+       plus a 64 MB arena are significant overhead. Hence, it would be
+       good to reduce both the arena map size and the arena size, but with
+       a single-level arena, these are inversely proportional.
+    
+    This CL adds support for a two-level arena map. Arena frame numbers
+    are now divided into arenaL1Bits of L1 index and arenaL2Bits of L2
+    index.
+    
+    At the moment, arenaL1Bits is always 0, so we effectively have a
+    single level map. We do a few things so that this has no cost beyond
+    the current single-level map:
+    
+    1. We embed the L2 array directly in mheap, so if there's a single
+       entry in the L2 array, the representation is identical to the
+       current representation and there's no extra level of indirection.
+    
+    2. Hot code that accesses the arena map is structured so that it
+       optimizes to nearly the same machine code as it does currently.
+    
+    3. We make some small tweaks to hot code paths and to the inliner
+       itself to keep some important functions inlined despite their
+       now-larger ASTs. In particular, this is necessary for
+       heapBitsForAddr and heapBits.next.
+    
+    Possibly as a result of some of the tweaks, this actually slightly
+    improves the performance of the x/benchmarks garbage benchmark:
+    
+    name                       old time/op  new time/op  delta
+    Garbage/benchmem-MB=64-12  2.28ms ± 1%  2.26ms ± 1%  -1.07%  (p=0.000 n=17+19)
+    
+    (https://perf.golang.org/search?q=upload:20180223.2)
+    
+    For #23900.
+    
+    Change-Id: If5164e0961754f97eb9eca58f837f36d759505ff
+    Reviewed-on: https://go-review.googlesource.com/96779
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go | 15 +++++++
+ src/runtime/heapdump.go            | 12 ++++--
+ src/runtime/malloc.go              | 77 ++++++++++++++++++++++++---------
+ src/runtime/mbitmap.go             | 75 +++++++++++++++++++++-----------
+ src/runtime/mheap.go               | 88 +++++++++++++++++++++++++++++---------
+ 5 files changed, 197 insertions(+), 70 deletions(-)

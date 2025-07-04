@@ -1,0 +1,15 @@
+commit 129bb1917b4914f0743ec9b4ef0dfb74df39c07d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 11 19:10:00 2020 -0800
+
+    doc/go1.15: mention 1.15.3 cgo restriction on empty structs
+    
+    For #40954
+    
+    Change-Id: I6a30aed31a16e820817f4ca5c7f591222e922946
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277432
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ doc/go1.15.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

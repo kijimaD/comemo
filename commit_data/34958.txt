@@ -1,0 +1,17 @@
+commit c1ed1f3c80fb33b4f0a17eb14da19be05eda492f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 12 08:23:00 2018 -0700
+
+    cmd/compile: fix evaluation of "" < s
+    
+    Fixes #24817
+    
+    Change-Id: Ifa79ab3dfe69297eeef85f7193cd5f85e5982bc5
+    Reviewed-on: https://go-review.googlesource.com/106655
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go |  7 ++++
+ test/fixedbugs/issue24817.go        | 64 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+)

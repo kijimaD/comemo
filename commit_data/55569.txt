@@ -1,0 +1,51 @@
+commit 2dfc5eae2ee177d44f867783e13d7401b9f34a18
+Author: Antonio Ojea <aojea@google.com>
+Date:   Fri Dec 22 18:15:34 2023 +0000
+
+    net: don't retry truncated TCP responses
+    
+    UDP messages may be truncated:
+    
+    https://www.rfc-editor.org/rfc/rfc1035#section-4.2.1
+    
+    > Messages carried by UDP are restricted to 512 bytes (not counting
+    > the IP or UDP headers). Longer messages are truncated and the TC
+    > bit is set in the header.
+    
+    However, TCP also have a size limitation of 65535 bytes
+    
+    https://www.rfc-editor.org/rfc/rfc1035#section-4.2.2
+    
+    > The message is prefixed with a two byte length field which gives
+    the message length, excluding the two byte length field.
+    
+    These limitations makes that the maximum possible number of A records
+    per RRSet is ~ 4090.
+    
+    There are environments like Kubernetes that may have larger number of
+    records (5000+) that does not fit in a single message. In this cases,
+    the DNS server sets the Truncated bit on the message to indicate that
+    it could not send the full answer despite is using TCP.
+    
+    We should only retry when the TC bit is set and the connection is UDP,
+    otherwise, we'll never being able to get an answer and the client will
+    receive an errNoAnswerFromDNSServer, that is a different behavior than
+    the existing in the glibc resolver, that returns all the existing
+    addresses in the TCP truncated response.
+    
+    Fixes #64896
+    
+    Signed-off-by: Antonio Ojea <aojea@google.com>
+    Change-Id: I1bc2c85f67668765fa60b5c0378c9e1e1756dff2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/552418
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Gudger <ian@iangudger.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/dnsclient_unix.go      |   9 +++-
+ src/net/dnsclient_unix_test.go | 102 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 110 insertions(+), 1 deletion(-)

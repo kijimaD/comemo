@@ -1,0 +1,17 @@
+commit 170c1b479bcd089eb8f76c8de6e5d44c6c4dbaa8
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Apr 14 13:41:32 2016 -0400
+
+    go/types: record CallExpr result type even if argument is invalid
+    
+    + test
+    
+    Fixes #15305
+    
+    Change-Id: Ica657c00c92f0b19f0df7452cdbe5a95d23cc8a4
+    Reviewed-on: https://go-review.googlesource.com/22085
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/api_test.go | 25 +++++++++++++++++++++++++
+ src/go/types/call.go     |  9 ++++-----
+ 2 files changed, 29 insertions(+), 5 deletions(-)

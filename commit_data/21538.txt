@@ -1,0 +1,24 @@
+commit 06611434479daf7d27bd2cd69d10be7d4cb5cd61
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Feb 6 02:05:30 2015 -0500
+
+    liblink, runtime: move all references to runtime.tlsg to tls_arm.s
+    
+    CL 2118 makes the assumption that all references to runtime.tlsg
+    should be accompanied by a declaration of runtime.tlsg if its type
+    should be a normal variable, instead of a placeholder for TLS
+    relocation.
+    
+    Because if runtime.tlsg is not declared by the runtime package,
+    the type of runtime.tlsg will be zero, so fix the check in liblink
+    to look for 0 instead of STLSBSS (the type will be initialized by
+    cmd/ld, but cmd/ld doesn't run during assembly).
+    
+    Change-Id: I691ac5c3faea902f8b9a0b963e781b22e7b269a7
+    Reviewed-on: https://go-review.googlesource.com/4030
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/liblink/asm5.c    |  8 +++++---
+ src/runtime/asm_arm.s | 19 +------------------
+ src/runtime/tls_arm.s | 21 +++++++++++++++++++++
+ 3 files changed, 27 insertions(+), 21 deletions(-)

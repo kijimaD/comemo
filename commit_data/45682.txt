@@ -1,0 +1,24 @@
+commit 4356e7e85fcd8f59de6bc1fd1db6e4f01a92f19e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 21 20:30:02 2021 +0000
+
+    runtime: account for spill slots in Windows callback compilation
+    
+    The Go ABI, as it stands, requires spill space to be reserved for
+    register arguments. syscall.NewCallback (because of compileCallback)
+    does not actually reserve this space, leading to issues if the Go code
+    it invokes actually makes use of it.
+    
+    Fixes #46301.
+    
+    Change-Id: Idbc3578accaaaa29e4ba32291ef08d464da0b7b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322029
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Egon Elbre <egonelbre@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/syscall_windows.go      | 23 ++++++++++++++++++++---
+ src/runtime/syscall_windows_test.go | 15 +++++++++++++++
+ 2 files changed, 35 insertions(+), 3 deletions(-)

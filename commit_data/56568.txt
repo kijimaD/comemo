@@ -1,0 +1,36 @@
+commit dbe2e757bb55f80de1a622da6bd5060e979208d1
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Nov 16 01:42:39 2023 -0800
+
+    os: make FindProcess use pidfd on Linux
+    
+    This is a continuation of CL 570036.
+    
+    Amend FindProcess to use pidfdFind, and make it return a special
+    Process with Pid of pidDone (-2) if the process is not found.
+    
+    Amend Wait and Signal to return ErrProcessDone if pid == pidDone.
+    
+    The alternative to the above would be to make FindProcess return
+    ErrProcessDone, but this is unexpected and incompatible API change,
+    as discussed in #65866 and #51246.
+    
+    For #62654.
+    
+    Rework of CL 542699 (which got reverted in CL 566476).
+    
+    Change-Id: Ifb4cd3ad1433152fd72ee685d0b85d20377f8723
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570681
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/os/exec_unix.go         | 35 +++++++++++++++++++++++++-------
+ src/os/exec_unix_test.go    |  5 ++++-
+ src/os/export_linux_test.go |  1 +
+ src/os/pidfd_linux.go       | 12 +++++++++++
+ src/os/pidfd_linux_test.go  | 49 +++++++++++++++++++++++++++++++++++++++------
+ src/os/pidfd_other.go       |  4 ++++
+ 6 files changed, 92 insertions(+), 14 deletions(-)

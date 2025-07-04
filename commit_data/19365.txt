@@ -1,0 +1,23 @@
+commit 68aaf2ccda2dff72ff9a0b368995f1f5614a0924
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 15 15:53:36 2014 -0400
+
+    runtime: make scan of pointer-in-interface same as scan of pointer
+    
+    The GC program describing a data structure sometimes trusts the
+    pointer base type and other times does not (if not, the garbage collector
+    must fall back on per-allocation type information stored in the heap).
+    Make the scanning of a pointer in an interface do the same.
+    This fixes a crash in a particular use of reflect.SliceHeader.
+    
+    Fixes #8004.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=0xe2.0x9a.0x9b, golang-codereviews, iant, r
+    https://golang.org/cl/100470045
+
+ src/cmd/gc/reflect.c        | 17 ++++++++++++-
+ src/pkg/runtime/mgc0.c      | 22 +++++++++++++----
+ test/fixedbugs/issue8004.go | 59 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 92 insertions(+), 6 deletions(-)

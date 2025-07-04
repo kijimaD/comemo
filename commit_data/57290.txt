@@ -1,0 +1,21 @@
+commit 239666cd7343d46c40a5b929c8bec8b532dbe83f
+Author: Wei Fu <fuweid89@gmail.com>
+Date:   Thu Aug 22 16:22:53 2024 +0800
+
+    os: dup pidfd if caller sets PidFD manually
+    
+    Fixes #68984
+    Change-Id: I16d25777cb38a337cd4204a8147eaf866c3df9e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607695
+    Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/os/exec_posix.go       |  5 +++--
+ src/os/pidfd_linux.go      | 27 ++++++++++++++++++++-------
+ src/os/pidfd_linux_test.go | 32 ++++++++++++++++++++++++++++++++
+ src/os/pidfd_other.go      |  6 +++---
+ 4 files changed, 58 insertions(+), 12 deletions(-)

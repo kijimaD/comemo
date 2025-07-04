@@ -1,0 +1,29 @@
+commit 9743e9b6d8e150639f509fc64e4bc5f24ecce562
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Mar 10 23:41:56 2022 +0700
+
+    cmd/compile: fix re-export closure
+    
+    For hidden closure built during stenciling to implement a function
+    instantiation, the function may come from other package, not local
+    package, which causes the ICE for code that re-export the hidden closure
+    after inlining.
+    
+    To fix it, use the closure package for export writer when writing out
+    the closure itself.
+    
+    Fixes #51423
+    
+    Change-Id: I23b067ba14e2d602a0fc3b2e99bd9317afbe53ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391574
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/iexport.go |  3 +++
+ src/cmd/compile/internal/typecheck/iimport.go |  2 ++
+ test/typeparam/issue51423.dir/a.go            | 17 +++++++++++++++++
+ test/typeparam/issue51423.dir/b.go            | 11 +++++++++++
+ test/typeparam/issue51423.go                  |  7 +++++++
+ 5 files changed, 40 insertions(+)

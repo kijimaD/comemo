@@ -1,0 +1,22 @@
+commit e5c884f7db2654ebc18c82356ecb937f57c29190
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Oct 1 06:55:01 2009 -0700
+
+    some progress on arm linux syscall interface. ztypes_linux_arm
+    still has problems with godefs.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=801  (134 added, 235 deleted, 432 changed)
+    OCL=35189
+    CL=35211
+
+ src/make-arm.bash                     |   2 +-
+ src/pkg/syscall/PORT.sh               |   8 +
+ src/pkg/syscall/asm_linux_arm.s       |  53 +++
+ src/pkg/syscall/mkerrors.sh           |  13 +-
+ src/pkg/syscall/syscall_linux_arm.go  | 121 +------
+ src/pkg/syscall/zerrors_linux_arm.go  |  20 +-
+ src/pkg/syscall/zsyscall_linux_arm.go | 304 ++++++----------
+ src/pkg/syscall/zsysnum_linux_arm.go  | 642 ++++++++++++++++++----------------
+ 8 files changed, 529 insertions(+), 634 deletions(-)

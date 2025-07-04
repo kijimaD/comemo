@@ -1,0 +1,30 @@
+commit e56c6e75353d32a97a301d4890b58a4e10963d82
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 20 16:18:05 2014 -0500
+
+    runtime/debug: add SetPanicOnFault
+    
+    SetPanicOnFault allows recovery from unexpected memory faults.
+    This can be useful if you are using a memory-mapped file
+    or probing the address space of the current program.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/66590044
+
+ doc/go1.3.txt                    |  1 +
+ src/pkg/runtime/debug/garbage.go | 11 +++++++++++
+ src/pkg/runtime/os_darwin.c      |  4 ++--
+ src/pkg/runtime/os_dragonfly.c   |  4 ++--
+ src/pkg/runtime/os_freebsd.c     |  4 ++--
+ src/pkg/runtime/os_linux.c       |  4 ++--
+ src/pkg/runtime/os_netbsd.c      |  4 ++--
+ src/pkg/runtime/os_openbsd.c     |  4 ++--
+ src/pkg/runtime/os_solaris.c     |  4 ++--
+ src/pkg/runtime/os_windows.c     |  2 +-
+ src/pkg/runtime/proc.c           |  1 +
+ src/pkg/runtime/rdebug.goc       |  5 +++++
+ src/pkg/runtime/runtime.h        |  1 +
+ src/pkg/runtime/runtime_test.go  | 18 ++++++++++++++++++
+ 14 files changed, 52 insertions(+), 15 deletions(-)

@@ -1,0 +1,14 @@
+commit 53a22770a79e30d4e1275f2f724b731c929688ed
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Oct 2 15:37:15 2008 -0700
+
+    names now println/panicln
+    bug fix in named-return
+    
+    R=r
+    OCL=16377
+    CL=16377
+
+ src/cmd/6g/gen.c | 5 +++--
+ src/cmd/gc/lex.c | 4 ++--
+ 2 files changed, 5 insertions(+), 4 deletions(-)

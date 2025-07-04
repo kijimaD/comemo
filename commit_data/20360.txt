@@ -1,0 +1,15 @@
+commit 1fadd9e1aed80d27799cecace3f3764048d8ddd3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Sep 9 07:22:11 2014 +0900
+
+    net: don't set wrong option for controlling tcp keepalive on openbsd
+    
+    Fixes #8679.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/141730043
+
+ src/net/tcpsockopt_openbsd.go | 17 +++--------------
+ 1 file changed, 3 insertions(+), 14 deletions(-)

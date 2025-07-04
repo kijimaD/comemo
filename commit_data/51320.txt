@@ -1,0 +1,26 @@
+commit 135770abea9170dd518c636b70bb58329f008af9
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 13 10:57:13 2022 -0400
+
+    cmd/dist: make registerTest take a goTest
+    
+    The overall goal is to make registerTest the primary entry point for
+    adding dist tests and to convert nearly all dist tests to be
+    represented by a goTest, registered via registerTest. This will
+    centralize the logic for creating dist tests corresponding to go tool
+    tests.
+    
+    I traced all exec calls from cmd/dist on linux/amd64 and this makes
+    only no-op changes (such as re-arranging the order of flags).
+    
+    For #37486.
+    
+    Change-Id: I4749e6f3666134d3259b54ee6055d76a4235c60c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450016
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 62 ++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 53 insertions(+), 9 deletions(-)

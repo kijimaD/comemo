@@ -1,0 +1,14 @@
+commit 148a26539b9cd57475656f986dd3088914503458
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 26 16:41:53 2018 -0400
+
+    runtime: remove stale comment about getcallerpc/sp
+    
+    Getcallerpc/sp no longer takes argument.
+    
+    Change-Id: I80b30020e798990c59c8ffd0a4e078af6a75aea0
+    Reviewed-on: https://go-review.googlesource.com/109696
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/stubs.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

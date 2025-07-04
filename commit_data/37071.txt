@@ -1,0 +1,26 @@
+commit c9bc1340527c74c320028f2a35407a747e4ecda7
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Tue Oct 23 01:29:40 2018 -0400
+
+    cmd/go/internal/modload: fix use of //go:linkname
+    
+    I can't find the exact rule about space before compiler directive
+    openings from
+    https://golang.org/cmd/compile/#hdr-Compiler_Directives
+    but it seems like the compiler doesn't recognize it
+    as a compiler directive if it is preceded by space.
+    Removing the space made the //go:linkname in the __gomod__.go file
+    working as intended.
+    
+    Manually tested.
+    
+    Update #26404
+    
+    Change-Id: I589f7203a628b2fa6238d82878029e0f098091b6
+    Reviewed-on: https://go-review.googlesource.com/c/143977
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/build.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

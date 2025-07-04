@@ -1,0 +1,14 @@
+commit 1db31f8933ca3d3b2ce6d8decd01fe8acfcdecb6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 18 09:45:38 2011 -0700
+
+    big: more explicit documentation for div/mod/quo/rem
+    
+    Fixes #2380.
+    
+    R=rsc, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/5313041
+
+ src/pkg/big/int.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

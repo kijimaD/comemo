@@ -1,0 +1,12 @@
+commit 411a0adc9bbee3a981af93de5f83b13f26f0413f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 17 19:53:39 2016 -0700
+
+    runtime: add benchmarks for in-place append
+    
+    Change-Id: I2b43cc976d2efbf8b41170be536fdd10364b65e5
+    Reviewed-on: https://go-review.googlesource.com/22190
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/append_test.go | 129 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 129 insertions(+)

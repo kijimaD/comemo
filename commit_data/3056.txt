@@ -1,0 +1,14 @@
+commit fc18391209904c00abe6db9cecacc8a27d5c9d3f
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Aug 21 18:30:20 2009 -0700
+
+    Decode overlapping section names correctly.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=23  (14 added, 8 deleted, 1 changed)
+    OCL=33699
+    CL=33705
+
+ usr/austin/sym/elf.go | 24 +++++++++++++++---------
+ 1 file changed, 15 insertions(+), 9 deletions(-)

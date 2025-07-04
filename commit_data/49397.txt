@@ -1,0 +1,21 @@
+commit 95547aee8c6377e73919d6f0b99484152fb3de04
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Jun 2 05:09:09 2022 +1000
+
+    cmd/compile: cast riscv64 rewrite shifts to unsigned int
+    
+    This appeases Go 1.4, making it possible to bootstrap GOARCH=riscv64 with
+    a Go 1.4 compiler.
+    
+    Fixes #52583
+    
+    Change-Id: Ib13c2afeb095b2bb1464dcd7f1502574209bc7ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409974
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  6 +++---
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 16 ++++++++--------
+ 2 files changed, 11 insertions(+), 11 deletions(-)

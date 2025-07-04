@@ -1,0 +1,14 @@
+commit 81c2233b4abff45e9c781f5e7c50396cfec5a0df
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 27 17:54:51 2015 +0000
+
+    Revert "cmd/dist: consolidate runtime CPU tests"
+    
+    This reverts commit a9e50a6b358df2e725157128c140684264c8ed38.
+    
+    Change-Id: I3c5e459f1030e36bc249910facdae12303a44151
+    Reviewed-on: https://go-review.googlesource.com/9394
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/dist/test.go | 27 +++++++++++++++------------
+ 1 file changed, 15 insertions(+), 12 deletions(-)

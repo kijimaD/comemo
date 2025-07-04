@@ -1,0 +1,15 @@
+commit 1f3222a57bb0f1abcc7047bd5cc935f5997f3859
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Tue Mar 2 11:18:22 2010 +1100
+
+    strings.Bytes -> []byte for documentation example, src/pkg/* comments, and htmlgen.go
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/224087
+
+ doc/effective_go.html           |  3 +--
+ doc/htmlgen.go                  | 19 +++++++++----------
+ src/pkg/compress/zlib/reader.go |  2 +-
+ src/pkg/websocket/client.go     |  2 +-
+ 4 files changed, 12 insertions(+), 14 deletions(-)

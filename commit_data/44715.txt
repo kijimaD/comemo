@@ -1,0 +1,31 @@
+commit 51e4bb236cb8feb8118ed6dd768ddac834dad2ef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 17 16:59:47 2021 -0700
+
+    cmd/compile/internal/types2: delay recording types of untyped operands when checking against type parameters
+    
+    Don't eagerly record the target type for an untyped operand if the
+    target type is just one of possibly many types in the type list of
+    a type parameter. Instead, record expression type only after we
+    checked that all types in the type list are ok.
+    
+    Also, update assertion in Checker.recordTypeAndValue since (currently),
+    a type parameter is not considered a const type. We may change that,
+    eventually.
+    
+    This is a temporary (but working) solution. Eventually we should
+    copy the approach taken in go/types.
+    
+    Fixes #45096.
+    
+    Change-Id: Icf61ee893aca6ead32bfc45ee5831572e672357b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302755
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/api_test.go |  3 +++
+ src/cmd/compile/internal/types2/check.go    |  4 +++-
+ src/cmd/compile/internal/types2/expr.go     | 16 ++++++++++------
+ 3 files changed, 16 insertions(+), 7 deletions(-)

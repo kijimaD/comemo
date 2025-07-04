@@ -1,0 +1,29 @@
+commit 333f764df3d78930a5a3097fc34ac1374b7c3187
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Jan 7 17:41:00 2017 -0800
+
+    cmd/go, misc: switch from breakpoint to SIGUSR2
+    
+    The iOS test harness has set a breakpoint early in the life of Go
+    programs so that it can change the current working directory using
+    information only available from the host debugger. Somewhere in the
+    upgrade to iOS 10 / XCode 8.2, breakpoints stopped working. This
+    may be an LLDB bug, or a bug in the ios-deploy LLDB scripts, it's
+    not clear.
+    
+    Work around the problem by giving up on breakpoints. Instead, early
+    in the life of every test binary built for iOS, send (and ignore) a
+    SIGUSR2 signal. The debugger will catch this, giving the script
+    go_darwin_arm_exec a chance to change the working directory.
+    
+    For the iOS builders.
+    
+    Change-Id: I7476531985217d0c76bc176904c48379210576c2
+    Reviewed-on: https://go-review.googlesource.com/34926
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go |  7 +++----
+ src/cmd/go/test.go             | 21 +++++++++++++++++----
+ 2 files changed, 20 insertions(+), 8 deletions(-)

@@ -1,0 +1,18 @@
+commit 42c26b734cf8cf148cf08ae30bf1e05a29bc8851
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 7 03:33:42 2010 -0400
+
+    gc: fix error for 1 <- "foo"
+    
+    was
+    x.go:4: invalid operation: 1 <- "foo" (send to receive-only type int)
+    
+    now
+    x.go:4: invalid operation: 1 <- "foo" (send to non-chan type int)
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2330042
+
+ src/cmd/gc/typecheck.c | 4 ++++
+ 1 file changed, 4 insertions(+)

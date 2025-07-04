@@ -1,0 +1,12 @@
+commit 0c83f23d44bd1679d5facb2428196551c0c2f7f6
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 11 19:39:57 2009 -0800
+
+    fix typo in ByteSize example
+    
+    R=rsc, agl1
+    CC=golang-dev
+    https://golang.org/cl/154076
+
+ doc/effective_go.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

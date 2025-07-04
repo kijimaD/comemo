@@ -1,0 +1,25 @@
+commit 82f58c11e1f39e236382153fd2dddc4bacea2176
+Author: Jeff Johnson <jrjohnson@google.com>
+Date:   Fri Dec 8 09:21:57 2017 -0800
+
+    net: enable TestInterfaceHardwareAddrWithGetmac on all windows versions
+    
+    Re-work the test to use wmic instead of PowerShell's getmac that's
+    only avaliable on Server 2008. Maintains duplicate detection added
+    for golang/go#21027.
+    
+    Tested on windows-amd64-{2008, 2012, 2016} buildlets.
+    Enabling for Windows XP because it should work[1].
+    
+    Fixes golang/go#20073
+    
+    [1] https://www.microsoft.com/resources/documentation/windows/xp/all/proddocs/en-us/wmic_overview.mspx?mfr=true
+    
+    Change-Id: Ic11d569f7964f61d08ae0dcc1b926efc5336ac5b
+    Reviewed-on: https://go-review.googlesource.com/82975
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/net_windows_test.go | 143 ++++++++++++--------------------------------
+ 1 file changed, 38 insertions(+), 105 deletions(-)

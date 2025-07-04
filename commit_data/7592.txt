@@ -1,0 +1,18 @@
+commit 41a23ca08ba1187c64226e9f114d2c2f521bd3fb
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 28 20:47:52 2011 -0800
+
+    goyacc: clarify it's package, not binary, that has
+    conflict and explain that you could put the grammars
+    in separate packages instead.
+    
+    I could be talked into rolling back the previous change
+    and just making a doc change instead, but I'm content
+    to let it stand.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4240053
+
+ src/cmd/goyacc/doc.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

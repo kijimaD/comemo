@@ -1,0 +1,21 @@
+commit d08df51366ed7fff5dde879adba02ab38c8c8cfc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jan 29 23:13:40 2011 +1100
+
+    8l/6l: pe fixes
+    
+    - fixed length of amd64 .data pe section
+      (don't need to include non-initialised data)
+    
+    - use correct oh/oh64 variable when updating
+      data directory in addexports
+    
+    - simplify and cleanup
+    
+    R=vcc, rsc
+    CC=golang-dev
+    https://golang.org/cl/4106044
+
+ src/cmd/ld/lib.h |   1 +
+ src/cmd/ld/pe.c  | 151 ++++++++++++++++++++++---------------------------------
+ 2 files changed, 60 insertions(+), 92 deletions(-)

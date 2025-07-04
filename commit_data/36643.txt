@@ -1,0 +1,36 @@
+commit 178a609fed5fba5abaeead485f7b2795b8c4ea3c
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Mon Sep 10 01:05:09 2018 -0600
+
+    runtime: convert initial timediv quotient increments to bitsets
+    
+    At the very beginning of timediv, inside a for loop,
+    we reduce the base value by at most (1<<31)-1, while
+    incrementing the quotient result by 1<<uint(bit).
+    However, since the quotient value was 0 to begin with,
+    we are essentially just doing bitsets.
+    
+    This change is in the hot path of various concurrency and
+    scheduling operations that require sleeping, waiting
+    on mutexes and futexes etc. On the following OSes:
+    * Dragonfly
+    * FreeBSD
+    * Linux
+    * NetBSD
+    * OpenBSD
+    * Plan9
+    * Windows
+    
+    and paired with architectures that provide the BTS instruction, this
+    change shaves off a couple of nanoseconds per invocation of timediv.
+    
+    Fixes #27529
+    
+    Change-Id: Ia2fea5022c1109e02d86d1f962a3b0bd70967aa6
+    Reviewed-on: https://go-review.googlesource.com/134231
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/runtime1.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

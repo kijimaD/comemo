@@ -1,0 +1,13 @@
+commit ea12ed4fdd55fd9896066fcf0f7c6121f7d81d0c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 16 23:07:00 2009 -0700
+
+    regenerate makefile with installed gobuild
+    
+    R=r
+    DELTA=23  (8 added, 0 deleted, 15 changed)
+    OCL=27577
+    CL=27583
+
+ src/lib/net/Makefile | 38 +++++++++++++++++++++++---------------
+ 1 file changed, 23 insertions(+), 15 deletions(-)

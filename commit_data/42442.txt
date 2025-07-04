@@ -1,0 +1,18 @@
+commit 9326d71874730901c159643703a16dc34646e5bd
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jun 2 13:56:26 2020 -0400
+
+    doc/go1.15: add release notes for new linker
+    
+    Add a blurb to the release notes describing improvements made to the
+    Go linker in the most recent development cycle.
+    
+    Updates #37419.
+    
+    Change-Id: I3b870f0c00efc0b7b33aab2631d8c4e1c273922d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236159
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 30 ++++++++++++++++++++++++++++--
+ 1 file changed, 28 insertions(+), 2 deletions(-)

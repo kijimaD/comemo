@@ -1,0 +1,14 @@
+commit 51338095eb6fa331b64716dea1fed4fa8f513fef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 7 20:11:37 2013 -0800
+
+    spec: clarify unsafe.Offsetof
+    
+    Fixes #4905.
+    
+    R=rsc, r, iant, ken
+    CC=golang-dev
+    https://golang.org/cl/7583043
+
+ doc/go_spec.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

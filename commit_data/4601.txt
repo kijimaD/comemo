@@ -1,0 +1,21 @@
+commit 6c2e0fe1f9e3bf0e164a23162bb5bdf2dd28600e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 16:26:22 2010 -0800
+
+    create doc/talks/.
+    
+    move talk-20091030 down.
+    add talk given at Stanford 2010/01/12.
+    add doc/go-logo-white.png.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/186132
+
+ doc/go-logo-white.png                |  Bin 0 -> 25371 bytes
+ doc/{ => talks}/go_talk-20091030.pdf |  Bin
+ doc/talks/go_talk-20100112.html      |  411 +++++
+ doc/talks/slidy.css                  |  277 ++++
+ doc/talks/slidy.js                   | 2772 ++++++++++++++++++++++++++++++++++
+ lib/godoc/godoc.html                 |    2 +-
+ 6 files changed, 3461 insertions(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 51a96f86f7a0604f4b3010b8a688f9b66a5c5acb
+Author: apocelipes <seve3r@outlook.com>
+Date:   Mon Mar 25 14:13:35 2024 +0000
+
+    regexp/syntax: simplify the code
+    
+    Use the slices package and the built-in max to simplify the code.
+    There's no noticeable performance change in this modification.
+    
+    Change-Id: I96e46ba8ab1323f1ba0b8c9b827836e217772cf2
+    GitHub-Last-Rev: f0111ac7e220f7dac03290125a3a83831012f235
+    GitHub-Pull-Request: golang/go#66511
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573978
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/regexp/syntax/parse.go  |  4 +---
+ src/regexp/syntax/regexp.go | 19 +++----------------
+ 2 files changed, 4 insertions(+), 19 deletions(-)

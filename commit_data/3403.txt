@@ -1,0 +1,13 @@
+commit e7f9452da57a275e5ccb0d9842a42cdaf08952e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 29 21:23:34 2009 -0700
+
+    missing error checking related to ([...]int){...}
+    
+    R=ken
+    OCL=35132
+    CL=35132
+
+ src/cmd/gc/dcl.c       | 2 +-
+ src/cmd/gc/typecheck.c | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit f74b4d3de3e39fe066c9bc0109122156b273d5f8
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Mar 22 03:54:14 2013 +0800
+
+    cmd/ld: fix bad merge
+    CL 7504044 accidentally reverted part of CL 7891044 and 7552045, this CL
+    bring those part back.
+    
+    R=golang-dev
+    TBR=rsc
+    CC=golang-dev
+    https://golang.org/cl/7950045
+
+ src/cmd/ld/dwarf.c | 186 ++++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 150 insertions(+), 36 deletions(-)

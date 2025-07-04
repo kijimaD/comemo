@@ -1,0 +1,37 @@
+commit 3c6bebf5a7b4a5678460abf2e48f21bc369e0d3a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 31 09:48:10 2012 -0800
+
+    go/doc: enable AllMethods flag (and fix logic)
+    
+    - enable AllMethods flag (default: not set)
+    - fix logic determining which methods to show
+    - added respective test case in testdata/e.go for AllMethods = false
+    - added test case set for AllMethods = true
+    
+    The critical changes/files to look at are:
+    - testdata/e{0,1,2}.golden: T4.M should only show up as method of T5 in e2.golden
+    - reader.go: always include top-level methods, and negate former logic for embedded methods
+      (rewrote as a switch for better comprehensability)
+    
+    Fixes #2791.
+    
+    R=rsc, rsc
+    CC=golang-dev
+    https://golang.org/cl/5576057
+
+ src/cmd/api/goapi.go                     |   2 +-
+ src/pkg/go/doc/doc.go                    |   1 -
+ src/pkg/go/doc/doc_test.go               |   1 +
+ src/pkg/go/doc/exports.go                |   4 +
+ src/pkg/go/doc/reader.go                 |   9 +-
+ src/pkg/go/doc/testdata/a.2.golden       |  13 +++
+ src/pkg/go/doc/testdata/b.2.golden       |  43 +++++++++
+ src/pkg/go/doc/testdata/c.2.golden       |  48 ++++++++++
+ src/pkg/go/doc/testdata/d.2.golden       | 104 +++++++++++++++++++++
+ src/pkg/go/doc/testdata/e.0.golden       |  13 ++-
+ src/pkg/go/doc/testdata/e.1.golden       |  13 ++-
+ src/pkg/go/doc/testdata/e.2.golden       |  45 +++++++++
+ src/pkg/go/doc/testdata/e.go             |  13 +++
+ src/pkg/go/doc/testdata/testing.2.golden | 156 +++++++++++++++++++++++++++++++
+ 14 files changed, 453 insertions(+), 12 deletions(-)

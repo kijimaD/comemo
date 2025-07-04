@@ -1,0 +1,17 @@
+commit 9db1dd074df62d18f6902f06c93c72da0a3ffd16
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Tue Apr 17 16:55:42 2018 -0300
+
+    encoding/hex: fix Dumper not always closing on Close call
+    
+    Updates #23574
+    
+    Change-Id: I1b87390679e0817a2f6e4e5938994ea32df87bd7
+    Reviewed-on: https://go-review.googlesource.com/107596
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/hex/hex.go      |  5 ++++-
+ src/encoding/hex/hex_test.go | 13 +++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

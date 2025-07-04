@@ -1,0 +1,13 @@
+commit c80f5b9bf7c67e1338d04bc0cf21fe285c3a80df
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Thu Apr 4 14:18:52 2013 -0700
+
+    runtime: use a distinct pattern to mark free blocks in need of zeroing
+    
+    R=golang-dev, dvyukov, khr, cshapiro
+    CC=golang-dev
+    https://golang.org/cl/8392043
+
+ src/pkg/runtime/malloc.goc | 4 ++--
+ src/pkg/runtime/mgc0.c     | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit c9021a1afec280134638a1ffb15597354fee269c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 24 11:13:20 2011 -0800
+
+    godoc: fix writeFileAtomically utility function
+    
+    If the filename was absolute, writeFileAtomically
+    used the wrong filename for ioutil.TempFile leading
+    to non-existent directories and the TempFile would
+    fail.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4224043
+
+ src/cmd/godoc/utils.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

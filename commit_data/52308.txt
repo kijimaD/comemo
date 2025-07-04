@@ -1,0 +1,19 @@
+commit 5ddbe05c076e1e207afec384f28da14fd54651b5
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Dec 29 14:16:10 2022 +0100
+
+    crypto/rsa: deprecate multiprime RSA support
+    
+    Fixes #56921
+    
+    Change-Id: I03f9969a5146ab7becd983784d8cb5b23a3fbb18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459976
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ api/next/56921.txt    | 2 ++
+ src/crypto/rsa/rsa.go | 4 ++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)

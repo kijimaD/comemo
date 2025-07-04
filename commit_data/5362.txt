@@ -1,0 +1,16 @@
+commit 23c064452c734af715bcdd2ff515360578ae858b
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Tue Apr 27 10:45:33 2010 -0700
+
+    godoc: use int64 for timestamps
+    
+    This fixes a crash seen when viewing a directory list.
+    
+    Fixes #747.
+    
+    R=gri
+    CC=golang-dev, rsc
+    https://golang.org/cl/1010042
+
+ src/cmd/godoc/godoc.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

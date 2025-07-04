@@ -1,0 +1,20 @@
+commit 36f25a7e7ba3d5527cee8f4ef645827085243e59
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Feb 28 17:58:57 2016 -0900
+
+    cmd/link: allocate small []byte reads together
+    
+    Reduces number of memory allocations by 12%:
+    
+    Before: 1816664
+    After:  1581591
+    
+    Small speed improvement.
+    
+    Change-Id: I61281fb852e8e31851a350e3ae756676705024a4
+    Reviewed-on: https://go-review.googlesource.com/20027
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/objfile.go | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit 4063605e0d0ce2ee2603c70a70c3a918adb7369a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 28 12:57:55 2021 -0400
+
+    cmd/go/internal/modload: avoid loading the full module graph for imports satisfied by lazy roots
+    
+    For #36460
+    
+    Change-Id: Ibdbaa893ded772617e22f12db7a0463604db5195
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308516
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/import.go              | 176 +++++++++++----------
+ src/cmd/go/internal/modload/init.go                |  16 ++
+ src/cmd/go/internal/modload/load.go                |  23 ++-
+ .../go/testdata/script/mod_install_pkg_version.txt |   4 +-
+ src/cmd/go/testdata/script/mod_run_pkg_version.txt |   4 +-
+ 5 files changed, 136 insertions(+), 87 deletions(-)

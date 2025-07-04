@@ -1,0 +1,18 @@
+commit 70b603f4d295573197b43ad090d7cad21895144e
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Jan 22 10:24:11 2025 -0500
+
+    go/importer: document limitations of this API
+    
+    Arguably it should be deprecated, but that's a process.
+    
+    Updates #71272
+    
+    Change-Id: I69de1f9709c45dfea0fe67d96a7bd15d3df4e2f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643795
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+
+ src/go/importer/importer.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

@@ -1,0 +1,15 @@
+commit 7cba8e6f72279f8dc9e35ea0e10c7deb3706a744
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 27 19:26:03 2009 -0700
+
+    - have explicit KeyValueExpr node instead of BinaryExpr ':' (as discussed)
+    - remove ':' token from operator precedence levels
+    
+    R=rsc
+    DELTA=25  (13 added, 8 deleted, 4 changed)
+    OCL=26850
+    CL=26854
+
+ src/lib/go/ast.go   | 18 ++++++++++++------
+ src/lib/go/token.go | 11 +++++------
+ 2 files changed, 17 insertions(+), 12 deletions(-)

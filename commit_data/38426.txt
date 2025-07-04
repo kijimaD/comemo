@@ -1,0 +1,20 @@
+commit d039e12b54a73796caa913994597a9f3a73e8e87
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Fri Mar 1 18:04:14 2019 +0800
+
+    os: consistently return PathError from RemoveAll
+    
+    Fixes #30491
+    
+    Change-Id: If4070e5d39d8649643d7e90f6f3eb499642e25ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164720
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/os/path.go           |  1 +
+ src/os/path_unix.go      |  2 +-
+ src/os/removeall_at.go   | 38 ++++++++++++++++++++++++--------------
+ src/os/removeall_test.go | 15 +++++++++++++--
+ 4 files changed, 39 insertions(+), 17 deletions(-)

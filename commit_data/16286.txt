@@ -1,0 +1,19 @@
+commit 67acff0b09a187c56debc6cae23495ecc8ef3205
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 14 09:30:13 2013 -0700
+
+    go/token: let FileSet.AddFile take a negative base
+    
+    Negative base now means "automatic". Fixes a higher
+    level race.
+    
+    Fixes #5418
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/9269043
+
+ src/pkg/go/parser/parser.go       | 2 +-
+ src/pkg/go/token/position.go      | 6 +++++-
+ src/pkg/go/token/position_test.go | 8 +++++++-
+ 3 files changed, 13 insertions(+), 3 deletions(-)

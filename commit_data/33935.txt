@@ -1,0 +1,19 @@
+commit 43bf63fce1abad1d5fe673e2c869e4d32f62885e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 3 11:27:26 2018 -0800
+
+    cmd/go, testing: test names don't have to be alphanumeric
+    
+    In func TestXxxx(*testing.T) the Xxxx can be anything that can appear
+    in an identifier, but can't start with a lowercase letter. Clarify the docs.
+    
+    Fixes #23322
+    
+    Change-Id: I5c297916981f7e3890ee955d12bc7422a75488e2
+    Reviewed-on: https://go-review.googlesource.com/86001
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/alldocs.go            | 14 +++++++-------
+ src/cmd/go/internal/test/test.go | 14 +++++++-------
+ src/testing/testing.go           |  4 ++--
+ 3 files changed, 16 insertions(+), 16 deletions(-)

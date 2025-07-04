@@ -1,0 +1,20 @@
+commit db85615bfd7502206708b799e4aa73bf707ebafa
+Author: Alexander Nohe <alex.nohe427@gmail.com>
+Date:   Sat Jun 27 23:22:29 2020 +0000
+
+    doc: add alt attribute to gopher image in help.html
+    
+    This adds an alt tag for accessibility. The alt text is a visual
+    description of the text that is read out loud to users using a
+    screen reader. The HTML specifications indicate that alt tags for
+    decorative images should be left blank.
+    
+    Fixes #39861
+    
+    Change-Id: I76c39a461ceabe685826aa46e4f26ad893d50634
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240258
+    Reviewed-by: Alexander Nohe <alex.nohe427@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/help.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

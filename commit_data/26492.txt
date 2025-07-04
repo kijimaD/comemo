@@ -1,0 +1,23 @@
+commit f045ca8d45c1f06312a022e40677eec3fc2e0ed3
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Mar 24 16:03:07 2016 +0100
+
+    misc/ios: serialize iOS execution
+    
+    The iOS exec wrapper use complicated machinery to run a iOS binary
+    on a device.
+    Running several binaries concurrently doesn't work (reliably), which
+    can break tests running concurrently. For my setup, the
+    runtime:cpu124 and sync_cpu tests can't run reliably without one of them
+    crashing.
+    
+    Add a file lock to the exec wrapper to serialize execution.
+    
+    Fixes #14318 (for me)
+    
+    Change-Id: I023610e014b327f8d66f1d2fd2e54dd0e56f2be0
+    Reviewed-on: https://go-review.googlesource.com/21074
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

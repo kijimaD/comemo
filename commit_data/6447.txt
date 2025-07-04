@@ -1,0 +1,12 @@
+commit 1756b31bb9c9b2f7cd00c5916c8d5946ff24da29
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Oct 4 14:56:44 2010 +1100
+
+    add _testmain.go to .hgignore
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/2332042
+
+ .hgignore | 1 +
+ 1 file changed, 1 insertion(+)

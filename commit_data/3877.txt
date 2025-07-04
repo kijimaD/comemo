@@ -1,0 +1,14 @@
+commit b94f8131aee71644ca5bd6dc7d8314667feffafe
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 7 12:11:28 2009 -0800
+
+    new style; live at http://r45:3456/
+    
+    R=r
+    CC=go-dev
+    http://go/go-review/1026015
+
+ doc/root.html        |  8 +++-----
+ doc/style.css        | 41 ++++++++++++++++++++++++++++++-----------
+ lib/godoc/godoc.html |  2 +-
+ 3 files changed, 34 insertions(+), 17 deletions(-)

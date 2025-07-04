@@ -1,0 +1,24 @@
+commit c6e82e5808f4fb6da0fcc9754e29a220451a0dfd
+Author: wdvxdr <wdvxdr1123@gmail.com>
+Date:   Mon Oct 25 17:54:11 2021 +0800
+
+    cmd/compile: fix inlining labeled switch statements
+    
+    CL 357649 fixes inlining labeled FOR/RANGE loops,
+    we should do same translation for inlined SWITCH's label
+    
+    Fixes #49145
+    
+    Change-Id: I9a6f365f57e974271a1eb279b38e81f9b5148788
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358315
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/inline/inl.go | 14 ++++++++++----
+ test/fixedbugs/issue49145.go           | 27 +++++++++++++++++++++++++++
+ test/fixedbugs/issue49145.out          |  3 +++
+ 3 files changed, 40 insertions(+), 4 deletions(-)

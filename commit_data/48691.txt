@@ -1,0 +1,32 @@
+commit 1a955bcdb701d788b048a39d7273621729e257bc
+Author: vpachkov <slava.pach@gmail.com>
+Date:   Thu Dec 2 16:18:29 2021 +0300
+
+    reflectdata: unroll a loop in array equal function generation
+    
+    As josharian mentioned, a compare function could benefit from
+    unrolling a loop for arrays. This commit introduces such
+    functionality.
+    
+    name                     old time/op  new time/op  delta
+    EqArrayOfStrings5-12     12.5ns ± 1%   8.4ns ± 1%  -33.05%  (p=0.008 n=5+5)
+    EqArrayOfStrings64-12    71.7ns ± 1%  64.1ns ± 1%  -10.57%  (p=0.008 n=5+5)
+    EqArrayOfStrings1024-12  1.12µs ± 1%  1.01µs ± 0%   -9.77%  (p=0.008 n=5+5)
+    [Geo mean]                100ns         81ns       -18.56%
+    
+    name                    old time/op  new time/op  delta
+    EqArrayOfFloats5-12     4.50ns ± 2%  3.32ns ± 1%  -26.09%  (p=0.008 n=5+5)
+    EqArrayOfFloats64-12    41.3ns ± 1%  35.7ns ± 0%  -13.63%  (p=0.016 n=5+4)
+    EqArrayOfFloats1024-12   619ns ± 1%   557ns ± 1%   -9.95%  (p=0.008 n=5+5)
+    [Geo mean]              48.6ns       40.4ns       -16.85%
+    
+    Change-Id: If1b69c5cf3fb246bb0275a292118b0b93ad9c9a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368614
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/reflectdata/alg.go      | 92 +++++++++++++++---------
+ src/cmd/compile/internal/reflectdata/alg_test.go | 76 ++++++++++++++++++++
+ 2 files changed, 135 insertions(+), 33 deletions(-)

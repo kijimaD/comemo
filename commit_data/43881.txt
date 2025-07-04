@@ -1,0 +1,21 @@
+commit 0252cfd84d6268985199f96239e65a0b0d32363c
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Nov 27 22:07:23 2020 +0100
+
+    runtime: adjust address calculation in identifying abort on windows/arm
+    
+    Apparently we're being called on arm 1 byte off, just like on 386 and
+    amd64, so unify the handler for isAbortPC.
+    
+    Fixes #42859.
+    Updates #29050.
+    
+    Change-Id: I97fffeb4a33d93ca3397ce1c9ba2b05137f391ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273727
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/runtime/signal_windows.go | 13 +++----------
+ 1 file changed, 3 insertions(+), 10 deletions(-)

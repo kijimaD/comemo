@@ -1,0 +1,24 @@
+commit 29267c2131495585ba047a0c55d4e244757a3708
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Apr 2 16:26:30 2016 -0700
+
+    cmd/compile: add Type.ChanDir
+    
+    Generated with eg.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I3af35191e73a558080f777a4eed93bcec7dfe1f5
+    Reviewed-on: https://go-review.googlesource.com/21469
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go   |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       |  6 +++---
+ src/cmd/compile/internal/gc/range.go     |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   |  2 +-
+ src/cmd/compile/internal/gc/subr.go      |  4 ++--
+ src/cmd/compile/internal/gc/type.go      | 11 +++++++++--
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++---
+ 7 files changed, 20 insertions(+), 13 deletions(-)

@@ -1,0 +1,20 @@
+commit 9cce08d72470eb6ae2a2870bb9c70d1893441b0f
+Author: Tom Thorogood <me+google@tomthorogood.co.uk>
+Date:   Thu Sep 12 07:09:39 2019 +0000
+
+    cmd/go/internal/renameio,runtime: avoid leaking temp directory in test
+    
+    TestWriteFileModeAppliesUmask and TestVectoredHandlerDontCrashOnLibrary
+    could both leak /tmp/go-build-* directories which isn't very friendly.
+    
+    Change-Id: Ibee9c33d49ad48958fae4df73853b82d92314bf0
+    GitHub-Last-Rev: 814e2fa4bb4e4fe9c00b6d465313ce35c7ab4e32
+    GitHub-Pull-Request: golang/go#34253
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194880
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/renameio/umask_test.go | 2 +-
+ src/runtime/signal_windows_test.go         | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

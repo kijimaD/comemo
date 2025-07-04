@@ -1,0 +1,77 @@
+commit 00f9f0c0560ce35b9d006eacbeeacf897d19a2bf
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 30 10:34:57 2010 -0700
+
+    single argument panic
+    
+    note that sortmain.go has been run through hg gofmt;
+    only the formatting of the day initializers changed.
+    i'm happy to revert that formatting if you'd prefer.
+    
+    stop on error in doc/progs/run
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/850041
+
+ doc/progs/run                 |   2 +
+ doc/progs/sortmain.go         |  20 +--
+ src/cmd/cgo/ast.go            |   2 +-
+ src/cmd/godoc/index.go        |   2 +-
+ src/cmd/goinstall/download.go |   2 +-
+ src/pkg/bufio/bufio.go        |   4 +-
+ src/pkg/bytes/bytes_test.go   |   3 +-
+ src/pkg/crypto/block/cmac.go  |   2 +-
+ src/pkg/exp/eval/eval_test.go |   2 +-
+ src/pkg/exp/eval/expr.go      |   6 +-
+ src/pkg/exp/eval/expr1.go     |  62 ++++----
+ src/pkg/exp/eval/gen.go       |   8 +-
+ src/pkg/exp/eval/type.go      |  10 +-
+ src/pkg/exp/ogle/rvalue.go    |   4 +-
+ src/pkg/exp/ogle/vars.go      |   2 +-
+ src/pkg/go/ast/walk.go        |   2 +-
+ src/pkg/go/parser/parser.go   |   3 +-
+ src/pkg/go/printer/printer.go |   4 +-
+ src/pkg/gob/decode.go         |   6 +-
+ src/pkg/http/lex.go           |   8 +-
+ src/pkg/net/fd.go             |   8 +-
+ src/pkg/net/unixsock.go       |   2 +-
+ src/pkg/reflect/value.go      |   4 +-
+ src/pkg/strconv/ftoa_test.go  |   3 +-
+ src/pkg/template/template.go  |   4 +-
+ src/pkg/time/time.go          |   4 +-
+ src/pkg/websocket/server.go   |   4 +-
+ test/235.go                   |  49 +++---
+ test/chan/doubleselect.go     |   3 +-
+ test/chan/nonblock.go         | 242 +++++++++++++++++++-----------
+ test/chan/sieve1.go           |  31 ++--
+ test/chan/sieve2.go           |   3 +-
+ test/cmp1.go                  |   3 +-
+ test/fixedbugs/bug082.go      |  15 +-
+ test/fixedbugs/bug084.go      |  15 +-
+ test/fixedbugs/bug097.go      |  24 +--
+ test/fixedbugs/bug110.go      |   3 +-
+ test/fixedbugs/bug117.go      |  12 +-
+ test/fixedbugs/bug168.go      |  13 +-
+ test/fixedbugs/bug194.go      |  25 +--
+ test/fixedbugs/bug221.go      |  22 +--
+ test/fixedbugs/bug227.go      |  14 +-
+ test/fixedbugs/bug234.go      |   6 +-
+ test/fixedbugs/bug244.go      |   3 +-
+ test/fixedbugs/bug253.go      |   5 +-
+ test/fixedbugs/bug262.go      |   6 +-
+ test/func5.go                 |  76 +++++-----
+ test/golden.out               |   2 +-
+ test/interface/convert.go     | 116 +++++++-------
+ test/interface/receiver.go    |   3 +-
+ test/ken/array.go             | 163 ++++++++++----------
+ test/ken/chan.go              | 342 +++++++++++++++++++++---------------------
+ test/ken/string.go            | 102 +++++++------
+ test/mallocfin.go             |   5 +-
+ test/mallocrep.go             |   3 +-
+ test/peano.go                 |  82 +++++-----
+ test/simassign.go             |  86 ++++++-----
+ test/typeswitch1.go           |  69 +++++----
+ test/varinit.go               |  21 ++-
+ test/vectors.go               |  29 ++--
+ 60 files changed, 946 insertions(+), 830 deletions(-)

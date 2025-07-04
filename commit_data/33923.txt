@@ -1,0 +1,14 @@
+commit 6317adeed7815ad335e2e97c463a7c3c4d82fc19
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Mon Jan 1 12:11:58 2018 -0400
+
+    reflect: explicitly state that Type values can be used as map keys
+    
+    Fixes #6535
+    
+    Change-Id: I34974c0050424c96d19ad69bf4522bb69cde2fd5
+    Reviewed-on: https://go-review.googlesource.com/85815
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/type.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

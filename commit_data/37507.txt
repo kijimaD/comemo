@@ -1,0 +1,25 @@
+commit 2b4f24a2d2cbdefe3cb578ef37804cf05c1f5b00
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 5 15:41:04 2016 -0800
+
+    cmd/compile: randomize value order in block for testing
+    
+    A little bit of compiler stress testing. Randomize the order
+    of the values in a block before every phase. This randomization
+    makes sure that we're not implicitly depending on that order.
+    
+    Currently the random seed is a hash of the function name.
+    It provides determinism, but sacrifices some coverage.
+    Other arrangements are possible (env var, ...) but require
+    more setup.
+    
+    Fixes #20178
+    
+    Change-Id: Idae792a23264bd9a3507db6ba49b6d591a608e83
+    Reviewed-on: https://go-review.googlesource.com/c/33909
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/compile.go  | 18 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/nilcheck.go |  2 +-
+ test/run.go                              | 13 +++++++++++++
+ 3 files changed, 32 insertions(+), 1 deletion(-)

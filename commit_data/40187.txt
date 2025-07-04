@@ -1,0 +1,18 @@
+commit 0b204f958e0960fab34e09812eb5a3396ed3f1c9
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed Oct 9 11:13:42 2019 +0200
+
+    go/build: allow ~ and ^ in #cgo directives for sr.ht import paths
+    
+    Fixes #32260
+    
+    Change-Id: Ib44ee33b8143d523875cf5a2bc5e36bf082801a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199918
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/go/build/build.go      | 3 ++-
+ src/go/build/build_test.go | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

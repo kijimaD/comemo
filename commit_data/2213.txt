@@ -1,0 +1,14 @@
+commit 472e191a23996db0195317f65ba067872d3cdcb6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 14 17:03:47 2009 -0700
+
+    ByteBuffer.WriteByte
+    
+    R=r
+    DELTA=17  (10 added, 0 deleted, 7 changed)
+    OCL=28860
+    CL=28862
+
+ src/lib/io/bytebuffer.go      |  7 +++++++
+ src/lib/io/bytebuffer_test.go | 17 ++++++++++-------
+ 2 files changed, 17 insertions(+), 7 deletions(-)

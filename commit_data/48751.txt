@@ -1,0 +1,21 @@
+commit a362d5461483190cbaf995e6cb7aaa47c32ebe36
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Apr 9 21:00:59 2022 -0700
+
+    os: mark Solaris nam/door/port files as irregular
+    
+    No test because I'm too lazy to figure out how to create such files.
+    
+    Fixes #52259
+    
+    Change-Id: I7a07f49993cf046888729e9206ed53dddcf9cb13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399435
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/os/stat_solaris.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

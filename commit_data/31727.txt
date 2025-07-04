@@ -1,0 +1,22 @@
+commit a836254d08181418757b0d5c159acd3f9488fb91
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 6 13:23:59 2017 -0700
+
+    cmd/compile: reject unknown //go: comments in std library
+    
+    Fixes #18331
+    
+    Change-Id: Ie5c6685be3002533b84604ff1f13f2f0850f29e2
+    Reviewed-on: https://go-review.googlesource.com/45010
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/go.go    |  3 +++
+ src/cmd/compile/internal/gc/main.go  |  1 +
+ src/cmd/compile/internal/gc/noder.go | 15 +++++++++++++++
+ src/cmd/go/internal/work/build.go    |  3 +++
+ src/go/types/stdlib_test.go          |  6 +++---
+ test/fixedbugs/issue18331.go         | 20 ++++++++++++++++++++
+ 6 files changed, 45 insertions(+), 3 deletions(-)

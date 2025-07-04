@@ -1,0 +1,20 @@
+commit e52d317d2476acc0a9985fab7068ee5c2971807b
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 19 16:32:41 2017 -0400
+
+    cmd/compile: convert ishairy into a visitor
+    
+    The inliner's ishairy passes a budget and a reason down through the
+    walk. Lift these into a visitor object and turn ishairy and its
+    helpers into methods.
+    
+    This will make it easy to add more state.
+    
+    Change-Id: Ic6ae246e1affd67ed283c3205f9595ae33e22215
+    Reviewed-on: https://go-review.googlesource.com/41151
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/inl.go | 58 ++++++++++++++++++++++----------------
+ 1 file changed, 33 insertions(+), 25 deletions(-)

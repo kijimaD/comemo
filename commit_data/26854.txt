@@ -1,0 +1,23 @@
+commit e569b10ebaed8fbf27d0b55886b6a81d635ddbc7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 12 00:09:05 2016 +0000
+
+    src: split nacltest.bash into naclmake.bash and keep nacltest.bash
+    
+    Needed by the build system to shard tests. nacl was the last unsharded
+    builder.
+    
+    (I considered also adding a -make-only flag to nacltest.bash, but that
+    wouldn't fail fast when the file didn't exist.)
+    
+    Updates #15242
+    
+    Change-Id: I6afc1c1fe4268ab98c0724b5764c67d3784caebe
+    Reviewed-on: https://go-review.googlesource.com/21851
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/naclmake.bash | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/nacltest.bash | 38 ++++----------------------------------
+ 2 files changed, 52 insertions(+), 34 deletions(-)

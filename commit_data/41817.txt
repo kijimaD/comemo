@@ -1,0 +1,16 @@
+commit 620208790ec55a8af69f09f5793173a23375f46e
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Apr 1 13:49:57 2020 -0400
+
+    crypto/tls: add missing alert values
+    
+    Fixes #35911
+    
+    Change-Id: I093d25aa169963769b51c37d2481bce71bd0fd2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226858
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/tls/alert.go | 120 ++++++++++++++++++++++++++----------------------
+ 1 file changed, 66 insertions(+), 54 deletions(-)

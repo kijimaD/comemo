@@ -1,0 +1,43 @@
+commit 614a8b7c8ad42ff8a9bc363f813af2aae046fd0c
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 16 22:22:20 2020 -0400
+
+    runtime: tidy Windows callback test
+    
+    This simplifies the systematic test of Windows callbacks with
+    different signatures and prepares it for expanded coverage of function
+    signatures.
+    
+    It now returns a result from the Go function and threads it back
+    through C. This simplifies things, but also previously the code could
+    have succeeded by simply not calling the callbacks at all (though
+    other tests would have caught that).
+    
+    It bundles together the C function description and the Go function
+    it's intended to call. Now the test source generation and the test
+    running both loop over a single slice of test functions.
+    
+    Since the C function and Go function are now bundled, it generates the
+    C function by reflectively inspecting the signature of the Go
+    function. For the moment, we keep the same test suite, which is
+    entirely functions with "uintptr" arguments, but we'll expand this
+    shortly.
+    
+    It now use sub-tests. This way tests automatically get useful
+    diagnostic labels in failures and the tests don't have to catch panics
+    on their own.
+    
+    It eliminates the DLL function argument. I honestly couldn't figure
+    out what the point of this was, and it added what appeared to be an
+    unnecessary loop level to the tests.
+    
+    Change-Id: I120dfd4785057cc2c392bd2c821302f276bd128e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263270
+    Trust: Austin Clements <austin@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/syscall_windows_test.go | 224 +++++++++++++++---------------------
+ 1 file changed, 90 insertions(+), 134 deletions(-)

@@ -1,0 +1,15 @@
+commit 8d732368c234a6c4ab2ad6c880ccbe978c6c376c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 1 05:03:25 2013 -0800
+
+    cmd/ld: fix windows build
+    
+    Fixes #4948.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/7445045
+
+ src/cmd/ld/ldpe.c | 13 +++++++------
+ src/run.bat       |  2 --
+ 2 files changed, 7 insertions(+), 8 deletions(-)

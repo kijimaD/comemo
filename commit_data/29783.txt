@@ -1,0 +1,19 @@
+commit 4c71af71b43f8fcface5f63cdb3620203b58d45e
+Author: Martin Kreichgauer <martinkr@google.com>
+Date:   Fri Dec 9 11:29:52 2016 -0800
+
+    crypto/x509: marshal certificate revocation times in UTC (Zulu time).
+    
+    This is required by RFC 5280.
+    
+    Fixes #16686
+    
+    Change-Id: I291c68dd97410a4f7ae7c4e524b91a2493ac50a9
+    Reviewed-on: https://go-review.googlesource.com/34245
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/x509.go      |  9 ++++++++-
+ src/crypto/x509/x509_test.go | 24 +++++++++++++++++++++---
+ 2 files changed, 29 insertions(+), 4 deletions(-)

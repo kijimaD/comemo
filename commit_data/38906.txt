@@ -1,0 +1,30 @@
+commit 216797b63bb3d2f54c32a968d63857d75895113e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 22 23:30:03 2019 -0400
+
+    cmd/go: make 'go version' apply to files
+    
+    Expand "go version" from printing just the version of the
+    go command itself to being able to print the version of any
+    go binary (when listed on the command line).
+    
+    This is a simplified version of rsc.io/goversion, which will
+    now be deprecated in favor of "go version".
+    
+    (Preparatory changes to runtime, cmd/go, and cmd/link
+    made this version information easier to find, allowing a
+    much simpler implementation than in rsc.io/goversion.)
+    
+    Fixes #31624.
+    
+    Change-Id: I5f6f5b8392ce86a617e32ce287f6bf2aceafccff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173343
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go                  |  22 +++-
+ src/cmd/go/internal/version/exe.go     | 211 +++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/version/version.go | 185 ++++++++++++++++++++++++++++-
+ src/cmd/go/testdata/script/version.txt |  10 ++
+ 4 files changed, 420 insertions(+), 8 deletions(-)

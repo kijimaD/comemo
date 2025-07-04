@@ -1,0 +1,20 @@
+commit ec0ee7d35737ef137175e92d563c8c4315820204
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 4 02:49:23 2017 +0000
+
+    crypto: revise wording about cryptographically broken algorithms
+    
+    Updates text from https://golang.org/cl/42511
+    
+    Updates #14395
+    
+    Change-Id: I711100525e074ab360e577520280c37645db1c95
+    Reviewed-on: https://go-review.googlesource.com/42614
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/crypto/des/const.go | 3 ++-
+ src/crypto/md5/md5.go   | 3 ++-
+ src/crypto/rc4/rc4.go   | 3 ++-
+ src/crypto/sha1/sha1.go | 3 ++-
+ 4 files changed, 8 insertions(+), 4 deletions(-)

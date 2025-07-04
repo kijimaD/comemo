@@ -1,0 +1,41 @@
+commit 01b1a34aac56580a954a3595dc9afd8de41be9c7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 20 07:50:17 2017 -0700
+
+    cmd/compile: rework handling of udiv on ARM
+    
+    Instead of populating the aux symbol
+    of CALLudiv during rewrite rules,
+    populate it during genssa.
+    
+    This simplifies the rewrite rules.
+    It also removes all remaining calls
+    to ctxt.Lookup from any rewrite rules.
+    This is a first step towards removing
+    ctxt from ssa.Cache entirely,
+    and also a first step towards converting
+    the obj.LSym.Version field into a boolean.
+    It should also speed up compilation.
+    
+    Also, move func udiv into package runtime.
+    That's where it is anyway,
+    and it lets udiv look and act like the rest of
+    the runtime support functions.
+    
+    Change-Id: I41462a632c14fdc41f61b08049ec13cd80a87bfe
+    Reviewed-on: https://go-review.googlesource.com/41191
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/arm/ssa.go        |  5 ++++-
+ src/cmd/compile/internal/gc/go.go          |  3 ++-
+ src/cmd/compile/internal/gc/ssa.go         |  1 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules | 12 ++++++------
+ src/cmd/compile/internal/ssa/gen/ARMOps.go |  5 +----
+ src/cmd/compile/internal/ssa/opGen.go      |  2 --
+ src/cmd/compile/internal/ssa/rewriteARM.go | 20 ++++----------------
+ src/cmd/vet/all/whitelist/arm.txt          |  1 +
+ src/runtime/vlop_arm.s                     | 16 ++++++++--------
+ 9 files changed, 27 insertions(+), 38 deletions(-)

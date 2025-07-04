@@ -1,0 +1,36 @@
+commit ae9fdbd8bca0ec01e522ddb5bc2baf7e27553f67
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Wed Nov 15 15:21:23 2023 +0000
+
+    internal/zstd: fix seek offset bounds check in skipFrame
+    
+    This change enhances the zstd Reader's skipFrame function to validate
+    the new offset when skipping frames in a seekable stream, preventing
+    invalid offsets that could occur previously.
+    
+    A set of "bad" test strings has been added to fuzz_test.go to extend
+    the robustness checks against potential decompression panics.
+    
+    Additionally, a new test named TestReaderBad is introduced in
+    zstd_test.go to verify proper error handling with corrupted input
+    strings.
+    
+    The BenchmarkLarge function has also been refactored for clarity,
+    removing unnecessary timer stops and resets.
+    
+    Updates #63824
+    
+    Change-Id: Iccd248756ad6348afa1395c7799350d07402868a
+    GitHub-Last-Rev: 63055b91e9413491fe8039ea42d55b823c89ec15
+    GitHub-Pull-Request: golang/go#64056
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541220
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Klaus Post <klauspost@gmail.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/zstd/fuzz_test.go |  1 +
+ src/internal/zstd/zstd.go      | 28 +++++++++++++++++++++++++---
+ src/internal/zstd/zstd_test.go | 11 +++++++++++
+ 3 files changed, 37 insertions(+), 3 deletions(-)

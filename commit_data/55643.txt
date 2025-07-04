@@ -1,0 +1,22 @@
+commit 5428cc4f148bec34987781137ccd30494a99ad15
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Feb 2 09:35:07 2024 +0700
+
+    cmd/compile/internal/typecheck: remove constant bounds check
+    
+    types2 handles all constant-related bounds checks in user Go code now,
+    so it's safe to remove the check from typecheck, avoid the inconsistency
+    with type parameter.
+    
+    Fixes #65417
+    
+    Change-Id: I82dd197b78e271725d132b5a20450ae3e90f9abc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560575
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/typecheck/expr.go | 13 ---------
+ test/fixedbugs/issue65417.go               | 42 ++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 13 deletions(-)

@@ -1,0 +1,13 @@
+commit 03e4f25849b9a532bf15d56395203d84f92630de
+Author: Jeff Sickel <jas@corpus-callosum.com>
+Date:   Sat Jan 25 10:09:08 2014 -0800
+
+    runtime/pprof: plan9 fails the TestGoroutineSwitch, skip for now.
+    
+    LGTM=r
+    R=golang-codereviews, 0intro, r
+    CC=golang-codereviews
+    https://golang.org/cl/55430043
+
+ src/pkg/runtime/pprof/pprof_test.go | 1 +
+ 1 file changed, 1 insertion(+)

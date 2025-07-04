@@ -1,0 +1,16 @@
+commit 1f1583839227ebe9adc5979e355bde7a20e00405
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 20:50:36 2022 +0800
+
+    cmd/internal/dwarf: remove redundant break statement
+    
+    Change-Id: I20956187e925ef6ab35d23b23c40bbb0ee55ef4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436702
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/internal/dwarf/dwarf.go | 1 -
+ 1 file changed, 1 deletion(-)

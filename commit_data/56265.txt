@@ -1,0 +1,18 @@
+commit 654c3368e53c923acff5fd5a1eaf4175bb6834d6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Apr 21 14:21:18 2024 -0700
+
+    cmd/go: update comment to not say GO386 does not exist
+    
+    GO386 was removed by CL 258957, but it was restored by CL 260017.
+    
+    Change-Id: Iced49ca61512a0f2ef513acbf9700a87ac964c68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580675
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/go/internal/envcmd/env.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

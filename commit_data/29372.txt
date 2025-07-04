@@ -1,0 +1,27 @@
+commit 58e3bf11fb8af887a97a7329edfffb1126ba5fee
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:51:03 2016 +0200
+
+    syscall: add support for GOARCH=mips{,le}
+    
+    Change-Id: I39a46b2a9412981db1780b688a86fec791f68b6f
+    Reviewed-on: https://go-review.googlesource.com/31488
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/syscall/asm_linux_mipsx.s        |  142 +++
+ src/syscall/endian_big.go            |    2 +-
+ src/syscall/endian_little.go         |    2 +-
+ src/syscall/flock_linux_32bit.go     |    2 +-
+ src/syscall/mksysnum_linux.pl        |   14 +-
+ src/syscall/syscall_linux_mipsx.go   |  222 ++++
+ src/syscall/types_linux.go           |    2 +-
+ src/syscall/zerrors_linux_mips.go    | 1834 ++++++++++++++++++++++++++++++++++
+ src/syscall/zerrors_linux_mipsle.go  | 1834 ++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_linux_mips.go   | 1759 ++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_linux_mipsle.go | 1759 ++++++++++++++++++++++++++++++++
+ src/syscall/zsysnum_linux_mips.go    |  357 +++++++
+ src/syscall/zsysnum_linux_mipsle.go  |  357 +++++++
+ src/syscall/ztypes_linux_mips.go     |  592 +++++++++++
+ src/syscall/ztypes_linux_mipsle.go   |  592 +++++++++++
+ 15 files changed, 9464 insertions(+), 6 deletions(-)

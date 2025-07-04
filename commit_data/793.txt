@@ -1,0 +1,12 @@
+commit d015f896bbabadbfa2025f775996065e2f541ac5
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Oct 1 20:00:58 2008 -0700
+
+    clear output parameters
+    
+    R=r
+    OCL=16345
+    CL=16345
+
+ src/cmd/6g/gen.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

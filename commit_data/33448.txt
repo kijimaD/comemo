@@ -1,0 +1,18 @@
+commit da109c6075e135bae4b8681e0c53c725e62a354c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Nov 6 10:47:02 2017 -0500
+
+    cmd/compile: enable ssacheck for tests in ssa_test.go
+    
+    I thought SSA check was enabled for those tests, but in fact it
+    was not. Enable it. So we have SSA check on for at least some
+    tests on all architectures.
+    
+    Updates #22499.
+    
+    Change-Id: I51fcdda3af7faab5aeb33bf46c6db309285ce42c
+    Reviewed-on: https://go-review.googlesource.com/76024
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa_test.go | 32 ++++++++++++++++++++++++++++++--
+ 1 file changed, 30 insertions(+), 2 deletions(-)

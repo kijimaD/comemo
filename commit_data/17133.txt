@@ -1,0 +1,15 @@
+commit 4a0d06c4c5f457e650ab816b76d4754e7f6cd34c
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Fri Aug 9 14:42:43 2013 -0700
+
+    misc/emacs: add support for mode=count coverage
+    
+    Use the same algorithm that go tool cover uses when producing HTML
+    output to render coverage intensity.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12712043
+
+ misc/emacs/go-mode.el | 97 +++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 78 insertions(+), 19 deletions(-)

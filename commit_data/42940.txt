@@ -1,0 +1,18 @@
+commit 521393e7e05cd9272ae6023387fa92839d72eb4f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jul 27 13:57:12 2020 -0400
+
+    cmd/go/internal/modget: move MVS code to a separate file
+    
+    For #36460
+    
+    Change-Id: Ie81c03df18c6987527da765d5f6575556340cb01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249877
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modget/get.go | 188 +----------------------------------
+ src/cmd/go/internal/modget/mvs.go | 202 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 203 insertions(+), 187 deletions(-)

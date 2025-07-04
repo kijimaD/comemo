@@ -1,0 +1,15 @@
+commit ef94870cc87720e4e2950043ce3875315c4c7c96
+Author: Christopher Nelson <nadiasvertex@gmail.com>
+Date:   Sun Nov 27 19:05:01 2016 -0500
+
+    misc/cgo/testcshared: rewrite test.bash in Go
+    
+    Change-Id: Id717054cb3c4537452f8ff848445b0c20196a373
+    Reviewed-on: https://go-review.googlesource.com/33579
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ misc/cgo/testcshared/cshared_test.go | 477 +++++++++++++++++++++++++++++++++++
+ misc/cgo/testcshared/test.bash       | 193 --------------
+ src/cmd/dist/test.go                 |   2 +-
+ 3 files changed, 478 insertions(+), 194 deletions(-)

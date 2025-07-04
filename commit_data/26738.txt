@@ -1,0 +1,16 @@
+commit a2eded3421f144983c0ccb9e6c0a325fa1ba1f82
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Apr 5 23:09:39 2016 -0400
+
+    runtime: get randomness from AT_RANDOM AUXV on linux/arm64
+    
+    Fixes #15147.
+    
+    Change-Id: Ibfe46c747dea987787a51eb0c95ccd8c5f24f366
+    Reviewed-on: https://go-review.googlesource.com/21580
+    Run-TryBot: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os_linux_arm64.go | 26 ++++++++++++++++++++++++++
+ src/runtime/vdso_none.go      |  1 +
+ 2 files changed, 27 insertions(+)

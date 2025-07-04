@@ -1,0 +1,19 @@
+commit fdb030d86f3a5a3e28ad53b5404f1253edc0bda1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 2 17:30:07 2009 -0800
+
+    6g etc: groundwork for eliminating redundant bounds checks.
+            drop check in range over array.
+            drop check in [256]array indexed by byte.
+    
+    R=ken2
+    https://golang.org/cl/163088
+
+ src/cmd/5g/cgen.c  |  4 ++--
+ src/cmd/5g/gsubr.c |  2 +-
+ src/cmd/6g/cgen.c  |  4 ++--
+ src/cmd/6g/gsubr.c | 23 ++++++++++++-----------
+ src/cmd/8g/cgen.c  |  6 +++---
+ src/cmd/gc/range.c |  9 ++++++---
+ src/cmd/gc/walk.c  |  8 ++++++++
+ 7 files changed, 34 insertions(+), 22 deletions(-)

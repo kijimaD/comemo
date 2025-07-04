@@ -1,0 +1,16 @@
+commit 05f599594ac4f8db63d6a2d628b6ba5781273cad
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Oct 1 15:41:03 2016 +0900
+
+    syscall: re-enable TestPassFD on dragonfly
+    
+    At least it works well on DragonFly BSD 4.6.
+    
+    Change-Id: I3b210745246c6d8d42e32ba65ee3b9a17d171ff7
+    Reviewed-on: https://go-review.googlesource.com/30170
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/syscall_unix_test.go | 3 ---
+ 1 file changed, 3 deletions(-)

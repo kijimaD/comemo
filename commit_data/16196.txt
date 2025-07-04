@@ -1,0 +1,14 @@
+commit 8457afbe0050f4223e105cb4d1ad4938b8f12db7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 18 14:36:08 2013 -0700
+
+    builtin: document true and false.
+    
+    Fixes #5315.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8841048
+
+ src/pkg/builtin/builtin.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

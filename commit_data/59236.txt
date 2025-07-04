@@ -1,0 +1,16 @@
+commit 6fd9ee3da9dc5570f66735e835cac2d66a0f6244
+Author: cuishuang <imcusg@gmail.com>
+Date:   Mon Mar 31 18:46:54 2025 +0800
+
+    all: use slices.Equal to simplify code
+    
+    Change-Id: Ib3be7cee6ca6dce899805aac176ca789eb2fd0f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661738
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/internal/syscall/windows/registry/registry_test.go | 18 ++----------------
+ src/runtime/pprof/pprof_test.go                        | 10 +---------
+ 2 files changed, 3 insertions(+), 25 deletions(-)

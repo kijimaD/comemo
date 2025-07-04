@@ -1,0 +1,14 @@
+commit 381f6a2eebb7f0a43d2c69910dc388c076a0dc93
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 16 18:33:48 2011 +1000
+
+    syscall: make LazyDLL/LazyProc.Mutex unexported
+    They are seemingly not intended to be a part
+    of the public interface.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4873052
+
+ src/pkg/syscall/syscall_windows.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

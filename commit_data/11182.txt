@@ -1,0 +1,12 @@
+commit 8727b11dfb867f2e20b2f61f275a0a61dd28cd98
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jan 16 14:57:18 2012 +0900
+
+    net: consistent log format in test
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5545062
+
+ src/pkg/net/server_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

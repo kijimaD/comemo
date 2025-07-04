@@ -1,0 +1,14 @@
+commit 5124e66fcae8a7758460266a4e88944abbe9e686
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 30 10:25:22 2009 -0700
+
+    c compiler bug tickled by
+            void f(struct { int x[1]; } p) { }
+    the "int" was getting attached to f.
+    
+    R=ken
+    OCL=35145
+    CL=35151
+
+ src/cmd/cc/cc.y | 8 ++++++++
+ 1 file changed, 8 insertions(+)

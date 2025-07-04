@@ -1,0 +1,16 @@
+commit 7c79e8ef0922ae27349cea9abd7e637ac429dfa0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 4 14:06:37 2021 -0700
+
+    cmd/objdump: print full disassembly when testing with -v
+    
+    It is helpful for debugging.
+    
+    Change-Id: Idd566d312037420f8341fcf502a45410a8497798
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353878
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/objdump/objdump_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

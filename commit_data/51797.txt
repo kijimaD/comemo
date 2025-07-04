@@ -1,0 +1,15 @@
+commit 4e3abee245755d741987132fb22c442af2dab1de
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 26 14:43:12 2023 -0800
+
+    cmd/compile: remove go119UseJumpTables flag
+    
+    Change-Id: Iaaac46e96b74289096ce0c6186c73000d1fc6faa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463224
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/walk/switch.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

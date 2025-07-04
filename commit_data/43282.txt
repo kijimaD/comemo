@@ -1,0 +1,19 @@
+commit e08059f4fcacce2ff18d1cfc5fa48c942f8d46aa
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Oct 13 08:26:36 2020 +0200
+
+    runtime: remove unused alg constants
+    
+    CL 191198 removed algarray from the runtime
+    which used these constants as indices.
+    
+    Change-Id: Ia669cf410372ef5113dadccd115a39ff8d47e5c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261364
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Trust: Martin Möhrmann <moehrmann@google.com>
+
+ src/runtime/alg.go | 19 -------------------
+ 1 file changed, 19 deletions(-)

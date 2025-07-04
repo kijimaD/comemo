@@ -1,0 +1,20 @@
+commit 8189a06190046cd69819ad1c6399943be0ee5c2d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 5 12:45:15 2019 -0400
+
+    cmd/go/internal/modload: annotate replacements in PackageNotInModuleError
+    
+    Fixes #34085
+    
+    Change-Id: I3111f5997466ad33f51e80c71f5fb2ccebdcc6e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193617
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/import_test.go      |  2 +-
+ src/cmd/go/internal/modload/load.go             |  5 +++++
+ src/cmd/go/internal/modload/query.go            | 30 +++++++++++++++++--------
+ src/cmd/go/testdata/script/mod_get_patterns.txt |  4 ++--
+ src/cmd/go/testdata/script/mod_replace.txt      |  7 ++++++
+ 5 files changed, 36 insertions(+), 12 deletions(-)

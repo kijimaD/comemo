@@ -1,0 +1,12 @@
+commit 07dfd8b131937854cb7558d44635ea00fb281f78
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jan 18 10:25:23 2013 +1100
+
+    C: add Carl Shapiro (Google CLA).
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7132049
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

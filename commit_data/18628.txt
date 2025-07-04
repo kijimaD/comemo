@@ -1,0 +1,18 @@
+commit e6e894500171ee8013713f76660076632f1b355c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 24 16:44:35 2014 -0500
+
+    build: comment possible ulimit failure in run.bash
+    
+    Record what's going on in case someone is debugging a failure there.
+    It's not Go's fault.
+    
+    Fixes #7381.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/68200043
+
+ src/run.bash | 6 ++++++
+ 1 file changed, 6 insertions(+)

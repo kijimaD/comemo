@@ -1,0 +1,16 @@
+commit a5032bc86c1a661cf3a68d5095c7a86591c62bc1
+Author: james <james.naftel@gmail.com>
+Date:   Thu Apr 11 16:18:29 2019 -0400
+
+    os: don't leak file in ExampleOpenFile_append failure path
+    
+    Fixes #31424
+    
+    Change-Id: I8364578cbc77827552bd764c716f68495ec51547
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171763
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/example_test.go | 1 +
+ 1 file changed, 1 insertion(+)

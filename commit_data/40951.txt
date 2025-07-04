@@ -1,0 +1,35 @@
+commit b2a5893f44ee4426caffc33bbca907a05efe6b57
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Dec 6 13:10:53 2019 -0500
+
+    cmd/go: reduce redundancy in direct mode lookup error messages
+    
+    get.RepoRootForImportPath now returns errors that satisfy
+    load.ImportPathError in cases where the import path appears in the
+    messages. (The import path probably should appear in all errors from
+    this function, but this CL does not change these errors).
+    
+    Changed modfetch.notExistError to be a wrapper (with an Unwrap method)
+    instead of a string. This means errors.As works with notFoundError and
+    ImportPathError.
+    
+    ImportMissingError no longer prints the package path if it wraps an
+    ImportPathError.
+    
+    TestMissingImportErrorRepetition no longer counts the package path
+    within a URL (like https://...?go-get=1).
+    
+    Fixes #35986
+    
+    Change-Id: I38f795191c46d04b542c553e705f23822260c790
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210338
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/get/vcs.go           |  7 ++++---
+ src/cmd/go/internal/modfetch/coderepo.go |  2 +-
+ src/cmd/go/internal/modfetch/repo.go     | 23 +++++++++++++++++------
+ src/cmd/go/internal/modload/import.go    |  3 +++
+ src/go/build/build_test.go               | 11 +++++++++--
+ 5 files changed, 34 insertions(+), 12 deletions(-)

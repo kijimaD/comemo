@@ -1,0 +1,18 @@
+commit 3ea22cf3c4b32e6473ad1358a3cbfccc11abc5be
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Tue Feb 1 00:36:33 2022 +0000
+
+    crypto/x509: return err ans1.Marshal gives an error
+    
+    Fixes #50663
+    
+    Change-Id: I18754922bf139049443c0395eaa1606049df1331
+    GitHub-Last-Rev: 57ff5ddfe39c211ccff60aa74a30f97ddf7015fb
+    GitHub-Pull-Request: golang/go#50667
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379094
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/x509/x509.go | 20 ++++----------------
+ 1 file changed, 4 insertions(+), 16 deletions(-)

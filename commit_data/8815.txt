@@ -1,0 +1,23 @@
+commit 55b0662465e92d6141af0055ee5105d776cafe4e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 21 21:45:13 2011 -0400
+
+    godefs: remove test from build
+    
+    The test is only defined on darwin/amd64, and it fails
+    with recent versions of Xcode, which do not support
+    -gstabs+ debugging output.  At some point godefs will
+    have to be replaced, perhaps merged with cgo.
+    Godefs is not needed during builds anyway (its output files
+    are checked into the repository in src/pkg/runtime),
+    so its failure on the newer Xcode is a distraction from an
+    otherwise usable build.  Disable the test.
+    
+    Fixes #1985.
+    
+    R=golang-dev, gri, robert.hencke, r
+    CC=golang-dev
+    https://golang.org/cl/4638053
+
+ src/run.bash | 4 ----
+ 1 file changed, 4 deletions(-)

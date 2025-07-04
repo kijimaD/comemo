@@ -1,0 +1,31 @@
+commit 00db0cbf8648ca5b856aa3bd0179d205e6626473
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 25 15:55:52 2017 -0700
+
+    cmd/compile: add minor bit twiddling optimizations
+    
+    Noticed while adding to the bitset implementation
+    in cmd/compile/internal/gc.
+    
+    The (Com (Const)) optimizations were already present
+    in the AMD64 lowered optimizations.
+    They trigger 118, 44, 262, and 108 times
+    respectively for int sizes 8, 16, 32, and 64
+    in a run of make.bash.
+    
+    The (Or (And)) optimization is new.
+    It triggers 3 times for int size 8
+    and once for int size 64 during make.bash,
+    in packages internal/poll, reflect,
+    encoding/asn1, and go/types,
+    so there is a bit of natural test coverage.
+    
+    Change-Id: I44072864ff88831d5ec7dce37c516d29df056e98
+    Reviewed-on: https://go-review.googlesource.com/41758
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  16 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 560 ++++++++++++++++++++++++-
+ 2 files changed, 572 insertions(+), 4 deletions(-)

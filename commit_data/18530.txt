@@ -1,0 +1,16 @@
+commit 1dc82d25632fc402edb36b0d50ecf4d681d77286
+Author: Michael T. Jones <mtj@google.com>
+Date:   Fri Feb 14 12:57:03 2014 -0800
+
+    math/big: Add text marshaller interface to Int
+    
+    Fixes #7329
+    
+    LGTM=gri
+    R=gri, bradfitz, mtj
+    CC=golang-codereviews
+    https://golang.org/cl/63710043
+
+ src/pkg/math/big/int.go      | 24 +++++++++++++++-----
+ src/pkg/math/big/int_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+), 6 deletions(-)

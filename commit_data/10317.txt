@@ -1,0 +1,15 @@
+commit 300b443ade1dd71963a014b4401614d988b3428c
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Wed Nov 9 15:44:49 2011 -0500
+
+    math: faster Lgamma
+    
+    Converting from polynomial constants to counted array speeds up Lgamma from 51.3 to 37.7 ns/op. Variables renamed in Gamma to avoid overlap in Lgamma.
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5359045
+
+ src/pkg/math/gamma.go  |  12 ++--
+ src/pkg/math/lgamma.go | 155 +++++++++++++++++++++++++++----------------------
+ 2 files changed, 92 insertions(+), 75 deletions(-)

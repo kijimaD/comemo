@@ -1,0 +1,14 @@
+commit 7f91a39d3d520d99f988d7060237550f11b6ab18
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 27 19:38:57 2011 -0700
+
+    encoding/binary: fix type in test
+    
+    Was working only accidentally.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5303082
+
+ src/pkg/encoding/binary/binary_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

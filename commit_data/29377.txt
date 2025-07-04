@@ -1,0 +1,20 @@
+commit 3797446150ecc7adbc4e6f9a6315214264ac11f9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Nov 3 15:58:55 2016 -0700
+
+    cmd/compile: prevent Noalg from breaking user types
+    
+    Use a separate symbol for reflect metadata for types with Noalg set.
+    
+    Fixes #17752.
+    
+    Change-Id: Icb6cade7e3004fc4108f67df61105dc4085cd7e2
+    Reviewed-on: https://go-review.googlesource.com/32679
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go |  9 ++++++++-
+ src/cmd/compile/internal/gc/walk.go    |  1 -
+ test/fixedbugs/issue17752.go           | 20 ++++++++++++++++++++
+ 3 files changed, 28 insertions(+), 2 deletions(-)

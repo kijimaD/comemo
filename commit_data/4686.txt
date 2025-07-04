@@ -1,0 +1,15 @@
+commit 2dd3622bc75a168eaf02295669ec104b8d3acf9e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 26 11:49:49 2010 -0800
+
+    Allow func() func().
+    Update gofmt test script.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/195044
+
+ src/cmd/gofmt/test.sh            | 2 +-
+ src/pkg/go/parser/parser.go      | 2 +-
+ src/pkg/go/parser/parser_test.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

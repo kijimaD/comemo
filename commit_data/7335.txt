@@ -1,0 +1,54 @@
+commit b287d7cbe1794ab7e0834e9ad3a9a7a714fde8e7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 2 16:44:20 2011 -0500
+
+    runtime: more detailed panic traces, line number work
+    
+    Follow morestack, so that crashes during a stack split
+    give complete traces.  Also mark stack segment boundaries
+    as an aid to debugging.
+    
+    Correct various line number bugs with yet another attempt
+    at interpreting the pc/ln table.  This one has a chance at
+    being correct, because I based it on reading src/cmd/ld/lib.c
+    instead of on reading the documentation.
+    
+    Fixes #1138.
+    Fixes #1430.
+    Fixes #1461.
+    
+    throw: runtime: split stack overflow
+    
+    runtime.throw+0x3e /home/rsc/g/go2/src/pkg/runtime/runtime.c:78
+            runtime.throw(0x81880af, 0xf75c8b18)
+    runtime.newstack+0xad /home/rsc/g/go2/src/pkg/runtime/proc.c:728
+            runtime.newstack()
+    runtime.morestack+0x4f /home/rsc/g/go2/src/pkg/runtime/386/asm.s:184
+            runtime.morestack()
+    ----- morestack called from stack: -----
+    runtime.new+0x1a /home/rsc/g/go2/src/pkg/runtime/malloc.c:288
+            runtime.new(0x1, 0x0, 0x0)
+    gongo.makeBoard+0x33 /tmp/Gongo/gongo_robot_test.go:344
+            gongo.makeBoard(0x809d238, 0x1, 0xf76092c8, 0x1)
+    ----- stack segment boundary -----
+    gongo.checkEasyScore+0xcc /tmp/Gongo/gongo_robot_test.go:287
+            gongo.checkEasyScore(0xf764b710, 0x0, 0x809d238, 0x1)
+    gongo.TestEasyScore+0x8c /tmp/Gongo/gongo_robot_test.go:255
+            gongo.TestEasyScore(0xf764b710, 0x818a990)
+    testing.tRunner+0x2f /home/rsc/g/go2/src/pkg/testing/testing.go:132
+            testing.tRunner(0xf764b710, 0xf763b5dc, 0x0)
+    runtime.goexit /home/rsc/g/go2/src/pkg/runtime/proc.c:149
+            runtime.goexit()
+    
+    R=ken2, r
+    CC=golang-dev
+    https://golang.org/cl/4000053
+
+ src/pkg/runtime/amd64/traceback.c | 124 +++++++++++++++++++++++++++-----------
+ src/pkg/runtime/arm/traceback.c   |  99 +++++++++++++++++++++++++-----
+ src/pkg/runtime/extern.go         |  38 ++++++++----
+ src/pkg/runtime/proc.c            |   6 +-
+ src/pkg/runtime/runtime.c         |  12 +++-
+ src/pkg/runtime/runtime.h         |   2 +-
+ src/pkg/runtime/symtab.c          |  99 ++++++++++++++++++++++--------
+ 7 files changed, 289 insertions(+), 91 deletions(-)

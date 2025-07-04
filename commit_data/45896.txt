@@ -1,0 +1,51 @@
+commit ef8ae82b37657ab788f490bd757ad1b5592b952f
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jul 1 11:22:02 2021 -0400
+
+    cmd/compile: fix bug in dwarf-gen var location generation
+    
+    This patch fixes a bug in the SSA back end's DWARF generation code
+    that determines variable locations / lifetimes.
+    
+    The code in question was written to handle sequences of initial
+    pseudo-ops (zero width instructions such as OpPhi, OpArg, etc) in a
+    basic block, detecting these ops at the start of a block and then
+    treating the values specially when emitting ranges for the variables
+    in those values.  The logic in this code wasn't quite correct, meaning
+    that a flag variable wasn't being set properly to record the presence
+    of a block of zero-width value-bearing ops, leading to incorrect or
+    missing DWARF locations for register params.
+    
+    Also in this patch is a tweak to some sanity-checking code intended to
+    catch scheduling problems with OpArg/OpPhi etc. The checks need to
+    allow for the possibility of an Arg op scheduled after a spill of an
+    incoming register param inserted by the register allocator. Example:
+    
+        b1:
+          v13 = ArgIntReg <int> {p1+16} [2] : CX
+          v14 = ArgIntReg <int> {p2+16} [5] : R8
+          v38 = ArgIntReg <int> {p3+16} [8] : R11
+          v35 = ArgIntReg <int> {p1+0} [0] : AX
+          v15 = StoreReg <int> v35 : .autotmp_4[int]
+          v40  = Arg <int> {p4} [16] : p4+16[int]
+          v1 = InitMem <mem>
+          v3 = SB <uintptr> : SB
+          v18 = CMPQ <flags> v14 v13
+          NE v18 → b3 b2 (unlikely) (18)
+    
+    Here the register allocator has decided to spill v35, meaning that the
+    OpArg v40 is no longer going to be positioned prior to all other
+    non-zero-width ops; this is a valid scenario and needs to be handled
+    properly by the debug code.
+    
+    Fixes #46425.
+    
+    Change-Id: I239b3ad56a9c1b8ebf68af42e1f57308293ed7e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332269
+    Trust: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/debug.go | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)

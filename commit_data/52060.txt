@@ -1,0 +1,20 @@
+commit 6af9635fb8a002f563a1765f7ab2bd97d4e4d4df
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 30 14:23:48 2023 -0500
+
+    cmd/go: enable vet directive analyzer during 'go test'
+    
+    For #56986, run the new directive analyzer during 'go test',
+    to diagnose problems that would otherwise be missed,
+    like //go:debug appearing in the wrong place in a file
+    or in the wrong files.
+    
+    Change-Id: I1ac230c3c67e58b5e584128e0ec6ff482cb225f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464135
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/go/alldocs.go            | 4 ++--
+ src/cmd/go/internal/test/test.go | 5 +++--
+ 2 files changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,26 @@
+commit e38fa9164894b2610a41b335a56e3b6494a3cef6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 19 18:45:05 2014 -0700
+
+    net/http: fix TimeoutHandler data races; hold lock longer
+    
+    The existing lock needed to be held longer. If a timeout occured
+    while writing (but after the guarded timeout check), the writes
+    would clobber a future connection's buffer.
+    
+    Also remove a harmless warning by making Write also set the
+    flag that headers were sent (implicitly), so we don't try to
+    write headers later (a no-op + warning) on timeout after we've
+    started writing.
+    
+    Fixes #8414
+    Fixes #8209
+    
+    LGTM=ruiu, adg
+    R=adg, ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/123610043
+
+ src/pkg/net/http/serve_test.go | 77 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/server.go     |  9 +++--
+ 2 files changed, 81 insertions(+), 5 deletions(-)

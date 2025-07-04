@@ -1,0 +1,16 @@
+commit 5552d08b14b6a5099147934111a34f8362341ae2
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Oct 29 13:53:22 2016 -0400
+
+    cmd/go: test fixes dropped from CL 31821
+    
+    Because git.
+    
+    Change-Id: Ia1e7c6ba0e8c4d47f993487d2483cbb213b465e5
+    Reviewed-on: https://go-review.googlesource.com/32351
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)

@@ -1,0 +1,13 @@
+commit 695e3938a056220f56d470bae57b76633c11813a
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 26 17:08:39 2008 -0700
+
+    add readfile test
+    update golden
+    
+    SVN=125006
+
+ test/golden.out  | 40 ++++++++++++++++++++--------------------
+ test/readfile.go | 28 ++++++++++++++++++++++++++++
+ test/run         |  2 +-
+ 3 files changed, 49 insertions(+), 21 deletions(-)

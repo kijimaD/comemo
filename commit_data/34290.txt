@@ -1,0 +1,23 @@
+commit c823155828e5e6f4f7aa5683edb6f9e5dfd31d28
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 20 18:16:56 2018 -0500
+
+    runtime: ensure sysStat for mheap_.arenas is aligned
+    
+    We don't want to account the memory for mheap_.arenas because most of
+    it is never touched, so currently we pass the address of a uint64 on
+    the heap. However, at least on mips, it's possible for this uint64 to
+    be unaligned, which causes the atomic add in mSysStatInc to crash.
+    
+    Fix this by instead passing a nil stat pointer.
+    
+    Fixes #23946.
+    
+    Change-Id: I091587df1b3066c330b6bb4d834e4596c407910f
+    Reviewed-on: https://go-review.googlesource.com/95695
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/malloc.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

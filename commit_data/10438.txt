@@ -1,0 +1,15 @@
+commit 9bfe9dfde7844029bd95793a2f985cabd83c5f70
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Nov 18 13:24:17 2011 +1100
+
+    mime: remove ".wav" from tests (to fix build)
+    
+    It looks like not all computers have
+    mime type for .wav extension.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5415045
+
+ src/pkg/mime/type_windows.go | 1 -
+ 1 file changed, 1 deletion(-)

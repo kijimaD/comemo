@@ -1,0 +1,18 @@
+commit 9fcc8b2c1eeb2333751d80626e4204d304c8b3c6
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Jul 21 12:18:51 2022 +0200
+
+    runtime: fix runtime.Breakpoint() on windows/arm64
+    
+    Fixes #53837
+    
+    Change-Id: I4219fe35aac1a88aae2905998fbb1d7db87bbfb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418734
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+
+ src/runtime/asm_arm64.s | 24 +++++++++++++++++-------
+ 1 file changed, 17 insertions(+), 7 deletions(-)

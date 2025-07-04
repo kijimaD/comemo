@@ -1,0 +1,17 @@
+commit 84a62453e5c01df3f7d0c48d9aca32832c2052c1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 8 17:12:45 2020 -0400
+
+    cmd/compile: remove unnecessary error condition on reading fingerprint
+    
+    io.ReadFull guarantees n == len(buf) if and only if err == nil,
+    so the length check is redundant.
+    
+    Change-Id: I15bff97868e27a65648acd791883cac8dab77630
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232988
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/compile/internal/gc/iimport.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

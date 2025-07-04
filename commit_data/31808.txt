@@ -1,0 +1,24 @@
+commit 17ba830f4663816c3270860fad96373a833a3b26
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Dec 16 13:44:14 2016 -0500
+
+    go/token: use fine-grained locking in FileSet
+    
+    Before, all accesses to the lines and infos tables of each File were
+    serialized by the lock of the owning FileSet, causing parsers running
+    in parallel to contend.  Now, each File has its own mutex.
+    
+    This fixes a data race in (*File).PositionFor, which used to call
+    f.position then f.unpack without holding the mutex's lock.
+    
+    Fixes golang/go#18348
+    
+    Change-Id: Iaa5989b2eba88a7fb2e91c1a0a8bc1e7f6497f2b
+    Reviewed-on: https://go-review.googlesource.com/34591
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/token/position.go  | 35 ++++++++++++++++++-----------------
+ src/go/token/serialize.go | 19 +++++++++++++++++--
+ 2 files changed, 35 insertions(+), 19 deletions(-)

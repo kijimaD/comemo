@@ -1,0 +1,16 @@
+commit 130458470a11d1f16908d7db7fe683b621541a36
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 6 13:16:14 2014 +0400
+
+    run.bash: explain why we set GOMAXPROCS for runtime test
+    Fixes #7459.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/71060044
+
+ src/run.bash |  2 ++
+ src/run.bat  | 10 +++++++++-
+ src/run.rc   |  2 ++
+ 3 files changed, 13 insertions(+), 1 deletion(-)

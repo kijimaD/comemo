@@ -1,0 +1,15 @@
+commit 8c9944d8c8050bc616c0d32366a6ea25e24a5b4b
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 5 14:03:17 2010 -0800
+
+    bufio: WriteRune
+    also fix a printing error in the test for bytes.Buffer
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/240042
+
+ src/pkg/bufio/bufio.go       | 29 +++++++++++++++++++++++++++++
+ src/pkg/bufio/bufio_test.go  | 30 ++++++++++++++++++++++++++++++
+ src/pkg/bytes/buffer_test.go |  2 +-
+ 3 files changed, 60 insertions(+), 1 deletion(-)

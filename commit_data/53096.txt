@@ -1,0 +1,34 @@
+commit 27906bb74a0bb7a684b89b92d813e52be8608991
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 17 09:57:34 2023 +0200
+
+    internal/poll, internal/syscall/unix, net: move and export fcntl syscall wrapper
+    
+    This will allow to use the fcntl syscall in packages other than
+    internal/poll.
+    
+    For #60181
+    
+    Change-Id: I76703766a655f2343c61dad95faf81aad58e007f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494916
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/poll/fcntl_libc.go                    | 14 ------------
+ src/internal/poll/fcntl_syscall.go                 | 20 -----------------
+ src/internal/poll/fcntl_wasm.go                    | 14 ------------
+ src/internal/poll/fd_fsync_darwin.go               |  7 ++++--
+ src/internal/poll/fd_unix.go                       |  8 +++----
+ src/internal/poll/splice_linux.go                  |  3 ++-
+ src/internal/syscall/unix/fcntl_linux_32bit.go     | 16 --------------
+ src/internal/syscall/unix/fcntl_unix.go            | 25 ++++++++++++++++++++++
+ src/internal/syscall/unix/fcntl_wasm.go            | 11 ++++++++++
+ src/internal/syscall/unix/nonblocking.go           | 25 ----------------------
+ .../{nonblocking_libc.go => nonblocking_unix.go}   | 14 +++---------
+ src/net/fcntl_libc_test.go                         | 14 ------------
+ src/net/fcntl_syscall_test.go                      | 20 -----------------
+ src/net/unixsock_readmsg_test.go                   |  3 ++-
+ 14 files changed, 52 insertions(+), 142 deletions(-)

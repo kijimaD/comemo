@@ -1,0 +1,33 @@
+commit c8313d4fa8ca04a1844edcb4a6e1f61cf13fd40e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 7 16:33:42 2022 -0500
+
+    cmd/go: deflake TestScript/test2json_interrupt
+    
+    - Start handling signals in 'go test' just before starting the test
+      subprocess instead of just after. (It is unlikely that starting the
+      process will cause cmd/go to hang in a way that requires signals to
+      debug, and it is possible that something the test does — such as
+      sending os.Interrupt to its parent processes — will immediately
+      send a signal that needs to be handled.)
+    
+    - In the test-test, don't try to re-parse the parent PIDs after
+      sending signals, and sleep for a much shorter time interval.
+      (Overrunning the sleep caused the next call to strconv.Atoi — which
+      shouldn't even happen! — to fail with a parse error, leading to the
+      failure mode observed in
+      https://build.golang.org/log/f0982dcfc6a362f9c737eec3e7072dcc7ef29e32.)
+    
+    Fixes #56083.
+    Updates #53563.
+    
+    Change-Id: I346a95bdda5619632659ea854f98a9e17a6aede7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456115
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/test/test.go                   |  2 +-
+ src/cmd/go/testdata/script/test2json_interrupt.txt | 29 ++++++++++++----------
+ 2 files changed, 17 insertions(+), 14 deletions(-)

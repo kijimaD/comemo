@@ -1,0 +1,12 @@
+commit fa767ff231bfaa9313f01c018a9a8d4e85fe2562
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Sep 14 11:14:03 2011 -0400
+
+    image/jpeg: fix build
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5020045
+
+ src/pkg/image/jpeg/writer_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 5abf395be71e40621d17c6dc5a07aca9ffb5c734
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 7 10:15:01 2009 -0700
+
+    Avoid race condition.  Following the left to right rule,
+    s.output.Data() was being retrieved before the synchronization
+    point, which meant that it could be retrieved before the
+    goroutine wrote it.  Using gccgo this caused random errors.
+    
+    R=gri
+    DELTA=2  (1 added, 0 deleted, 1 changed)
+    OCL=31046
+    CL=31267
+
+ src/pkg/datafmt/datafmt.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,80 @@
+commit 9750adbbadad547ef71cc5f0dbd6b80af7edef09
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 25 16:01:29 2010 -0800
+
+    strings: delete Runes, Bytes
+    
+    gofmt -w -r 'strings.Bytes(a) -> []byte(a)' src/cmd src/pkg test/bench
+    gofmt -w -r 'strings.Runes(a) -> []int(a)' src/cmd src/pkg test/bench
+    delete unused imports
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/224062
+
+ src/cmd/cgo/gcc.go                       |  4 +-
+ src/cmd/ebnflint/ebnflint.go             |  5 +--
+ src/cmd/godoc/godoc.go                   | 26 +++++------
+ src/cmd/godoc/index.go                   |  2 +-
+ src/cmd/godoc/snippet.go                 |  3 +-
+ src/cmd/godoc/spec.go                    |  5 +--
+ src/pkg/archive/tar/reader_test.go       |  5 +--
+ src/pkg/archive/tar/writer.go            | 35 ++++++++-------
+ src/pkg/asn1/asn1_test.go                |  3 +-
+ src/pkg/asn1/marshal.go                  |  5 +--
+ src/pkg/bufio/bufio_test.go              |  2 +-
+ src/pkg/bytes/bytes_test.go              | 29 ++++++------
+ src/pkg/compress/gzip/gzip_test.go       |  5 +--
+ src/pkg/crypto/hmac/hmac_test.go         | 11 +++--
+ src/pkg/crypto/rsa/pkcs1v15_test.go      | 13 +++---
+ src/pkg/crypto/tls/handshake_messages.go |  8 ++--
+ src/pkg/crypto/tls/prf.go                |  9 ++--
+ src/pkg/crypto/x509/x509.go              |  2 +-
+ src/pkg/crypto/x509/x509_test.go         |  5 +--
+ src/pkg/ebnf/ebnf_test.go                |  3 +-
+ src/pkg/encoding/ascii85/ascii85_test.go | 11 +++--
+ src/pkg/encoding/base64/base64_test.go   | 11 +++--
+ src/pkg/encoding/git85/git_test.go       | 11 +++--
+ src/pkg/encoding/hex/hex.go              |  3 +-
+ src/pkg/encoding/pem/pem.go              | 13 +++---
+ src/pkg/encoding/pem/pem_test.go         | 11 +++--
+ src/pkg/exp/datafmt/datafmt_test.go      |  5 +--
+ src/pkg/exp/datafmt/parser.go            |  2 +-
+ src/pkg/exp/spacewar/spacewar.go         |  3 +-
+ src/pkg/fmt/fmt_test.go                  | 12 ++---
+ src/pkg/go/doc/comment.go                | 12 ++---
+ src/pkg/go/parser/interface.go           |  3 +-
+ src/pkg/go/printer/nodes.go              |  3 +-
+ src/pkg/go/printer/printer.go            | 23 +++++-----
+ src/pkg/go/scanner/scanner_test.go       | 17 ++++----
+ src/pkg/gob/codec_test.go                |  6 +--
+ src/pkg/http/client.go                   |  2 +-
+ src/pkg/http/lex.go                      |  6 +--
+ src/pkg/http/request.go                  |  2 +-
+ src/pkg/http/url.go                      |  2 +-
+ src/pkg/io/io.go                         |  7 +--
+ src/pkg/io/ioutil/ioutil_test.go         |  3 +-
+ src/pkg/io/pipe_test.go                  |  3 +-
+ src/pkg/net/dialgoogle_test.go           |  3 +-
+ src/pkg/net/server_test.go               |  2 +-
+ src/pkg/os/os_test.go                    |  6 +--
+ src/pkg/patch/patch_test.go              |  9 ++--
+ src/pkg/path/path.go                     |  2 +-
+ src/pkg/regexp/all_test.go               | 10 ++---
+ src/pkg/strings/strings.go               | 20 ---------
+ src/pkg/strings/strings_test.go          |  6 +--
+ src/pkg/template/format.go               | 11 +++--
+ src/pkg/template/template.go             |  6 +--
+ src/pkg/template/template_test.go        |  3 +-
+ src/pkg/testing/regexp_test.go           | 10 ++---
+ src/pkg/utf8/utf8_test.go                |  5 +--
+ src/pkg/websocket/websocket_test.go      |  3 +-
+ src/pkg/xgb/xgb.go                       |  4 +-
+ src/pkg/xml/xml.go                       | 12 ++---
+ src/pkg/xml/xml_test.go                  | 75 ++++++++++++++++----------------
+ test/bench/chameneosredux.go             |  2 +-
+ test/bench/fasta.go                      |  3 +-
+ test/bench/k-nucleotide.go               |  3 +-
+ test/bench/meteor-contest.go             |  2 +-
+ test/bench/regex-dna.go                  |  3 +-
+ 65 files changed, 240 insertions(+), 311 deletions(-)

@@ -1,0 +1,15 @@
+commit 4fda21bce194966b2ba018fbacb7045cb50c67db
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 30 19:10:53 2020 -0800
+
+    doc/go1.14: mention new field Transport.DialTLSContext
+    
+    Updates #21526
+    Updates #36878
+    
+    Change-Id: Ic3ae18d31eddb9df01241cbddcc3b7b750cfaa44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217130
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.14.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

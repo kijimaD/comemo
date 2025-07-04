@@ -1,0 +1,16 @@
+commit 6b3f4d388fe5602172f45361f438edf54699b953
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 15 15:28:12 2021 -0800
+
+    cmd/compile/internal/types2: re-use type hashing logic in Context.typeHash
+    
+    This CL is clean port of CL 362800 from go/types to types2.
+    
+    Change-Id: I66443b5a82b3a9c2f608a0fe012fbb099db996f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364155
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/context.go     | 26 ++++++++++----------------
+ src/cmd/compile/internal/types2/instantiate.go |  4 ++--
+ 2 files changed, 12 insertions(+), 18 deletions(-)

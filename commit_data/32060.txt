@@ -1,0 +1,24 @@
+commit ffd5687a8217e6829d2248dd0698f18c0e128ac2
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 19 14:18:08 2017 -0400
+
+    runtime: only trace mark assists that do work
+    
+    Currently we trace mark assists even if they're satisfied entirely by
+    stealing. This means even if background marking is keeping up with
+    allocation, we'll still emit a trace event every N bytes of
+    allocation. The event will be a few microseconds, if that, but they're
+    frequent enough that, when zoomed out in the trace view, it looks like
+    all of the time is spent in mark assists even if almost none is.
+    
+    Change this so we only emit a trace event if the assist actually has
+    to do assisting. This makes the traces of these events far more
+    useful.
+    
+    Change-Id: If4aed1c413b814341ef2fba61d2f10751d00451b
+    Reviewed-on: https://go-review.googlesource.com/50030
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcmark.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

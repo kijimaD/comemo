@@ -1,0 +1,14 @@
+commit d6acc0646b68036cf53725e398e919b18e106acc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 11 16:50:20 2010 -0700
+
+    http: prevent crash if remote server is not responding with "HTTP/"
+    
+    Fixes #775.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1180042
+
+ src/pkg/http/request.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

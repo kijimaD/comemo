@@ -1,0 +1,12 @@
+commit 56ca69726904ada4a3b7a63320fde034fd996208
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 7 18:22:40 2010 -0700
+
+    go spec: simplify section on channel types
+    
+    R=rsc, iant, r
+    CC=golang-dev
+    https://golang.org/cl/1171041
+
+ doc/go_spec.html | 38 ++++++++++++++++++--------------------
+ 1 file changed, 18 insertions(+), 20 deletions(-)

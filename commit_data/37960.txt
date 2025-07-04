@@ -1,0 +1,23 @@
+commit 1f701200d979d550e13f37e9be3da99b5a1304cb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 29 15:41:50 2019 -0800
+
+    go/constant: accept new Go2 number literals
+    
+    This CL introduces go/constant support for the new binary and octal integer
+    literals, hexadecimal floats, and digit separators for all number literals.
+    
+    R=Go1.13
+    
+    Updates #12711.
+    Updates #19308.
+    Updates #28493.
+    Updates #29008.
+    
+    Change-Id: I7a55f91b8b6373ae6d98ba923b626d33c5552946
+    Reviewed-on: https://go-review.googlesource.com/c/160239
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/go/constant/value.go      |  36 ++++++++++-
+ src/go/constant/value_test.go | 146 +++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 179 insertions(+), 3 deletions(-)

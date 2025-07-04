@@ -1,0 +1,12 @@
+commit 45c48d51f7ca98c9f393bca76ec779ecae948ef7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 22 05:50:45 2010 +0200
+
+    5g: missed one case last night
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2658042
+
+ src/cmd/5g/cgen.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

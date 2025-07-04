@@ -1,0 +1,14 @@
+commit 9bbf1e1b725e12e207e6791da9d84f1f647df1d6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 14 21:20:11 2013 +0400
+
+    net: make TestDeadlineRace shorter
+    1. Do less iterations in short mode
+    2. Bound number of times SetDeadline is executed
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12937043
+
+ src/pkg/net/timeout_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

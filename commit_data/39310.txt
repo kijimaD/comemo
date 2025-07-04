@@ -1,0 +1,34 @@
+commit 49200e3f3e61f505acb152e150d054ef1db03b3e
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 5 18:42:31 2019 +0000
+
+    Revert "cmd/compile,runtime: allocate defer records on the stack"
+    
+    This reverts commit fff4f599fe1c21e411a99de5c9b3777d06ce0ce6.
+    
+    Reason for revert: Seems to still have issues around GC.
+    
+    Fixes #32452
+    
+    Change-Id: Ibe7af629f9ad6a3d5312acd7b066123f484da7f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180761
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/esc.go     |   1 -
+ src/cmd/compile/internal/gc/escape.go  |   1 -
+ src/cmd/compile/internal/gc/go.go      |   1 -
+ src/cmd/compile/internal/gc/reflect.go |  42 -------
+ src/cmd/compile/internal/gc/ssa.go     | 196 ++++++++++-----------------------
+ src/runtime/mgcmark.go                 |  20 +---
+ src/runtime/panic.go                   |  44 --------
+ src/runtime/runtime2.go                |   9 +-
+ src/runtime/stack.go                   |  13 +--
+ src/runtime/stack_test.go              |  55 ---------
+ src/runtime/stubs.go                   |   3 +
+ src/runtime/syscall_windows.go         |   2 +-
+ src/runtime/traceback.go               |  42 +++++--
+ test/codegen/stack.go                  |   5 -
+ test/live.go                           |   2 +-
+ 15 files changed, 108 insertions(+), 328 deletions(-)

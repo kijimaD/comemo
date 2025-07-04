@@ -1,0 +1,27 @@
+commit bad9ca8a612f6fae85cfc25e07e69ed30384fc84
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jun 12 13:42:30 2023 -0400
+
+    cmd/link: use symbol-targeted relocation for initializers on Mach-O
+    
+    Apple's new linker, ld-prime from Xcode 15 beta, when handling
+    initializers in __mod_init_func, drops the offset in the data,
+    resolving the relocation to the beginning of the section. The
+    latest version of ld-prime rejects non-zero addend. We need to use
+    symbol-targeted "external" relocations, so that it doesn't need
+    an addend and can be resolved correctly. This also works fine with
+    ld64.
+    
+    Fixes #60694.
+    For #61229.
+    
+    Change-Id: Ida2be6aa4c91bfcd142b755e2ec63aabfbbd77a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502616
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go | 2 +-
+ src/cmd/link/internal/arm64/asm.go | 5 +++--
+ src/cmd/link/internal/ld/data.go   | 4 +++-
+ 3 files changed, 7 insertions(+), 4 deletions(-)

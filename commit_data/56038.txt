@@ -1,0 +1,15 @@
+commit c4792e60f332577678c643b430e66934fe64a81e
+Author: Andy Pan <i@andypan.me>
+Date:   Thu Mar 21 13:08:24 2024 +0000
+
+    net/http: eliminate the needless idle timeout for TestServerNoReadTimeout
+    
+    Change-Id: I1339749bfeac99848beca780cebb9c87564da656
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573335
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/net/http/serve_test.go | 1 -
+ 1 file changed, 1 deletion(-)

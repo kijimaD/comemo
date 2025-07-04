@@ -1,0 +1,11 @@
+commit 6f14cada11411c6fff924c0ab8d8bbd430c3ae61
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 20:40:21 2009 -0800
+
+    gc: walk pointer in range on slice/array
+    
+    R=ken2
+    https://golang.org/cl/166071
+
+ src/cmd/gc/range.c | 25 +++++++++++++++++++++----
+ 1 file changed, 21 insertions(+), 4 deletions(-)

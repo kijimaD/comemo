@@ -1,0 +1,12 @@
+commit e3034adfc23f7b62f0dd4a09f67b3e87b5300ef4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 24 20:43:31 2010 -0400
+
+    build: fix build again - not sure where the " went.  sigh.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2024043
+
+ src/make.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

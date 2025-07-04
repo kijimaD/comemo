@@ -1,0 +1,18 @@
+commit f25843e65ea87c680686218289801dcb652f16ac
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Oct 4 15:17:49 2008 -0700
+
+    bug 026
+    
+    R=r
+    OCL=16494
+    CL=16494
+
+ src/cmd/6g/gen.c   | 117 -----------------------------------------------------
+ src/cmd/6g/gg.h    |   3 --
+ src/cmd/6g/gsubr.c |  14 -------
+ src/cmd/6g/obj.c   |  11 +++--
+ src/cmd/gc/go.h    |  10 +++--
+ src/cmd/gc/subr.c  |  20 ++++++++-
+ src/cmd/gc/walk.c  |   8 ++--
+ 7 files changed, 35 insertions(+), 148 deletions(-)

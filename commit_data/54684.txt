@@ -1,0 +1,33 @@
+commit 655155d0a7ac39062e8234f4286ed1fcf99fb176
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 6 12:20:19 2023 -0700
+
+    cmd/compile, runtime/internal/atomic: add lwsync for false ppc64 cas
+    
+    This CL changes ppc64 atomic compare-and-swap (cas). Before this CL,
+    if the cas failed--if the value in memory was not the value expected
+    by the cas call--the atomic function would not synchronize memory.
+    
+    In the note code in runtime/lock_sema.go, used on BSD systems,
+    notesleep and notetsleep first try a cas on the key. If that cas fails,
+    something has already called notewakeup, and the sleep completes.
+    However, because the cas did not synchronize memory on failure,
+    this meant that notesleep/notetsleep could return to a core that was
+    unable to see the memory changes that the notewakeup was reporting.
+    
+    Fixes #30189
+    Fixes #63384
+    
+    Change-Id: I9b921de5c1c09b10a37df6b3206b9003c3f32986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533118
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go       | 22 ++++++++++++----------
+ src/runtime/internal/atomic/atomic_ppc64x.s |  2 ++
+ 2 files changed, 14 insertions(+), 10 deletions(-)

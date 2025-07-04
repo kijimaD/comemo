@@ -1,0 +1,12 @@
+commit 816ce1a23aa42ecc44edc0f19e656556fc2d09d2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 24 18:03:57 2019 -0400
+
+    doc/go1.13: describe 'go env -w'
+    
+    Change-Id: I0c8c30b40a33763dc34f15d144346eb1a0997df2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183631
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.13.html | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

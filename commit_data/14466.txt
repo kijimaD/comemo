@@ -1,0 +1,16 @@
+commit 74fcf82dd9c551fb0e2c2f8c323bba5b91da60bf
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Nov 25 13:27:32 2012 +0400
+
+    net: add unit tests for read/write deadlines
+    The tests verify that deadlines are "persistent",
+    read/write deadlines do not interfere, can be reset,
+    read deadline can be set with both SetDeadline()
+    and SetReadDeadline(), etc.
+    
+    R=golang-dev, bradfitz, dave
+    CC=golang-dev
+    https://golang.org/cl/6850070
+
+ src/pkg/net/timeout_test.go | 147 +++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 146 insertions(+), 1 deletion(-)

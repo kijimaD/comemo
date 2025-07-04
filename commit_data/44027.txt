@@ -1,0 +1,26 @@
+commit 08b5091d03621527d57da7e1ab30584dee167e6d
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sat Nov 28 18:09:21 2020 +0800
+
+    net: close connection in localServer teardown
+    
+    The transponder sets up a deferred close on accepted connections which
+    is fine after the client reads all data. However there are no mutexes
+    nor channels to block the transponder from closing. If the scheduler
+    runs close before the client read, it will cause an EOF failure.
+    
+    Fixes #42720
+    
+    Change-Id: Ic21b476c5efc9265a80a2c6f8484efdb5af66405
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273672
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/conn_test.go       |  2 +-
+ src/net/mockserver_test.go | 12 +++++++++---
+ src/net/protoconn_test.go  |  2 +-
+ src/net/server_test.go     |  4 ++--
+ src/net/tcpsock_test.go    |  2 +-
+ 5 files changed, 14 insertions(+), 8 deletions(-)

@@ -1,0 +1,20 @@
+commit 42fa03a88ca7767c1869e55b3144a9828d29b7b5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 13 13:37:15 2021 -0800
+
+    cmd/compile/internal/types2: better position for "3-index slice of string" error
+    
+    As a result, slightly narrow position tolerance for tests.
+    
+    Change-Id: I543dc2b7b9a7940b0684067d1961165b2b4812bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363670
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check_test.go                 | 2 +-
+ src/cmd/compile/internal/types2/index.go                      | 6 +++++-
+ src/cmd/compile/internal/types2/testdata/check/expr3.src      | 4 ++--
+ src/cmd/compile/internal/types2/testdata/check/typeparams.go2 | 4 ++--
+ 4 files changed, 10 insertions(+), 6 deletions(-)

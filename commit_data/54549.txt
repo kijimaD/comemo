@@ -1,0 +1,16 @@
+commit 51d2e9cbfa05ce5032ebb758b78fa91227366b4f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 20 15:15:45 2023 -0700
+
+    fmt: clarify that we don't call String for %#v
+    
+    Change-Id: I4edf8bd6f9ab813acf1d05c603f6f562fa00cb48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529975
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/fmt/doc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

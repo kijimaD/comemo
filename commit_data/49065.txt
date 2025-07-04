@@ -1,0 +1,16 @@
+commit f87e28d1b9ab33491b32255f333f1f1d83eeb6fc
+Author: zhangyunhao <zhangyunhao@bytedance.com>
+Date:   Wed May 4 06:13:09 2022 +0000
+
+    A: add ByteDance Ltd. (Corporate CLA)
+    
+    Change-Id: Ia670d96ce4926c88d5d955d31dd89837b236a806
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403994
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: mzh <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ AUTHORS | 1 +
+ 1 file changed, 1 insertion(+)

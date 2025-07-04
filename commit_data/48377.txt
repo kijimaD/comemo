@@ -1,0 +1,25 @@
+commit 41a82aa9c36bffab2593d50aa55a462fef4e5bd4
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 15 10:21:08 2022 +1100
+
+    text/template/parse: allow space after continue or break
+    
+    Trivial fix: We must skip space after either of these keywords
+    before we expect a closing delimiter.
+    
+    Also delete the stutter-generating extra 'in' in the error message.
+    (See what I did there?)
+    
+    Fixes #51670
+    
+    Change-Id: If5415632c36eaac6699bdc0aa6ce18be956c9b53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392615
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/text/template/parse/parse.go      | 8 ++++----
+ src/text/template/parse/parse_test.go | 4 ++++
+ 2 files changed, 8 insertions(+), 4 deletions(-)

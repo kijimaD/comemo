@@ -1,0 +1,18 @@
+commit 1f8d4562debf8310910897ea85705cc067baa52d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 26 11:29:44 2021 -0700
+
+    cmd/compile: change typecheck.iscmp into ir.Op.IsCmp
+    
+    Change-Id: If89089cbd79b7ff030d856df3a7e6b7862c0f4ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345412
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ir/node.go            | 10 ++++++++++
+ src/cmd/compile/internal/noder/stencil.go      |  2 +-
+ src/cmd/compile/internal/typecheck/expr.go     |  6 +-----
+ src/cmd/compile/internal/typecheck/universe.go |  8 --------
+ 4 files changed, 12 insertions(+), 14 deletions(-)

@@ -1,0 +1,12 @@
+commit ae2ee5470fe43f1b66aba221cf924b28c4692d4f
+Author: Josh Goebel <dreamer3@gmail.com>
+Date:   Tue Nov 17 16:22:29 2009 -0800
+
+    Add myself to authors and contributors
+    
+    R=r
+    https://golang.org/cl/156045
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

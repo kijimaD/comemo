@@ -1,0 +1,14 @@
+commit a05a5465c8117ce0e9a236cc4b0a8327f5a17c27
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 6 16:33:53 2009 -0800
+
+    - application of gofmt with one-line composite literal structs enabled
+    - this CL is dependent on CL 1025008
+    
+    R=r, rsc
+    http://go/go-review/1025009
+
+ src/pkg/gob/codec_test.go   |  64 +++++-------------
+ src/pkg/reflect/all_test.go | 158 ++++++++------------------------------------
+ src/pkg/reflect/value.go    |   4 +-
+ 3 files changed, 46 insertions(+), 180 deletions(-)

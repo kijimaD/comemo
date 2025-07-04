@@ -1,0 +1,16 @@
+commit 6f33f34bbcdfd400a46ebcc97ed6820ccc9a2459
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 26 10:00:18 2010 -0700
+
+    regexp: allow escaping of any punctuation
+    
+    More in line with other regexp packages
+    and egrep; accommodates overzealous escapers.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1008041
+
+ src/pkg/regexp/all_test.go | 9 +++++++++
+ src/pkg/regexp/regexp.go   | 8 ++++----
+ 2 files changed, 13 insertions(+), 4 deletions(-)

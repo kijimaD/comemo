@@ -1,0 +1,22 @@
+commit d26b0661c23dedc5c3e2c2ed2ca6250e440bf010
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Oct 11 09:26:40 2016 -0500
+
+    cmd/link: add trampolines for too far calls in ppc64x
+    
+    This change adds support for trampolines on ppc64x when using
+    internal linking, in the case where the offset to the branch
+    target is larger than what fits in the field provided by the
+    branch instruction.
+    
+    Fixes #16665
+    
+    Change-Id: Icfee72910f38c94588d2adce517b64dee6176145
+    Reviewed-on: https://go-review.googlesource.com/30850
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ppc64/asm.go | 73 +++++++++++++++++++++++++++++++++++---
+ src/cmd/link/internal/ppc64/obj.go |  1 +
+ src/cmd/link/linkbig_test.go       | 22 ++++++++++--
+ 3 files changed, 88 insertions(+), 8 deletions(-)

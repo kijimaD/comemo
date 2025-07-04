@@ -1,0 +1,17 @@
+commit 47079b5e80ed4aa2cc1b21a72a524f2f6c349e3f
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Thu Mar 7 01:38:48 2024 +0000
+
+    cmd/trace: fix typo in comment
+    
+    Change-Id: I6ac2863e2af8c23588d35bf142f607e241f98405
+    GitHub-Last-Rev: 445cf7b29e859cdc52164d9781415cebea7b7795
+    GitHub-Pull-Request: golang/go#66152
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569675
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/trace/v2/gstate.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

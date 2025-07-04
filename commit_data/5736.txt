@@ -1,0 +1,13 @@
+commit 71675c6fa0ea50ec412076d140b8899ab13b95f3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 30 16:56:30 2010 +1000
+
+    doc/codewalk: Share Memory By Communicating
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/1727043
+
+ doc/codewalk/sharemem.xml | 181 ++++++++++++++++++++++++++++++++++++++++++++++
+ doc/codewalk/urlpoll.go   | 117 ++++++++++++++++++++++++++++++
+ 2 files changed, 298 insertions(+)

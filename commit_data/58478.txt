@@ -1,0 +1,23 @@
+commit 27c516437439c47c2479201191642bf7aaf5885b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Dec 16 17:20:46 2024 +0100
+
+    crypto/internal/fips140: zeroise integrity test temporary values
+    
+    There is no point to zeroise anything here because there are no secrets,
+    but there is a strict FIPS 140-3 test requirement for it.
+    
+    > TE05.08.02 (Levels 1, 2, 3, and 4): verify that any temporary values
+    > generated during the integrity test are zeroised upon completion of
+    > the integrity test
+    
+    Change-Id: I7b0db075dae9910f8e825a22ca2caa2b4c918980
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/636556
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/internal/fips140/check/check.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

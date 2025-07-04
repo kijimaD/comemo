@@ -1,0 +1,12 @@
+commit 1c369bd55fda993c2612452ec8e19dda2637106d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 27 09:35:39 2010 -0800
+
+    Clarify parsing of channel types.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/194091
+
+ doc/go_spec.html | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

@@ -1,0 +1,26 @@
+commit 0e90ba933565ab6e719d6981d8d6195e06625f47
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu May 5 01:00:38 2022 +0700
+
+    cmd/compile: fix constructing expr side-effects when comparing 0-size types
+    
+    In walkCompare, any ir.OCONVNOP was removed from both operands. So when
+    constructing assignments for them to preserve any side-effects, using
+    temporary variables can cause type mismatched with original type.
+    
+    Instead, using blank assignments will prevent that issue and still make
+    sure that the operands will be evaluated.
+    
+    Fixes #52701
+    
+    Change-Id: I229046acb154890bb36fe441d258563687fdce37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403997
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/walk/compare.go |  5 ++---
+ test/fixedbugs/issue52701.go             | 16 ++++++++++++++++
+ 2 files changed, 18 insertions(+), 3 deletions(-)

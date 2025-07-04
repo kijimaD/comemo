@@ -1,0 +1,16 @@
+commit 3776f31144035c7d3e187888b8f5debbc62d3e5f
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Wed Aug 5 14:18:54 2009 -0700
+
+    Make os.RemoveAll return no error if path does not exist.
+    This fixes a problem introduced by CL 32684 into gobuild,
+    which used to use 'rm -rf' to remove the _obj directory.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=8  (4 added, 0 deleted, 4 changed)
+    OCL=32794
+    CL=32796
+
+ src/pkg/os/path.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

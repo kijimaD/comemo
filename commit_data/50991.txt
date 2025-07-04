@@ -1,0 +1,27 @@
+commit 4c9006e45f7c2ab51328868bf2894c3eba7ac3e6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 25 11:16:35 2022 -0400
+
+    cmd/go: make vcstest repo scripts compatible with old Mercurial versions
+    
+    The scripts added in CL 421455 passed on the TryBots, but failed on
+    the "-stretch" builders, which supply Mercurial 4.0
+    (released 2016-11-01).
+    
+    Debian 9 “Stretch” has been at end-of-life since June 30, 2022, but
+    until we can turn down the outdated builders (#56414) we should keep
+    them passing tests.
+    
+    For #27494.
+    Updates #56414.
+    
+    Change-Id: I9df0ed452dfbfaeb1b4c0d869d02dd9ed21b3ff6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445356
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/testdata/vcstest/hg/hgrepo1.txt  | 26 ++++++++++++++++++++------
+ src/cmd/go/testdata/vcstest/hg/vgotest1.txt |  2 +-
+ 2 files changed, 21 insertions(+), 7 deletions(-)

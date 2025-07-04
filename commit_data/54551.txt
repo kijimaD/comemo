@@ -1,0 +1,22 @@
+commit 80e642cb7a73a7bc1169655bc299abe8629475dc
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Fri Sep 22 21:03:27 2023 +0000
+
+    cmp: add Or
+    
+    Fixes #60204
+    
+    Change-Id: I1234cacf0f25097d034038bcfb33f6630373a057
+    GitHub-Last-Rev: e9098ed8b3dd9125661e4340ffe01d846670ba0f
+    GitHub-Pull-Request: golang/go#60931
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504883
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+
+ api/next/60204.txt  |  1 +
+ src/cmp/cmp.go      | 12 +++++++++
+ src/cmp/cmp_test.go | 72 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 85 insertions(+)

@@ -1,0 +1,20 @@
+commit 338a81741a9aecba1a80014eced5cb2d3852d8eb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 20 11:17:59 2022 -0400
+
+    crypto/rand: apply the same max read size on Illumos as on Solaris
+    
+    This case was missed in CL 370894, and masked by the lack of an
+    Illumos TryBot.
+    
+    Fixes #52452.
+    
+    Change-Id: I7cda193e33c11a9d04eb888fdb5ec9218e6ed1b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401294
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+
+ src/crypto/rand/rand_getrandom.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit a00b98ec3f181c2e1940bdb312615024c17d75ef
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Sep 30 11:59:46 2010 +1000
+
+    archive/zip: new package for reading ZIP files
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2125042
+
+ src/pkg/Makefile                                  |   1 +
+ src/pkg/archive/zip/Makefile                      |  12 +
+ src/pkg/archive/zip/reader.go                     | 278 ++++++++++++++++++++++
+ src/pkg/archive/zip/reader_test.go                | 180 ++++++++++++++
+ src/pkg/archive/zip/struct.go                     |  33 +++
+ src/pkg/archive/zip/testdata/gophercolor16x16.png | Bin 0 -> 785 bytes
+ src/pkg/archive/zip/testdata/r.zip                | Bin 0 -> 440 bytes
+ src/pkg/archive/zip/testdata/readme.notzip        | Bin 0 -> 1905 bytes
+ src/pkg/archive/zip/testdata/readme.zip           | Bin 0 -> 1885 bytes
+ src/pkg/archive/zip/testdata/test.zip             | Bin 0 -> 1170 bytes
+ 10 files changed, 504 insertions(+)

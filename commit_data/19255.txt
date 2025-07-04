@@ -1,0 +1,17 @@
+commit 6f3f2d0ab825ee1ab77d62766828b6c191f92622
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 29 14:43:10 2014 -0400
+
+    run.bash: skip -static cgo test if -static linking isn't possible.
+    Some system doesn't have libc.a available.
+    
+    While we're at here, also export GOROOT in run.bash, so that
+    one doesn't need to set GOROOT to run run.bash.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/99870043
+
+ src/run.bash | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

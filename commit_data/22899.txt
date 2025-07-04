@@ -1,0 +1,17 @@
+commit 18453145608e34ba80e7f32540537edc67b70bfb
+Author: Rick Hudson <rlh@golang.org>
+Date:   Mon May 4 14:03:07 2015 -0400
+
+    runtime: remove unused GC timers
+    
+    During development some tracing routines were added that are not
+    needed in the release. These included GCstarttimes, GCendtimes, and
+    GCprinttimes.
+    Fixes #10462
+    
+    Change-Id: I0788e6409d61038571a5ae0cbbab793102df0a65
+    Reviewed-on: https://go-review.googlesource.com/9689
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgc.go | 122 -----------------------------------------------------
+ 1 file changed, 122 deletions(-)

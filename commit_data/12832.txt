@@ -1,0 +1,16 @@
+commit 35bc9d17df3876b612bf45d4715fe9fcc479768e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 4 17:41:36 2012 -0700
+
+    syscall, net: use native endianness for Linux netlink messages
+    
+    Tested using 6g and gccgo on x86_64 GNU/Linux and using gccgo
+    on PowerPC GNU/Linux (which is big-endian).
+    
+    R=golang-dev, bradfitz, mikioh.mikioh, iant
+    CC=golang-dev
+    https://golang.org/cl/5975073
+
+ src/pkg/net/interface_linux.go   |  8 ++++++--
+ src/pkg/syscall/netlink_linux.go | 31 ++++++++++---------------------
+ 2 files changed, 16 insertions(+), 23 deletions(-)

@@ -1,0 +1,25 @@
+commit 4dad64f5f1530a02404d562c7e6992d285bd9087
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Mar 21 15:08:41 2019 +1100
+
+    image/gif: don't assume Encode src's origin is (0, 0)
+    
+    When gif.Encode is given an "m image.Image" argument that isn't an
+    *image.Paletted, it creates a temporary *image.Paletted (called pm) that
+    is intended to be a copy of this image, only with fewer colors.
+    
+    That creation process, and specifically the opts.Drawer.Draw call that
+    does the copy, incorrectly assumed that m.Bounds().Min is the zero point
+    (0, 0). This commit fixes that.
+    
+    Fixes #30887
+    
+    Change-Id: Ie03bddec359e2dcc52f18451049452105514e179
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168418
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/gif/writer.go      |  5 ++++-
+ src/image/gif/writer_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 54 insertions(+), 2 deletions(-)

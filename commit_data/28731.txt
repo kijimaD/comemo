@@ -1,0 +1,14 @@
+commit 334cbe3bc81e2f3a6c968877b1ae170547989f1e
+Author: Anmol Sethi <anmol@aubble.com>
+Date:   Sat Oct 8 16:07:40 2016 -0400
+
+    io: simplified a small part of copyBuffer
+    
+    Change-Id: I0b7052103174f0864ee9714f76f8f78f2a988777
+    Reviewed-on: https://go-review.googlesource.com/30719
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/io/io.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

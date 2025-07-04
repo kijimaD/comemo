@@ -1,0 +1,17 @@
+commit c53d1236dfaa900387519810c8de1a9353c55bab
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Apr 24 17:24:16 2020 +0200
+
+    cmd/compile: use typed aux for first half of arm64 lowering
+    
+    Passes
+    
+      GOARCH=arm64 gotip build -toolexec 'toolstash -cmp' -a std
+    
+    Change-Id: Icb530d8d128d9938ab44a9c716c8dd09a34ededf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229937
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 374 +++++++++++++--------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 324 ++++++++++++++++-------
+ 2 files changed, 417 insertions(+), 281 deletions(-)

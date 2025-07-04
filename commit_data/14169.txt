@@ -1,0 +1,18 @@
+commit a5b0c67d5f7d7957ee5fae8a2980f621d95ab719
+Author: Stephen McQuay <stephen@mcquay.me>
+Date:   Thu Oct 18 15:39:04 2012 +0900
+
+    net: add LookupNS(domain string)
+    Fixes #4224.
+    
+    R=golang-dev, dave, minux.ma, mikioh.mikioh, alex.brainman, rsc, herbert.fischer
+    CC=golang-dev
+    https://golang.org/cl/6675043
+
+ src/pkg/net/dnsclient.go      |  5 +++++
+ src/pkg/net/lookup.go         |  5 +++++
+ src/pkg/net/lookup_plan9.go   | 15 +++++++++++++++
+ src/pkg/net/lookup_test.go    | 14 ++++++++++++++
+ src/pkg/net/lookup_unix.go    | 13 +++++++++++++
+ src/pkg/net/lookup_windows.go | 15 +++++++++++++++
+ 6 files changed, 67 insertions(+)

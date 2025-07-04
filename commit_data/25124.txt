@@ -1,0 +1,12 @@
+commit dc94094920a322ce07c3f555ee13f9505985edc4
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Wed Dec 2 16:22:53 2015 -0800
+
+    doc: correct release date for go1.5.2
+    
+    Change-Id: I6bee207db7485f96a499f51b2d1346c35e086d41
+    Reviewed-on: https://go-review.googlesource.com/17337
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/devel/release.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

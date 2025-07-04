@@ -1,0 +1,19 @@
+commit b43fe463ff93e5ab0849d9d31bf53f87b42a9b28
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Sat Jun 25 20:32:40 2016 +0800
+
+    net/http/httptest: show usage of httptest.NewRequest in example
+    
+    Change ExampleResponseRecorder to use httptest.NewRequest instead of
+    http.NewRequest. This makes the example shorter and shows how to use
+    one more function from the httptest package.
+    
+    Change-Id: I3d35869bd0a4daf1c7551b649428bb2f2a45eba2
+    Reviewed-on: https://go-review.googlesource.com/24480
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/httptest/example_test.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

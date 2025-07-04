@@ -1,0 +1,12 @@
+commit 89cc4d78146b6969e94ee15c929a7db0a635f20d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jan 29 22:57:19 2011 +1100
+
+    runtime/cgo: fix cross-compiling windows packages
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4073043
+
+ src/pkg/runtime/cgo/Makefile | 4 ++++
+ 1 file changed, 4 insertions(+)

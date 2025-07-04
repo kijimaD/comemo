@@ -1,0 +1,45 @@
+commit 8e496f1d6923172291658f0a785bdb47cc152325
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 20 14:12:05 2015 -0700
+
+    runtime: simplify buffered channels.
+    
+    This change removes the retry mechanism we use for buffered channels.
+    Instead, any sender waking up a receiver or vice versa completes the
+    full protocol with its counterpart.  This means the counterpart does
+    not need to relock the channel when it wakes up.  (Currently
+    buffered channels need to relock on wakeup.)
+    
+    For sends on a channel with waiting receivers, this change replaces
+    two copies (sender->queue, queue->receiver) with one (sender->receiver).
+    For receives on channels with a waiting sender, two copies are still required.
+    
+    This change unifies to a large degree the algorithm for buffered
+    and unbuffered channels, simplifying the overall implementation.
+    
+    Fixes #11506
+    
+    benchmark                        old ns/op     new ns/op     delta
+    BenchmarkChanProdCons10          125           110           -12.00%
+    BenchmarkChanProdCons0           303           284           -6.27%
+    BenchmarkChanProdCons100         75.5          71.3          -5.56%
+    BenchmarkChanContended           6452          6125          -5.07%
+    BenchmarkChanNonblocking         11.5          11.0          -4.35%
+    BenchmarkChanCreation            149           143           -4.03%
+    BenchmarkChanSem                 63.6          61.6          -3.14%
+    BenchmarkChanUncontended         6390          6212          -2.79%
+    BenchmarkChanSync                282           276           -2.13%
+    BenchmarkChanProdConsWork10      516           506           -1.94%
+    BenchmarkChanProdConsWork0       696           685           -1.58%
+    BenchmarkChanProdConsWork100     470           469           -0.21%
+    BenchmarkChanPopular             660427        660012        -0.06%
+    
+    Change-Id: I164113a56432fbc7cace0786e49c5a6e6a708ea4
+    Reviewed-on: https://go-review.googlesource.com/9345
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/chan.go   | 495 +++++++++++++++++++++++---------------------------
+ src/runtime/select.go | 118 ++++--------
+ 2 files changed, 264 insertions(+), 349 deletions(-)

@@ -1,0 +1,16 @@
+commit ee80afe326bab0a4829bd39186c4f343ac680a40
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 21 13:14:35 2017 -0700
+
+    cmd/compile/internal/gc: remove unneeded effects cache fields
+    
+    Must have been lost when rebasing the SSA liveness CLs.
+    
+    Change-Id: Iaac33158cc7c92ea44a023c242eb914a7d6979c6
+    Reviewed-on: https://go-review.googlesource.com/38427
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go | 3 ---
+ 1 file changed, 3 deletions(-)

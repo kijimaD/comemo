@@ -1,0 +1,23 @@
+commit 35f4ec152b44ae5fc83aaf68e2eb3aa1a778e5cd
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jan 4 19:27:08 2019 -0500
+
+    crypto/x509: ignore harmless edge case in TestSystemRoots
+    
+    The no-cgo validation hack lets in certificates from the root store that
+    are not marked as roots themselves, but are signed by a root; the cgo
+    path correctly excludes them. When TestSystemRoots compares cgo and
+    no-cgo results it tries to ignore them by ignoring certificates which
+    pass validation, but expired certificates were failing validation.
+    
+    Letting through expired certs is harmless anyway because we will refuse
+    to build chains to them.
+    
+    Fixes #29497
+    
+    Change-Id: I341e50c0f3426de2763468672f9ba1d13ad6cfba
+    Reviewed-on: https://go-review.googlesource.com/c/156330
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/root_darwin_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

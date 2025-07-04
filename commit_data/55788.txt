@@ -1,0 +1,28 @@
+commit e93041333150e6b74f931119036156938dcd0925
+Author: khr@golang.org <khr@golang.org>
+Date:   Tue Feb 20 10:32:26 2024 -0800
+
+    cmd/compile: soften type matching when allocating stack slots
+    
+    Currently we use pointer equality on types when deciding whether we can
+    reuse a stack slot. That's too strict, as we don't guarantee pointer
+    equality for the same type. In particular, it can vary based on whether
+    PtrTo has been called in the frontend or not.
+    
+    Instead, use the type's LinkString, which is guaranteed to both be
+    unique for a type, and to not vary given two different type structures
+    describing the same type.
+    
+    Update #65783
+    
+    Change-Id: I64f55138475f04bfa30cfb819b786b7cc06aebe4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565436
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ssa/stackalloc.go | 15 ++++++++-------
+ test/codegen/stack.go                      | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 7 deletions(-)

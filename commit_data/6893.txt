@@ -1,0 +1,15 @@
+commit 839abc2ea7de28a6544ddd4822c465f5eec960fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 15:44:59 2010 -0500
+
+    5l (and 6l, 8l, ld): more arm build fixes
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/3521041
+
+ src/cmd/6l/l.h       | 1 +
+ src/cmd/8l/l.h       | 3 ++-
+ src/cmd/ld/ldelf.c   | 3 +--
+ src/cmd/ld/ldmacho.c | 2 +-
+ 4 files changed, 5 insertions(+), 4 deletions(-)

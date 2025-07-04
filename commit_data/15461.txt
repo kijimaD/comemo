@@ -1,0 +1,39 @@
+commit 5a09f1b3be354ebb69a9124076236cb7aa83edc9
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Feb 27 10:35:23 2013 -0500
+
+    exp/ssa: make invokation of deferred procedure calls explicit.
+    
+    The correct semantics of named result parameters and deferred
+    procedures cannot be implemented with the existing Ret
+    instruction alone, since the required sequence is:
+    (1) evaluate return operands and parallel-assign them to
+        named result parameters
+    (2) invoke deferred procedures
+    (3) load named result parameters to form result tuple.
+    
+    We introduce a new 'rundefers' instruction that explicitly
+    invokes the deferred procedure calls, and we generate code
+    that follows the sequence above.
+    
+    Most functions do not use deferred procedures but this cannot
+    be known in a single pass.  So, we add an optimisation to
+    eliminate redundant 'rundefers'; it is piggybacked on the
+    existing pass done for "lifting".
+    
+    Added tests.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/7411043
+
+ src/pkg/exp/ssa/builder.go                  | 57 +++++++++++++++++------------
+ src/pkg/exp/ssa/emit.go                     |  1 +
+ src/pkg/exp/ssa/func.go                     |  6 +--
+ src/pkg/exp/ssa/interp/interp.go            | 22 +++++++----
+ src/pkg/exp/ssa/interp/testdata/coverage.go | 48 ++++++++++++++++++++++++
+ src/pkg/exp/ssa/lift.go                     | 42 ++++++++++++++++-----
+ src/pkg/exp/ssa/print.go                    |  4 ++
+ src/pkg/exp/ssa/sanity.go                   | 39 ++++++++++----------
+ src/pkg/exp/ssa/ssa.go                      | 32 +++++++++++-----
+ 9 files changed, 180 insertions(+), 71 deletions(-)

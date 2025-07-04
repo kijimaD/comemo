@@ -1,0 +1,19 @@
+commit 544f28a25ec9421d52bbdd7c6272b4f1d4067964
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 24 11:02:19 2016 -0500
+
+    misc/cgo/test: fix test on darwin/386 with cgo enabled
+    
+    Apparently the darwin/386 builder does not enable cgo.
+    This failure turned up running
+    
+            GOARCH=386 GOHOSTARCH=386 ./all.bash
+    
+    on my Mac.
+    
+    Change-Id: Ia2487c4fd85d4b0f9f564880f22d9fde379946c3
+    Reviewed-on: https://go-review.googlesource.com/18859
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/sigaltstack.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

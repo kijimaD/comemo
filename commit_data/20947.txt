@@ -1,0 +1,13 @@
+commit e8f13700b70c99278fa42586f5785c09a3ae19b0
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Dec 9 00:13:10 2014 -0500
+
+    test/fixedbugs/bug302: fix test on windows.
+    
+    Change-Id: I74c2578d1620b37a6486eca00a774b9a736a8899
+    Reviewed-on: https://go-review.googlesource.com/1222
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/bug302.dir/main.go | 4 ++--
+ test/fixedbugs/bug302.go          | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

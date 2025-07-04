@@ -1,0 +1,19 @@
+commit a2910958a2bcc360e811d1f6f476784b213bb0f1
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Sep 18 12:43:01 2014 +1000
+
+    image/gif: fix GIF encoding of sub-images.
+    
+    benchmark                    old ns/op     new ns/op     delta
+    BenchmarkEncode              8641055       8646829       +0.07%
+    
+    Fixes #7792.
+    
+    LGTM=r
+    R=r
+    CC=dbathgate, golang-codereviews
+    https://golang.org/cl/147730043
+
+ src/image/gif/writer.go      | 18 ++++++++++++++----
+ src/image/gif/writer_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 4 deletions(-)

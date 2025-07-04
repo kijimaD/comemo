@@ -1,0 +1,20 @@
+commit 96d2e416171845f114f8f865e42c427030bc807e
+Author: David Chase <drchase@google.com>
+Date:   Thu Apr 6 17:03:24 2023 +0000
+
+    Revert "cmd/compile: use correct type in amd64 late-lower rules"
+    
+    This reverts CL 482536.
+    
+    Reason for revert: breaks windows-amd64-race
+    
+    Change-Id: I033c52fe0d6bbbc879ed2a33d91fb1357f4874bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482817
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ .../compile/internal/ssa/_gen/AMD64latelower.rules | 10 ++--
+ .../compile/internal/ssa/rewriteAMD64latelower.go  | 66 ++++++++++------------
+ 2 files changed, 35 insertions(+), 41 deletions(-)

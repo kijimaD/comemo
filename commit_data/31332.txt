@@ -1,0 +1,15 @@
+commit 16271b8b52b059b892165d7dd32ecd4ff1070347
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 25 02:46:06 2017 +0000
+
+    runtime: ignore TestCgoPprofPIE test failures on Alpine
+    
+    Updates #19938
+    Updates #18243
+    
+    Change-Id: Ib6e704c0a5d596bdfaa6493902d2528bec55bf16
+    Reviewed-on: https://go-review.googlesource.com/41628
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_cgo_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

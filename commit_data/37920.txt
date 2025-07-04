@@ -1,0 +1,25 @@
+commit 447965d4e008764a8635df6ca7d5d2e59c6d4229
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jan 25 18:22:27 2019 +1100
+
+    path/filepath: skip TestIssue29372 on windows, if /tmp has symilinks
+    
+    TestIssue29372 is broken on windows when temporary directory has
+    symlink in its path.
+    
+    Adjust the test to use filepath.EvalSymlinks of temporary directory,
+    instead of temporary directory on windows. This change is not a
+    proper fix, but at least it makes TestIssue29372 pass on windows-arm.
+    
+    See issue for details.
+    
+    Updates #29746
+    
+    Change-Id: I2af8ebb89da7cb9daf027a5e49e32ee22dbd0e3d
+    Reviewed-on: https://go-review.googlesource.com/c/159578
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/path/filepath/path_test.go | 22 ++++++++++++++++++----
+ 1 file changed, 18 insertions(+), 4 deletions(-)

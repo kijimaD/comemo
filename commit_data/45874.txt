@@ -1,0 +1,19 @@
+commit 901510ed4ef1a979321f33159b534e374290ef65
+Author: hao <tfzxyinhao@qq.com>
+Date:   Fri May 28 03:40:12 2021 +0000
+
+    cmd/link/internal/ld: skip the windows ASLR test when CGO_ENABLED=0
+    
+    the test case is still using gcc when CGO is disabled.
+    
+    Change-Id: I2d255bfaeb92816c8343ab72fd7984b6632d421d
+    GitHub-Last-Rev: de14748bd54c7db8687263a7c37080ec884d982a
+    GitHub-Pull-Request: golang/go#46120
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319169
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/link/internal/ld/ld_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

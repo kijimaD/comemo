@@ -1,0 +1,48 @@
+commit 0f8ab2db177baee7b04182f5641693df3b212aa9
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jun 26 15:46:31 2025 -0400
+
+    cmd/link: permit a larger size BSS reference to a smaller DATA symbol
+    
+    Currently, if there is a BSS reference and a DATA symbol
+    definition with the same name, we pick the DATA symbol, as it
+    contains the right content. In this case, if the BSS reference
+    has a larger size, we error out, because it is not safe to access
+    a smaller symbol as if it has a larger size.
+    
+    Sometimes code declares a global variable in Go and defines it
+    in assembly with content. They are expected to be of the same
+    size. However, in ASAN mode, we insert a red zone for the variable
+    on the Go side, making it have a larger size, whereas the assembly
+    symbol is unchanged. This causes the Go reference (BSS) has a
+    larger size than the assembly definition (DATA). It results in an
+    error currently. This code is valid and safe, so we should permit
+    that.
+    
+    We support this case by increasing the symbol size to match the
+    larger size (of the BSS side). The symbol content (from the DATA
+    side) is kept. In some sense, we merge the two symbols. When
+    loading symbols, it is not easy to change its size (as the object
+    file may be mapped read-only), so we add it to a fixup list, and
+    fix it up later after all Go symbols are loaded. This is a very
+    rare case, so the list should not be long.
+    
+    We could limit this to just ASAN mode. But it seems okay to allow
+    this in general. As long as the symbol has the larger size, it is
+    safe to access it with the larger size.
+    
+    Fixes #74314.
+    
+    Change-Id: I3ee6e46161d8f59500e2b81befea11e563355a57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684236
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/cgo/internal/testsanitizers/asan_test.go   |  2 ++
+ src/cmd/cgo/internal/testsanitizers/cc_test.go     |  2 +-
+ .../testsanitizers/testdata/asan_global_asm/asm.s  |  8 +++++
+ .../testdata/asan_global_asm/main.go               | 11 ++++++
+ .../testdata/asan_global_asm2_fail/asm.s           |  8 +++++
+ .../testdata/asan_global_asm2_fail/main.go         | 20 +++++++++++
+ src/cmd/link/internal/loader/loader.go             | 41 ++++++++++++++++++----
+ 7 files changed, 84 insertions(+), 8 deletions(-)

@@ -1,0 +1,10 @@
+commit b07e084a99261b2b3f0ed5189e2cd240e08d3a15
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 11 19:40:03 2008 -0700
+
+    delete dead code
+    
+    SVN=126932
+
+ src/runtime/rt0_amd64.s | 8 --------
+ 1 file changed, 8 deletions(-)

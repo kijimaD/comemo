@@ -1,0 +1,15 @@
+commit 0d0c7489306f9379e5968435769b0620ff6b7fe3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 17 15:24:40 2013 -0700
+
+    encoding/xml: remove dead code
+    
+    Avoid future 'declared and not used error'.
+    See also issue 6414.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/13242058
+
+ src/pkg/encoding/xml/xml_test.go | 2 --
+ 1 file changed, 2 deletions(-)

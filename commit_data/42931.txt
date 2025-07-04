@@ -1,0 +1,20 @@
+commit 2556eb76c8e752907600274d323a52e97418d14f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 9 10:40:11 2020 -0700
+
+    runtime: ignore SIGPROF if profiling disable for thread
+    
+    This avoids a deadlock on prof.signalLock between setcpuprofilerate
+    and cpuprof.add if a SIGPROF is delivered to the thread between the
+    call to setThreadCPUProfiler and acquiring prof.signalLock.
+    
+    Fixes #41014
+    
+    Change-Id: Ie825e8594f93a19fb1a6320ed640f4e631553596
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253758
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

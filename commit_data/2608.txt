@@ -1,0 +1,17 @@
+commit 74b546aefdc712ae95171a75cd3910306f22545f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 22:25:54 2009 -0700
+
+    statements after panicln are unreachable, just like after panic.
+    
+    missing break after error.
+    
+    dot symbol bug fix: leave sym alone
+    (was incorrect for inserted cross-package dots).
+    
+    R=ken
+    OCL=31234
+    CL=31236
+
+ src/cmd/gc/walk.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

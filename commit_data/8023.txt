@@ -1,0 +1,12 @@
+commit d9763147764400c6fb7a0701a5c9cbdd6682062d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Apr 8 23:53:57 2011 +1000
+
+    gotest: handle \r\n returned by gomake on Windows (fixes build)
+    
+    R=golang-dev, peterGo, rsc1
+    CC=Joe Poirier, golang-dev
+    https://golang.org/cl/4370048
+
+ src/cmd/gotest/gotest.go | 3 +++
+ 1 file changed, 3 insertions(+)

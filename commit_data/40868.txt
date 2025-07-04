@@ -1,0 +1,16 @@
+commit f4a8bf128364e852cff87cf404a5c16c457ef8f6
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Nov 21 13:24:51 2019 -0500
+
+    crypto/tls: remove leftover extensionNextProtoNeg constant
+    
+    NPN was removed in CL 174329.
+    
+    Change-Id: Ic63ad53e7e24872e28673d590727e0300f435619
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208224
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/common.go | 1 -
+ 1 file changed, 1 deletion(-)

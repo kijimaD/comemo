@@ -1,0 +1,14 @@
+commit f7dc4eb921c803160a739b44935a314df2a2a2cf
+Author: Tarmigan Casebolt <tarmigan@gmail.com>
+Date:   Sun Aug 23 19:51:28 2015 -0700
+
+    image/gif: avoid unused assignment
+    
+    Change-Id: Iaaecd8be9268c923f40cf0e5153cbf79f7015b8d
+    Reviewed-on: https://go-review.googlesource.com/13892
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/image/gif/writer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

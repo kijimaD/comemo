@@ -1,0 +1,18 @@
+commit ea8298e2f5e9f17372e818ffbd4fab951857ec6a
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Mon Aug 16 14:49:45 2021 +0000
+
+    cmd/compile/internal/ssa: delete unused code
+    
+    Fixes #46186
+    
+    Change-Id: Idb0674079f9484593e07cca172dfbb19be0e594d
+    GitHub-Last-Rev: 615fc5365510ff7a39af7569f05a0013b724d0c9
+    GitHub-Pull-Request: golang/go#46185
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320111
+    Reviewed-by: Ben Shi <powerman1st@163.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 17 -----------------
+ 1 file changed, 17 deletions(-)

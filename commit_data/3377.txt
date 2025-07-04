@@ -1,0 +1,12 @@
+commit 908c8f909e548dd40525a062f97d416037ea818a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 25 15:43:43 2009 -0700
+
+    fix to be able to run full gofmt test
+    
+    TBR=r
+    OCL=35015
+    CL=35015
+
+ usr/gri/pretty/symboltable.go | 3 ---
+ 1 file changed, 3 deletions(-)

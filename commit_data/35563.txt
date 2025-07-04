@@ -1,0 +1,14 @@
+commit c4f9fa1f8ee623558ed40d4d4cd3c616697cc77b
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Thu May 31 06:52:19 2018 +0000
+
+    reflect: reuse values during comparison of maps in DeepEqual
+    
+    Change-Id: I82f999b8ed9434321a361bf1bcbed7cf6ee4bee6
+    Reviewed-on: https://go-review.googlesource.com/115475
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/reflect/deepequal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

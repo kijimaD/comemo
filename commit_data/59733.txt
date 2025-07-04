@@ -1,0 +1,21 @@
+commit 7b4d065267aec8f899a5c5423c1ac501d31807cc
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu May 29 12:41:21 2025 -0400
+
+    runtime: add vgetrandom lock rank
+    
+    vgetrandomGetState can call malloc, so this is not a leaf lock.
+    
+    Our staticlockrank builder doesn't support vgetrandom, so it didn't
+    catch this.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-staticlockranking
+    Change-Id: I6a6a636c36c9172e4ebf9493c10cb23cac29a13f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677255
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/lockrank.go         | 41 ++++++++++++++++++++++-------------------
+ src/runtime/mklockrank.go       |  6 +++++-
+ src/runtime/vgetrandom_linux.go |  2 +-
+ 3 files changed, 28 insertions(+), 21 deletions(-)

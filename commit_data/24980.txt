@@ -1,0 +1,18 @@
+commit e9aef43d873c6e3a0d1a299908e542b48b3562fd
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 17 17:27:11 2015 -0500
+
+    runtime: eliminate traceAllocBlock write barriers
+    
+    This replaces *traceAllocBlock with traceAllocBlockPtr.
+    
+    Updates #10600.
+    
+    Change-Id: I94a20d90f04cca7c457b29062427748e315e4857
+    Reviewed-on: https://go-review.googlesource.com/17004
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/trace.go | 29 +++++++++++++++++++----------
+ 1 file changed, 19 insertions(+), 10 deletions(-)

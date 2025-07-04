@@ -1,0 +1,18 @@
+commit 841a32dd5ec836e171d04604710d88a6b8e59467
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Thu Apr 22 16:57:29 2010 -0700
+
+    big: Create type nat
+    
+    Changed most of the functions in nat.go to methods on nat.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/976041
+
+ src/pkg/big/arith_test.go | 112 +++++++++----------
+ src/pkg/big/int.go        |  58 +++++-----
+ src/pkg/big/int_test.go   |   4 +-
+ src/pkg/big/nat.go        | 266 +++++++++++++++++++++++-----------------------
+ src/pkg/big/nat_test.go   | 182 +++++++++++++++----------------
+ 5 files changed, 312 insertions(+), 310 deletions(-)

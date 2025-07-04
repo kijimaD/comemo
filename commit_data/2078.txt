@@ -1,0 +1,15 @@
+commit 2f8a2dc193a2b08a61f1fc8aefa126f7fd465e2b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Apr 21 20:26:26 2009 -0700
+
+    Extend fixedbugs/bug143.go with function return values,
+    as a regression test for the fix made in s2/27706.
+    
+    R=r
+    APPROVED=r
+    DELTA=14  (13 added, 0 deleted, 1 changed)
+    OCL=27707
+    CL=27709
+
+ test/fixedbugs/bug143.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

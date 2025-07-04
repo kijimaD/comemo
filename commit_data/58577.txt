@@ -1,0 +1,88 @@
+commit 3a81ebea0de65aa877f46afb80575ec67b7d9170
+Author: cuishuang <imcusg@gmail.com>
+Date:   Wed Jan 1 09:08:26 2025 +0800
+
+    net/http: use strings.FieldsFuncSeq to reduce memory allocations
+    
+    After using strings.FieldsFuncSeq, the number of memory allocations has been reduced from 2 to 0.
+    
+    The following is the complete benchamark code and results:
+    
+    package main
+    
+    import (
+            "strings"
+            "testing"
+    )
+    
+    func isSlashRune(r rune) bool { return r == '/' || r == '\\' }
+    
+    func containsDotDotLoop(v string) bool {
+            if !strings.Contains(v, "..") {
+                    return false
+            }
+            for _, ent := range strings.FieldsFunc(v, isSlashRune) {
+                    if ent == ".." {
+                            return true
+                    }
+            }
+            return false
+    }
+    
+    func containsDotDotSeq(v string) bool {
+            if !strings.Contains(v, "..") {
+                    return false
+            }
+            for ent := range strings.FieldsFuncSeq(v, isSlashRune) {
+                    if ent == ".." {
+                            return true
+                    }
+            }
+            return false
+    }
+    
+    func BenchmarkDotDot(b *testing.B) {
+            testCases := []string{
+                    "/path/to/somewhere",
+                    "/path/../to/somewhere",
+                    "/really/long/path/with/many/segments",
+                    "../../../deep/path",
+            }
+    
+            b.Run("Loop", func(b *testing.B) {
+                    for i := 0; i < b.N; i++ {
+                            for _, tc := range testCases {
+                                    containsDotDotLoop(tc)
+                            }
+                    }
+            })
+    
+            b.Run("Seq", func(b *testing.B) {
+                    for i := 0; i < b.N; i++ {
+                            for _, tc := range testCases {
+                                    containsDotDotSeq(tc)
+                            }
+                    }
+            })
+    }
+    
+    go test -bench=. -benchmem
+    
+    goos: darwin
+    goarch: arm64
+    pkg: bc
+    cpu: Apple M1
+    BenchmarkDotDot/Loop-8           6133270               193.7 ns/op           144 B/op          2 allocs/op
+    BenchmarkDotDot/Seq-8           23172360                51.19 ns/op            0 B/op          0 allocs/op
+    PASS
+    ok      bc      2.633s
+    
+    Change-Id: I529c296e701b22710e21b53877aa798799980a3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639536
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/net/http/fs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

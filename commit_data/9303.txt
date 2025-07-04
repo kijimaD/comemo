@@ -1,0 +1,12 @@
+commit ec010fddb54d03f30895907da3353628548a0744
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Aug 8 15:38:37 2011 +1000
+
+    exp/template: fix Must example.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4839052
+
+ src/pkg/exp/template/helper.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

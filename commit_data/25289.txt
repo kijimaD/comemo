@@ -1,0 +1,12 @@
+commit c2fb457ef762429bd2b79a701bfaced808d95ec4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 16 19:15:20 2015 +0000
+
+    net/url: fix RFC typo in comments
+    
+    Change-Id: I04ed7e5ab992c1eb3528432797026d0c7d2818f1
+    Reviewed-on: https://go-review.googlesource.com/17894
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/url/url_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

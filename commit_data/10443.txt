@@ -1,0 +1,13 @@
+commit bbf952c3b4c5d7beb15c5c2a0ffb20f02323e6ea
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 18 00:16:15 2011 -0500
+
+    codereview: cleanup + basic tests
+    
+    R=adg, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5395044
+
+ lib/codereview/codereview.py | 1240 +++++++++++++++++++++++-------------------
+ lib/codereview/test.sh       |  198 +++++++
+ 2 files changed, 869 insertions(+), 569 deletions(-)

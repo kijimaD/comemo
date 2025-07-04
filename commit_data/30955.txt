@@ -1,0 +1,14 @@
+commit 654c977b26282e28ee884db579a1c48a9d07af20
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 30 19:12:36 2017 -0700
+
+    runtime/race: print output when TestRace parsing fails
+    
+    Change-Id: I986f0c106e059455874692f5bfe2b5af25cf470e
+    Reviewed-on: https://go-review.googlesource.com/39090
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/race/race_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

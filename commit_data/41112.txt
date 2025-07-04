@@ -1,0 +1,23 @@
+commit 4ead7e8cc4fd5c09db7aba5c4f5fd5d957c82a24
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 9 16:22:31 2020 +1100
+
+    time: add a sentence about distant times to time.Time.Unix
+    
+    Since Durations only span 290 years, they are not good for
+    manipulating very remote times. I bounced off this problem recently
+    while doing some astronomical calculations and it took me a while to
+    realize I could get a 64-bit seconds value from time.Time.Unix and
+    subtract two of them to evaluate the interval.
+    
+    I thought it worth adding a sentence to make this clear. It didn't
+    occur to me for quite a while that "Unix time" spans a huge range in
+    the Go library.
+    
+    Change-Id: I76c75dc951dfd6bcf86e8b0be3cfec518a3ecdee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213977
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/time/time.go | 3 +++
+ 1 file changed, 3 insertions(+)

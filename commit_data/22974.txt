@@ -1,0 +1,17 @@
+commit be0cb9224b68d5be4e03fd35396d2c2f0755adad
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue May 12 11:59:14 2015 +1200
+
+    runtime: fix addmoduledata to follow the platform ABI
+    
+    addmoduledata is called from a .init_array function and need to follow the
+    platform ABI. It contains accesses to global data which are rewritten to use
+    R15 by the assembler, and as R15 is callee-save we need to save it.
+    
+    Change-Id: I03893efb1576aed4f102f2465421f256f3bb0f30
+    Reviewed-on: https://go-review.googlesource.com/9941
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testshared/test.bash | 1 +
+ src/runtime/asm_amd64.s       | 4 +++-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

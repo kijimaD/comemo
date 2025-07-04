@@ -1,0 +1,17 @@
+commit d3aedb72c687cc58e10755eff006a4dd45cb8e15
+Author: Chaoqun Han <hanssccv@gmail.com>
+Date:   Mon Nov 8 22:58:51 2021 +0800
+
+    cmd/compile: NewSelectorExpr use n.Pos instead of base.Pos
+    
+    Fixes #49436
+    
+    Change-Id: I4c8851e7aaee631d5eb22f2ef0aea5a25e936d87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361917
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/typecheck/subr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

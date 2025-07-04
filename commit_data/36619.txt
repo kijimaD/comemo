@@ -1,0 +1,21 @@
+commit 7a0eb56466eb26704fad49caec228ba21831761e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Sep 7 12:58:14 2018 -0400
+
+    crypto/x509: allow ":" in Common Name hostnames
+    
+    At least one popular service puts a hostname which contains a ":"
+    in the Common Name field. On the other hand, I don't know of any name
+    constrained certificates that only work if we ignore such CNs.
+    
+    Updates #24151
+    
+    Change-Id: I2d813e3e522ebd65ab5ea5cd83390467a869eea3
+    Reviewed-on: https://go-review.googlesource.com/134076
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/verify.go      | 4 ++--
+ src/crypto/x509/verify_test.go | 1 +
+ 2 files changed, 3 insertions(+), 2 deletions(-)

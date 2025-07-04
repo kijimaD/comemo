@@ -1,0 +1,26 @@
+commit 3c6e60c0e41ed42d5df6dcbf134e3a664c08c154
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 19 12:08:33 2016 -0700
+
+    cmd/compile: fix isStaticCompositeLiteral
+    
+    Previously, isStaticCompositeLiteral would
+    return the wrong value for literals like:
+    
+    [1]struct{ b []byte }{b: []byte{1}}
+    
+    Note that the outermost component is an array,
+    but once we recurse into isStaticCompositeLiteral,
+    we never check again that arrays are actually arrays.
+    
+    Instead of adding more logic to the guts of
+    isStaticCompositeLiteral, allow it to accept
+    any Node and return the correct answer.
+    
+    Change-Id: I6af7814a9037bbc7043da9a96137fbee067bbe0e
+    Reviewed-on: https://go-review.googlesource.com/22247
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go | 25 ++++++++++++++-----------
+ src/cmd/compile/internal/gc/walk.go  |  2 +-
+ 2 files changed, 15 insertions(+), 12 deletions(-)

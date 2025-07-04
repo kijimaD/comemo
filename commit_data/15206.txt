@@ -1,0 +1,37 @@
+commit f38da96755cea4fde703b4601d5959150587eab4
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue Feb 12 15:59:55 2013 +0100
+
+    exp/locale/collate: moved low-level collation functionality
+    into separate package.  This allows this code to be shared
+    with the search package without the need for these two to use
+    the same tables.
+    Adjusted various files accordingly.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7213044
+
+ src/pkg/exp/locale/collate/build/builder.go        |  38 +--
+ src/pkg/exp/locale/collate/build/colelem.go        | 108 ++-----
+ src/pkg/exp/locale/collate/build/colelem_test.go   |  32 +-
+ src/pkg/exp/locale/collate/build/order.go          |   6 +-
+ src/pkg/exp/locale/collate/build/order_test.go     |   4 +-
+ src/pkg/exp/locale/collate/collate.go              |  56 ++--
+ src/pkg/exp/locale/collate/collate_test.go         | 326 +++++++++++++--------
+ .../exp/locale/collate/{ => colltab}/colelem.go    |  96 ++++--
+ .../locale/collate/{ => colltab}/colelem_test.go   | 116 +-------
+ .../exp/locale/collate/{ => colltab}/colltab.go    |   5 +-
+ .../exp/locale/collate/{ => colltab}/contract.go   |   2 +-
+ .../locale/collate/{ => colltab}/contract_test.go  |   2 +-
+ src/pkg/exp/locale/collate/{ => colltab}/export.go |   2 +-
+ src/pkg/exp/locale/collate/{ => colltab}/table.go  |  53 +---
+ src/pkg/exp/locale/collate/{ => colltab}/trie.go   |   2 +-
+ .../exp/locale/collate/{ => colltab}/trie_test.go  |   2 +-
+ src/pkg/exp/locale/collate/export_test.go          |  64 +---
+ src/pkg/exp/locale/collate/index.go                |  44 +++
+ src/pkg/exp/locale/collate/maketables.go           |  13 +-
+ src/pkg/exp/locale/collate/regtest.go              |   7 +-
+ src/pkg/exp/locale/collate/table_test.go           |  31 +-
+ src/pkg/exp/locale/collate/tables.go               |   2 +
+ 22 files changed, 471 insertions(+), 540 deletions(-)

@@ -1,0 +1,15 @@
+commit 6e0df254b0b2aed3840fc696f8c8f8fb16ad6c70
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Oct 16 14:28:18 2012 +0800
+
+    doc/godoc.js: put focus on div#page when necessary
+    so that keyboard navigation events are sent to div#page.
+    
+            Fixes #4233.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/6652048
+
+ doc/godocs.js | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

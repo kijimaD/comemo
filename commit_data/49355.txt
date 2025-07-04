@@ -1,0 +1,20 @@
+commit cfd202c701d3c1fda740a8c3c725fbb704054591
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 17 08:17:38 2022 -0400
+
+    cmd/link: call syscall.FlushFileBuffers on outbuf Unmap
+    
+    In the windows version of OutBuf.munmap, call syscall.FlushFileBuffers
+    after the call to syscall.FlushViewOfFile, on the theory that this
+    will help flush all associated meta-data for the file the linker is
+    writing.
+    
+    Updates #44817.
+    
+    Change-Id: Ibff7d05008a91eeed7634d2760153851e15e1c18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406814
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/cmd/link/internal/ld/outbuf_windows.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

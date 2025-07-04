@@ -1,0 +1,47 @@
+commit 0cd34753866bf6114df91d074f9e344cfd17aa1d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 17 09:51:55 2010 -0800
+
+    misc/cgo/life: fix, add to build
+    
+    #pragma dynexport is no longer needed for
+    this use of cgo, since the gcc and gc code are
+    now linked together into the same binary.
+    It may still be necessary later.
+    
+    On the Mac, you cannot use the GOT to resolve
+    symbols that exist in the current binary, so 6l and 8l
+    translate the GOT-loading mov instructions into lea
+    instructions.
+    
+    On ELF systems, we could use the GOT for those
+    symbols, but for consistency 6l and 8l apply the
+    same translation.
+    
+    The translation is sketchy in the extreme
+    (depending on the relocation being in a mov
+    instruction) but it verifies that the instruction
+    is a mov before rewriting it to lea.
+    
+    Also makes typedefs global across files.
+    
+    Fixes #1335.
+    Fixes #1345.
+    
+    R=iant, r
+    CC=golang-dev
+    https://golang.org/cl/3650042
+
+ misc/cgo/life/Makefile       | 18 +++---------
+ misc/cgo/life/golden.out     | 17 ++++++++++++
+ misc/cgo/life/test.bash      | 11 ++++++++
+ src/Make.pkg                 | 21 ++++++++------
+ src/cmd/6l/asm.c             | 65 ++++++++++++++++++++++++++++++++++++++------
+ src/cmd/8l/8.out.h           |  2 +-
+ src/cmd/8l/asm.c             | 33 ++++++++++++++++++++--
+ src/cmd/cgo/gcc.go           | 13 ++++-----
+ src/cmd/cgo/main.go          | 12 --------
+ src/cmd/cgo/out.go           | 17 ++++--------
+ src/pkg/runtime/cgo/Makefile |  9 ++++--
+ src/run.bash                 |  8 ++++++
+ 12 files changed, 159 insertions(+), 67 deletions(-)

@@ -1,0 +1,15 @@
+commit c3e9c7d106a119a8ee95dfc22bc913d63680d402
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 17 18:02:10 2008 -0700
+
+    - more front-end stuff: hooking up packages, preparing for exports
+    
+    SVN=127931
+
+ usr/gri/gosrc/compilation.go | 55 ++++++++++++++++++++---------------------
+ usr/gri/gosrc/export.go      |  4 +--
+ usr/gri/gosrc/globals.go     | 58 +++++++++++++++++++++++++-------------------
+ usr/gri/gosrc/parser.go      | 48 ++++++++++++++++++++++++++++++++----
+ usr/gri/gosrc/scanner.go     |  3 ++-
+ usr/gri/gosrc/test_parser.go |  2 +-
+ 6 files changed, 107 insertions(+), 63 deletions(-)

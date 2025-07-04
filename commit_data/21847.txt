@@ -1,0 +1,17 @@
+commit 956bb687066d4f953c06e4bd5853bdc76b017242
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Mon Mar 2 12:58:02 2015 -0800
+
+    build: skip cgo -pie tests on freebsd-amd64.
+    
+    This is a followup to http://golang.org/cl/6280.
+    clang -pie fails to link misc/cgo/test on freebsd-amd64.
+    
+    Change-Id: I6f9575d6bb579f4d38d70707fb9c92e303e30e6f
+    Reviewed-on: https://go-review.googlesource.com/6520
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/run.bash | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

@@ -1,0 +1,13 @@
+commit ce7487baa80d1189b289b975361ab4b3868180f5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 19 13:10:00 2010 -0700
+
+    bug275: cannot apply real() to a complex array element
+    
+    R=r, ken2
+    CC=golang-dev
+    https://golang.org/cl/1260041
+
+ test/bugs/bug275.go | 20 ++++++++++++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 24 insertions(+)

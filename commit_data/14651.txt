@@ -1,0 +1,14 @@
+commit 0b50a5dad78193fecae52f18a01df928c229eb32
+Author: Jingcheng Zhang <diogin@gmail.com>
+Date:   Fri Dec 14 09:13:42 2012 -0800
+
+    builtin: correct comment on builtin function delete().
+    
+    Delete on a nil map is now a no-op.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6938054
+
+ src/pkg/builtin/builtin.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

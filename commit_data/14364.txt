@@ -1,0 +1,12 @@
+commit f668e0a5b3b1f393ecda995c92503da7b4c89e53
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Nov 9 12:09:22 2012 +0900
+
+    net: consolidate multiple init functions
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6819117
+
+ src/pkg/net/fd_unix.go | 3 ---
+ 1 file changed, 3 deletions(-)

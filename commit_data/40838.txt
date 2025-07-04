@@ -1,0 +1,19 @@
+commit 1046a9cb1b348a91e551ed2d1714e0926a1b04b1
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 4 01:05:46 2019 +1100
+
+    cmd/link,cmd/internal/obj/riscv: implement archreloc for riscv64
+    
+    Based on the riscv-go port.
+    
+    Updates #27532
+    
+    Change-Id: I478254306441c253d3a2c09c10932ad1ac0be3c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204625
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/riscv/obj.go    | 27 ++++++++++++++++---
+ src/cmd/link/internal/riscv64/asm.go | 50 ++++++++++++++++++++++++++++++++++--
+ 2 files changed, 72 insertions(+), 5 deletions(-)

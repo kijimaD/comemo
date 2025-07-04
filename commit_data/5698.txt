@@ -1,0 +1,15 @@
+commit f374575fb7f8b9cec4008e2e55e66e1d8500f931
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 21 19:52:30 2010 -0700
+
+    net: move Dial, Listen out of net.go.
+    now net.go is only type definitions, not active code.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1708046
+
+ src/pkg/net/Makefile |   1 +
+ src/pkg/net/dial.go  | 179 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/net.go   | 172 -------------------------------------------------
+ 3 files changed, 180 insertions(+), 172 deletions(-)

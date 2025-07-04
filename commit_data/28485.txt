@@ -1,0 +1,12 @@
+commit 43d9c29abb57e797075d9cc15f6e21362d4be136
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Sep 21 13:04:38 2016 +0900
+
+    doc: add note about CL 29491 to go1.8.txt
+    
+    Change-Id: I808fab97076493a95b0b5eb0ad15645099f54aee
+    Reviewed-on: https://go-review.googlesource.com/29492
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

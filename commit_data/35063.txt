@@ -1,0 +1,16 @@
+commit 4e6fe7138004990ce452053d6c5a4f191a7a6cb2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Apr 16 11:05:47 2018 +0200
+
+    cmd/go: document which vet tests are enabled during go test
+    
+    Update #18085
+    Fixes #24009
+    
+    Change-Id: I655ad76284480002f8d49da269be92ded306128b
+    Reviewed-on: https://go-review.googlesource.com/107077
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/alldocs.go            | 9 ++++++---
+ src/cmd/go/internal/test/test.go | 9 ++++++---
+ 2 files changed, 12 insertions(+), 6 deletions(-)

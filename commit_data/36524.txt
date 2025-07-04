@@ -1,0 +1,16 @@
+commit bfaffb4e23b956caf6b546c49bd1f28c358d9e2d
+Author: Joe Cortopassi <joe@joecortopassi.com>
+Date:   Thu Aug 30 03:20:00 2018 +0000
+
+    doc: add Go 1.11 to release history page
+    
+    Fixes issue #27359
+    
+    Change-Id: I048fbd88a08e8b17fcda3872ee4c78935d5075d8
+    GitHub-Last-Rev: a0751eca094d68e9bf005abeb6616eb5b0050190
+    GitHub-Pull-Request: golang/go#27359
+    Reviewed-on: https://go-review.googlesource.com/132117
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

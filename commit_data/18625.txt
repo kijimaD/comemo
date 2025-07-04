@@ -1,0 +1,25 @@
+commit 14b0af4272aa6c638e97cb3364a81962d69dbfc6
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Feb 24 19:51:59 2014 +0100
+
+    cmd/gc: fix walkcompare bugs.
+    
+    Revision c0e0467635ec (cmd/gc: return canonical Node* from temp)
+    exposed original nodes of temporaries, allowing callers to mutate
+    their types.
+    
+    In walkcompare a temporary could be typed as ideal because of
+    this. Additionnally, assignment of a comparison result to
+    a custom boolean type was broken.
+    
+    Fixes #7366.
+    
+    LGTM=rsc
+    R=rsc, iant, khr
+    CC=golang-codereviews
+    https://golang.org/cl/66930044
+
+ src/cmd/gc/walk.c           | 34 +++++++++++++++++-----------------
+ test/cmp.go                 | 17 +++++++++++++++++
+ test/fixedbugs/issue7366.go | 21 +++++++++++++++++++++
+ 3 files changed, 55 insertions(+), 17 deletions(-)

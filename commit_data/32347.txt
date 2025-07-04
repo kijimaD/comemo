@@ -1,0 +1,26 @@
+commit 59413d34c92cf5ce9b0e70e7105ed73a24849b3e
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Aug 17 15:51:35 2017 +0100
+
+    all: unindent some big chunks of code
+    
+    Found with mvdan.cc/unindent. Prioritized the ones with the biggest wins
+    for now.
+    
+    Change-Id: I2b032e45cdd559fc9ed5b1ee4c4de42c4c92e07b
+    Reviewed-on: https://go-review.googlesource.com/56470
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bytes/bytes.go              | 55 +++++++++++++-------------
+ src/debug/dwarf/type.go         | 75 ++++++++++++++++++------------------
+ src/go/build/build.go           | 35 ++++++++---------
+ src/go/types/call.go            | 67 ++++++++++++++++----------------
+ src/math/expm1.go               | 50 ++++++++++++------------
+ src/runtime/mheap.go            | 51 +++++++++++++------------
+ src/runtime/os_linux.go         | 71 +++++++++++++++++-----------------
+ src/runtime/panic.go            | 57 +++++++++++++--------------
+ src/runtime/stack.go            | 43 +++++++++++----------
+ src/text/tabwriter/tabwriter.go | 85 +++++++++++++++++++++--------------------
+ 10 files changed, 298 insertions(+), 291 deletions(-)

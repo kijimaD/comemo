@@ -1,0 +1,14 @@
+commit 2100f57e0fcb75d67176a217f48a67609c5a12ef
+Author: Jan H. Hosang <jan.hosang@gmail.com>
+Date:   Wed Aug 25 07:41:26 2010 +1000
+
+    time.Parse should not require minutes for time zone
+    Fixes #1026.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/1962048
+
+ src/pkg/time/format.go    | 14 ++++++++++++--
+ src/pkg/time/time_test.go |  1 +
+ 2 files changed, 13 insertions(+), 2 deletions(-)

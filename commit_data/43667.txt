@@ -1,0 +1,34 @@
+commit 063a91c0abef445154df1ba34ffb500eeccfe8bc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 30 12:58:28 2020 -0700
+
+    cmd/compile: fix recognition of unnamed return variables
+    
+    In golang.org/cl/266199, I reused the existing code in inlining that
+    recognizes anonymous variables. However, it turns out that code
+    mistakenly recognizes anonymous return parameters as named when
+    inlining a function from the same package.
+    
+    The issue is funcargs (which is only used for functions parsed from
+    source) synthesizes ~r names for anonymous return parameters, but
+    funcargs2 (which is only used for functions imported from export data)
+    does not.
+    
+    This CL fixes the behavior so that anonymous return parameters are
+    handled identically whether a function is inlined within the same
+    package or across packages. It also adds a proper cross-package test
+    case demonstrating #33160 is fixed in both cases.
+    
+    Change-Id: Iaa39a23f5666979a1f5ca6d09fc8c398e55b784c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266719
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/inl.go             | 2 +-
+ src/cmd/compile/internal/logopt/logopt_test.go | 8 ++++----
+ test/fixedbugs/issue42284.dir/a.go             | 9 ++++++++-
+ test/fixedbugs/issue42284.dir/b.go             | 5 ++++-
+ 4 files changed, 17 insertions(+), 7 deletions(-)

@@ -1,0 +1,22 @@
+commit 00a757fb74c211513771338fe84ef195d3aa9d55
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 28 19:40:40 2013 -0400
+
+    runtime: relax preemption assertion during stack split
+    
+    The case can happen when starttheworld is calling acquirep
+    to get things moving again and acquirep gets preempted.
+    The stack trace is in golang.org/issue/6644.
+    
+    It is difficult to build a short test case for this, but
+    the person who reported issue 6644 confirms that this
+    solves the problem.
+    
+    Fixes #6644.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/18740044
+
+ src/pkg/runtime/stack.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

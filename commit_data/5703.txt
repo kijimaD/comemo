@@ -1,0 +1,14 @@
+commit a8cd6c2012ad76a126f0e030e67e4893bda9563f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 22 16:02:14 2010 -0700
+
+    regexp: bug fix: need to track whether match begins with fixed prefix.
+    Fixes #872.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1731043
+
+ src/pkg/regexp/all_test.go |  3 ++-
+ src/pkg/regexp/regexp.go   | 34 ++++++++++++++++++----------------
+ 2 files changed, 20 insertions(+), 17 deletions(-)

@@ -1,0 +1,24 @@
+commit 430b82009c32e854a209e186f011d47f3241e9b4
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Oct 18 11:47:42 2016 -0400
+
+    cmd/internal/obj/{ppc64,s390x}: mark functions with small stacks NOSPLIT
+    
+    This change omits the stack check on ppc64 and s390x when the size of
+    a stack frame is less than obj.StackSmall. This is an optimization
+    x86 already performs.
+    
+    The effect on s390x isn't huge because we were already omitting the
+    stack check when the frame size was 0 (it shaves about 1K from the
+    size of bin/go). On ppc64 however this change reduces the size of the
+    .text section in bin/go by 33K (1%).
+    
+    Updates #13379 (for ppc64).
+    
+    Change-Id: I6af0eb987646bea47fcaf0a812db3496bab0f680
+    Reviewed-on: https://go-review.googlesource.com/31357
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/obj/ppc64/obj9.go |  8 +++++++-
+ src/cmd/internal/obj/s390x/objz.go | 10 ++++++++--
+ 2 files changed, 15 insertions(+), 3 deletions(-)

@@ -1,0 +1,28 @@
+commit 3df9df8d6a1a140239e4cba0d0595bdab2ba9c60
+Author: hopehook <hopehook@qq.com>
+Date:   Fri Apr 8 17:59:05 2022 +0800
+
+    cmd/compile: fix missing source information in ssa view
+    
+    Endlineno is lost when we call "genericSubst" to create the new
+    instantiation of the generic function. This will cause "readFuncLines"
+    to fail to read the target function.
+    
+    To fix this issue, as @mdempsky pointed out, add the line in
+    cmd/compile/internal/noder/stencil.go:
+        newf.Endlineno = gf.Endlineno
+    
+    Fixes #51988
+    
+    Change-Id: Ib408e4ed0ceb68df8dedda4fb551309e8385aada
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399057
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go |  1 +
+ src/runtime/callers_test.go               | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

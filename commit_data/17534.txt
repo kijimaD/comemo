@@ -1,0 +1,18 @@
+commit 7f062fa2dea2fc9b8b03d051375e7e22156ed8c9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 10 11:00:26 2013 -0700
+
+    cmd/go: build SWIG shared libraries in work directory
+    
+    Remove test of whether SWIG shared library is older than
+    sources--should be covered by test of package file anyhow.
+    
+    Fixes #5739.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/13352046
+
+ src/cmd/go/build.go |  6 ++++--
+ src/cmd/go/pkg.go   | 17 +----------------
+ 2 files changed, 5 insertions(+), 18 deletions(-)

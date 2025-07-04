@@ -1,0 +1,37 @@
+commit 6f5194767ea032853b3f3e4cf008fbeec5c61945
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 16 14:14:21 2024 +0100
+
+    crypto/internal/bigmod: move to crypto/internal/fips/bigmod
+    
+    For #69536
+    
+    Change-Id: Ic096282c521958083d0ba816d62d908f6fcf7dbe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628676
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/ecdsa/ecdsa.go                                   |  2 +-
+ src/crypto/ecdsa/ecdsa_test.go                              |  2 +-
+ src/crypto/internal/{ => fips}/bigmod/_asm/go.mod           |  2 +-
+ src/crypto/internal/{ => fips}/bigmod/_asm/go.sum           |  0
+ src/crypto/internal/{ => fips}/bigmod/_asm/nat_amd64_asm.go |  2 +-
+ src/crypto/internal/{ => fips}/bigmod/nat.go                |  6 +++---
+ src/crypto/internal/{ => fips}/bigmod/nat_386.s             |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_amd64.s           |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_arm.s             |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_arm64.s           |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_asm.go            | 13 +++++++++++--
+ src/crypto/internal/{ => fips}/bigmod/nat_loong64.s         |  2 +-
+ src/crypto/internal/{ => fips}/bigmod/nat_noasm.go          |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_ppc64x.s          |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_riscv64.s         |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_s390x.s           |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_test.go           |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_wasm.go           |  0
+ src/crypto/internal/fipsdeps/cpu/cpu.go                     |  1 +
+ src/crypto/rsa/rsa.go                                       |  2 +-
+ src/go/build/deps_test.go                                   |  2 +-
+ 21 files changed, 22 insertions(+), 12 deletions(-)

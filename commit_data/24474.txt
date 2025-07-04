@@ -1,0 +1,34 @@
+commit 821b54921a3cba5d853b531d4b03527c01bfc9b4
+Author: mpl <mathieu.lonjaret@gmail.com>
+Date:   Sun Oct 4 23:32:26 2015 +0200
+
+    mime/multipart: fix peekBufferSeparatorIndex edge case
+    
+    The case fixed by this change happens when, in func (pr partReader)
+    Read, the Peek happens to read so that peek looks like:
+    
+      "somedata\r\n--Boundary\r"
+    
+    peekBufferSeparatorIndex was returning (-1, false) because it didn't
+    find the trailing '\n'.
+    
+    This was wrong because:
+    
+    1) It didn't match the documentation: as "\r\n--Boundary" was found, it
+    should return the index of that pattern, not -1.
+    
+    2) It lead to an nCopy cut such as:
+      "somedata\r| |\n--Boundary\r" instead of "somedata| |\r\n--Boundary\r"
+    which made the subsequent Read miss the boundary, and eventually end
+    with a "return 0, io.ErrUnexpectedEOF" case, as reported in:
+    
+    https://github.com/camlistore/camlistore/issues/642
+    
+    Change-Id: I1ba78a741bc0c7719e160add9cca932d10f8a615
+    Reviewed-on: https://go-review.googlesource.com/15269
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/multipart/multipart.go      |  2 +-
+ src/mime/multipart/multipart_test.go | 79 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 80 insertions(+), 1 deletion(-)

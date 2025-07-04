@@ -1,0 +1,16 @@
+commit 0816432918ee0e4f1cf06b2a3100935e6293788b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 7 09:52:31 2015 -0500
+
+    math/big: fix misuse of Unicode
+    
+    ˆ (U+02C6) is a circumflex accent, not an exponentiation operator.
+    In the rest of the source code for this package, exponentation is
+    written as **, so do the same here.
+    
+    Change-Id: I107b85be242ab79d152eb8a6fcf3ca2b197d7658
+    Reviewed-on: https://go-review.googlesource.com/17671
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/nat.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

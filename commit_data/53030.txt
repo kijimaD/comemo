@@ -1,0 +1,24 @@
+commit 719e2b6f0991f89702a86d46bead2b23efc82aa7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 17 13:30:22 2023 -0700
+
+    os, runtime: remove unused implementations of os.sigpipe
+    
+    Clean up instances that are unused since CL 6450058.
+    
+    Change-Id: I0e9ae28cfa83fcc8abda8f5eca9c7dfc2c1c4ad1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477396
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+
+ src/os/file_posix.go      | 2 --
+ src/os/file_unix.go       | 2 ++
+ src/runtime/os_plan9.go   | 5 -----
+ src/runtime/os_windows.go | 5 -----
+ 4 files changed, 2 insertions(+), 12 deletions(-)

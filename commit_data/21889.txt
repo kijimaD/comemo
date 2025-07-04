@@ -1,0 +1,52 @@
+commit 9feb24f3ed2bf8625ba3fbb83b8784d715d37b7e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 4 11:34:50 2015 -0500
+
+    runtime: use multiply instead of divide in heapBitsForObject
+    
+    These benchmarks show the effect of the combination of this change
+    and Rick's pending CL 6665. Code with interior pointers is helped
+    much more than code without, but even code without doesn't suffer
+    too badly.
+    
+    benchmark                          old ns/op      new ns/op      delta
+    BenchmarkBinaryTree17              6989407768     6851728175     -1.97%
+    BenchmarkFannkuch11                4416250775     4405762558     -0.24%
+    BenchmarkFmtFprintfEmpty           134            130            -2.99%
+    BenchmarkFmtFprintfString          491            402            -18.13%
+    BenchmarkFmtFprintfInt             430            420            -2.33%
+    BenchmarkFmtFprintfIntInt          748            663            -11.36%
+    BenchmarkFmtFprintfPrefixedInt     602            534            -11.30%
+    BenchmarkFmtFprintfFloat           728            699            -3.98%
+    BenchmarkFmtManyArgs               2528           2507           -0.83%
+    BenchmarkGobDecode                 17448191       17749756       +1.73%
+    BenchmarkGobEncode                 14579824       14370183       -1.44%
+    BenchmarkGzip                      656489990      652669348      -0.58%
+    BenchmarkGunzip                    141254147      141099278      -0.11%
+    BenchmarkHTTPClientServer          94111          93738          -0.40%
+    BenchmarkJSONEncode                36305013       36696440       +1.08%
+    BenchmarkJSONDecode                124652000      128176454      +2.83%
+    BenchmarkMandelbrot200             6009333        5997093        -0.20%
+    BenchmarkGoParse                   7651583        7623494        -0.37%
+    BenchmarkRegexpMatchEasy0_32       213            213            +0.00%
+    BenchmarkRegexpMatchEasy0_1K       511            494            -3.33%
+    BenchmarkRegexpMatchEasy1_32       186            187            +0.54%
+    BenchmarkRegexpMatchEasy1_1K       1834           1827           -0.38%
+    BenchmarkRegexpMatchMedium_32      427            412            -3.51%
+    BenchmarkRegexpMatchMedium_1K      154841         153086         -1.13%
+    BenchmarkRegexpMatchHard_32        7473           7478           +0.07%
+    BenchmarkRegexpMatchHard_1K        233587         232272         -0.56%
+    BenchmarkRevcomp                   918797689      944528032      +2.80%
+    BenchmarkTemplate                  167665081      167773121      +0.06%
+    BenchmarkTimeParse                 631            636            +0.79%
+    BenchmarkTimeFormat                672            666            -0.89%
+    
+    Change-Id: Ia923de3cdb3993b640fe0a02cbe2c7babc16f32c
+    Reviewed-on: https://go-review.googlesource.com/6782
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mbitmap.go | 14 +++++++++++-
+ src/runtime/mheap.go   | 10 +++++++++
+ src/runtime/msize.go   | 59 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 82 insertions(+), 1 deletion(-)

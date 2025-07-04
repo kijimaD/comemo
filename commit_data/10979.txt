@@ -1,0 +1,15 @@
+commit b6122b0a64449da93d1a2d457239ebb00fce6cbc
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 22 14:08:34 2011 -0800
+
+    path: Dir
+    
+    There was Base but not Dir, so fill in the gap.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5504076
+
+ src/pkg/path/path.go      | 18 ++++++++++++++++++
+ src/pkg/path/path_test.go | 39 +++++++++++++++++++++++++++++++--------
+ 2 files changed, 49 insertions(+), 8 deletions(-)

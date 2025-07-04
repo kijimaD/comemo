@@ -1,0 +1,13 @@
+commit 1b3b51f7db4a269960f9239e1e8730b9de012622
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 20 11:02:12 2009 -0700
+
+    more useful error string
+    
+    R=r
+    DELTA=5  (4 added, 0 deleted, 1 changed)
+    OCL=29088
+    CL=29090
+
+ src/lib/go/parser/parser.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

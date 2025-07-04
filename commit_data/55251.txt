@@ -1,0 +1,18 @@
+commit ca804118b1ff4ea6cd0b83808e140671d7e10f6f
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Dec 7 00:59:54 2023 +0100
+
+    doc: document that the Windows hosts file is now respected
+    
+    For #57757.
+    For #61422.
+    
+    Change-Id: Icbe9a86b43eb0816dc5899a1c14b50ee22db1c5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548095
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/go1.22.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

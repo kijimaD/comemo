@@ -1,0 +1,22 @@
+commit 7ad92e95b56019083824492fbec5bb07926d8ebd
+Author: Enrico Candino <enrico.candino@gmail.com>
+Date:   Fri May 26 00:52:57 2023 +0200
+
+    cmd/go: update cover flag documentation
+    
+    Cover flag documentation was not up to date, and the -covermode flag
+    documentation was missing.
+    
+    Fixes #60438
+    
+    Change-Id: I11e769fa2a32d074de7a748aa534afdfe2ca4e78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498415
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/alldocs.go             | 14 +++++++++++---
+ src/cmd/go/internal/work/build.go | 14 +++++++++++---
+ 2 files changed, 22 insertions(+), 6 deletions(-)

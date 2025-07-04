@@ -1,0 +1,16 @@
+commit 8d61334dd5b08c8076e343aa33197bd219cdf922
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 16 10:21:54 2014 -0400
+
+    cmd/gc: say 'non-constant array bound' instead of 'invalid array bound'
+    
+    Fixes #8196.
+    
+    LGTM=adonovan
+    R=adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/141510044
+
+ src/cmd/gc/typecheck.c   |  5 ++++-
+ test/fixedbugs/bug255.go | 19 ++++++++++++-------
+ 2 files changed, 16 insertions(+), 8 deletions(-)

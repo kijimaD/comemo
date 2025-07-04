@@ -1,0 +1,14 @@
+commit 5647e604f7b0ba7cc2e90d7642a2df805a478447
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Jan 30 12:21:51 2010 +1100
+
+    Check gzip strings for NUL elements, since they are NUL-terminated
+    on the wire.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194146
+
+ src/pkg/compress/gzip/gunzip.go | 2 +-
+ src/pkg/compress/gzip/gzip.go   | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

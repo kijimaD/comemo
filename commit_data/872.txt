@@ -1,0 +1,12 @@
+commit 8973e1ffb75db2ee1badb9cde037c4c5314dd31a
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Oct 15 17:15:47 2008 -0700
+
+    basic types/interfaces test
+    
+    R=r
+    OCL=17247
+    CL=17247
+
+ test/ken/interbasic.go | 104 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 104 insertions(+)

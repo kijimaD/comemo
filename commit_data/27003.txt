@@ -1,0 +1,27 @@
+commit b5ddbb90bf1b6aa3881a342bbf7986ba14df3348
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 26 15:52:13 2016 -0800
+
+    spec: refine rules about terminating statements
+    
+    Per a suggestion from mdempsky.
+    
+    Both gc and gccgo consider a statement list as terminating if the
+    last _non_empty_ statement is terminating; i.e., trailing semis are
+    ok. Only gotype followed the current stricter rule in the spec.
+    
+    This change adjusts the spec to match gc and gccgo behavior. In
+    support of this change, the spec has a matching rule for fallthrough,
+    which in valid positions may be followed by trailing semis as well.
+    
+    For details and examples, see the issue below.
+    
+    Fixes #14422.
+    
+    Change-Id: Ie17c282e216fc40ecb54623445c17be111e17ade
+    Reviewed-on: https://go-review.googlesource.com/19981
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

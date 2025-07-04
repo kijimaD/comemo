@@ -1,0 +1,23 @@
+commit 8083467d62b96a3bbfba41155460b2245dbaf656
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 2 17:18:27 2009 -0700
+
+    - renamed format -> datafmt
+    - factored out datafmt-specifics from pretty to ast
+    
+    R=rsc
+    DELTA=3580  (1810 added, 1763 deleted, 7 changed)
+    OCL=29770
+    CL=29774
+
+ src/lib/Make.deps                                  |   4 +-
+ src/lib/Makefile                                   |   4 +-
+ src/lib/{format => datafmt}/Makefile               |  16 +--
+ src/lib/{format/format.go => datafmt/datafmt.go}   |   4 +-
+ .../format_test.go => datafmt/datafmt_test.go}     |  49 ++++----
+ src/lib/{format => datafmt}/parser.go              |   4 +-
+ src/lib/go/ast/Makefile                            |  10 +-
+ src/lib/go/ast/format.go                           | 123 +++++++++++++++++++++
+ usr/gri/pretty/pretty.go                           | 112 +++----------------
+ usr/gri/pretty/test.sh                             |   2 +-
+ 10 files changed, 188 insertions(+), 140 deletions(-)

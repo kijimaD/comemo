@@ -1,0 +1,22 @@
+commit f2bc275525807e1c83f524325d03cd6e7e18fe7d
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Fri Aug 9 15:46:01 2013 +1000
+
+    encoding/csv: always allow trailing commas
+    
+    Original CL by rsc (11916045):
+    
+    The motivation for disallowing them was RFC 4180 saying
+    "The last field in the record must not be followed by a comma."
+    I believe this is an admonition to CSV generators, not readers.
+    When reading, anything followed by a comma is not the last field.
+    
+    Fixes #5892.
+    
+    R=golang-dev, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/12294043
+
+ src/pkg/encoding/csv/reader.go      | 58 +++++++++----------------------------
+ src/pkg/encoding/csv/reader_test.go | 33 +++++++++++----------
+ 2 files changed, 32 insertions(+), 59 deletions(-)

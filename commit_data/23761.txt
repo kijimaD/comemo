@@ -1,0 +1,15 @@
+commit 7ebcf5eac7047b1eef2443eda1786672b5c70f51
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 13 10:55:49 2015 +1000
+
+    syscall: warn not to use FormatMessage
+    
+    Fixes #11147
+    
+    Change-Id: Ib31160946a53f6f9b11daea211ff04d186b51b3f
+    Reviewed-on: https://go-review.googlesource.com/12067
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_windows.go  | 14 +++++++++++---
+ src/syscall/zsyscall_windows.go |  2 +-
+ 2 files changed, 12 insertions(+), 4 deletions(-)

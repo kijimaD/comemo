@@ -1,0 +1,23 @@
+commit d62c6c3c39ddc59e3003304f98661598b5fd80de
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 4 11:43:41 2017 -0700
+
+    cmd/compile: suppress duplicate type errors
+    
+    If we've already complained about a type T,
+    don't complain again about further expressions
+    involving it.
+    
+    Fixes #20245 and hopefully all of its ilk.
+    
+    Change-Id: Ic0abe8235d52e8a7ac40e3615aea8f3a54fd7cec
+    Reviewed-on: https://go-review.googlesource.com/42690
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go |  4 +++-
+ test/fixedbugs/issue11614.go             |  2 +-
+ test/fixedbugs/issue20233.go             |  2 +-
+ test/fixedbugs/issue20245.go             | 11 +++++++++++
+ 4 files changed, 16 insertions(+), 3 deletions(-)

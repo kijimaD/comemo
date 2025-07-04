@@ -1,0 +1,13 @@
+commit 98891386146413e902bef41a7feb7595b86e4c1d
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Fri Mar 22 15:30:30 2019 +0300
+
+    sort: replace Errorf+FailNow with Fatalf
+    
+    Change-Id: I4f8d0178e780b86d1f551b367e2ddac3789be5aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168880
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/sort/sort_test.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

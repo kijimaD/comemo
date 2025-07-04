@@ -1,0 +1,12 @@
+commit 86a91539b8acd322800b10db3d64ce42d43dfcde
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue May 1 14:28:33 2012 +1000
+
+    compress/flate: add a copy overrun test.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/6143043
+
+ src/pkg/compress/flate/copy_test.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

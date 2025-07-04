@@ -1,0 +1,31 @@
+commit 515fa58ac967c88376a56e0c5b76e86ce1658150
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 22 17:24:19 2018 -0800
+
+    cmd/compile: track line directives w/ column information
+    
+    Extend cmd/internal/src.PosBase to track column information,
+    and adjust the meaning of the PosBase position to mean the
+    position at which the PosBase's relative (line, col) position
+    starts (rather than indicating the position of the //line
+    directive). Because this semantic change is made in the
+    compiler's noder, it doesn't affect the logic of src.PosBase,
+    only its test setup (where PosBases are constructed with
+    corrected incomming positions). In short, src.PosBase now
+    matches syntax.PosBase with respect to the semantics of
+    src.PosBase.pos.
+    
+    For #22662.
+    
+    Change-Id: I5b1451cb88fff3f149920c2eec08b6167955ce27
+    Reviewed-on: https://go-review.googlesource.com/96535
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/asm/internal/lex/input.go    |  4 +--
+ src/cmd/compile/internal/gc/noder.go | 13 ++-------
+ src/cmd/internal/obj/line_test.go    |  2 +-
+ src/cmd/internal/src/pos.go          | 45 +++++++++++++++++++++++--------
+ src/cmd/internal/src/pos_test.go     | 51 ++++++++++++++++++++++--------------
+ src/cmd/internal/src/xpos_test.go    |  2 +-
+ test/fixedbugs/issue22662.go         | 46 ++++++++++++++++++++++++++++++++
+ 7 files changed, 117 insertions(+), 46 deletions(-)

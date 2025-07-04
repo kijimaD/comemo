@@ -1,0 +1,19 @@
+commit 46ba32a2ca304b0b73979736d6fb8013529e9172
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 14 12:17:53 2021 -0500
+
+    doc/go1.18: remove residual TODOs
+    
+    There doesn't seem anything that still needs to de done there.
+    
+    Updates #47694.
+    
+    Change-Id: I7909f566638332f3904d20a34f61d371af1d2da2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371754
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+
+ doc/go1.18.html | 10 ----------
+ 1 file changed, 10 deletions(-)

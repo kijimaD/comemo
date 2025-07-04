@@ -1,0 +1,17 @@
+commit a432568300e1432c3a49d80b48900411589a816d
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Mar 16 16:45:29 2015 -0700
+
+    crypto/tls: panic with unknown hash functions.
+    
+    Just so that we notice in the future if another hash function is added
+    without updating this utility function, make it panic when passed an
+    unknown handshake hash function. (Which should never happen.)
+    
+    Change-Id: I60a6fc01669441523d8c44e8fbe7ed435e7f04c8
+    Reviewed-on: https://go-review.googlesource.com/7646
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Joël Stemmer <stemmertech@gmail.com>
+
+ src/crypto/tls/prf.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

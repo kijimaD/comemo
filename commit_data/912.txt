@@ -1,0 +1,13 @@
+commit 46d3497a044eaf7beb440e8f10bf1aabf2b18791
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 20 15:08:53 2008 -0700
+
+    run.bash: do not make test in gosrc
+    
+    R=gri
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=17476
+    CL=17499
+
+ src/run.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

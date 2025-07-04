@@ -1,0 +1,17 @@
+commit 9f3c2b6d16bd00f77d8c92801425809d4d767baa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 22 13:30:47 2019 -0500
+
+    cmd/go/internal/work: reduce code duplication in buildModeInit by using sys.BuildModeSupported
+    
+    Updates #34347
+    
+    Change-Id: I6ea02d4737999bf24f5335508b5ed2352b498122
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208458
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/work/init.go  | 92 +++++++++++++++------------------------
+ src/cmd/internal/sys/supported.go |  5 ---
+ 2 files changed, 36 insertions(+), 61 deletions(-)

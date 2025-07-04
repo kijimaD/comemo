@@ -1,0 +1,20 @@
+commit 86536b934a6a5d074f1539b3103d7bc86a97e869
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu May 5 18:38:02 2022 -0400
+
+    go/types,cmd/compile/internal/types2: fix TestStdlib
+    
+    CL 402556 moved a special-cased package and broke the longtests.
+    
+    Change-Id: I10b48e0912c1cee0eabc342ed1c1704ed79946bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404474
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Auto-Submit: Filippo Valsorda <valsorda@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/stdlib_test.go | 2 +-
+ src/go/types/stdlib_test.go                    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

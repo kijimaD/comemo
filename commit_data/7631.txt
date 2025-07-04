@@ -1,0 +1,37 @@
+commit c91daefb2489febd6fc738554d1539fb151404d6
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 4 12:25:18 2011 -0800
+
+    gob: beginning of support for GobEncoder/GobDecoder interfaces.
+    
+    This allows a data item that can marshal itself to be transmitted by its
+    own encoding, enabling some types to be handled that cannot be
+    normally, plus providing a way to use gobs on data with unexported
+    fields.
+    
+    In this CL, the necessary methods are protected by leading _, so only
+    package gob can use the facilities (in its tests, of course); this
+    code is not ready for real use yet.  I could be talked into enabling
+    it for experimentation, though.  The main drawback is that the
+    methods must be implemented by the actual type passed through,
+    not by an indirection from it.  For instance, if *T implements
+    GobEncoder, you must send a *T, not a T.  This will be addressed
+    in due course.
+    
+    Also there is improved commentary and a couple of unrelated
+    minor bug fixes.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4243056
+
+ src/pkg/gob/codec_test.go     |   4 +-
+ src/pkg/gob/debug.go          |  35 ++++-
+ src/pkg/gob/decode.go         | 301 ++++++++++++++++++++++++++++----------
+ src/pkg/gob/decoder.go        |   2 +-
+ src/pkg/gob/encode.go         | 134 ++++++++++++++---
+ src/pkg/gob/encoder.go        | 107 ++++++++------
+ src/pkg/gob/gobencdec_test.go | 331 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/gob/type.go           | 195 +++++++++++++++++++++----
+ src/pkg/gob/type_test.go      |   2 +-
+ 9 files changed, 936 insertions(+), 175 deletions(-)

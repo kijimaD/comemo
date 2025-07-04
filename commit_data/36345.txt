@@ -1,0 +1,19 @@
+commit 89d533e368395a5ba3157d9a89d346dd7b50ba51
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Wed Jul 11 23:45:57 2018 +0300
+
+    archive/tar: remore redundant parens in type expressions
+    
+    Simplify `(T)` expressions to  `T` where possible.
+    
+    Found using https://go-critic.github.io/overview.html#typeUnparen-ref
+    
+    Change-Id: Ic5ef335e03898f9fea1ff90fd83956376657fe67
+    Reviewed-on: https://go-review.googlesource.com/123379
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/archive/tar/format.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

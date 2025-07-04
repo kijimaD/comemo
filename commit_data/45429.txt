@@ -1,0 +1,28 @@
+commit 657f58d845e83c47c7d4b7638ccbee8e5a2acbf5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 27 10:57:09 2021 -0400
+
+    cmd/link: support trampoline insertion for PLT calls on ARM64
+    
+    When internal linking with C objects, some C object relocations
+    may be turned into a CALL via PLT. For very large programs, the
+    PLT stub may be laid too far.
+    
+    PLT stubs are generated late in the linker, and laid out after
+    the end of the text section. So if the text section is big, the
+    PLT stubs are likely too far.
+    
+    To avoid this situation, add trampolines for PLT calls in the
+    trampoline pass. Only do this when the program is known too large
+    (i.e. the second pass of the two-pass algorithm).
+    
+    Updates #40492.
+    
+    Change-Id: I21f65d6cbc6bde84e3cf9c2ae05f5233df6cfa72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314452
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/arm64/asm.go | 10 +++++++++-
+ src/cmd/link/internal/ld/data.go   | 26 +++++++++++++++++++++++---
+ 2 files changed, 32 insertions(+), 4 deletions(-)

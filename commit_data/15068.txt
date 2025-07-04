@@ -1,0 +1,12 @@
+commit 31fafa5081fd34e8d8f595607cf43a96dbce1c5e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 31 14:42:56 2013 -0800
+
+    encoding/base64: fix test for ReadFull change
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7249045
+
+ src/pkg/encoding/base64/base64_test.go | 1 +
+ 1 file changed, 1 insertion(+)

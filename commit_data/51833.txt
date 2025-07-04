@@ -1,0 +1,25 @@
+commit 4c5d97990e4a39bd3e903f8e318b7234db3ba91f
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri Jan 27 22:50:54 2023 -0800
+
+    net/http: disable fetch on NodeJS
+    
+    NodeJS 18 introduced support for the fetch API for
+    making HTTP requests. This broke all wasm tests
+    that were relying on NodeJS falling back to the fake
+    network implementation in net_fake.go. Disable
+    the fetch API on NodeJS to get tests passing.
+    
+    Fixes #57613
+    
+    Change-Id: Icb2cce6d5289d812da798e07366f8ac26b5f82cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463976
+    Reviewed-by: Evan Phoenix <evan@phx.io>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/net/http/roundtrip_js.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit b04c890a89e00f52c11ccccf4c76db389ef57d16
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed Aug 15 16:53:06 2012 -0700
+
+    cmd/gc: Don't claim type assertion would help when it wont.
+    
+    Fixes #3465.
+    
+    R=golang-dev, rsc, remyoudompheng, iant
+    CC=golang-dev
+    https://golang.org/cl/6448097
+
+ src/cmd/gc/subr.c          | 2 +-
+ test/interface/explicit.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 92a9ddf0faca359e32b80a647b722ab47e711b23
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 18:27:26 2009 -0800
+
+    net: fix error for connect to /etc/ on some systems
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/152051
+
+ src/pkg/net/net_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

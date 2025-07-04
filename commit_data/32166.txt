@@ -1,0 +1,24 @@
+commit d7ec89c19846d8c1d89d510cd7634ae9de640ac0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 10 12:58:10 2017 +0200
+
+    test: add missing escape analysis test
+    
+    https://golang.org/cl/37508 added an escape analysis test for #12397 to
+    escape2.go but missed to add it to escape2n.go. The comment at the top
+    of the former states that the latter should contain all the same tests
+    and the tests only differ in using -N to compile. Conform to this by
+    adding the function issue12397 to escape2n.go as well.
+    
+    Also fix a whitespace difference in escape2.go, so the two files match
+    exactly (except for the comment at the top).
+    
+    Change-Id: I3a09cf95169bf2150a25d6b4ec9e147265d36760
+    Reviewed-on: https://go-review.googlesource.com/54610
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+
+ test/escape2.go  |  2 +-
+ test/escape2n.go | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

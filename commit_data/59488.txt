@@ -1,0 +1,27 @@
+commit 9bba799955e68972041c4f340ee4ea2d267e5c0e
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue May 6 09:27:10 2025 -0700
+
+    crypto/x509: decouple key usage and policy validation
+    
+    Disabling key usage validation (by passing ExtKeyUsageAny)
+    unintentionally disabled policy validation. This change decouples these
+    two checks, preventing the user from unintentionally disabling policy
+    validation.
+    
+    Thanks to Krzysztof Skrzętnicki (@Tener) of Teleport for reporting this
+    issue.
+    
+    Fixes #73612
+    Fixes CVE-2025-22874
+    
+    Change-Id: Iec8f080a8879a3dd44cb3da30352fa3e7f539d40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670375
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Stapleton Cordasco <graffatcolmingov@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/x509/verify.go      | 32 +++++++++++++++++++++++---------
+ src/crypto/x509/verify_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 9 deletions(-)

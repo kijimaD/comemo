@@ -1,0 +1,15 @@
+commit 3a9024b498214b12304c22cdbb7a07c26c7a787e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 1 22:46:12 2015 +0900
+
+    net: move init function into net.go
+    
+    It's a single, package-wide init function specified for the net package.
+    
+    Change-Id: Id5894d65e1a92297cc16803cc5e4d4eef0b4b099
+    Reviewed-on: https://go-review.googlesource.com/8391
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/ipsock.go | 6 ------
+ src/net/net.go    | 6 ++++++
+ 2 files changed, 6 insertions(+), 6 deletions(-)

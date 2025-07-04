@@ -1,0 +1,28 @@
+commit 26f0a7af456b3743e718002534576c6ef1ad99a3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 13 15:07:07 2017 -0700
+
+    internal/poll: don't wait for unpollable files
+    
+    If we get an EAGAIN error on an unpollable file, don't try to wait for
+    it to be ready; just return EAGAIN.
+    
+    It's possible that we should instead ensure that when Stdin is a pipe
+    in non-blocking mode, we wait for data to appear. For now take the
+    conservative approach of doing what we did in previous releases.
+    
+    Based on https://golang.org/cl/47555 by Totoro W.
+    
+    Fixes #20915
+    
+    Change-Id: Icc9e97a5a877b0a3583ec056c35412d1afab62d1
+    Reviewed-on: https://go-review.googlesource.com/48490
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/poll/fd_poll_nacl.go    |  2 ++
+ src/internal/poll/fd_poll_runtime.go |  4 ++++
+ src/internal/poll/fd_unix.go         | 20 +++++++++++---------
+ src/os/pipe_test.go                  | 34 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 51 insertions(+), 9 deletions(-)

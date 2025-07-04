@@ -1,0 +1,12 @@
+commit ce54a0c10a39e6735a44b50a9ccd58968700288b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:52:11 2017 +1000
+
+    cmd/link: introduce and use peFile.writeOptionalHeader
+    
+    Change-Id: I27b33f2425281bc1790528ae514d99a468ad7fce
+    Reviewed-on: https://go-review.googlesource.com/59429
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 305 +++++++++++++++++------------------------
+ 1 file changed, 124 insertions(+), 181 deletions(-)

@@ -1,0 +1,16 @@
+commit f3dd6df6b1772134da51fac6067f6b0aefdd6b03
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 6 18:36:48 2014 +0400
+
+    runtime: simplify code
+    Full spans can't be passed to UncacheSpan since we get rid of free.
+    
+    LGTM=rsc
+    R=golang-codereviews
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/119490044
+
+ src/pkg/runtime/malloc.h   |  1 -
+ src/pkg/runtime/mcache.c   |  2 +-
+ src/pkg/runtime/mcentral.c | 51 ++++++++++++----------------------------------
+ 3 files changed, 14 insertions(+), 40 deletions(-)

@@ -1,0 +1,15 @@
+commit 75dd8fdb34126f0964f4276bf70858e2a1335efe
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 24 11:55:30 2010 -0400
+
+    gc: ... changes
+    
+    R=ken2, ken3
+    CC=golang-dev
+    https://golang.org/cl/2208047
+
+ src/cmd/gc/go.y        | 20 +++++++------
+ src/cmd/gc/subr.c      | 10 +++++--
+ src/cmd/gc/typecheck.c | 77 +++++++++++++++++++++++++++++++++-----------------
+ test/ddd1.go           | 19 +++++++++++++
+ 4 files changed, 90 insertions(+), 36 deletions(-)

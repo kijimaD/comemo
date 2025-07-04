@@ -1,0 +1,15 @@
+commit 4ac011a0114a10040ac1d5c97493410c8432bf6d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 8 15:44:18 2010 -0800
+
+    gc: simplify complex typecheck
+    do not convert to float prematurely.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/311041
+
+ src/cmd/gc/const.c     |  3 +++
+ src/cmd/gc/print.c     | 20 ++++++++++++++++++++
+ src/cmd/gc/typecheck.c | 45 ++++++++++++++-------------------------------
+ 3 files changed, 37 insertions(+), 31 deletions(-)

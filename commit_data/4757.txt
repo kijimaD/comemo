@@ -1,0 +1,18 @@
+commit 60f27f0d6bd3f2dad0e63e0f630777507884b64e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 1 16:35:23 2010 -0800
+
+    Match gccgo error messages.
+    
+    import1.go:12:8: error: redefinition of ‘bufio’
+    import1.go:11:8: note: previous definition of ‘bufio’ was here
+    import1.go:16:2: error: redefinition of ‘fmt’
+    import1.go:15:2: note: previous definition of ‘fmt’ was here
+    import1.go:11:8: error: imported and not used: bufio
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194165
+
+ test/import1.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

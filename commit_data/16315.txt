@@ -1,0 +1,21 @@
+commit ee66972dce0afc5a0cf86be17d6e79cab418f701
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 15 09:40:14 2013 -0700
+
+    runtime: Optimize aeshash a bit.  Use a better predicted branch
+    for checking for page boundary.  Also avoid boundary check
+    when >=16 bytes are hashed.
+    
+    benchmark                        old ns/op    new ns/op    delta
+    BenchmarkHashStringSpeed                23           22   -0.43%
+    BenchmarkHashBytesSpeed                 44           42   -3.61%
+    BenchmarkHashStringArraySpeed           71           68   -4.05%
+    
+    R=iant, khr
+    CC=gobot, golang-dev, google
+    https://golang.org/cl/9123046
+
+ src/pkg/runtime/asm_386.s        | 24 ++++++++++++++++--------
+ src/pkg/runtime/asm_amd64.s      | 24 ++++++++++++++++--------
+ src/pkg/runtime/mapspeed_test.go | 27 +++++++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 16 deletions(-)

@@ -1,0 +1,41 @@
+commit 770e0e584a98dfd5e8d0d00558085c339fda0ed7
+Author: Kévin Dunglas <kevin@dunglas.fr>
+Date:   Tue May 17 16:05:20 2022 +0000
+
+    net/http: allow sending 1xx responses
+    
+    Currently, it's not possible to send informational responses such as
+    103 Early Hints or 102 Processing.
+    
+    This patch allows calling WriteHeader() multiple times in order
+    to send informational responses before the final one.
+    
+    If the status code is in the 1xx range, the current content of the header map
+    is also sent. Its content is not removed after the call to WriteHeader()
+    because the headers must also be included in the final response.
+    
+    The Chrome and Fastly teams are starting a large-scale experiment to measure
+    the real-life impact of the 103 status code.
+    Using Early Hints is proposed as a (partial) alternative to Server Push,
+    which are going to be removed from Chrome:
+    https://groups.google.com/a/chromium.org/g/blink-dev/c/K3rYLvmQUBY/m/21anpFhxAQAJ
+    
+    Being able to send this status code from servers implemented using Go would
+    help to see if implementing it in browsers is worth it.
+    
+    Fixes #26089
+    Fixes #36734
+    Updates #26088
+    
+    Change-Id: Ib7023c1892c35e8915d4305dd7f6373dbd00a19d
+    GitHub-Last-Rev: 06d749d3454aa35c177a50ce4a25715df21fd742
+    GitHub-Pull-Request: golang/go#42597
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269997
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/http/clientserver_test.go | 95 +++++++++++++++++++++++++++++++++++++++
+ src/net/http/serve_test.go        | 34 +++++++++++++-
+ src/net/http/server.go            | 44 +++++++++++++-----
+ src/net/http/transfer.go          |  1 +
+ 4 files changed, 163 insertions(+), 11 deletions(-)

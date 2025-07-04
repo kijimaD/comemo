@@ -1,0 +1,27 @@
+commit 5e3224ce79f9f200940fb7e605d96c5b1499e64f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 5 09:35:53 2012 -0400
+
+    reflect: faster FieldByName, FieldByNameFunc
+    
+    The old code was a depth first graph traversal that could, under the
+    right conditions, end up re-exploring the same subgraphs multiple
+    times, once for each way to arrive at that subgraph at a given depth.
+    
+    The new code uses a breadth first search to make sure that it only
+    visits each reachable embedded struct once.
+    
+    Also add fast path for the trivial case.
+    
+    benchmark                old ns/op    new ns/op    delta
+    BenchmarkFieldByName1         1321          187  -85.84%
+    BenchmarkFieldByName2         6118         5186  -15.23%
+    BenchmarkFieldByName3      8218553        42112  -99.49%
+    
+    R=gri, r
+    CC=golang-dev
+    https://golang.org/cl/6458090
+
+ src/pkg/reflect/all_test.go | 155 +++++++++++++++++++++++++++++++++++-
+ src/pkg/reflect/type.go     | 190 +++++++++++++++++++++++++++-----------------
+ 2 files changed, 271 insertions(+), 74 deletions(-)

@@ -1,0 +1,18 @@
+commit 281ae9288133a8880d910b96a1c0c96585ae3974
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Jan 2 16:30:08 2015 -0500
+
+    liblink: fix encoding of SETcc for amd64
+    
+    liblink used to encode both SETEQ BP and SETEQ CH as 0f 94 c5,
+    however, SETEQ BP should have used a REX prefix.
+    
+    Fixes #8545.
+    
+    Change-Id: Ie59c990cdd0ec506cffe4318e9ad1b48db5e57dd
+    Reviewed-on: https://go-review.googlesource.com/2270
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/liblink/asm6.c | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)

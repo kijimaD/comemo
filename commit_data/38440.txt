@@ -1,0 +1,16 @@
+commit 7765576e09cdc04f57afe0bc71f100c234b104d2
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Mar 16 09:47:17 2019 +1100
+
+    cmd/go: skip broken TestScript/build_acl_windows on arm
+    
+    Updates #30711
+    
+    Change-Id: I280f7effaf488d5d9908d9d0cd1e0e99c22f91ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167778
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/build_acl_windows.txt | 1 +
+ 1 file changed, 1 insertion(+)

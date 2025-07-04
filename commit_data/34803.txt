@@ -1,0 +1,16 @@
+commit 096d96779aca3baaa14644f64313abf03ff3d49f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 22 12:49:48 2018 -0700
+
+    cmd/compile: cleanup Order.cleanTempNoPop slightly
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ia769e719e89e508201711775ea3e2cb3979387fa
+    Reviewed-on: https://go-review.googlesource.com/102215
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/gc/order.go | 35 +++++++++++++++--------------------
+ 1 file changed, 15 insertions(+), 20 deletions(-)

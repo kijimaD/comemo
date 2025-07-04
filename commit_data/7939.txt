@@ -1,0 +1,15 @@
+commit b66b22cdd4b4ea8c961746b17360921c8cc83b59
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 30 22:12:30 2011 -0400
+
+    fmt: remove uintptrGetter type checks
+    
+    This will make the fmt code easier to gofix
+    when the new reflect interface is ready.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4324043
+
+ src/pkg/fmt/print.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

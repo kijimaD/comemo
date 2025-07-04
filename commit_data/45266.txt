@@ -1,0 +1,20 @@
+commit b8a359d984b9b16a405fa66011078a477c6e2da4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 21 09:04:00 2021 -0700
+
+    cmd/compile/internal/types2: fix incorrect result type of Checker.index
+    
+    While at it, add missing "invalid argument: " prefix
+    to a couple of local error messages, for consistency.
+    
+    For #45667.
+    
+    Change-Id: I814800b2f3f3750583e335c98a3f8e27030a9daa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312309
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/index.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

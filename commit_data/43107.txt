@@ -1,0 +1,20 @@
+commit 8266570ba71fd6af9c07d8fac945b3710010dfc7
+Author: Carlos Alexandro Becker <caarlos0@gmail.com>
+Date:   Sun Sep 13 14:40:51 2020 +0000
+
+    encoding/json: added docs to UnsupportedValueError
+    
+    Added godoc to UnsupportedValueError.
+    
+    Change-Id: I5fc13bac0b6e14b3a6eba27c9d3331ff5c5269aa
+    GitHub-Last-Rev: 516cd7a92903e1048caa4d560abf5d66339e5a8f
+    GitHub-Pull-Request: golang/go#41364
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254540
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/encoding/json/encode.go | 2 ++
+ 1 file changed, 2 insertions(+)

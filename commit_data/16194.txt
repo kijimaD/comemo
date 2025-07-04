@@ -1,0 +1,18 @@
+commit de2fcae372bd4b06b684380ea6b55100683e433a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 18 16:42:56 2013 +1000
+
+    misc/dashboard/builder: always do a native build
+    
+    https://golang.org/cl/8134043 disabled cgo when cross compiling, this means builders which compile for both amd64 and 386 will be compiling the latter with cgo disabled.
+    
+    This proposal modifies the builder to mirror the dist tool by always doing a native build.
+    
+    Tested on my darwin/amd64 builder and confirmed the result when building darwin/386 is a native 386 build with cgo enabled.
+    
+    R=bradfitz, dsymonds, r, adg
+    CC=golang-dev
+    https://golang.org/cl/8842044
+
+ misc/dashboard/builder/main.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

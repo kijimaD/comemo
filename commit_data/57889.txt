@@ -1,0 +1,72 @@
+commit 671f2841cb5ec2b96c9be44f4c59f3b9d50735c8
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Nov 1 11:57:48 2024 -0400
+
+    all: update golang.org/x/sys [generated]
+    
+    A part of the keeping Go's vendored dependencies and generated code
+    up to date.
+    
+    For #36905.
+    
+    [git-generate]
+    cd src
+    go get golang.org/x/sys@v0.26.1-0.20241105152852-e0753d469443
+    go mod tidy
+    go mod vendor
+    cd cmd
+    go get golang.org/x/sys@v0.26.1-0.20241105152852-e0753d469443
+    go mod tidy
+    go mod vendor
+    go generate syscall internal/syscall/...
+    
+    Change-Id: Ia84505f8934399f7c4518c6218892b81d30e5c17
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623821
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../vendor/golang.org/x/sys/unix/ioctl_linux.go    |  96 ++++++++++++++++
+ src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |  12 ++
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  |   1 +
+ .../golang.org/x/sys/unix/syscall_zos_s390x.go     | 104 ++++++++++++++++-
+ .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |  22 ++++
+ .../golang.org/x/sys/unix/zerrors_linux_386.go     |  14 +++
+ .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |  14 +++
+ .../golang.org/x/sys/unix/zerrors_linux_arm.go     |  14 +++
+ .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |  14 +++
+ .../golang.org/x/sys/unix/zerrors_linux_loong64.go |  14 +++
+ .../golang.org/x/sys/unix/zerrors_linux_mips.go    |  14 +++
+ .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |  14 +++
+ .../x/sys/unix/zerrors_linux_mips64le.go           |  14 +++
+ .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |  14 +++
+ .../golang.org/x/sys/unix/zerrors_linux_ppc.go     |  14 +++
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |  14 +++
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |  14 +++
+ .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |  14 +++
+ .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |  14 +++
+ .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |  14 +++
+ .../vendor/golang.org/x/sys/unix/zsyscall_linux.go |  10 ++
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   | 120 +++++++++++++++++++-
+ .../golang.org/x/sys/unix/ztypes_zos_s390x.go      |   6 +
+ .../golang.org/x/sys/windows/syscall_windows.go    |  34 +++---
+ .../golang.org/x/sys/windows/types_windows.go      | 126 +++++++++++++++++++++
+ .../golang.org/x/sys/windows/zsyscall_windows.go   |  53 +++++++++
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/go.mod                                         |   2 +-
+ src/go.sum                                         |   4 +-
+ .../golang.org/x/sys/cpu/asm_darwin_x86_gc.s       |  17 +++
+ src/vendor/golang.org/x/sys/cpu/cpu_darwin_x86.go  |  61 ++++++++++
+ src/vendor/golang.org/x/sys/cpu/cpu_gc_x86.go      |   4 +-
+ .../x/sys/cpu/{cpu_x86.s => cpu_gc_x86.s}          |   2 +-
+ src/vendor/golang.org/x/sys/cpu/cpu_gccgo_x86.go   |   6 -
+ src/vendor/golang.org/x/sys/cpu/cpu_linux_arm64.go |   1 -
+ src/vendor/golang.org/x/sys/cpu/cpu_other_x86.go   |  11 ++
+ src/vendor/golang.org/x/sys/cpu/cpu_x86.go         |   6 +-
+ .../golang.org/x/sys/cpu/syscall_darwin_x86_gc.go  |  98 ++++++++++++++++
+ src/vendor/modules.txt                             |   2 +-
+ 41 files changed, 967 insertions(+), 49 deletions(-)

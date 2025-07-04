@@ -1,0 +1,14 @@
+commit 9acd2d60e76649663a1e64b1ad00d2173c68c5fe
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 26 15:25:16 2019 -0400
+
+    misc/cgo/errors: fix TestPointerChecks when GO111MODULE=on
+    
+    Change-Id: I4e9e46f03c9c43df1d0c6995f3baedd2e1a04c6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183985
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ misc/cgo/errors/ptr_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

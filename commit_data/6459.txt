@@ -1,0 +1,15 @@
+commit 01385b400dc2f48de52dad51e3872c1258a59e40
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 6 11:12:30 2010 -0400
+
+    gc: ... bug
+    
+    Fixes #1165.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2339042
+
+ src/cmd/gc/walk.c | 18 +++++++++---------
+ test/ddd.go       | 20 ++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 9 deletions(-)

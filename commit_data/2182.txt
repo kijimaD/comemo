@@ -1,0 +1,15 @@
+commit 20850fc014c27a9df4f4201844c0136725202800
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 8 16:24:55 2009 -0700
+
+    Package unsafe is undocumented.  By installing (but not compiling) this file,
+    which contains only declarations, we can have godoc present documentation
+    for the package.
+    
+    R=gri,rsc
+    DELTA=44  (43 added, 0 deleted, 1 changed)
+    OCL=28555
+    CL=28588
+
+ src/lib/unsafe/unsafe.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

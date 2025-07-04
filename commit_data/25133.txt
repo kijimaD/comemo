@@ -1,0 +1,14 @@
+commit d5e8f4dbb8b8c7ae4892ada9a3d1780f4f891c26
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 3 18:47:37 2015 +0000
+
+    doc: remove shallow clone mention from go1.6.txt
+    
+    It was reverted.
+    
+    Change-Id: Ie30d8df9f2e5b14ff823fe81f5e538ee47064662
+    Reviewed-on: https://go-review.googlesource.com/17317
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.6.txt | 1 -
+ 1 file changed, 1 deletion(-)

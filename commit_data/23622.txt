@@ -1,0 +1,23 @@
+commit 315e5c99d868bffad5ac75871e486d6f3a625f23
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 6 15:52:33 2015 +1000
+
+    debug/pe: truncate pe sections to their size in memory
+    
+    Section.Data returns disk section data, but those are rounded up to
+    some predefined value. Processing these as is confuses dwarf parser
+    because of garbage at the end. Truncate Section.Data as per memory
+    section description.
+    
+    Sometimes dwarf sections have memory section size of 0
+    (for pe object files). Keep those to their disk size.
+    
+    Fixes #11608
+    
+    Change-Id: I8de0a2271201a24aa9ac8dac44f1e9c8a9285183
+    Reviewed-on: https://go-review.googlesource.com/11950
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/pe/file.go      |   3 ++
+ src/debug/pe/file_test.go | 116 ++++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 94 insertions(+), 25 deletions(-)

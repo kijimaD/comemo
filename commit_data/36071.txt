@@ -1,0 +1,15 @@
+commit f3582de3a0d4d9fb14763494cc4def548042274f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Jul 19 11:06:56 2018 +0100
+
+    doc: remove paragraph about text/template/parse
+    
+    The backwards incompatible changes were undone in CL 120355, while still
+    preserving the additions needed for assignments in templates to work.
+    
+    Change-Id: Ie76a798916ef36509c88e171a04bb2cf2a3d7e8e
+    Reviewed-on: https://go-review.googlesource.com/124917
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.11.html | 6 ------
+ 1 file changed, 6 deletions(-)

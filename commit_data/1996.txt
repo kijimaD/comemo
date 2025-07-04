@@ -1,0 +1,12 @@
+commit 907509de4a9590a2bb13274e2a8a2d070ffee57e
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Apr 12 22:34:36 2009 -0700
+
+    tweak
+    
+    R=r
+    OCL=27344
+    CL=27344
+
+ src/runtime/string.c | 29 +++++++++++++----------------
+ 1 file changed, 13 insertions(+), 16 deletions(-)

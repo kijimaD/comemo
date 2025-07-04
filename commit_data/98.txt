@@ -1,0 +1,10 @@
+commit 17ee7818dee085ca271639803e0e68e7ed1f8cae
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 6 13:38:16 2008 -0700
+
+    print count of failing tests
+    
+    SVN=121467
+
+ test/run | 3 +++
+ 1 file changed, 3 insertions(+)

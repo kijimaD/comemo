@@ -1,0 +1,24 @@
+commit 3fb86fb8645ceb6163d1a9f573c2b4eec2a310f9
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Sep 15 12:13:09 2023 -0400
+
+    cmd/compile: add pgohash for debugging/bisecting PGO optimizations
+    
+    When a PGO build fails or produces incorrect program, it is often
+    unclear what the problem is. Add pgo hash so we can bisect to
+    individual optimization decisions, which often helps debugging.
+    
+    Related to #58153.
+    
+    Change-Id: I651ffd9c53bad60f2f28c8ec2a90a3f532982712
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528400
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/base/debug.go        |  1 +
+ src/cmd/compile/internal/base/flag.go         |  3 +
+ src/cmd/compile/internal/base/hashdebug.go    | 31 ++++++++-
+ src/cmd/compile/internal/devirtualize/pgo.go  |  5 ++
+ src/cmd/compile/internal/inline/inl.go        |  5 ++
+ src/cmd/compile/internal/test/pgo_inl_test.go | 96 +++++++++++++++++++--------
+ 6 files changed, 113 insertions(+), 28 deletions(-)

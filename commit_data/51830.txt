@@ -1,0 +1,24 @@
+commit 6ab721dfd6bda7ec21e923c76e71abc1005e8d29
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri Jan 27 22:48:57 2023 -0800
+
+    misc/wasm: use NodeJS performance library
+    
+    The upgrade to NodeJS 18 introduces various library
+    updates that mean we can no longer override the global
+    performance package. Instead, rely on the performance
+    library provided by the NodeJS runtime.
+    
+    Fixes #57516
+    
+    Change-Id: Ic8ed902c696ad154f676e0b74b42efb84f02f8db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463234
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Evan Phoenix <evan@phx.io>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ misc/wasm/wasm_exec_node.js | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

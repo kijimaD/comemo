@@ -1,0 +1,25 @@
+commit 773e89464560833711c2554420d1a1550e0e8ff3
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Aug 19 07:50:39 2018 +0200
+
+    fmt: print values for map keys with non-reflexive equality
+    
+    Previously fmt would first obtain a list of map keys
+    and then look up the value for each key. Since NaNs can
+    be map keys but cannot be fetched directly, the lookup would
+    fail and return a zero reflect.Value, which formats as <nil>.
+    
+    golang.org/cl/33572 added a map iterator to the reflect package
+    that is used in this CL to retrieve the key and value from
+    the map and prints the correct value even for keys that are not
+    equal to themselves.
+    
+    Fixes #14427
+    
+    Change-Id: I9e1522959760b3de8b7ecf7a6e67cd603339632a
+    Reviewed-on: https://go-review.googlesource.com/129777
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/fmt/fmt_test.go | 11 +++--------
+ src/fmt/print.go    |  8 ++++----
+ 2 files changed, 7 insertions(+), 12 deletions(-)

@@ -1,0 +1,35 @@
+commit ec12754700c5635c916361c6cd95718f57a8f1c9
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 24 13:10:00 2015 -0700
+
+    bufio: fix scanning with a final empty token.
+    
+    The Scan function's interface to the split function was not sufficient
+    to handle an empty final token in a pure function; state was required.
+    This was ugly.
+    
+    We introduce a special error value that a split function can return
+    that signals that this token is OK, but is the last one and scanning
+    should stop immediately _after_ this token.
+    
+    The same effect could be achieved using the same trick (a special
+    error value) and checking for that error after Scan finishes, but it's
+    a little clumsy. Providing a published sentinel value in bufio is
+    cleaner and means everyone can use the same trick. The result
+    is an error-free scan.
+    
+    Rewrite the test (that was only barely working) to use the value
+    and be more robust.
+    
+    Also write a new example showing how to do it.
+    
+    Fixes #11836
+    
+    Change-Id: Iaae77d0f95b4a2efa0175ced94d93c66353079e8
+    Reviewed-on: https://go-review.googlesource.com/14924
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bufio/example_test.go | 29 +++++++++++++++++++++++++++++
+ src/bufio/scan.go         | 19 +++++++++++++++++++
+ src/bufio/scan_test.go    | 26 +++++++++++++++-----------
+ 3 files changed, 63 insertions(+), 11 deletions(-)

@@ -1,0 +1,17 @@
+commit 7762a9dc1fea7ac450d5a68d9d9649d62f58cf38
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 8 14:28:29 2012 -0400
+
+    syscall: unexport GetCurrentProcessId on Windows
+    
+    This slipped in with the implementation of Getpid in CL 5909043.
+    I'd exclude that CL entirely but it is tangled up in the Win32finddata changes.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6297065
+
+ src/pkg/syscall/syscall_windows.go        | 4 ++--
+ src/pkg/syscall/zsyscall_windows_386.go   | 2 +-
+ src/pkg/syscall/zsyscall_windows_amd64.go | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,23 @@
+commit c847932804467f511b0e123cf29b72dd0d509306
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 30 17:55:22 2021 -0400
+
+    runtime: replace reflectcall of defers with direct call
+    
+    With GOEXPERIMENT=regabidefer, all deferred functions take no
+    arguments and have no results (their signature is always func()).
+    Since the signature is fixed, we can replace all of the reflectcalls
+    in the defer code with direct closure calls.
+    
+    For #40724.
+    
+    Change-Id: I3acd6742fe665610608a004c675f473b9d0e65ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306010
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/objabi/funcid.go |  1 +
+ src/runtime/panic.go              | 83 ++++++++++++++++++++++++++++++++-------
+ 2 files changed, 70 insertions(+), 14 deletions(-)

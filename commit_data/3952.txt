@@ -1,0 +1,15 @@
+commit b27f05f63bcf6ac0bf9381630eb207caea3ff1f5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 10 10:55:53 2009 -0800
+
+    minor adjustments to package comments for better synopsis.
+    
+    R=rsc
+    CC=r
+    http://go/go-review/1026038
+
+ src/pkg/asn1/asn1.go           | 4 ++--
+ src/pkg/big/nat.go             | 4 ++--
+ src/pkg/bytes/bytes.go         | 2 +-
+ src/pkg/tabwriter/tabwriter.go | 5 +++--
+ 4 files changed, 8 insertions(+), 7 deletions(-)

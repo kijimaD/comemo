@@ -1,0 +1,14 @@
+commit 4a1b8146687c1e73786857af36d8b4f1053aa4e6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 26 14:20:05 2012 -0800
+
+    go/printer: don't use 'infinity' value when it might lead to int32 overflow
+    
+    Fixes 386 build breakage.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6844091
+
+ src/pkg/go/printer/nodes.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

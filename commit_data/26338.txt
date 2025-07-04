@@ -1,0 +1,16 @@
+commit e248b96d249f040ac13878b9a995367e6354af00
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 14 12:48:24 2016 -0700
+
+    cmd/internal/obj/x86: clean up part of span6
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I38eb507de2e9dc2cf01822e420bf31a91fb1b720
+    Reviewed-on: https://go-review.googlesource.com/20766
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 43 ++++++++++++++--------------------------
+ 1 file changed, 15 insertions(+), 28 deletions(-)

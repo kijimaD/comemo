@@ -1,0 +1,17 @@
+commit 2d205ebb96460b500480d144b99d2d5f5d4c06ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 21 13:29:00 2021 -0700
+
+    cmd/compile/internal/types2: make built-in to accept type sets with single underlying types
+    
+    This generalizes make the same way copy was generalized and eliminates
+    a use of optype.
+    
+    Change-Id: I8221abd53d77dde8ead47c0075c13fd2a3221642
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357776
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go        |  6 +++---
+ .../internal/types2/testdata/check/builtins.go2    | 22 +++++++++++++---------
+ 2 files changed, 16 insertions(+), 12 deletions(-)

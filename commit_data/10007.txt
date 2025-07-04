@@ -1,0 +1,12 @@
+commit 95b4f8284f31fbfe1408cab5bf3cf804e91565d9
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Oct 17 14:18:21 2011 -0700
+
+    build: add missing nuke target
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5266046
+
+ src/cmd/Makefile | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,21 @@
+commit 11084a9a1e6118a4492aa5d40df5c972c8aac1eb
+Author: cui fliter <imcusg@gmail.com>
+Date:   Wed Sep 27 10:54:14 2023 +0800
+
+    all: fix misuses of "a" vs "an"
+    
+    Fixes the misuse of "a" vs "an", according to English grammatical
+    expectations and using https://www.a-or-an.com/
+    
+    Change-Id: Ic9600dcbb3d843880349729478266c4b9bcf7316
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531335
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/errors.go | 2 +-
+ src/go/types/errors.go                    | 2 +-
+ src/syscall/js/js.go                      | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)

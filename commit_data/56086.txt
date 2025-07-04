@@ -1,0 +1,40 @@
+commit 9a028e14a535795a4783ce9e859a8649e903bfe9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Mar 29 15:00:09 2024 +0700
+
+    cmd/compile: add missing OINLCAll case in mayModifyPkgVar
+    
+    CL 395541 made staticopy safe, stop applying the optimization once
+    seeing an expression that may modify global variables.
+    
+    However, if a call expression was inlined, the analyzer mis-recognizes
+    and think that the expression is safe. For example:
+    
+            var x = 0
+            var a = f()
+            var b = x
+    
+    are re-written to:
+    
+            var x = 0
+            var a = ~r0
+            var b = 0
+    
+    even though it's not safe because "f()" may modify "x".
+    
+    Fixing this by recognizing OINLCALL and mark the initialization as
+    not safe for staticopy.
+    
+    Fixes #66585
+    
+    Change-Id: Id930c0b7e74274195f54a498cc4c5a91c4e6d84d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575175
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/staticinit/sched.go |  3 +++
+ test/fixedbugs/issue66585.go                 | 25 +++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

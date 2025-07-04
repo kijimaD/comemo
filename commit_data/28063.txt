@@ -1,0 +1,22 @@
+commit 2eb46e8c57c4dab0197ca82d9899fa1356500fc0
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Aug 18 16:10:28 2016 +0900
+
+    os: prevent infinite symlink loop of Stat on Windows
+    
+    The Windows version of Stat calls Readlink iteratively until
+    reaching a non-symlink file.
+    If the given file is a circular symlink, It never stops.
+    This CL defines the maximum number of symlink loop count.
+    If the loop count will exceed that number, Stat will return error.
+    
+    Fixes #16538
+    
+    Change-Id: Ia9f3f2259a8d32801461c5041cc24a34f9f81009
+    Reviewed-on: https://go-review.googlesource.com/27580
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/os/os_test.go      | 23 +++++++++++++++++++++++
+ src/os/stat_windows.go |  3 ++-
+ 2 files changed, 25 insertions(+), 1 deletion(-)

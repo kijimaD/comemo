@@ -1,0 +1,15 @@
+commit bc89e8c575be08ef261a4d76db14f7f65a6da923
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 1 16:44:52 2014 -0700
+
+    time: A Timer must be properly created before use (documentation).
+    
+    Fixes #8776.
+    
+    LGTM=bradfitz
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/145710043
+
+ src/time/sleep.go | 1 +
+ 1 file changed, 1 insertion(+)

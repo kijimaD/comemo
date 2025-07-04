@@ -1,0 +1,16 @@
+commit 3630bfbe9f45ff00c20e004ef8bac658d13cf3dc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 09:08:08 2009 -0800
+
+    gofmt-ify math, expvar, exp/spacewar
+    
+    R=rsc
+    http://go/go-review/1018061
+
+ src/pkg/exp/spacewar/pdp1.go     | 121 +++++++++++++++++++--------------------
+ src/pkg/exp/spacewar/spacewar.go |  40 ++++++-------
+ src/pkg/expvar/expvar_test.go    |  22 +++----
+ src/pkg/math/all_test.go         |   4 +-
+ src/pkg/math/bits.go             |  21 ++++---
+ src/pkg/math/unsafe.go           |   1 -
+ 6 files changed, 103 insertions(+), 106 deletions(-)

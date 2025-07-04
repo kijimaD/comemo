@@ -1,0 +1,85 @@
+commit 324513bc5f1aa44685e547fec5e04fd0b2c8af40
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Jan 25 10:54:59 2012 +1100
+
+    html: move the HTML parser to an exp/html package. The parser is a
+    work in progress, and we are not ready to freeze its API for Go 1.
+    
+    Package html still exists, containing just two functions: EscapeString
+    and UnescapeString.
+    
+    Both the packages at exp/html and html are "package html". The former
+    is a superset of the latter.
+    
+    At some point in the future, the exp/html code will move back into
+    html, once we have finalized the parser API.
+    
+    R=rsc, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5571059
+
+ src/pkg/Makefile                                   |    1 +
+ src/pkg/exp/html/Makefile                          |   20 +
+ src/pkg/{ => exp}/html/const.go                    |    0
+ src/pkg/{ => exp}/html/doc.go                      |    0
+ src/pkg/{ => exp}/html/doctype.go                  |    0
+ src/pkg/exp/html/entity.go                         | 2253 ++++++++++++++++++++
+ src/pkg/exp/html/entity_test.go                    |   29 +
+ src/pkg/exp/html/escape.go                         |  253 +++
+ src/pkg/{ => exp}/html/foreign.go                  |    0
+ src/pkg/{ => exp}/html/node.go                     |    0
+ src/pkg/{ => exp}/html/parse.go                    |    0
+ src/pkg/{ => exp}/html/parse_test.go               |    0
+ src/pkg/{ => exp}/html/render.go                   |    0
+ src/pkg/{ => exp}/html/render_test.go              |    0
+ src/pkg/{ => exp}/html/testdata/webkit/README      |    0
+ .../{ => exp}/html/testdata/webkit/adoption01.dat  |    0
+ .../{ => exp}/html/testdata/webkit/adoption02.dat  |    0
+ .../{ => exp}/html/testdata/webkit/comments01.dat  |    0
+ .../{ => exp}/html/testdata/webkit/doctype01.dat   |    0
+ .../{ => exp}/html/testdata/webkit/entities01.dat  |    0
+ .../{ => exp}/html/testdata/webkit/entities02.dat  |    0
+ .../html/testdata/webkit/html5test-com.dat         |    0
+ .../{ => exp}/html/testdata/webkit/inbody01.dat    |    0
+ src/pkg/{ => exp}/html/testdata/webkit/isindex.dat |    0
+ .../pending-spec-changes-plain-text-unsafe.dat     |  Bin
+ .../html/testdata/webkit/pending-spec-changes.dat  |    0
+ .../html/testdata/webkit/plain-text-unsafe.dat     |    0
+ .../html/testdata/webkit/scriptdata01.dat          |    0
+ .../html/testdata/webkit/scripted/adoption01.dat   |    0
+ .../html/testdata/webkit/scripted/webkit01.dat     |    0
+ .../{ => exp}/html/testdata/webkit/tables01.dat    |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests1.dat  |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests10.dat |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests11.dat |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests12.dat |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests14.dat |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests15.dat |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests16.dat |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests17.dat |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests18.dat |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests19.dat |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests2.dat  |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests20.dat |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests21.dat |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests22.dat |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests23.dat |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests24.dat |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests25.dat |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests26.dat |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests3.dat  |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests4.dat  |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests5.dat  |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests6.dat  |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests7.dat  |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests8.dat  |    0
+ src/pkg/{ => exp}/html/testdata/webkit/tests9.dat  |    0
+ .../html/testdata/webkit/tests_innerHTML_1.dat     |    0
+ .../{ => exp}/html/testdata/webkit/tricky01.dat    |    0
+ .../{ => exp}/html/testdata/webkit/webkit01.dat    |    0
+ .../{ => exp}/html/testdata/webkit/webkit02.dat    |    0
+ src/pkg/{ => exp}/html/token.go                    |    0
+ src/pkg/{ => exp}/html/token_test.go               |    0
+ src/pkg/html/Makefile                              |    8 -
+ src/pkg/html/escape.go                             |    4 +
+ 64 files changed, 2560 insertions(+), 8 deletions(-)

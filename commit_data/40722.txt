@@ -1,0 +1,22 @@
+commit 4d4ddd862d26766711d24b91d92cbc4ee2f8b648
+Author: jsign <jsign.uy@gmail.com>
+Date:   Sat Nov 9 14:41:09 2019 +0000
+
+    cmd/go: make env -w and -u validate GOOS and GOARCH values
+    
+    This change makes go env -w and -u check invalid GOOS and GOARCH values and abort if that's the case.
+    
+    Fixes #34194
+    
+    Change-Id: Idca8e93bb0b190fd273bf786c925be7993c24a2b
+    GitHub-Last-Rev: ee67f09d75f4552001cb8b6506bc4af0894c9b05
+    GitHub-Pull-Request: golang/go#34221
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194617
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/envcmd/env.go        | 43 ++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/work/action.go       | 12 +++++++--
+ src/cmd/go/testdata/script/env_write.txt | 21 ++++++++++++++++
+ 3 files changed, 74 insertions(+), 2 deletions(-)

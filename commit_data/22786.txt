@@ -1,0 +1,21 @@
+commit 98e0556231b43d26e8b22936299c49c4b794ced0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 28 21:17:46 2015 +0900
+
+    net: deflake timeout, deadline tests
+    
+    This change deflakes timeout, deadline tests, especially fixes socket
+    and goroutine leaks. Also adds a few missing tests that use features
+    introduced after go1 release.
+    
+    Change-Id: Ibf73a4859f8d4a0ee494ca2fd180cbce72a7a2c7
+    Reviewed-on: https://go-review.googlesource.com/9464
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/error_plan9_test.go |    5 +-
+ src/net/error_posix_test.go |    5 +-
+ src/net/error_test.go       |   16 +-
+ src/net/mockserver_test.go  |   71 +++
+ src/net/timeout_test.go     | 1107 +++++++++++++++++++++----------------------
+ src/net/udp_test.go         |    3 +-
+ 6 files changed, 638 insertions(+), 569 deletions(-)

@@ -1,0 +1,14 @@
+commit bb6be3ab88ebd27afacb79f2ddd731f697a8816e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 29 13:17:39 2015 -0700
+
+    go/types: clarify doc string for types.Check
+    
+    For #12787.
+    
+    Change-Id: I921d01c8d7d97f3453b25e6d2241a43c5d64f53b
+    Reviewed-on: https://go-review.googlesource.com/15150
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/api.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

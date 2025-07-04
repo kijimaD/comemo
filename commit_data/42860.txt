@@ -1,0 +1,25 @@
+commit 42fd1306cea2dc2ff91bd5208d9593721ab5a30f
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jun 15 11:08:36 2020 -0700
+
+    cmd/compile: clean up equality generation
+    
+    We're using sort.SliceStable, so no need to keep track of indexes as well.
+    
+    Use a more robust test for whether a node is a call.
+    
+    Add a test that we're actually reordering comparisons. This test fails
+    without the alg.go changes in this CL because eqstring uses OCALLFUNC
+    instead of OCALL for its data comparisons.
+    
+    Update #8606
+    
+    Change-Id: Ieeec33434c72e3aa328deb11cc415cfda05632e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237921
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/alg.go | 31 ++++++++-----------
+ test/fixedbugs/issue8606b.go       | 63 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 75 insertions(+), 19 deletions(-)

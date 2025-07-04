@@ -1,0 +1,13 @@
+commit e76e9cfc33cc10062c2724af189a0942419ebcb0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 29 15:48:34 2008 -0700
+
+    Call the right function for int32 values.
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=18073
+    CL=18073
+
+ test/bugs/bug113.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

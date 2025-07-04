@@ -1,0 +1,26 @@
+commit 830621bc09c175d1b87496fd1be79bdcd1ce27c8
+Author: Tim King <taking@google.com>
+Date:   Wed Aug 14 12:34:32 2024 -0700
+
+    internal/pkgbits: add Version type
+    
+    Adds a new Version type to pkgbits to represent the version of the
+    bitstream. Versions let readers and writers know when different data is
+    expected to be present or not in the bitstream. These different pieces
+    of data are called Fields, as an analogy with fields of a struct.
+    Fields can be added, removed or changed in a Version. Extends Encoder
+    and Decoder to report which version they are.
+    
+    Updates #68778
+    
+    Change-Id: Iaffa1828544fb4cbc47a905de853449bc8e5b91f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605655
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/internal/pkgbits/decoder.go      | 22 +++++-----
+ src/internal/pkgbits/encoder.go      | 22 +++++-----
+ src/internal/pkgbits/pkgbits_test.go | 67 ++++++++++++++++++++++++++++++
+ src/internal/pkgbits/version.go      | 79 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 169 insertions(+), 21 deletions(-)

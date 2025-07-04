@@ -1,0 +1,21 @@
+commit d9421cec00a5e171699b00966bebc85a36593bf2
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Sat Oct 16 02:19:20 2021 +0000
+
+    net/http/internal: return unexpected EOF on incomplete chunk read
+    
+    Fixes #48861
+    
+    Change-Id: I3f55bfbdc4f2cf5b33d1ab2d76e01335bb497c6f
+    GitHub-Last-Rev: 0ecd790b87ddd31d0cf08e8f2726f918a2edd1fb
+    GitHub-Pull-Request: golang/go#48903
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355029
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/internal/chunked.go      |  7 +++++++
+ src/net/http/internal/chunked_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)

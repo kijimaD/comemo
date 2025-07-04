@@ -1,0 +1,28 @@
+commit f6b5ffb5e1d31fd24edadfe6c105886093638825
+Author: Dan Scales <danscales@google.com>
+Date:   Sat Sep 18 20:02:08 2021 -0700
+
+    cmd/compile: fix crawler for unexported fields with instantiated types
+    
+    In markType() in crawler.go, mark the type of a unexported field if it
+    is a fully-instantiated type, since we create and instantiate the
+    methods of any fully-instantiated type that we see during import. As
+    before, we still do not mark the type of an unexported field if that
+    type is not generic. Fixes #48454 and most recent issue described in
+    48337. The included test is similar to the case in 48454.
+    
+    Fixes #48454
+    Fixes #48337
+    
+    Change-Id: I77a2a62b9e2647876facfa6f004201e8f699c905
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351315
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/typecheck/crawler.go | 28 +++++++++++++++++++--------
+ test/typeparam/issue48454.dir/a.go            | 16 +++++++++++++++
+ test/typeparam/issue48454.dir/b.go            | 11 +++++++++++
+ test/typeparam/issue48454.dir/main.go         | 11 +++++++++++
+ test/typeparam/issue48454.go                  |  7 +++++++
+ 5 files changed, 65 insertions(+), 8 deletions(-)

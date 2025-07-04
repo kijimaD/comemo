@@ -1,0 +1,16 @@
+commit dc159fabff52e9dd3da0948438017373be741b22
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 1 11:48:17 2012 -0500
+
+    runtime: run init on main thread
+    
+    Fixes #3125.
+    
+    R=golang-dev, r, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/5714049
+
+ src/pkg/runtime/mheap.c               |  2 +-
+ src/pkg/runtime/proc.c                | 12 ++++++------
+ src/pkg/runtime/runtime_linux_test.go | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 36 insertions(+), 7 deletions(-)

@@ -1,0 +1,14 @@
+commit a18208fb608bd28d29b868b0f88b33f755529bf0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 3 13:56:06 2009 -0700
+
+    fix range on invalid utf8 bug
+    
+    R=r
+    DELTA=42  (21 added, 20 deleted, 1 changed)
+    OCL=34328
+    CL=34333
+
+ src/pkg/runtime/rune.c             | 3 ++-
+ test/{bugs => fixedbugs}/bug204.go | 0
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 72f9b2ebee979c60b7bb2cafc300be47e362b241
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 27 13:27:48 2010 -0700
+
+    gofmt: fine-tune stripping of parentheses
+           (composite literals in control clauses only need
+           parentheses if the literals start with a type name)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/962045
+
+ src/pkg/go/printer/nodes.go                   | 15 +++++-
+ src/pkg/go/printer/testdata/statements.golden | 76 ++++++++++++++++++---------
+ src/pkg/go/printer/testdata/statements.input  | 51 +++++++++++-------
+ 3 files changed, 96 insertions(+), 46 deletions(-)

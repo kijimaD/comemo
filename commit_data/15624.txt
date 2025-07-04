@@ -1,0 +1,12 @@
+commit 48fa4a10fbbc235f334a0a2d34f188799b95a3ae
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Mar 7 19:17:18 2013 +0900
+
+    net: fix typo in skip message
+    
+    R=golang-dev, akumar
+    CC=golang-dev
+    https://golang.org/cl/7523044
+
+ src/pkg/net/protoconn_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

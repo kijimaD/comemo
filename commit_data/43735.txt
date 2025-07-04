@@ -1,0 +1,15 @@
+commit d51ae669363fdd4a741db7f0193e7e6ebc639ff3
+Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
+Date:   Wed Nov 4 15:28:25 2020 +0300
+
+    archive/zip: fix documentation to mention fs.FS interface
+    
+    Fixes #42374
+    
+    Change-Id: I0ed1eb052d79bcc65810b74bff48f1e615e1dc1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267657
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/archive/zip/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

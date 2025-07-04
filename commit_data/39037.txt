@@ -1,0 +1,23 @@
+commit 79f79c34deba28934d42d4a1b2ab72d124d737a2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 1 02:47:14 2019 +0000
+
+    net/http: update bundled x/net/http2
+    
+    Updates x/net/http2 to git rev 1da14a5a36f220ea3f03470682b737b1dfd5de22 for:
+    
+        http2: make empty method mean GET
+        https://golang.org/cl/169557 (Fixes golang/go#31061)
+    
+        http2: don't hang a stream if trailers values are not provided
+        https://golang.org/cl/161958
+    
+    Change-Id: I628af8c6d07d19e8f19ee37637243f6c242ef3a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174677
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/http/h2_bundle.go    | 28 ++++++++++++++++++++++------
+ src/net/http/socks_bundle.go |  2 +-
+ 2 files changed, 23 insertions(+), 7 deletions(-)

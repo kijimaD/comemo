@@ -1,0 +1,16 @@
+commit 073bd0ba245395fdb9b2837fa365fb4a23eebb7a
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Jan 13 11:24:08 2014 +1100
+
+    runtime/pprof: enable profiling test on openbsd
+    
+    Profiling of multithreaded applications works correctly on OpenBSD
+    5.4-current, so enable the profiling test.
+    
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/50940043
+
+ src/pkg/runtime/pprof/pprof.go      | 2 +-
+ src/pkg/runtime/pprof/pprof_test.go | 5 ++---
+ 2 files changed, 3 insertions(+), 4 deletions(-)

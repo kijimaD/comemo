@@ -1,0 +1,18 @@
+commit 2de1f428570855bd59083a705f832e8bddc0eb51
+Author: Baokun Lee <bk@golangcn.org>
+Date:   Tue Mar 23 11:18:50 2021 +0800
+
+    net: clear completed Buffers to permit earlier collection
+    
+    Fixes #45163
+    
+    Change-Id: Ie034145e3818930bb19371d73ec6960cbdc55aa7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303829
+    Run-TryBot: Baokun Lee <bk@golangcn.org>
+    Trust: Baokun Lee <bk@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/net/net.go | 1 +
+ 1 file changed, 1 insertion(+)

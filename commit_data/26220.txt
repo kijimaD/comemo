@@ -1,0 +1,17 @@
+commit d9bb69396034d6e3553018592926fbf0cd75a0cf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 10 23:59:59 2016 -0800
+
+    cmd/compile: sort interface methods in tointerface0
+    
+    Might as well sort them while they're still in a slice.
+    
+    Change-Id: I40c25ddc5c054dcb4da2aeefa79947967609d599
+    Reviewed-on: https://go-review.googlesource.com/20591
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go  | 3 ++-
+ src/cmd/compile/internal/gc/subr.go | 7 -------
+ 2 files changed, 2 insertions(+), 8 deletions(-)

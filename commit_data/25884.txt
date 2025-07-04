@@ -1,0 +1,33 @@
+commit b48120ca3a5e8767ef1dea46c6231538f374a640
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 24 11:59:49 2016 +0900
+
+    net: make TestGoLookupIPWithResolverConfig robust
+    
+    It crashes when the node under the test is shaken up.
+    
+    -- FAIL: TestGoLookupIPWithResolverConfig (11.73s)
+    panic: interface conversion: error is nil, not *net.DNSError [recovered]
+            panic: interface conversion: error is nil, not *net.DNSError
+    
+    goroutine 23 [running]:
+    panic(0x2e2620, 0xc820181440)
+            /go/src/runtime/panic.go:483 +0x3f3
+    testing.tRunner.func1(0xc820136d80)
+            /go/src/testing/testing.go:467 +0x192
+    panic(0x2e2620, 0xc820181440)
+            /go/src/runtime/panic.go:441 +0x4f6
+    net.TestGoLookupIPWithResolverConfig(0xc820136d80)
+            /go/src/net/dnsclient_unix_test.go:358 +0x7ca
+    testing.tRunner(0xc820136d80, 0x49ddc0)
+            /go/src/testing/testing.go:473 +0x98
+    created by testing.RunTests
+            /go/src/testing/testing.go:582 +0x892
+    exit status 2
+    
+    Change-Id: I9631f41a3c73f3269c7e30d679c025ae64d71a98
+    Reviewed-on: https://go-review.googlesource.com/19870
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dnsclient_unix_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

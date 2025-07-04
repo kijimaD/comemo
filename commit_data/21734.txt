@@ -1,0 +1,15 @@
+commit 28c6648416362f8542adea03f70fccf77fc9b08e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 23 20:29:08 2015 -0500
+
+    cmd/internal/obj: fix index panic on invalid instruction
+    
+    Also introduce actual data structure for table.
+    
+    Change-Id: I6bbe9aff8a872ae254f3739ae4ca17f7b5c4507a
+    Reviewed-on: https://go-review.googlesource.com/5701
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/obj/i386/asm8.go | 1105 ++++++++----------------------
+ src/cmd/internal/obj/x86/asm6.go  | 1335 +++++++++----------------------------
+ 2 files changed, 601 insertions(+), 1839 deletions(-)

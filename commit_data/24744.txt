@@ -1,0 +1,31 @@
+commit e3b615fd6c633a05a5d4d46cc0345fdfb82c28e6
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Oct 1 02:30:29 2015 -0700
+
+    archive/tar: detect truncated files
+    
+    Motivation:
+    * Reader.skipUnread never reports io.ErrUnexpectedEOF. This is strange
+    given that io.ErrUnexpectedEOF is given through Reader.Read if the
+    user manually reads the file.
+    * Reader.skipUnread fails to detect truncated files since io.Seeker
+    is lazy about reporting errors. Thus, the behavior of Reader differs
+    whether the input io.Reader also satisfies io.Seeker or not.
+    
+    To solve this, we seek to one before the end of the data section and
+    always rely on at least one call to io.CopyN. If the tr.r satisfies
+    io.Seeker, this is guarunteed to never read more than blockSize.
+    
+    Fixes #12557
+    
+    Change-Id: I0ddddfc6bed0d74465cb7e7a02b26f1de7a7a279
+    Reviewed-on: https://go-review.googlesource.com/15175
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/reader.go                   |  54 ++++++++--
+ src/archive/tar/reader_test.go              | 156 ++++++++++++++++++++++------
+ src/archive/tar/testdata/pax-path-hdr.tar   | Bin 0 -> 1024 bytes
+ src/archive/tar/testdata/ustar-file-reg.tar | Bin 0 -> 1536 bytes
+ 4 files changed, 172 insertions(+), 38 deletions(-)

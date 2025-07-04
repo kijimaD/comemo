@@ -1,0 +1,27 @@
+commit 943f6cc837f4513a8cae7df199d14c5a38cf7677
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 20 14:25:28 2012 +1100
+
+    database/sql/driver: API cleanups
+    
+    -- add driver.Value type and documentation,
+       convert from interface{} to Value where
+       appropriate.
+    -- don't say "subset" anywhere,
+    -- SubsetValuer -> Valuer
+    -- SubsetValue -> Value
+    -- IsParameterSubsetType -> IsValue
+    -- IsScanSubsetType -> IsScanValue
+    
+    Fixes #2842
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5674084
+
+ src/pkg/database/sql/convert.go       |  4 +-
+ src/pkg/database/sql/driver/driver.go | 51 +++++++++++-----------
+ src/pkg/database/sql/driver/types.go  | 80 +++++++++++++----------------------
+ src/pkg/database/sql/fakedb_test.go   | 16 +++----
+ src/pkg/database/sql/sql.go           | 54 +++++++++++------------
+ 5 files changed, 92 insertions(+), 113 deletions(-)

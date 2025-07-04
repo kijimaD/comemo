@@ -1,0 +1,17 @@
+commit ca2a69ea0666286dbfd556e03a56ed2da8bb3fb0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 22:45:59 2009 -0800
+
+    gofmt-ify hash, http
+    (gofmt will be able to re-align map entries as in http nicely,
+    eventually)
+    
+    R=rsc
+    http://go/go-review/1018055
+
+ src/pkg/hash/adler32/adler32.go |   4 +-
+ src/pkg/http/fs.go              |  33 ++++----
+ src/pkg/http/request_test.go    |   6 +-
+ src/pkg/http/status.go          | 163 ++++++++++++++++++++--------------------
+ src/pkg/http/url_test.go        | 111 ++++++++++++++-------------
+ 5 files changed, 157 insertions(+), 160 deletions(-)

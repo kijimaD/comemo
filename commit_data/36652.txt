@@ -1,0 +1,45 @@
+commit 691f5c34ad7b7d676644dd749bc4ddb5d20b90d0
+Author: erifan01 <eric.fang@arm.com>
+Date:   Thu Jul 19 09:55:17 2018 +0000
+
+    strings, bytes: optimize function Index
+    
+    This change compares the first two characters instead of the first one,
+    and if they match, the entire string is compared. Comparing the first two
+    characters helps to filter out the case where the first character matches
+    but the subsequent characters do not match, thereby improving the substring
+    search speed in this case.
+    
+    Benchmarks with no effect or minimal impact (less than 5%) is not listed,
+    the following are improved benchmarks:
+    On arm64:
+    strings:
+    IndexPeriodic/IndexPeriodic16-8   172890.00ns +- 2%   124156.20ns +- 0%  -28.19%  (p=0.008 n=5+5)
+    IndexPeriodic/IndexPeriodic32-8    78092.80ns +- 0%    65138.60ns +- 0%  -16.59%  (p=0.008 n=5+5)
+    IndexPeriodic/IndexPeriodic64-8    42322.20ns +- 0%    34661.60ns +- 0%  -18.10%  (p=0.008 n=5+5)
+    bytes:
+    IndexPeriodic/IndexPeriodic16-8     183468.20ns +- 6%     123759.00ns +- 0%  -32.54%  (p=0.008 n=5+5)
+    IndexPeriodic/IndexPeriodic32-8      84776.40ns +- 0%      63907.80ns +- 0%  -24.62%  (p=0.008 n=5+5)
+    IndexPeriodic/IndexPeriodic64-8      45835.60ns +- 0%      34194.20ns +- 0%  -25.40%  (p=0.008 n=5+5)
+    
+    On amd64:
+    strings:
+    IndexPeriodic/IndexPeriodic8-16    219499.00ns +- 0%   178123.40ns +- 0%  -18.85%  (p=0.008 n=5+5)
+    IndexPeriodic/IndexPeriodic16-16   109760.20ns +- 0%    88957.80ns +- 0%  -18.95%  (p=0.008 n=5+5)
+    IndexPeriodic/IndexPeriodic32-16    54943.00ns +- 0%    44573.80ns +- 0%  -18.87%  (p=0.008 n=5+5)
+    IndexPeriodic/IndexPeriodic64-16    29804.80ns +- 0%    24417.80ns +- 0%  -18.07%  (p=0.008 n=5+5)
+    bytes:
+    IndexPeriodic/IndexPeriodic8-16     226592.60ns +- 0%    181183.20ns +- 0%  -20.04%  (p=0.008 n=5+5)
+    IndexPeriodic/IndexPeriodic16-16    111432.60ns +- 0%     90634.60ns +- 0%  -18.66%  (p=0.008 n=5+5)
+    IndexPeriodic/IndexPeriodic32-16     55640.60ns +- 0%     45433.00ns +- 0%  -18.35%  (p=0.008 n=5+5)
+    IndexPeriodic/IndexPeriodic64-16     30833.00ns +- 0%     24784.20ns +- 0%  -19.62%  (p=0.008 n=5+5)
+    
+    Change-Id: I2d9e7e138d29e960d20a203eb74dc2ec976a9d71
+    Reviewed-on: https://go-review.googlesource.com/131177
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bytes/bytes.go     | 28 +++++++++++++++-------------
+ src/strings/strings.go | 28 +++++++++++++++-------------
+ 2 files changed, 30 insertions(+), 26 deletions(-)

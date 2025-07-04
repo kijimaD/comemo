@@ -1,0 +1,15 @@
+commit 69015b6fc467a9e0d5772794f15476da458d7cc5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 27 18:52:40 2012 -0800
+
+    test: bug424: wrong embedded method called
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5695083
+
+ test/bugs/424.dir/lib.go  | 16 +++++++++++++
+ test/bugs/424.dir/main.go | 61 +++++++++++++++++++++++++++++++++++++++++++++++
+ test/bugs/424.go          |  9 +++++++
+ test/golden.out           |  3 +++
+ 4 files changed, 89 insertions(+)

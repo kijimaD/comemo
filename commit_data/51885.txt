@@ -1,0 +1,17 @@
+commit 40a0986959167e7b82ae16a35a5dd2a347609eff
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 1 12:16:57 2023 -0800
+
+    cmd/compile/internal/types: remove misleading comment
+    
+    The runtime's knowledge of these constants was removed in CL 261364.
+    
+    Change-Id: I65e5a5ab084c6301eee1c9791bc76df9b824e466
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463754
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types/alg.go | 1 -
+ 1 file changed, 1 deletion(-)

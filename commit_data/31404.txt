@@ -1,0 +1,21 @@
+commit 12c286c149583edbb08045cc8f518f0c90c7dc85
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 27 06:00:18 2017 -0700
+
+    cmd/compile: minor writebarrier cleanup
+    
+    This CL mainly moves some work to the switch on w.Op,
+    to make a follow-up change simpler and clearer.
+    
+    Updates #19838
+    
+    Change-Id: I86f3181c380dd60960afcc24224f655276b8956c
+    Reviewed-on: https://go-review.googlesource.com/42010
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/deadstore.go    |  2 +-
+ src/cmd/compile/internal/ssa/writebarrier.go | 13 ++++++-------
+ 2 files changed, 7 insertions(+), 8 deletions(-)

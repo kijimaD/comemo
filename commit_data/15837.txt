@@ -1,0 +1,12 @@
+commit 47ce4bd3535bc914a960e383eadfb3471c7ea846
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 19 16:53:07 2013 -0400
+
+    cmd/ld: fix typo
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7552045
+
+ src/cmd/ld/dwarf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

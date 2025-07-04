@@ -1,0 +1,15 @@
+commit ca85d572d64e6d038ac8216a39a05980320c8a03
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 18 21:06:56 2014 -0400
+
+    liblink: use pc-relative addressing for all memory references in amd64 code
+    
+    LGTM=rminnich, iant
+    R=golang-codereviews, rminnich, iant
+    CC=golang-codereviews, r
+    https://golang.org/cl/125140043
+
+ src/cmd/6l/asm.c   | 17 +++++++++++++----
+ src/cmd/ld/data.c  | 10 +++++++---
+ src/liblink/asm6.c | 29 ++++++++---------------------
+ 3 files changed, 28 insertions(+), 28 deletions(-)

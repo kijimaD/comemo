@@ -1,0 +1,12 @@
+commit f62772b1e53315685b6e3c3fc7bd07b16c67113b
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Sat Oct 30 21:25:19 2010 -0700
+
+    kate: update for append
+    
+    R=golang-dev, PeterGo, gri
+    CC=golang-dev
+    https://golang.org/cl/2710044
+
+ misc/kate/go.xml | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,16 @@
+commit c875503cf79f82b7d2dbec85667f330f72ec4557
+Author: Jie Ma <jienius@outlook.com>
+Date:   Sat Jun 27 23:15:53 2020 +0000
+
+    doc: fix typos and grammatical errors in contribute.html
+    
+    Fixed some typos and grammatical errors in contribute.html
+    
+    Change-Id: Ifb31f22d876b7bea84b5e130870c26813b2fa139
+    GitHub-Last-Rev: 43519198859ca8f5e1c870b8f3eeb1b465aa6bc5
+    GitHub-Pull-Request: golang/go#39892
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240277
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/contribute.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

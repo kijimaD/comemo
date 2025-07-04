@@ -1,0 +1,23 @@
+commit b4833f7c06c332ad2ef30666144a20fb7838aba1
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 13 16:48:50 2021 -0400
+
+    cmd/link: always mark runtime.unreachableMethod symbol
+    
+    In the deadcode path we mark runtime.unreachableMethod symbol,
+    which is a special symbol used for redirecting unreachable
+    methods. Currently this code is conditioned on not -linkshared.
+    This is wrong. It should be marked with -linkshared mode as well.
+    
+    In fact, -linkshared should only affect the entry symbol. Change
+    the code accordingly.
+    
+    Change-Id: I252abf850212a930f275589ef0035a43e52cb9cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319893
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/link/internal/ld/deadcode.go | 40 ++++++++++++++++++------------------
+ 1 file changed, 20 insertions(+), 20 deletions(-)

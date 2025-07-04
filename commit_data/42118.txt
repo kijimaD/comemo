@@ -1,0 +1,17 @@
+commit 4799955004ccc99bd7d50ebfdc4e42d726ec32a9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 22:41:18 2020 -0700
+
+    cmd/compile: convert inlineable memmove rules to typed aux
+    
+    Passes toolstash-check.
+    
+    Change-Id: I0190c5403040f930895a083181da2092a5c297e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229688
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules | 16 +++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 64 +++++++++++++-------------
+ 2 files changed, 40 insertions(+), 40 deletions(-)

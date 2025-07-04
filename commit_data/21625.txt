@@ -1,0 +1,23 @@
+commit 7aa68756c5518e0fc2e2f65cab6b933c1c48534a
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Jan 8 21:43:47 2015 -0500
+
+    doc/asm: document that assembly function must use short name
+    
+    e.g. ·Name instead of package·Name for automatic stack map to
+    be applied from its Go prototype.
+    
+    The underlying reason is that liblink look up name with suffix
+    ".args_stackmap" for the stackmap coming from its Go prototype,
+    but all the Go functions are named "".Name as this stage. Thus
+    an assembly function named package·Name will never find its
+    stackmap, which is named "".package.Name.args_stackmap.
+    
+    Perhaps cmd/vet should give a warning for this.
+    
+    Change-Id: I10d154a73ec969d574d20af877f747424350fbd1
+    Reviewed-on: https://go-review.googlesource.com/2588
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/asm.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

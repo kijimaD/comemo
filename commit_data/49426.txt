@@ -1,0 +1,14 @@
+commit 19d71acd978891b201bc5ce79bdcd20b36d04a2e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 7 16:35:13 2022 -0400
+
+    doc/go1.19: document that the assembler requires -p
+    
+    For #51400.
+    
+    Change-Id: I50fb4313105ae6dbbbe2c98cbe4a8f8e2563eba9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410824
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.19.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

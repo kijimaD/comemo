@@ -1,0 +1,48 @@
+commit a68bf75d3402412a1946fe1df67f57ca923f1507
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Mar 10 13:32:23 2025 -0400
+
+    cmd/go: don't write own toolchain line when updating go line
+    
+    The Go command had a behavior of writing its own toolchain name when
+    updating the go line in a go.mod (for example when a user runs go get
+    go@version). This behavior was often undesirable and the toolchain line
+    was often removed by users before checking in go.mod files (including in
+    the x/ repos). It also led to user confusion.
+    
+    This change removes that behavior. A toolchain line will not be added if
+    one wasn't present before. The toolchain line can still be removed
+    though: the toolchain line must be at least the go version, so if the go
+    version is increased above the toolchain version, the toolchain version
+    will be bumped up to that go version. Then the toolchain line will then
+    be dropped because go <version> implies toolchain <version>.
+    
+    Making this change slightly hurts reproducability because future go
+    commands run on the go.mod file may be run with a different toolchain
+    than the one that used it, but that doesn't seem to be worth the
+    confusion the behavior resulted in.
+    
+    We expect this change will not have negative consequences, but it could
+    be possible, and we would like to hear from any users that depended on
+    the previous behavior in case we need to roll it back before the
+    release.
+    
+    Fixes #65847
+    
+    Change-Id: Id795b7f762e4f90ba0fa8c7935d03f32dfc8590e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656835
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/modload/init.go                | 50 ++++++----------------
+ src/cmd/go/testdata/script/gotoolchain_modcmds.txt |  2 +-
+ .../script/mod_download_exec_toolchain.txt         |  2 -
+ .../go/testdata/script/mod_get_exec_toolchain.txt  | 16 +++----
+ src/cmd/go/testdata/script/mod_get_toolchain.txt   | 17 +++++---
+ .../go/testdata/script/mod_import_toolchain.txt    |  8 +---
+ src/cmd/go/testdata/script/mod_tidy_version.txt    |  4 +-
+ src/cmd/go/testdata/script/mod_toolchain.txt       |  9 +++-
+ src/cmd/go/testdata/script/work_get_toolchain.txt  |  6 +--
+ src/cmd/go/testdata/script/work_sync_toolchain.txt |  4 +-
+ src/cmd/go/testdata/script/work_use_toolchain.txt  |  8 ++--
+ 11 files changed, 52 insertions(+), 74 deletions(-)

@@ -1,0 +1,26 @@
+commit 917aa35f8ff95052459538c2e5bae80d1c9a307e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 8 15:40:14 2009 -0700
+
+    implications of stricter type equality:
+    if both types are named, they must be
+    the same type (arising from the same
+    declaration).
+    
+    R=r,gri
+    DELTA=44  (21 added, 4 deleted, 19 changed)
+    OCL=28436
+    CL=28577
+
+ src/cmd/gobuild/util.go      |  4 ++--
+ src/lib/go/token/token.go    |  4 ++--
+ src/lib/http/server.go       |  2 +-
+ src/lib/os/error.go          |  4 ++--
+ src/lib/template/template.go |  4 ++--
+ src/lib/time/zoneinfo.go     |  2 +-
+ test/convert.go              |  5 +----
+ test/golden.out              |  1 -
+ test/import.go               | 25 +++++++++++++++++++++++++
+ test/interface10.go          |  2 +-
+ usr/gri/pretty/format.go     | 26 +++++++++++++-------------
+ 11 files changed, 50 insertions(+), 29 deletions(-)

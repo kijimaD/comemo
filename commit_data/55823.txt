@@ -1,0 +1,24 @@
+commit 2b22fc10459dff0fb4b3e5b08bc14ffb349aa4dd
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Mar 4 15:52:56 2024 +0000
+
+    cmd/go: respect -coverpkg for unselected no-test packages
+    
+    This patch fixes a bug in the code that reports coverage percentages
+    and/or profiles for packages without tests. Specifically, the code
+    added as part of the fix for issue 24570 (in CL 495447) didn't
+    properly consider the -coverpkg selection and would look for the build
+    action meta-data file for a package that wasn't actually selected for
+    coverage.
+    
+    Fixes #65653.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: I66ffac11783c00a8cbd855fd05b9a90e4e0ed402
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568835
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/test/test.go                      | 2 +-
+ src/cmd/go/testdata/script/cover_coverpkg_partial.txt | 8 ++++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

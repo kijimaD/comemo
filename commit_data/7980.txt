@@ -1,0 +1,87 @@
+commit 8a90fd3c72e7853a39ba348c0cd278b2d11ea610
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 4 23:42:14 2011 -0700
+
+    os: New Open API.
+    We replace the current Open with:
+    OpenFile(name, flag, perm) // same as old Open
+    Open(name) // same as old Open(name, O_RDONLY, 0)
+    Create(name) // same as old Open(name, O_RDWR|O_TRUNC|O_CREAT, 0666)
+    
+    This CL includes a gofix module and full code updates: all.bash passes.
+    (There may be a few comments I missed.)
+    
+    The interesting packages are:
+            gofix
+            os
+    Everything else is automatically generated except for hand tweaks to:
+            src/pkg/io/ioutil/ioutil.go
+            src/pkg/io/ioutil/tempfile.go
+            src/pkg/crypto/tls/generate_cert.go
+            src/cmd/goyacc/goyacc.go
+            src/cmd/goyacc/units.y
+    
+    R=golang-dev, bradfitzwork, rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/4357052
+
+ misc/dashboard/builder/exec.go           |   2 +-
+ misc/goplay/goplay.go                    |   2 +-
+ src/cmd/cgo/main.go                      |   2 +-
+ src/cmd/cgo/util.go                      |   2 +-
+ src/cmd/godoc/codewalk.go                |   2 +-
+ src/cmd/godoc/index.go                   |   2 +-
+ src/cmd/godoc/utils.go                   |   2 +-
+ src/cmd/gofix/Makefile                   |   1 +
+ src/cmd/gofix/main.go                    |   2 +-
+ src/cmd/gofix/osopen.go                  | 109 +++++++++++++++++++++++++++++++
+ src/cmd/gofix/osopen_test.go             |  53 +++++++++++++++
+ src/cmd/gofmt/gofmt.go                   |   4 +-
+ src/cmd/goinstall/main.go                |   2 +-
+ src/cmd/goinstall/parse.go               |   2 +-
+ src/cmd/gotest/gotest.go                 |   4 +-
+ src/cmd/gotype/gotype.go                 |   2 +-
+ src/cmd/goyacc/goyacc.go                 |  14 ++--
+ src/cmd/goyacc/units.y                   |   2 +-
+ src/pkg/archive/tar/reader_test.go       |   8 +--
+ src/pkg/archive/zip/reader.go            |   2 +-
+ src/pkg/compress/lzw/writer_test.go      |   4 +-
+ src/pkg/compress/zlib/writer_test.go     |   4 +-
+ src/pkg/crypto/rand/rand_unix.go         |   2 +-
+ src/pkg/crypto/tls/generate_cert.go      |   4 +-
+ src/pkg/debug/elf/file.go                |   2 +-
+ src/pkg/debug/macho/file.go              |   2 +-
+ src/pkg/debug/pe/file.go                 |   2 +-
+ src/pkg/debug/proc/proc_linux.go         |   2 +-
+ src/pkg/exec/exec.go                     |   2 +-
+ src/pkg/exp/draw/x11/auth.go             |   2 +-
+ src/pkg/exp/ogle/cmd.go                  |   2 +-
+ src/pkg/go/parser/interface.go           |   2 +-
+ src/pkg/gob/dump.go                      |   2 +-
+ src/pkg/html/parse_test.go               |   2 +-
+ src/pkg/http/fs.go                       |   4 +-
+ src/pkg/image/decode_test.go             |   2 +-
+ src/pkg/image/png/reader_test.go         |   4 +-
+ src/pkg/io/ioutil/ioutil.go              |   6 +-
+ src/pkg/io/ioutil/tempfile.go            |   2 +-
+ src/pkg/mime/type.go                     |   2 +-
+ src/pkg/net/parse.go                     |   2 +-
+ src/pkg/net/parse_test.go                |   2 +-
+ src/pkg/os/env_plan9.go                  |   6 +-
+ src/pkg/os/file.go                       |  22 ++++++-
+ src/pkg/os/file_plan9.go                 |  12 ++--
+ src/pkg/os/file_unix.go                  |   8 ++-
+ src/pkg/os/file_windows.go               |  10 +--
+ src/pkg/os/getwd.go                      |   2 +-
+ src/pkg/os/inotify/inotify_linux_test.go |   2 +-
+ src/pkg/os/os_test.go                    |  30 ++++-----
+ src/pkg/os/path.go                       |   2 +-
+ src/pkg/os/path_test.go                  |  10 +--
+ src/pkg/os/sys_linux.go                  |   2 +-
+ src/pkg/os/sys_plan9.go                  |   2 +-
+ src/pkg/path/filepath/match.go           |   2 +-
+ src/pkg/path/filepath/path.go            |   2 +-
+ src/pkg/path/filepath/path_test.go       |   2 +-
+ src/pkg/strconv/fp_test.go               |   2 +-
+ src/pkg/testing/testing.go               |   4 +-
+ 59 files changed, 291 insertions(+), 106 deletions(-)

@@ -1,0 +1,58 @@
+commit c83b838641649230d3cbb8be83fc4159949c29a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 2 18:37:30 2009 -0800
+
+    package net cleanup
+    
+    added ReadFrom/WriteTo for packet protocols like UDP.
+    simplified the net.Conn interface.
+    added new net.PacketConn interface for packet protocols.
+    implemented proper UDP listener.
+    
+    cleaned up LocalAddr/RemoteAddr methods - cache in netFD.
+    
+    threw away various unused methods.
+    
+    an interface change:
+    introduced net.Addr as a network address interface,
+    to avoid conversion of UDP host:port to string and
+    back for every ReadFrom/WriteTo sequence.
+    
+    another interface change:
+    since signature of Listener.Accept was changing anyway,
+    dropped the middle return value, because it is available
+    as c.RemoteAddr().  (the Accept signature predates the
+    existence of that method.)
+    
+    Dial and Listen still accept strings, but the proto-specific
+    versions DialTCP, ListenUDP, etc. take net.Addr instead.
+    
+    because the generic Dial didn't change and because
+    no one calls Accept directly (only indirectly via the http
+    server), very little code will be affected by these interface
+    changes.
+    
+    design comments welcome.
+    
+    R=p
+    CC=go-dev, r
+    http://go/go-review/1018017
+
+ src/pkg/http/server.go         |  10 +-
+ src/pkg/net/Makefile           |   2 +
+ src/pkg/net/dialgoogle_test.go |  14 --
+ src/pkg/net/dnsclient.go       |   6 +-
+ src/pkg/net/fd.go              |  68 +++-----
+ src/pkg/net/ip.go              |   4 +
+ src/pkg/net/ipsock.go          | 247 ++++++--------------------
+ src/pkg/net/net.go             | 218 +++++++++++++++--------
+ src/pkg/net/server_test.go     |  81 ++++++++-
+ src/pkg/net/sock.go            | 122 +++----------
+ src/pkg/net/tcpsock.go         | 289 ++++++++++++++++++++++++++++++
+ src/pkg/net/udpsock.go         | 299 +++++++++++++++++++++++++++++++
+ src/pkg/net/unixsock.go        | 387 +++++++++++++++++++++++++++++++++--------
+ src/pkg/os/error.go            |   1 +
+ src/pkg/rpc/client.go          |   2 +-
+ src/pkg/rpc/server.go          |   2 +-
+ src/pkg/rpc/server_test.go     |   4 +-
+ 17 files changed, 1254 insertions(+), 502 deletions(-)

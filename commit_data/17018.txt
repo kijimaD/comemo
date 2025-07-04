@@ -1,0 +1,16 @@
+commit 0a904a3f2ed1c4c09acdb9116aa3843e5ad14dad
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Aug 4 23:32:06 2013 +0400
+
+    runtime: remove dead code
+    Remove dead code related to allocation of type metadata with SysAlloc.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12311045
+
+ src/pkg/runtime/malloc.goc | 65 +++-------------------------------------------
+ src/pkg/runtime/malloc.h   |  3 +--
+ src/pkg/runtime/mgc0.c     |  2 +-
+ src/pkg/runtime/mheap.c    |  2 --
+ 4 files changed, 6 insertions(+), 66 deletions(-)

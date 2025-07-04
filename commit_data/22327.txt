@@ -1,0 +1,23 @@
+commit f077505d9a50d3fbeef2656a6f805fd75c65dd5d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 2 23:11:39 2015 +0900
+
+    net: fix tester goroutine leakage in tests
+    
+    This change tries to stop various tester goroutines at the end of each
+    scope for avoiding interference between test cases including benchmarks.
+    Not yet finished completely but enough to land upcoming changes to Dial
+    functions. The rest will be fixed later.
+    
+    Change-Id: Ic38b8681a3a2ddbcd69ba3696f24a61d418a0346
+    Reviewed-on: https://go-review.googlesource.com/8398
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/conn_test.go       |  50 +++++++--------------
+ src/net/dial_test.go       |  76 ++++++++++++++++----------------
+ src/net/mockserver_test.go | 105 +++++++++++++++++++++++++++++++++++++-------
+ src/net/protoconn_test.go  |  18 ++++----
+ src/net/tcp_test.go        |  17 ++++---
+ src/net/timeout_test.go    | 107 +++++++++++++++++++++++++++++++--------------
+ src/net/unix_test.go       |  18 ++++----
+ 7 files changed, 247 insertions(+), 144 deletions(-)

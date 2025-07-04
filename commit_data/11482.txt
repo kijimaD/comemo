@@ -1,0 +1,62 @@
+commit 91cb3489abcb0ec5cd36595249586d67729230c4
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 30 14:46:31 2012 -0800
+
+    go: move compilers into the go-tool directory
+    Also delete gotest, since it's messy to fix and slated for deletion anyway.
+    A couple of things outside src can't be tested any more. "go test" will be
+    fixed and these tests will be re-enabled. They're noisy for now.
+    
+    Fixes #284.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5598049
+
+ misc/cgo/test/Makefile               |   3 +
+ src/Make.cmd                         |  17 --
+ src/Make.inc                         |   8 +-
+ src/Make.pkg                         |  13 +-
+ src/Make.tool                        |  17 --
+ src/buildscript/darwin_386.sh        | 214 ++++++++--------
+ src/buildscript/darwin_amd64.sh      | 212 ++++++++--------
+ src/buildscript/freebsd_386.sh       | 214 ++++++++--------
+ src/buildscript/freebsd_amd64.sh     | 212 ++++++++--------
+ src/buildscript/linux_386.sh         | 214 ++++++++--------
+ src/buildscript/linux_amd64.sh       | 212 ++++++++--------
+ src/buildscript/linux_arm.sh         | 220 ++++++++---------
+ src/buildscript/netbsd_386.sh        | 214 ++++++++--------
+ src/buildscript/netbsd_amd64.sh      | 212 ++++++++--------
+ src/buildscript/openbsd_386.sh       | 214 ++++++++--------
+ src/buildscript/openbsd_amd64.sh     | 212 ++++++++--------
+ src/buildscript/plan9_386.sh         | 214 ++++++++--------
+ src/buildscript/windows_386.sh       | 218 ++++++++--------
+ src/buildscript/windows_amd64.sh     | 216 ++++++++--------
+ src/cmd/5a/Makefile                  |   2 +-
+ src/cmd/5c/Makefile                  |   2 +-
+ src/cmd/5g/Makefile                  |   2 +-
+ src/cmd/5l/Makefile                  |   2 +-
+ src/cmd/6a/Makefile                  |   2 +-
+ src/cmd/6c/Makefile                  |   2 +-
+ src/cmd/6g/Makefile                  |   2 +-
+ src/cmd/6l/Makefile                  |   2 +-
+ src/cmd/8a/Makefile                  |   2 +-
+ src/cmd/8c/Makefile                  |   2 +-
+ src/cmd/8g/Makefile                  |   2 +-
+ src/cmd/8l/Makefile                  |   2 +-
+ src/cmd/Makefile                     |   1 -
+ src/cmd/go/build.go                  |  12 +-
+ src/cmd/gomake/doc.go                |  36 ---
+ src/cmd/gotest/Makefile              |  12 -
+ src/cmd/gotest/doc.go                | 139 -----------
+ src/cmd/gotest/flag.go               | 165 -------------
+ src/cmd/gotest/gotest.go             | 464 -----------------------------------
+ src/env.bash                         |   6 +-
+ src/pkg/Makefile                     |   2 -
+ src/pkg/exp/types/gcimporter_test.go |   2 +-
+ src/pkg/runtime/mkasmh.sh            |   5 +-
+ src/pkg/runtime/mkgodefs.sh          |   5 +-
+ src/run.bash                         |   4 +-
+ test/bench/go1/Makefile              |   3 +
+ test/run                             |   3 +
+ 46 files changed, 1548 insertions(+), 2391 deletions(-)

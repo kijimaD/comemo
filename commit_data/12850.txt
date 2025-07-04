@@ -1,0 +1,128 @@
+commit f09e63a2a09bfb740205a98d7995bd744e225fb8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Apr 7 17:02:44 2012 +0400
+
+    runtime: add memory prefetching to GC
+    
+    benchmark                              old ns/op    new ns/op    delta
+    
+    garbage.BenchmarkParser               4448988000   4370531000   -1.76%
+    garbage.BenchmarkParser-2             4086045000   4023083000   -1.54%
+    garbage.BenchmarkParser-4             3677365000   3667020000   -0.28%
+    garbage.BenchmarkParser-8             3517253000   3543946000   +0.76%
+    garbage.BenchmarkParser-16            3506562000   3512518000   +0.17%
+    
+    garbage.BenchmarkTree                  494435529    505784058   +2.30%
+    garbage.BenchmarkTree-2                499652705    502774823   +0.62%
+    garbage.BenchmarkTree-4                468482117    465713352   -0.59%
+    garbage.BenchmarkTree-8                488533235    482287000   -1.28%
+    garbage.BenchmarkTree-16               507835176    500654882   -1.41%
+    
+    garbage.BenchmarkTree2                  31453900     28804600   -8.42%
+    garbage.BenchmarkTree2-2                21440600     19065800  -11.08%
+    garbage.BenchmarkTree2-4                10982000     10009100   -8.86%
+    garbage.BenchmarkTree2-8                 7544700      6479800  -14.11%
+    garbage.BenchmarkTree2-16                7049500      6163200  -12.57%
+    
+    garbage.BenchmarkParserPause           135815000    125360666   -7.70%
+    garbage.BenchmarkParserPause-2          92691523     84365476   -8.98%
+    garbage.BenchmarkParserPause-4          53392190     46995809  -11.98%
+    garbage.BenchmarkParserPause-8          36059523     30998900  -14.03%
+    garbage.BenchmarkParserPause-16         30174300     27613350   -8.49%
+    
+    garbage.BenchmarkTreePause              20969784     22568102   +7.62%
+    garbage.BenchmarkTreePause-2            20215875     20975130   +3.76%
+    garbage.BenchmarkTreePause-4            17240709     17180666   -0.35%
+    garbage.BenchmarkTreePause-8            18196386     18205870   +0.05%
+    garbage.BenchmarkTreePause-16           20621158     20486867   -0.65%
+    
+    garbage.BenchmarkTree2Pause            173992142    159995285   -8.04%
+    garbage.BenchmarkTree2Pause-2          131281904    118013714  -10.11%
+    garbage.BenchmarkTree2Pause-4           93484952     85092666   -8.98%
+    garbage.BenchmarkTree2Pause-8           88950523     77340809  -13.05%
+    garbage.BenchmarkTree2Pause-16          86071238     76557952  -11.05%
+    
+    garbage.BenchmarkParserLastPause       327247000    288205000  -11.93%
+    garbage.BenchmarkParserLastPause-2     217039000    187336000  -13.69%
+    garbage.BenchmarkParserLastPause-4     119722000    105069000  -12.24%
+    garbage.BenchmarkParserLastPause-8      70806000     64755000   -8.55%
+    garbage.BenchmarkParserLastPause-16     62813000     53486000  -14.85%
+    
+    garbage.BenchmarkTreeLastPause          28420000     29735000   +4.63%
+    garbage.BenchmarkTreeLastPause-2        23514000     25427000   +8.14%
+    garbage.BenchmarkTreeLastPause-4        21773000     19548000  -10.22%
+    garbage.BenchmarkTreeLastPause-8        24072000     24046000   -0.11%
+    garbage.BenchmarkTreeLastPause-16       25149000     25291000   +0.56%
+    
+    garbage.BenchmarkTree2LastPause        314491000    287988000   -8.43%
+    garbage.BenchmarkTree2LastPause-2      214363000    190616000  -11.08%
+    garbage.BenchmarkTree2LastPause-4      109778000    100052000   -8.86%
+    garbage.BenchmarkTree2LastPause-8       75390000     64753000  -14.11%
+    garbage.BenchmarkTree2LastPause-16      70333000     61484000  -12.58%
+    
+    FTR, below are result with the empty prefetch function,
+    that is, single RET but no real prefetching.
+    It suggests that inlinable PREFETCH is worth pursuing.
+    
+    benchmark                              old ns/op    new ns/op    delta
+    
+    garbage.BenchmarkParser               4448988000   4560488000   +2.51%
+    garbage.BenchmarkParser-2             4086045000   4129728000   +1.07%
+    garbage.BenchmarkParser-4             3677365000   3728672000   +1.40%
+    garbage.BenchmarkParser-8             3517253000   3583968000   +1.90%
+    garbage.BenchmarkParser-16            3506562000   3591414000   +2.42%
+    
+    garbage.BenchmarkTree                  494435529    499580882   +1.04%
+    garbage.BenchmarkTree-4                468482117    467387294   -0.23%
+    garbage.BenchmarkTree-8                488533235    478311117   -2.09%
+    garbage.BenchmarkTree-2                499652705    499324235   -0.07%
+    garbage.BenchmarkTree-16               507835176    502005705   -1.15%
+    
+    garbage.BenchmarkTree2                  31453900     33296800   +5.86%
+    garbage.BenchmarkTree2-2                21440600     22466400   +4.78%
+    garbage.BenchmarkTree2-4                10982000     11402700   +3.83%
+    garbage.BenchmarkTree2-8                 7544700      7476500   -0.90%
+    garbage.BenchmarkTree2-16                7049500      7338200   +4.10%
+    
+    garbage.BenchmarkParserPause           135815000    139529142   +2.73%
+    garbage.BenchmarkParserPause-2          92691523     95229190   +2.74%
+    garbage.BenchmarkParserPause-4          53392190     53083476   -0.58%
+    garbage.BenchmarkParserPause-8          36059523     34594800   -4.06%
+    garbage.BenchmarkParserPause-16         30174300     30063300   -0.37%
+    
+    garbage.BenchmarkTreePause              20969784     21866920   +4.28%
+    garbage.BenchmarkTreePause-2            20215875     20731125   +2.55%
+    garbage.BenchmarkTreePause-4            17240709     17275837   +0.20%
+    garbage.BenchmarkTreePause-8            18196386     17898777   -1.64%
+    garbage.BenchmarkTreePause-16           20621158     20662772   +0.20%
+    
+    garbage.BenchmarkTree2Pause            173992142    184336857   +5.95%
+    garbage.BenchmarkTree2Pause-2          131281904    138005714   +5.12%
+    garbage.BenchmarkTree2Pause-4           93484952     98449238   +5.31%
+    garbage.BenchmarkTree2Pause-8           88950523     89286095   +0.38%
+    garbage.BenchmarkTree2Pause-16          86071238     89568666   +4.06%
+    
+    garbage.BenchmarkParserLastPause       327247000    342189000   +4.57%
+    garbage.BenchmarkParserLastPause-2     217039000    217224000   +0.09%
+    garbage.BenchmarkParserLastPause-4     119722000    121327000   +1.34%
+    garbage.BenchmarkParserLastPause-8      70806000     71941000   +1.60%
+    garbage.BenchmarkParserLastPause-16     62813000     60166000   -4.21%
+    
+    garbage.BenchmarkTreeLastPause          28420000     27840000   -2.04%
+    garbage.BenchmarkTreeLastPause-2        23514000     27390000  +16.48%
+    garbage.BenchmarkTreeLastPause-4        21773000     21414000   -1.65%
+    garbage.BenchmarkTreeLastPause-8        24072000     21705000   -9.83%
+    garbage.BenchmarkTreeLastPause-16       25149000     23932000   -4.84%
+    
+    garbage.BenchmarkTree2LastPause        314491000    332894000   +5.85%
+    garbage.BenchmarkTree2LastPause-2      214363000    224611000   +4.78%
+    garbage.BenchmarkTree2LastPause-4      109778000    113976000   +3.82%
+    garbage.BenchmarkTree2LastPause-8       75390000     67223000  -10.83%
+    garbage.BenchmarkTree2LastPause-16      70333000     73216000   +4.10%
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5991057
+
+ src/pkg/runtime/mgc0.c | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,14 @@
+commit c978a5a3a94fbd03cfe012fbf1ac556728d7fb41
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 8 14:03:40 2012 -0500
+
+    test: skip . files in directory
+    
+    Xcode generates ._foo.go files.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5786055
+
+ test/run.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

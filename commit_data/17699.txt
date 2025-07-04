@@ -1,0 +1,12 @@
+commit 4be17b7a7e43067f451cc1001f43495bcf2f6f45
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 25 16:17:54 2013 +1000
+
+    doc/go1.2.html: add go/ast.SliceExpr.Slice3
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/13877044
+
+ doc/go1.2.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

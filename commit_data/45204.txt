@@ -1,0 +1,29 @@
+commit 02a2ff47ef6004a59e4d688c7c93198778c36bcf
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Mar 29 16:03:51 2021 -0400
+
+    go/parser: add a SkipObjectResolution mode to bypass object resolution
+    
+    Parser object resolution is an auxiliary feature in which the parser
+    attempts to resolve identifiers to their declarations. In functionality,
+    it significantly overlaps with go/types and in fact cannot be correctly
+    computed at parse-time without type information (for example, it is
+    generally not possible to resolve k in the composite lit c{k: v}). Due
+    to these limitations, it is of limited utility and rarely used.
+    
+    Now that object resolution is isolated as a post-processing pass, it is
+    trivial to offer a parser mode that skips it entirely. This CL adds that
+    mode.
+    
+    Fixes #45104
+    
+    Change-Id: I5a2c05437e298964ad2039e1ff98e63d6efbd1af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306149
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/parser/interface.go | 23 ++++++++++++++---------
+ src/go/parser/parser.go    |  4 +++-
+ 2 files changed, 17 insertions(+), 10 deletions(-)

@@ -1,0 +1,18 @@
+commit fcee50c46eebf742afd3b90150a4b5e6c730715d
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Oct 2 08:52:51 2013 +1000
+
+    misc/vim: Separate package and package members.
+    This change allow to godoc:
+        :Godoc github.com/mattn/go-gtk/gtk
+        :Godoc github.com/mattn/go-gtk/gtk NewWindow
+        :Godoc encoding/json
+        :Godoc encoding/json Marshal
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/14171043
+
+ misc/vim/autoload/go/complete.vim |  6 ++++++
+ misc/vim/plugin/godoc.vim         | 36 ++++++++++++++++++++----------------
+ 2 files changed, 26 insertions(+), 16 deletions(-)

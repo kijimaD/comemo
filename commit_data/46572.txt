@@ -1,0 +1,21 @@
+commit c0766d2cd0453b33da74407bcb0d32bbc5392c9b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 22 17:28:36 2021 -0700
+
+    go/types: avoid "declared but not used errors" for invalid variable initializations
+    
+    This is a partial port of CL 351669 from types2 to go/types; it
+    only copies the fix for variable usage.
+    
+    Eventually we may want to use the compiler error messages for assignment
+    errors everywhere, but that doesn't need to happen now.
+    
+    Change-Id: I62b024b1b29cc27c29d919de3de44f944f6e2b4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351670
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/assignments.go | 1 +
+ 1 file changed, 1 insertion(+)

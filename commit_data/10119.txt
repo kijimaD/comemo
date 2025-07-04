@@ -1,0 +1,13 @@
+commit 8658b36ba2cab730e1717d61a88f72d92b27a286
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 15:27:47 2011 -0700
+
+    test/alias.go: additional tests
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5327045
+
+ test/alias.go  | 18 +++++++++++++++++-
+ test/alias1.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+), 1 deletion(-)

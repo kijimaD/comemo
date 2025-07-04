@@ -1,0 +1,13 @@
+commit 454c2343979b8976f3f1ac50f8149b36a839d555
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 9 19:58:11 2016 +0000
+
+    database/sql: use complete sentences in new docs
+    
+    Change-Id: Icb842a80cab2b07b9ace1e8e14c4a19c48a92c43
+    Reviewed-on: https://go-review.googlesource.com/34247
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/sql.go | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)

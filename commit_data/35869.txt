@@ -1,0 +1,20 @@
+commit 3f54e8537aa31cf3dbcf27d0c3033b17756d093a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Jun 30 17:46:25 2018 -0400
+
+    cmd/compile: run generic deadcode in -N mode
+    
+    Late opt pass may generate dead stores, which messes up store
+    chain calculation in later passes. Run generic deadcode even
+    in -N mode to remove them.
+    
+    Fixes #26163.
+    
+    Change-Id: I8276101717bb978d5980e6c7998f53fd8d0ae10f
+    Reviewed-on: https://go-review.googlesource.com/121856
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/compile.go |  2 +-
+ test/fixedbugs/issue26163.go            | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

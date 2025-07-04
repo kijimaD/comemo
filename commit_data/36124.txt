@@ -1,0 +1,23 @@
+commit bd98a81dc27a740f4c4192cc8799884da62c4bad
+Author: David Wimmer <davidlwimmer@gmail.com>
+Date:   Wed Jul 25 19:16:07 2018 +0000
+
+    syscall: implement pipe() on linux/mips
+    
+    Change the Pipe() function to use the pipe() syscall (which has a unique
+    calling convention on linux/mips) instead of using pipe2(). This allows
+    it work on kernels <2.6.27 when pipe2() was introduced.
+    
+    Change-Id: I65dfbd2a02b64e777a8eb13013d718e356521be6
+    GitHub-Last-Rev: c483a06168387c2cf151b6419e4e16576fab640a
+    GitHub-Pull-Request: golang/go#26608
+    Reviewed-on: https://go-review.googlesource.com/125915
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Vladimir Stefanovic <vladimir.stefanovic@mips.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_linux_mipsx.go   |  7 +++----
+ src/syscall/zsyscall_linux_mips.go   | 12 ++++++++++++
+ src/syscall/zsyscall_linux_mipsle.go | 12 ++++++++++++
+ 3 files changed, 27 insertions(+), 4 deletions(-)

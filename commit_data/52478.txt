@@ -1,0 +1,27 @@
+commit 22f9317f205efc0c86ec5107a19a53150d02e439
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Wed Mar 22 13:56:38 2023 +0800
+
+    cmd/internal/obj/loong64: assemble BEQ/BNEs comparing with 0 as beqz/bnez
+    
+    LoongArch (except for the extremely reduced LA32 Primary subset) has
+    dedicated beqz/bnez instructions as alternative encodings for beq/bne
+    with one of the source registers being R0, that allow the offset field
+    to occupy 5 more bits, giving 21 bits in total (equal to the FP
+    branches). Make use of them instead of beq/bne if one source operand is
+    omitted in asm, or if one of the registers being compared is R0.
+    
+    Multiple go1 benchmark runs indicate the change is not perf-sensitive.
+    
+    Change-Id: If6267623c82092e81d75578091fb4e013658b9f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478377
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Wayne Zuo <wdvxdr@golangcn.org>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |  8 ++++-
+ src/cmd/internal/obj/loong64/asm.go             | 39 ++++++++++++++++++-------
+ 2 files changed, 36 insertions(+), 11 deletions(-)

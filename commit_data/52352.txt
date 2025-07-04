@@ -1,0 +1,23 @@
+commit f24afeef9ae279dd62a22583248f49155defc928
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Mar 15 17:38:35 2023 -0400
+
+    cmd/link: improve error message and debugging
+    
+    Correct an error message to missing section, not unreachable
+    symbol.
+    
+    Also, under -v >= 2, dump symbol info on error for debugging.
+    
+    Updates #58966.
+    
+    Change-Id: I0f832c517d64f4b672b313a8b9be2d028744f945
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476735
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/testdata/script/link_external_undef.txt |  2 +-
+ src/cmd/link/internal/ld/data.go                   | 13 ++++++++++---
+ src/cmd/link/internal/ld/main.go                   |  8 ++++++++
+ 3 files changed, 19 insertions(+), 4 deletions(-)

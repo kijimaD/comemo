@@ -1,0 +1,16 @@
+commit 1d5af1553c91d346e70c83aa5b7132e242c15242
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 4 12:56:08 2010 +1100
+
+    First run at a Programming FAQ
+    
+    Moved a couple of FAQs from the main FAQ, and added some others
+    
+    R=r, rsc, iant, gri
+    CC=golang-dev
+    https://golang.org/cl/218070
+
+ doc/go_faq.html             |  61 +---------
+ doc/go_programming_faq.html | 271 ++++++++++++++++++++++++++++++++++++++++++++
+ lib/godoc/godoc.html        |   1 +
+ 3 files changed, 277 insertions(+), 56 deletions(-)

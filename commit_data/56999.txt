@@ -1,0 +1,22 @@
+commit d531e344aea38f165a9d13d1e4173816fec35050
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jul 26 10:02:55 2024 -0400
+
+    debug/buildinfo: improve format documentation
+    
+    Existing documentation is a bit sparse, and more importantly focuses
+    almost entirely on the old pre-1.18 format, with the new format as an
+    afterthought. Since the new format is the primary format, make it more
+    prominent.
+    
+    Updates #68592.
+    
+    Change-Id: I108ecde1b33650b4812fa5d278b08cb9197f6329
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601456
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/cmd/link/internal/ld/data.go |  8 +++--
+ src/debug/buildinfo/buildinfo.go | 74 +++++++++++++++++++++++++++-------------
+ 2 files changed, 56 insertions(+), 26 deletions(-)

@@ -1,0 +1,16 @@
+commit d89ab1398eef9a3f08db2a49ff3cbe158001474d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 1 17:40:07 2016 +0000
+
+    net/http: make Transport reject URLs with bogus ports with non-digits
+    
+    Fixes #14353
+    
+    Change-Id: I9cb5a5192ecdae37c100969395ed6a1564b8d34e
+    Reviewed-on: https://go-review.googlesource.com/32482
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Martin Möhrmann <martisch@uos.de>
+
+ src/net/http/transport.go      | 20 ++++++++++++++++++++
+ src/net/http/transport_test.go | 18 ++++++++++++++++++
+ 2 files changed, 38 insertions(+)

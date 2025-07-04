@@ -1,0 +1,22 @@
+commit 71b1c6d3c98b0f34070be4c8f5e9d4c0cb2731ac
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 26 13:02:03 2012 -0500
+
+    godoc: move overview before API TOC
+    
+    Compare:
+    http://swtch.com/junk/regexp0.html [old]
+    http://swtch.com/junk/regexp.html [new]
+    
+    Especially for packages with large APIs, this makes the
+    overview more promiment, so that it can give the appropriate
+    context for reading the API list.  This should help significantly
+    in packages with large APIs, like net, so that the first thing users
+    see is not a jumble of functions but an introduction to the package.
+    
+    R=adg, gri, r, kevlar, dsymonds, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/5573068
+
+ lib/godoc/package.html | 203 ++++++++++++++++++++++++++-----------------------
+ 1 file changed, 106 insertions(+), 97 deletions(-)

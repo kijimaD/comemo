@@ -1,0 +1,14 @@
+commit 5899cab03720acfb593f16dd89273ea2c5a2cc88
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 27 23:19:37 2011 +1000
+
+    doc/codelab/wiki: tests use available TCP port
+    
+    R=bradfitz, dsymonds, r2, dangabrad, rsc
+    CC=golang-dev
+    https://golang.org/cl/4043043
+
+ doc/codelab/wiki/Makefile |  4 ++--
+ doc/codelab/wiki/get.go   | 16 +++++++++++++++-
+ doc/codelab/wiki/test.sh  | 17 +++++++++++------
+ 3 files changed, 28 insertions(+), 9 deletions(-)

@@ -1,0 +1,12 @@
+commit cbd28eceabaabb130fcd48d7777dad7a64d149c1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 13 10:07:54 2015 +1100
+
+    go1.5.txt: log: add global Output function
+    
+    Change-Id: I5a54a041cfe9ff2d9514f2d6596b53ec7fc91845
+    Reviewed-on: https://go-review.googlesource.com/2689
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

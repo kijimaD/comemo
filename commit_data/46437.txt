@@ -1,0 +1,27 @@
+commit 137543bb93e15286b54d58d17d51e609ed49339a
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Sep 14 08:39:08 2021 -0700
+
+    cmd/compile: set IsShape based on type being in the Shapes pkg
+    
+    Move ShapePkg to types, and change types.NewNamed to automatically set
+    IsShape/HasShape if a type is in the shapes pkg. This means that
+    imported shape types will automatically have the correct
+    IsShape/HasShape flags, even though we are not explicitly
+    exporting/importing those flags.
+    
+    Updates #48337
+    
+    Change-Id: I8b6131a663205f73f395943c9d0c8bdb2a213401
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349869
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/subr.go | 10 +++++++---
+ src/cmd/compile/internal/types/type.go     |  6 ++++++
+ test/typeparam/issue48337b.dir/a.go        | 25 +++++++++++++++++++++++++
+ test/typeparam/issue48337b.dir/main.go     | 11 +++++++++++
+ test/typeparam/issue48337b.go              |  7 +++++++
+ 5 files changed, 56 insertions(+), 3 deletions(-)

@@ -1,0 +1,20 @@
+commit 822031dffc43567b4c60e12e77afe48a00028c0e
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Thu Apr 3 23:10:16 2025 +0800
+
+    sync: add WaitGroup.Go
+    
+    Fixes #63796
+    
+    Change-Id: I2a941275dd64ef858cbf02d31a759fdc5c082ceb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662635
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ api/next/63796.txt                       |  1 +
+ doc/next/6-stdlib/99-minor/sync/63769.md |  2 ++
+ src/sync/waitgroup.go                    | 47 ++++++++++++++++++++++++++++++--
+ src/sync/waitgroup_test.go               | 12 ++++++++
+ 4 files changed, 60 insertions(+), 2 deletions(-)

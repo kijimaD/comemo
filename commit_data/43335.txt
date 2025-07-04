@@ -1,0 +1,35 @@
+commit 41162be44a099803a870f9b6c147050594598d63
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 12 15:32:49 2020 -0400
+
+    cmd/go/internal/modload: avoid using the global build list in QueryPattern
+    
+    The Query function allows the caller to specify the current version of
+    the requested module, but the QueryPattern function is missing that
+    parameter: instead, it always assumes that the current version is the
+    one selected from the global build list.
+    
+    This change removes that assumption, instead adding a callback
+    function to determine the current version. (The callback is currently
+    invoked once per candidate module, regardless of whether that module
+    exists, but in a future change we can refactor it to invoke the
+    callback only when needed.)
+    
+    For #36460
+    For #40775
+    
+    Change-Id: I001a4a8ab24f5b4fcc66a670d9bd305b47e948ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261640
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modget/get.go        |  2 +-
+ src/cmd/go/internal/modload/buildlist.go | 15 +++++++++++++++
+ src/cmd/go/internal/modload/import.go    |  2 +-
+ src/cmd/go/internal/modload/modfile.go   |  2 +-
+ src/cmd/go/internal/modload/query.go     | 15 +++------------
+ src/cmd/go/internal/work/build.go        |  2 +-
+ 6 files changed, 22 insertions(+), 16 deletions(-)

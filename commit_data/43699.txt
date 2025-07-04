@@ -1,0 +1,34 @@
+commit 3a1d84b393e4192c413a45824304381625c09fbc
+Author: Curtis La Graff <curtis@lagraff.me>
+Date:   Tue Nov 3 20:26:17 2020 +0000
+
+    cmd/go/internal/modfetch/codehost: add support for new fossil info hash prefix
+    
+    A recent update of the Fossil SCM application changes
+    the line prefix when the fossil info command is used.
+    Instead of the revision hash starting with "uuid:", it has been
+    changed to "hash:".
+    
+    Fossil check-in introducing this change:
+    
+    https://fossil-scm.org/home/info/8ad5e4690854a81a
+    
+    To support older and new versions, fossilParseStat will
+    now check for either version of the prefix when attempting
+    to find the line containing the hash of the desired revision.
+    
+    Fixes #42323
+    
+    Change-Id: I6eff49f9989b37b295322a8569e222a1fd02f6e3
+    GitHub-Last-Rev: f4e6652307732fd3213684f13e42d17528271d88
+    GitHub-Pull-Request: golang/go#42324
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267080
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/vcs.go  |  2 +-
+ src/cmd/go/testdata/script/mod_get_fossil.txt | 26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

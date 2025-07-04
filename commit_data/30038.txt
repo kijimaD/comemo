@@ -1,0 +1,16 @@
+commit 329fff0db01dd1252444cf106dffe72ba20ddbc8
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Nov 26 15:27:29 2016 +0000
+
+    misc/cgo/testshared: remove unused flag.Parse()
+    
+    TestMain doesn't make use of any flags.
+    
+    Change-Id: I98ec582fb004045a5067618f605ccfeb1f9f4bbb
+    Reviewed-on: https://go-review.googlesource.com/33613
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testshared/shared_test.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,0 +1,20 @@
+commit 1519729c6a1f05735fdc7a6db38dc83838783eee
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 6 20:56:39 2022 +0700
+
+    cmd/compile: treat constants to type parameter conversion as non-constant in Unified IR
+    
+    Fixes #54307
+    
+    Change-Id: Idcbdb3b1cf7c7fd147cc079659f29a9b5d17e6e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421874
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/helpers.go |  5 +++++
+ src/cmd/compile/internal/noder/reader.go  | 18 ++++++++++++++----
+ src/cmd/compile/internal/noder/writer.go  |  2 ++
+ test/fixedbugs/issue54307.go              | 19 +++++++++++++++++++
+ 4 files changed, 40 insertions(+), 4 deletions(-)

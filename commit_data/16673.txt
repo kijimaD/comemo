@@ -1,0 +1,12 @@
+commit e88478f1e0690878838bacf5159148ad872ec557
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 28 12:16:33 2013 -0700
+
+    include/plan9: define size_t to fix build breakage
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10760043
+
+ include/plan9/libc.h | 4 ++++
+ 1 file changed, 4 insertions(+)

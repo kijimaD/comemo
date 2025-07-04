@@ -1,0 +1,12 @@
+commit dabd9fe92030d44cc5f18b2c2736cdb523991f66
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 24 14:52:10 2010 -0400
+
+    syscall: work harder to avoid doing this ever again
+    
+    TBR=adg
+    CC=golang-dev
+    https://golang.org/cl/2218044
+
+ src/pkg/syscall/mksyscall.sh | 5 +++++
+ 1 file changed, 5 insertions(+)

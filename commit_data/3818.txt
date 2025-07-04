@@ -1,0 +1,12 @@
+commit 5f50a8186360837aa23e338b35a0576b680decce
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 5 15:07:42 2009 -0800
+
+    add information comparing the compiler implementations to the installation document
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1018063
+
+ doc/install.html | 124 ++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 95 insertions(+), 29 deletions(-)

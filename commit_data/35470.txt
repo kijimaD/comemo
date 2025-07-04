@@ -1,0 +1,16 @@
+commit ef880a2f61c200540dd630bd0c45067088164b2c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 23 20:03:27 2018 +1000
+
+    cmd/go: skip TestLinkerTmpDirIsDeleted if cgo is not enabled
+    
+    Fixes builders that do not have cgo installed.
+    
+    Change-Id: I719b7959226b0e67c3ffc11e071784787cabc5ab
+    Reviewed-on: https://go-review.googlesource.com/114235
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

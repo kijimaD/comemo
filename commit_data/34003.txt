@@ -1,0 +1,28 @@
+commit 9745eed4fd4160cfbf55e9dbbfa99aca5563b392
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 11 18:22:23 2018 -0800
+
+    cmd/go: make gccgo -buildmode=shared and -linkshared work again
+    
+    After CL 69831, addTransitiveLinkDeps ensures that all dependencies of
+    a link appear in Deps. We no longer need to traverse through all
+    actions to find them. And the old scheme of looking through all the
+    actions and assuming we would see shared library actions before
+    libraries they depend on no longer works.
+    
+    Now that we have complete deps, change to a simpler scheme in which we
+    find the shared libraries in the deps, and then use that to sort the
+    deps into archives and shared libraries.
+    
+    Fixes #22224
+    
+    Change-Id: I14fcc773ac59b6f5c2965cc04d4ed962442cc89e
+    Reviewed-on: https://go-review.googlesource.com/87497
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/testshared/shared_test.go |  5 +-
+ src/cmd/go/internal/work/action.go |  8 ++--
+ src/cmd/go/internal/work/gccgo.go  | 94 +++++++++++++++++++-------------------
+ 3 files changed, 50 insertions(+), 57 deletions(-)

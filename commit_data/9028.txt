@@ -1,0 +1,25 @@
+commit 9f4c288c168b38aa4110b227cead4a53e9e86075
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jul 12 09:29:24 2011 -0400
+
+    hash/crc32: add SSE4.2 support
+    
+    Using the CRC32 instruction speeds up the Castagnoli computation by
+    about 20x on a modern Intel CPU.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4650072
+
+ src/cmd/6a/lex.c                    |   9 ++++
+ src/cmd/6l/6.out.h                  |   2 +
+ src/cmd/6l/l.h                      |   1 +
+ src/cmd/6l/optab.c                  |  65 +++++++++++++++++++++++
+ src/cmd/6l/span.c                   |   6 +++
+ src/pkg/hash/crc32/Makefile         |   9 ++++
+ src/pkg/hash/crc32/crc32.go         |  37 +++++++++++--
+ src/pkg/hash/crc32/crc32_amd64.go   |  25 +++++++++
+ src/pkg/hash/crc32/crc32_amd64.s    |  62 ++++++++++++++++++++++
+ src/pkg/hash/crc32/crc32_generic.go |  12 +++++
+ src/pkg/hash/crc32/crc32_test.go    | 103 ++++++++++++++++++++++--------------
+ 11 files changed, 285 insertions(+), 46 deletions(-)

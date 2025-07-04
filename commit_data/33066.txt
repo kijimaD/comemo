@@ -1,0 +1,30 @@
+commit ecfa7375e40e3586afbac0ec6f3f9383124b25bc
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Oct 6 16:01:02 2017 -0400
+
+    cmd/link: move ELF reader to its own package
+    
+    Along the way, switch to using relocation constants from debug/elf.
+    
+    For #22095
+    
+    Change-Id: I1a64353619f95dde5aa39060c4b9d001af7dc1e4
+    Reviewed-on: https://go-review.googlesource.com/69013
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/buildtool.go                      |   1 +
+ src/cmd/link/internal/amd64/asm.go             |  38 +--
+ src/cmd/link/internal/arm/asm.go               |  47 +--
+ src/cmd/link/internal/arm64/asm.go             |  21 +-
+ src/cmd/link/internal/ld/elf.go                | 432 -------------------------
+ src/cmd/link/internal/ld/lib.go                |  10 +
+ src/cmd/link/internal/ld/util.go               |   9 -
+ src/cmd/link/internal/{ld => loadelf}/ldelf.go | 344 ++++++++++----------
+ src/cmd/link/internal/mips/asm.go              |  11 +-
+ src/cmd/link/internal/mips64/asm.go            |  13 +-
+ src/cmd/link/internal/ppc64/asm.go             |  69 ++--
+ src/cmd/link/internal/s390x/asm.go             |  90 +++---
+ src/cmd/link/internal/x86/asm.go               |  37 +--
+ 13 files changed, 351 insertions(+), 771 deletions(-)

@@ -1,0 +1,16 @@
+commit 6cc8aa7ece96aca282db19f08aa5c98ed13695d9
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Feb 23 11:48:15 2021 -0500
+
+    go/types: minor updates to comments to align with types2
+    
+    Change-Id: Ic4fcd67cd9222eae6b72d9e91e37f3b0293b0b8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295530
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/conversions.go | 2 +-
+ src/go/types/issues_test.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

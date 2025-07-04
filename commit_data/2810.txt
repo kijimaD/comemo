@@ -1,0 +1,49 @@
+commit 2210a643b7a914cd0dc6f251544d93e030f0def6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 28 16:38:59 2009 -0700
+
+    Intersperse comments nicely when printing an AST.
+    gofmt formatted source code looks pretty good already;
+    with a bit more fine-tuning it should be great.
+    
+    printer.go:
+    - Implemented comment intersperse algorithm.
+      The approach is a result of many trial-and-error
+      experiments but at this point reasonably simple
+      and open to arbitrary fine-tuning.
+    
+    parser.go:
+    - Simplified handling of lead and line comments
+      (formerly called leading and trailing comments).
+    - Use a comments list instead of an array (I may
+      change this back - this is not obviously better
+      and uses more space).
+    
+    doc.go:
+    - Remove comments from AST nodes that have been
+      'consumed' in the documentation to avoid duplicate
+      printing of them. Allows for better control of
+      what is printed w/o use of printing control flags
+      (which are hard to use and not fine-grained enough).
+    
+    Corresponding adjustments to various clients of these
+    files.
+    
+    R=rsc
+    DELTA=478  (275 added, 108 deleted, 95 changed)
+    OCL=32185
+    CL=32380
+
+ src/cmd/godoc/godoc.go                 |   6 +-
+ src/cmd/gofmt/gofmt.go                 |   8 +-
+ src/cmd/gofmt/test.sh                  |   8 +-
+ src/pkg/go/ast/ast.go                  |  14 +-
+ src/pkg/go/ast/filter.go               |   2 +-
+ src/pkg/go/doc/doc.go                  |  21 ++-
+ src/pkg/go/parser/parser.go            | 117 ++++---------
+ src/pkg/go/printer/printer.go          | 307 ++++++++++++++++++++++++---------
+ src/pkg/go/printer/printer_test.go     |   3 +-
+ src/pkg/go/printer/testdata/golden1.go |  34 +++-
+ src/pkg/go/printer/testdata/golden1.x  |   2 +
+ src/pkg/go/printer/testdata/source1.go |  27 ++-
+ 12 files changed, 359 insertions(+), 190 deletions(-)

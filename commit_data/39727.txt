@@ -1,0 +1,28 @@
+commit 24c6dd982323949d1a55f8d4e8b0674e45bcf3ce
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Mon Jun 24 14:23:38 2019 +0700
+
+    cmd/compile: fix internal error on complex comparison
+    
+    Complex type is the only TIDEAL that lack of support for all comparison
+    operators. When rewriting constant comparison into literal node, that
+    missing cause compiler raise an internal error.
+    
+    Checking the operator is available for complex type before that fix the
+    problem.
+    
+    We can make this check works more generally if there's more type lack of
+    supporting all comparison operators added, but it does not seem to be
+    happened, so just check explicitly for complex only.
+    
+    Fixes #32723
+    
+    Change-Id: I4938b1bdcbcdae9a9d87436024984bd2ab12995e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183459
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go |  7 +++++++
+ test/fixedbugs/issue32723.go             | 22 ++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

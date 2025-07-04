@@ -1,0 +1,11 @@
+commit e9c9c9ace52ec99390e2f186da91b9fceb2cf322
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 13 12:54:21 2008 -0700
+
+    add symbol tables and line/pc information to 6.outs
+    
+    SVN=122699
+
+ src/cmd/6l/asm.c | 143 ++++++++++++++++++++++++++++++++++---------------------
+ src/cmd/6l/l.h   |   2 +-
+ 2 files changed, 90 insertions(+), 55 deletions(-)

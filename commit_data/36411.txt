@@ -1,0 +1,16 @@
+commit bca00def0dcde59312574b98568fd4698a61dfdd
+Author: Diego Siqueira <diego9889@gmail.com>
+Date:   Wed Aug 1 10:52:19 2018 +0000
+
+    plugin: remove unused func
+    
+    Change-Id: Ife29464d581f00940af7ef9251bf99661c1350b6
+    GitHub-Last-Rev: d7747706584b06b619fc78a85b6b9bfe619467c8
+    GitHub-Pull-Request: golang/go#26740
+    Reviewed-on: https://go-review.googlesource.com/127195
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/plugin/plugin_dlopen.go | 10 ----------
+ 1 file changed, 10 deletions(-)

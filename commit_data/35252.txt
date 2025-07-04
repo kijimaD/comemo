@@ -1,0 +1,18 @@
+commit 4704149e04b89a2c3f3d361facdab55b659fb527
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu May 3 11:43:25 2018 +0200
+
+    misc/ios: retry lldb launch if the iOS app is busy
+    
+    Sometimes, a newly installed the test app is not ready to launch
+    or the reported app path is stale. Pause and retry the launch if
+    the lldb script did not run the program.
+    
+    Change-Id: Ic7745d4b5a02f2e3cb8134341859039812f65a65
+    Reviewed-on: https://go-review.googlesource.com/111216
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 81 ++++++++++++++++++++++++++----------------
+ 1 file changed, 51 insertions(+), 30 deletions(-)

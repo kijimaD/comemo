@@ -1,0 +1,12 @@
+commit 0b12223fbe25d3c9d05b63179c7d063e4885df1a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 29 09:24:24 2011 -0400
+
+    doc/codelab/wiki: fix Makefile
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4971043
+
+ doc/codelab/wiki/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

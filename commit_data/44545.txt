@@ -1,0 +1,17 @@
+commit 87d29939c8f93799ce889d98e0e5579d1eb2ffe5
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Mar 2 13:22:21 2021 -0500
+
+    runtime: remove racefuncenterfp
+    
+    No longer needed with previous CL.
+    
+    Change-Id: I7c01f9e0e34ecb9553ef1b3d662f33419fd3a244
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297932
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/race_amd64.s   | 10 +---------
+ src/runtime/race_arm64.s   | 10 +---------
+ src/runtime/race_ppc64le.s | 12 +-----------
+ 3 files changed, 3 insertions(+), 29 deletions(-)

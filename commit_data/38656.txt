@@ -1,0 +1,18 @@
+commit ead895688def46f4c74c2a4c7ee560fc46663000
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Apr 4 12:46:50 2019 -0400
+
+    math/big: do not panic in Exp when y < 0 and x doesn't have an inverse
+    
+    If x does not have an inverse modulo m, and a negative exponent is used,
+    return nil just like ModInverse does now.
+    
+    Change-Id: I8fa72f7a851e8cf77c5fab529ede88408740626f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170757
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/int.go      |  9 +++++++--
+ src/math/big/int_test.go | 18 +++++++++++++-----
+ 2 files changed, 20 insertions(+), 7 deletions(-)

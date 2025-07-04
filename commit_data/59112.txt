@@ -1,0 +1,17 @@
+commit 48240ad3f927b593de69d9aa6b22f96db982c578
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Mar 19 13:13:51 2025 -0700
+
+    internal/syscall/unix: use correct number of params in unlinkat, fchownat
+    
+    We were calling syscall6 with an incorrect parameter count, omitting
+    the flags parameter.
+    
+    Change-Id: Ife606bd57c1e4b899c0340767e9197bbe0aa81a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659415
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/syscall/unix/at_libc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

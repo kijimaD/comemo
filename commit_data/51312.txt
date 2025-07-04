@@ -1,0 +1,20 @@
+commit 40cb04c95bdf9a8da6aed8cfe8f32075e0ecc4ac
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 23 17:23:54 2022 -0400
+
+    cmd/dist: eliminate registerSeqTest
+    
+    This is unused, and eliminating it lets us simplify the whole
+    registerTest mechanism.
+    
+    Preparation for #37486.
+    
+    Change-Id: Ia6221e48192cd17775a5d662bdb389d67a9265bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448800
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 16 +---------------
+ 1 file changed, 1 insertion(+), 15 deletions(-)

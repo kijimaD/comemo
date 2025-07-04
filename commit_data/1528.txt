@@ -1,0 +1,17 @@
+commit a3c4faf83f1849198b5431aa050793124a2fc91d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 20 15:36:43 2009 -0800
+
+    6l: do not link in objects from an archive just for init functions.
+       (makes go libraries behave more like c libraries.)
+    
+    R=r
+    DELTA=85  (67 added, 12 deleted, 6 changed)
+    OCL=23133
+    CL=23139
+
+ src/cmd/6l/go.c   | 32 ++++++++++++++++++++++++++++++++
+ src/cmd/6l/l.h    |  9 ++++++++-
+ src/cmd/6l/obj.c  | 25 +++++++++----------------
+ src/cmd/6l/pass.c | 25 ++++++++++++++++++++++++-
+ 4 files changed, 73 insertions(+), 18 deletions(-)

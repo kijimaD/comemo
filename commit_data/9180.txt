@@ -1,0 +1,19 @@
+commit 07c103f6e61f390d2fb344c6e4437fdf744d4c73
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 22 21:17:46 2011 -0400
+
+    sort: remove testing cycle
+    
+    import cycle:
+            "testing"
+            imports "flag"
+            imports "sort"
+            imports "testing"
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4811048
+
+ src/pkg/sort/search_test.go |  7 +++++--
+ src/pkg/sort/sort_test.go   | 10 +++++++++-
+ 2 files changed, 14 insertions(+), 3 deletions(-)

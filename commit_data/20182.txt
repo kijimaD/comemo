@@ -1,0 +1,15 @@
+commit 882933f09b35bf4f1791203a6666af99ff9bea54
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Thu Aug 28 14:49:32 2014 -0700
+
+    image/color/palette: use go generate to create palette.go
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/134940043
+
+ src/pkg/image/color/palette/gen.go      | 96 ++++++++++++++++++++-------------
+ src/pkg/image/color/palette/generate.go |  8 +++
+ src/pkg/image/color/palette/palette.go  |  3 +-
+ 3 files changed, 67 insertions(+), 40 deletions(-)

@@ -1,0 +1,13 @@
+commit c015dd21b86c72a8052e1a8d8e9c966ee866e4e4
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Feb 21 15:04:13 2011 +1100
+
+    A+C: Mikael Tillenius (individual CLA)
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4179063
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

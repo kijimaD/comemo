@@ -1,0 +1,14 @@
+commit 1cb61b80bd286e322acf62344496bb71147df4d0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 27 16:42:46 2019 +0700
+
+    runtime: add doc to remind adopting changes to reflectlite
+    
+    Updates #34486
+    
+    Change-Id: Iec9a5d120013aaa287eccf2999b3f2b831be070e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197558
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/type.go | 2 ++
+ 1 file changed, 2 insertions(+)

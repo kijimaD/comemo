@@ -1,0 +1,58 @@
+commit 5914f6a482ce9e178cdc199ec3ec1719b6049f60
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 14 18:02:41 2023 -0700
+
+    go/types, types2: introduce `isValid` predicate and use throughout
+    
+    Preparation for Alias type nodes. Using a predicate will ensure
+    that alias indirection can be taken care of when needed, eventually.
+    
+    Change-Id: I689fab6052060eb6bcb2eeac28ba09fdb73f6868
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528695
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api.go         |  4 ++--
+ src/cmd/compile/internal/types2/assignments.go | 10 +++++-----
+ src/cmd/compile/internal/types2/builtins.go    |  6 +++---
+ src/cmd/compile/internal/types2/call.go        |  2 +-
+ src/cmd/compile/internal/types2/check.go       |  4 ++--
+ src/cmd/compile/internal/types2/decl.go        |  2 +-
+ src/cmd/compile/internal/types2/expr.go        | 10 +++++-----
+ src/cmd/compile/internal/types2/index.go       |  4 ++--
+ src/cmd/compile/internal/types2/instantiate.go |  4 ++--
+ src/cmd/compile/internal/types2/interface.go   |  2 +-
+ src/cmd/compile/internal/types2/operand.go     |  4 ++--
+ src/cmd/compile/internal/types2/predicates.go  |  5 ++++-
+ src/cmd/compile/internal/types2/signature.go   |  2 +-
+ src/cmd/compile/internal/types2/stmt.go        |  4 ++--
+ src/cmd/compile/internal/types2/struct.go      |  2 +-
+ src/cmd/compile/internal/types2/typeparam.go   |  2 +-
+ src/cmd/compile/internal/types2/typeset.go     |  4 ++--
+ src/cmd/compile/internal/types2/typexpr.go     | 12 ++++++------
+ src/cmd/compile/internal/types2/union.go       |  6 +++---
+ src/cmd/compile/internal/types2/validtype.go   |  2 +-
+ src/go/types/api.go                            |  4 ++--
+ src/go/types/assignments.go                    | 10 +++++-----
+ src/go/types/builtins.go                       |  6 +++---
+ src/go/types/call.go                           |  2 +-
+ src/go/types/check.go                          |  4 ++--
+ src/go/types/decl.go                           |  2 +-
+ src/go/types/expr.go                           | 10 +++++-----
+ src/go/types/index.go                          |  4 ++--
+ src/go/types/instantiate.go                    |  4 ++--
+ src/go/types/interface.go                      |  2 +-
+ src/go/types/operand.go                        |  4 ++--
+ src/go/types/predicates.go                     |  5 ++++-
+ src/go/types/signature.go                      |  2 +-
+ src/go/types/stmt.go                           |  4 ++--
+ src/go/types/struct.go                         |  2 +-
+ src/go/types/typeparam.go                      |  2 +-
+ src/go/types/typeset.go                        |  4 ++--
+ src/go/types/typexpr.go                        | 10 +++++-----
+ src/go/types/union.go                          |  6 +++---
+ src/go/types/validtype.go                      |  2 +-
+ 40 files changed, 93 insertions(+), 87 deletions(-)

@@ -1,0 +1,17 @@
+commit 1cec72cff18729399930ec8f70a436fb31c45406
+Author: Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+Date:   Tue Sep 7 15:14:14 2010 -0400
+
+    build: work with GNU Make 3.82
+    
+    Fix building on GNU Make 3.82 (caused by mixed implicit and normal
+    rules).
+    
+    The issue was introduced in changeset 6110:ca0beac3b543.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2100044
+
+ src/Make.pkg | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

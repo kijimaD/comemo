@@ -1,0 +1,15 @@
+commit d01b260e7822fe46e809e1ab84bf6ff6db0cae18
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Mon Jun 6 14:11:29 2011 +1000
+
+    image/tiff: support for bit depths other than 8.
+    
+    At the moment, 16-bit samples are reduced to 8 bits, this will
+    be changed in a separate CL.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4552057
+
+ src/pkg/image/tiff/reader.go | 114 +++++++++++++++++++++++++------------------
+ 1 file changed, 67 insertions(+), 47 deletions(-)

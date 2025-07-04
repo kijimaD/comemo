@@ -1,0 +1,53 @@
+commit 850d547d2de9044eb84ba65ceefb90880f3a776c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Jul 24 15:48:29 2022 +0200
+
+    doc/go1.19: expand crypto release notes
+    
+    Not included are the following changes that were backported to Go 1.18
+    minor releases.
+    
+    bb1f441618 crypto/rand: properly handle large Read on windows
+    35998c0109 crypto/x509: only disable SHA-1 verification for certificates
+    0fca8a8f25 crypto/x509: fix Certificate.Verify crash
+    fe4de36198 crypto/tls: randomly generate ticket_age_add
+    37065847d8 crypto/elliptic: tolerate zero-padded scalars in generic P-256
+    9a53b472b5 crypto/x509: properly handle issuerUniqueID and subjectUniqueID
+    
+    The following are the benchmarks to back up the 3x speedup claim in the
+    crypto/elliptic notes.
+    
+    name                    old time/op    new time/op    delta
+    pkg:crypto/elliptic goos:darwin goarch:arm64
+    ScalarBaseMult/P256-8   18.3µs ± 0%    18.2µs ± 0%      -0.56%  (p=0.000 n=10+10)
+    ScalarBaseMult/P224-8    233µs ± 0%      74µs ± 0%     -68.09%  (p=0.000 n=9+10)
+    ScalarBaseMult/P384-8    805µs ± 0%     236µs ± 0%     -70.73%  (p=0.000 n=8+10)
+    ScalarBaseMult/P521-8   2.50ms ± 0%    0.68ms ± 0%     -72.63%  (p=0.000 n=10+8)
+    ScalarMult/P256-8       68.4µs ± 0%    68.6µs ± 0%      +0.26%  (p=0.000 n=10+10)
+    ScalarMult/P224-8        234µs ± 0%     231µs ± 0%      -1.18%  (p=0.000 n=10+8)
+    ScalarMult/P384-8        805µs ± 0%     805µs ± 0%        ~     (p=0.211 n=9+10)
+    ScalarMult/P521-8       2.50ms ± 0%    2.49ms ± 0%      -0.69%  (p=0.000 n=10+10)
+    pkg:crypto/ecdsa goos:darwin goarch:arm64
+    Sign/P256-8             31.9µs ± 1%    31.7µs ± 0%      -0.64%  (p=0.001 n=10+10)
+    Sign/P224-8              264µs ± 0%     106µs ± 0%     -60.09%  (p=0.000 n=10+10)
+    Sign/P384-8              884µs ± 0%     313µs ± 0%     -64.53%  (p=0.000 n=9+10)
+    Sign/P521-8             2.64ms ± 0%    0.84ms ± 0%     -68.13%  (p=0.000 n=9+9)
+    Verify/P256-8           91.6µs ± 0%    91.7µs ± 0%        ~     (p=0.052 n=10+10)
+    Verify/P224-8            486µs ± 0%     300µs ± 0%     -38.15%  (p=0.000 n=9+9)
+    Verify/P384-8           1.66ms ± 0%    1.01ms ± 0%     -39.12%  (p=0.000 n=10+9)
+    Verify/P521-8           5.12ms ± 1%    3.06ms ± 0%     -40.27%  (p=0.000 n=10+10)
+    GenerateKey/P256-8      19.6µs ± 0%    19.4µs ± 0%      -0.79%  (p=0.000 n=10+10)
+    GenerateKey/P224-8       235µs ± 0%      76µs ± 1%     -67.45%  (p=0.000 n=8+10)
+    GenerateKey/P384-8       807µs ± 0%     239µs ± 0%     -70.43%  (p=0.000 n=9+10)
+    GenerateKey/P521-8      2.49ms ± 0%    0.69ms ± 0%     -72.36%  (p=0.000 n=9+10)
+    
+    Change-Id: I7fb2db3aea4aac785a48d45fff7a32909f3b578c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419355
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/go1.19.html | 92 ++++++++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 74 insertions(+), 18 deletions(-)

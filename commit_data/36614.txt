@@ -1,0 +1,16 @@
+commit b7182acf6101ba096a25073d8d083cca99ffcd06
+Author: Thanabodee Charoenpiriyakij <wingyminus@gmail.com>
+Date:   Fri Sep 7 18:52:41 2018 +0700
+
+    fmt: add example for Print
+    
+    Updates #27376
+    
+    Change-Id: I2fa63b0d1981a419626072d985e6f3326f6013ff
+    Reviewed-on: https://go-review.googlesource.com/134035
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/fmt/example_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

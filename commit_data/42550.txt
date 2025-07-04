@@ -1,0 +1,14 @@
+commit b486bd896720cd5a40bc39771a8dbe332fce7ffe
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Tue Jun 9 13:53:39 2020 +0800
+
+    runtime: fix comment about memequal implementation locations
+    
+    Change-Id: I9ae3f462a6a6b3809de14b0d08f369524b636d57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237097
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/stubs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

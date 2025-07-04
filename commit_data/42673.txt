@@ -1,0 +1,14 @@
+commit 24ff2af65e27eed1e8c7f09c21a5ca68fc2e07ab
+Author: lufia <lufia@lufia.org>
+Date:   Sun Jul 26 19:04:37 2020 +0900
+
+    cmd/dist: fix typo
+    
+    Change-Id: Ib5d7f3eadff03070043d52659af4312ee293c586
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244817
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

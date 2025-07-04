@@ -1,0 +1,25 @@
+commit 22a56b629d86508a36d1dd8b90124ccd9dc90e06
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 28 11:47:49 2021 -0400
+
+    cmd/go/internal/modload: in importFromModules, do not wrap module graph errors in ImportMissingError
+    
+    If an error occurs in loading the module graph (such as a missing
+    checksum for a relevant go.mod file), that error should be terminal
+    and we should not look elsewhere to try to resolve the import. An
+    ImportMissingError instructs the caller to do exactly that, so don't
+    use that error type for this case.
+    
+    (This behavior is tested incidentally in a later CL in this stack.)
+    
+    For #36460
+    
+    Change-Id: I963e39cc7fbc457c12a626c1402c0be29203d23b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314633
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/import.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

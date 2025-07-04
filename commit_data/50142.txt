@@ -1,0 +1,16 @@
+commit 78aef56062e00cb45e69ee040fe35de6e08938d3
+Author: hopehook <hopehook@qq.com>
+Date:   Thu Aug 25 11:11:59 2022 +0800
+
+    cmd/go/internal/modload: convert atomicLoadPkgFlags.bits to atomic type
+    
+    Change-Id: I9e59530953439dec6f4524c5a7adc75c98c12b8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425456
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/load.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

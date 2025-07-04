@@ -1,0 +1,28 @@
+commit 5bfd1ef036f2cd549f78a0acd3e2666b42bcc07d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Feb 2 19:47:59 2017 -0500
+
+    cmd/compile: get rid of "volatile" in SSA
+    
+    A value is "volatile" if it is a pointer to the argument region
+    on stack which will be clobbered by function call. This is used
+    to make sure the value is safe when inserting write barrier calls.
+    The writebarrier pass can tell whether a value is such a pointer.
+    Therefore no need to mark it when building SSA and thread this
+    information through.
+    
+    Passes "toolstash -cmp" on std.
+    
+    Updates #17583.
+    
+    Change-Id: Idc5fc0d710152b94b3c504ce8db55ea9ff5b5195
+    Reviewed-on: https://go-review.googlesource.com/36835
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go             | 112 +++++++++++--------------
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   7 +-
+ src/cmd/compile/internal/ssa/opGen.go          |   7 --
+ src/cmd/compile/internal/ssa/writebarrier.go   |  24 ++++--
+ 4 files changed, 69 insertions(+), 81 deletions(-)

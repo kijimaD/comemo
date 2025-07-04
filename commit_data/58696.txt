@@ -1,0 +1,44 @@
+commit 49eba8b15bcfc07eb272f23f1b6810d37e6fe342
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jan 28 20:54:34 2025 +0000
+
+    internal/trace: interpret string ID arguments for experimental events
+    
+    Currently one of the reasons experimental events are tricky to use is
+    because:
+    - There's no way to take advantage of the existing infrastructure, like
+      strings and stacks, and
+    - There's no way to attach arbitrary data to an event (except through
+      strings, possibly).
+    
+    Fix this by abstracting away the raw arguments in an ExperimentalEvent
+    and requiring access to the arguments via a new method, ArgValue. This
+    returns a Value, which gives us an opportunity to construct a typed
+    value for the raw argument dynamically, and a way to access existing
+    tables. The type of the argument is deduced from conventions for the
+    argument's name. This seems more than sufficient for experimental
+    events.
+    
+    To make this work, we also need to add a "string" variant to the Value
+    type. This may be a little confusing since they're primarily used for
+    metrics, but one could imagine other scenarios in which this is useful,
+    such as including build information in the trace as a metric, so I think
+    this is fine.
+    
+    This change also updates the Value API to accomodate a String method for
+    use with things that expect a fmt.Stringer, which means renaming the
+    value assertion methods to have a "To" prefix.
+    
+    Change-Id: I43a2334f6cd306122c5b94641a6252ca4258b39f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645135
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/trace/gen.go                       |  6 ++--
+ src/internal/trace/event.go                | 51 +++++++++++++++++++++---------
+ src/internal/trace/gc.go                   |  2 +-
+ src/internal/trace/testtrace/validation.go |  2 +-
+ src/internal/trace/tracev2/spec.go         |  4 ++-
+ src/internal/trace/value.go                | 48 ++++++++++++++++++++--------
+ 6 files changed, 79 insertions(+), 34 deletions(-)

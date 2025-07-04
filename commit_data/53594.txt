@@ -1,0 +1,23 @@
+commit 3d279283a4a7b016ee799fc2e7c4583660881331
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 16 15:59:43 2023 -0400
+
+    cmd/go: restore go.mod files during toolchain selection
+    
+    They have to be renamed to _go.mod to make a valid module.
+    Copy them back to go.mod so that 'go test cmd' has a better
+    chance of working.
+    
+    For #57001.
+    
+    Change-Id: Ied6f0dd77928996ab322a55c5606d7f75431e362
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504118
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/toolchain/select.go     | 93 +++++++++++++++++++++++++++++
+ src/cmd/go/internal/toolchain/umask_none.go | 13 ++++
+ src/cmd/go/internal/toolchain/umask_unix.go | 28 +++++++++
+ 3 files changed, 134 insertions(+)

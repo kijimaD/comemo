@@ -1,0 +1,21 @@
+commit 567818224edce362fa040ee89e9597982f2bcdf6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 16 16:23:11 2013 -0400
+
+    cmd/5l, cmd/6l, cmd/8l: accept PCDATA instruction in input
+    
+    The portable code in cmd/ld already knows how to process it,
+    we just have to ignore it during code generation.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/11363043
+
+ src/cmd/5l/noop.c  |  8 +++++++-
+ src/cmd/5l/optab.c |  2 ++
+ src/cmd/5l/span.c  |  6 ++++--
+ src/cmd/6l/optab.c | 14 ++++++++++++--
+ src/cmd/6l/pass.c  |  5 ++++-
+ src/cmd/8l/optab.c | 14 ++++++++++++--
+ src/cmd/8l/pass.c  |  9 +++++++--
+ 7 files changed, 48 insertions(+), 10 deletions(-)

@@ -1,0 +1,18 @@
+commit 260b7daf0a3fa1548d976f2484325240d4bdb73a
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 12 16:25:48 2016 -0700
+
+    cmd/compile: fix arg to getcallerpc
+    
+    getcallerpc's arg needs to point to the first argument slot.
+    I believe this bug was introduced by Michel's itab changes
+    (specifically https://go-review.googlesource.com/c/20902).
+    
+    Fixes #15145
+    
+    Change-Id: Ifb2e17f3658e2136c7950dfc789b4d5706320683
+    Reviewed-on: https://go-review.googlesource.com/21931
+    Reviewed-by: Michel Lespinasse <walken@google.com>
+
+ src/runtime/iface.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit b119ef154c1cc3bded16baff06143844bf1b28e1
+Author: Francisco Rojas <francisco.rojas.gallegos@gmail.com>
+Date:   Sat Jul 15 14:51:58 2017 -0600
+
+    strings: add a example for TrimFunc
+    
+    Change-Id: I9c0c601ec5957475e949dcc4a8c2116724d01215
+    Reviewed-on: https://go-review.googlesource.com/48961
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strings/example_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

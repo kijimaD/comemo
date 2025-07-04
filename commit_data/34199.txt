@@ -1,0 +1,14 @@
+commit 910d232a28bfddbb6efdf3a2381946c314517694
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Nov 12 22:11:33 2017 -0800
+
+    runtime: simplify amd64 memmove of 3/4 bytes
+    
+    Change-Id: I132d3627ae301b68bf87eacb5bf41fd1ba2dcd91
+    Reviewed-on: https://go-review.googlesource.com/94025
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/memmove_amd64.s | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

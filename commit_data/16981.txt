@@ -1,0 +1,12 @@
+commit c24e60eebb822c39523a894e7a46a70eccc270d4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 1 11:34:25 2013 -0400
+
+    strconv: fix doc comment for IntSize
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12258043
+
+ src/pkg/strconv/atoi.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

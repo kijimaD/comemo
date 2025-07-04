@@ -1,0 +1,19 @@
+commit 0ae4c7ff4a6d24ab33a0deebba74609159291b8c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Oct 31 17:27:12 2021 -0700
+
+    cmd/compile/internal/types2: fix TypeName.IsAlias for type parameter names
+    
+    This is a port of CL 359656 from go/types to types2.
+    
+    For #49213.
+    
+    Change-Id: Ib98f9a344c1397af92e061cafd519ea374fd60bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360294
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/object.go                         | 2 ++
+ src/cmd/compile/internal/types2/object_test.go                    | 3 +++
+ src/cmd/compile/internal/types2/testdata/fixedbugs/issue45985.go2 | 2 +-
+ 3 files changed, 6 insertions(+), 1 deletion(-)

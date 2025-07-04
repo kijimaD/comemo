@@ -1,0 +1,27 @@
+commit 4ffa2aecc119bd70f4765cbb9b911f47dbadd117
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Nov 1 12:04:49 2024 -0400
+
+    cmd/internal/obj/wasm: correct return PC for frameless wasmexport wrappers
+    
+    For a wasmexport wrapper, we generate a call to the actual
+    exported Go function, and use the wrapper function's PC 1 as the
+    (fake) return address. This address is not used for returning,
+    which is handled by the Wasm call stack. It is used for stack
+    unwinding, and PC 1 makes it past the prologue and therefore has
+    the right SP delta. But if the function has no arguments and
+    results, the wrapper is frameless, with no prologue, and PC 1
+    doesn't exist. This causes the unwinder to fail. In this case, we
+    put PC 0, which also has the correct SP delta (0).
+    
+    Fixes #69584.
+    
+    Change-Id: Ic047a6e62100db540b5099cc5a56a1d0f16d58b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624000
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ lib/wasm/wasm_exec.js                |  1 +
+ src/cmd/internal/obj/wasm/wasmobj.go | 16 +++++++++++-----
+ src/syscall/js/js_test.go            |  5 +++++
+ 3 files changed, 17 insertions(+), 5 deletions(-)

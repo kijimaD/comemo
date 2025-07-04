@@ -1,0 +1,24 @@
+commit ac6dea7aa1ccc3fa2b07be05ba71714e686f928a
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Wed May 22 11:53:36 2024 -0700
+
+    runtime: lower mutex contention test expectations
+    
+    As of https://go.dev/cl/586796, the runtime/metrics view of internal
+    mutex contention is sampled at 1 per gTrackingPeriod, rather than either
+    1 (immediately prior to CL 586796) or the more frequent of
+    gTrackingPeriod or the mutex profiling rate (Go 1.22). Thus, we no
+    longer have a real lower bound on the amount of contention that
+    runtime/metrics will report. Relax the test's expectations again.
+    
+    For #64253
+    
+    Change-Id: I94e1d92348a03599a819ec8ac785a0eb3c1ddd73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587515
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+
+ src/runtime/metrics_test.go | 29 +++++++++++++++++++++--------
+ 1 file changed, 21 insertions(+), 8 deletions(-)

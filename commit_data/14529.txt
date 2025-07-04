@@ -1,0 +1,20 @@
+commit be0d84e335a8c1b1ee420c771d7e511a79eeffd2
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Nov 30 18:26:51 2012 +1100
+
+    net: fix data races on deadline vars
+    
+    Fixes #4434.
+    
+    R=mikioh.mikioh, bradfitz, dvyukov, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/6855110
+
+ src/pkg/net/fd_posix_test.go    |  57 ++++++++++++++++++++
+ src/pkg/net/fd_unix.go          | 114 +++++++++++++++++++++-------------------
+ src/pkg/net/fd_windows.go       |  48 +++++++++++++----
+ src/pkg/net/sendfile_freebsd.go |   2 +-
+ src/pkg/net/sendfile_linux.go   |   2 +-
+ src/pkg/net/sock_posix.go       |   6 +--
+ src/pkg/net/sockopt_posix.go    |  21 +++-----
+ 7 files changed, 167 insertions(+), 83 deletions(-)

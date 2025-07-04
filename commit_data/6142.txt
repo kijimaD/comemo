@@ -1,0 +1,17 @@
+commit 7a05b0f235fe27262e6ae8b3dc737a8d1e689808
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 31 15:48:04 2010 -0700
+
+    test: Match gccgo error messages.
+    
+    Another case where gccgo and gc report similar but not
+    identical errors for a recursive interface.
+    
+    bug251.go:11: error: invalid recursive interface
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2094041
+
+ test/fixedbugs/bug251.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

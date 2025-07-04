@@ -1,0 +1,13 @@
+commit 6a828482fa9045f71328fc51c6917ae5ee649e0e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Feb 15 00:02:12 2013 +0400
+
+    runtime: add more tests for LockOSThread()
+    Just test some additional paths through the scheduler.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7331044
+
+ src/pkg/runtime/proc_test.go | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

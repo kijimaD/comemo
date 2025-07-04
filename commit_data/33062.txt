@@ -1,0 +1,23 @@
+commit e29efbcbcbcd7dde56ac0b4880ff8c13fdb6a89d
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 10 11:58:31 2017 -0400
+
+    cmd/link: fix some unintentional symbol creation
+    
+    There are two places in DWARF generation that create symbols when they
+    really just want to get the symbol if it exists. writeranges, in
+    particular, will create a DWARF range symbol for every single textp
+    symbol (though they won't get linked into any list, so they don't
+    affect the binary).
+    
+    Fix these to use ROLookup instead of Lookup.
+    
+    Change-Id: I401eadf22890e296bd08bccaa6ba2fd8fac800cd
+    Reviewed-on: https://go-review.googlesource.com/69971
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/dwarf.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

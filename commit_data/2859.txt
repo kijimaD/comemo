@@ -1,0 +1,15 @@
+commit 22ec53992034d3e33fb220183d3416869546fbf5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 31 18:40:11 2009 -0700
+
+    fix long-standing bug in doc reader:
+    - replace forward-declared types with complete
+      declaration when it is found
+    
+    R=rsc
+    DELTA=23  (15 added, 0 deleted, 8 changed)
+    OCL=32618
+    CL=32618
+
+ src/pkg/go/doc/doc.go | 29 ++++++++++++++++++++++-------
+ 1 file changed, 22 insertions(+), 7 deletions(-)

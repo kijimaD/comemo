@@ -1,0 +1,14 @@
+commit 8ecc4cb41eaf48581ca1bef3cbb9edf9e477e2ab
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Feb 18 14:03:47 2013 +1100
+
+    misc/vim: update installation instructions to work better with some Linux distributions.
+    
+    Fixes #3308.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7301086
+
+ misc/vim/readme.txt | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

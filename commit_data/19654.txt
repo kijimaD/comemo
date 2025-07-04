@@ -1,0 +1,13 @@
+commit 22c3f67cd637d6d99bafc04867e7e4f8833f7f16
+Author: Timo Truyts <alkaloid.btx@gmail.com>
+Date:   Wed Jul 2 07:04:01 2014 -0700
+
+    bufio: Fixed call to Fatal, should be Fatalf.
+    
+    LGTM=iant
+    R=golang-codereviews, iant, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/107390044
+
+ src/pkg/bufio/scan_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

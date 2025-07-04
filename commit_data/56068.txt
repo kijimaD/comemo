@@ -1,0 +1,29 @@
+commit 2860e01853174e278900ef6907b1941b16fb1645
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 25 16:37:05 2024 +0100
+
+    os: make readdir more robust on Windows
+    
+    On Windows, File.readdir currently fails if the volume information
+    can't be retrieved via GetVolumeInformationByHandle and if the
+    directory path is relative and can't be converted to an absolute
+    path.
+    
+    This change makes readdir more robust by not failing in these cases,
+    as these steps are just necessary to support a potential call to
+    os.SameFile, but not for the actual readdir operation. os.SameFile
+    will still fail in these cases, but that's a separate issue tracked
+    in #62042.
+    
+    Change-Id: I8d98d8379bdac4b2832fa433432a5f027756abaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574155
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/internal/syscall/windows/symlink_windows.go |  1 +
+ src/internal/syscall/windows/syscall_windows.go | 15 +++++
+ src/os/dir_windows.go                           | 81 ++++++++++++++-----------
+ 3 files changed, 60 insertions(+), 37 deletions(-)

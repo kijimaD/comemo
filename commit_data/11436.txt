@@ -1,0 +1,15 @@
+commit b79ba6a6098c355acba8d5ff0c18ffa90a071a3c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 27 09:23:06 2012 -0800
+
+    flag: allow a FlagSet to not write to os.Stderr
+    
+    Fixes #2747
+    
+    R=golang-dev, gri, r, rogpeppe, r
+    CC=golang-dev
+    https://golang.org/cl/5564065
+
+ src/pkg/flag/flag.go      | 30 +++++++++++++++++++++++-------
+ src/pkg/flag/flag_test.go | 13 +++++++++++++
+ 2 files changed, 36 insertions(+), 7 deletions(-)

@@ -1,0 +1,16 @@
+commit 6f08665079e977a2ac0232445eb6772874e0e478
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed May 22 00:07:01 2024 +0800
+
+    encoding/binary: adjust docs for Append, Encode and Decode
+    
+    Updates #60023
+    
+    Change-Id: Ida1cc6c4f5537402e11db6b8c411828f2bcc0a5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587096
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/binary/binary.go | 20 +++++++++-----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)

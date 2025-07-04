@@ -1,0 +1,16 @@
+commit 7c02beb96a601001091c91a9cf0fe4cb6ce459a0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 22 16:28:11 2017 -0700
+
+    go/types: prevent crash in type cycles involving non-type expressions
+    
+    Fixes #18643.
+    
+    Change-Id: I36dca943d552a178a71094ff883b0319fe03d130
+    Reviewed-on: https://go-review.googlesource.com/46467
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/types/expr.go             | 22 ++++++++++++++++++++++
+ src/go/types/testdata/cycles.src | 11 ++++++++++-
+ 2 files changed, 32 insertions(+), 1 deletion(-)

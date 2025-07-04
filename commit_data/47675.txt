@@ -1,0 +1,21 @@
+commit f9b2733e3a8b4911b932671b0bd9fc4190cf59aa
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Dec 1 16:43:47 2021 -0500
+
+    doc/go1.18: add docs on MapIter.Reset
+    
+    From:
+    
+    https://go-review.googlesource.com/c/go/+/321891
+    
+    Updates #47694
+    
+    Change-Id: I2cdd5d9f3da62a5690cd2ef921ed48957c602d64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368360
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

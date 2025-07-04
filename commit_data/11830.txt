@@ -1,0 +1,15 @@
+commit cbe7d8db24d5d0484971f121e9b3f446e39cd3b5
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 12 23:25:55 2012 -0500
+
+    net: avoid TCP self-connect
+    
+    Fixes #2690.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5650071
+
+ src/pkg/net/dial_test.go     | 31 +++++++++++++++++++++++++++++++
+ src/pkg/net/tcpsock_posix.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+)

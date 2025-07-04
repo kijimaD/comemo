@@ -1,0 +1,14 @@
+commit d41d47306af792707835b0ada5430b6f4ae0fb0a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Dec 4 10:58:13 2015 +0900
+
+    net/mail: gofmt
+    
+    Change-Id: Ic704a2614e310bc7aa3bdee89a020c27f4292efa
+    Reviewed-on: https://go-review.googlesource.com/17410
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/mail/message_test.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

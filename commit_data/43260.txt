@@ -1,0 +1,22 @@
+commit 112c4d569e8881cc9910039bf4c45176a9b1f619
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 14:20:04 2020 -0400
+
+    cmd/fix: print warning to stderr, show provenance
+    
+    This cgo warning shows up when running "go test" in cmd/fix:
+    
+            warning: no cgo types: exit status 1
+    
+    (It may show up at other times too.)
+    
+    Warnings belong on standard error, and while we're here,
+    make it say where it came from.
+    
+    Change-Id: I3eaba592a219cc6abf2d584762374f9d6ec5135e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240597
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/fix/typecheck.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,31 @@
+commit bf9ad7080d0a22acf502a60d8bc6ebbc4f5340ef
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 15 14:43:05 2017 -0800
+
+    runtime: remove another TODO
+    
+    I experimented with having the compiler spill the two registers that
+    are clobbered by the write barrier fast path, but it slightly slows
+    down compilebench, which is a good write barrier benchmark:
+    
+    name       old time/op     new time/op     delta
+    Template       175ms ± 0%      176ms ± 1%    ~           (p=0.393 n=10+10)
+    Unicode       83.6ms ± 1%     85.1ms ± 2%  +1.79%         (p=0.000 n=9+10)
+    GoTypes        585ms ± 0%      588ms ± 1%    ~            (p=0.173 n=8+10)
+    Compiler       2.78s ± 1%      2.81s ± 2%  +0.81%        (p=0.023 n=10+10)
+    SSA            7.11s ± 1%      7.15s ± 1%  +0.59%        (p=0.029 n=10+10)
+    Flate          115ms ± 1%      116ms ± 2%    ~           (p=0.853 n=10+10)
+    GoParser       144ms ± 2%      145ms ± 2%    ~           (p=1.000 n=10+10)
+    Reflect        389ms ± 1%      390ms ± 1%    ~           (p=0.481 n=10+10)
+    Tar            185ms ± 2%      185ms ± 2%    ~           (p=0.529 n=10+10)
+    XML            205ms ± 0%      207ms ± 2%    ~            (p=0.065 n=9+10)
+    
+    Since this didn't pan out, remove the TODO.
+    
+    Change-Id: I2186942c6d1ba10585a5da03cd7c1d26ce906273
+    Reviewed-on: https://go-review.googlesource.com/78034
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/asm_amd64.s | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

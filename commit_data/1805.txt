@@ -1,0 +1,15 @@
+commit 32bf48c6d8f5d8cdb163dc366fa2f8335c7e39d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 11 12:45:53 2009 -0700
+
+    document http
+    
+    R=r
+    DELTA=84  (63 added, 4 deleted, 17 changed)
+    OCL=25950
+    CL=26126
+
+ src/lib/http/request.go | 62 +++++++++++++++++++++++++++++++++++++++++++------
+ src/lib/http/status.go  |  3 +--
+ src/lib/http/url.go     | 36 ++++++++++++++++++----------
+ 3 files changed, 80 insertions(+), 21 deletions(-)

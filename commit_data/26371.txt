@@ -1,0 +1,16 @@
+commit e4d489a85fd1825ddcc6c1ffda52fb9e75ad01b4
+Author: Christopher Nelson <nadiasvertex@gmail.com>
+Date:   Tue Mar 15 09:14:22 2016 -0400
+
+    cmd/go: fix TestShadowingLogic fails when GOROOT path has spaces
+    
+    Improve the test by also translating " " to "_".
+    
+    Fixes #14671.
+    
+    Change-Id: Ie5997934b93c7663d7b8432244fad47bb5d3ffbe
+    Reviewed-on: https://go-review.googlesource.com/20714
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

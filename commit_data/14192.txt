@@ -1,0 +1,20 @@
+commit 4a191c2c1b3fe1325ab8617472aef628fd494076
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Sun Oct 21 17:41:32 2012 -0400
+
+    runtime: store types of allocated objects
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6569057
+
+ src/pkg/runtime/hashmap.c  |  9 +++++++++
+ src/pkg/runtime/iface.c    | 32 +++++++++++++++++++++++++-------
+ src/pkg/runtime/malloc.goc | 20 ++++++++++++++++++++
+ src/pkg/runtime/malloc.h   |  4 ++++
+ src/pkg/runtime/mgc0.go    | 10 ++++++++++
+ src/pkg/runtime/proc.c     | 10 +++++++++-
+ src/pkg/runtime/runtime.h  |  1 +
+ src/pkg/runtime/slice.c    | 18 +++++++++++++-----
+ src/pkg/runtime/type.h     |  7 +++++++
+ 9 files changed, 98 insertions(+), 13 deletions(-)

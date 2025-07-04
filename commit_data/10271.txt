@@ -1,0 +1,19 @@
+commit a1c622dfea65416c024c570727e101ecc1479ea8
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Nov 7 11:57:34 2011 -0500
+
+    runtime: fix prototype for openbsd thrsleep
+    
+    - Fix function prototype for thrsleep().
+    - Provide enums for clock identifiers.
+    - Provide timespec structure for use with thrsleep().
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/5360042
+
+ src/pkg/runtime/openbsd/386/defs.h   |  6 ++++++
+ src/pkg/runtime/openbsd/amd64/defs.h |  7 +++++++
+ src/pkg/runtime/openbsd/defs.c       |  1 +
+ src/pkg/runtime/openbsd/thread.c     | 12 +++++++++---
+ 4 files changed, 23 insertions(+), 3 deletions(-)

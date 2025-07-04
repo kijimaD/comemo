@@ -1,0 +1,21 @@
+commit df0ac450022076631280569e2a157f016dcdab80
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Dec 6 16:52:53 2019 -0500
+
+    cmd/link: skip gaps between PT_LOAD segments in TestPIESize
+    
+    There may be gaps between non-writeable and writeable PT_LOAD
+    segments, and the gaps may be large as the segments may have
+    large alignment. Don't count those gaps in file size comparison.
+    
+    Fixes #36023.
+    
+    Change-Id: I68582bdd0f385ac5c6f87d485d476d06bc96db19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210180
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/elf_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

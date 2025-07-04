@@ -1,0 +1,17 @@
+commit db70c019d7175de54583f99a38016f4ff7bb5eba
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Oct 1 22:34:48 2015 +1000
+
+    runtime/trace: reduce memory usage for trace stress tests on openbsd/arm
+    
+    Reduce allocation to avoid running out of memory on the openbsd/arm builder,
+    until issue/12032 is resolved.
+    
+    Update issue #12032
+    
+    Change-Id: Ibd513829ffdbd0db6cd86a0a5409934336131156
+    Reviewed-on: https://go-review.googlesource.com/15242
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/trace/trace_test.go | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit a40281112cb38ada79bfe32bb150982abf57d0a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 14 15:09:26 2015 +0000
+
+    Revert "cmd/go: fix processing of flags for test binaries."
+    
+    This broke a number of common "go test" invocations.
+    Will fix the original concern differently.
+    
+    This reverts commit 6acb4d944dafa13a6c80faffc4e7ecc47d2bcdbc.
+    
+    Fixes #13583.
+    
+    Change-Id: If582b81061df28173c698bed1d7d8283b0713cae
+    Reviewed-on: https://go-review.googlesource.com/17773
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/go_test.go  | 12 +++---------
+ src/cmd/go/testflag.go | 52 ++++++++++++++++++++++++++------------------------
+ 2 files changed, 30 insertions(+), 34 deletions(-)

@@ -1,0 +1,28 @@
+commit 9967582f770f62f72a349ec276e00dba8639aa26
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 29 15:00:47 2018 -0700
+
+    regexp/syntax: update perl script to preserve \s behavior
+    
+    Incorporate https://code-review.googlesource.com/#/c/re2/+/3050/ from
+    the re2 repository. Description of that change:
+    
+        Preserve the original behaviour of \s.
+    
+        Prior to Perl 5.18, \s did not match vertical tab. Bake that into
+        make_perl_groups.pl as an override so that perl_groups.cc retains
+        its current definitions when rebuilt with newer versions of Perl.
+    
+    This fixes make_perl_groups.pl to generate an unchanged perl_groups.go
+    with perl versions 5.18 and later.
+    
+    Fixes #22057
+    
+    Change-Id: I9a56e9660092ed6c1ff1045b4a3847de355441a7
+    Reviewed-on: https://go-review.googlesource.com/103517
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/regexp/syntax/make_perl_groups.pl | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

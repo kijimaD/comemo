@@ -1,0 +1,35 @@
+commit 54fb9940cf315546f43c724e670518acedfa185e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 20 14:25:23 2011 -0500
+
+    go: build runtime/cgo
+    
+    Also rename -v to -x in the build and install commands,
+    to match the flag in go test (which we can't change
+    because -v is taken).  Matches sh -x anyway.
+    
+    R=r, iant, ality
+    CC=golang-dev
+    https://golang.org/cl/5504045
+
+ src/cmd/cgo/main.go                                |   2 +-
+ src/cmd/cgo/out.go                                 |  10 +-
+ src/cmd/go/build.go                                | 188 ++++++++++++---------
+ src/cmd/go/pkg.go                                  |  18 +-
+ src/cmd/go/run.go                                  |   8 +-
+ src/cmd/go/test.go                                 |  10 +-
+ src/pkg/runtime/cgo/Makefile                       |  14 +-
+ src/pkg/runtime/cgo/{amd64.S => gcc_amd64.S}       |   0
+ .../runtime/cgo/{darwin_386.c => gcc_darwin_386.c} |   0
+ .../cgo/{darwin_amd64.c => gcc_darwin_amd64.c}     |   1 +
+ .../cgo/{freebsd_386.c => gcc_freebsd_386.c}       |   0
+ .../cgo/{freebsd_amd64.c => gcc_freebsd_amd64.c}   |   0
+ .../runtime/cgo/{linux_386.c => gcc_linux_386.c}   |   0
+ .../cgo/{linux_amd64.c => gcc_linux_amd64.c}       |   0
+ .../runtime/cgo/{linux_arm.c => gcc_linux_arm.c}   |   0
+ src/pkg/runtime/cgo/{setenv.c => gcc_setenv.c}     |   0
+ src/pkg/runtime/cgo/{util.c => gcc_util.c}         |   0
+ .../cgo/{windows_386.c => gcc_windows_386.c}       |   0
+ .../cgo/{windows_amd64.c => gcc_windows_amd64.c}   |   0
+ src/pkg/runtime/cgo/trigger.go                     |  10 ++
+ 20 files changed, 156 insertions(+), 105 deletions(-)

@@ -1,0 +1,18 @@
+commit 0dde60a5fefcb1447c97efa5c7bb4dbcf3575736
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Aug 19 03:07:26 2020 +1000
+
+    cmd/internal/obj/riscv: clean up lowerJALR
+    
+    This cleans up the last of the direct obj.Prog rewriting, removing lowerJALR
+    and replacing it with correct handling for AJALR during instruction encoding.
+    
+    Change-Id: Ieea125bde30d4c0edd2d9ed1e50160543aa8f330
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249077
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Joel Sing <joel@sing.id.au>
+
+ src/cmd/internal/obj/riscv/obj.go | 43 ++++++++-------------------------------
+ 1 file changed, 9 insertions(+), 34 deletions(-)

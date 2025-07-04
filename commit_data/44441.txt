@@ -1,0 +1,20 @@
+commit 3146166baa8c420dfe20619e4aa9978b87927268
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Jan 31 18:07:43 2021 +0100
+
+    syscall: introduce SysProcAttr.AdditionalInheritedHandles on Windows
+    
+    This allows users to specify handles that they explicitly want to be
+    inherited by the new process. These handles must already be marked as
+    inheritable.
+    
+    Updates #44011.
+    Updates #21085.
+    
+    Change-Id: Ib18322e7dc2909e68c4209e80385492804fa15d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288298
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/syscall/exec_windows.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

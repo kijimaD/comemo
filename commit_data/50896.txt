@@ -1,0 +1,15 @@
+commit cba63ac03833c6eeaf4184ca2022d014b84db455
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 4 12:01:02 2022 -0400
+
+    go/build: simplify coverage rules in deps_test
+    
+    Change-Id: Ic4b2b8ff5c7d7e4d9850e0b5a5b52b09b45816f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439417
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/go/build/deps_test.go | 54 +++++++++++++++--------------------------------
+ 1 file changed, 17 insertions(+), 37 deletions(-)

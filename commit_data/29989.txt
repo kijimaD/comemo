@@ -1,0 +1,16 @@
+commit 6bdb0c11c73ecf2337918d784c54f9dda2207ca7
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sat Jan 28 07:36:09 2017 -0800
+
+    doc: update go1.8 release notes after TxOptions change
+    
+    Missed the release notes when updating the sql API.
+    
+    Fixes #18825
+    
+    Change-Id: I89056d46939ad4fc99590f3434d2881f5764e1b6
+    Reviewed-on: https://go-review.googlesource.com/35915
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

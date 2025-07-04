@@ -1,0 +1,28 @@
+commit 022548cfe82915e5bf14ce7cb28f3ec651550662
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Tue Apr 12 16:58:56 2016 -0300
+
+    all: standardize RFC mention format
+    
+    Standardize on space between "RFC" and number. Additionally change
+    the couple "a RFC" instances to "an RFC."
+    
+    Fixes #15258
+    
+    Change-Id: I2b17ecd06be07dfbb4207c690f52a59ea9b04808
+    Reviewed-on: https://go-review.googlesource.com/21902
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/common.go     | 2 +-
+ src/crypto/tls/prf.go        | 2 +-
+ src/crypto/x509/pkcs8.go     | 2 +-
+ src/crypto/x509/sec1.go      | 4 ++--
+ src/mime/encodedword.go      | 2 +-
+ src/net/dnsname_test.go      | 2 +-
+ src/net/http/request.go      | 2 +-
+ src/net/http/response.go     | 2 +-
+ src/net/http/server.go       | 2 +-
+ src/net/http/transfer.go     | 4 ++--
+ src/net/mail/message.go      | 4 ++--
+ src/net/mail/message_test.go | 2 +-
+ 12 files changed, 15 insertions(+), 15 deletions(-)

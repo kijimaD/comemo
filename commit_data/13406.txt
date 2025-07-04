@@ -1,0 +1,14 @@
+commit 809e06babc883bf756d62b1e1fa971beafcf2713
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 26 11:49:19 2012 -0700
+
+    go spec: clean up use of QualifiedIdent production.
+    
+    Fixes #3763.
+    
+    R=r, rsc, iant, ken
+    CC=golang-dev
+    https://golang.org/cl/6333066
+
+ doc/go_spec.html | 29 +++++++++++++++++++----------
+ 1 file changed, 19 insertions(+), 10 deletions(-)

@@ -1,0 +1,40 @@
+commit d37c572ad54921319653a4abdd749221f7779bb5
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 6 14:32:45 2013 -0500
+
+    cmd/ld: move symtab, ELF generation to portable code
+    
+    More cleanup in preparation for fixing issue 4069.
+    
+    This CL replaces the three nearly identical copies of the
+    asmb ELF code with a single asmbelf function in elf.c.
+    
+    In addition to the ELF code movement, remove the elfstr
+    array in favor of a simpler lookup, and identify sections by
+    name throughout instead of computing fragile indices.
+    
+    The CL also replaces the three nearly identical copies of the
+    genasmsym code with a single genasmsym function in lib.c.
+    
+    The ARM linker still compiles and generates binaries,
+    but I haven't tested the binaries. They may not work.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7062047
+
+ src/cmd/5l/asm.c    | 587 +------------------------------------------------
+ src/cmd/5l/l.h      |   2 +
+ src/cmd/5l/span.c   |   6 +-
+ src/cmd/6l/asm.c    | 573 +-----------------------------------------------
+ src/cmd/6l/l.h      |   2 +
+ src/cmd/8l/asm.c    | 593 +-------------------------------------------------
+ src/cmd/8l/l.h      |   2 +
+ src/cmd/ld/data.c   |  39 +++-
+ src/cmd/ld/elf.c    | 614 ++++++++++++++++++++++++++++++++++++++++++++++++----
+ src/cmd/ld/elf.h    |  33 ++-
+ src/cmd/ld/go.c     |   1 +
+ src/cmd/ld/lib.c    |  82 +++++++
+ src/cmd/ld/lib.h    |   2 +
+ src/cmd/ld/symtab.c |  52 ++++-
+ 14 files changed, 805 insertions(+), 1783 deletions(-)

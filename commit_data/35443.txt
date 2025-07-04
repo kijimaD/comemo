@@ -1,0 +1,16 @@
+commit 4f765b18f82ae022f681806f04674d3b175881a4
+Author: Austin Clements <austin@google.com>
+Date:   Tue May 22 11:35:03 2018 -0400
+
+    cmd/compile: fix ARM64 build
+    
+    Write barrier unsafe-point analysis needs to flow through
+    OpARM64MOVWUload in c-shared mode.
+    
+    Change-Id: I4f06f54d9e74a739a1b4fcb9ab0a1ae9b7b88a95
+    Reviewed-on: https://go-review.googlesource.com/114077
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/plive.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

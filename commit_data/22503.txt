@@ -1,0 +1,19 @@
+commit 47515e01167268ca2b844e9b13cd47f7c2a613d8
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 8 20:21:24 2015 +0900
+
+    net: add Listen system call hook for testing
+    
+    Change-Id: I63053c45081f47ba736720a78d85c31c13767891
+    Reviewed-on: https://go-review.googlesource.com/8642
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/hook_unix.go         | 1 +
+ src/net/hook_windows.go      | 1 +
+ src/net/main_test.go         | 4 ++--
+ src/net/main_unix_test.go    | 3 +++
+ src/net/main_windows_test.go | 3 +++
+ src/net/sock_posix.go        | 2 +-
+ 6 files changed, 11 insertions(+), 3 deletions(-)

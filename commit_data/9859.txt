@@ -1,0 +1,12 @@
+commit c31f987bd68c774db172ef49bdf1dcc75491f89a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 4 13:46:03 2011 -0700
+
+    websocket: better error message in a test
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5185045
+
+ src/pkg/websocket/websocket_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

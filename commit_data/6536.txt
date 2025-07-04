@@ -1,0 +1,12 @@
+commit e39bd1dd56856ad509133b8ddd9fd3737a961c06
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 15 13:14:29 2010 -0700
+
+    log: roll back the rollback of the deprecation of the old interface.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/2521042
+
+ src/pkg/log/log.go | 41 +----------------------------------------
+ 1 file changed, 1 insertion(+), 40 deletions(-)

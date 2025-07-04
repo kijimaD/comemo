@@ -1,0 +1,14 @@
+commit 8c4a2ca83b5d1ab04361a15d9380f13077b4dda4
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 9 11:26:03 2012 +1100
+
+    encoding/binary: add Size, to replace the functionality of the old TotalSize
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5644063
+
+ doc/go1.html                      | 3 ++-
+ doc/go1.tmpl                      | 5 ++++-
+ src/pkg/encoding/binary/binary.go | 6 ++++++
+ 3 files changed, 12 insertions(+), 2 deletions(-)

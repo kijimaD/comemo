@@ -1,0 +1,16 @@
+commit 9c269e6a46fce4ee19e1603eaa9f5bb78dec78fd
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Feb 24 14:07:25 2016 -0800
+
+    cmd/compile: don't free the Prog list if we look at it after flush
+    
+    Only tests do this, provide them a hook to disable freeing
+    after flush.
+    
+    Change-Id: I810c6c51414a93f476a18ba07b807e16092bf8cf
+    Reviewed-on: https://go-review.googlesource.com/19907
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/asm/internal/asm/endtoend_test.go |  2 +-
+ src/cmd/internal/obj/objfile.go           | 10 +++++++++-
+ 2 files changed, 10 insertions(+), 2 deletions(-)

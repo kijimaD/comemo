@@ -1,0 +1,13 @@
+commit f4ee9f133c60cbbf5bd7d7d1aec62e4928a9a296
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 9 01:31:10 2009 -0700
+
+    check type of string/map/array index expressions
+    
+    R=ken
+    OCL=34478
+    CL=34480
+
+ src/cmd/gc/typecheck.c   |  6 ++++++
+ test/fixedbugs/bug205.go | 18 ++++++++++++++++++
+ 2 files changed, 24 insertions(+)

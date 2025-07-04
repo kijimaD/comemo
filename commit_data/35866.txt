@@ -1,0 +1,22 @@
+commit 23ce272bb1154fb8085c8fc1e3c1f1e0e760f005
+Author: Peter Gonda <pgonda@google.com>
+Date:   Wed Jan 24 14:45:28 2018 -0800
+
+    cmd/cgo: permit missing dynamic symbol section
+    
+    Allow static complication of cgo enabled libraries.
+    
+    Fixes #16651
+    
+    Change-Id: I0729ee4e6e5f9bd1cbdb1bc2dcbfe34463df547c
+    Reviewed-on: https://go-review.googlesource.com/89655
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/issue4029.c   |  2 +-
+ misc/cgo/test/issue4029.go  |  2 +-
+ misc/cgo/test/issue4029w.go |  2 +-
+ src/cmd/cgo/out.go          | 25 +++++--------------------
+ src/cmd/dist/test.go        |  6 ++++++
+ 5 files changed, 14 insertions(+), 23 deletions(-)

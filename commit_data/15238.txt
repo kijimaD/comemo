@@ -1,0 +1,14 @@
+commit 158a0353f76d2c6bc282fe5fb67f584e6c8de0bd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 14 09:29:34 2013 -0800
+
+    net: document OpError
+    
+    Fixes #4797
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/7300099
+
+ src/pkg/net/net.go | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)

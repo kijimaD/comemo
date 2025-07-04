@@ -1,0 +1,22 @@
+commit 0e031676288ddd56fb410b6b27807a180a585db3
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sun Apr 12 21:28:41 2020 +0200
+
+    cmd/go: use verbose flag to log proxy activities
+    
+    Fixes #29515
+    Fixes #30604
+    
+    Change-Id: Ie75a331cd6ca51806c5720443506d4fe0bec28cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227162
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/proxy_test.go                         | 17 +++++------------
+ src/cmd/go/testdata/script/mod_download.txt      |  1 -
+ src/cmd/go/testdata/script/mod_download_json.txt |  1 -
+ src/cmd/go/testdata/script/mod_get_commit.txt    |  1 -
+ src/cmd/go/testdata/script/mod_get_moved.txt     |  1 -
+ src/cmd/go/testdata/script/mod_query_exclude.txt |  1 -
+ 6 files changed, 5 insertions(+), 17 deletions(-)

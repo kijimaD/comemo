@@ -1,0 +1,53 @@
+commit 8dfb4472318e151656f77623e8cabdca290c22fb
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Oct 13 20:48:45 2021 -0700
+
+    runtime: do not add open defer entry above a started open defer entry
+    
+    Fix two defer bugs related to adding/removing open defer entries.
+    The bugs relate to the way that we add and remove open defer entries
+    from the defer chain. At the point of a panic, when we want to start
+    processing defer entries in order during the panic process, we need to
+    add entries to the defer chain for stack frames with open defers, since
+    the normal fast-defer code does not add these entries. We do this by
+    calling addOneOpenDeferFrame() at the beginning of each time around the
+    defer loop in gopanic(). Those defer entries get sorted with other open
+    and non-open-coded defer frames.
+    
+    However, the tricky part is that we also need to remove defer entries if
+    they end not being needed because of a recover (which means we are back
+    to executing the defer code inline at function exits). But we need
+    to deal with multiple panics and in-process defers on the stack, so we
+    can't just remove all open-coded defers from the the defer chain during
+    a recover.
+    
+    The fix (and new invariant) is that we should not add any open-coded
+    defers to the defer chain that are higher up the stack than an open-coded
+    defer that is in progress. We know that open-coded defer will still be
+    run until completed, and when it is completed, then a more outer frame
+    will be added (if there is one). This fits with existing code in gopanic
+    that only removes open-coded defer entries up to any defer in progress.
+    
+    These bugs were because of the previous inconsistency between adding and
+    removing open defer entries, which meant that stale defer entries could
+    be left on the list, in these unusual cases with both recursive
+    panics plus multiple independent (non-nested) cases of panic & recover.
+    
+    The test for #48898 was difficult to add to defer_test.go (while keeping
+    the failure mode), so I added as a go/test/fixedbug test instead.
+    
+    Fixes #43920
+    Updates #43941
+    Fixes #48898
+    
+    Change-Id: I593b77033e08c33094315abf8089fbc4cab07376
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356011
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/defer_test.go     | 79 +++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/panic.go          | 55 ++++++++++++++++++++++--------
+ test/fixedbugs/issue48898.go  | 40 ++++++++++++++++++++++
+ test/fixedbugs/issue48898.out |  1 +
+ 4 files changed, 161 insertions(+), 14 deletions(-)

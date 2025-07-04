@@ -1,0 +1,16 @@
+commit 4db3dde522af4d6217ae152e8ee035b5e178bbbd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 8 17:30:51 2016 -0800
+
+    cmd/compile: small cleanups for structargs
+    
+    Suggested by Dave Cheney in golang.org/cl/20405.
+    
+    Change-Id: I581c11ae80034cb6ebef3de976e8ae9484472322
+    Reviewed-on: https://go-review.googlesource.com/20453
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 21 ++++++++-------------
+ 1 file changed, 8 insertions(+), 13 deletions(-)

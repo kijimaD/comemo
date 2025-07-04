@@ -1,0 +1,21 @@
+commit 7ccbcc90560468937f02609a43cb39a6e13ff797
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Nov 19 16:33:42 2021 -0600
+
+    misc/cgo/test: further reduce likeliness of hang in Test9400
+    
+    As suggested by #49680, a GC could be in-progress when we
+    disable GC. Force a GC after we pause to ensure we don't
+    hang in this case.
+    
+    For #49695
+    
+    Change-Id: I4fc4c06ef2ac174217c3dcf7d58c7669226e2d24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367874
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Paul Murphy <murp@ibm.com>
+
+ misc/cgo/test/testdata/issue9400_linux.go | 2 ++
+ 1 file changed, 2 insertions(+)

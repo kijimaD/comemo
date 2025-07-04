@@ -1,0 +1,15 @@
+commit 75b62e367bfe0b4935fb08f5941f3a9a99932dae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 22 13:36:43 2013 -0700
+
+    go/ast: fix FuncType.Pos() impl. and FuncType.Params documentation
+    
+    As pointed out by adonovan.
+    
+    R=golang-dev, adonovan
+    CC=golang-dev
+    https://golang.org/cl/9662045
+
+ src/pkg/go/ast/ast.go    | 23 +++++++++++++----------
+ src/pkg/go/ast/filter.go |  2 +-
+ 2 files changed, 14 insertions(+), 11 deletions(-)

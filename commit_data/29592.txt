@@ -1,0 +1,21 @@
+commit a34fddf46c47a86e7a7cab32be858f7e8d0feb70
+Author: Philip Hofer <phofer@umich.edu>
+Date:   Mon Nov 14 17:05:46 2016 -0800
+
+    cmd/compile: in cse, allow for new ssa values
+    
+    The table of rewrites in ssa/cse is not sized appropriately for
+    ssa IDs that are created during copying of selects into new blocks.
+    
+    Fixes #17918
+    
+    Change-Id: I65fe86c6aab5efa679aa473aadc4ee6ea882cd41
+    Reviewed-on: https://go-review.googlesource.com/33240
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/cse.go |  5 ++++-
+ test/fixedbugs/issue17918.go        | 41 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 1 deletion(-)

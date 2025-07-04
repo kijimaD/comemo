@@ -1,0 +1,22 @@
+commit b07e4d95116239b9cb7e365d1e2395c8900f8a8a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 13 16:30:11 2010 -0700
+
+    os: mingw version of Readdir() and Stat() implemented
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/851045
+
+ src/pkg/os/Makefile                   |  17 +++++
+ src/pkg/os/dir_mingw.go               |  10 ++-
+ src/pkg/os/file.go                    |  70 ------------------
+ src/pkg/os/file_mingw.go              | 131 ++++++++++++++++++++++++++++++++++
+ src/pkg/os/file_unix.go               |  82 +++++++++++++++++++++
+ src/pkg/os/stat_mingw.go              |  25 +++++--
+ src/pkg/syscall/syscall_mingw.go      |  31 ++++++--
+ src/pkg/syscall/syscall_mingw_386.go  |   2 -
+ src/pkg/syscall/zerrors_mingw_386.go  |   1 +
+ src/pkg/syscall/zsyscall_mingw_386.go |  36 ++++++++++
+ src/pkg/syscall/ztypes_mingw_386.go   |  50 ++++++-------
+ 11 files changed, 345 insertions(+), 110 deletions(-)

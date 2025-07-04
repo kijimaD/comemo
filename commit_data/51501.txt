@@ -1,0 +1,39 @@
+commit 45f5ef4ed7a774b6911650319a265e17ee9e6e0e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 2 14:11:00 2022 -0500
+
+    cmd/go: remove TestScript/version_buildvcs_git_gpg
+    
+    This was a regression test added for a 'git' command line
+    used for build stamping. Unfortunately, 'gpg' has proved to
+    be extremely fragile:
+    
+    * In recent versions, it appears to always require 'gpg-agent' to be
+      installed for anything involving secret keys, but for some reason is
+      not normally marked as requiring gpg-agent in Debian's package
+      manager.
+    
+    * It tries to create a Unix domain socket in a subdirectory of $TMPDIR
+      without checking the path length, which fails when $TMPDIR is too
+      long to fit in the 'sun_path' field of a sockaddr_un struct (which
+      typically tops out somewhere between 92 and 108 bytes).
+    
+    We could theoretically address those by artificially reducing the
+    script's TMPDIR length and checking for gpg-agent in addition to gpg,
+    but arguably those should both be fixed upstream instead. On balance,
+    the incremental value that this test provides does not seem worth the
+    complexity of dealing with such a fragile third-party tool.
+    
+    Updates #50675.
+    Updates #48802.
+    Fixes #57034.
+    
+    Change-Id: Ia3288c2f84f8db86ddfa139b4d1c0112d67079ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454502
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ .../testdata/script/version_buildvcs_git_gpg.txt   | 107 ---------------------
+ 1 file changed, 107 deletions(-)

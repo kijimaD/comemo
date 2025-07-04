@@ -1,0 +1,27 @@
+commit dcb84828a6b1d7d4d9186bc6d752cc147e255162
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Mon Apr 29 22:57:25 2019 +0700
+
+    encoding/json: fix Unmarshal hang on recursive pointers
+    
+    indirect walks down v until it gets to a non-pointer. But it does not
+    handle the case when v is a pointer to itself, like in:
+    
+            var v interface{}
+            v = &v
+            Unmarshal(b, v)
+    
+    So just stop immediately if we see v is a pointer to itself.
+    
+    Fixes #31740
+    
+    Change-Id: Ie396264119e24d70284cd9bf76dcb2050babb069
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174337
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/decode.go      |  8 ++++++++
+ src/encoding/json/decode_test.go | 12 ++++++++++++
+ 2 files changed, 20 insertions(+)

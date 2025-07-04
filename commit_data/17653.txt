@@ -1,0 +1,14 @@
+commit 1325732ab955f84a8cc8a6dbb8c39c8e0c3d7c30
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 19 15:20:39 2013 -0700
+
+    test: add a test that causes gccgo to get a failure at link time
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13788043
+
+ test/fixedbugs/bug479.dir/a.go | 15 +++++++++++++++
+ test/fixedbugs/bug479.dir/b.go | 16 ++++++++++++++++
+ test/fixedbugs/bug479.go       | 10 ++++++++++
+ 3 files changed, 41 insertions(+)

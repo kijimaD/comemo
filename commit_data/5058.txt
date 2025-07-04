@@ -1,0 +1,21 @@
+commit 74fac99d05563b375fd44b77502708f75cdc3470
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 16 14:17:42 2010 -0700
+
+    godoc: initial support for showing popup information
+    for identifiers in Go source code
+    
+    - at the moment just show identifier kind (var, func, etc.) and name
+      (eventually should show declaration, type, etc.)
+    - JavaScript parts by adg
+    
+    R=rsc
+    CC=adg, golang-dev
+    https://golang.org/cl/578042
+
+ doc/popups.js           | 24 +++++++++++++++++
+ doc/style.css           | 13 +++++++++
+ lib/godoc/source.html   | 23 ++++++++++++++++
+ src/cmd/godoc/godoc.go  | 71 ++++++++++++++++++++++++++++++++++++++++++++-----
+ src/pkg/go/ast/scope.go | 13 +++++++++
+ 5 files changed, 138 insertions(+), 6 deletions(-)

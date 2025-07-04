@@ -1,0 +1,31 @@
+commit 4c943abb95578da4bfd70d365814a130da8d5aa2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Dec 7 00:24:54 2021 -0500
+
+    runtime: fix comments on the behavior of SetGCPercent
+    
+    Fixes for #49680, #49695, #45867, and #49370 all assumed that
+    SetGCPercent(-1) doesn't block until the GC's mark phase is done, but
+    it actually does. The cause of 3 of those 4 failures comes from the fact
+    that at the beginning of the sweep phase, the GC does try to preempt
+    every P once, and this may run concurrently with test code. In the
+    fourth case, the issue was likely that only *one* of the debug_test.go
+    tests was missing a call to SetGCPercent(-1). Just to be safe, leave a
+    TODO there for now to remove the extraneous runtime.GC calls, but leave
+    the calls in.
+    
+    Updates #49680, #49695, #45867, and #49370.
+    
+    Change-Id: Ibf4e64addfba18312526968bcf40f1f5d54eb3f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369815
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/cgo/test/testdata/issue9400_linux.go |  4 +++-
+ src/runtime/debug_test.go                 | 23 ++++++++++++++++++-----
+ src/runtime/proc_test.go                  | 15 +++++++++------
+ src/runtime/rwmutex_test.go               |  4 +++-
+ src/runtime/testdata/testprog/preempt.go  |  3 ++-
+ 5 files changed, 35 insertions(+), 14 deletions(-)

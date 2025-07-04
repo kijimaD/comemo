@@ -1,0 +1,15 @@
+commit 81a8f1a7946c28eaa9c187b7aaa349020b7a9ba4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 30 15:17:14 2016 +1000
+
+    doc: remove remnant mention of io.SizedReaderAt from Go 1.7 docs
+    
+    Updates #15810
+    
+    Change-Id: I37f14a0ed1f5ac24ea2169a7e65c0469bfddd928
+    Reviewed-on: https://go-review.googlesource.com/23559
+    Reviewed-by: Michael McGreevy <mcgreevy@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go1.7.html | 9 ---------
+ 1 file changed, 9 deletions(-)

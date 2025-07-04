@@ -1,0 +1,30 @@
+commit 7c59c8bdee48cecc3c38d3d10c3c794c1185db22
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Aug 31 10:28:49 2013 +0900
+
+    net: make resolveInternetAddr return a list of addresses
+    
+    This CL makes resolveInternetAddr return a list of addresses that
+    contain a pair of different address family IP addresses if possible,
+    but doesn't contain any API behavioral changes yet. A simple IP
+    address selection mechanism for Resolve{TCP,UDP,IP}Addr and Dial API
+    still prefers IPv4.
+    
+    This is in preparation for TCP connection setup with fast failover on
+    dual IP stack node as described in RFC 6555.
+    
+    Update #3610
+    Update #5267
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13374043
+
+ src/pkg/net/dialgoogle_test.go |  25 ++++++
+ src/pkg/net/ipraw_test.go      |  19 +++--
+ src/pkg/net/ipsock.go          |  86 ++++++++++++-------
+ src/pkg/net/ipsock_test.go     | 189 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/lookup.go          |  22 ++---
+ src/pkg/net/tcp_test.go        |  19 +++--
+ src/pkg/net/udp_test.go        |  19 +++--
+ 7 files changed, 317 insertions(+), 62 deletions(-)

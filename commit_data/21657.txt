@@ -1,0 +1,12 @@
+commit 95ab84a34f67742b59227e6c7b45d287071d87b0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 16 18:18:13 2015 +0900
+
+    runtime: fix accidentally exported OpenBSD constants
+    
+    Change-Id: I2de63668a1c0152cc329df55c2d6d014e8183158
+    Reviewed-on: https://go-review.googlesource.com/4943
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/os1_openbsd.go | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

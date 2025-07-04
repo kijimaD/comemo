@@ -1,0 +1,21 @@
+commit 2aa589c8438debaef249e7fbcd9dd3fa0546c9c8
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sun Oct 23 18:36:01 2011 +1100
+
+    html: implement foster parenting
+    
+    Implement the foster-parenting algorithm for content that is inside a table
+    but not in a cell.
+    
+    Also fix a bug in reconstructing the active formatting elements.
+    
+    Pass test 30 in tests1.dat:
+    <a><table><td><a><table></table><a></tr><a></table><b>X</b>C<a>Y
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5309052
+
+ src/pkg/html/parse.go      | 123 ++++++++++++++++++++++++++++++++++-----------
+ src/pkg/html/parse_test.go |   9 +++-
+ 2 files changed, 103 insertions(+), 29 deletions(-)

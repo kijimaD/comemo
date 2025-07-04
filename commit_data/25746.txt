@@ -1,0 +1,14 @@
+commit 387d5b8cfb085ed8d2a074586a0ee0e6e6cb9820
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Feb 13 08:48:55 2016 -0800
+
+    runtime: remove debugging print in cgoCheckTypedBlock
+    
+    Change-Id: I83639fcde88e7d9747b54728a9481ee2e1b23a64
+    Reviewed-on: https://go-review.googlesource.com/19486
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/cgocheck.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,0 +1,32 @@
+commit 05f5ae74bc95b0d77a512029bc1a6739c5d0f181
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Oct 20 12:57:14 2020 +0000
+
+    runtime: fix scavenging tests for pallocChunkBytes huge pages and larger
+    
+    Currently the scavenging tests implicitly assume that the system huge
+    page size is always strictly less than 4 MiB, or pallocChunkBytes. This
+    leads to failures on systems with huge pages of this size, and larger.
+    
+    Filter out those tests on such platforms and add a test for the 4 MiB
+    case. The scavenger is already equipped to handle this case.
+    
+    Huge page sizes > 4 MiB are effectively ignored, so also add a test case
+    to ensure that happens.
+    
+    Unfortunately we can't actually run these tests in our CI because they
+    require the platform to provide the right huge page size, but we really
+    should just parameterize this value so we can test it (there's a TODO
+    about this already).
+    
+    Fixes #42053.
+    
+    Change-Id: Ia576cbf67e178a14a178a893967efbed27d6eb17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263837
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgcscavenge_test.go | 53 +++++++++++++++++++++++++++--------------
+ 1 file changed, 35 insertions(+), 18 deletions(-)

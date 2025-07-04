@@ -1,0 +1,33 @@
+commit 6de53832ae7678f18e1b4077134764b11687992d
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Nov 2 10:22:19 2017 +0100
+
+    cmd/dist: fix bad LC_TIME assumption in 'date' invocation
+    
+    With GOBUILDTIMELOGFILE set, make.bash logs the starting time using
+    
+      $ echo $(date) > file
+    
+    and expects to be able to read the date back with
+    
+      time.Parse(time.UnixDate)
+    
+    but in some locales the default date format is not the same as
+    time.UnixDate; for example on LC_TIME="en_GB.UTF-8"
+    
+      $ locale date_fmt
+      %a %e %b %H:%M:%S %Z %Y
+    
+    Fix this by setting LC_TIME=C before the date command invocation.
+    
+    Fixes #22541
+    
+    Change-Id: I59bf944bb868e2acdd816c7e35134780cdbfc6a6
+    Reviewed-on: https://go-review.googlesource.com/75370
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/make.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

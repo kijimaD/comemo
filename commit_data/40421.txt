@@ -1,0 +1,22 @@
+commit 096126de6b33a0c7831aebcdde00081876991438
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 25 13:55:10 2019 -0400
+
+    os/signal: derive TestAtomicStop timeout from overall test timeout
+    
+    Previously, TestAtomicStop used a hard-coded 2-second timeout.
+    
+    That empirically is not long enough on certain builders. Rather than
+    adjusting it to a different arbitrary value, use a slice of the
+    overall timeout for the test binary. If everything is working, we
+    won't block nearly that long anyway.
+    
+    Updates #35085
+    
+    Change-Id: I7b789388e3152413395088088fc497419976cf5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203499
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/signal/signal_test.go | 32 ++++++++++++++++++++++++++++++--
+ 1 file changed, 30 insertions(+), 2 deletions(-)

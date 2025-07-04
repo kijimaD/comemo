@@ -1,0 +1,25 @@
+commit b666f2860b2735eb61fe5a03dd90c3af8eed1ec3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 1 07:36:43 2017 -0700
+
+    runtime: use 64 bit calculation in overLoadFactor
+    
+    overLoadFactor used a uintptr for its calculations.
+    When the number of potential buckets was large,
+    perhaps due to a coding error or corrupt/malicious user input
+    leading to a very large map size hint,
+    this led to overflow on 32 bit systems.
+    This overflow resulted in an infinite loop.
+    
+    Prevent it by always using a 64 bit calculation.
+    
+    Updates #20195
+    
+    Change-Id: Iaabc710773cd5da6754f43b913478cc5562d89a2
+    Reviewed-on: https://go-review.googlesource.com/42185
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

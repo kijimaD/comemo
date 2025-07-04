@@ -1,0 +1,13 @@
+commit 2cb715a8b378a89bcb558fac05dc1dfddb9bfc31
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 4 14:11:22 2012 -0800
+
+    A+C: adding Frithjof Schulze (individual CLA)
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6871060
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

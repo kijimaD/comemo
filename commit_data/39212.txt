@@ -1,0 +1,17 @@
+commit 1d1ba85d9986bb56226046c06dec4ce63ef9fe48
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed May 8 18:57:00 2019 -0700
+
+    cmd/go: teach the build cache about -trimpath
+    
+    Fixes #31896
+    
+    Change-Id: I228a809568cd37c599987f9f1e99df5c229e6c9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176112
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/exec.go                    |  6 ++++++
+ src/cmd/go/testdata/script/build_cache_trimpath.txt | 20 ++++++++++++++++++++
+ 2 files changed, 26 insertions(+)

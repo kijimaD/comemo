@@ -1,0 +1,15 @@
+commit a9a6c90104a9fd4e9627a300bb301adf8a039592
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Apr 25 10:27:36 2011 -0400
+
+    crypto/tls: use time(), not Time().
+    
+    The unexported version returns a sensible default when the user hasn't
+    set a value. The exported version crashes in that case.
+    
+    R=bradfitzgo, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4435070
+
+ src/pkg/crypto/tls/handshake_client.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

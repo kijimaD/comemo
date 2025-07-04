@@ -1,0 +1,30 @@
+commit a369004e2318ad0f139f967c764918bd939980ce
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Dec 16 09:36:50 2011 +1100
+
+    html: handle end tags in foreign objects.
+    
+    I'm not 100% sure I get all the corner cases right, for end tags, but
+    I'll let the test suite smoke it out.
+    
+    Pass tests10.dat, test 1:
+    <!DOCTYPE html><svg></svg><![CDATA[a]]>
+    
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |   <body>
+    |     <svg svg>
+    |     <!-- [CDATA[a]] -->
+    
+    Also pass tests through test 5:
+    <!DOCTYPE html><body><table><svg></svg></table>
+    
+    R=andybalholm
+    CC=golang-dev
+    https://golang.org/cl/5495044
+
+ src/pkg/html/const.go      | 12 +++++++++++-
+ src/pkg/html/parse.go      | 21 ++++++++++++++++-----
+ src/pkg/html/parse_test.go |  1 +
+ 3 files changed, 28 insertions(+), 6 deletions(-)

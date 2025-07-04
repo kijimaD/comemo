@@ -1,0 +1,21 @@
+commit 9cd1818a7d019c02fa4898b3e45a323e35033290
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Apr 22 10:07:51 2022 +0900
+
+    path/filepath: do not remove prefix "." when following path contains ":".
+    
+    Fixes #52476
+    
+    Change-Id: I9eb72ac7dbccd6322d060291f31831dc389eb9bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401595
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/path/filepath/path.go              | 14 +++++++++++++-
+ src/path/filepath/path_test.go         |  3 +++
+ src/path/filepath/path_windows_test.go | 26 ++++++++++++++++++++++++++
+ 3 files changed, 42 insertions(+), 1 deletion(-)

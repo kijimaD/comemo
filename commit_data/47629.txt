@@ -1,0 +1,15 @@
+commit a59ab29bf2164730e3e6d5439c6ec4b1e46adcc4
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Mon Nov 29 11:05:41 2021 -0500
+
+    doc/go1.18: use <code> instead of <pre> for target specification
+    
+    For #47694.
+    
+    Signed-off-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Change-Id: I38c2fd9b57fbbacf220a2bc679f67e2dfdcc7cb1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367514
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

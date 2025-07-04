@@ -1,0 +1,63 @@
+commit fa72679f0710c406c88db40f2a92d905b7a7c055
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 13 00:09:31 2013 -0400
+
+    cmd/gc: add temporary-merging optimization pass
+    
+    The compilers assume they can generate temporary variables
+    as needed to preserve the right semantics or simplify code
+    generation and the back end will still generate good code.
+    This turns out not to be true. The back ends will only
+    track the first 128 variables per function and give up
+    on the remainder. That needs to be fixed too, in a later CL.
+    
+    This CL merges temporary variables with equal types and
+    non-overlapping lifetimes using the greedy algorithm in
+    Poletto and Sarkar, "Linear Scan Register Allocation",
+    ACM TOPLAS 1999.
+    
+    The result can be striking in the right functions.
+    
+    Top 20 frame size changes in a 6g godoc binary by bytes saved:
+    
+    5464 1984 (-3480, -63.7%) go/build.(*Context).Import
+    4456 1824 (-2632, -59.1%) go/printer.(*printer).expr1
+    2560   80 (-2480, -96.9%) time.nextStdChunk
+    3496 1608 (-1888, -54.0%) go/printer.(*printer).stmt
+    1896  272 (-1624, -85.7%) net/http.init
+    2688 1400 (-1288, -47.9%) fmt.(*pp).printReflectValue
+    2800 1512 (-1288, -46.0%) main.main
+    3296 2016 (-1280, -38.8%) crypto/tls.(*Conn).clientHandshake
+    1664  488 (-1176, -70.7%) time.loadZoneZip
+    1760  608 (-1152, -65.5%) time.parse
+    4104 3072 (-1032, -25.1%) runtime/pprof.writeHeap
+    1680  712 ( -968, -57.6%) go/ast.Walk
+    2488 1560 ( -928, -37.3%) crypto/x509.parseCertificate
+    1128  392 ( -736, -65.2%) math/big.nat.divLarge
+    1528  864 ( -664, -43.5%) go/printer.(*printer).fieldList
+    1360  712 ( -648, -47.6%) regexp/syntax.(*parser).factor
+    2104 1528 ( -576, -27.4%) encoding/asn1.parseField
+    1064  504 ( -560, -52.6%) encoding/xml.(*Decoder).text
+     584   48 ( -536, -91.8%) html.init
+    1400  864 ( -536, -38.3%) go/doc.playExample
+    
+    In the same godoc build, cuts the number of functions with
+    too many vars from 83 to 32.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/12829043
+
+ src/cmd/5g/opt.h  |   1 -
+ src/cmd/5g/peep.c |   2 +
+ src/cmd/5g/reg.c  |   5 +-
+ src/cmd/6g/opt.h  |   1 -
+ src/cmd/6g/reg.c  |   5 +-
+ src/cmd/6l/list.c |   2 +-
+ src/cmd/8g/opt.h  |   1 -
+ src/cmd/8g/peep.c |   2 +
+ src/cmd/8g/reg.c  | 136 +-----------------------
+ src/cmd/gc/go.h   |   4 +-
+ src/cmd/gc/popt.c | 302 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/popt.h |   1 +
+ 12 files changed, 316 insertions(+), 146 deletions(-)

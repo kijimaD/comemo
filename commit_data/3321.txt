@@ -1,0 +1,13 @@
+commit c64986f706936a6f1e2e23592275eb78f88d0ec6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 18 17:08:18 2009 -0700
+
+    merge first pass into main loop in span calculation.
+    having one copy will cut nacl changes in half.
+    
+    R=ken
+    OCL=34815
+    CL=34815
+
+ src/cmd/8l/span.c | 71 ++++++++++++++++++++-----------------------------------
+ 1 file changed, 26 insertions(+), 45 deletions(-)

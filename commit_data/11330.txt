@@ -1,0 +1,12 @@
+commit 280d85a80bd14e732dee7e9991c35da80f62bed7
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Mon Jan 23 09:42:09 2012 -0500
+
+    ld: fix Mach-O code signing for non-cgo binaries
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5561060
+
+ src/cmd/ld/macho.c | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)

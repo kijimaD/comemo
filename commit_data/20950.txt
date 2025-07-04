@@ -1,0 +1,14 @@
+commit 38ecd2e267ff90874d532b9ee6ca3a21bf9219bc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 10 11:43:04 2014 +1100
+
+    all: tighten overly-broad runtime/z* gitignore line
+    
+    Fixes #9231
+    
+    Change-Id: Ifed6cd37e885415d9a298b63d472d63f44e72321
+    Reviewed-on: https://go-review.googlesource.com/1290
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ .gitignore | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

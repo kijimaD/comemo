@@ -1,0 +1,16 @@
+commit ccbac5a48025a5ad911fa1a02e43486043c89038
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Jun 30 12:25:38 2012 -0700
+
+    api: update next.txt
+    
+    Some accumulated changes from the past few weeks.
+    
+    Just cleans up all.bash output.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6354056
+
+ api/next.txt | 25 ++++++++++++++++++++++---
+ 1 file changed, 22 insertions(+), 3 deletions(-)

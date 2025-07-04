@@ -1,0 +1,81 @@
+commit 473441fc3086567f56473ba59a42cb8a4b859276
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Thu Dec 13 13:02:39 2012 -0800
+
+    os: Improve the accuracy of os.Chtimes
+    
+    I've been writing some code which involves syncing files (like
+    rsync) and it became apparent that under Linux I could read
+    modification times (os.Lstat) with nanosecond precision but
+    only write them with microsecond precision.  This difference
+    in precision is rather annoying when trying to discover
+    whether files need syncing or not!
+    
+    I've patched syscall and os to increases the accuracy of of
+    os.Chtimes for Linux and Windows.  This involved exposing the
+    utimensat system call under Linux and a bit of extra code
+    under Windows.  I decided not to expose the "at" bit of the
+    system call as it is impossible to replicate under Windows, so
+    the patch adds syscall.Utimens() to all architectures along
+    with a ImplementsUtimens flag.
+    
+    If the utimensat syscall isn't available (utimensat was added
+    to Linux in 2.6.22, Released, 8 July 2007) then it silently
+    falls back to the microsecond accuracy version it uses now.
+    The improved accuracy for Windows should be good for all
+    versions of Windows.
+    
+    Unfortunately Darwin doesn't seem to have a utimensat system
+    call that I could find so I couldn't implement it there.  The
+    BSDs do, but since they share their syscall implementation
+    with Darwin I couldn't figure out how to define a syscall for
+    *BSD and not Darwin.  I've left this as a TODO in the code.
+    
+    In the process I implemented the missing methods for Timespec
+    under Windows which I needed which just happened to round out
+    the Timespec API for all platforms!
+    
+    ------------------------------------------------------------
+    
+    Test code: http://play.golang.org/p/1xnGuYOi4b
+    
+    Linux Before (1000 ns precision)
+    
+    $ ./utimetest.linux.before z
+    Setting mtime 1344937903123456789: 2012-08-14 10:51:43.123456789 +0100 BST
+    Reading mtime 1344937903123457000: 2012-08-14 10:51:43.123457 +0100 BST
+    
+    Linux After (1 ns precision)
+    
+    $ ./utimetest.linux.after z
+    Setting mtime 1344937903123456789: 2012-08-14 10:51:43.123456789 +0100 BST
+    Reading mtime 1344937903123456789: 2012-08-14 10:51:43.123456789 +0100 BST
+    
+    Windows Before (1000 ns precision)
+    
+    X:\>utimetest.windows.before.exe c:\Test.txt
+    Setting mtime 1344937903123456789: 2012-08-14 10:51:43.123456789 +0100 GMTDT
+    Reading mtime 1344937903123456000: 2012-08-14 10:51:43.123456 +0100 GMTDT
+    
+    Windows After (100 ns precision)
+    
+    X:\>utimetest.windows.after.exe c:\Test.txt
+    Setting mtime 1344937903123456789: 2012-08-14 10:51:43.123456789 +0100 GMTDT
+    Reading mtime 1344937903123456700: 2012-08-14 10:51:43.1234567 +0100 GMTDT
+    
+    R=golang-dev, alex.brainman, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6905057
+
+ src/pkg/os/file_posix.go                | 10 ++++------
+ src/pkg/syscall/syscall_bsd.go          | 15 +++++++++++++++
+ src/pkg/syscall/syscall_linux.go        | 19 +++++++++++++++++++
+ src/pkg/syscall/syscall_windows.go      | 28 ++++++++++++++++++++++++++++
+ src/pkg/syscall/types_linux.go          |  4 ++++
+ src/pkg/syscall/zsyscall_linux_386.go   | 15 +++++++++++++++
+ src/pkg/syscall/zsyscall_linux_amd64.go | 15 +++++++++++++++
+ src/pkg/syscall/zsyscall_linux_arm.go   | 15 +++++++++++++++
+ src/pkg/syscall/ztypes_linux_386.go     |  4 ++++
+ src/pkg/syscall/ztypes_linux_amd64.go   |  4 ++++
+ src/pkg/syscall/ztypes_linux_arm.go     |  4 ++++
+ 11 files changed, 127 insertions(+), 6 deletions(-)

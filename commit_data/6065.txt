@@ -1,0 +1,13 @@
+commit 96cbdd62b68d597d6c7ef0c3ef771331be76a550
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Aug 23 12:38:15 2010 -0700
+
+    better job on 2007043
+    better registerization
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1955049
+
+ src/cmd/6g/cgen.c | 56 ++++++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 45 insertions(+), 11 deletions(-)

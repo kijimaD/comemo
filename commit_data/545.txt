@@ -1,0 +1,25 @@
+commit 66a603c9869a4b7eaebb08e39c16d0947a961574
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Aug 27 17:28:30 2008 -0700
+
+    arrays
+    
+    R=r
+    OCL=14603
+    CL=14603
+
+ src/cmd/6g/align.c     |   6 +-
+ src/cmd/6g/cgen.c      |  96 ++++++++++++++-
+ src/cmd/gc/export.c    |  14 ++-
+ src/cmd/gc/go.h        |  24 +++-
+ src/cmd/gc/go.y        |  12 +-
+ src/cmd/gc/lex.c       |   1 +
+ src/cmd/gc/subr.c      |  51 +++++---
+ src/cmd/gc/sys.go      |  11 ++
+ src/cmd/gc/sysimport.c | 324 +++++++++++++++++++++++++++----------------------
+ src/cmd/gc/walk.c      | 286 +++++++++++++++++++++++++++++++++++++------
+ src/runtime/Makefile   |   1 +
+ src/runtime/array.c    | 165 +++++++++++++++++++++++++
+ src/runtime/runtime.h  |   9 ++
+ test/chan/powser1.go   |   6 +-
+ 14 files changed, 790 insertions(+), 216 deletions(-)

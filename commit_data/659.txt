@@ -1,0 +1,15 @@
+commit 304440356db9541b7793be808f0131ea898aab43
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Sep 16 20:51:50 2008 -0700
+
+    assignment in select
+    with new select operator
+    
+    R=r
+    OCL=15418
+    CL=15418
+
+ src/cmd/gc/go.h   |  2 ++
+ src/cmd/gc/go.y   |  2 +-
+ src/cmd/gc/walk.c | 34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 37 insertions(+), 1 deletion(-)

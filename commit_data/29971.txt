@@ -1,0 +1,17 @@
+commit 1be957d703832aa10952c4dc799dcc3a39f48aff
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 19 22:07:20 2017 -0800
+
+    misc/cgo/test: pass current environment to syscall.Exec
+    
+    This is needed for typical tests with gccgo, as it passes the
+    LD_LIBRARY_PATH environment variable to the new program.
+    
+    Change-Id: I9bf4b0dbdff63f5449c7fcb8124eaeab10ed7f34
+    Reviewed-on: https://go-review.googlesource.com/35481
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/test/issue18146.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

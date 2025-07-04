@@ -1,0 +1,20 @@
+commit e39480f4fb5e7314daef012b58cf05e3c9ceea1a
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Feb 29 16:50:23 2024 +0800
+
+    doc: close HTML tags
+    
+    Add unclosed HTML tags and remove redundant </a> tags.
+    
+    Change-Id: I3fffbcfd640001c9cc4f6085150344daa0c4369b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568155
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/go_mem.html  | 16 ++++++++--------
+ doc/go_spec.html |  3 ++-
+ 2 files changed, 10 insertions(+), 9 deletions(-)

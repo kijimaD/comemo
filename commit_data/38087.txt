@@ -1,0 +1,14 @@
+commit 4b05dc91b0fe99724721e3545807f3b8f1310c52
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 26 06:31:21 2019 -0800
+
+    os: clarify that mode argument is only used if file is created
+    
+    Fixes #30400
+    
+    Change-Id: Icbd1dda29562afa80c8e37657133a6fe48070ac0
+    Reviewed-on: https://go-review.googlesource.com/c/163744
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/os/file.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

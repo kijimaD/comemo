@@ -1,0 +1,18 @@
+commit e7a138b856b21bc3db8ddb1dfe9f3fabe0dc59e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 8 15:24:48 2012 -0500
+
+    spec: send on closed channel counts as "proceeding"
+    
+    Other wordings are possible but defining this as one
+    of the ways to proceed means we don't have to add
+    language about this to the description of select.
+    
+    Fixes #2825.
+    
+    R=golang-dev, gri, r
+    CC=golang-dev
+    https://golang.org/cl/5643062
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit a3834a2e8a730a4e6a9be9f7ebba96ec3c942d32
+Author: Kamil Kisiel <kamil@kamilkisiel.net>
+Date:   Fri Sep 6 12:00:03 2013 -0700
+
+    net: Fix inaccurate docs for AcceptTCP and AcceptUnix.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13592043
+
+ src/pkg/net/tcpsock_plan9.go  | 2 +-
+ src/pkg/net/tcpsock_posix.go  | 2 +-
+ src/pkg/net/unixsock_plan9.go | 2 +-
+ src/pkg/net/unixsock_posix.go | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

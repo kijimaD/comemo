@@ -1,0 +1,20 @@
+commit 5a59516dd75e32cfa22441ffe313103ff72fe796
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 15 17:20:21 2016 +0000
+
+    net/http: deflake BenchmarkClient and its use of a fixed port for testing
+    
+    Let the kernel pick a port for testing, and have the server in the
+    child process tell the parent (benchmarking) process the port that
+    was selected.
+    
+    Fixes flakes like seen in https://golang.org/cl/27050 (and previously)
+    
+    Change-Id: Ia2b705dc4152f70e0a5725015bdae09984d09d53
+    Reviewed-on: https://go-review.googlesource.com/27051
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/serve_test.go | 51 ++++++++++++++++++++++++++++++----------------
+ 1 file changed, 34 insertions(+), 17 deletions(-)

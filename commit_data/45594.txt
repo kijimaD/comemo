@@ -1,0 +1,21 @@
+commit ec4efa42089415b0427a4d30b317cfd7e4a0fe75
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Mar 19 17:59:45 2020 -0400
+
+    crypto/x509: check the private key passed to CreateCertificate
+    
+    Unfortunately, we can't improve the function signature to refer to
+    crypto.PrivateKey and crypto.PublicKey, even if they are both
+    interface{}, because it would break assignments to function types.
+    
+    Fixes #37845
+    
+    Change-Id: I627f2ac1e1ba98b128dac5382f9cc2524eaef378
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224157
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/x509/x509.go | 28 +++++++++++++++++++---------
+ 1 file changed, 19 insertions(+), 9 deletions(-)

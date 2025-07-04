@@ -1,0 +1,17 @@
+commit 28388c4eb102f3218bbbdcca4699de6b078bdde6
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Apr 16 11:08:05 2015 +1000
+
+    image/color: have Palette.Index honor alpha for closest match, not just
+    red, green and blue.
+    
+    Fixes #9902
+    
+    Change-Id: Ibffd0aa2f98996170e39a919296f69e9d5c71545
+    Reviewed-on: https://go-review.googlesource.com/8907
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/color/color.go      | 37 ++++++++++++++-----------
+ src/image/color/ycbcr_test.go | 26 ++++++++++++++++++
+ src/image/draw/draw.go        | 63 +++++++++++++++++++++++++++----------------
+ 3 files changed, 88 insertions(+), 38 deletions(-)

@@ -1,0 +1,20 @@
+commit 4ffc799295fbe564edf1880a5f4317330c59bcb1
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Mon Mar 24 11:48:34 2014 -0700
+
+    bufio: fix bug that ReadFrom stops before EOF or error
+    
+    ReadFrom should not return until it receives a non-nil error
+    or too many contiguous (0, nil)s from a given reader.
+    Currently it immediately returns if it receives one (0, nil).
+    Fixes #7611.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/76400048
+
+ src/pkg/bufio/bufio.go      | 14 +++++++++---
+ src/pkg/bufio/bufio_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/bufio/scan.go       |  2 +-
+ 3 files changed, 66 insertions(+), 4 deletions(-)

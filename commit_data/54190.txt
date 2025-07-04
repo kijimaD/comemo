@@ -1,0 +1,24 @@
+commit fe2c686b63804b0e22295f02e4e58ddbb3da5898
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 24 11:09:41 2023 -0400
+
+    test/fixedbugs: require cgo for issue10607.go
+    
+    This test passes "-linkmode=external" to 'go run' to link the binary
+    using the system C linker.
+    
+    CGO_ENABLED=0 explicitly tells cmd/go not to use the C toolchain,
+    so the test should not be run in that configuration.
+    
+    Updates #46330.
+    
+    Change-Id: I16ac66aac91178045f9decaeb28134061e9711f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522495
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ test/fixedbugs/issue10607.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 99021b767f991bba547c282f173f63cf997b58c3
+Author: Herbert Georg Fischer <herbert.fischer@gmail.com>
+Date:   Fri Mar 15 13:43:10 2013 -0700
+
+    doc: explain why cmd/go uses https for repositories and how to work around it
+    Fixes #3418.
+    
+    R=golang-dev, r
+    CC=adg, golang-dev
+    https://golang.org/cl/7712045
+
+ doc/go_faq.html | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

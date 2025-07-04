@@ -1,0 +1,22 @@
+commit 9e059630ad5b7f6ddd4cf4559cd111906776d5fb
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Sep 11 14:26:10 2022 -0700
+
+    cmd/compile: clean up amd64 opcode comments
+    
+    Put comments about what operations do per block of related opcodes
+    instead of on each line. This is less repetitive and lets us be a bit
+    more verbose in our descriptions.
+    
+    Doesn't change the generated code at all.
+    
+    Change-Id: I98fbd4029df6537b10aac2113a00df121d0fca1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433736
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/AMD64Ops.go | 755 +++++++++++++++-----------
+ 1 file changed, 433 insertions(+), 322 deletions(-)

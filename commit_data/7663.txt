@@ -1,0 +1,17 @@
+commit 0db312b6a854cc75aa88899865560a7ddcdf9f07
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 6 23:02:29 2011 -0500
+
+    http: use Header type consistently
+    
+    R=bradfitzgo, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4244053
+
+ src/pkg/http/client.go             |  2 +-
+ src/pkg/http/readrequest_test.go   |  2 +-
+ src/pkg/http/request.go            |  2 +-
+ src/pkg/http/requestwrite_test.go  |  4 ++--
+ src/pkg/http/response.go           | 17 ++++++++---------
+ src/pkg/http/responsewrite_test.go |  6 +++---
+ 6 files changed, 16 insertions(+), 17 deletions(-)

@@ -1,0 +1,12 @@
+commit 9b04c9b1ea88603136bcfaeb435d9b159639b328
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 1 11:19:37 2010 +1100
+
+    json: use panic/recover to handle errors in Marshal
+    
+    R=r, gri
+    CC=golang-dev
+    https://golang.org/cl/872041
+
+ src/pkg/json/struct.go | 57 +++++++++++++++++++-------------------------------
+ 1 file changed, 21 insertions(+), 36 deletions(-)

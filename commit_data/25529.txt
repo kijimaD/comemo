@@ -1,0 +1,14 @@
+commit 64e2a7170120f20f62d5c8b15da26be1ef18226e
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Jan 3 07:32:52 2016 -0700
+
+    net/http: improve ReadResponse test coverage
+    
+    Change-Id: I08d77d52b68b062c2eb1901fcfca34d45a210cce
+    Reviewed-on: https://go-review.googlesource.com/18142
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/response_test.go | 99 ++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 93 insertions(+), 6 deletions(-)

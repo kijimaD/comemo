@@ -1,0 +1,27 @@
+commit c71cbd544e3da139badd4c03612af41b63711705
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 1 14:13:20 2023 -0400
+
+    cmd/go: return more errors from ReadModFile, loadModFile
+    
+    Return more errors instead of base.Fatalf, so we can handle them
+    in the callers.
+    
+    For #57001.
+    
+    Change-Id: If3e63d3f64188148f5d750991f9cb1175790d89d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499983
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/gover/toolchain.go             |  1 +
+ src/cmd/go/internal/modload/buildlist.go           |  5 +++-
+ src/cmd/go/internal/modload/init.go                | 34 +++++++++++++---------
+ src/cmd/go/internal/modload/load.go                |  5 +++-
+ src/cmd/go/internal/modload/modfile.go             | 13 ++++++---
+ src/cmd/go/testdata/script/mod_goline_too_new.txt  |  2 +-
+ src/cmd/go/testdata/script/mod_invalid_path.txt    |  2 +-
+ src/cmd/go/testdata/script/mod_invalid_version.txt |  2 +-
+ 8 files changed, 42 insertions(+), 22 deletions(-)

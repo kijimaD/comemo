@@ -1,0 +1,17 @@
+commit ee6bec958dcb701a3cfc46d85ad51d7dc97e5c1f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 1 08:40:40 2019 -0500
+
+    misc/cgo/test: set PWD when executing 'go test' in an alternate GOPATH
+    
+    That makes the test more friendly to the Android exec script, since it
+    won't have to evaluate symlinks to find the directory.
+    
+    Change-Id: I06aae3224d489eed6d7fac7e462361f3bf1dd3da
+    Reviewed-on: https://go-review.googlesource.com/c/164624
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+
+ misc/cgo/test/pkg_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

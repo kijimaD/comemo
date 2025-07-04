@@ -1,0 +1,22 @@
+commit 607317651206f32ee11bf97ec0fe8c473bba403d
+Author: Rodrigo Rafael Monti Kochenburger <divoxx@gmail.com>
+Date:   Wed Jan 30 07:57:11 2013 -0800
+
+    cmd/vet: detect misuse of atomic.Add*
+    
+    Re-assigning the return value of an atomic operation to the same variable being operated is a common mistake:
+    
+    x = atomic.AddUint64(&x, 1)
+    
+    Add this check to go vet.
+    
+    Fixes #4065.
+    
+    R=dvyukov, golang-dev, remyoudompheng, rsc
+    CC=golang-dev
+    https://golang.org/cl/7097048
+
+ src/cmd/vet/Makefile  |  2 +-
+ src/cmd/vet/atomic.go | 90 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/vet/main.go   | 16 +++++++++
+ 3 files changed, 107 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 0bc6836e81223a82653c44a4a6023e762a1e51cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 10 01:27:59 2012 -0500
+
+    builder: set $GOBUILDEXIT for Windows
+    
+    Actually %GOBUILDEXIT% I suppose.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5651058
+
+ misc/dashboard/builder/main.go | 1 +
+ src/all.bat                    | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

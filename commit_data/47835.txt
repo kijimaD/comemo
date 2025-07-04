@@ -1,0 +1,22 @@
+commit 7c94355b738170cf06484d502af7f2d935831c2b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 16 16:28:38 2021 -0800
+
+    go/types: better error message when using comparable in union
+    
+    This is a port of CL 372674 from types2 to go/types with
+    minor adjustments for error handling.
+    
+    For #49602.
+    
+    Change-Id: I726081325a2ff2d5690d11ddc8a830bbcbd8ab33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372954
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/testdata/fixedbugs/issue49602.go2 | 19 +++++++++++++++++++
+ src/go/types/union.go                          | 11 ++++++++++-
+ 2 files changed, 29 insertions(+), 1 deletion(-)

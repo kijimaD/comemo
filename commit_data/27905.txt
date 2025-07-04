@@ -1,0 +1,18 @@
+commit 604efe128195c1fbb1d14cbd36bf681fcff723a3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 17 16:22:24 2016 -0700
+
+    runtime: disable TestCgoCallbackGC on FreeBSD
+    
+    The trybot flakes are a nuisance.
+    
+    Updates #16396
+    
+    Change-Id: I8202adb554391676ba82bca44d784c6a81bf2085
+    Reviewed-on: https://go-review.googlesource.com/27313
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/crash_cgo_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

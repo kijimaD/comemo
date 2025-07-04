@@ -1,0 +1,28 @@
+commit 8db7e2fecdcd04af31c82d075c60ab6fdf6b7a48
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Dec 22 16:23:29 2020 +0000
+
+    runtime: fix allocs-by-size and frees-by-size buckets
+    
+    Currently these two metrics are reported incorrectly, going by the
+    documentation in the runtime/metrics package. We just copy in the
+    size-class-based values from the runtime wholesale, but those implicitly
+    have an inclusive upper-bound and exclusive lower-bound (e.g. 48-byte
+    size class contains objects in the size range (32, 48]) but the API
+    declares inclusive lower-bounds and exclusive upper-bounds.
+    
+    Also, the bottom bucket representing (-inf, 1) should always be empty.
+    Extend the consistency check to verify this.
+    
+    Updates #43329.
+    
+    Change-Id: I11b5b062a34e13405ab662d15334bda91f779775
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279467
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/metrics.go      | 13 ++++++++++++-
+ src/runtime/metrics_test.go |  6 ++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

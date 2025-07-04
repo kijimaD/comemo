@@ -1,0 +1,14 @@
+commit e07f089cb02790b6fedab92105eba09bd578aae7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 14 17:02:28 2012 +1100
+
+    doc: update install.html for binary distros, add install-source.html
+    
+    R=bsiegert, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5605047
+
+ doc/gccgo_install.html  |   3 +-
+ doc/install-source.html | 475 ++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/install.html        | 439 ++++++++------------------------------------
+ 3 files changed, 548 insertions(+), 369 deletions(-)

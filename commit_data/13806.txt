@@ -1,0 +1,20 @@
+commit 792518c65618599853e1f9da3c23d4ba7d2cce9f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 12 12:05:34 2012 -0400
+
+    cmd/dist: emit \r in env -w output
+    
+    go tool dist env -w is supposed to print a Windows batch file.
+    Normally Windows will execute batch files without \r before \n,
+    but issue 3060 reports that if the file ends up containing paths
+    written in Chinese, Windows 7 cannot execute it without the \r.
+    So add the \r.
+    
+    Fixes #3060.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6498120
+
+ src/cmd/dist/build.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

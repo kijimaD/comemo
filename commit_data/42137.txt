@@ -1,0 +1,16 @@
+commit bce1e25b717e07e05174117af6907999b3f51285
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Apr 27 12:23:26 2020 +1000
+
+    image/png: fix some 32-bit int overflows
+    
+    Fixes #38435
+    
+    Change-Id: Ib9ae3cf7f338b2860a5688e448a125f257fe624e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230219
+    Reviewed-by: Andrew Ekstedt <andrew.ekstedt@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/png/reader.go      |  10 +++-
+ src/image/png/reader_test.go | 134 ++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 127 insertions(+), 17 deletions(-)

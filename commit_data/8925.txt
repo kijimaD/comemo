@@ -1,0 +1,13 @@
+commit 1eb656784c38b4a545297ce4843ea2c1b8601038
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 1 11:13:38 2011 -0400
+
+    5c, 6c: fix build
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4668049
+
+ src/cmd/5c/gc.h | 2 +-
+ src/cmd/6c/gc.h | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

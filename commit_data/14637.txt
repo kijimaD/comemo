@@ -1,0 +1,14 @@
+commit 31eedd7f3ee26a22677f057bf61e4143e9e322cc
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Dec 13 18:36:24 2012 +0800
+
+    io: SectionReader.ReadAt should return EOF when buf is not fully read
+    Fixes #4392.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6858062
+
+ src/pkg/io/io.go      |  5 +++++
+ src/pkg/io/io_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

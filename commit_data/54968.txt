@@ -1,0 +1,21 @@
+commit 50034e9faac531e0e4d6cbf4d172462ca23c9be2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 11 12:07:25 2023 -0800
+
+    go/types, types2: add FileVersions map to test Info
+    
+    Make sure the FileVersions map is populated in test runs.
+    
+    For #62605.
+    
+    Change-Id: I06585b5110a4a98b577edb8e03a4981b2484a5a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541736
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/check_test.go | 15 ++++++++-------
+ src/go/types/check_test.go                    | 15 ++++++++-------
+ 2 files changed, 16 insertions(+), 14 deletions(-)

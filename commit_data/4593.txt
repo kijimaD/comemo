@@ -1,0 +1,14 @@
+commit 63d639295ccf5ebfdcf9ac0802b5b9fbf8502380
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 13 14:39:30 2010 +1100
+
+    don't worry about the number of spaces when parsing.
+    allow an underscore to stand for a space or digit if the following number is >=10.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/186115
+
+ src/pkg/time/format.go    | 56 +++++++++++++++++++++++++++++++++++++----------
+ src/pkg/time/time_test.go |  3 +++
+ 2 files changed, 48 insertions(+), 11 deletions(-)

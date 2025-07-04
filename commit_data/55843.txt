@@ -1,0 +1,25 @@
+commit 58052fe8e707cc0285cffb239bc7a5343243e316
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Mar 6 12:39:23 2024 -0500
+
+    cmd: update telemetry to d5a85b2
+    
+    commands run:
+            go get golang.org/x/telemetry@d5a85b2
+            go mod tidy
+            go mod vendor
+    
+    Fixes #66099
+    
+    Change-Id: Ia9215855f1472fa885792d5b23a986f29759af18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569421
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go.mod                                     |  4 +--
+ src/cmd/go.sum                                     |  8 ++---
+ .../x/telemetry/internal/upload/upload.go          |  9 +++++
+ src/cmd/vendor/golang.org/x/telemetry/start.go     | 40 +++++++++++++++++++++-
+ src/cmd/vendor/modules.txt                         |  4 +--
+ 5 files changed, 56 insertions(+), 9 deletions(-)

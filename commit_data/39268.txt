@@ -1,0 +1,16 @@
+commit cd24849e8b6c8a8079613cdb8a61fcc3e24f2154
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed May 29 14:30:23 2019 -0700
+
+    cmd/compile: fix fmt_test.go after CL 170062
+    
+    Updates #22326.
+    
+    Change-Id: Ia9173b6eb29b2a4f90f4ba39bf53b6e9b7a6d6bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179398
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/fmtmap_test.go | 65 +++++++++++++++++++++---------------------
+ 1 file changed, 33 insertions(+), 32 deletions(-)

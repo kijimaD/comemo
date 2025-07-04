@@ -1,0 +1,15 @@
+commit 7f501c06f789f2c70623738faaab18e555d26722
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Tue Dec 15 21:09:55 2009 -0800
+
+    bytes, strings: add new function Fields
+    
+    R=rsc, r, phf
+    CC=golang-dev
+    https://golang.org/cl/170046
+
+ src/pkg/bytes/bytes.go          | 38 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/bytes/bytes_test.go     | 30 ++++++++++++++++++++++++++++++
+ src/pkg/strings/strings.go      | 34 ++++++++++++++++++++++++++++++++++
+ src/pkg/strings/strings_test.go | 30 ++++++++++++++++++++++++++++++
+ 4 files changed, 132 insertions(+)

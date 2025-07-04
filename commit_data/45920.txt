@@ -1,0 +1,15 @@
+commit 21a04e33353316635b5f3351e807916f3bb1e844
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 14 16:04:49 2021 -0700
+
+    doc/go1.17: mention GOARCH=loong64
+    
+    For #46229
+    
+    Change-Id: I54d01d90f2b0c892d76121f1350c0e8cf4b2772f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334729
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

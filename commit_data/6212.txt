@@ -1,0 +1,13 @@
+commit 1d62becbd886f4b6c5dfba77ae5346107d554f2b
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Thu Sep 9 01:42:55 2010 -0400
+
+    build: generate, clean .exe files on Windows
+    
+    R=rsc, brainman, vcc
+    CC=golang-dev
+    https://golang.org/cl/2165044
+
+ src/Make.ccmd | 4 ++++
+ src/Make.pkg  | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

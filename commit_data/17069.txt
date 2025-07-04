@@ -1,0 +1,14 @@
+commit 60aa48c12783f84ba150eac47ad2a5de23b8fc74
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Aug 7 13:36:41 2013 +1000
+
+    net: fix small bug introduced by 48f7c4dd87fe
+    
+    Fixes #6063
+    
+    R=golang-dev, r, dave
+    CC=dvyukov, golang-dev
+    https://golang.org/cl/12586043
+
+ src/pkg/net/fd_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

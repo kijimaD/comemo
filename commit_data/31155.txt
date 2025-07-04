@@ -1,0 +1,14 @@
+commit 3d0a89838536fa828445df638c36c3f8034ac74d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 16 15:19:55 2017 -0700
+
+    cmd/compile: improve output when TestAssembly build fails
+    
+    Change-Id: Ibee84399d81463d3e7d5319626bb0d6b60b86bd9
+    Reviewed-on: https://go-review.googlesource.com/40861
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

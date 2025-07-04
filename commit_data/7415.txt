@@ -1,0 +1,14 @@
+commit acc82ad72174111f3ced310f2bd3bd10d5c83f77
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Feb 9 13:13:17 2011 -0800
+
+    peep: bug fix
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4173041
+
+ src/cmd/5g/list.c |   6 +-
+ src/cmd/5g/peep.c | 173 +++++++++++++++++++++++-------------------------------
+ src/cmd/5g/reg.c  |  68 +++++++++++++++++++++
+ 3 files changed, 145 insertions(+), 102 deletions(-)

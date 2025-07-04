@@ -1,0 +1,12 @@
+commit 817a3f39fd4c9d8825f3db1b8d7f624d6d53ff18
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Thu Feb 14 15:38:57 2013 -0800
+
+    src/cmd/gc: fix some typos in the escape analysis comments
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7342044
+
+ src/cmd/gc/esc.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

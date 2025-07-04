@@ -1,0 +1,17 @@
+commit 0cd0c3e8ca224ee605cc5e8a9a2274296c30fd36
+Author: Rob Pike <r@golang.org>
+Date:   Sun Sep 23 10:44:56 2012 +1000
+
+    effective_go: s/usr/home/ in example
+    When I was a lad (and well past), users were in /usr;
+    now they're somewhere else, I'm told.
+    Kids today.
+    
+    Fixes #4122.
+    
+    R=golang-dev, dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/6552060
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

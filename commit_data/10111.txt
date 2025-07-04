@@ -1,0 +1,12 @@
+commit 704bf7791b835cce29052d17d35995df9ecad40e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Oct 26 22:22:33 2011 +1100
+
+    .hgignore: ignore src/pkg/exp/ebnflint/ebnflint
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5294060
+
+ .hgignore | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

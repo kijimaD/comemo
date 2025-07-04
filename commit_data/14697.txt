@@ -1,0 +1,14 @@
+commit ff27cdb625c7870d3a0b846dae70fc339b021b62
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 21 07:06:38 2012 +1100
+
+    go/doc: don't synthesize code for examples that are not self-contained
+    
+    Fixes #4309.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6974045
+
+ src/pkg/go/doc/example.go | 35 ++++++++++++++++++++++++++++++++---
+ 1 file changed, 32 insertions(+), 3 deletions(-)

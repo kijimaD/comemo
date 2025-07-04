@@ -1,0 +1,16 @@
+commit 06479f766c4ae16e918701839bec0776ed52ec67
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 12 16:04:32 2012 -0800
+
+    go/ast: remove unnecessary result value from ast.Fprint/Print
+    
+    These functions are mostly of interest for debugging; the
+    number of bytes written is uninteresting.
+    
+    R=r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5540046
+
+ src/pkg/go/ast/print.go      | 24 ++++++++++--------------
+ src/pkg/go/ast/print_test.go |  2 +-
+ 2 files changed, 11 insertions(+), 15 deletions(-)

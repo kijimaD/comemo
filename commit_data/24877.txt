@@ -1,0 +1,32 @@
+commit ec9aae772c6da242fd0c1ef2d71ddb5c139d8f61
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 21 18:36:05 2015 -0700
+
+    runtime: move m's OS-specific semaphore fields into mOS
+    
+    Allows removing fields that aren't relevant to a particular OS or
+    changing their types to match the underlying OS system calls they'll
+    be used for.
+    
+    Change-Id: I5cea89ee77b4e7b985bff41337e561887c3272ff
+    Reviewed-on: https://go-review.googlesource.com/16176
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/lock_sema.go   | 32 +++++++++++---------------------
+ src/runtime/os1_darwin.go  | 15 ++++++++-------
+ src/runtime/os1_nacl.go    | 30 +++++++++++++++---------------
+ src/runtime/os1_netbsd.go  |  3 +--
+ src/runtime/os1_openbsd.go |  3 +--
+ src/runtime/os1_plan9.go   |  3 +--
+ src/runtime/os1_windows.go |  7 +++++--
+ src/runtime/os3_solaris.go |  8 ++++++--
+ src/runtime/os_darwin.go   |  4 +++-
+ src/runtime/os_nacl.go     |  6 +++++-
+ src/runtime/os_netbsd.go   |  4 +++-
+ src/runtime/os_openbsd.go  |  4 +++-
+ src/runtime/os_plan9.go    |  5 +++--
+ src/runtime/os_solaris.go  |  3 ++-
+ src/runtime/os_windows.go  |  4 +++-
+ src/runtime/runtime2.go    |  3 ---
+ 16 files changed, 70 insertions(+), 64 deletions(-)

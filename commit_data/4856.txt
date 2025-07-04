@@ -1,0 +1,26 @@
+commit 5883c6ef1f7bd313436ad9e2030a0e0376c3fd94
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 16 11:20:55 2010 -0800
+
+    godoc support for directories outside $GOROOT
+    
+    Example use: godoc -path=/home/user1:/home/build/foo -http=:6666
+    will start a local godoc that maps urls starting with /pkg/user1 or
+    /pkg/foo to the respective roots specified in the path.
+    
+    Missing: Handling of overlapping package directories, multiple
+    packages per directory.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/206078
+
+ lib/godoc/{source.html => error.html} |  10 +-
+ lib/godoc/godoc.html                  |   3 +
+ lib/godoc/package.html                |  10 +-
+ lib/godoc/search.html                 |  10 +-
+ src/cmd/godoc/Makefile                |   1 +
+ src/cmd/godoc/godoc.go                | 483 ++++++++++++++++++----------------
+ src/cmd/godoc/main.go                 |  29 +-
+ src/cmd/godoc/mapping.go              |  50 +++-
+ 8 files changed, 326 insertions(+), 270 deletions(-)

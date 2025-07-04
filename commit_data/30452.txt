@@ -1,0 +1,16 @@
+commit c861a4c78695038832bb4cf92a47c5e09566721b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 28 13:38:04 2017 -0800
+
+    go/internal/srcimporter: parse files concurrently (fixes TODO)
+    
+    Passes go test -race.
+    
+    Change-Id: I14b5b1b1a8ad1e43d60013823d71d78a6519581f
+    Reviewed-on: https://go-review.googlesource.com/37588
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/internal/srcimporter/srcimporter.go | 70 +++++++++++++++++++-----------
+ 1 file changed, 45 insertions(+), 25 deletions(-)

@@ -1,0 +1,19 @@
+commit 05b626e49075d3b9f2fcda65c7cc9054381da047
+Author: Changkun Ou <hi@changkun.us>
+Date:   Mon Sep 28 09:46:42 2020 +0200
+
+    os: fix SyscallConn typos in the File.Fd comments
+    
+    This CL fixes two typos introduced in CL 256899.
+    
+    Change-Id: I47f0a3097deeeec8d6e9bbe7073fcf7a28c5dff9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257997
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/os/file_plan9.go | 2 +-
+ src/os/file_unix.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

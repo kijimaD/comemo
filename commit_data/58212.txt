@@ -1,0 +1,17 @@
+commit a5c1b1c43389df3cb108e333a4198c81f15b1140
+Author: Conrad Irwin <conrad.irwin@gmail.com>
+Date:   Wed Nov 20 15:19:12 2024 -0700
+
+    cmd/go: cache executables for tools defined in go.mod
+    
+    This allows for executables created by `go tool` to be re-used from the
+    cache.
+    
+    Change-Id: I382672239244beb3cf6e227182f550c049de102b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630339
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/tool/tool.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

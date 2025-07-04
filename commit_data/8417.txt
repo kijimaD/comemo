@@ -1,0 +1,18 @@
+commit db36e03692006c53492353e0187240ef45be97f9
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon May 16 23:21:13 2011 -0400
+
+    net, http: add and make use of IP address scope identification API
+    
+    Add seven methods to IP struct: IsUnspecified, IsLoopback,
+    IsMulticast, IsInterfaceLocalMulticast, IsLinkLocalMulticast,
+    IsLinkLocalUnicast and IsGlobalUnicast.
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4515083
+
+ src/pkg/http/transport.go |  7 +----
+ src/pkg/net/ip.go         | 57 ++++++++++++++++++++++++++++++++++
+ src/pkg/net/ip_test.go    | 79 ++++++++++++++++++++++++++++++++++-------------
+ 3 files changed, 116 insertions(+), 27 deletions(-)

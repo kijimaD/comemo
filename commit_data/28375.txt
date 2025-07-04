@@ -1,0 +1,24 @@
+commit 4b8a1611b5d37fd41d2d11ef1bb3455c77b34e07
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 14 13:19:20 2016 -0700
+
+    cmd/compile: add Nodes.Prepend helper method
+    
+    Prepared with gofmt -r.
+    
+    Change-Id: Ib9f224cc20353acd9c5850dead1a2d32ca5427d3
+    Reviewed-on: https://go-review.googlesource.com/29165
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/order.go    | 10 +++++-----
+ src/cmd/compile/internal/gc/pgen.go     |  2 +-
+ src/cmd/compile/internal/gc/racewalk.go |  2 +-
+ src/cmd/compile/internal/gc/range.go    |  2 +-
+ src/cmd/compile/internal/gc/select.go   |  2 +-
+ src/cmd/compile/internal/gc/subr.go     |  2 +-
+ src/cmd/compile/internal/gc/swt.go      |  4 ++--
+ src/cmd/compile/internal/gc/syntax.go   | 20 +++++++++++++++++---
+ src/cmd/compile/internal/gc/walk.go     |  2 +-
+ 9 files changed, 30 insertions(+), 16 deletions(-)

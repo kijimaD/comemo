@@ -1,0 +1,12 @@
+commit 2637f1f9505fec6d1e5db39ebc5a182a54356aa6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 14 15:49:27 2019 +0000
+
+    database/sql: fix subject of unexported func comment
+    
+    Change-Id: I5db429c86e01b55ec3abc6ab4ca11c221b27f189
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177039
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/convert.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

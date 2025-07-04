@@ -1,0 +1,16 @@
+commit a12141e5f4e905045dca5dff2669b64d9b93788f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 22 08:58:52 2010 -0700
+
+    go spec: relaxed syntax for array, slice, and map composite literals
+    
+    For elements which are themselves composite literals, the type may
+    be omitted if it is identical to the element type of the containing
+    composite literal.
+    
+    R=r, rsc, iant, ken2
+    CC=golang-dev
+    https://golang.org/cl/2661041
+
+ doc/go_spec.html | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)

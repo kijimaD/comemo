@@ -1,0 +1,12 @@
+commit 119917375bd0ecbc4f5631e0e35958a578bebd8c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 8 16:26:00 2012 -0500
+
+    cmd/dist: redure max background tasks nr. when building on ARM
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5642063
+
+ src/cmd/dist/unix.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

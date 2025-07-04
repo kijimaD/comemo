@@ -1,0 +1,13 @@
+commit 77dd411aede2e1064eb7dbc0ae41f2baebd7d114
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun May 18 05:57:40 2014 +0900
+
+    doc/go1.3.html: fix typo
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/92440043
+
+ doc/go1.3.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

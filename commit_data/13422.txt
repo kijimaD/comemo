@@ -1,0 +1,21 @@
+commit 735780c27ee72a4a2cdfac306118cf015d922c93
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Sun Jul 1 00:27:05 2012 +1000
+
+    cmd/dist: Make windows.c's fatal() print to stderr
+    
+    Generating env.bat using dist env -wp > env.bat failed silently
+    if case of an error, because the message was redirected to env.bat.
+    Verbose messages still go to stdout, causing problems, but that's
+    a seperate change.
+    Made errprintf() identical to xprintf(), except for the output handle.
+    Yes, it's duplicate code, but most of the function is unpacking
+    the argument list and preparing it for WriteFile(), which has to be
+    done anyway.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/6343047
+
+ src/cmd/dist/windows.c | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 6c2cbdb1428340fcbf7305d82147b87070788b16
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 26 10:36:13 2013 -0800
+
+    cmd/vet: fix printf test for unsafe Pointer
+    And fix test. Pointer to unsafe.Pointer tests nothing important...
+    Also identify the incorrect type: go/types.Type is a Stringer.
+    
+    Also fix a couple of incorrect format verbs found by new printf checker,
+    now that we can run it on more files.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7385051
+
+ src/cmd/vet/print.go               | 17 +++++++++++------
+ src/cmd/vet/test_print.go          |  4 ++--
+ src/pkg/sync/atomic/atomic_test.go |  4 ++--
+ 3 files changed, 15 insertions(+), 10 deletions(-)

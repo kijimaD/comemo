@@ -1,0 +1,20 @@
+commit f6cdfc7987d9f3ee7380b3e6f52e433608f342c5
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Oct 17 21:59:10 2016 +0200
+
+    math/big: add benchmarks for big.Float String
+    
+    In addition to the DecimalConversion benchmark, that exercises the
+    String method of the internal decimal type on a range of small shifts,
+    add a few benchmarks for the big.Float String method. They can be used
+    to obtain more realistic data on the real-world performance of
+    big.Float printing.
+    
+    Change-Id: I7ada324e7603cb1ce7492ccaf3382db0096223ba
+    Reviewed-on: https://go-review.googlesource.com/31275
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/big/decimal_test.go | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)

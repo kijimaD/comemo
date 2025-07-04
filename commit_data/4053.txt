@@ -1,0 +1,13 @@
+commit b18bee948eea1ff2989e2cc28bd9abee821d2630
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 15 00:00:05 2009 -0800
+
+    cc: drop redundant strcpy
+    
+    Fixes #192.
+    
+    R=ken2
+    https://golang.org/cl/155047
+
+ src/cmd/cc/lex.c | 2 --
+ 1 file changed, 2 deletions(-)

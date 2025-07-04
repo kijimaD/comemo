@@ -1,0 +1,32 @@
+commit df7efaf9e838fdeec19d313f6fb8d108937be213
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 12 17:10:50 2009 -0700
+
+    - improved comment intersperse heuristic:
+      comments should now be indented properly in corner cases
+      (at the end of statement lists, for instance)
+    
+    - changed import decl. formatting as suggested by Russ (no "global"
+      indentation of imports if there are renames present)
+    
+    - better field list handling
+    
+    - better documentation
+    
+    R=rsc
+    DELTA=534  (324 added, 35 deleted, 175 changed)
+    OCL=35557
+    CL=35630
+
+ src/pkg/go/printer/printer.go                   | 494 ++++++++++++++++--------
+ src/pkg/go/printer/testdata/comments.go         |  26 +-
+ src/pkg/go/printer/testdata/comments.golden     |  26 +-
+ src/pkg/go/printer/testdata/comments.x          |   4 +-
+ src/pkg/go/printer/testdata/declarations.go     |  16 +-
+ src/pkg/go/printer/testdata/declarations.golden |  25 +-
+ src/pkg/go/printer/testdata/expressions.go      |  11 +
+ src/pkg/go/printer/testdata/expressions.golden  |  20 +-
+ src/pkg/go/printer/testdata/linebreaks.golden   |   4 +-
+ src/pkg/go/printer/testdata/statements.go       |  22 ++
+ src/pkg/go/printer/testdata/statements.golden   |  23 ++
+ 11 files changed, 480 insertions(+), 191 deletions(-)

@@ -1,0 +1,13 @@
+commit efb28b2ac1808bcbb7df28d12addc6df630353d5
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 17 14:30:25 2012 +1100
+
+    os: add a simple example to the package doc.
+    Shows error handling and slices for Read and Write.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5676075
+
+ src/pkg/os/file.go | 26 ++++++++++++++++++++++++--
+ 1 file changed, 24 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit f5352a7763c8f96f7f092990d64339eae0623263
+Author: ltnwgl <ltnwgl@gmail.com>
+Date:   Fri Mar 24 11:55:22 2017 +0800
+
+    container/heap: optimization when selecting smaller child
+    
+    In down(), if two children are equal, we can choose either one.
+    Inspired by https://codereview.appspot.com/6613064/
+    
+    Change-Id: Iaad4ca5e2f5111bf3abb87f606584e7d274c620b
+    Reviewed-on: https://go-review.googlesource.com/38612
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/container/heap/heap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

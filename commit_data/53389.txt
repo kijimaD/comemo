@@ -1,0 +1,29 @@
+commit d59926ec7e5bf709265afc17680ef720e9110696
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 30 13:28:56 2023 -0400
+
+    cmd/go: scan $PATH to find version list in NewerToolchain
+    
+    NewerToolchain needs a list of candidate toolchains.
+    Currently it always consults the module version list, using the network.
+    When GOTOOLCHAIN=path, it should probably not do this,
+    both because =path implies we don't want to use the network
+    and because not every released version will be in $PATH.
+    Instead, scan $PATH to find the available versions.
+    
+    For #57001.
+    
+    Change-Id: I478612c88d1504704a3f53fcfc73d8d4eedae493
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499296
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/toolchain/path_none.go      | 21 +++++++
+ src/cmd/go/internal/toolchain/path_plan9.go     | 29 +++++++++
+ src/cmd/go/internal/toolchain/path_unix.go      | 46 +++++++++++++++
+ src/cmd/go/internal/toolchain/path_windows.go   | 78 +++++++++++++++++++++++++
+ src/cmd/go/internal/toolchain/toolchain.go      | 53 ++++++++++++++++-
+ src/cmd/go/testdata/script/gotoolchain_path.txt | 51 +++++++++++-----
+ 6 files changed, 261 insertions(+), 17 deletions(-)

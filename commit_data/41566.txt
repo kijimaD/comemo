@@ -1,0 +1,33 @@
+commit 19ed0d993cf7b0df804c4c2e96dc674da4059e03
+Author: Diogo Pinela <diogoid7400@gmail.com>
+Date:   Tue Mar 3 21:03:40 2020 +0000
+
+    cmd/compile: use staticuint64s instead of staticbytes
+    
+    There are still two places in src/runtime/string.go that use
+    staticbytes, so we cannot delete it just yet.
+    
+    There is a new codegen test to verify that the index calculation
+    is constant-folded, at least on amd64. ppc64, mips[64] and s390x
+    cannot currently do that.
+    
+    There is also a new runtime benchmark to ensure that this does not
+    slow down performance (tested against parent commit):
+    
+    name                      old time/op  new time/op  delta
+    ConvT2EByteSized/bool-4   1.07ns ± 1%  1.07ns ± 1%   ~     (p=0.060 n=14+15)
+    ConvT2EByteSized/uint8-4  1.06ns ± 1%  1.07ns ± 1%   ~     (p=0.095 n=14+15)
+    
+    Updates #37612
+    
+    Change-Id: I5ec30738edaa48cda78dfab4a78e24a32fa7fd6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221957
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/go.go   |  2 +-
+ src/cmd/compile/internal/gc/walk.go | 37 ++++++++++++++++++++++++++-----------
+ src/runtime/iface_test.go           | 14 ++++++++++++++
+ test/codegen/smallintiface.go       | 22 ++++++++++++++++++++++
+ 4 files changed, 63 insertions(+), 12 deletions(-)

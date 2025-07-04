@@ -1,0 +1,22 @@
+commit 3e7ec131667c31448365f47643cf9b58d08ffd26
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jun 13 16:13:01 2023 -0400
+
+    cmd/go: fix build config for 'go list -cover'
+    
+    When 'go list -cover' is run in a way that triggers package builds
+    (for example, -export), ensure that the build step actually includes
+    coverage instrumentation as part of the config. Without this we will
+    wind up with incorrect build IDs.
+    
+    Fixes #60755.
+    
+    Change-Id: Ic84ab9e301d075bee5ff9d6828370a1708be0035
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502877
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/list/list.go          |  3 +++
+ src/cmd/go/testdata/script/cover_list.txt | 39 ++++++++++++++++++++++++++++++-
+ 2 files changed, 41 insertions(+), 1 deletion(-)

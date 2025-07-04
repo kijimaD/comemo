@@ -1,0 +1,27 @@
+commit 8455f3a3d5f2879e8574882978e7646db1ebabb5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 6 04:38:00 2016 +0000
+
+    os: consolidate os{1,2}_*.go files
+    
+    Change-Id: I463ca59f486b2842f67f151a55f530ee10663830
+    Reviewed-on: https://go-review.googlesource.com/21568
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os1_dragonfly.go                       | 270 --------------------
+ src/runtime/os1_linux_generic.go                   |  28 --
+ src/runtime/os1_linux_mips64x.go                   |  26 --
+ src/runtime/os1_netbsd.go                          | 275 --------------------
+ src/runtime/os2_dragonfly.go                       |  15 --
+ src/runtime/os2_linux_mips64x.go                   |  25 --
+ src/runtime/os2_netbsd.go                          |  18 --
+ src/runtime/os_dragonfly.go                        | 273 ++++++++++++++++++++
+ .../{os2_linux_generic.go => os_linux_generic.go}  |  18 ++
+ src/runtime/os_linux_mips64x.go                    |  37 ++-
+ src/runtime/os_netbsd.go                           | 283 ++++++++++++++++++++-
+ .../{os1_netbsd_386.go => os_netbsd_386.go}        |   0
+ .../{os1_netbsd_amd64.go => os_netbsd_amd64.go}    |   0
+ 13 files changed, 609 insertions(+), 659 deletions(-)

@@ -1,0 +1,21 @@
+commit f6360cf488e4ddab0f920065b8775773f702e6bf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 16 11:39:06 2023 -0700
+
+    syscall: remove deprecation notice
+    
+    The syscall package isn't getting new system call support,
+    but it is not deprecated.
+    
+    Fixes #60797
+    
+    Change-Id: I33b60269f9ce70ac2108fa0f3d42fd87a3076bf1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520018
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/syscall/syscall.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

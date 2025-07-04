@@ -1,0 +1,15 @@
+commit 093af4e512d0f2f358aa83b2125a8fb1563a5889
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Oct 7 23:14:23 2009 -0700
+
+    PNG encoder unit test.
+    
+    R=rsc,r
+    APPROVED=r
+    DELTA=84  (77 added, 6 deleted, 1 changed)
+    OCL=35456
+    CL=35458
+
+ src/pkg/image/png/reader_test.go | 16 ++++++----
+ src/pkg/image/png/writer_test.go | 69 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 78 insertions(+), 7 deletions(-)

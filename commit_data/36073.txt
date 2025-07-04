@@ -1,0 +1,31 @@
+commit 2d4c1ff73992fa817213c7866be8030d9c78b5ba
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 13 17:29:39 2018 -0400
+
+    runtime: don't create heap hints outside TSAN's supported heap
+    
+    TSAN for Go only supports heap address in the range [0x00c000000000,
+    0x00e000000000). However, we currently create heap hints of the form
+    0xXXc000000000 for XX between 0x00 and 0x7f. Even for XX=0x01, this
+    hint is outside TSAN's supported heap address range.
+    
+    Fix this by creating a slightly different set of hints in race mode,
+    all of which fall inside TSAN's heap address range.
+    
+    This should fix TestArenaCollision flakes. That test forces the
+    runtime to use later heap hints. Currently, this always results in
+    TSAN "failed to allocate" failures on Windows (which happens to have a
+    slightly more constrained TSAN layout than non-Windows). Most of the
+    time we don't notice these failures, but sometimes it crashes TSAN,
+    leading to a test failure.
+    
+    Fixes #25698.
+    
+    Change-Id: I8926cd61f0ee5ee00efa77b283f7b809c555be46
+    Reviewed-on: https://go-review.googlesource.com/123780
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/malloc.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

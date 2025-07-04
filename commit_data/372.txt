@@ -1,0 +1,12 @@
+commit e7d549fbd73cac17e80a5d85b48444f0142bc781
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jul 16 13:50:23 2008 -0700
+
+    new (more fifo) schedulint algorithm
+    newproc will reuse dead procs
+    
+    SVN=127565
+
+ src/runtime/proc.c    | 47 ++++++++++++++++++++++++++++++++++-------------
+ src/runtime/runtime.h |  5 +++--
+ 2 files changed, 37 insertions(+), 15 deletions(-)

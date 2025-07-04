@@ -1,0 +1,18 @@
+commit 9d36ab222d838f0e493653e2f31d77adb15ab9b5
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Oct 12 14:57:19 2016 +0200
+
+    cmd/link: use HEADR to define FlagTextAddr (cosmetic change)
+    
+    This cosmetic change defines ld.FlagTextAddr using ld.HEADR in
+    the Plan 9 cases, like it is done for other operating systems.
+    
+    Change-Id: Ic929c1c437f25661058682cf3e159f0b16cdc538
+    Reviewed-on: https://go-review.googlesource.com/30912
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/arm64/obj.go | 2 +-
+ src/cmd/link/internal/x86/obj.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

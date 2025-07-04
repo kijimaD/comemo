@@ -1,0 +1,14 @@
+commit 61ca7e5ccffbe6970da2462c2da535f5e021ee65
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Nov 4 21:20:33 2015 -0500
+
+    crypto/x509: add /etc/ssl/certs to certificate directories
+    
+    Fixes #12139.
+    
+    Change-Id: Ied760ac37e2fc21ef951ae872136dc3bfd49bf9f
+    Reviewed-on: https://go-review.googlesource.com/16671
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/x509/root_unix.go | 1 +
+ 1 file changed, 1 insertion(+)

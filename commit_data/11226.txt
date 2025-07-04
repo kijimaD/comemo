@@ -1,0 +1,12 @@
+commit 90c38c46af79991245545de47002537414c986a6
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Wed Jan 18 09:33:50 2012 -0800
+
+    go/scanner: fix example
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5532085
+
+ src/pkg/go/scanner/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

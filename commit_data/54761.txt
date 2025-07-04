@@ -1,0 +1,66 @@
+commit 3754ca0af299bd2e7d2fdcd5b8fbdb1aaaf0990e
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Apr 25 03:27:23 2023 +0800
+
+    cmd/compile: improve the implementation of Lowered{Move,Zero} on linux/loong64
+    
+    Like the CL 487295, when implementing Lowered{Move,Zero}, 8 is first subtracted
+    from Rarg0 (parameter Ptr), and then the offset of 8 is added during subsequent
+    operations on Rarg0. This operation is meaningless, so delete it.
+    
+    Change LoweredMove's Rarg0 register to R20, consistent with duffcopy.
+    
+    goos: linux
+    goarch: loong64
+    pkg: runtime
+    cpu: Loongson-3C5000 @ 2200.00MHz
+                                  │  old.bench  │             new.bench               │
+                                  │    sec/op   │   sec/op     vs base                │
+    Memmove/15                      19.10n ± 0%   19.10n ± 0%        ~ (p=0.483 n=15)
+    MemmoveUnalignedDst/15          25.02n ± 0%   25.02n ± 0%        ~ (p=0.741 n=15)
+    MemmoveUnalignedDst/32          48.22n ± 0%   48.22n ± 0%        ~ (p=1.000 n=15) ¹
+    MemmoveUnalignedDst/64          90.57n ± 0%   90.52n ± 0%        ~ (p=0.212 n=15)
+    MemmoveUnalignedDstOverlap/32   44.12n ± 0%   44.13n ± 0%   +0.02% (p=0.000 n=15)
+    MemmoveUnalignedDstOverlap/64   87.79n ± 0%   87.80n ± 0%   +0.01% (p=0.002 n=15)
+    MemmoveUnalignedSrc/0           3.639n ± 0%   3.639n ± 0%        ~ (p=1.000 n=15) ¹
+    MemmoveUnalignedSrc/1           7.733n ± 0%   7.733n ± 0%        ~ (p=1.000 n=15)
+    MemmoveUnalignedSrc/2           9.097n ± 0%   9.097n ± 0%        ~ (p=1.000 n=15)
+    MemmoveUnalignedSrc/3           10.46n ± 0%   10.46n ± 0%        ~ (p=1.000 n=15) ¹
+    MemmoveUnalignedSrc/4           11.83n ± 0%   11.83n ± 0%        ~ (p=1.000 n=15) ¹
+    MemmoveUnalignedSrc/64          93.71n ± 0%   93.70n ± 0%        ~ (p=0.128 n=15)
+    Memclr/4096                     699.1n ± 0%   699.1n ± 0%        ~ (p=0.682 n=15)
+    Memclr/65536                    11.18µ ± 0%   11.18µ ± 0%   -0.01% (p=0.000 n=15)
+    Memclr/1M                       175.2µ ± 0%   175.2µ ± 0%        ~ (p=0.191 n=15)
+    Memclr/4M                       661.8µ ± 0%   662.0µ ± 0%        ~ (p=0.486 n=15)
+    MemclrUnaligned/4_5             19.39n ± 0%   20.47n ± 0%   +5.57% (p=0.000 n=15)
+    MemclrUnaligned/4_16            22.29n ± 0%   21.38n ± 0%   -4.08% (p=0.000 n=15)
+    MemclrUnaligned/4_64            30.58n ± 0%   29.81n ± 0%   -2.52% (p=0.000 n=15)
+    MemclrUnaligned/4_65536         11.19µ ± 0%   11.20µ ± 0%   +0.02% (p=0.000 n=15)
+    GoMemclr/5                      12.73n ± 0%   12.73n ± 0%        ~ (p=0.261 n=15)
+    GoMemclr/16                     10.01n ± 0%   10.00n ± 0%        ~ (p=0.264 n=15)
+    GoMemclr/256                    50.94n ± 0%   50.94n ± 0%        ~ (p=0.372 n=15)
+    ClearFat15                      14.95n ± 0%   15.01n ± 4%        ~ (p=0.925 n=15)
+    ClearFat1032                    125.5n ± 0%   125.6n ± 0%   +0.08% (p=0.000 n=15)
+    CopyFat64                       10.58n ± 0%   10.01n ± 0%   -5.39% (p=0.000 n=15)
+    CopyFat1040                     244.3n ± 0%   155.6n ± 0%  -36.31% (p=0.000 n=15)
+    Issue18740/2byte                29.82µ ± 0%   29.82µ ± 0%        ~ (p=0.648 n=30)
+    Issue18740/4byte                18.18µ ± 0%   18.18µ ± 0%   -0.02% (p=0.001 n=30)
+    Issue18740/8byte                8.395µ ± 0%   8.395µ ± 0%        ~ (p=0.401 n=30)
+    geomean                         154.5n        151.8n        -1.70%
+    ¹ all samples are equal
+    
+    Change-Id: Ia3f3c8b25e1e93c97ab72328651de78ca9dec016
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488515
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/loong64/ssa.go         | 168 +++++++++++-------------
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |  28 ++--
+ src/cmd/compile/internal/ssa/opGen.go           |   6 +-
+ 3 files changed, 91 insertions(+), 111 deletions(-)

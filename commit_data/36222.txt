@@ -1,0 +1,27 @@
+commit 15c106d99305411b587ec0d9e80c882e538c9d47
+Author: Gn Shivakumar <shivakumar.gn@gmail.com>
+Date:   Sun Jul 29 23:26:52 2018 +0530
+
+    cmd/go: 3 cmd/go tests (>8s) made as non-short scripts
+    
+    * TestAtomicCoverpkgAll -> Script/cover_atomic_pkgall.txt and make it
+    * non-short
+    * TestCoverpkgAllRuntime -> Script/cover_pkgall_runtime.txt and make it
+    * non-short
+    * TestCpuprofileTwice -> Script/cpu_profile_twice.txt and make it
+    * non-short
+    * TestGoTestMainTwice -> make it non-short
+    
+    Updates #26472
+    
+    Change-Id: I24f3d4c2a8b6e317adb369a1b1426e693f9571ed
+    Reviewed-on: https://go-review.googlesource.com/126636
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go                              | 54 ++--------------------
+ src/cmd/go/testdata/script/cover_atomic_pkgall.txt | 23 +++++++++
+ .../go/testdata/script/cover_pkgall_runtime.txt    | 21 +++++++++
+ src/cmd/go/testdata/script/cpu_profile_twice.txt   | 20 ++++++++
+ 4 files changed, 67 insertions(+), 51 deletions(-)

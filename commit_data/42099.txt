@@ -1,0 +1,17 @@
+commit 82f29898ea60e7d92001bf1e4c0d48bc1c8aed0d
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Fri Apr 17 23:06:49 2020 +0200
+
+    cmd/compile: rewrite Wasm rules to use typed aux fields
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: Ib731a59eadfffa81914848005b0f757649affa6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228819
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/Wasm.rules | 517 ++++++++--------
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 882 +++++++++++++++-------------
+ 2 files changed, 742 insertions(+), 657 deletions(-)

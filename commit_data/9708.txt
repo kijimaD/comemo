@@ -1,0 +1,25 @@
+commit 96f9e8837ef884393b994ad8762073a828c5ee15
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Thu Sep 15 19:05:33 2011 -0700
+
+    exp/template/html: moved error docs out of package docs onto error codes
+    
+    This replaces the errStr & errLine members of context with a single err
+    *Error, and introduces a number of const error codes, one per
+    escape-time failure mode, that can be separately documented.
+    
+    The changes to the error documentation moved from doc.go to error.go
+    are cosmetic.
+    
+    R=r, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5026041
+
+ src/pkg/exp/template/html/Makefile       |   1 +
+ src/pkg/exp/template/html/context.go     |   6 +-
+ src/pkg/exp/template/html/doc.go         | 174 +--------------------------
+ src/pkg/exp/template/html/error.go       | 194 +++++++++++++++++++++++++++++++
+ src/pkg/exp/template/html/escape.go      |  35 +++---
+ src/pkg/exp/template/html/escape_test.go |  10 +-
+ src/pkg/exp/template/html/transition.go  |  33 +++---
+ 7 files changed, 235 insertions(+), 218 deletions(-)

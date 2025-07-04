@@ -1,0 +1,24 @@
+commit 204c618f0a0b175d840bfeb50cb5356deb165f51
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jul 11 12:30:05 2018 -0400
+
+    cmd/link: eliminate a couple of unused DWARF attrs
+    
+    The linker's DWARF generation occasionally computes and attaches an
+    attribute X to a type even though the type's abbrev doesn't have the
+    specified attr. For example, the DW_TAG_subroutine_type abbrev entry
+    has no type attribute, but a type attr is given to it (wasting
+    memory). Similarly there are some places where a byte size attr is
+    added to a DIE whose abbrev lacks that attr. This patch trims away a
+    few of these not-needed attrs, saving some very tiny amount of memory.
+    
+    Updates #26186
+    
+    Change-Id: I69e853df468ac54b07772a614b4106d7c4dae01d
+    Reviewed-on: https://go-review.googlesource.com/123296
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 3 ---
+ 1 file changed, 3 deletions(-)

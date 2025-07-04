@@ -1,0 +1,20 @@
+commit 2a029b3f26169be7c89cb2cdcc3db4b5d097a8b8
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 19 14:48:17 2019 -0500
+
+    runtime: tidy Context allocation
+    
+    The Context object we pass to GetThreadContext on Windows must be 16
+    byte-aligned. We also can't allocate in the contexts where we create
+    these, so they must be stack-allocated. There's no great way to do
+    this, but this CL makes the code at least a little clearer, and makes
+    profilem and preemptM more consistent with each other.
+    
+    Change-Id: I5ec47a27d7580ed6003030bf953e668e8cae2cef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207967
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/os_windows.go | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)

@@ -1,0 +1,20 @@
+commit 1da1e432817eaf86734499826c6f3dcc1f65db65
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 13 15:00:59 2016 -0800
+
+    go/internal/gccgoimporter: accept missed portions of v2 format
+    
+    Fixes #18301.
+    
+    Change-Id: I990c105904ab62f2225d671bbc10209ec51b12e2
+    Reviewed-on: https://go-review.googlesource.com/34371
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/go/internal/gccgoimporter/importer_test.go     |   7 +++++--
+ src/go/internal/gccgoimporter/parser.go            |  16 ++++++++++++++--
+ src/go/internal/gccgoimporter/testdata/time.gox    | Bin 0 -> 7977 bytes
+ src/go/internal/gccgoimporter/testdata/unicode.gox | Bin 0 -> 7945 bytes
+ 4 files changed, 19 insertions(+), 4 deletions(-)

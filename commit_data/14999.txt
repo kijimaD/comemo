@@ -1,0 +1,19 @@
+commit 4f6a2b9840f7894086a04e42ebf497b2d8fdbd33
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Jan 28 21:29:45 2013 +0100
+
+    test: add support for build tags.
+    
+    This enables a few tests that were only executed
+    unconditionnally.
+    
+    R=rsc, minux.ma, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7103051
+
+ test/fixedbugs/bug385_32.go |  8 ++--
+ test/fixedbugs/bug385_64.go |  6 +--
+ test/run.go                 | 89 +++++++++++++++++++++++++++++++++++++++------
+ test/sigchld.go             |  7 +---
+ test/testlib                | 25 +++++++++++++
+ 5 files changed, 110 insertions(+), 25 deletions(-)

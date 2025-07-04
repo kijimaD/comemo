@@ -1,0 +1,16 @@
+commit 7917b88a06486bfc692ccd07bbdb27fc73e4140d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Aug 18 19:19:36 2013 +0900
+
+    net: make protocol-specific WriteTo, WriteMsg methods return error instead of crash
+    
+    R=golang-dev, dave, rsc, adg, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/11809043
+
+ src/pkg/net/iprawsock_posix.go |  6 ++++++
+ src/pkg/net/protoconn_test.go  | 29 +++++++++++++++++++++++++++++
+ src/pkg/net/udpsock_plan9.go   |  3 +++
+ src/pkg/net/udpsock_posix.go   |  6 ++++++
+ src/pkg/net/unixsock_posix.go  |  3 +++
+ 5 files changed, 47 insertions(+)

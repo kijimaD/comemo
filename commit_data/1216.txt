@@ -1,0 +1,12 @@
+commit c4bba4b1fd830f60409d194bc1b111e43c4c4d33
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 21 13:05:09 2008 -0800
+
+    fix build - missed update that added tabwriter
+    
+    TBR=r
+    OCL=19804
+    CL=19804
+
+ src/lib/Makefile | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

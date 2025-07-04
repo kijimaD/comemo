@@ -1,0 +1,18 @@
+commit f05f273525e7547d5dd4ee17d97f53dd210bde97
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 3 09:14:31 2015 -0800
+
+    cmd/internal/obj: print g for the g register on arm and ppc64
+    
+    The name g is an alias for R10 and R30, respectively. Have Rconv
+    print the alias, for consistency with the input language.
+    
+    Change-Id: Ic3f40037884a0c8de5089d8c8a8efbcdc38c0d56
+    Reviewed-on: https://go-review.googlesource.com/6630
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/asm/internal/asm/operand_test.go | 8 ++++----
+ src/cmd/internal/obj/arm/list5.go        | 4 ++++
+ src/cmd/internal/obj/ppc64/list9.go      | 4 ++++
+ 3 files changed, 12 insertions(+), 4 deletions(-)

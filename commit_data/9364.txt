@@ -1,0 +1,12 @@
+commit b0fc8a9d571e3540c1a70e1e3b1a05bd1b4af4b4
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Aug 15 14:25:54 2011 -0300
+
+    build: don't print anything on version.bash -save
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4904044
+
+ src/version.bash | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

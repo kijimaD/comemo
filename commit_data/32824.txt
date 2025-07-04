@@ -1,0 +1,27 @@
+commit 6936671ed1c3a1dd25e0eea635ee2bdc86acd463
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Sep 23 12:22:10 2017 +0100
+
+    cmd/compile: clarify adjustctxt inlining comment
+    
+    The reason why adjustctxt wasn't being inlined was reported as:
+    
+            function too complex: cost 92 exceeds budget 80
+    
+    However, after tweaking the code to be under the budget limit, we see
+    the real blocker:
+    
+            non-leaf function
+    
+    There is little we can do about this one in particular at the moment.
+    Create a section with funcs that will need mid-stack inlining to be
+    inlineable, since this will likely come up again in other cases.
+    
+    Change-Id: I3a8eb1546b289a060ac896506a007b0496946e84
+    Reviewed-on: https://go-review.googlesource.com/65650
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/inl_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

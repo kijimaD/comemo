@@ -1,0 +1,14 @@
+commit 1cb1251436c36fd1af034c7eb7211f17a391b4d4
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 14 22:35:18 2009 -0700
+
+    configurable delimiters.
+    
+    R=rsc
+    DELTA=139  (90 added, 7 deleted, 42 changed)
+    OCL=27475
+    CL=27477
+
+ src/lib/template/template.go      | 135 ++++++++++++++++++++++++++------------
+ src/lib/template/template_test.go |  36 +++++++++-
+ 2 files changed, 127 insertions(+), 44 deletions(-)

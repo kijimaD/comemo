@@ -1,0 +1,25 @@
+commit d7c3e93c16eeb328e9d943aa4fbd5ec8c793ec1b
+Author: Harald Albrecht <harald.albrecht@gmx.net>
+Date:   Thu Dec 26 21:27:33 2024 +0100
+
+    iter: improve documentation with iterator example
+    
+    In introducing iterators, package iter gives an example of how to
+    use an iterator in a range-over-func loop, but currently does not
+    give an example of what an iterator implementation might look like.
+    
+    This change adds the example of map.Keys() before the usage example.
+    Additionally, it references to the Go blog for further examples,
+    as well as the language spec about for-range loops.
+    
+    Fixes #70986
+    
+    Change-Id: I7108d341d314d7de146b4c221700736c943a9f5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638895
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/iter/iter.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 8e39472e3b0bc001caea29566dde9533d22517ee
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 26 22:04:34 2009 -0700
+
+    rename redefined symbols
+    
+    R=iant
+    DELTA=4  (0 added, 0 deleted, 4 changed)
+    OCL=26802
+    CL=26811
+
+ src/lib/unicode/decimaldigit_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

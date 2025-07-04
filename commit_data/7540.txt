@@ -1,0 +1,15 @@
+commit 658447ab6643e95ccb912ab033e65edcd902e419
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Feb 23 20:52:43 2011 +1100
+
+    compress/lzw: implement a decoder.
+    
+    R=rsc
+    CC=bsiegert, golang-dev, mpl
+    https://golang.org/cl/4182081
+
+ src/pkg/Makefile                    |   1 +
+ src/pkg/compress/lzw/Makefile       |  11 ++
+ src/pkg/compress/lzw/reader.go      | 211 ++++++++++++++++++++++++++++++++++++
+ src/pkg/compress/lzw/reader_test.go | 111 +++++++++++++++++++
+ 4 files changed, 334 insertions(+)

@@ -1,0 +1,25 @@
+commit 58340240576a9ad254d90da4570e5e6afb913959
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 20 12:24:09 2022 -0400
+
+    cmd/link: fix StackCheckOutput on AIX
+    
+    This test forces GOARCH to amd64, but currently uses the default GOOS.
+    This works on every OS that supports amd64, which is every OS we
+    support except AIX. Hence, on AIX this fails with an unsupported
+    GOOS/GOARCH combination.
+    
+    Fix this by forcing GOOS to linux.
+    
+    Fixes #52451.
+    
+    Change-Id: I9321dd6386c7ef0fe2b47d77ed900aafc53f2a46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401334
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/stackcheck.go      |  2 +-
+ src/cmd/link/internal/ld/stackcheck_test.go | 19 +++++++++----------
+ 2 files changed, 10 insertions(+), 11 deletions(-)

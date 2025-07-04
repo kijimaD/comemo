@@ -1,0 +1,28 @@
+commit 05861ff90cfc855620d0dcbd1d6cc488ebf04880
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Jul 24 10:47:14 2024 +0000
+
+    os,path/filepath,testing: use slices to clean up tests
+    
+    Replace reflect.DeepEqual with slices.Equal which is much faster.
+    
+    Change-Id: I299db6f998738174983731f08c1021346b87dfaa
+    GitHub-Last-Rev: 44ca9015d6af4e0fbe8d23c93b3f2da08a2d7728
+    GitHub-Pull-Request: golang/go#67613
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587938
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/env_test.go                     | 4 ++--
+ src/os/exec/env_test.go                | 4 ++--
+ src/os/exec/exec_posix_test.go         | 6 +++---
+ src/os/os_test.go                      | 5 ++---
+ src/os/os_windows_test.go              | 3 +--
+ src/path/filepath/match_test.go        | 3 +--
+ src/path/filepath/path_test.go         | 6 +++---
+ src/path/filepath/path_windows_test.go | 4 ++--
+ src/testing/fstest/testfs.go           | 3 +--
+ src/testing/sub_test.go                | 4 ++--
+ 10 files changed, 19 insertions(+), 23 deletions(-)

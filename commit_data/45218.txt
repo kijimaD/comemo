@@ -1,0 +1,24 @@
+commit 5780ab4f605fdf0ca7f12ebc08e80d3ac170e98a
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Sun Mar 14 19:04:31 2021 +0200
+
+    text/template/parse: add a mode to skip func-check on parsing
+    
+    Following the discussion on #34652 and the proposal of #36911 (gopls),
+    this CL adds an option to skip the function declartion check on parsing,
+    in order to make it possible to parse arbitrary template text files and
+    get their AST.
+    
+    Fixed #38627
+    
+    Change-Id: Id1e0360fc726b49dcdd49716ce25563ebaae6c10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301493
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/text/template/parse/parse.go      |  6 ++++--
+ src/text/template/parse/parse_test.go | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+), 2 deletions(-)

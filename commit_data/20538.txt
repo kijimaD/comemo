@@ -1,0 +1,16 @@
+commit 870f4e190ccbc70900bd0ba724d4f4c1e14e3070
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 25 13:24:43 2014 -0400
+
+    cmd/gc: emit error for out-of-bounds slice of constant string
+    
+    Fixes #7200.
+    
+    LGTM=gri, iant
+    R=golang-codereviews, gri, iant
+    CC=golang-codereviews, r
+    https://golang.org/cl/150020044
+
+ src/cmd/gc/typecheck.c      | 25 +++++++++++++++----------
+ test/fixedbugs/issue4232.go | 29 ++++++++++++++++++++++++++---
+ 2 files changed, 41 insertions(+), 13 deletions(-)

@@ -1,0 +1,14 @@
+commit 477d7b166307916376dc94b6917597d768f102d3
+Author: Adam Langley <agl@golang.org>
+Date:   Tue May 22 10:17:39 2012 -0400
+
+    crypto/ecdsa: fix case where p != 0 mod 8 and the hash length < p.
+    
+    I made a typo which breaks P-521.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6219057
+
+ src/pkg/crypto/ecdsa/ecdsa.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

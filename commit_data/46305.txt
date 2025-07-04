@@ -1,0 +1,19 @@
+commit 4957976b1a1f67ba872cc281b9ae25d59f6e003d
+Author: Tao Qingyun <qingyunha@gmail.com>
+Date:   Thu Jul 1 00:22:51 2021 +0000
+
+    cmd/link: make npkgsyms meaningful
+    
+    npkgsyms always equals 1 currently.
+    
+    Change-Id: Ie88bc273beaace12ec7432054ca7c151396e8e35
+    GitHub-Last-Rev: c5d3b12b88ddcdc6011f97787fd7c0e94c7df20e
+    GitHub-Pull-Request: golang/go#46988
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331929
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/link/internal/loader/loader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 1593b1fc23f039b519d71e092cadaa90b42a266a
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 17 14:32:37 2009 -0700
+
+    First steps towards cleaner support for ELF64 in 6l.
+    
+    R=rsc
+    DELTA=337  (165 added, 119 deleted, 53 changed)
+    OCL=31786
+    CL=31794
+
+ src/cmd/6l/Makefile |   4 +
+ src/cmd/6l/asm.c    | 217 +++++++++++++---------------------------------------
+ src/cmd/6l/elf64.c  |   6 ++
+ src/cmd/6l/l.h      |  10 +--
+ src/cmd/6l/obj.c    |   3 +-
+ src/cmd/ld/elf64.c  | 108 ++++++++++++++++++++++++++
+ src/cmd/ld/elf64.h  |  89 +++++++++++++++++++++
+ 7 files changed, 265 insertions(+), 172 deletions(-)

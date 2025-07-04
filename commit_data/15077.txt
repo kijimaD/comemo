@@ -1,0 +1,40 @@
+commit b0a29f393b5672c37355eb7a5f126cc0e1537834
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 1 08:34:41 2013 -0800
+
+    runtime: cgo-related fixes
+    
+    * Separate internal and external LockOSThread, for cgo safety.
+    * Show goroutine that made faulting cgo call.
+    * Never start a panic due to a signal caused by a cgo call.
+    
+    Fixes #3774.
+    Fixes #3775.
+    Fixes #3797.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7228081
+
+ misc/cgo/test/cgo_test.go              |  1 +
+ misc/cgo/test/issue3775.go             | 29 +++++++++++++++++++
+ src/pkg/runtime/cgocall.c              | 42 +++++++++-------------------
+ src/pkg/runtime/proc.c                 | 51 ++++++++++++++++++++++++----------
+ src/pkg/runtime/runtime.h              | 14 ++++++++--
+ src/pkg/runtime/signal_darwin_386.c    |  8 ++++--
+ src/pkg/runtime/signal_darwin_amd64.c  |  8 ++++--
+ src/pkg/runtime/signal_freebsd_386.c   |  6 +++-
+ src/pkg/runtime/signal_freebsd_amd64.c |  6 +++-
+ src/pkg/runtime/signal_freebsd_arm.c   |  6 +++-
+ src/pkg/runtime/signal_linux_386.c     |  6 +++-
+ src/pkg/runtime/signal_linux_amd64.c   |  6 +++-
+ src/pkg/runtime/signal_linux_arm.c     |  6 +++-
+ src/pkg/runtime/signal_netbsd_386.c    |  6 +++-
+ src/pkg/runtime/signal_netbsd_amd64.c  |  6 +++-
+ src/pkg/runtime/signal_openbsd_386.c   |  6 +++-
+ src/pkg/runtime/signal_openbsd_amd64.c |  6 +++-
+ src/pkg/runtime/signal_windows_386.c   |  4 +++
+ src/pkg/runtime/signal_windows_amd64.c |  4 +++
+ src/pkg/runtime/traceback_arm.c        |  6 ++++
+ src/pkg/runtime/traceback_x86.c        |  5 ++++
+ 21 files changed, 173 insertions(+), 59 deletions(-)

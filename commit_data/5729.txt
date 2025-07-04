@@ -1,0 +1,16 @@
+commit 64b6a789a1f2543f073db7d6e5e95e6ec3bd7d5c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 29 16:51:56 2010 -0700
+
+    strconv: fix %.1f, 0.09
+    Fixes #822.
+    Credit to https://golang.org/cl/1442041 by danielfleischman
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1738047
+
+ src/pkg/strconv/atof_test.go |  4 +++-
+ src/pkg/strconv/decimal.go   | 13 ++++++++-----
+ src/pkg/strconv/ftoa_test.go | 10 ++++++++++
+ 3 files changed, 21 insertions(+), 6 deletions(-)

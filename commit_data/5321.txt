@@ -1,0 +1,12 @@
+commit 0857573a673c122f7a27311423da3ca2fab739d3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Apr 21 14:00:56 2010 +1000
+
+    go_faq: add question: Why does Go perform badly on benchmark X?
+    
+    R=r, cw
+    CC=golang-dev
+    https://golang.org/cl/895043
+
+ doc/go_faq.html | 36 +++++++++++++++++++++++++++++++++++-
+ 1 file changed, 35 insertions(+), 1 deletion(-)

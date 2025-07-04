@@ -1,0 +1,17 @@
+commit 79fab70a63e03897db384fbf1b5fdeeb6f9f4b92
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue Feb 14 13:01:18 2017 +0100
+
+    testing: fix stats bug for sub benchmarks
+    
+    Fixes golang/go#18815.
+    
+    Change-Id: Ic9d5cb640a555c58baedd597ed4ca5dd9f275c97
+    Reviewed-on: https://go-review.googlesource.com/36990
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/benchmark.go |  3 ---
+ src/testing/sub_test.go  | 20 ++++++++++++++++++++
+ 2 files changed, 20 insertions(+), 3 deletions(-)

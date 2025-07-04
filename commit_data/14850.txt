@@ -1,0 +1,20 @@
+commit e32d1154ec3176a81659720c1ca665e68ac95c42
+Author: Georg Reinke <guelfey@gmail.com>
+Date:   Thu Jan 10 17:04:55 2013 -0800
+
+    syscall: implement Pipe2 on Linux and use it in ForkExec
+    
+    Fixes #2656.
+    
+    R=golang-dev, bradfitz, iant, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7062057
+
+ src/pkg/syscall/exec_bsd.go             | 14 ++++++++++++++
+ src/pkg/syscall/exec_linux.go           | 17 +++++++++++++++++
+ src/pkg/syscall/exec_unix.go            |  8 +-------
+ src/pkg/syscall/syscall_linux.go        | 12 ++++++++++++
+ src/pkg/syscall/zsyscall_linux_386.go   | 10 ++++++++++
+ src/pkg/syscall/zsyscall_linux_amd64.go | 10 ++++++++++
+ src/pkg/syscall/zsyscall_linux_arm.go   | 10 ++++++++++
+ 7 files changed, 74 insertions(+), 7 deletions(-)

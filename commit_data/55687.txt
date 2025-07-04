@@ -1,0 +1,18 @@
+commit 7a64b0f07bf3576524fae2d395a31787386f2e40
+Author: guoguangwu <guoguangwu@magic-shield.com>
+Date:   Fri Feb 23 08:57:43 2024 +0000
+
+    runtime/coverage: remove refs to deprecated io/ioutil
+    
+    Change-Id: I66965e6a61cf1726db06670978a4654b84f3fd72
+    GitHub-Last-Rev: 90023e48435029c94a316413b30e46c9ce0019d5
+    GitHub-Pull-Request: golang/go#65900
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566356
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/coverage/testdata/harness.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

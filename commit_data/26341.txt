@@ -1,0 +1,23 @@
+commit 3e54ca9a4624fda0bcd76192aa529e826ef12b4f
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 16 18:22:58 2016 -0400
+
+    cmd/compile: omit write barrier when assigning global function
+    
+    Currently we generate write barriers when the right side of an
+    assignment is a global function. This doesn't fall into the existing
+    case of storing an address of a global because we haven't lowered the
+    function to a pointer yet.
+    
+    This write barrier is unnecessary, so eliminate it.
+    
+    Fixes #13901.
+    
+    Change-Id: Ibc10e00a8803db0fd75224b66ab94c3737842a79
+    Reviewed-on: https://go-review.googlesource.com/20772
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go |  6 ++++++
+ test/writebarrier.go                | 10 ++++++++++
+ 2 files changed, 16 insertions(+)

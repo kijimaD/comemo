@@ -1,0 +1,23 @@
+commit 7d2f46dacddba279c5b6b7520c7f6a475e6fffbc
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 8 19:24:46 2018 -0400
+
+    runtime: fix non-in-use span check
+    
+    Lazy mcache flushing (golang.org/cl/134783) introduced a second value
+    for sweepgen that indicates a span has been swept. I missed adding
+    this case to a sanity check in sweepone, so it can now panic if it
+    finds a non-in-use spans that's been swept *and* put in an mcache.
+    
+    Fix this by adding the second sweepgen case to this check.
+    
+    Fixes #27997.
+    
+    Change-Id: I568d9f2cc8923396ca897a37d154cd2c859c7bef
+    Reviewed-on: https://go-review.googlesource.com/c/140697
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mgcsweep.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

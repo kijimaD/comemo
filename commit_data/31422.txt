@@ -1,0 +1,16 @@
+commit 60db9fb6bccde26f5384978a3f64a6f409a515bc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 28 10:52:10 2017 -0700
+
+    cmd/go: don't run TestTestRaceInstall in short mode
+    
+    Fixes #20158
+    
+    Change-Id: Iefa9a33569eb805f5ab678d17c37787835bc7efa
+    Reviewed-on: https://go-review.googlesource.com/42134
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

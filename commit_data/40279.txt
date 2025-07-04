@@ -1,0 +1,19 @@
+commit 00ea8e1c673eb2b72c4520c688a414831e871ad2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 17 09:45:54 2019 -0400
+
+    os/exec: preserve the process environment when invoking TestHelperProcess
+    
+    Also log errors from the lsof command on failure.
+    (That's how the missing environment was discovered.)
+    
+    Updates #25628
+    
+    Change-Id: I71594f60c15d0d254d5d4a86deec7431314c92ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201717
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/exec/exec_test.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

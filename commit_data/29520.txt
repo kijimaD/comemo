@@ -1,0 +1,18 @@
+commit 662d25351542d624f397bb0a83ff1c0ca38b6428
+Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
+Date:   Sun Nov 6 19:56:14 2016 -0800
+
+    cmd/vet: ignore unrecognized verbs for fmt.Formatter
+    
+    Updates #17057.
+    
+    Change-Id: I54c838d3a44007d4023754e42971e91bfb5e8612
+    Reviewed-on: https://go-review.googlesource.com/32851
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/print.go          | 21 +++++++++++++++++----
+ src/cmd/vet/testdata/print.go | 12 ++++++++++--
+ src/cmd/vet/types.go          |  3 +--
+ 3 files changed, 28 insertions(+), 8 deletions(-)

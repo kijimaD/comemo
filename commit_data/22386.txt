@@ -1,0 +1,14 @@
+commit 414444d41622a9bfd8010786d5c3b8a28e10e2a5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 9 11:32:47 2015 +1000
+
+    runtime: do not calculate asmstdcall address every time we make syscall
+    
+    Change-Id: If3c8c9035e12d41647ae4982883f6a979313ea9d
+    Reviewed-on: https://go-review.googlesource.com/8682
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/os1_windows.go     | 10 +++++++++-
+ src/runtime/os2_windows.go     |  6 ------
+ src/runtime/syscall_windows.go | 14 +++++++-------
+ 3 files changed, 16 insertions(+), 14 deletions(-)

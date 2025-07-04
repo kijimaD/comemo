@@ -1,0 +1,20 @@
+commit 575a87166291e321745041944321002b3c0b72be
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 1 10:51:59 2016 -0700
+
+    cmd/compile: don't lose //go:nointerface pragma in export data
+    
+    Fixes #16243.
+    
+    Change-Id: I207d1e8aa48abe453a23c709ccf4f8e07368595b
+    Reviewed-on: https://go-review.googlesource.com/24648
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go | 16 +++++++++++++++-
+ src/cmd/compile/internal/gc/bimport.go | 17 ++++++++++++-----
+ src/cmd/compile/internal/gc/builtin.go |  4 ++--
+ src/cmd/compile/internal/gc/parser.go  |  3 ++-
+ src/go/internal/gcimporter/bimport.go  | 10 ++++++++--
+ 5 files changed, 39 insertions(+), 11 deletions(-)

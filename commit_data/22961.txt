@@ -1,0 +1,16 @@
+commit 363fd1dd1b810dd099f6aec1f110141fd8efb301
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 11 12:03:30 2015 -0400
+
+    runtime: move a few atomic fields up
+    
+    Moving them up makes them properly aligned on 32-bit systems.
+    There are some odd fields above them right now
+    (like fixalloc and mutex maybe).
+    
+    Change-Id: I57851a5bbb2e7cc339712f004f99bb6c0cce0ca5
+    Reviewed-on: https://go-review.googlesource.com/9889
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mheap.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

@@ -1,0 +1,17 @@
+commit 836356bdaad92d525d65ce01e08305dfbeb7c1e6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 5 16:06:18 2021 -0700
+
+    cmd/compile/internal/types2: process errors in src order during testing
+    
+    Follow-up on https://golang.org/cl/305573.
+    As a consequence, re-enable test case that caused problems with that CL.
+    
+    Change-Id: Ibffee3f016f4885a55b8e527a5680dd437322209
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307216
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check_test.go            | 14 ++++++++++----
+ src/cmd/compile/internal/types2/fixedbugs/issue39634.go2 |  3 +--
+ 2 files changed, 11 insertions(+), 6 deletions(-)

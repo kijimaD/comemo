@@ -1,0 +1,15 @@
+commit dc1556eaef871074895ed9fdf6028475d53235be
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Mar 11 15:00:50 2021 -0500
+
+    cmd/compile: update some comments
+    
+    Update some symbol references after refactoring.
+    
+    Change-Id: I134eec453b69efae97eb8a13e52ff8c14d38442a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301790
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

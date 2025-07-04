@@ -1,0 +1,12 @@
+commit 59bacb285c9dd6626b3fa6c620eb38dd7ea095b3
+Author: Jeremy Schlatter <jeremy.schlatter@gmail.com>
+Date:   Thu Oct 1 07:55:51 2015 +0000
+
+    runtime: update comment to match function name
+    
+    Change-Id: I8f22434ade576cc7e3e6d9f357bba12c1296e3d1
+    Reviewed-on: https://go-review.googlesource.com/15250
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/signal1_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

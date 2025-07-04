@@ -1,0 +1,13 @@
+commit 7be2a7d95f916b21f3edec60eb0881a14c4eff6b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 9 16:00:17 2011 -0500
+
+    A+C: Michał Derkacz (individual CLA)
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5375046
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

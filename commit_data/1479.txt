@@ -1,0 +1,12 @@
+commit f4babf693136c022581a441882e323799e9423d9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 15 14:49:40 2009 -0800
+
+    - missed a few identifiers
+    
+    R=r
+    OCL=22864
+    CL=22864
+
+ src/lib/bignum.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

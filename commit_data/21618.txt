@@ -1,0 +1,25 @@
+commit df218d33935e1d5d4e535080e01cd83e6a508efa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 13 13:44:39 2015 -0800
+
+    math/big: implement/rename accessors for precision and rounding mode
+    
+    Also: remove NewFloat - not needed anymore. Work-around for places
+    where has been used so far:
+    
+    NewFloat(x, prec, mode) === new(Float).SetMode(mode).SetPrec(prec).SetFloat64(x)
+    
+    However, if mode == ToNearestEven, SetMode is not needed. SetPrec
+    is needed if the default precision (53 after SetFloat64) is not
+    adequate.
+    
+    TBR adonovan
+    
+    Change-Id: Ifda12c479ba157f2dea306c32b47c7afbf31e759
+    Reviewed-on: https://go-review.googlesource.com/4842
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/float.go      | 55 ++++++++++++++++++-----------------
+ src/math/big/float_test.go | 71 +++++++++++++++++++++++-----------------------
+ src/math/big/floatconv.go  |  4 +--
+ 3 files changed, 67 insertions(+), 63 deletions(-)

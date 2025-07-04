@@ -1,0 +1,17 @@
+commit 167562f65200bc01c9ecdcf393dfa2f16de3d9c2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 1 22:01:24 2015 +0900
+
+    net: deflake TestDialTimeoutFDLeak
+    
+    This change makes TestDialTimeoutFDLeak work on almost all the supported
+    platforms.
+    
+    Updates #4384.
+    
+    Change-Id: I3608f438003003f9b7cfa17c9e5fe7077700fd60
+    Reviewed-on: https://go-review.googlesource.com/8392
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial_test.go | 105 +++++++++++++++++++--------------------------------
+ 1 file changed, 39 insertions(+), 66 deletions(-)

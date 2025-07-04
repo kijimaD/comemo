@@ -1,0 +1,21 @@
+commit 2f76c1985fa8bbb0fb09af6600445b5c7d4d5cb4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Nov 13 15:18:42 2016 -0800
+
+    cmd/go/testdata/src: gofmt
+    
+    These are functionality tests, not formatter tests.
+    
+    I also tested manually that 'go test cmd/go'
+    without -short still passes.
+    
+    
+    Change-Id: Id146e1dc3b65e19ea531869725cd0b97f4801b8b
+    Reviewed-on: https://go-review.googlesource.com/33169
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/testdata/src/dupload/dupload.go | 2 +-
+ src/cmd/go/testdata/src/my.pkg/pkg.go      | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

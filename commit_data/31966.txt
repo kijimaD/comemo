@@ -1,0 +1,22 @@
+commit 0ff876a8505d61fc20f3176f90bc589d76a4c966
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 30 16:12:28 2017 +0000
+
+    testing: revert CL 36791's conditional ReadMemStats
+    
+    Now that ReadMemStats is fast (CL 34937), CL 36791 is not so
+    necessary, and causes confusion. See #20863
+    
+    This was already partially reverted in CL 46612 but missed two of the
+    spots.
+    
+    Fixes #20863
+    
+    Change-Id: I1307a0f7b1f9e86e8b6ceaa6a677f24f13431110
+    Reviewed-on: https://go-review.googlesource.com/47350
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/benchmark.go | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)

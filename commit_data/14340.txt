@@ -1,0 +1,21 @@
+commit 71282131a1ab0291834f41e606ebab6c5f0ca438
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 7 15:15:21 2012 -0500
+
+    cmd/gc: fix escape analysis bug
+    
+    The code assumed that the only choices were EscNone, EscScope, and EscHeap,
+    so that it makes sense to set EscScope only if the current setting is EscNone.
+    Now that we have the many variants of EscReturn, this logic is false, and it was
+    causing important EscScopes to be ignored in favor of EscReturn.
+    
+    Fixes #4360.
+    
+    R=ken2
+    CC=golang-dev, lvd
+    https://golang.org/cl/6816103
+
+ src/cmd/gc/esc.c  |  4 ++--
+ src/cmd/gc/subr.c |  2 ++
+ test/escape5.go   | 25 +++++++++++++++++++++++++
+ 3 files changed, 29 insertions(+), 2 deletions(-)

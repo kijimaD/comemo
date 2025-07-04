@@ -1,0 +1,29 @@
+commit 0cbe30467ad2b4823bc07a8784ca66aff7cdb20a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Oct 1 00:23:48 2022 +0700
+
+    test: relax closure name matching in closure3.go
+    
+    The mismatch between Unified IR and the old frontend is not about how
+    they number the closures, but how they name them. For nested closure,
+    the old frontend use the immediate function which contains the closure
+    as the outer function, while Unified IR uses the outer most function as
+    the outer for all closures.
+    
+    That said, what important is matching the number of closures, not their
+    name prefix. So this CL relax the test to match both "main.func1.func2"
+    and "main.func1.2" to satisfy both Unified IR and the old frontend.
+    
+    Updates #53058
+    
+    Change-Id: I66ed816d1968aa68dd3089a4ea5850ba30afd75b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437216
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ test/closure3.dir/main.go | 8 ++++----
+ test/run.go               | 3 +--
+ 2 files changed, 5 insertions(+), 6 deletions(-)

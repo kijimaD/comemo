@@ -1,0 +1,21 @@
+commit 0649a736067ddc865ac7baa011afd5c3babf813d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 19 17:08:44 2014 -0500
+
+    cmd/pack: add 'c' command to create archive
+    
+    When Go 1.3 is released, this will keep existing
+    Go 1.2 build scripts that use 'go tool pack grc' working.
+    For efficiency, such scripts should be changed to
+    use 6g -pack instead, but keeping the old behavior
+    available enables a more graceful transition.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/66130043
+
+ src/cmd/pack/doc.go       |  3 +-
+ src/cmd/pack/pack.go      | 98 ++++++++++++++++++++++++++++++++++++++++++-----
+ src/cmd/pack/pack_test.go | 44 +++++++++++++++++++++
+ 3 files changed, 135 insertions(+), 10 deletions(-)

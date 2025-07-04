@@ -1,0 +1,18 @@
+commit 41f9c430f3cc8c991981e5c6daa63f8718c800b9
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Tue Mar 24 18:33:37 2015 +0100
+
+    runtime, syscall: fix Solaris exec tests
+    
+    Also fixes a long-existing problem in the fork/exec path.
+    
+    Change-Id: Idec40b1cee0cfb1625fe107db3eafdc0d71798f2
+    Reviewed-on: https://go-review.googlesource.com/8030
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/runtime/syscall2_solaris.go  |  2 +-
+ src/syscall/exec_solaris_test.go | 29 +++++++++++++++++++++++++++++
+ src/syscall/exec_unix_test.go    | 15 +++------------
+ src/syscall/export_unix_test.go  | 12 ++++++++++++
+ 4 files changed, 45 insertions(+), 13 deletions(-)

@@ -1,0 +1,25 @@
+commit f983a9340d5660a9655b63a371966b5df69be8c5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 23 16:34:26 2022 -0700
+
+    cmd/compile: defer transitive inlining until after AST is edited
+    
+    This CL changes the inliner to process transitive inlining iteratively
+    after the AST has actually been edited, rather than recursively and
+    immediately. This is important for handling indirect function calls
+    correctly, because ir.reassigned walks the function body looking for
+    reassignments; whereas previously the inlined reassignments might not
+    have been actually added to the AST yet.
+    
+    Fixes #54632.
+    
+    Change-Id: I0dd69813c8a70b965174e0072335bc00afedf286
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425257
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/inline/inl.go | 64 ++++++++++++++++++----------------
+ test/fixedbugs/issue54632.go           | 31 ++++++++++++++++
+ 2 files changed, 65 insertions(+), 30 deletions(-)

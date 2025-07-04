@@ -1,0 +1,25 @@
+commit c3f149250e036f6bf77e7c9512dd3d57e1c78452
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Nov 14 17:03:44 2019 -0500
+
+    cmd/internal/obj, runtime: use register map to mark unsafe points
+    
+    Currently we use stack map index -2 to mark unsafe points, i.e.
+    PC ranges that is not safe for async preemption. This has a
+    problem: it cannot mark CALL instructions, because for stack scan
+    a valid stack map index is needed.
+    
+    This CL switches to use register map index for marking unsafe
+    points instead, which does not conflict with stack scan and can
+    be applied on CALL instructions. This is necessary as next CL
+    will mark call to morestack nonpreemptible.
+    
+    For #35470.
+    
+    Change-Id: I357bf26c996e1fee1e7eebe4e6bb07d62930d3f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207349
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/obj/plist.go | 8 +++-----
+ src/runtime/preempt.go        | 2 +-
+ 2 files changed, 4 insertions(+), 6 deletions(-)

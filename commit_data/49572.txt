@@ -1,0 +1,26 @@
+commit 981d5947aff1551a1c0787664b77c4ac1e8f6c6a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 30 13:39:57 2022 -0400
+
+    cmd/go: include module root in package index key
+    
+    The package index format includes the directory relative to the module
+    root. The module root for a given directory can change even if the
+    contents of the directory itself do not (by adding or removing a
+    go.mod file in some parent directory).
+    
+    Thus, we need to invalidate the index for a package when its module
+    root location changes.
+    
+    Fixes #53586 (I think).
+    
+    Change-Id: I2d9f4de80e16bce75b3106a2bad4a11d8378d037
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415475
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modindex/read.go      | 11 ++++++++---
+ src/cmd/go/testdata/script/issue53586.txt | 18 ++++++++++++++++++
+ 2 files changed, 26 insertions(+), 3 deletions(-)

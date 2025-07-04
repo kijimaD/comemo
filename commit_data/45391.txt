@@ -1,0 +1,23 @@
+commit 5c69cb2a5bc33ae2c8af598a53f4337bd1e77508
+Author: unbyte <i@shangyes.net>
+Date:   Wed Apr 28 04:32:15 2021 +0000
+
+    cmd/go: populate module info even if an error occurs in loading package
+    
+    The existing implementation ignores module info if there is any error loading the package.
+    
+    Fixes #44287
+    
+    Change-Id: I24142e4c7256517292fc654e29d759871b80bc09
+    GitHub-Last-Rev: 28e9bf85e8c119f3b805c38c79aef60322fcc551
+    GitHub-Pull-Request: golang/go#45777
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313549
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/load/pkg.go                    | 23 +++++++++++-----------
+ .../go/testdata/script/list_module_when_error.txt  | 19 ++++++++++++++++++
+ 2 files changed, 31 insertions(+), 11 deletions(-)

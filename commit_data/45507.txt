@@ -1,0 +1,18 @@
+commit 8a4b7294af226f2628edc0ef2a7c45ecff6e06ff
+Author: David Chase <drchase@google.com>
+Date:   Mon May 3 13:24:27 2021 -0400
+
+    cmd/compile: fix possible nil deref added in CL 270943
+    
+    In the event allocSpan returned a nil, this would crash.
+    Cleaned up the code and comments slightly, too.
+    
+    Change-Id: I6231d4b4c14218e6956b4a97a205adc3206f59ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316429
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mheap.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

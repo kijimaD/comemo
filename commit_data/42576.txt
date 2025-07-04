@@ -1,0 +1,14 @@
+commit 9a6439690ec3f42f1e6c1e219f0020e5cc985072
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Fri Jun 26 21:33:22 2020 -0700
+
+    doc/go1.15: add release note for encoding/asn1
+    
+    Updates #37419
+    
+    Change-Id: I05368efbedd8c7e0b50cd691559491699c3a0945
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240201
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ doc/go1.15.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

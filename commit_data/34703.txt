@@ -1,0 +1,17 @@
+commit 665af046c29eafd35460e985a10ce74b1d9d3ef8
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Mon Mar 26 00:27:22 2018 +0530
+
+    io: document that ReadAtLeast and ReadFull can drop errors
+    
+    Add a note that if an error is returned after having read
+    at least the minimum no. of bytes, the error is set to nil.
+    
+    Fixes #20477
+    
+    Change-Id: I75ba5ee967be3ff80249e40d459da4afeeb53463
+    Reviewed-on: https://go-review.googlesource.com/102459
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/io/io.go | 2 ++
+ 1 file changed, 2 insertions(+)

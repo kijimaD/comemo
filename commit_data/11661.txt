@@ -1,0 +1,13 @@
+commit fc06cadd8865f4b6db068cbcd45b2a04e559c422
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 7 06:59:36 2012 +1100
+
+    go_spec: primality is elusive
+    This time for sure.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5634046
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

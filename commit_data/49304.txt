@@ -1,0 +1,37 @@
+commit 2b0e457b42a64455ca2d3eebb5c6d4e6acfc5db2
+Author: Khaled Yakdan <yakdan@code-intelligence.com>
+Date:   Fri May 20 22:09:58 2022 +0000
+
+    cmd/compile: intercept string compares in libFuzzer mode
+    
+    IR string compares as well as calls to string comparison functions such
+    as `strings.EqualFold` are intercepted and the corresponding libFuzzer
+    callbacks are invoked with the corresponding arguments. As a result, the
+    compared strings will be added to libFuzzer’s table of recent compares,
+    which feeds future mutations performed by the fuzzer and thus allow it
+    to reach into branches guarded by string comparisons.
+    
+    The list of methods to intercept is maintained in
+    `cmd/compile/internal/walk/expr.go` and can easily be extended to cover
+    more standard library functions in the future.
+    
+    Change-Id: I5c8b89499c4e19459406795dea923bf777779c51
+    GitHub-Last-Rev: 6b8529b55561faf57ea59cb7cff1caf8c9c94ecd
+    GitHub-Pull-Request: golang/go#51319
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387335
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/typecheck/builtin.go      |  5 +++-
+ .../compile/internal/typecheck/builtin/runtime.go  |  2 ++
+ src/cmd/compile/internal/walk/compare.go           | 29 ++++++++++++++++++++
+ src/cmd/compile/internal/walk/expr.go              | 24 ++++++++++++++++
+ src/cmd/internal/goobj/builtinlist.go              |  2 ++
+ src/internal/fuzz/trace.go                         |  6 ++++
+ src/runtime/libfuzzer.go                           | 30 ++++++++++++++++++++
+ src/runtime/libfuzzer_amd64.s                      | 31 ++++++++++++++++++++-
+ src/runtime/libfuzzer_arm64.s                      | 32 ++++++++++++++++++++--
+ 9 files changed, 157 insertions(+), 4 deletions(-)

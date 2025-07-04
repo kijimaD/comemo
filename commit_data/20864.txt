@@ -1,0 +1,25 @@
+commit 6bd0d0542ee15fda0da545c16af43fcfd34d6334
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 6 19:56:55 2014 -0500
+
+    cmd/objdump, cmd/pprof: factor disassembly into cmd/internal/objfile
+    
+    Moving so that new Go 1.4 pprof can use it.
+    
+    The old 'GNU objdump workalike' mode for 'go tool objdump'
+    is now gone, as are the tests for that mode. It was used only
+    by pre-Go 1.4 pprof. You can still specify an address range on
+    the command line; you just get the same output format as
+    you do when dumping the entire binary (without an address
+    limitation).
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews, iant
+    https://golang.org/cl/167320043
+
+ src/cmd/internal/objfile/objfile.go |  14 ++-
+ src/cmd/objdump/main.go             | 242 +++---------------------------------
+ src/cmd/objdump/objdump_test.go     |  98 ---------------
+ src/cmd/pprof/pprof.go              |  41 +++++-
+ 4 files changed, 69 insertions(+), 326 deletions(-)

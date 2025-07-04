@@ -1,0 +1,15 @@
+commit 6d94b14e1981f960f45deb9a57f4360c79593238
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jan 20 21:24:15 2011 +1100
+
+    syscall: include all, even duplictate, invented error messages
+    
+    Otherwise syscall.Errstr() returns "" for some (EWOULDBLOCK) errors.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3941041
+
+ src/pkg/syscall/mkerrors_windows.sh    | 10 +---------
+ src/pkg/syscall/zerrors_windows_386.go |  3 +++
+ 2 files changed, 4 insertions(+), 9 deletions(-)

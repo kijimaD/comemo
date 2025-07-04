@@ -1,0 +1,13 @@
+commit 485d1bb3ed2fdaaba86e82ebf2dd0ef8b8337c13
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 24 13:36:18 2008 -0700
+
+    - filed bug: label identifiers should not be allowed to match
+    other identifiers in the same scope.
+    
+    R=r
+    OCL=13431
+    CL=13431
+
+ test/bugs/bug077.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

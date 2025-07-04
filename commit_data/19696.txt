@@ -1,0 +1,15 @@
+commit a5f8e8f99cbac0cfecd3baa869d111bacfbaeac4
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Wed Jul 9 06:56:49 2014 -0400
+
+    androidtest.bash, misc/android: build scripts for android
+    
+    LGTM=minux
+    R=minux
+    CC=golang-codereviews
+    https://golang.org/cl/107640044
+
+ misc/android/README             | 11 +++++
+ misc/android/go_android_exec.go | 96 +++++++++++++++++++++++++++++++++++++++++
+ src/androidtest.bash            | 54 +++++++++++++++++++++++
+ 3 files changed, 161 insertions(+)

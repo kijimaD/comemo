@@ -1,0 +1,38 @@
+commit d2024a091d545909e53a04ce40c1dbf9513819e6
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jul 11 12:42:12 2023 -0400
+
+    cmd/compile/internal/inline: extend flag calculation via export data
+    
+    Extend the code that computes various properties and parameter flags
+    to incorporate information from export data in addition to things we
+    can get from the current package. Specifically:
+    
+     - when deciding whether the current function always calls panic/exit,
+       check to see whether it has an unconditional call to some other
+       function that has that flag.
+    
+     - when computing "parameter feeds" properties, look not just for
+       cases where a parameter feeds an interesting construct (if/switch,
+       indirect/interface call, etc) but where it feeds a call whose
+       corresponding param has that flag.
+    
+     - when computing return properties, if a given return is always the
+       results of a call to X, then set the return properties to those
+       of X.
+    
+    Updates #61502.
+    
+    Change-Id: I6472fe98759cccad05b8eed58e4fc568201d88ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511563
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/inline/inlheur/analyze.go |  14 ++
+ .../internal/inline/inlheur/analyze_func_flags.go  |   8 +-
+ .../internal/inline/inlheur/analyze_func_params.go | 114 +++++++++++--
+ .../inline/inlheur/analyze_func_returns.go         | 104 +++++++++---
+ .../internal/inline/inlheur/funcprops_test.go      |   8 +-
+ .../inline/inlheur/testdata/props/acrosscall.go    | 189 +++++++++++++++++++++
+ .../inline/inlheur/testdata/props/funcflags.go     |   9 +
+ 7 files changed, 398 insertions(+), 48 deletions(-)

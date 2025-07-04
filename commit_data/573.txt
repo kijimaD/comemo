@@ -1,0 +1,16 @@
+commit 6c72bfa55be31d60c7c87951a30cff9c6477d1cb
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 3 19:58:46 2008 -0700
+
+    fix bug in stack overflow check.
+    if stack is in low memory and frame size is huge, test could wrap around!
+    fix by omitting test altogether if we know frame is big.
+    
+    R=gri
+    OCL=14782
+    CL=14782
+
+ src/cmd/6l/pass.c                  | 52 ++++++++++++++++++++------------------
+ test/{bugs => fixedbugs}/bug092.go |  0
+ test/golden.out                    |  4 ---
+ 3 files changed, 27 insertions(+), 29 deletions(-)

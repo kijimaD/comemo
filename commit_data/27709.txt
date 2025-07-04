@@ -1,0 +1,20 @@
+commit 845992eeed01643bfb2e88aa559413908b3cb508
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 21 15:33:04 2016 -0700
+
+    test: add -s flag to commands understood by run.go
+    
+    If -s is specified, each file is considered a separate
+    package even if multiple files have the same package names.
+    
+    For instance, the action and flag "errorcheckdir -s"
+    will compile all files in the respective directory as
+    individual packages.
+    
+    Change-Id: Ic5c2f9e915a669433f66c2d3fe0ac068227a502f
+    Reviewed-on: https://go-review.googlesource.com/24313
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/run.go | 35 ++++++++++++++++++++++-------------
+ 1 file changed, 22 insertions(+), 13 deletions(-)

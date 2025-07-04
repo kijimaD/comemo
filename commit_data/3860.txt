@@ -1,0 +1,13 @@
+commit 2528f33535fc0aed2995baaa335f52a90d3648ae
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 6 14:15:41 2009 -0800
+
+    Add a document on contributing to gccgo.
+    
+    R=r, rsc
+    CC=go-dev
+    http://go/go-review/1025005
+
+ doc/contribute.html       |  4 +-
+ doc/gccgo_contribute.html | 94 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 97 insertions(+), 1 deletion(-)

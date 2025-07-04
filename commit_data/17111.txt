@@ -1,0 +1,19 @@
+commit b7eb0e5990b45afc10ccc3c91edbd226793843b1
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 9 12:57:21 2013 +1000
+
+    text/template/parse: nicer error when comment ends before final delimiter
+    By separating finding the end of the comment from the end of the action,
+    we can diagnose malformed comments better.
+    Also tweak the documentation to make the comment syntax clearer.
+    
+    Fixes #6022.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/12570044
+
+ src/pkg/text/template/doc.go            | 3 ++-
+ src/pkg/text/template/parse/lex.go      | 9 +++++++--
+ src/pkg/text/template/parse/lex_test.go | 4 ++++
+ 3 files changed, 13 insertions(+), 3 deletions(-)

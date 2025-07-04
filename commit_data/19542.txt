@@ -1,0 +1,19 @@
+commit 6f6f1bd054bf8789ede8cdfeaf28fa5af88bc371
+Author: Alan Shreve <alan@inconshreveable.com>
+Date:   Sat Jun 14 15:51:00 2014 +1000
+
+    syscall: implement syscall.Getppid() on Windows
+    
+    Also added a test to verify os.Getppid() works across all platforms
+    
+    LGTM=alex.brainman
+    R=golang-codereviews, alex.brainman, shreveal, iant
+    CC=golang-codereviews
+    https://golang.org/cl/102320044
+
+ src/pkg/os/os_test.go                     | 26 ++++++++++++++++++++
+ src/pkg/syscall/syscall_windows.go        | 35 +++++++++++++++++++++++++--
+ src/pkg/syscall/zsyscall_windows_386.go   | 40 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_windows_amd64.go | 40 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/ztypes_windows.go         | 24 +++++++++++++++++++
+ 5 files changed, 163 insertions(+), 2 deletions(-)

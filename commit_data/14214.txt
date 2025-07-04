@@ -1,0 +1,12 @@
+commit 7c412e962c1cf5de4e128c0ca2caed14f9b87003
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Oct 25 13:41:04 2012 +0800
+
+    syscall: implement (*PtraceRegs).PC() and SetPC()
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6763043
+
+ src/pkg/syscall/syscall_linux_arm.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

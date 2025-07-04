@@ -1,0 +1,21 @@
+commit dc076eaf2e64f51cca986a4a340a51befd7b6250
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Tue May 9 20:32:19 2023 -0700
+
+    misc/wasm: add wasmedge to wasip1 script
+    
+    The wasmedge runtime will be used to test our wasip1
+    implementation against the WASI runtime from wasmedge.org.
+    
+    For #60097
+    
+    Change-Id: Ib0e886de46240b4d43d02ec8a7bc7cea0730c162
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494120
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+
+ misc/wasm/go_wasip1_wasm_exec | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,27 @@
+commit 148b13c3bb889addae33f3a2e41e8e854351df6c
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 3 13:06:04 2015 -0800
+
+    encoding/gob: document behavior of zero-valued arrays, slices, and maps
+    
+    The documentation was inconsistent. It said zero values were not sent, but
+    that zero-valued elements of arrays and arrays were sent. But which rule
+    applies if the array is all zero elements, and is therefore itself a zero value?
+    
+    The answer is: the array is transmitted. In principle the other choice could
+    be made, but there would be considerable expense and complexity required
+    to implement this behavior now, not to mention worries about changes of
+    behavior.
+    
+    Therefore we just document the situation: Arrays, slices, and maps are
+    always encoded. It would perhaps be nice to have sorted this out earlier,
+    but it was a missed opportunity.
+    
+    Fixes #13378
+    
+    Change-Id: I8fae345edfa707fcfa7a3e0160d87ff1ac5cc5a2
+    Reviewed-on: https://go-review.googlesource.com/17394
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/gob/doc.go | 26 ++++++++++++++------------
+ 1 file changed, 14 insertions(+), 12 deletions(-)

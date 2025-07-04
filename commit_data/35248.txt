@@ -1,0 +1,21 @@
+commit 7b451dc715a728ea03edf17fa497d8f72d32a03f
+Author: Antonin Amand <antonin.amand@gmail.com>
+Date:   Wed May 2 12:07:56 2018 +0200
+
+    archive/zip: avoid data descriptor when writing directories
+    
+    Java fails to unzip archives created by archive/zip because directories are
+    written with the "data descriptor" flag (bit 3) set, but emits no such
+    descriptor. To fix this, we explicitly clear the flag.
+    
+    Fixes #25215
+    
+    Change-Id: Id3af4c7f863758197063df879717c1710f86c0e5
+    Reviewed-on: https://go-review.googlesource.com/110795
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/zip/writer.go      | 11 +++++++++--
+ src/archive/zip/writer_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+), 2 deletions(-)

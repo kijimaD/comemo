@@ -1,0 +1,19 @@
+commit 7995cb86e54345cb2e3911bce4da00fbb68c2dce
+Author: Ian Gudger <igudger@google.com>
+Date:   Fri Jul 22 16:38:27 2016 -0700
+
+    syscall: validate ParseUnixCredentials inputs
+    
+    Don't panic, crash, or return references to uninitialized memory when
+    ParseUnixCredentials is passed invalid input.
+    
+    Fixes #16475
+    
+    Change-Id: I140d41612e8cd8caaa94be829a415159659c217b
+    Reviewed-on: https://go-review.googlesource.com/25154
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/sockcmsg_linux.go | 3 +++
+ 1 file changed, 3 insertions(+)

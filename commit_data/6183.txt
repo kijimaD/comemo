@@ -1,0 +1,13 @@
+commit fa92b113b13977d02bbe64f68a2e43e7751deedd
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Sep 7 23:42:01 2010 +1000
+
+    exp/draw: reintroduce the MouseEvent.Nsec timestamp.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2166042
+
+ src/pkg/exp/draw/event.go    | 2 ++
+ src/pkg/exp/draw/x11/conn.go | 5 +++--
+ 2 files changed, 5 insertions(+), 2 deletions(-)

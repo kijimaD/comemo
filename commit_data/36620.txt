@@ -1,0 +1,16 @@
+commit b7f9c640b7d4d1ba721dc158a12df0a2d2d69a2f
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Fri Sep 7 20:36:56 2018 +0300
+
+    test: extend noescape bytes.Buffer test suite
+    
+    Added some more cases that should be guarded against regression.
+    
+    Change-Id: I9f1dda2fd0be9b6e167ef1cc018fc8cce55c066c
+    Reviewed-on: https://go-review.googlesource.com/134017
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/issue7921.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

@@ -1,0 +1,31 @@
+commit 77595e462be07b8229f88cbdf947e320bfc7e639
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 27 08:46:18 2014 -0700
+
+    net: if a DNS lookup times out, forget that it is in flight
+    
+    Before this CL, if the system resolver does a very slow DNS
+    lookup for a particular host, all subsequent requests for that
+    host will hang waiting for that lookup to complete.  That is
+    more or less expected when Dial is called with no deadline.
+    When Dial has a deadline, though, we can accumulate a large
+    number of goroutines waiting for that slow DNS lookup.  Try to
+    avoid this problem by restarting the DNS lookup when it is
+    redone after a deadline is passed.
+    
+    This CL also avoids creating an extra goroutine purely to
+    handle the deadline.
+    
+    No test because we would have to simulate a slow DNS lookup
+    followed by a fast DNS lookup.
+    
+    Fixes #8602.
+    
+    LGTM=bradfitz
+    R=bradfitz, mikioh.mikioh
+    CC=golang-codereviews, r, rsc
+    https://golang.org/cl/154610044
+
+ src/net/lookup.go       | 51 +++++++++++++++++++++-----------------
+ src/net/singleflight.go | 66 +++++++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 89 insertions(+), 28 deletions(-)

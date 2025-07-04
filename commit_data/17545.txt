@@ -1,0 +1,19 @@
+commit b99fdb2a11ae58834a2c0c646f54d0a587dd269c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 10 15:28:29 2013 -0400
+
+    cmd/go: report correct directory for 'no version control'
+    
+    The scan starts at the directory we care about and works
+    backward to the GOPATH root. The error should say the
+    original directory name, not the name of the GOPATH root.
+    
+    Fixes #6175.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/13366050
+
+ src/cmd/go/test.bash | 12 ++++++++++++
+ src/cmd/go/vcs.go    |  3 ++-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

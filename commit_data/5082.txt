@@ -1,0 +1,17 @@
+commit fa462f37e3fbcafc49d5d8e0b21e6cf2c8f26c02
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 19 15:20:20 2010 -0700
+
+    godoc: show (some) line numbers for remote search
+    - show build version
+    - use build goroot when possible
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/656043
+
+ lib/godoc/godoc.html   |  1 +
+ lib/godoc/search.txt   |  4 ++--
+ src/cmd/godoc/godoc.go | 47 +++++++++++++++++++++--------------------------
+ src/cmd/godoc/main.go  | 10 ++++++----
+ 4 files changed, 30 insertions(+), 32 deletions(-)

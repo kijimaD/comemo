@@ -1,0 +1,20 @@
+commit 45e87cd3ecfe5e579a06493ef8cd43ce9947262c
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Apr 4 12:20:35 2021 -0400
+
+    cmd/compile: disable tail call for method wrappers when RegabiArgs is enabled
+    
+    Currently, the IR of tailcall does not connect the arguments with
+    the OTAILCALL node, so the arguments are not marshaled correctly.
+    Disable tail call for now.
+    
+    Updates #40724.
+    
+    Change-Id: I39de3ea8e19a23eb63768ab7282d2f870e9c266e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307234
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

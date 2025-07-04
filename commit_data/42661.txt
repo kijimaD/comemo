@@ -1,0 +1,20 @@
+commit c2e73fb446bffd02c651e51c6641cc90fd065b70
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jun 23 08:46:36 2020 -0400
+
+    cmd/compile: remove AttrSeenGlobl (use AttrOnList instead)
+    
+    Minor cleanup: remove the symbol attribute AttrSeenGlobal, since it is
+    redundant with the existing attribute AttrOnList (no need to have what
+    amounts to a separate flag for checking the same property).
+    
+    Change-Id: Ia269b64de37c2bb4a2314bbecf3d2091c6d57424
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239477
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/obj.go | 2 +-
+ src/cmd/internal/obj/link.go       | 3 ---
+ src/cmd/internal/obj/plist.go      | 4 ----
+ 3 files changed, 1 insertion(+), 8 deletions(-)

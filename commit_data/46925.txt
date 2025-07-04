@@ -1,0 +1,26 @@
+commit 4d550727f8b85e9f8866f22c8a02b8f56fa64159
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 18 10:32:22 2021 +0700
+
+    reflect: add Value.UnsafePointer
+    
+    Allowing eliminates a class of possible misuse of unsafe.Pointer, and
+    allow callers to migrate from Value.Addr and Value.Pointer, thus they
+    can be now deprecated.
+    
+    Fixes #40592
+    
+    Change-Id: I798e507c748922cac5cc1c1971c1b2cc7095a068
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350691
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/all_test.go  | 22 ++++++------
+ src/reflect/deepequal.go |  6 ++--
+ src/reflect/set_test.go  |  6 ++--
+ src/reflect/type.go      |  4 +--
+ src/reflect/value.go     | 94 ++++++++++++++++++++++++++++--------------------
+ 5 files changed, 75 insertions(+), 57 deletions(-)

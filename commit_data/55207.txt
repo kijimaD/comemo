@@ -1,0 +1,17 @@
+commit ba519019d2f39df29060eec104b47c7c9ea720b2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 4 11:38:50 2023 -0800
+
+    doc: add release note for changes to go/types/SizesFor
+    
+    For #61035.
+    
+    Change-Id: I27e2c44f9275b508d9dccc50da80896384a4c8fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546837
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ doc/go1.22.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

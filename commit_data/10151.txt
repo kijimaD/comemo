@@ -1,0 +1,44 @@
+commit 50110c9f83ee0cfa2909ca78a67f14dcca2e83c1
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Oct 31 18:09:40 2011 +0100
+
+    gc: clean up printing.
+    
+    Got rid of all the magic mystery globals. Now
+    for %N, %T, and %S, the flags +,- and # set a sticky
+    debug, sym and export mode, only visible in the new fmt.c.
+    Default is error mode. Handle h and l flags consistently with
+    the least side effects, so we can now change
+    things without worrying about unrelated things
+    breaking.
+    
+    fixes #2361
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5316043
+
+ src/cmd/gc/Makefile         |    4 +-
+ src/cmd/gc/const.c          |    8 +-
+ src/cmd/gc/dcl.c            |    7 +-
+ src/cmd/gc/esc.c            |   16 +-
+ src/cmd/gc/export.c         |  176 ++---
+ src/cmd/gc/fmt.c            | 1519 +++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/gen.c            |    2 +-
+ src/cmd/gc/go.h             |   31 +-
+ src/cmd/gc/go.y             |    2 +-
+ src/cmd/gc/lex.c            |   13 +-
+ src/cmd/gc/obj.c            |    2 +-
+ src/cmd/gc/print.c          |  625 ------------------
+ src/cmd/gc/range.c          |    6 +-
+ src/cmd/gc/reflect.c        |   11 +-
+ src/cmd/gc/subr.c           |  952 +--------------------------
+ src/cmd/gc/typecheck.c      |  128 ++--
+ src/cmd/gc/unsafe.c         |    2 +-
+ src/cmd/gc/walk.c           |    4 +-
+ src/pkg/fmt/fmt_test.go     |    2 +-
+ src/pkg/reflect/all_test.go |    4 +-
+ test/ddd1.go                |    2 +-
+ test/fixedbugs/bug340.go    |    2 +-
+ test/named1.go              |    2 +-
+ 23 files changed, 1693 insertions(+), 1827 deletions(-)

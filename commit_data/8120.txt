@@ -1,0 +1,14 @@
+commit e806565626019c1e9fad60014a337d0568cd29ae
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 15 08:13:52 2011 -0700
+
+    http: reverse proxy handler
+    
+    R=rsc, petar-m
+    CC=golang-dev
+    https://golang.org/cl/4428041
+
+ src/pkg/http/Makefile             |   1 +
+ src/pkg/http/reverseproxy.go      | 100 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/reverseproxy_test.go |  50 +++++++++++++++++++
+ 3 files changed, 151 insertions(+)

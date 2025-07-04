@@ -1,0 +1,17 @@
+commit 1aa571d38b88142ec604ba20c2f9de611ff6413d
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jul 6 16:25:44 2011 -0400
+
+    asn1: support T61 and UTF8 string.
+    
+    There is no end to the kitchen sink of string types in ASN.1.
+    
+    Fixes #1953.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4672045
+
+ src/pkg/asn1/asn1.go   | 45 +++++++++++++++++++++++++++------------------
+ src/pkg/asn1/common.go |  1 +
+ 2 files changed, 28 insertions(+), 18 deletions(-)

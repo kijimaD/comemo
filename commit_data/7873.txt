@@ -1,0 +1,16 @@
+commit e83d69647f4095aa681a7769f6dae2be82fc96d3
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Fri Mar 25 14:43:59 2011 -0400
+
+    syscall: GetsockoptInt for darwin, freebsd.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4298060
+
+ src/pkg/syscall/syscall_bsd.go            |  9 ++++++++-
+ src/pkg/syscall/zsyscall_darwin_386.go    | 10 +++++++++-
+ src/pkg/syscall/zsyscall_darwin_amd64.go  |  8 ++++++++
+ src/pkg/syscall/zsyscall_freebsd_386.go   | 10 +++++++++-
+ src/pkg/syscall/zsyscall_freebsd_amd64.go | 10 +++++++++-
+ 5 files changed, 43 insertions(+), 4 deletions(-)

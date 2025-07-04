@@ -1,0 +1,25 @@
+commit 9d9a421e2452d648e8fa0264582162acf1f9fa01
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Oct 6 10:01:39 2009 -0700
+
+    Change description of time.Time.ZoneOffset to specify east is +ve.
+    
+    Currently, the description says that +ve numbers are westwards of UTC.
+    Typically, timezones are specified with +ve numbers running east of Greenwich.
+    For example, San Francisco is specified as UTC-8. Also, when calling
+    time.Localtime(), the following is returned on my box in PDT:
+    
+    {Year:2009 Month:10 Day:5 Hour:18 Minute:55 Second:6 Weekday:1 ZoneOffset:-25200
+    Zone:PDT}
+    
+    Note that the ZoneOffset is negative. This leads me to suspect that the
+    description is mistaken.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=35356
+    CL=35377
+
+ src/pkg/time/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

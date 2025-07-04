@@ -1,0 +1,19 @@
+commit 4a0ce46917ea51a677fffe203458af4a3224f67c
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Oct 13 10:24:19 2022 -0400
+
+    go/types: remove mode argument from the pkgFiles helper
+    
+    This mode is now always 0. Remove the unnecessary argument to better
+    align with types2.
+    
+    Change-Id: Ib59196a9dfc26fd66ae51381eabc760c39ad9ede
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442775
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/go/types/errorcalls_test.go | 2 +-
+ src/go/types/lookup_test.go     | 2 +-
+ src/go/types/self_test.go       | 8 ++++----
+ 3 files changed, 6 insertions(+), 6 deletions(-)

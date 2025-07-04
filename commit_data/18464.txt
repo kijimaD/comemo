@@ -1,0 +1,17 @@
+commit 3b85f9b7e184be17c411152f6b010aa279a85dcf
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Feb 12 21:50:58 2014 +0400
+
+    encoding/json: fix test failure
+    $ go test -cpu=1,1,1,1,1,1,1,1,1 encoding/json
+    --- FAIL: TestIndentBig (0.00 seconds)
+            scanner_test.go:131: Indent(jsonBig) did not get bigger
+    On 4-th run initBig generates an empty array.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/49930051
+
+ src/pkg/encoding/json/scanner_test.go | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)

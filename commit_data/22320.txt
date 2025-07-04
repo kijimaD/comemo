@@ -1,0 +1,26 @@
+commit e7d9f81645dcff1878ac71371d8aee5b46e7b04b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 2 21:51:46 2015 -0700
+
+    cmd/internal/gc, cmd/yacc: implement "expecting" syntax error messages
+    
+    Bison includes suggestions about what tokens are expected in the
+    current state when there's only four or fewer of them.  For example:
+    
+      syntax error: unexpected literal 2.01, expecting semicolon or newline or }
+    
+    This CL adds the same functionality to cmd/yacc, which fully restores
+    the previous error message behavior from Go 1.4.
+    
+    Updates #9968.
+    
+    Change-Id: I2c1a1677c6d829a829d812c05e8813aa8829d09c
+    Reviewed-on: https://go-review.googlesource.com/8494
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/subr.go |  19 ++---
+ src/cmd/internal/gc/y.go    | 193 +++++++++++++-------------------------------
+ src/cmd/yacc/yacc.go        |  67 +++++++++++++--
+ 3 files changed, 125 insertions(+), 154 deletions(-)

@@ -1,0 +1,34 @@
+commit 389e942745ddd7eef44b71571c463b0dfc3dcac2
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 5 08:54:50 2018 -0700
+
+    cmd/compile: reuse temporaries in order pass
+    
+    Instead of allocating a new temporary each time one
+    is needed, keep a list of temporaries which are free
+    (have already been VARKILLed on every path) and use
+    one of them.
+    
+    Should save a lot of stack space. In a function like this:
+    
+    func main() {
+         fmt.Printf("%d %d\n", 2, 3)
+         fmt.Printf("%d %d\n", 4, 5)
+         fmt.Printf("%d %d\n", 6, 7)
+    }
+    
+    The three [2]interface{} arrays used to hold the ... args
+    all use the same autotmp, instead of 3 different autotmps
+    as happened previous to this CL.
+    
+    Change-Id: I2d728e226f81e05ae68ca8247af62014a1b032d3
+    Reviewed-on: https://go-review.googlesource.com/c/140301
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/order.go | 60 +++++++++++++++++++++++++++---------
+ src/cmd/compile/internal/gc/sinit.go |  6 ++--
+ test/live.go                         | 48 ++++++++++++++---------------
+ test/uintptrescapes2.go              |  4 +--
+ 4 files changed, 75 insertions(+), 43 deletions(-)

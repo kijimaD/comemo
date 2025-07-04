@@ -1,0 +1,19 @@
+commit f797e485e0acde9d2c5b458b61070985f4a3222d
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Sep 11 07:51:57 2017 +0900
+
+    cmd/link: don't generate runtime.text twice for buildmode=plugin on darwin
+    
+    https://golang.org/cl/29394 changed to include runtime.text and
+    runtime.etext in ctxt.Textp as a work around.
+    But it seems that the CL forgot to change genasmsym.
+    As a result, we are generating runtime.text and runtime.etext twice.
+    
+    Change-Id: If7f8faf496c1c489ffa4804da712f91a3d3f4be4
+    Reviewed-on: https://go-review.googlesource.com/62810
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

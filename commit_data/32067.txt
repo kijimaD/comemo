@@ -1,0 +1,18 @@
+commit f5eb8712f802463ec9b2356e3a9d95186163c7ac
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 20 13:47:57 2017 -0400
+
+    misc/cgo/testsanitizers: add regression test for change 50251
+    
+    http://golang.org/cl/50251 fixed a regression under TSAN.
+    This change adds a minimal reproducer for the observed symptom.
+    
+    Change-Id: Ib9ad01b458b7fdec14d6c2fe3c243f9c64b3dcf2
+    Reviewed-on: https://go-review.googlesource.com/50371
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testsanitizers/test.bash |  1 +
+ misc/cgo/testsanitizers/tsan12.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

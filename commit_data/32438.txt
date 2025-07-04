@@ -1,0 +1,23 @@
+commit 18b48afec9be0a1da4b23bebace0dc9f081dcee1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 23 16:46:00 2017 -0700
+
+    cmd/compile: mark MOVQconvert as resultInArg0 on x86 architectures
+    
+    This prevents unnecessary reg-reg moves during pointer arithmetic.
+    
+    This change reduces the size of the full hello world binary by 0.4%.
+    
+    Updates #21572
+    
+    Change-Id: Ia0427021e5c94545a0dbd83a6801815806e5b12d
+    Reviewed-on: https://go-review.googlesource.com/58371
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/386Ops.go   |  2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 ++--
+ src/cmd/compile/internal/ssa/gen/main.go     |  4 ++--
+ src/cmd/compile/internal/ssa/opGen.go        | 21 ++++++++++++---------
+ 4 files changed, 17 insertions(+), 14 deletions(-)

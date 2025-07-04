@@ -1,0 +1,20 @@
+commit 8ae584f21e32ab1a07d9d5d4d39cb5f7530c49df
+Author: Daniel Speichert <daniel@speichert.pl>
+Date:   Tue Dec 29 16:46:40 2015 +0100
+
+    net/textproto: accept multi-line error messages
+    
+    Ads documentation for both formats of messages accepted by
+    ReadResponse(). Validity of message should not be altered by
+    the validation process. On message with unexpected code,
+    a properly formatted message was not fully read.
+    
+    Fixes #10230
+    
+    Change-Id: Ic0b473059a68ab624ce0525e359d0f5d0b8d2117
+    Reviewed-on: https://go-review.googlesource.com/18172
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/textproto/reader.go      | 16 +++++++++++++---
+ src/net/textproto/reader_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 3 deletions(-)

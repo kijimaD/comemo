@@ -1,0 +1,12 @@
+commit 45e12c7cd38bc1470be6626ffc1d5b1d15d9f240
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jul 29 16:54:01 2010 +1000
+
+    runtime: fix bug introduced in revision 4a01b8d28570
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1874046
+
+ src/pkg/runtime/windows/thread.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

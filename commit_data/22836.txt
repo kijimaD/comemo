@@ -1,0 +1,19 @@
+commit 931328b8b837d0a827d05989f79f28725a704b71
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat May 2 04:36:53 2015 -0400
+
+    cmd/internal/gc: fix build on big endian systems
+    
+    The siz argument to both runtime.newproc and runtime.deferproc is
+    int32, not uintptr. This problem won't manifest on little-endian
+    systems because that stack slot is uintptr sized anyway. However,
+    on big-endian systems, it will make a difference.
+    
+    Change-Id: I2351d1ec81839abe25375cff95e327b80764c2b5
+    Reviewed-on: https://go-review.googlesource.com/9647
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/gc/cgen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

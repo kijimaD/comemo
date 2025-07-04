@@ -1,0 +1,25 @@
+commit ca3dd1d36b5aa2dd810d31ec425a32902ae50ba9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 7 15:26:19 2020 -0800
+
+    go/types: fix method set computation
+    
+    When computing method sets, any struct field that "shadows" a
+    method at a lower embedding level eliminates that method from
+    the method set. Treat any field at a given level as a "collision"
+    for any methods at lower embedding level.
+    
+    Method sets are not directly used by go/types (except for self-
+    verification in debug mode); they are a functionality provided
+    by go/types. Thus, the method sets that go/types is using were
+    not affected by this bug.
+    
+    Fixes #37081.
+    
+    Change-Id: Ic1937e01891b3614a6f7965d4384aeb485f3fe3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218617
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/example_test.go | 11 +++++++++++
+ src/go/types/methodset.go    | 20 +++++++++-----------
+ 2 files changed, 20 insertions(+), 11 deletions(-)

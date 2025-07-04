@@ -1,0 +1,46 @@
+commit 9f3f4c64dbfd37ef9f7113708a706a8099d72fd9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Apr 9 03:41:06 2024 +0000
+
+    runtime: remove the allocheaders GOEXPERIMENT
+    
+    This change removes the allocheaders, deleting all the old code and
+    merging mbitmap_allocheaders.go back into mbitmap.go.
+    
+    This change also deletes the SetType benchmarks which were already
+    broken in the new GOEXPERIMENT (it's harder to set up than before). We
+    weren't really watching these benchmarks at all, and they don't provide
+    additional test coverage.
+    
+    Change-Id: I135497201c3259087c5cd3722ed3fbe24791d25d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567200
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/test/inl_test.go         |    3 -
+ src/internal/buildcfg/exp.go                      |    1 -
+ src/internal/goexperiment/exp_allocheaders_off.go |    8 -
+ src/internal/goexperiment/exp_allocheaders_on.go  |    8 -
+ src/internal/goexperiment/exp_exectracer2_off.go  |    1 -
+ src/internal/goexperiment/exp_exectracer2_on.go   |    1 -
+ src/internal/goexperiment/flags.go                |    4 -
+ src/runtime/arena.go                              |  230 +++-
+ src/runtime/cgocall.go                            |   31 +-
+ src/runtime/cgocheck.go                           |   31 +-
+ src/runtime/export_test.go                        |  133 --
+ src/runtime/gc_test.go                            |  166 ---
+ src/runtime/heapdump.go                           |   30 +-
+ src/runtime/malloc.go                             |   77 +-
+ src/runtime/mbitmap.go                            | 1123 +++++++++++++++++
+ src/runtime/mbitmap_allocheaders.go               | 1374 ---------------------
+ src/runtime/mbitmap_noallocheaders.go             |  938 --------------
+ src/runtime/mfinal.go                             |    3 +-
+ src/runtime/mgcmark.go                            |   28 +-
+ src/runtime/mgcsweep.go                           |    5 +-
+ src/runtime/mheap.go                              |    8 +-
+ src/runtime/{msize_allocheaders.go => msize.go}   |    2 -
+ src/runtime/msize_noallocheaders.go               |   29 -
+ 23 files changed, 1393 insertions(+), 2841 deletions(-)

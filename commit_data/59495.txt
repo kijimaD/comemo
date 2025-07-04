@@ -1,0 +1,19 @@
+commit 5bbac667c5c7bd1bde1750586c92f5932134c871
+Author: khr@golang.org <khr@golang.org>
+Date:   Wed May 7 14:34:30 2025 -0700
+
+    runtime: increase freebsd/amd64 pointer size from 48 to 57 bits
+    
+    Because freebsd is now enabling la57 by default.
+    
+    Fixes #49405
+    
+    Change-Id: I30f7bac8b8a9baa85e0c097e06072c19ad474e5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670715
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/tagptr_64bit.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

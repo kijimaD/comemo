@@ -1,0 +1,16 @@
+commit 019aee55d3f99f61aa685370f3a644ec78de1e61
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Sep 26 20:08:03 2018 +0200
+
+    cmd/go/internal/modfetch: update expected tags for external repos
+    
+    Updates #27692
+    
+    Change-Id: Ia32b9e401dfe1fbb64b7f1311d85b7a1ab959bc0
+    Reviewed-on: https://go-review.googlesource.com/137775
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,25 @@
+commit 420c68dd68c648af6642dd7e5cf6dacf9f067f6e
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 30 15:22:52 2020 -0400
+
+    runtime: tighten systemstack in lock assertions
+    
+    We use systemstack on the locking path to avoid stack splits which could
+    cause locks to be recorded out of order (see comment on lockWithRank).
+    
+    This concern is irrelevant on lock assertions, where we simply need to
+    see if a lock is held and don't care if another is taken in the
+    meantime. Thus we can simply drop these unless we actually need to
+    crash.
+    
+    Updates #40677
+    
+    Change-Id: I85d730913a59867753ee1ed0386f8c5efda5c432
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266718
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+
+ src/runtime/lockrank_on.go | 76 ++++++++++++++++++++++++++++------------------
+ 1 file changed, 47 insertions(+), 29 deletions(-)

@@ -1,0 +1,18 @@
+commit c9ad32bd9f670a64292de17d09f9ec8294a60f39
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sun Jun 30 02:46:12 2024 +0800
+
+    encoding/asn1: unmarshal bool values correctly dealing with the ANY type
+    
+    Fixes #68241
+    
+    Change-Id: I1ee81aa50c2f39f535ad27309e855f19acb2f2ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595796
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/encoding/asn1/asn1.go         |  2 ++
+ src/encoding/asn1/marshal_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 22 insertions(+)

@@ -1,0 +1,20 @@
+commit 2c1888bf4804010213849521b96bd743d84dd34c
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Apr 6 12:24:58 2017 +0100
+
+    net/http: fix ineffective break in etag scanning
+    
+    In particular, this lead to the code accepting invalid ETags as long as
+    they finished with a '"'.
+    
+    Also remove a duplicate test case.
+    
+    Change-Id: Id59db3ebc4e4969562f891faef29111e77ee0e65
+    Reviewed-on: https://go-review.googlesource.com/39690
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/fs.go      | 2 +-
+ src/net/http/fs_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

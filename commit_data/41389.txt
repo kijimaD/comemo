@@ -1,0 +1,20 @@
+commit 31acdcc701cb97040832bce371fdd8985fbea131
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Feb 23 18:14:34 2020 +0100
+
+    syscall: use dup3 in forkAndExecInChild1 if available
+    
+    The dup3 syscall is available since Linux 2.6.27. Fall back to dup2 (if
+    available) if dup3 returns ENOSYS.
+    
+    This allows to omit the additional fcntl call to mark the dup'ed fd as
+    close-on-exec.
+    
+    Change-Id: If318b593edd783f2aa988534c6062498e7119ddb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220422
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_linux.go | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)

@@ -1,0 +1,19 @@
+commit 83bdb805a28644df0baf47bdcc740d21cbe861d4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 9 01:21:20 2009 -0700
+
+    error message fixes
+    
+    x == nil
+    x.go:5: cannot use nil as bool
+    
+    c := x.(type);
+    x.go:88: use of .(type) outside type switch
+    
+    R=ken
+    OCL=34476
+    CL=34476
+
+ src/cmd/gc/const.c     | 2 ++
+ src/cmd/gc/typecheck.c | 7 ++++---
+ 2 files changed, 6 insertions(+), 3 deletions(-)

@@ -1,0 +1,23 @@
+commit ad82f2cf4b7e8e5f5398b5546b7d834432347355
+Author: Tom Bergan <tombergan@google.com>
+Date:   Wed Jun 29 07:45:23 2016 -0700
+
+    crypto/tls: Use the same buffer size in the client and server in the TLS throughput benchmark
+    
+    I believe it's necessary to use a buffer size smaller than 64KB because
+    (at least some versions of) Window using a TCP receive window less than
+    64KB. Currently the client and server use buffer sizes of 16KB and 32KB,
+    respectively (the server uses io.Copy, which defaults to 32KB internally).
+    Since the server has been using 32KB, it should be safe for the client to
+    do so as well.
+    
+    Fixes #15899
+    
+    Change-Id: I36d44b29f2a5022c03fc086213d3c1adf153e983
+    Reviewed-on: https://go-review.googlesource.com/24581
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/tls_test.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

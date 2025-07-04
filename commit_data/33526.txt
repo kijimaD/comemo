@@ -1,0 +1,27 @@
+commit 0cee4b7b780053425a24219866b894a46b1cfd5f
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Nov 9 20:14:47 2017 -0800
+
+    encoding/json: always ignore embedded pointers to unexported struct types
+    
+    CL 60410 fixes a bug in reflect that allows assignments to an embedded
+    field of a pointer to an unexported struct type.
+    This breaks the json package because unmarshal is now unable to assign
+    a newly allocated struct to such fields.
+    
+    In order to be consistent in the behavior for marshal and unmarshal,
+    this CL changes both marshal and unmarshal to always ignore
+    embedded pointers to unexported structs.
+    
+    Fixes #21357
+    
+    Change-Id: If62ea11155555e61115ebb9cfa5305caf101bde5
+    Reviewed-on: https://go-review.googlesource.com/76851
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/json/decode_test.go | 19 +++++++++++++++++++
+ src/encoding/json/encode.go      | 13 ++++++++++---
+ src/encoding/json/encode_test.go |  7 ++++---
+ 3 files changed, 33 insertions(+), 6 deletions(-)

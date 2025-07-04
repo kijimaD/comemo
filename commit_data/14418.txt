@@ -1,0 +1,12 @@
+commit aa3d05acc9d0e9fba63a3f5375682ae9c5d696b0
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Fri Nov 16 23:09:37 2012 +1100
+
+    runtime: remove extra parentheses.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6843069
+
+ src/pkg/runtime/debug.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

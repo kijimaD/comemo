@@ -1,0 +1,25 @@
+commit e1ddf0507c6d6dcbe1a2ebe54b8728498edf0995
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Sep 10 18:53:51 2019 +0000
+
+    runtime: count scavenged bits for new allocation for new page allocator
+    
+    This change makes it so that the new page allocator returns the number
+    of pages that are scavenged in a new allocation so that mheap can update
+    memstats appropriately.
+    
+    The accounting could be embedded into pageAlloc, but that would make
+    the new allocator more difficult to test.
+    
+    Updates #35112.
+    
+    Change-Id: I0f94f563d7af2458e6d534f589d2e7dd6af26d12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195698
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/export_test.go      |  15 ++-
+ src/runtime/mpagealloc.go       |  29 ++++--
+ src/runtime/mpagealloc_test.go  | 201 +++++++++++++++++++++++++++-------------
+ src/runtime/mpallocbits.go      |  20 ++++
+ src/runtime/mpallocbits_test.go |  92 ++++++++++++++++++
+ 5 files changed, 281 insertions(+), 76 deletions(-)

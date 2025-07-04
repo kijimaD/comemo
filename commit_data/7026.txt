@@ -1,0 +1,21 @@
+commit 9214016b3de7803720394e0de09637588af86097
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 4 10:14:16 2011 -0800
+
+    go/ast: provide complete node text range info
+    
+    - add End() method to all nodes; the text range of a node n is [n.Pos(), n.End())
+    - various small bug fixes in the process
+    - fixed several comments
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/3769042
+
+ src/cmd/cgo/ast.go          |   8 +-
+ src/pkg/exp/eval/expr.go    |   8 +-
+ src/pkg/go/ast/ast.go       | 194 +++++++++++++++++++++++++++++++++++++-------
+ src/pkg/go/ast/walk.go      |  15 ++--
+ src/pkg/go/parser/parser.go |  68 +++++++++-------
+ src/pkg/go/printer/nodes.go |  16 ++--
+ 6 files changed, 227 insertions(+), 82 deletions(-)

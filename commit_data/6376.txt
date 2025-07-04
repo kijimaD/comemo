@@ -1,0 +1,12 @@
+commit 5bd0bea7d2e0d0c73f1f1d75eca1e24cc68da994
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 24 14:38:17 2010 -0400
+
+    syscall: fix mkall.sh for nacl
+    
+    TBR=adg
+    CC=golang-dev
+    https://golang.org/cl/2208050
+
+ src/pkg/syscall/mkall.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

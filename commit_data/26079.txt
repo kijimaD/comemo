@@ -1,0 +1,26 @@
+commit 5763476f739ad4d6b122c2a7ae26a845ea020a7e
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Mar 5 11:33:13 2016 +0100
+
+    fmt: use fewer allocations for %q string formatting
+    
+    Reuse the internal buffer and use append versions of
+    the strconv quote functions to avoid some allocations.
+    
+    Add more tests.
+    
+    name                  old time/op    new time/op    delta
+    SprintfQuoteString-2     486ns ± 2%     416ns ± 2%  -14.42%  (p=0.000 n=20+20)
+    
+    name                  old allocs/op  new allocs/op  delta
+    SprintfQuoteString-2      4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.000 n=20+20)
+    
+    Change-Id: I63795b51fd95c53c5993ec8e6e99b659941f9f54
+    Reviewed-on: https://go-review.googlesource.com/20251
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 99 ++++++++++++++++++++++++++++++++++++++++++++---------
+ src/fmt/format.go   | 24 ++++++-------
+ 2 files changed, 95 insertions(+), 28 deletions(-)

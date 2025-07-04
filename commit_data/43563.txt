@@ -1,0 +1,26 @@
+commit 009d71409821a6ac4f1b32aaae2c856c20a29f92
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 22 16:37:19 2020 -0700
+
+    cmd/compile, runtime: store pointers to go:notinheap types indirectly
+    
+    pointers to go:notinheap types should be treated as scalars. That
+    means they shouldn't be stored directly in interfaces, or directly
+    in reflect.Value.ptr.
+    
+    Also be sure to use uintpr to compare such pointers in reflect.DeepEqual.
+    
+    Fixes #42076
+    
+    Change-Id: I53735f6d434e9c3108d4940bd1bae14c61ef2a74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264480
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go      |  6 ++--
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ src/reflect/deepequal.go                 | 12 +++++++-
+ src/reflect/value.go                     | 12 +++++++-
+ src/runtime/netpoll.go                   | 47 ++++++++++++++++++++++----------
+ test/fixedbugs/issue42076.go             | 21 ++++++++++++++
+ 6 files changed, 81 insertions(+), 19 deletions(-)

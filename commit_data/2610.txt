@@ -1,0 +1,16 @@
+commit 52ccdf3510a1c2920a4398ca032ead3c57657d51
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jul 6 22:59:31 2009 -0700
+
+    Add support for v7 tar.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=32  (26 added, 4 deleted, 2 changed)
+    OCL=31172
+    CL=31242
+
+ src/pkg/archive/tar/testdata/v7.tar | Bin 0 -> 3072 bytes
+ src/pkg/archive/tar/untar.go        |  10 ++++------
+ src/pkg/archive/tar/untar_test.go   |  23 +++++++++++++++++++++++
+ 3 files changed, 27 insertions(+), 6 deletions(-)

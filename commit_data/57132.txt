@@ -1,0 +1,42 @@
+commit ff2a57ba92b9ecc9315c992b332279d0428c36d7
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Aug 6 20:56:56 2024 +0000
+
+    cmd/go/internal/test: add 'tests' vet check to 'go test' suite
+    
+    (Second attempt at CL 529816 (f1d6050), reverted in
+    CL 571695 (1304d98) due to broken longtest builder.)
+    
+    The tests analyser reports structural problems in test
+    declarations. Presumably most of these would be caught by
+    go test itself, which compiles and runs (some subset of) the
+    tests, but Benchmark and Fuzz functions are executed less
+    frequently and may benefit more from static checks.
+    
+    A number of tests of "go vet" needed to be updated, either
+    to avoid mistakes caught by the analyzer, or to suppress
+    the analyzer when the mistakes were intended.
+    
+    Also, reflect the change in go test help message.
+    
+    + release note
+    
+    Fixes golang/go#44251
+    
+    Change-Id: I1c311086815fe55a66cce001eaab9b41e27d1144
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603476
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/3-tools.md                                |  10 ++
+ src/cmd/go/alldocs.go                              |   2 +-
+ src/cmd/go/internal/test/test.go                   |   4 +-
+ src/cmd/go/testdata/script/list_test_simple.txt    |  10 +-
+ src/cmd/go/testdata/script/test_bad_example.txt    |   5 +-
+ src/cmd/go/testdata/script/test_example_goexit.txt |   4 +-
+ src/cmd/go/testdata/script/test_fuzz.txt           | 117 +++++++++++----------
+ src/cmd/go/testdata/script/test_fuzz_return.txt    |   6 +-
+ .../go/testdata/script/test_match_only_example.txt |   6 +-
+ src/cmd/go/testdata/script/test_source_order.txt   |  12 +--
+ 10 files changed, 96 insertions(+), 80 deletions(-)

@@ -1,0 +1,14 @@
+commit 16bf0d5e0396fb35a9ca92bbf626f83f4f401253
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 2 22:05:41 2019 +0000
+
+    crypto/cipher: disable broken js/wasm test from nodejs v8 to v12 upgrade
+    
+    Updates #31812
+    
+    Change-Id: Id9898f89205c116009e25033afb5b9026594e80f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175099
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/crypto/cipher/xor_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

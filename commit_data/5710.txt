@@ -1,0 +1,15 @@
+commit 33da9afc3eb15fe5ed1ae92e66948bfaa64ab4d2
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Jun 27 17:37:01 2010 -0700
+
+    optimization of static initialization
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1677049
+
+ src/cmd/gc/go.h      |   2 +-
+ src/cmd/gc/reflect.c |   2 +-
+ src/cmd/gc/sinit.c   | 320 +++++++++++++++++++++++++++++++--------------------
+ src/cmd/gc/walk.c    |   6 +-
+ 4 files changed, 202 insertions(+), 128 deletions(-)

@@ -1,0 +1,18 @@
+commit 3f4d5a550095b384de8e63bd09cf278e7c57fee3
+Author: Damian Gryski <dgryski@gmail.com>
+Date:   Thu Jul 23 22:12:24 2015 +0200
+
+    go/types: fix suspect or
+    
+    In https://go-review.googlesource.com/#/c/8611/ , these tests were
+    supposed to be skipped only for linux and darwin, as the comment says.
+    This patch fixes the logic in the if test.
+    
+    Change-Id: Iff0a32186267457a414912c4c3ee4495650891a2
+    Reviewed-on: https://go-review.googlesource.com/12517
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+
+ src/go/types/stdlib_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit 1ab063ce532f72851cef735238ba656cc7680b66
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Fri May 17 13:31:12 2019 -0700
+
+    testing: callerName only needs one PC in the traceback
+    
+    callerName requested 2 PCs from Callers, and that causes
+    both to be looked up in the file/line mapping.
+    We really only need to do the work for one PC.
+    (And in fact the caller doesn't need file/line at all, but
+    the Callers API can't express that.)
+    
+    We used to request 2 PCs because in 1.11 and earlier we
+    stored an inline skip count in the second entry.
+    That's not necessary any more (as of 1.12).
+    
+    Fixes #32093
+    
+    Change-Id: I7b272626ef6496e848ee8af388cdaafd2556857b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177858
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

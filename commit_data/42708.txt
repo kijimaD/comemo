@@ -1,0 +1,22 @@
+commit abfeec5eb0356d1ac91a097d2124a6b7c8cfccd4
+Author: Carlos Alexandro Becker <caarlos0@gmail.com>
+Date:   Sun Aug 16 21:58:40 2020 +0000
+
+    testing/iotest: add ErrReader
+    
+    Adds an io.Reader that always returns 0 and a non-nil error.
+    
+    Fixes #38781
+    
+    Change-Id: I56bd124de07bc8809e77c6cfaab33a1e32cfe2ee
+    GitHub-Last-Rev: 4e232b17e9120405d4ea4743350ee361a3505043
+    GitHub-Pull-Request: golang/go#34741
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199501
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/testing/iotest/logger_test.go | 12 ++----------
+ src/testing/iotest/reader.go      | 15 +++++++++++++++
+ src/testing/iotest/reader_test.go | 10 ++++++++++
+ 3 files changed, 27 insertions(+), 10 deletions(-)

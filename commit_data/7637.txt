@@ -1,0 +1,13 @@
+commit d42bfe26ad003cf2c29dc1b8cf21026f4a2a8fb9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Mar 5 14:24:26 2011 -0500
+
+    A+C: Pascal S. de Kloe (individual CLA)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4266041
+
+ AUTHORS      | 3 ++-
+ CONTRIBUTORS | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

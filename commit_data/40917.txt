@@ -1,0 +1,14 @@
+commit a18608a044afed86c789e541db65526b9ccacef9
+Author: Günther Noack <gnoack@google.com>
+Date:   Mon Dec 2 19:27:51 2019 +0000
+
+    os/exec: document that cmd.Start() sets the Process field
+    
+    Change-Id: I4f41b680741e9bd2a4e8c094ecf3ce6226e48d12
+    GitHub-Last-Rev: 8f58bc6c4398cf739b33f8b5368926d6650059c3
+    GitHub-Pull-Request: golang/go#35934
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209558
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/exec/exec.go | 2 ++
+ 1 file changed, 2 insertions(+)

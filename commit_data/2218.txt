@@ -1,0 +1,17 @@
+commit 5e76c032f6edbfdc6685e611fc6eefc07a882af6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 15 11:04:49 2009 -0700
+
+    make Stat indicate whether it followed a symlink.
+    
+    R=r
+    DELTA=61  (34 added, 0 deleted, 27 changed)
+    OCL=28904
+    CL=28906
+
+ src/lib/os/file.go              | 50 ++++++++++++++++++++++++-----------------
+ src/lib/os/os_test.go           | 10 +++++++++
+ src/lib/os/stat_amd64_darwin.go |  9 +++++++-
+ src/lib/os/stat_amd64_linux.go  |  9 +++++++-
+ src/lib/os/types.go             |  2 ++
+ 5 files changed, 57 insertions(+), 23 deletions(-)

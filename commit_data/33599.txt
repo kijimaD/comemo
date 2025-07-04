@@ -1,0 +1,26 @@
+commit d06335e28f1a23fbb2a02f406e26bd2a9ec715d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 11 19:50:19 2017 -0500
+
+    cmd/go: implement go clean -testcache
+    
+    Ian suggested that since test caching is not expected to be perfect
+    in all cases, we should allow users to clear the test cache separately
+    from clearing the entire build cache.
+    
+    This CL adds 'go clean -testcache' to do that. The implementation
+    does not actually delete files (for that, use 'go clean -cache').
+    Instead, it writes down the current time, and future go tests will
+    ignore any cached test results written before that time.
+    
+    Change-Id: I4f84065d7dfc2499fa3f203e9ab62e68d7f367c5
+    Reviewed-on: https://go-review.googlesource.com/78176
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go               | 17 +++++------
+ src/cmd/go/go_test.go               |  4 +++
+ src/cmd/go/internal/cache/cache.go  | 59 ++++++++++++++++++++++++-------------
+ src/cmd/go/internal/clean/clean.go  | 32 +++++++++++++++-----
+ src/cmd/go/internal/test/test.go    | 19 +++++++++++-
+ src/cmd/go/internal/work/buildid.go | 11 ++++---
+ 6 files changed, 98 insertions(+), 44 deletions(-)

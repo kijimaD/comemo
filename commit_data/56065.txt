@@ -1,0 +1,19 @@
+commit 979b34b37c7af73742550ff128d162d0eb2a5f2d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Mar 4 13:20:43 2024 -0500
+
+    cmd/preprofile: drop output directory check
+    
+    This check serves only to provide a more descriptive error if the output
+    directory doesn't exist. That isn't useless, but I don't see why this tool
+    specifically should do this when no other part of the toolchain does.
+    
+    For #58102.
+    
+    Change-Id: I01cf9db2cc1dad85c3afd8a6b008c53f26cb877a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569336
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/preprofile/main.go | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)

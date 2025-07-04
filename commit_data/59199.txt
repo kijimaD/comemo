@@ -1,0 +1,36 @@
+commit b9cbb65384f6bebd58f7a8354759b8c7b1bbb13f
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 31 11:43:12 2025 +0200
+
+    os,internal/poll: support I/O on overlapped handles not added to the poller
+    
+    Calling syscall.ReadFile and syscall.WriteFile on overlapped handles
+    always need to be passed a valid *syscall.Overlapped structure, even if
+    the handle is not added to a IOCP (like the Go runtime poller). Else,
+    the syscall will fail with ERROR_INVALID_PARAMETER.
+    
+    We also need to handle ERROR_IO_PENDING errors when the overlapped
+    handle is not added to the poller, in which case we need to block until
+    the operation completes.
+    
+    Previous CLs already added support for overlapped handles to the poller,
+    mostly to keep track of the file offset independently of the file
+    pointer (which is not supported for overlapped handles).
+    
+    Fixed #15388.
+    Updates #19098.
+    
+    Change-Id: I2103ab892a37d0e326752ae8c2771a43c13ba42e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661795
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ doc/next/6-stdlib/99-minor/os/15388.md           |   6 +
+ src/internal/poll/fd_windows.go                  |  72 ++++++++----
+ src/internal/poll/fd_windows_test.go             | 140 +++++++++++++----------
+ src/internal/syscall/windows/syscall_windows.go  |  10 ++
+ src/internal/syscall/windows/zsyscall_windows.go |   9 ++
+ src/os/os_windows_test.go                        | 124 ++++++++++++++++++++
+ 6 files changed, 279 insertions(+), 82 deletions(-)

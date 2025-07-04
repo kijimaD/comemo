@@ -1,0 +1,12 @@
+commit 410927d1adeadbe8de72769bd794064f0cd801cd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 7 04:42:26 2010 -0400
+
+    gc: elide dead code
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2365044
+
+ src/cmd/gc/gen.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

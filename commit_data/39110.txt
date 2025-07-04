@@ -1,0 +1,48 @@
+commit 4ae31dc8c5d5f7dc62a1fe74270588bb62354050
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 9 11:31:04 2019 -0700
+
+    cmd/compile: re-use regalloc's []valState
+    
+    Updates #27739: reduces package ssa's allocated space by 3.77%.
+    
+    maxrss is harder to measure, but using best-of-three-runs
+    as reported by /usr/bin/time -l, I see ~2% reduction in maxrss.
+    
+    We still have a long way to go, though; the new maxrss is still 1.1gb.
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         38.8MB ± 0%       37.7MB ± 0%  -2.77%  (p=0.008 n=5+5)
+    Unicode          28.2MB ± 0%       28.1MB ± 0%  -0.20%  (p=0.008 n=5+5)
+    GoTypes           131MB ± 0%        127MB ± 0%  -2.94%  (p=0.008 n=5+5)
+    Compiler          606MB ± 0%        587MB ± 0%  -3.21%  (p=0.008 n=5+5)
+    SSA              2.14GB ± 0%       2.06GB ± 0%  -3.77%  (p=0.008 n=5+5)
+    Flate            24.0MB ± 0%       23.3MB ± 0%  -3.00%  (p=0.008 n=5+5)
+    GoParser         28.8MB ± 0%       28.1MB ± 0%  -2.61%  (p=0.008 n=5+5)
+    Reflect          83.8MB ± 0%       81.5MB ± 0%  -2.71%  (p=0.008 n=5+5)
+    Tar              36.4MB ± 0%       35.4MB ± 0%  -2.73%  (p=0.008 n=5+5)
+    XML              47.9MB ± 0%       46.7MB ± 0%  -2.49%  (p=0.008 n=5+5)
+    [Geo mean]       84.6MB            82.4MB       -2.65%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           379k ± 0%         379k ± 0%  -0.05%  (p=0.008 n=5+5)
+    Unicode            340k ± 0%         340k ± 0%    ~     (p=0.151 n=5+5)
+    GoTypes           1.36M ± 0%        1.36M ± 0%  -0.06%  (p=0.008 n=5+5)
+    Compiler          5.49M ± 0%        5.48M ± 0%  -0.03%  (p=0.008 n=5+5)
+    SSA               17.5M ± 0%        17.5M ± 0%  -0.03%  (p=0.008 n=5+5)
+    Flate              235k ± 0%         235k ± 0%  -0.04%  (p=0.008 n=5+5)
+    GoParser           302k ± 0%         302k ± 0%  -0.04%  (p=0.008 n=5+5)
+    Reflect            976k ± 0%         975k ± 0%  -0.10%  (p=0.008 n=5+5)
+    Tar                352k ± 0%         352k ± 0%  -0.06%  (p=0.008 n=5+5)
+    XML                436k ± 0%         436k ± 0%  -0.03%  (p=0.008 n=5+5)
+    [Geo mean]         842k              841k       -0.04%
+    
+    Change-Id: I0ab6631b5a0bb6303c291dcb0367b586a4e584fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176221
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/cache.go    |  8 ++++++++
+ src/cmd/compile/internal/ssa/regalloc.go | 10 ++++++++--
+ 2 files changed, 16 insertions(+), 2 deletions(-)

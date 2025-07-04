@@ -1,0 +1,42 @@
+commit e68c027204d410ebca5bf1a9660605f2bd737748
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Aug 31 18:18:19 2022 +1000
+
+    cmd/internal/obj/riscv,cmd/link: add support for internal cgo linking on riscv64
+    
+    Make it possible to internally link cgo on riscv64, which also adds
+    support for SDYNIMPORT calls without external linking being required.
+    
+    This reduces the time of an ./all.bash run on a Sifive Hifive Unleashed by
+    approximately 20% (~140 minutes down to ~110 minutes).
+    
+    Change-Id: I43f1348de31672718ae8676cc82f6fdc1dfee054
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431104
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/dist/build.go                       |   4 +-
+ src/cmd/internal/obj/riscv/cpu.go           |  18 +-
+ src/cmd/internal/obj/riscv/obj.go           |  82 +++++-
+ src/cmd/internal/objabi/reloctype.go        |  27 ++
+ src/cmd/internal/objabi/reloctype_string.go |  43 ++--
+ src/cmd/link/internal/amd64/asm.go          |   2 +-
+ src/cmd/link/internal/arm/asm.go            |   2 +-
+ src/cmd/link/internal/arm64/asm.go          |   2 +-
+ src/cmd/link/internal/ld/data.go            |  18 +-
+ src/cmd/link/internal/ld/elf.go             |   4 +-
+ src/cmd/link/internal/ld/pcln.go            |  14 +
+ src/cmd/link/internal/loadelf/ldelf.go      |  40 ++-
+ src/cmd/link/internal/loong64/asm.go        |   2 +-
+ src/cmd/link/internal/mips/asm.go           |   2 +-
+ src/cmd/link/internal/mips64/asm.go         |   2 +-
+ src/cmd/link/internal/ppc64/asm.go          |   2 +-
+ src/cmd/link/internal/riscv64/asm.go        | 379 ++++++++++++++++++++++++++--
+ src/cmd/link/internal/riscv64/obj.go        |   1 +
+ src/cmd/link/internal/s390x/asm.go          |   2 +-
+ src/cmd/link/internal/sym/reloc.go          |   2 +
+ src/cmd/link/internal/x86/asm.go            |   2 +-
+ src/internal/platform/supported.go          |   4 +-
+ 22 files changed, 572 insertions(+), 82 deletions(-)

@@ -1,0 +1,15 @@
+commit 0ed728c48a0cfe7ad5dd90dbc0b9cc2558aa9424
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jan 11 11:23:46 2010 -0800
+
+    Replicate signal names from syscall in os/signal.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/183142
+
+ .hgignore                        |  1 +
+ src/pkg/os/signal/Makefile       |  6 ++++++
+ src/pkg/os/signal/mkunix.sh      | 24 ++++++++++++++++++++++++
+ src/pkg/os/signal/signal_test.go |  4 ++--
+ 4 files changed, 33 insertions(+), 2 deletions(-)

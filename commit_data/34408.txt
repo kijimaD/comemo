@@ -1,0 +1,39 @@
+commit 4338518da83386be4728498cfc157d22e36f9b9e
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Feb 28 13:45:06 2018 -0800
+
+    encoding/json: avoid assuming side-effect free reflect.Value.Addr().Elem()
+    
+    Consider the following:
+            type child struct{ Field string }
+            type parent struct{ child }
+    
+            p := new(parent)
+            v := reflect.ValueOf(p).Elem().Field(0)
+            v.Field(0).SetString("hello")           // v.Field = "hello"
+            v = v.Addr().Elem()                     // v = *(&v)
+            v.Field(0).SetString("goodbye")         // v.Field = "goodbye"
+    
+    It would appear that v.Addr().Elem() should have the same value, and
+    that it would be safe to set "goodbye".
+    However, after CL 66331, any interspersed calls between Field calls
+    causes the RO flag to be set.
+    Thus, setting to "goodbye" actually causes a panic.
+    
+    That CL affects decodeState.indirect which assumes that back-to-back
+    Value.Addr().Elem() is side-effect free. We fix that logic to keep
+    track of the Addr() and Elem() calls and set v back to the original
+    after a full round-trip has occured.
+    
+    Fixes #24152
+    Updates #24153
+    
+    Change-Id: Ie50f8fe963f00cef8515d89d1d5cbc43b76d9f9c
+    Reviewed-on: https://go-review.googlesource.com/97796
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/decode.go      | 24 ++++++++++++++++++-
+ src/encoding/json/decode_test.go | 50 ++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 69 insertions(+), 5 deletions(-)

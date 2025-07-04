@@ -1,0 +1,21 @@
+commit 7930d39f5802fd93a651a51f905efe58d3bc9caf
+Author: imxyb <xyb4638@gmail.com>
+Date:   Sun Oct 25 03:42:20 2020 +0000
+
+    log/syslog: set local to true if network is any of "unix", or "unixgram"
+    
+    Fixes #41960
+    
+    Change-Id: I0e0f0e11610dd2658a8f6b7e345a4aae2c19c85d
+    GitHub-Last-Rev: 8cac718e4854773ca411116043b4b832e0468f09
+    GitHub-Pull-Request: golang/go#42135
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264297
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/log/syslog/syslog.go      |  5 ++++-
+ src/log/syslog/syslog_test.go | 33 ++++++++++++++++++++++++---------
+ 2 files changed, 28 insertions(+), 10 deletions(-)

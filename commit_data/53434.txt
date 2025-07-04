@@ -1,0 +1,23 @@
+commit d0459766c8d6b503fda7a8d9983b4aaf92a63e01
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Jun 1 12:34:20 2023 -0400
+
+    runtime: update skips for TestGdbBacktrace
+    
+    One issue simply has a reworded message, probably from a new version of
+    GDB. Another is a new issue.
+    
+    Fixes #60553.
+    Fixes #58698.
+    Updates #39204.
+    
+    Change-Id: I8389aa981fab5421f57ee761bfb5e1dd237709ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499975
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/runtime-gdb_test.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

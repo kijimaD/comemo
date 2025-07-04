@@ -1,0 +1,15 @@
+commit 8998673cc60a53013f6461fecf90b25abd003982
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Nov 15 14:04:58 2011 +0900
+
+    net/http: fix build
+    
+    empty is already not a nil.
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/5376099
+
+ src/pkg/net/http/readrequest_test.go | 6 ++----
+ src/pkg/net/http/response_test.go    | 2 ++
+ 2 files changed, 4 insertions(+), 4 deletions(-)

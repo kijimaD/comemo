@@ -1,0 +1,18 @@
+commit 671696a22dd98c0fafcaea2d159c284367b24aa0
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Feb 7 12:10:58 2024 -0800
+
+    crypto/x509: reject critical AKI
+    
+    Updates #65085
+    
+    Change-Id: I8cc60990737d582edf4f7f85ec871f5e42f82b78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562341
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/parser.go    |  4 ++++
+ src/crypto/x509/x509_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

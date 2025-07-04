@@ -1,0 +1,12 @@
+commit 0724e5cefe92f9f4fd52101e3a7a25299a2b7f63
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 15 23:52:07 2012 +0900
+
+    build: fix clean.bash
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5672052
+
+ src/clean.bash | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

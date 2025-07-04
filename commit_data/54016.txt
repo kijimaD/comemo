@@ -1,0 +1,50 @@
+commit 4d2855b55d8feb56eebc1fffb82c26b2ffc937b4
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Aug 15 11:45:57 2023 -0400
+
+    cmd/pprof: update vendored github.com/google/pprof
+    
+    Pull in the latest published version of github.com/google/pprof
+    as part of the continuous process of keeping Go's dependencies
+    up to date. Done with:
+    
+    go get github.com/google/pprof
+    go mod tidy
+    go mod vendor
+    
+    For #36905.
+    
+    Change-Id: I2a48e912712bc916c9d749acb1550682f919477e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519657
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go.mod                                     |   4 +-
+ src/cmd/go.sum                                     |   8 +-
+ .../google/pprof/internal/binutils/addr2liner.go   |   2 +-
+ .../pprof/internal/binutils/addr2liner_llvm.go     |   2 +-
+ .../google/pprof/internal/binutils/disasm.go       |   4 +-
+ .../github.com/google/pprof/internal/driver/cli.go |  16 +-
+ .../google/pprof/internal/driver/fetch.go          |  28 ++-
+ .../google/pprof/internal/driver/html/common.js    |  12 +-
+ .../google/pprof/internal/driver/html/header.html  |   4 +-
+ .../google/pprof/internal/driver/html/stacks.css   |   8 +-
+ .../google/pprof/internal/driver/html/stacks.js    | 190 ++++++++++++++-------
+ .../google/pprof/internal/driver/webui.go          |  21 +--
+ .../google/pprof/internal/graph/graph.go           |   2 +-
+ .../pprof/internal/measurement/measurement.go      |   2 +-
+ .../google/pprof/internal/report/package.go        |   2 +-
+ .../google/pprof/internal/report/report.go         |  29 +++-
+ .../google/pprof/internal/symbolizer/symbolizer.go |   6 +-
+ .../github.com/google/pprof/profile/encode.go      |   6 +-
+ .../github.com/google/pprof/profile/profile.go     |  47 ++++-
+ .../github.com/ianlancetaylor/demangle/SECURITY.md |  13 ++
+ .../github.com/ianlancetaylor/demangle/ast.go      |  57 +++++--
+ .../github.com/ianlancetaylor/demangle/demangle.go |  79 +++++++--
+ .../github.com/ianlancetaylor/demangle/rust.go     | 100 ++++++++---
+ src/cmd/vendor/modules.txt                         |   8 +-
+ 24 files changed, 457 insertions(+), 193 deletions(-)

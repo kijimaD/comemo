@@ -1,0 +1,16 @@
+commit dd81c37f91304c2827f17dab8de661a5020c28c0
+Author: mapeiqi <mapeiqi2017@gmail.com>
+Date:   Sat Jul 15 12:15:35 2017 +0800
+
+    log: fix comment
+    
+    I just want to experience the whole Gerrit Flow, so I make this simple commit
+    as my first commit to golang src repo.
+    
+    Change-Id: Ie744573beac7a8b9361f898fac269c9d88010493
+    Reviewed-on: https://go-review.googlesource.com/48630
+    Reviewed-by: Ma Peiqi <mapeiqi2017@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/log/log.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

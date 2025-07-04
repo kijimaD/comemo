@@ -1,0 +1,17 @@
+commit 0394cbed2e169ab71975109bd6a2309cc8c91b7e
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 10 15:21:32 2022 -0400
+
+    cmd/{cover,covdata}: minor code cleanups
+    
+    Delete some unused code, and fix a few warnings from staticcheck.
+    
+    Change-Id: I3d3a6f13dccffda060449948769c305d93a0389c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441936
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/covdata/subtractintersect.go |  1 -
+ src/cmd/covdata/tool_test.go         | 12 +++++-------
+ src/cmd/cover/cfg_test.go            |  4 ++--
+ src/cmd/cover/cover.go               | 34 ++--------------------------------
+ 4 files changed, 9 insertions(+), 42 deletions(-)

@@ -1,0 +1,22 @@
+commit 01c6a19e041f6b316c17a065f7a42b8dab57c9da
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 6 17:42:42 2016 -0500
+
+    runtime: add number of forced GCs to MemStats
+    
+    This adds a counter for the number of times the application forced a
+    GC by, e.g., calling runtime.GC(). This is useful for detecting
+    applications that are overusing/abusing runtime.GC() or
+    debug.FreeOSMemory().
+    
+    Fixes #18217.
+    
+    Change-Id: I990ab7a313c1b3b7a50a3d44535c460d7c54f47d
+    Reviewed-on: https://go-review.googlesource.com/34067
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ api/go1.8.txt              |  1 +
+ src/runtime/malloc_test.go | 11 +++++++++--
+ src/runtime/mgc.go         |  9 ++++++++-
+ src/runtime/mstats.go      |  7 +++++--
+ 4 files changed, 23 insertions(+), 5 deletions(-)

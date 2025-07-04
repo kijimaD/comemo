@@ -1,0 +1,29 @@
+commit 55db1750abdf3a968a7a3a08130e0878ba8939d5
+Author: doujiang24 <doujiang24@gmail.com>
+Date:   Sat Aug 26 04:49:53 2023 +0000
+
+    cmd/cgo/internal/test: benchmark for #cgo noescape directive
+    
+    case: passing a single Go string object to C function.
+    result: 87 ns vs 61 ns.
+    
+    BenchmarkCgoCall/string-pointer-escape
+    BenchmarkCgoCall/string-pointer-escape-12        67731663   87.02 ns/op
+    BenchmarkCgoCall/string-pointer-noescape
+    BenchmarkCgoCall/string-pointer-noescape-12    99424776   61.30 ns/op
+    
+    For #56378
+    
+    Change-Id: Iff5c69d8deedfa248f5d7399e1921a5cb0dc8b16
+    GitHub-Last-Rev: fc67d5ad7a1ba56025f2c142bb88cc4174fa3a27
+    GitHub-Pull-Request: golang/go#62297
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522939
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/cgo/internal/test/test.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

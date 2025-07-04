@@ -1,0 +1,12 @@
+commit fadf159a8190b0b4dee3d508056dd30e4f5698de
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 27 16:28:36 2009 -0800
+
+    fix a bug: do not print a ';' after a label if there wasn't one
+    
+    R=r
+    OCL=25526
+    CL=25528
+
+ usr/gri/pretty/printer.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

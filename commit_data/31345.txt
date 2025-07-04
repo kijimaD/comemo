@@ -1,0 +1,28 @@
+commit 7fc82104ea87d51893f6d0664c5753be7c67b297
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 25 06:11:09 2017 +0000
+
+    cmd/go, cmd/dist: temporarily disable race and PIE internal link tests on Alpine
+    
+    In an effort to at least understand the complete set of things not
+    working on Alpine Linux, I've been trying to get the build passing
+    again, even with tests disabled.
+    
+    The race detector is broken on Alpine. That is #14481 (and #9918).
+    So disable those tests for now.
+    
+    Also, internal linking with PIE doesn't work on Alpine yet.
+    That is #18243. So disable that test for now.
+    
+    With this CL, all.bash almost passes. There's some cgo test failing
+    still, but there's no bug yet, so that can be a separate CL.
+    
+    Change-Id: I3ffbb0e787ed54cb82f298b6bd5bf3ccfbc82622
+    Reviewed-on: https://go-review.googlesource.com/41678
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go  | 18 ++++++++++++++++--
+ src/cmd/go/go_test.go | 24 +++++++++++++-----------
+ 2 files changed, 29 insertions(+), 13 deletions(-)

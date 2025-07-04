@@ -1,0 +1,15 @@
+commit ffd01f2a479af55cb12566bc2ba7e38b4be8cf01
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Jun 9 10:18:36 2011 +1000
+
+    mail: decode "Q"-encoded mail addresses.
+    
+    Supports ISO-8859-1 and UTF-8.
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4568064
+
+ src/pkg/mail/message.go      | 48 +++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/mail/message_test.go | 21 +++++++++++++++++++
+ 2 files changed, 68 insertions(+), 1 deletion(-)

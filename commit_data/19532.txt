@@ -1,0 +1,13 @@
+commit 32d8b9ffb8a83dc0d82a1a7474f47ed9bc200b7e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 12 20:12:50 2014 -0400
+
+    lib/codereview: fix doc/go1.*.txt exception
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/108950046
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

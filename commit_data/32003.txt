@@ -1,0 +1,21 @@
+commit 0b9e362b475fb6e8f947fda09da866d8ee7adefd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 10 17:56:29 2017 +0000
+
+    doc: soften the NetBSD warning now that a unverified fix is being released
+    
+    To-be-released NetBSD 7.1.1 reportedly fixes the kernel panic that was
+    affecting our builders and is being released because of Go's warning.
+    
+    So, soften our warning.
+    
+    7.1.1 might work, but I can't get a builder up and running to verify
+    yet as it appears that Anita either doesn't support it yet, or the
+    NetBSD CDN doesn't have the files yet.
+    
+    Change-Id: Ifaafc566879a6afdf1174e545ad10e240da427e8
+    Reviewed-on: https://go-review.googlesource.com/47970
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.9.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

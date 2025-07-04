@@ -1,0 +1,20 @@
+commit b1a783df87069e395f0fb1a033a685b35d34b2ee
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 5 12:01:18 2019 -0500
+
+    test/bench/go1: add go.mod file
+    
+    cmd/dist executes 'go test' within this directory, so it needs a
+    go.mod file to tell the compiler what package path to use in
+    diagnostic and debug information.
+    
+    Updates #30228
+    
+    Change-Id: Ia313ac06bc0ec4631d415faa20c56cce2ac8dbc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165498
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/bench/go1/go.mod | 3 +++
+ 1 file changed, 3 insertions(+)

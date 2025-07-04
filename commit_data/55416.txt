@@ -1,0 +1,20 @@
+commit f75e1c1460a009ee3feb9fbd34fc17b957644dc5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jan 22 18:02:38 2024 -0500
+
+    net: report timeouts more aggressively in Accept in the fake implementation
+    
+    This ensures that if the listener has already timed out when Accept
+    is called, Accept always returns an error instead of instantaneously
+    accepting a connection that was already pending.
+    
+    For #17948.
+    
+    Change-Id: Iabef7121590df3dcc2fe428429d7c2bc2bcb6cd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557438
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/net_fake.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

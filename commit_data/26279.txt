@@ -1,0 +1,15 @@
+commit 80f2aff9efc494e561552eed11b4fcea44770f83
+Author: Jeremy Jackins <jeremyjackins@gmail.com>
+Date:   Sun Mar 13 10:23:18 2016 +0900
+
+    cmd/compile: clean up C-style variable declarations in plive.go
+    
+    Change-Id: I928f51a1fe4830a81d4f5d3eb572785e06a75b77
+    Reviewed-on: https://go-review.googlesource.com/20581
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bv.go    |   4 +-
+ src/cmd/compile/internal/gc/plive.go | 263 ++++++++++++++---------------------
+ 2 files changed, 107 insertions(+), 160 deletions(-)

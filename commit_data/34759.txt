@@ -1,0 +1,20 @@
+commit 9761a162f066911a76fb7b45c383490ca3bcdcc8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 29 06:31:38 2018 -0700
+
+    cmd/go: don't try to initialize cover profile for go test -c
+    
+    Using go test -c makes you responsible for managing and merging the
+    coverage profile yourself.
+    
+    Fixes #24588
+    
+    Change-Id: I2037a91ceb904f9f35d76c7b5e5fae6bcbed4e46
+    Reviewed-on: https://go-review.googlesource.com/103395
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go             | 11 +++++++++++
+ src/cmd/go/internal/test/cover.go |  2 +-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

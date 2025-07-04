@@ -1,0 +1,19 @@
+commit 056d360f0f267909fcb0e637c7d9b4205a664fa2
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 29 18:40:06 2019 +0200
+
+    vendor: update golang.org/x/sys for aix/ppc64 fix
+    
+    This pulls in CL 179317 which fixes the build on aix/ppc64.
+    
+    Change-Id: I7d90950800627904503db97cfb0bc670a45b701e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179357
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go.mod                                              | 2 +-
+ src/go.sum                                              | 2 ++
+ src/vendor/golang.org/x/sys/cpu/syscall_aix_ppc64_gc.go | 2 ++
+ src/vendor/modules.txt                                  | 2 +-
+ 4 files changed, 6 insertions(+), 2 deletions(-)

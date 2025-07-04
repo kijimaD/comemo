@@ -1,0 +1,14 @@
+commit 67d0445c876e2015db0cf39dd26ed5643dc77ac3
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Feb 28 07:48:16 2013 +0100
+
+    log/syslog: fix race in test between channel close and accept.
+    
+    Fixes #4769.
+    
+    R=golang-dev, dave, adg, bradfitz
+    CC=fullung, golang-dev
+    https://golang.org/cl/7322089
+
+ src/pkg/log/syslog/syslog_test.go | 28 +++++++++++++++++++---------
+ 1 file changed, 19 insertions(+), 9 deletions(-)

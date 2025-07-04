@@ -1,0 +1,21 @@
+commit 6260049fa2973dea717c748e0609c4143cfd70eb
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Jun 2 14:33:23 2023 -0400
+
+    doc/go1.21: document macOS and Windows requirements
+    
+    For #58645.
+    Fixes #57125.
+    Fixes #57003.
+    Fixes #57004.
+    
+    Change-Id: I365929ca36aeb32e9ecd19f870e70869933ba6a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500239
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/go1.21.html | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

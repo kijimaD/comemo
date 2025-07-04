@@ -1,0 +1,15 @@
+commit 9413a6f660738708a321d2806236143e5e189901
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 23 11:28:32 2013 +1100
+
+    go/build: ImportDir reject directories that don't exist
+    
+    Fixes #3428.
+    
+    R=dave, remyoudompheng, rsc
+    CC=golang-dev
+    https://golang.org/cl/7129048
+
+ src/pkg/go/build/build.go      |  6 +++++-
+ src/pkg/go/build/build_test.go | 11 +++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 2ec58f73e39d933faf41eebe55894332c6578641
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 8 15:50:53 2010 -0700
+
+    bug285: delete invalid map assignment
+    
+    *T2 implements I2, but T2 does not.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1613041
+
+ test/bugs/bug285.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

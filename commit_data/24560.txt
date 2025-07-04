@@ -1,0 +1,36 @@
+commit d4d16688641738c2ea8bd69a86ee9c10195c898d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 19 15:30:21 2015 -0700
+
+    net/http: add Transport.TLSNextProto, ErrSkipAltProtocol
+    
+    This is the start of wiring up the HTTP/2 Transport. It is still
+    disabled in this commit.
+    
+    This change does two main things:
+    
+    1) Transport.RegisterProtocol now permits registering "http" or
+       "https" (they previously paniced), and the semantics of the
+       registered RoundTripper have been extended to say that the new
+       sentinel error value (ErrSkipAltProtocol, added in this CL) means
+       that the Transport's RoundTrip method proceeds as if the alternate
+       protocol had not been registered. This gives us a place to register
+       an alternate "https" RoundTripper which gets first dibs on using
+       HTTP/2 if there's already a cached connection.
+    
+    2) adds Transport.TLSNextProto, a map keyed by TLS NPN/ALPN protocol
+       strings, similar in feel to the existing Server.TLSNextProto map.
+       This map is the glue between the HTTP/1 and HTTP/2 clients, since
+       we don't know which protocol we're going to speak (and thus which
+       Transport type to use) until we've already made the TCP connection.
+    
+    Updates #6891
+    
+    Change-Id: I7328c7ff24f52d9fe4899facabf7ecc5dcb989f3
+    Reviewed-on: https://go-review.googlesource.com/16090
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go | 99 +++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 83 insertions(+), 16 deletions(-)

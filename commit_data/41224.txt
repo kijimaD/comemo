@@ -1,0 +1,23 @@
+commit fb0b6ed0cf21100b63a515a2e29b81f63fc5a2ce
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Feb 4 15:24:20 2020 +0000
+
+    doc/go1.14: remove TODO about Solaris port
+    
+    The solaris-amd64-oraclerel builder is passing for the main Go repo
+    (on tip and release branches for 1.13 and 1.12), and golang.org/x repos
+    (also on tip and release branches for 1.13 and 1.12).
+    
+    The builder is still maintained as described at
+    https://golang.org/issue/15581#issuecomment-550368581.
+    
+    Updates #36878
+    Updates #15581
+    
+    Change-Id: Icc6f7529ca2e05bb34f09ce4363d9582e80829c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217738
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+
+ doc/go1.14.html | 7 -------
+ 1 file changed, 7 deletions(-)

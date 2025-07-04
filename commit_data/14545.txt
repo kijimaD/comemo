@@ -1,0 +1,13 @@
+commit 936a6d26851dec01fdd83df376221a5c8751c8e6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Dec 4 10:14:21 2012 +1100
+
+    A+C: Egon Elbre (individual CLA)
+    
+    R=golang-dev, remyoudompheng, iant
+    CC=golang-dev
+    https://golang.org/cl/6863055
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

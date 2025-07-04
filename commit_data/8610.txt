@@ -1,0 +1,39 @@
+commit 9baaa6f74243754f5df4d4e79a00dd2790307780
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Fri Jun 3 13:20:31 2011 -0400
+
+    8l, ld: Initial adjustments for Plan 9 native compilation of 8l
+    
+    These changes are not particularly invasive and have been tested
+    as broadly as possible.
+    
+    8l/l.h:
+      -     #pragma varargck: added some, removed duplicates.
+    
+    ld/dwarf.c:
+      -     As Plan 9 has no NULL, changed all occurrences to nil.
+      -     Added USED(size); where necessary.
+      -     Added (void) argument in definition of finddebugruntimepath().
+      -     Plan 9 compiler was complaining about multiple
+            assignments, repeaired by breaking up the commands.
+      -     Correction: havedynamic = 1; restored.
+    
+    ld/go.c:
+      -     Needed USED(file); in two functions.
+      -     Removed unused assignments flagged by the Plan 9 compiler.
+    
+    ld/lib.c:
+      -     Replaced unlink() with remove() which seems available everywhere.
+      -     Removed USED(c4); and USED(magic) no longer required.
+      -     Removed code flagged as unused by the Plan 9 compiler.
+      -     Added attributes to a number of format strings.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4435047
+
+ src/cmd/8l/l.h     | 11 +++++------
+ src/cmd/ld/dwarf.c | 35 +++++++++++++++++++++--------------
+ src/cmd/ld/go.c    |  4 ++--
+ src/cmd/ld/lib.c   | 11 +++--------
+ 4 files changed, 31 insertions(+), 30 deletions(-)

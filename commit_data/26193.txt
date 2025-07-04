@@ -1,0 +1,15 @@
+commit ed4a27a8dd9bb12fc32a73b351b5987d2604a5af
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 10 10:42:28 2016 -0800
+
+    cmd/compile: change Func.Inldcl from *[]*Node to Nodes
+    
+    Change-Id: I055e986c3f27d5c07badcd1684f4fe1d65a917a9
+    Reviewed-on: https://go-review.googlesource.com/20523
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go    | 8 ++------
+ src/cmd/compile/internal/gc/syntax.go | 6 +++---
+ 2 files changed, 5 insertions(+), 9 deletions(-)

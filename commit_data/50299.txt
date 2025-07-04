@@ -1,0 +1,35 @@
+commit 3e11e61f3ced03d48e7d27ff6e51a3b1c0425db7
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Aug 28 05:23:28 2022 +1000
+
+    cmd/compile: optimise subtraction with const on riscv64
+    
+    Convert subtraction from const to a negated ADDI with negative const
+    value, where possible. At worst this avoids a register load and uses
+    the same number of instructions. At best, this allows for further
+    optimisation to occur, particularly where equality is involved.
+    
+    For example, this sequence:
+    
+       li      t0,-1
+       sub     t1,t0,a0
+       snez    t1,t1
+    
+    Becomes:
+    
+       addi    t0,a0,1
+       snez    t0,t0
+    
+    Removes more than 2000 instructions from the Go binary on linux/riscv64.
+    
+    Change-Id: I68f3be897bc645d4a8fa3ab3cef165a00a74df19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426263
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  3 ++-
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 21 +++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

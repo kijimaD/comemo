@@ -1,0 +1,20 @@
+commit a212083eea9ee745a3c8e7befb7bba4f4c95396c
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 15 15:02:32 2017 -0400
+
+    runtime: mark mstart as nowritebarrierrec
+    
+    mstart is the entry point for new threads, so it certainly can't
+    interact with GC enough to have write barriers. We move the one small
+    piece that is allowed to have write barriers out into its own
+    function.
+    
+    Change-Id: Id9c31d6ffac31d0051fab7db15eb428c11cadbad
+    Reviewed-on: https://go-review.googlesource.com/46035
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/proc.go | 30 ++++++++++++++++++++++++------
+ 1 file changed, 24 insertions(+), 6 deletions(-)

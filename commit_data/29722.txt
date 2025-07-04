@@ -1,0 +1,14 @@
+commit f52e20582a30c1a52d192f331e19c277aa1cd98f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 1 16:25:07 2016 -0800
+
+    doc: CL 32796 was reverted, so remove it from go1.8.html
+    
+    Reversion CL was 33770.
+    
+    Change-Id: I119f26796bb2b66d302e132dd118847ac3bd6633
+    Reviewed-on: https://go-review.googlesource.com/33807
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.8.html | 13 -------------
+ 1 file changed, 13 deletions(-)

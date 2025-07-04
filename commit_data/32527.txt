@@ -1,0 +1,12 @@
+commit fe1ccc5b88e60d897137c41bdcc2824556793105
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:42:06 2017 +1000
+
+    cmd/link: introduce and use peFile.writeSymbolTableAndStringTable
+    
+    Change-Id: I506f5e146f3b5bf359d6932a85ac5572d3a3f103
+    Reviewed-on: https://go-review.googlesource.com/59426
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 59 +++++++++++++++++++++---------------------
+ 1 file changed, 30 insertions(+), 29 deletions(-)

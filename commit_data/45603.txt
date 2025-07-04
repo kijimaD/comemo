@@ -1,0 +1,32 @@
+commit 287025925f66f90ad9b30aea2e533928026a8376
+Author: Keith Randall <khr@golang.org>
+Date:   Sun May 9 11:06:17 2021 -0700
+
+    cmd/compile,reflect: allow longer type names
+    
+    Encode the length of type names and tags in a varint encoding
+    instead of a fixed 2-byte encoding. This allows lengths longer
+    than 65535 (which can happen for large unnamed structs).
+    
+    Removed the alignment check for #14962, it isn't relevant any more
+    since we're no longer reading pointers directly out of this data
+    (it is encoded as an offset which is copied out bytewise).
+    
+    Fixes #44155
+    Update #14962
+    
+    Change-Id: I6084f6027e5955dc16777c87b0dd5ea2baa49629
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318249
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/reflectdata/reflect.go |  29 ++++---
+ src/cmd/link/internal/ld/decodesym.go           |   5 +-
+ src/internal/reflectlite/all_test.go            |  13 ---
+ src/internal/reflectlite/type.go                |  52 ++++++-----
+ src/reflect/all_test.go                         |  13 ---
+ src/reflect/type.go                             | 111 +++++++++++++++---------
+ src/runtime/type.go                             |  53 ++++++-----
+ 7 files changed, 143 insertions(+), 133 deletions(-)

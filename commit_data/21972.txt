@@ -1,0 +1,14 @@
+commit d7e043eaf5740cf409883e75b32fc1e076a57d2f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 10 09:39:04 2015 -0700
+
+    go/ast: fixed minor typo in comment
+    
+    Fixes #10125.
+    
+    Change-Id: I99032912650cef8e5bf124bda0a60d5899760103
+    Reviewed-on: https://go-review.googlesource.com/7320
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/ast/scope.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

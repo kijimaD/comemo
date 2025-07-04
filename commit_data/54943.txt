@@ -1,0 +1,14 @@
+commit e3585c67576bc1b0b161448b617eb2725e9c9d69
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sun Oct 29 04:08:46 2023 +0000
+
+    runtime: enable allocheaders by default
+    
+    Change-Id: I3a6cded573aa35afe8abc624c78599f03ec8bf94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538217
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/buildcfg/exp.go | 1 +
+ 1 file changed, 1 insertion(+)

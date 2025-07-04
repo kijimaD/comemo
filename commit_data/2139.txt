@@ -1,0 +1,23 @@
+commit 9cba9c8890048c19d000b1fa07a9b20a0e495fe8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 5 12:43:00 2009 -0700
+
+    6l: eliminate dead code, not just the symbols
+    
+    editing the firstp list was ineffective,
+    because follow rebuilds it from the textp list.
+    
+    the symbols for dead code were being dropped
+    from the binary but the code was all still there.
+    
+    text for fmt.Printf("hello, world\n") drops
+    from 143945 to 128650.
+    
+    R=r,ken
+    DELTA=22  (20 added, 0 deleted, 2 changed)
+    OCL=28255
+    CL=28290
+
+ src/cmd/6l/span.c |  2 +-
+ src/cmd/ld/go.c   | 22 +++++++++++++++++++++-
+ 2 files changed, 22 insertions(+), 2 deletions(-)

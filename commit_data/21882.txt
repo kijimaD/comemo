@@ -1,0 +1,16 @@
+commit 671472c1c9e9d7bd61e0e7d94a4e7a72a3d3383e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 3 15:50:32 2015 -0800
+
+    build: don't run a cgo test when cgo is disabled
+    
+    Fixes the linux-amd64-nocgo builder.
+    
+    Regression from https://golang.org/cl/6531
+    
+    Change-Id: Ibffd1ecfee4a888605ed54196f53956ae42e591c
+    Reviewed-on: https://go-review.googlesource.com/6700
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/dist/test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

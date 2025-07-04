@@ -1,0 +1,27 @@
+commit 9bba63bbbe43ee6370367220feb46717ec50ea9c
+Author: David Chase <drchase@google.com>
+Date:   Mon Nov 18 14:14:22 2019 -0500
+
+    cmd/compile: make a better bogus line for empty infinite loops
+    
+    The old recipe for making an infinite loop not be infinite
+    in the debugger could create an instruction (Prog) with a
+    line number not tied to any file (index == 0).  This caused
+    downstream failures in DWARF processing.
+    
+    So don't do that.  Also adds a test, also adds a check+panic
+    to ensure that the next time this happens the error is less
+    mystifying.
+    
+    Fixes #35652
+    
+    Change-Id: I04f30bc94fdc4aef20dd9130561303ff84fd945e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207613
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go |  3 +++
+ src/cmd/internal/src/xpos.go       |  4 ++++
+ test/fixedbugs/issue35652.go       | 15 +++++++++++++++
+ 3 files changed, 22 insertions(+)

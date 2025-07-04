@@ -1,0 +1,18 @@
+commit 6530f2617f3100d8f1036afc5cb9b30b36628aaa
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat Feb 13 02:44:11 2021 +0000
+
+    doc/go1.16: remove draft notice
+    
+    Fixes #40700.
+    
+    Change-Id: I99ed479d1bb3cdf469c0209720c728276182a7a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291809
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ doc/go1.16.html | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

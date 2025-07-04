@@ -1,0 +1,15 @@
+commit 3073a02b19464f189cfd7f66ac5edf48742616e7
+Author: Ryan Slade <ryanslade@gmail.com>
+Date:   Sat Jan 12 11:05:53 2013 +1100
+
+    testing: in example, empty output not distinguished from missing output
+    
+    Fixes #4485.
+    
+    R=golang-dev, rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/7071050
+
+ src/cmd/go/test.go        |  2 +-
+ src/pkg/go/doc/example.go | 34 +++++++++++++++++++---------------
+ 2 files changed, 20 insertions(+), 16 deletions(-)

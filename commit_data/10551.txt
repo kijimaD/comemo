@@ -1,0 +1,15 @@
+commit 06e635e46ded747737c26b74c088b48257883baa
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Wed Nov 30 15:11:44 2011 -0500
+
+    math: faster Sincos
+    
+    Sincos via sincos.go is 35.4 ns/op, via sincos_amd64.s is 37.4 ns/op on 2.53 GHz Intel Core 2 Duo (Mac OS X).
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5447045
+
+ src/pkg/math/Makefile  |  1 -
+ src/pkg/math/sincos.go | 59 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 58 insertions(+), 2 deletions(-)

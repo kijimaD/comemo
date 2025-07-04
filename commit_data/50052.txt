@@ -1,0 +1,23 @@
+commit a726c9f6620a3fa34d1549706c1151754d385182
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Jul 24 12:50:07 2022 -0700
+
+    cmd/compile: remove OVARDEF and OVARLIVE
+    
+    Neither are currently used. These concepts only need to exist
+    in the ssa backend (as ssa.OpVarDef and ssa.OpVarLive).
+    
+    Change-Id: I8d6bd14aa7967b2156e5e9a103b95146e5552f36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419319
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ir/expr.go             |  2 +-
+ src/cmd/compile/internal/ir/node.go             |  4 +--
+ src/cmd/compile/internal/ir/op_string.go        | 30 +++++++++---------
+ src/cmd/compile/internal/ssagen/ssa.go          | 41 ++++++++-----------------
+ src/cmd/compile/internal/typecheck/typecheck.go |  5 ++-
+ src/cmd/compile/internal/walk/order.go          |  2 +-
+ src/cmd/compile/internal/walk/stmt.go           |  4 +--
+ 7 files changed, 33 insertions(+), 55 deletions(-)

@@ -1,0 +1,16 @@
+commit 467f87ce60028d87f1b552c30138ccba6412333a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 9 16:45:55 2017 +0000
+
+    os/exec: remove BUG for old and unsupported OS
+    
+    Nobody uses 10.6 these days anyway.
+    
+    Fixes #20623
+    
+    Change-Id: I698c83cbc288082558e34097ff54d1428aed75ec
+    Reviewed-on: https://go-review.googlesource.com/45171
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+
+ src/os/exec/exec.go | 3 ---
+ 1 file changed, 3 deletions(-)

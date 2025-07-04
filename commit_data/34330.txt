@@ -1,0 +1,18 @@
+commit 37a038a3dcbba7148b841e31522b33476ee6ad44
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Feb 23 11:42:49 2018 +0100
+
+    cmd/compile: add code generation tests for sqrt intrinsics
+    
+    Add "sqrt-intrisified" code generation tests for mips64 and 386, where
+    we weren't intrisifying math.Sqrt (see CL 96615 and CL 95916), and for
+    mips and amd64, which lacked sqrt intrinsics tests.
+    
+    Change-Id: I0cfc08aec6eefd47f3cd7a5995a89393e8b7ed9e
+    Reviewed-on: https://go-review.googlesource.com/96716
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 48 +++++++++++++++++++++++++++++----
+ 1 file changed, 43 insertions(+), 5 deletions(-)

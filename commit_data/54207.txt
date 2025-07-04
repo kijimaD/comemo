@@ -1,0 +1,20 @@
+commit 43559aa9a5a550ba7dac224a174130e42f93de99
+Author: crozzy <joseph.crosland@gmail.com>
+Date:   Thu Aug 24 22:14:44 2023 +0000
+
+    runtime/debug: fix minor BuildSetting doc typos
+    
+    Corrects a couple of defined key descriptions.
+    
+    Change-Id: I8c5c0e3aca5431086076d19792291aee96f5d1d5
+    GitHub-Last-Rev: e722d0a923f6c556cbc7fd52f21862844538d75b
+    GitHub-Pull-Request: golang/go#62273
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522875
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/debug/mod.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit adb1e030136f14ef8434930f15a04a74568a5948
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 15 17:02:06 2015 -0700
+
+    net: RFC 6724 address selection
+    
+    At least the most important parts, I think.
+    
+    Fixes #10552
+    
+    Change-Id: I1a03c5405bdbef337e0245d226e9247d3d067393
+    Reviewed-on: https://go-review.googlesource.com/12246
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/addrselect.go      | 381 +++++++++++++++++++++++++++++++++++++++++++++
+ src/net/addrselect_test.go | 218 ++++++++++++++++++++++++++
+ src/net/dnsclient_unix.go  |   5 +-
+ 3 files changed, 602 insertions(+), 2 deletions(-)

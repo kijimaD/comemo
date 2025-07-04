@@ -1,0 +1,15 @@
+commit 2e7706d1fa50edd1bc9fa6a4d1eeb58d10fa2536
+Author: soolaugust <soolaugust@gmail.com>
+Date:   Mon Oct 12 07:13:18 2020 +0000
+
+    ssa: comment Sdom() with the form "Sdom..."
+    
+    Change-Id: I7ddb3d178e5437a7c3d8e94a089ac7a476a7dc85
+    GitHub-Last-Rev: bc27289128079f294ec149ccc4539ad29b859c9f
+    GitHub-Pull-Request: golang/go#41925
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261437
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/func.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

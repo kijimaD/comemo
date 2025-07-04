@@ -1,0 +1,32 @@
+commit 3633d2c545cf21c2803103e1036f17f19b4ae6fa
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 15 15:38:00 2020 -0400
+
+    runtime: perform debug call injection on a new goroutine
+    
+    Currently, when a debugger injects a call, that call happens on the
+    goroutine where the debugger injected it. However, this requires
+    significant runtime complexity that we're about to remove.
+    
+    To prepare for this, this CL switches to a different approach that
+    leaves the interrupted goroutine parked and runs the debug call on a
+    new goroutine. When the debug call returns, it resumes the original
+    goroutine.
+    
+    This should be essentially transparent to debuggers. It follows the
+    exact same call injection protocol and ensures the whole protocol
+    executes indivisibly on a single OS thread. The only difference is
+    that the current G and stack now change part way through the protocol.
+    
+    For #36365.
+    
+    Change-Id: I68463bfd73cbee06cfc49999606410a59dd8f653
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229299
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/debugcall.go         | 124 ++++++++++++++++++++++++++++++++++++++-
+ src/runtime/export_debug_test.go |  12 ++--
+ src/runtime/runtime2.go          |   2 +
+ 3 files changed, 132 insertions(+), 6 deletions(-)

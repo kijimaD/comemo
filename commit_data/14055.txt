@@ -1,0 +1,23 @@
+commit 54c109b122b2afe911882cc9f8c2dcaaa7e0005c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Oct 7 10:31:56 2012 -0700
+
+    os: make TestMkdirAllWithSymlink more robust
+    
+    Don't assume the test has a clean environment within /tmp.
+    Use an actual new tempdir for its tests.
+    
+    Fixes FreeBSD build failure as seen at:
+    http://build.golang.org/log/396738676356d7fb6bab6eaf1b97cac820f8a90f
+    
+    --- FAIL: TestMkdirAllWithSymlink (0.00 seconds)
+    path_test.go:178:                 Mkdir /tmp/dir: mkdir /tmp/dir: file exists
+    FAIL
+    FAIL    os      1.091s
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6615057
+
+ src/pkg/os/path_test.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

@@ -1,0 +1,12 @@
+commit 8bffb8546cb8ed1c849989ddf2b151edc983a616
+Author: Andrew <andybons@golang.org>
+Date:   Mon Feb 25 21:33:12 2019 +0000
+
+    doc: document Go 1.12
+    
+    Change-Id: I845375d2b3824211b80885228ba5b45503cba1a6
+    Reviewed-on: https://go-review.googlesource.com/c/163722
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

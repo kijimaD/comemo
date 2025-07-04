@@ -1,0 +1,13 @@
+commit 55f19ed866d55ebfdbed59893ff93fb00a7c35fe
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Nov 18 09:55:15 2014 +1100
+
+    runtime: fix getcallersp documentation
+    
+    LGTM=bradfitz
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/180760043
+
+ src/runtime/stubs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

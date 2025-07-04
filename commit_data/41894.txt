@@ -1,0 +1,29 @@
+commit 98b6c6aca6fd4185f97dc40137707f4d8df8aa7c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Apr 8 03:08:21 2020 +0700
+
+    cmd/compile: do not allocate bucket for non-escaping map
+    
+    For map with hint larger than BUCKETSIZE, makemap ignore allocated
+    bucket and allocate buckets itself. So do not allocate bucket in
+    this case, save us the cost of zeroing+assignment to the bucket.
+    
+    name                            old time/op    new time/op    delta
+    NewEmptyMap-12                    3.89ns ± 4%    3.88ns ± 2%    ~     (p=0.939 n=19+20)
+    NewSmallMap-12                    23.3ns ± 3%    23.1ns ± 2%    ~     (p=0.307 n=18+17)
+    NewEmptyMapHintLessThan8-12       6.43ns ± 3%    6.31ns ± 2%  -1.72%  (p=0.000 n=19+18)
+    NewEmptyMapHintGreaterThan8-12     159ns ± 2%     150ns ± 1%  -5.79%  (p=0.000 n=20+18)
+    
+    Benchmark run with commit ab7c174 reverted, see #38314.
+    
+    Fixes #20184
+    
+    Change-Id: Ic021f57454c3a0dd50601d73bbd77b8faf8d93b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227458
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 24 +++++++++++++++++++-----
+ src/runtime/map_benchmark_test.go   | 19 +++++++++++++++++++
+ 2 files changed, 38 insertions(+), 5 deletions(-)

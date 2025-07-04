@@ -1,0 +1,14 @@
+commit 4c38b6a96a19022f6ab87c489f32d7e78ca83214
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 8 14:51:50 2016 -0500
+
+    api: fix build for go/build change
+    
+    Fixes build.
+    
+    Change-Id: I5235deed7b93157854acb79c15e2e99cc28d300a
+    Reviewed-on: https://go-review.googlesource.com/18456
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ api/go1.6.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

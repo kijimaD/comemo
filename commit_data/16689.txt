@@ -1,0 +1,44 @@
+commit 1135ef153f41915d18d5435d5ac2e1345b019d6e
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Mon Jul 1 21:20:33 2013 -0400
+
+    sort: implement stable sorting
+    
+    This CL provides stable in-place sorting by use of
+    bottom up merge sort with in-place merging done by
+    the SymMerge algorithm from P.-S. Kim and A. Kutzner.
+    
+    The additional space needed for stable sorting (in the form of
+    stack space) is logarithmic in the inputs size n.
+    Number of calls to Less and Swap grow like O(n * log n) and
+    O(n * log n * log n):
+    Stable sorting random data uses significantly more calls
+    to Swap than the unstable quicksort implementation (5 times more
+    on n=100, 10 times more on n=1e4 and 23 times more on n=1e8).
+    The number of calls to Less is practically the same for Sort and
+    Stable.
+    
+    Stable sorting 1 million random integers takes 5 times longer
+    than using Sort.
+    
+    BenchmarkSortString1K      50000       328662 ns/op
+    BenchmarkStableString1K    50000       380231 ns/op  1.15 slower
+    BenchmarkSortInt1K         50000       157336 ns/op
+    BenchmarkStableInt1K       50000       191167 ns/op  1.22 slower
+    BenchmarkSortInt64K         1000     14466297 ns/op
+    BenchmarkStableInt64K        500     16190266 ns/op  1.12 slower
+    
+    BenchmarkSort1e2          200000        64923 ns/op
+    BenchmarkStable1e2         50000       167128 ns/op  2.57 slower
+    BenchmarkSort1e4            1000     14540613 ns/op
+    BenchmarkStable1e4           100     58117289 ns/op  4.00 slower
+    BenchmarkSort1e6               5   2429631508 ns/op
+    BenchmarkStable1e6             1  12077036952 ns/op  4.97 slower
+    
+    R=golang-dev, bradfitz, iant, 0xjnml, rsc
+    CC=golang-dev
+    https://golang.org/cl/9612044
+
+ src/pkg/sort/sort.go      | 189 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/sort/sort_test.go | 196 +++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 381 insertions(+), 4 deletions(-)

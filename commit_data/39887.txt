@@ -1,0 +1,24 @@
+commit 90e0b40ab24e9dbd2404e597c76635f4b4e1ba2f
+Author: Ruixin Bao <ruixin.bao@ibm.com>
+Date:   Tue Aug 27 15:22:28 2019 -0400
+
+    cmd/internal/obj/s390x: use 12 bit load and store instruction when possible on s390x
+    
+    Originally, we default to use load and store instruction with 20 bit displacement.
+    However, that is not necessary. Some instructions have a displacement smaller
+    than 12 bit. This CL allows the usage of 12 bit load and store instruction when
+    that happens.
+    
+    This change also reduces the size of .text section in go binary by 19 KB.
+    
+    Some tests are also added to verify the functionality of the change.
+    
+    Change-Id: I13edea06ca653d4b9ffeaefe8d010bc2f065c2ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194857
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/s390x.s | 44 +++++++++++++++++++++++------
+ src/cmd/internal/obj/s390x/asmz.go        | 47 +++++++++++++++++++++++++++++--
+ 2 files changed, 80 insertions(+), 11 deletions(-)

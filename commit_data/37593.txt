@@ -1,0 +1,30 @@
+commit 162de6b5f0c332ca0a1ac5879682cd48c2f93ead
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Dec 4 10:29:23 2018 -0500
+
+    cmd/vendor: update to golang.org/x/arch@5a4828b
+    
+    This updates master to fix the ppc64 objdump. There were many cases where
+    the Go objdump was generating opcodes that didn't exist in the Go assembler,
+    or generated operands in the wrong order. The goal is to generate a Go
+    objdump that is acceptable to the Go assembler, or as close as possible.
+    
+    An additional change will be needed for the Go objdump tool to make
+    use of this.
+    
+    Change-Id: Ie8d2d534e13b9a64852c99b4b864a9c08ed7e036
+    Reviewed-on: https://go-review.googlesource.com/c/152517
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ .../golang.org/x/arch/ppc64/ppc64asm/decode.go     |    2 +-
+ .../x/arch/ppc64/ppc64asm/decode_test.go           |    4 +-
+ .../vendor/golang.org/x/arch/ppc64/ppc64asm/gnu.go |    8 +-
+ .../x/arch/ppc64/ppc64asm/objdump_test.go          |    4 +-
+ .../golang.org/x/arch/ppc64/ppc64asm/plan9.go      |  129 +-
+ .../golang.org/x/arch/ppc64/ppc64asm/tables.go     | 1495 ++++++++++----------
+ .../x/arch/ppc64/ppc64asm/testdata/decode.txt      |   55 +-
+ src/cmd/vendor/vendor.json                         |    4 +-
+ 8 files changed, 941 insertions(+), 760 deletions(-)

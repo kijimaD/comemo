@@ -1,0 +1,16 @@
+commit 129c6c14d1426d0f75aca82e642434ea348ea153
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Jun 7 14:18:42 2010 -0700
+
+    runtime: finish pchw -> tiny, added gettime for tiny
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1514041
+
+ src/cmd/8l/obj.c                  |  2 +-
+ src/pkg/runtime/Makefile          |  4 ++--
+ src/pkg/runtime/tiny/386/rt0.s    |  2 +-
+ src/pkg/runtime/tiny/386/signal.c | 11 ++++++++++-
+ src/pkg/runtime/tiny/README       |  3 +++
+ 5 files changed, 17 insertions(+), 5 deletions(-)

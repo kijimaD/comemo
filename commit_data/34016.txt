@@ -1,0 +1,21 @@
+commit 67fdf587dc5c3ac9f6891c9502d5cfdd1234a37e
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Wed Jan 17 12:13:45 2018 -0800
+
+    cmd/compile: don't combine 64-bit loads/stores on amd64
+    
+    This causes a performance regression for some calls.
+    
+    Fixes #23424.
+    Updates #6853.
+    
+    Change-Id: Id1db652d5aca0ce631a3417c0c056d6637fefa9e
+    Reviewed-on: https://go-review.googlesource.com/88135
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go      |  8 ---
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 16 ------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 76 +---------------------------
+ 3 files changed, 1 insertion(+), 99 deletions(-)

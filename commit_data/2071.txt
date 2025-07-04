@@ -1,0 +1,13 @@
+commit b5e756219133c6ac746e006d2beb92551ce02f21
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Apr 21 17:00:08 2009 -0700
+
+    supply default indirection to
+    map indexing - bug 143
+    
+    R=r
+    OCL=27695
+    CL=27695
+
+ src/cmd/gc/walk.c | 2 ++
+ 1 file changed, 2 insertions(+)

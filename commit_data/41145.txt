@@ -1,0 +1,37 @@
+commit 9b5bd30716914a86619c050f0d75c0da4133b257
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jan 6 11:10:26 2020 -0500
+
+    runtime: document special memmove requirements
+    
+    Unlike C's memmove, Go's memmove must be careful to do indivisible
+    writes of pointer values because it may be racing with the garbage
+    collector reading the heap.
+    
+    We've had various bugs related to this over the years (#36101, #13160,
+     #12552). Indeed, memmove is a great target for optimization and it's
+    easy to forget the special requirements of Go's memmove.
+    
+    The CL documents these (currently unwritten!) requirements. We're also
+    adding a test that should hopefully keep everyone honest going
+    forward, though it's hard to be sure we're hitting all cases of
+    memmove.
+    
+    Change-Id: I2f59f8d8d6fb42d2f10006b55d605b5efd8ddc24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213418
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/memmove_386.s         |  2 ++
+ src/runtime/memmove_amd64.s       |  2 ++
+ src/runtime/memmove_arm.s         |  2 ++
+ src/runtime/memmove_arm64.s       |  2 ++
+ src/runtime/memmove_mips64x.s     |  2 ++
+ src/runtime/memmove_mipsx.s       |  2 ++
+ src/runtime/memmove_plan9_386.s   |  2 ++
+ src/runtime/memmove_plan9_amd64.s |  2 ++
+ src/runtime/memmove_ppc64x.s      |  2 ++
+ src/runtime/memmove_riscv64.s     |  2 ++
+ src/runtime/memmove_s390x.s       |  2 ++
+ src/runtime/memmove_wasm.s        |  2 ++
+ src/runtime/stubs.go              | 12 +++++++++++-
+ 13 files changed, 35 insertions(+), 1 deletion(-)

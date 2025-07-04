@@ -1,0 +1,22 @@
+commit b89d6309771909674413789100c17c6d96945477
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 28 18:23:53 2009 -0700
+
+    Fix bug when sending via select.
+    
+    selfree maintains a cache of Select structures for several sizes. In
+    newselect, we'll use an entry from the cache if one is found. However,
+    the Scase structures corresponding to a send may have been allocated
+    for the wrong size. In this case we'll write off the end of the Scase
+    into random memory and, generally, read some amount of junk in the
+    receive.
+    
+    This patch fixes the issue by removing the cache, on the advice of
+    rsc.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1016002
+
+ src/pkg/runtime/chan.c | 51 +++++++++++++++++++-------------------------------
+ 1 file changed, 19 insertions(+), 32 deletions(-)

@@ -1,0 +1,96 @@
+commit b92d39ef6924fd5174449f95505d782f3f75db16
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 7 16:50:46 2016 -0700
+
+    cmd/compile/internal/obj/x86: eliminate some function prologues
+    
+    The standard sort swap method
+    
+    func (t T) Swap(i, j int) {
+      t[i], t[j] = t[j], t[i]
+    }
+    
+    uses no stack space on architectures for which
+    FixedFrameSize == 0, currently 386 and amd64.
+    
+    Nevertheless, we insert a stack check prologue.
+    This is because it contains a call to
+    runtime.panicindex.
+    
+    However, for a few common runtime functions,
+    we know at compile time that they require
+    no arguments. Allow them to pass unnoticed.
+    
+    Triggers for 380 functions during make.bash.
+    Cuts 4k off cmd/go.
+    
+    encoding/binary benchmarks:
+    
+    ReadSlice1000Int32s-8     9.49µs ± 3%    9.41µs ± 5%    ~     (p=0.075 n=29+27)
+    ReadStruct-8              1.50µs ± 3%    1.48µs ± 2%  -1.49%  (p=0.000 n=30+28)
+    ReadInts-8                 599ns ± 3%     600ns ± 3%    ~     (p=0.471 n=30+29)
+    WriteInts-8                836ns ± 4%     841ns ± 3%    ~     (p=0.371 n=30+29)
+    WriteSlice1000Int32s-8    8.84µs ± 3%    8.69µs ± 5%  -1.71%  (p=0.001 n=30+30)
+    PutUvarint32-8            29.6ns ± 1%    28.1ns ± 3%  -5.21%  (p=0.000 n=28+28)
+    PutUvarint64-8            82.6ns ± 5%    82.3ns ±10%  -0.43%  (p=0.014 n=27+30)
+    
+    Swap assembly before:
+    
+    "".T.Swap t=1 size=74 args=0x28 locals=0x0
+            0x0000 00000 (swap.go:5)        TEXT    "".T.Swap(SB), $0-40
+            0x0000 00000 (swap.go:5)        MOVQ    (TLS), CX
+            0x0009 00009 (swap.go:5)        CMPQ    SP, 16(CX)
+            0x000d 00013 (swap.go:5)        JLS     67
+            0x000f 00015 (swap.go:5)        FUNCDATA        $0, gclocals·3cadd97b66f25a3a642be35e9362338f(SB)
+            0x000f 00015 (swap.go:5)        FUNCDATA        $1, gclocals·69c1753bd5f81501d95132d08af04464(SB)
+            0x000f 00015 (swap.go:5)        MOVQ    "".i+32(FP), AX
+            0x0014 00020 (swap.go:5)        MOVQ    "".t+16(FP), CX
+            0x0019 00025 (swap.go:5)        CMPQ    AX, CX
+            0x001c 00028 (swap.go:5)        JCC     $0, 60
+            0x001e 00030 (swap.go:5)        MOVQ    "".t+8(FP), DX
+            0x0023 00035 (swap.go:5)        MOVBLZX (DX)(AX*1), BX
+            0x0027 00039 (swap.go:5)        MOVQ    "".j+40(FP), SI
+            0x002c 00044 (swap.go:5)        CMPQ    SI, CX
+            0x002f 00047 (swap.go:5)        JCC     $0, 60
+            0x0031 00049 (swap.go:5)        MOVBLZX (DX)(SI*1), CX
+            0x0035 00053 (swap.go:5)        MOVB    CL, (DX)(AX*1)
+            0x0038 00056 (swap.go:5)        MOVB    BL, (DX)(SI*1)
+            0x003b 00059 (swap.go:5)        RET
+            0x003c 00060 (swap.go:5)        PCDATA  $0, $1
+            0x003c 00060 (swap.go:5)        CALL    runtime.panicindex(SB)
+            0x0041 00065 (swap.go:5)        UNDEF
+            0x0043 00067 (swap.go:5)        NOP
+            0x0043 00067 (swap.go:5)        CALL    runtime.morestack_noctxt(SB)
+            0x0048 00072 (swap.go:5)        JMP     0
+    
+    Swap assembly after:
+    
+    "".T.Swap t=1 size=52 args=0x28 locals=0x0
+            0x0000 00000 (swap.go:5)        TEXT    "".T.Swap(SB), $0-40
+            0x0000 00000 (swap.go:5)        FUNCDATA        $0, gclocals·3cadd97b66f25a3a642be35e9362338f(SB)
+            0x0000 00000 (swap.go:5)        FUNCDATA        $1, gclocals·69c1753bd5f81501d95132d08af04464(SB)
+            0x0000 00000 (swap.go:5)        MOVQ    "".i+32(FP), AX
+            0x0005 00005 (swap.go:5)        MOVQ    "".t+16(FP), CX
+            0x000a 00010 (swap.go:5)        CMPQ    AX, CX
+            0x000d 00013 (swap.go:5)        JCC     $0, 45
+            0x000f 00015 (swap.go:5)        MOVQ    "".t+8(FP), DX
+            0x0014 00020 (swap.go:5)        MOVBLZX (DX)(AX*1), BX
+            0x0018 00024 (swap.go:5)        MOVQ    "".j+40(FP), SI
+            0x001d 00029 (swap.go:5)        CMPQ    SI, CX
+            0x0020 00032 (swap.go:5)        JCC     $0, 45
+            0x0022 00034 (swap.go:5)        MOVBLZX (DX)(SI*1), CX
+            0x0026 00038 (swap.go:5)        MOVB    CL, (DX)(AX*1)
+            0x0029 00041 (swap.go:5)        MOVB    BL, (DX)(SI*1)
+            0x002c 00044 (swap.go:5)        RET
+            0x002d 00045 (swap.go:5)        PCDATA  $0, $1
+            0x002d 00045 (swap.go:5)        CALL    runtime.panicindex(SB)
+            0x0032 00050 (swap.go:5)        UNDEF
+    
+    Change-Id: I57dad14af8aaa5e6112deac407cfadc2bfaf1f54
+    Reviewed-on: https://go-review.googlesource.com/24814
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/obj/x86/obj6.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 5fb39cc6a2621602d33c6b226742795318a279ea
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 3 16:10:45 2014 -0400
+
+    net: accept a few more errors in Accept4 wrapper
+    
+    Fixes #7271.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/84170043
+
+ src/pkg/net/sock_cloexec.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

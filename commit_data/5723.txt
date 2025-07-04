@@ -1,0 +1,12 @@
+commit 715425bf6f6e82fd6e6c84c920be651e98c3be2e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jun 29 10:54:41 2010 +1000
+
+    exp/draw/x11: implement the mapping from keycodes to keysyms.
+    
+    R=rsc
+    CC=golang-dev, rog
+    https://golang.org/cl/1739042
+
+ src/pkg/exp/draw/x11/conn.go | 109 +++++++++++++++++++++++++++++++------------
+ 1 file changed, 78 insertions(+), 31 deletions(-)

@@ -1,0 +1,15 @@
+commit 3a6a41868eb620912235f2dd3f9738c76035e731
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 27 16:30:03 2016 -0400
+
+    doc: mention frame pointers in Go 1.7 release notes
+    
+    For #15840.
+    
+    Change-Id: I2ecf5c7b00afc2034cf3d7a1fd78636a908beb67
+    Reviewed-on: https://go-review.googlesource.com/23517
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.7.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

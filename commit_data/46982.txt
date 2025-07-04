@@ -1,0 +1,16 @@
+commit 392bb0677cfe6e6058d4f11953de80cdc20c52a8
+Author: Amelia Downs <adowns@vmware.com>
+Date:   Mon Oct 18 12:36:07 2021 -0400
+
+    net/url: add testable examples for Values funcs
+    
+    Change-Id: Id71f3d8d7c1ef7910d5d9497167dc677f2f0a2ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356535
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/url/example_test.go | 78 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 78 insertions(+)

@@ -1,0 +1,65 @@
+commit 0b09425b5cfda5bd535ec226b9368e396d6d07a7
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Jun 8 17:35:14 2012 -0400
+
+    runtime: use uintptr where possible in malloc stats
+    
+    linux/arm OMAP4 pandaboard
+    
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkBinaryTree17   68723297000  37026214000  -46.12%
+    BenchmarkFannkuch11     34962402000  35958435000   +2.85%
+    BenchmarkGobDecode        137298600    124182150   -9.55%
+    BenchmarkGobEncode         60717160     60006700   -1.17%
+    BenchmarkGzip            5647156000   5550873000   -1.70%
+    BenchmarkGunzip          1196350000   1198670000   +0.19%
+    BenchmarkJSONEncode       863012800    782898000   -9.28%
+    BenchmarkJSONDecode      3312989000   2781800000  -16.03%
+    BenchmarkMandelbrot200     45727540     45703120   -0.05%
+    BenchmarkParse             74781800     59990840  -19.78%
+    BenchmarkRevcomp          140043650    139462300   -0.42%
+    BenchmarkTemplate        6467682000   5832153000   -9.83%
+    
+    benchmark                  old MB/s     new MB/s  speedup
+    BenchmarkGobDecode             5.59         6.18    1.11x
+    BenchmarkGobEncode            12.64        12.79    1.01x
+    BenchmarkGzip                  3.44         3.50    1.02x
+    BenchmarkGunzip               16.22        16.19    1.00x
+    BenchmarkJSONEncode            2.25         2.48    1.10x
+    BenchmarkJSONDecode            0.59         0.70    1.19x
+    BenchmarkParse                 0.77         0.97    1.26x
+    BenchmarkRevcomp              18.15        18.23    1.00x
+    BenchmarkTemplate              0.30         0.33    1.10x
+    
+    darwin/386 core duo
+    
+    benchmark                 old ns/op    new ns/op    delta
+    BenchmarkBinaryTree17   10591616577   9678245733   -8.62%
+    BenchmarkFannkuch11     10758473315  10749303846   -0.09%
+    BenchmarkGobDecode         34379785     34121250   -0.75%
+    BenchmarkGobEncode         23523721     23475750   -0.20%
+    BenchmarkGzip            2486191492   2446539568   -1.59%
+    BenchmarkGunzip           444179328    444250293   +0.02%
+    BenchmarkJSONEncode       221138507    219757826   -0.62%
+    BenchmarkJSONDecode      1056034428   1048975133   -0.67%
+    BenchmarkMandelbrot200     19862516     19868346   +0.03%
+    BenchmarkRevcomp         3742610872   3724821662   -0.48%
+    BenchmarkTemplate         960283112    944791517   -1.61%
+    
+    benchmark                  old MB/s     new MB/s  speedup
+    BenchmarkGobDecode            22.33        22.49    1.01x
+    BenchmarkGobEncode            32.63        32.69    1.00x
+    BenchmarkGzip                  7.80         7.93    1.02x
+    BenchmarkGunzip               43.69        43.68    1.00x
+    BenchmarkJSONEncode            8.77         8.83    1.01x
+    BenchmarkJSONDecode            1.84         1.85    1.01x
+    BenchmarkRevcomp              67.91        68.24    1.00x
+    BenchmarkTemplate              2.02         2.05    1.01x
+    
+    R=rsc, 0xe2.0x9a.0x9b, mirtchovski
+    CC=golang-dev, minux.ma
+    https://golang.org/cl/6297047
+
+ src/pkg/runtime/malloc.goc | 15 +++++++++++++++
+ src/pkg/runtime/malloc.h   | 20 ++++++++++----------
+ 2 files changed, 25 insertions(+), 10 deletions(-)

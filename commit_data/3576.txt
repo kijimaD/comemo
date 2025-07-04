@@ -1,0 +1,13 @@
+commit c58d9efc63e46b0223a2c76af0229d885d5d436e
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 16 11:23:45 2009 -0700
+
+    fix pre-submit editing typo; text is garbled.
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=35841
+    CL=35841
+
+ doc/effective_go.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

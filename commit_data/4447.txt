@@ -1,0 +1,46 @@
+commit 8bf58725b23a25a4d153a9b90624eb95c0aeca12
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Dec 17 10:32:17 2009 +1100
+
+    Basic image/jpeg decoder.
+    
+    This is not a complete JPEG implementation (e.g. it does not handle
+    progressive JPEGs or restart markers), but I was able to take a photo
+    with my phone, and view the resultant JPEG in pure Go.
+    
+    The decoder is simple, but slow. The Huffman decoder in particular
+    should be easily improvable, but optimization is left to future
+    changelists. Being able to inline functions in the inner loop should
+    also help performance.
+    
+    The output is not pixel-for-pixel identical to libjpeg, although
+    identical behavior isn't necessarily a goal, since JPEG is a lossy
+    codec. There are at least two reasons for the discrepancy.
+    
+    First, the inverse DCT algorithm used is the same as Plan9's
+    src/cmd/jpg, which has different rounding errors from libjpeg's
+    default IDCT implementation. Note that libjpeg actually has three
+    different IDCT implementations: one floating point, and two fixed
+    point. Out of those four, Plan9's seemed the simplest to understand,
+    partly because it has no #ifdef's or C macros.
+    
+    Second, for 4:2:2 or 4:2:0 chroma sampling, this implementation does
+    nearest neighbor upsampling, compared to libjpeg's triangle filter
+    (e.g. see h2v1_fancy_upsample in jdsample.c).
+    
+    The difference from the first reason is typically zero, but sometimes
+    1 (out of 256) in YCbCr space, or double that in RGB space. The
+    difference from the second reason can be as large as 8/256 in YCbCr
+    space, in regions of steep chroma gradients. Informal eyeballing
+    suggests that the net difference is typically imperceptible, though.
+    
+    R=r
+    CC=golang-dev, rsc
+    https://golang.org/cl/164056
+
+ src/pkg/Makefile              |   2 +
+ src/pkg/image/jpeg/Makefile   |  13 ++
+ src/pkg/image/jpeg/huffman.go | 190 ++++++++++++++++++++
+ src/pkg/image/jpeg/idct.go    | 190 ++++++++++++++++++++
+ src/pkg/image/jpeg/reader.go  | 392 ++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 787 insertions(+)

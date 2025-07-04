@@ -1,0 +1,18 @@
+commit a08bbd964dd037331b2693aff731ec2d8376a721
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 18 14:59:05 2021 -0400
+
+    cmd/go: add missing cgo conditions in script tests
+    
+    Change-Id: I7cd1643b2dd5c00be84574d17830b1d5383643fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356610
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/testdata/script/build_overlay.txt      | 28 +++++++++++------------
+ src/cmd/go/testdata/script/list_swigcxx.txt       |  6 +++--
+ src/cmd/go/testdata/script/test_build_failure.txt |  2 +-
+ 3 files changed, 19 insertions(+), 17 deletions(-)

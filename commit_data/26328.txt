@@ -1,0 +1,24 @@
+commit d45bf7228f742e63a30eef03e5288df332906838
+Author: Austin Clements <austin@google.com>
+Date:   Sun Feb 21 10:40:39 2016 -0500
+
+    runtime: define lock order between G status and channel lock
+    
+    Currently, locking a G's stack by setting its status to _Gcopystack or
+    _Gscan is unordered with respect to channel locks. However, when we
+    make stack shrinking concurrent, stack shrinking will need to lock the
+    G and then acquire channel locks, which imposes an order on these.
+    
+    Document this lock ordering and fix closechan to respect it.
+    Everything else already happens to respect it.
+    
+    For #12967.
+    
+    Change-Id: I4dd02675efffb3e7daa5285cf75bf24f987d90d4
+    Reviewed-on: https://go-review.googlesource.com/20041
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/chan.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

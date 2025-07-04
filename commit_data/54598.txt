@@ -1,0 +1,23 @@
+commit 36b14a78b58924a8aea22c8949c3b8a4b7045d8b
+Author: cui fliter <imcusg@gmail.com>
+Date:   Mon Oct 2 15:09:26 2023 +0800
+
+    cmd: fix mismatched symbols
+    
+    Change-Id: I6365cdf22ad5e669908519d0ee8b78d76ae8f1b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532075
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/covdata/doc.go                   | 2 +-
+ src/cmd/cover/doc.go                     | 2 +-
+ src/cmd/go/internal/load/pkg.go          | 2 +-
+ src/cmd/go/internal/modload/buildlist.go | 2 +-
+ src/cmd/internal/obj/loong64/asm.go      | 2 +-
+ src/cmd/internal/obj/mips/asm0.go        | 2 +-
+ src/cmd/internal/obj/s390x/asmz.go       | 2 +-
+ src/cmd/link/internal/ld/pe.go           | 2 +-
+ 8 files changed, 8 insertions(+), 8 deletions(-)

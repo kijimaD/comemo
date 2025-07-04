@@ -1,0 +1,16 @@
+commit 1df5183f4c6f90ab3ea6fc4a928d2e7d7f55ce3d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 28 22:06:11 2016 -0800
+
+    misc/cgo/testsanitizers: report stderr if go run tsan*.go fails
+    
+    Update #14559.
+    
+    Change-Id: I8894f8e16902685f55a21d902199fbe0905f0558
+    Reviewed-on: https://go-review.googlesource.com/20050
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ misc/cgo/testsanitizers/test.bash | 2 ++
+ 1 file changed, 2 insertions(+)

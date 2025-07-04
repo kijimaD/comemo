@@ -1,0 +1,21 @@
+commit ebbaba281393de259b751779185855001876090a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 10 16:16:19 2022 -0700
+
+    path/filepath: document that WalkDir uses OS paths
+    
+    Fixes #52812
+    
+    Change-Id: Idb70d0540bbf9ecdc64293c62a23f07ee3be883c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405615
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/path/filepath/path.go | 4 ++++
+ 1 file changed, 4 insertions(+)

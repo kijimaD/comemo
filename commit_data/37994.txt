@@ -1,0 +1,16 @@
+commit 8827147932314ab623cc65e071c5b48b2d76e37b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 19 13:53:39 2019 -0500
+
+    cmd/nm: fix testGoLib helper to be module-agnostic
+    
+    Updates #30228
+    
+    Change-Id: I3c7864e6725312df5ec978cdc130ccfe8fc2e738
+    Reviewed-on: https://go-review.googlesource.com/c/162836
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/nm/nm_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

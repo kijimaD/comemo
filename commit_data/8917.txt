@@ -1,0 +1,18 @@
+commit b4cae4aee24363580c14e69a3b6bbcdf9b108f92
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 30 10:26:22 2011 -0400
+
+    exp/regexp/syntax: finish Regexp manipulation
+    
+    Except for the inevitable bug fixes, the Regexp code is done.
+    
+    R=sam.thorogood, r
+    CC=golang-dev
+    https://golang.org/cl/4635082
+
+ src/pkg/exp/regexp/syntax/parse.go         | 364 ++++++++++++++++++++++++++---
+ src/pkg/exp/regexp/syntax/parse_test.go    |  10 +-
+ src/pkg/exp/regexp/syntax/regexp.go        |  76 +++++-
+ src/pkg/exp/regexp/syntax/simplify.go      | 151 ++++++++++++
+ src/pkg/exp/regexp/syntax/simplify_test.go | 151 ++++++++++++
+ 5 files changed, 713 insertions(+), 39 deletions(-)

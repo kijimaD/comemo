@@ -1,0 +1,34 @@
+commit 691c5c156878799ec15683f10e24d9a924ea7996
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jun 17 14:05:35 2016 +1000
+
+    debug/pe: handle files with no string table
+    
+    pecoff.doc (https://goo.gl/ayvckk) in section 5.6 says:
+    
+    Immediately following the COFF symbol table is the COFF string table.
+    The position of this table is found by taking the symbol table address
+    in the COFF header, and adding the number of symbols multiplied by
+    the size of a symbol.
+    
+    So it is unclear what to do when symbol table address is 0.
+    Lets assume executable does not have any string table.
+    
+    Added new test with executable with no symbol table. The
+    
+    gcc -s testdata\hello.c -o testdata\gcc-386-mingw-no-symbols-exec.
+    
+    command was used to generate the executable.
+    
+    Fixes #16084
+    
+    Change-Id: Ie74137ac64b15daadd28e1f0315f3b62d1bf2059
+    Reviewed-on: https://go-review.googlesource.com/24200
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/pe/file_test.go                          |  35 +++++++++++++++++++++
+ src/debug/pe/string.go                             |   3 ++
+ .../pe/testdata/gcc-386-mingw-no-symbols-exec      | Bin 0 -> 8704 bytes
+ 3 files changed, 38 insertions(+)

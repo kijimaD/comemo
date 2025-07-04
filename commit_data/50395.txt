@@ -1,0 +1,16 @@
+commit 7033275e3742c31810bd2f8da13d0b3c90363837
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun Jun 5 18:28:51 2022 +0100
+
+    .github: update issue label for pkgsite-removal
+    
+    Change-Id: Ie90013077068b8e61bd651f2e686b06b6dad9fc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410454
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Jamal Carvalho <jamal@golang.org>
+    Reviewed-by: Jamal Carvalho <jamal@golang.org>
+    Run-TryBot: Jamal Carvalho <jamal@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ .github/ISSUE_TEMPLATE/02-pkgsite-removal.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

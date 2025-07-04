@@ -1,0 +1,19 @@
+commit a02516a3797571b5c88b0fc44a225daf401ab457
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Sep 16 14:14:27 2024 -0400
+
+    runtime: remove go:noescape from getcallerpc/sp
+    
+    getcallerpc and getcallerps dropped their arguments in CL 65474 and CL
+    109596, respectively.
+    
+    Without an argument there is nothing to escape.
+    
+    Change-Id: I24f300d039a2a0615ca0c3ea247125676a6237d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613497
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/stubs.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

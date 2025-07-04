@@ -1,0 +1,20 @@
+commit a48fc816e703989b54845c5ce557c54a45cbfe9c
+Author: Mikael Urankar <mikael@FreeBSD.org>
+Date:   Sun Sep 18 17:46:54 2022 +0200
+
+    cmd/dist: enable cgo tests on freebsd/riscv64
+    
+    Updates #53466
+    
+    Change-Id: I17a41adb93c22fa84a7bdcec9d8c65001c5a8ba9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431657
+    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit 2f23f90dab3b4b96e468f98d1c1af500c8e11660
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Mar 6 15:19:01 2013 -0500
+
+    runtime,misc/cgo/test: disable broken tests so we can test the rest
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7486048
+
+ misc/cgo/test/cthread.go                | 4 ++++
+ src/pkg/runtime/syscall_windows_test.go | 3 +++
+ src/run.bat                             | 2 --
+ 3 files changed, 7 insertions(+), 2 deletions(-)

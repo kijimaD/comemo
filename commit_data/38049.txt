@@ -1,0 +1,40 @@
+commit 15b4c71a912846530315c3e854feaaa9d0d54220
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Feb 9 17:50:02 2019 +0000
+
+    text/template: error on method calls on nil interfaces
+    
+    Trying to call a method on a nil interface is a panic in Go. For
+    example:
+    
+            var stringer fmt.Stringer
+            println(stringer.String()) // nil pointer dereference
+    
+    In https://golang.org/cl/143097 we started recovering panics encountered
+    during function and method calls. However, we didn't handle this case,
+    as text/template panics before evalCall is ever run.
+    
+    In particular, reflect's MethodByName will panic if the receiver is of
+    interface kind and nil:
+    
+            panic: reflect: Method on nil interface value
+    
+    Simply add a check for that edge case, and have Template.Execute return
+    a helpful error. Note that Execute shouldn't just error if the interface
+    contains a typed nil, since we're able to find a method to call in that
+    case.
+    
+    Finally, add regression tests for both the nil and typed nil interface
+    cases.
+    
+    Fixes #30143.
+    
+    Change-Id: Iffb21b40e14ba5fea0fcdd179cd80d1f23cabbab
+    Reviewed-on: https://go-review.googlesource.com/c/161761
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/text/template/exec.go      |  7 ++++++
+ src/text/template/exec_test.go | 49 +++++++++++++++++++++++++-----------------
+ 2 files changed, 36 insertions(+), 20 deletions(-)

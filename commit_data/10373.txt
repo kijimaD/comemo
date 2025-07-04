@@ -1,0 +1,14 @@
+commit 45eef04ed462e52389195e960960bfbf40a7ec4b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 14 01:23:27 2011 -0500
+
+    syscall: fix linux arm build
+    
+    Regenerate system call file.
+    
+    TBR=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5371087
+
+ src/pkg/syscall/zsyscall_linux_arm.go | 744 ++++++++++++++++++++++------------
+ 1 file changed, 496 insertions(+), 248 deletions(-)

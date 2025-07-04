@@ -1,0 +1,17 @@
+commit 434c6052d80153ebd7bac3ed83dcad33842fa709
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 7 13:34:37 2008 -0800
+
+    - language to define type equality rigorously
+    - language for type guards
+    - fixed language for break statements
+    
+    Also: Removed uses of "we" and replaced by impersonal language.
+    Minor cosmetic changes.
+    
+    DELTA=237  (160 added, 34 deleted, 43 changed)
+    OCL=18620
+    CL=18800
+
+ doc/go_spec.txt | 276 +++++++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 201 insertions(+), 75 deletions(-)

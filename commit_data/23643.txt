@@ -1,0 +1,19 @@
+commit 8c3533c89bae3493df8a0aad23e56c84f8d25714
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jul 11 11:53:58 2015 -0400
+
+    runtime: add memory barrier for sync send in select
+    
+    Missed select case when adding the barrier last time.
+    All the more reason to refactor this code in Go 1.6.
+    
+    Fixes #11643.
+    
+    Change-Id: Ib0d19d6e0939296c0a3e06dda5e9b76f813bbc7e
+    Reviewed-on: https://go-review.googlesource.com/12086
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/chan.go             | 27 ++++++++------
+ src/runtime/chanbarrier_test.go | 80 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/select.go           |  2 +-
+ 3 files changed, 97 insertions(+), 12 deletions(-)

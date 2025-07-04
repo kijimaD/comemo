@@ -1,0 +1,16 @@
+commit 38044eca7c67981aa0c98847a35ec2daf0763d0e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jun 9 11:28:42 2017 -0700
+
+    runtime: make map deletion benchmarks faster to run
+    
+    This reduces the wall time to run these benchmarks by about 30%.
+    
+    Change-Id: I494a93c93e5acb1514510d85f65796f62e1629a5
+    Reviewed-on: https://go-review.googlesource.com/54650
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/runtime/map_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

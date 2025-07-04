@@ -1,0 +1,15 @@
+commit 79682199ce56c9afa1edac6c61da3c7abb9393b7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 2 12:05:14 2013 -0700
+
+    cmd/godoc: don't linkify index entries
+    
+    Fixes #5186.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8267044
+
+ lib/godoc/package.html | 24 ++++++++++++------------
+ src/cmd/godoc/godoc.go |  8 +++-----
+ 2 files changed, 15 insertions(+), 17 deletions(-)

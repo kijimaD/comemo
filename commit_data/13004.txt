@@ -1,0 +1,14 @@
+commit 82e30c681c5fcf9957c7f5d17c90b800ecd1a85e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 1 09:04:13 2012 -0700
+
+    cgo: rename C names for Go types to avoid conflicting with package
+    
+    Fixes #3371.
+    
+    R=rsc, bsiegert, r, mtj, iant
+    CC=golang-dev
+    https://golang.org/cl/6131060
+
+ src/cmd/cgo/out.go | 60 ++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 33 insertions(+), 27 deletions(-)

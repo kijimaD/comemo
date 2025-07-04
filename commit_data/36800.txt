@@ -1,0 +1,27 @@
+commit 9c634ea889fdfa41aec9183bd5693c155374ba76
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 3 14:56:55 2018 -0400
+
+    runtime: flush write barrier buffer to create work
+    
+    Currently, if the gcWork runs out of work, we'll fall out of the GC
+    worker, even though flushing the write barrier buffer could produce
+    more work. While this is not a correctness issue, it can lead to
+    premature mark 2 or mark termination.
+    
+    Fix this by flushing the write barrier buffer if the local gcWork runs
+    out of work and then checking the local gcWork again.
+    
+    This reduces the number of premature mark terminations during all.bash
+    by about a factor of 10.
+    
+    Updates #26903. This is preparation for eliminating mark 2.
+    
+    Change-Id: I48577220b90c86bfd28d498e8603bc379a8cd617
+    Reviewed-on: https://go-review.googlesource.com/c/134315
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcmark.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

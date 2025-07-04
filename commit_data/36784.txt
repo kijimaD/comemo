@@ -1,0 +1,20 @@
+commit a0e7f12771c2e84e626dcf5e30da5d62a3b1adf6
+Author: Jake B <doogie1012@gmail.com>
+Date:   Sat Sep 29 04:06:00 2018 +0000
+
+    misc/wasm: add polyfill for TextEncoder/TextDecoder for Edge support
+    
+    Edge supports WASM but not TextEncoder or TextDecoder.
+    This PR adds a polyfill to `misc/wasm/wasm_exec.js` to fix this.
+    
+    Fixes #27295
+    
+    Change-Id: Ie35ee5604529b170a5dc380eb286f71bdd691d3e
+    GitHub-Last-Rev: a587edae2806e1ca9b6be1c5dfd8824568373bdb
+    GitHub-Pull-Request: golang/go#27296
+    Reviewed-on: https://go-review.googlesource.com/131718
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ misc/wasm/wasm_exec.html | 5 +++++
+ 1 file changed, 5 insertions(+)

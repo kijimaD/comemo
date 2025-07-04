@@ -1,0 +1,31 @@
+commit c85b12b5796c7efd4d8311253208b47449161361
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 14 11:46:35 2017 -0400
+
+    runtime: make LockOSThread/UnlockOSThread nested
+    
+    Currently, there is a single bit for LockOSThread, so two calls to
+    LockOSThread followed by one call to UnlockOSThread will unlock the
+    thread. There's evidence (#20458) that this is almost never what
+    people want or expect and it makes these APIs very hard to use
+    correctly or reliably.
+    
+    Change this so LockOSThread/UnlockOSThread can be nested and the
+    calling goroutine will not be unwired until UnlockOSThread has been
+    called as many times as LockOSThread has. This should fix the vast
+    majority of incorrect uses while having no effect on the vast majority
+    of correct uses.
+    
+    Fixes #20458.
+    
+    Change-Id: I1464e5e9a0ea4208fbb83638ee9847f929a2bacb
+    Reviewed-on: https://go-review.googlesource.com/45752
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/export_test.go | 14 ++++++++++++++
+ src/runtime/proc.go        | 42 ++++++++++++++++++++++++++++--------------
+ src/runtime/proc_test.go   | 24 ++++++++++++++++++++++++
+ src/runtime/runtime2.go    | 15 ++-------------
+ 4 files changed, 68 insertions(+), 27 deletions(-)

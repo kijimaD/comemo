@@ -1,0 +1,20 @@
+commit 61eb0e71f230d8a7d831786a23efea5b642b94fd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 7 18:26:31 2010 -0700
+
+    big: more cleanup
+    
+    - pass []Word instead of *Word to core arithmetic functions
+    - remove dead code
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1154042
+
+ src/pkg/big/arith.go      |  95 ++++++++++++++++++------------------
+ src/pkg/big/arith_386.s   |  98 ++++++++++++++++++-------------------
+ src/pkg/big/arith_amd64.s | 122 +++++++++++++++++++---------------------------
+ src/pkg/big/arith_test.go |  24 +++------
+ src/pkg/big/int.go        |   4 +-
+ src/pkg/big/nat.go        |  56 ++++++++++-----------
+ 6 files changed, 183 insertions(+), 216 deletions(-)

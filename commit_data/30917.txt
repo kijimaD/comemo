@@ -1,0 +1,14 @@
+commit 371aa23d104237fe72d84618210c5d61da8019aa
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 29 21:00:55 2017 -0700
+
+    cmd/compile: convert Type.Trecur to a boolean flag
+    
+    Change-Id: I162e86e5f92c8b827a74ee860d16abadf83bc43e
+    Reviewed-on: https://go-review.googlesource.com/38910
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 12 ++++++------
+ src/cmd/compile/internal/gc/type.go |  8 +++++---
+ 2 files changed, 11 insertions(+), 9 deletions(-)

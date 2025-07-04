@@ -1,0 +1,23 @@
+commit d0a0606841937cd6dd1db7a95ebd9d6e7ad02d96
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 1 16:59:41 2022 -0500
+
+    cmd/go: fail 'go work' subcommands with a more helpful error if no go.work file exists
+    
+    Otherwise, the failure mode for these subcommands refers to an empty file path:
+            go: open : no such file or directory
+    
+    Fixes #50964
+    
+    Change-Id: I8776431a294d2b2246d7d147b6059054f31bc255
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382246
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/workcmd/edit.go        | 26 +++++++++++++++-----------
+ src/cmd/go/internal/workcmd/sync.go        |  6 ++++--
+ src/cmd/go/internal/workcmd/use.go         |  3 +++
+ src/cmd/go/testdata/script/work_nowork.txt | 20 ++++++++++++++++++++
+ 4 files changed, 42 insertions(+), 13 deletions(-)

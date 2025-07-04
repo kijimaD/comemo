@@ -1,0 +1,18 @@
+commit 826fa06189f9cb86871aac66934b45a859e3b3a6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Feb 2 21:09:23 2015 +0900
+
+    net: case insensitivity of DNS labels in built-in stub resolver
+    
+    This change adds support for case insensitivity of DNS labels to
+    built-in DNS stub resolver as described in RFC 4343.
+    
+    Fixes #9215.
+    
+    Change-Id: Ia752fe71866a3bfa3ea08371985b799d419ddea3
+    Reviewed-on: https://go-review.googlesource.com/3685
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dnsclient.go   | 22 +++++++++++++++++++++-
+ src/net/dnsmsg_test.go | 26 ++++++++++++++++----------
+ 2 files changed, 37 insertions(+), 11 deletions(-)

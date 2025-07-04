@@ -1,0 +1,15 @@
+commit 138b5ccd12739f47be1f21f6437d6795b389b9f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 27 20:47:15 2014 -0400
+
+    runtime: disable fake time on nacl
+    
+    This leaked into the CL I submitted for Minux,
+    because I was testing it.
+    
+    TBR=adg
+    CC=golang-codereviews
+    https://golang.org/cl/159600044
+
+ src/runtime/rt0_nacl_amd64p32.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

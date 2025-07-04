@@ -1,0 +1,16 @@
+commit 77c7f12438aa83d9ba02c7fd48e4a0a288ed9123
+Author: Austin Clements <austin@google.com>
+Date:   Sat Apr 30 21:47:30 2016 -0400
+
+    runtime: update some comments
+    
+    This updates some comments that became out of date when we moved the
+    mark bit out of the heap bitmap and started using the high bit for the
+    first word as a scan/dead bit.
+    
+    Change-Id: I4a572d16db6114cadff006825466c1f18359f2db
+    Reviewed-on: https://go-review.googlesource.com/22662
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mbitmap.go | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)

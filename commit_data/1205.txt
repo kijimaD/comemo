@@ -1,0 +1,13 @@
+commit 2e7e76073adeafa07b444ea673507a974659831f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 20 11:56:48 2008 -0800
+
+    slightly simpler math.Pow per gri's suggestion
+    
+    R=gri
+    DELTA=28  (2 added, 9 deleted, 17 changed)
+    OCL=19707
+    CL=19707
+
+ src/lib/math/pow.go | 45 +++++++++++++++++++--------------------------
+ 1 file changed, 19 insertions(+), 26 deletions(-)

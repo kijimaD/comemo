@@ -1,0 +1,14 @@
+commit 27753ff10897b566b6b8086f5fa3c83b6c4c271e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jul 18 14:56:22 2011 -0400
+
+    runtime: add per-M caches for MemStats
+    Avoid touching centralized state during
+    memory manager operations.
+    
+    R=mirtchovski
+    CC=golang-dev, rsc
+    https://golang.org/cl/4766042
+
+ src/pkg/runtime/malloc.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit b16463c91252c99bbfe1006479bdfa3b9164445b
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Fri Sep 20 00:12:15 2019 +0200
+
+    cmd/compile: in prove, give a different name to each poset
+    
+    Instead of using a two-slot array and having to remember which
+    index is the signed poset, and which is the unsigned one, just
+    use two different variables.
+    
+    Change-Id: Ic7f7676436c51bf43a182e999a926f8b7f69434b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196678
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/prove.go | 40 ++++++++++++++++++-----------------
+ 1 file changed, 21 insertions(+), 19 deletions(-)

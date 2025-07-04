@@ -1,0 +1,22 @@
+commit 91cc484ea914fc75e7321d23017d59c9751f5066
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 11:22:02 2021 -0500
+
+    runtime: fix time on windows/arm under WINE
+    
+    This code has clearly never run successfully,
+    since one of the “tail calls" calls the wrong function,
+    and both of them appear in functions with stack frames
+    that are never going to be properly unwound.
+    Probably there is no windows/arm under WINE at all.
+    But might as well fix the code.
+    
+    Change-Id: I5fa62274b3661bc6bce098657b5bcf11d59655eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288811
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/runtime/sys_windows_arm.s | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit 5a03cd56a18302b24ef7b6110912cd2356360165
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 1 14:17:25 2012 -0700
+
+    cmd/godoc: clearer comments in FormatSelections
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6561073
+
+ src/cmd/godoc/format.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

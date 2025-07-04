@@ -1,0 +1,21 @@
+commit 6d5bba5148f57a28bc19d86f21ccb114e9aaf614
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 1 15:00:22 2009 -0700
+
+    More gds functionality:
+    - package headers
+    - constants
+    - variables
+    - formatted comments
+    
+    Next steps:
+    - sorted output
+    - collection of all files belonging to a package
+    - fine-tuning of output
+    
+    R=r
+    OCL=26997
+    CL=26997
+
+ usr/gri/pretty/docprinter.go | 301 ++++++++++++++++++++++++++++---------------
+ 1 file changed, 200 insertions(+), 101 deletions(-)

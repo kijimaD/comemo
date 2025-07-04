@@ -1,0 +1,22 @@
+commit 1aab7b9626b8bc735d7340c1eb47d8d46560290f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 25 11:44:02 2016 -0800
+
+    cmd/link: add -extar option to set ar program for c-archive
+    
+    People who want to use -buildmode=c-archive in unusual cross-compilation
+    setups will need something like this.  It could also be done via (yet
+    another) environment variable but I use -extar by analogy with the
+    existing -extld.
+    
+    Change-Id: I354cfabc4c470603affd13cd946997b3a24c0e6c
+    Reviewed-on: https://go-review.googlesource.com/18913
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcarchive/test.bash  | 18 ++++++++++++++++++
+ src/cmd/link/doc.go              |  3 +++
+ src/cmd/link/internal/ld/lib.go  |  7 ++++++-
+ src/cmd/link/internal/ld/pobj.go |  1 +
+ 4 files changed, 28 insertions(+), 1 deletion(-)

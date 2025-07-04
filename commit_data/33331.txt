@@ -1,0 +1,21 @@
+commit 7cb3e4fb1d6b2704ecdc3d6983587975ce077a34
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Oct 28 17:35:27 2017 +0100
+
+    all: unindent some if bodies by exiting early
+    
+    All of these had a return or break in the else body, so flipping the
+    condition means we can unindent and simplify.
+    
+    Change-Id: If93e97504480d18a0dac3f2c8ffe57ab8bcb929c
+    Reviewed-on: https://go-review.googlesource.com/74190
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go | 19 +++++++++----------
+ src/cmd/link/internal/ld/data.go       |  9 ++++-----
+ src/mime/mediatype.go                  | 18 +++++++++---------
+ src/reflect/value.go                   | 13 ++++++-------
+ src/regexp/exec.go                     | 13 ++++++-------
+ src/text/tabwriter/tabwriter.go        | 23 +++++++++++------------
+ 6 files changed, 45 insertions(+), 50 deletions(-)

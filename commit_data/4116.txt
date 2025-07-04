@@ -1,0 +1,18 @@
+commit ed0beea27b1315408ca7997ba814f881caee30a3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 17 22:16:55 2009 -0800
+
+    copy tweaks
+      * move memmove to arch-specific subdirectories
+      * add memmove for arm
+      * add copyright notices marking them as copied from Inferno
+    
+    R=ken2
+    https://golang.org/cl/156061
+
+ src/pkg/runtime/386/memmove.s   | 90 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/Makefile        |  2 +-
+ src/pkg/runtime/amd64/memmove.s | 90 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/memmove_386.s   | 65 -----------------------------
+ src/pkg/runtime/memmove_amd64.s | 65 -----------------------------
+ 5 files changed, 181 insertions(+), 131 deletions(-)

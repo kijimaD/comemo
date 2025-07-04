@@ -1,0 +1,16 @@
+commit 85e87f9d81c00d38a196c40f3a93477bc4b3294f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 10 22:11:00 2020 -0700
+
+    time: stop referring to timerproc in comment
+    
+    The timerproc function has been removed.
+    
+    Fixes #37774
+    
+    Change-Id: Ice5e1d8fec91cd6ee7f032e0d21e8315a26bc6a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222783
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/time/internal_test.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

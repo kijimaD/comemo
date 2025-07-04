@@ -1,0 +1,32 @@
+commit 9baa4301cf5b9358e8cf157f591597703b94e709
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Apr 29 20:42:27 2019 +0000
+
+    runtime: merge all treaps into one implementation
+    
+    This change modifies the treap implementation to support holding all
+    spans in a single treap, instead of keeping them all in separate treaps.
+    
+    This improves ergonomics for nearly all treap-related callsites.
+    With that said, iteration is now more expensive, but it never occurs on
+    the fast path, only on scavenging-related paths.
+    
+    This change opens up the opportunity for further optimizations, such as
+    splitting spans without treap removal (taking treap removal off the span
+    allocator's critical path) as well as improvements to treap iteration
+    (building linked lists for each iteration type and managing them on
+    insert/removal, since those operations should be less frequent).
+    
+    For #30333.
+    
+    Change-Id: I3dac97afd3682a37fda09ae8656a770e1369d0a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174398
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/export_test.go |  24 +++++--
+ src/runtime/mgclarge.go    |  71 ++++++++++++++++---
+ src/runtime/mheap.go       |  79 +++++++--------------
+ src/runtime/treap_test.go  | 170 ++++++++++++++++++++++++++++-----------------
+ 4 files changed, 210 insertions(+), 134 deletions(-)

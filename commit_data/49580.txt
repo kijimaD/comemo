@@ -1,0 +1,26 @@
+commit 4a2a3bca180509bc39fe99992e16b5e0a45e0e43
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 10 15:58:22 2022 -0700
+
+    cmd/go, go/build: clarify build constraint docs
+    
+    Clarify that the //go:build line is an expression of constraints,
+    not a constraint itself.
+    
+    Fixes #53308
+    
+    Change-Id: Ib67243c6ee5cfe3b688c12b943b5e7496f686035
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411697
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/go/alldocs.go               | 22 +++++++++++-----------
+ src/cmd/go/internal/help/helpdoc.go | 13 +++++++------
+ src/cmd/go/internal/work/build.go   |  9 ++++-----
+ src/go/build/doc.go                 |  7 ++++---
+ 4 files changed, 26 insertions(+), 25 deletions(-)

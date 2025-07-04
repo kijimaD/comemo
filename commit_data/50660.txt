@@ -1,0 +1,31 @@
+commit 87db4ffadac291bc878cb892e05601610ca68ef5
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 11 07:34:20 2021 -0400
+
+    runtime/coverage: runtime routines to emit coverage data
+    
+    This patch fleshes out the runtime support for emitting coverage data
+    at the end of a run of an instrumented binary. Data is emitted in the
+    form of a pair of files, a meta-out-file and counter-data-outfile,
+    each written to the dir GOCOVERDIR. The meta-out-file is emitted only
+    if required; no need to emit again if an existing meta-data file with
+    the same hash and length is present.
+    
+    Updates #51430.
+    
+    Change-Id: I59d20a4b8c05910c933ee29527972f8e401b1685
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355451
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/work/gc.go       |  20 +-
+ src/go/build/deps_test.go            |  10 +-
+ src/internal/coverage/rtcov/rtcov.go |   9 +
+ src/runtime/coverage/dummy.s         |   8 +
+ src/runtime/coverage/emit.go         | 611 +++++++++++++++++++++++++++++++++++
+ src/runtime/coverage/hooks.go        |  42 +++
+ src/runtime/coverage/testsupport.go  | 207 ++++++++++++
+ src/runtime/covercounter.go          |  26 ++
+ src/runtime/covermeta.go             |  30 +-
+ 9 files changed, 932 insertions(+), 31 deletions(-)

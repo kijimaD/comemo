@@ -1,0 +1,15 @@
+commit 934c76801938aaaa9f2d66513a3c0c1652783586
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 3 16:18:47 2011 -0700
+
+    doc: update tutorial.
+    Fix for new regexp library ($ isn't end of line any more).
+    Don't assume . is in PATH.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5175052
+
+ doc/go_tutorial.html | 5 ++---
+ doc/go_tutorial.tmpl | 4 ++--
+ 2 files changed, 4 insertions(+), 5 deletions(-)

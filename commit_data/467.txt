@@ -1,0 +1,17 @@
+commit 4feda71b7d2ed4c39655d5ba693d7a90e9aa8f49
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Aug 2 22:34:04 2008 -0700
+
+    slightly gratuitous reorg of scheduler code
+            * rename select (very loaded word) nextgoroutine
+            * separate out "enter scheduler" (sys·gosched)
+              from the scheduler itself (scheduler)
+    
+    R=r
+    APPROVED=r
+    DELTA=36  (17 added, 15 deleted, 4 changed)
+    OCL=13772
+    CL=13774
+
+ src/runtime/proc.c | 38 ++++++++++++++++++++------------------
+ 1 file changed, 20 insertions(+), 18 deletions(-)

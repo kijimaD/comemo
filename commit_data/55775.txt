@@ -1,0 +1,24 @@
+commit a05ea985c5fdb22ef606706f2b1a99eec5574c9c
+Author: sivchari <shibuuuu5@gmail.com>
+Date:   Mon Feb 26 14:59:15 2024 +0900
+
+    all: run go fmt
+    
+    I ran go fmt to fix format on the entire repository.
+    
+    Change-Id: I2f09166b6b8ba0ffb0ba27f6500efb0ea4cf21ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566835
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/buildcfg/cfg.go        | 26 +++++++++++++-------------
+ src/internal/chacha8rand/chacha8.go |  1 +
+ src/maps/maps.go                    |  1 +
+ src/net/dnsclient.go                |  1 +
+ src/runtime/mgc.go                  |  2 +-
+ src/runtime/rand.go                 |  6 ++++++
+ src/runtime/rwmutex.go              | 16 ++++++++--------
+ src/sync/pool.go                    |  1 +
+ 8 files changed, 32 insertions(+), 22 deletions(-)

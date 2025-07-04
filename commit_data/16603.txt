@@ -1,0 +1,23 @@
+commit 9824b018cedcb636cc1210a3a9f0249d1d44fe49
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 20 10:27:44 2013 -0700
+
+    cmd/go: put the coverage information on the summary line.
+    Output now:
+    ok      crypto/aes      0.060s  coverage: 89.8% of statements
+    ok      crypto/des      0.074s  coverage: 92.2% of statements
+    ok      crypto/dsa      0.056s  coverage: 34.5% of statements
+    ok      crypto/ecdsa    0.058s  coverage: 86.8% of statements
+    ok      crypto/elliptic 0.039s  coverage: 94.6% of statements
+    ok      crypto/hmac     0.037s  coverage: 93.5% of statements
+    ok      crypto/md5      0.031s  coverage: 96.2% of statements
+    ok      crypto/rand     0.074s  coverage: 9.9% of statements
+    ok      crypto/rc4      0.090s  coverage: 66.7% of statements
+    ok      crypto/rsa      0.253s  coverage: 83.5% of statements
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/10413044
+
+ src/cmd/go/test.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

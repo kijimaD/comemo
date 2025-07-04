@@ -1,0 +1,16 @@
+commit 7d891d5e4d7bd7d22b6adcc51e10c9be01825c16
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 21:46:12 2019 -0700
+
+    runtime: implement new movetimers function
+    
+    Updates #27707
+    
+    Change-Id: Idda31d0065064a81c570e291ef588d020871997d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171836
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/time.go | 46 +++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 45 insertions(+), 1 deletion(-)

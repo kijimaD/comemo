@@ -1,0 +1,16 @@
+commit a169e6cc6ab01330fbfd32f5175d68b72bf68295
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Jul 2 16:43:48 2010 -0400
+
+            http, crypto/tls: followup fixes from 1684051.
+    
+            (TBR because this is just addressing previous review comments.)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1697048
+
+ src/pkg/crypto/tls/generate_cert.go | 26 +++++++++++---------------
+ src/pkg/crypto/tls/tls.go           |  8 ++++----
+ src/pkg/http/server.go              |  4 ++--
+ 3 files changed, 17 insertions(+), 21 deletions(-)

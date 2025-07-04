@@ -1,0 +1,24 @@
+commit b754b4348f9e461b332fafb663879a61de357b84
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 18:56:44 2009 -0700
+
+    delete some code from walkexpr that is now
+    handled by typecheck.
+    
+    second switch is gone
+    
+    move floating point minus into back end
+    
+    R=ken
+    OCL=32558
+    CL=32558
+
+ src/cmd/6g/cgen.c        |   6 +
+ src/cmd/8g/cgen.c        |   7 +
+ src/cmd/gc/subr.c        |   3 +
+ src/cmd/gc/typecheck.c   |  15 +-
+ src/cmd/gc/walk.c        | 365 ++++++++++-------------------------------------
+ test/fixedbugs/bug127.go |   4 +-
+ test/fixedbugs/bug172.go |   2 +-
+ test/indirect1.go        |  24 ++--
+ 8 files changed, 117 insertions(+), 309 deletions(-)

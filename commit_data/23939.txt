@@ -1,0 +1,16 @@
+commit 02d74485e41feadd2dd98edce3416eda57168772
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 31 11:15:11 2015 -0700
+
+    spec: fixed various example code snippets
+    
+    Per suggestions by Peter Olsen (https://github.com/pto).
+    
+    Fixes #11964.
+    
+    Change-Id: Iae261ac14f75abf848f5601f59d7fe6e95b6805a
+    Reviewed-on: https://go-review.googlesource.com/13006
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

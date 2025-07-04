@@ -1,0 +1,17 @@
+commit 265fbaa94b8614cbd861711d7f7c6d278dc1ddba
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 13 13:49:30 2021 -0500
+
+    doc: update go1.18 release notes with a blurb about workspace mode
+    
+    For #47694
+    
+    Change-Id: I79cdbdc66ea9942b597f29c9a4f428075f053466
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371295
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ doc/go1.18.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

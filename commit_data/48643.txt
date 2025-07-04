@@ -1,0 +1,15 @@
+commit 2e8dc8f4725c84d352b718620628a4fb0f86e748
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Wed Mar 30 20:19:52 2022 -0700
+
+    cmd/pprof: point to -h in package documentation
+    
+    Change-Id: I820c72e31fbb6471481f4483e7f13bb8b3d5d00c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396881
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Eli Bendersky‎ <eliben@golang.org>
+    Run-TryBot: Eli Bendersky‎ <eliben@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/pprof/doc.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

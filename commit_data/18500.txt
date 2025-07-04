@@ -1,0 +1,58 @@
+commit 174b8c95f5572e30835fa0bcc4aee6fc281e453e
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Feb 13 20:06:41 2014 +0100
+
+    lib9: enable on Plan 9
+    
+    This change depends on CL 57170052.
+    
+    LGTM=rsc
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/60840049
+
+ .hgignore                |  1 +
+ include/plan9/errno.h    |  7 ++++++
+ include/plan9/fmt.h      | 64 ++++++++++++++++++++++++++++++++++++++++++++++++
+ include/plan9/libc.h     |  7 +++++-
+ include/plan9/mklibc.rc  | 13 ++++++++++
+ include/plan9/stdarg.h   |  3 +++
+ include/plan9/utf.h      |  5 ++++
+ src/cmd/dist/build.c     | 19 +++-----------
+ src/lib9/_exits.c        |  2 ++
+ src/lib9/_p9dir.c        |  2 ++
+ src/lib9/atoi.c          |  2 ++
+ src/lib9/await.c         |  1 +
+ src/lib9/cleanname.c     |  2 ++
+ src/lib9/create.c        |  2 ++
+ src/lib9/ctime.c         |  2 ++
+ src/lib9/dirfstat.c      |  2 ++
+ src/lib9/dirfwstat.c     |  2 ++
+ src/lib9/dirstat.c       |  2 ++
+ src/lib9/dirwstat.c      |  2 ++
+ src/lib9/dup.c           |  2 ++
+ src/lib9/exec.c          |  2 ++
+ src/lib9/execl.c         |  2 ++
+ src/lib9/exitcode.c      |  2 ++
+ src/lib9/exits.c         |  2 ++
+ src/lib9/fmtlock2.c      |  2 ++
+ src/lib9/getenv.c        |  2 ++
+ src/lib9/getwd.c         |  2 ++
+ src/lib9/jmp.c           |  1 +
+ src/lib9/main.c          |  2 ++
+ src/lib9/nan.c           |  2 ++
+ src/lib9/notify.c        |  1 +
+ src/lib9/nulldir.c       |  2 ++
+ src/lib9/open.c          |  2 ++
+ src/lib9/readn.c         |  2 ++
+ src/lib9/rfork.c         |  1 +
+ src/lib9/run_plan9.c     |  2 ++
+ src/lib9/seek.c          |  2 ++
+ src/lib9/strecpy.c       |  2 ++
+ src/lib9/sysfatal.c      |  2 ++
+ src/lib9/tempdir_plan9.c |  2 ++
+ src/lib9/time.c          |  2 ++
+ src/lib9/tokenize.c      |  2 ++
+ src/libbio/bprint.c      |  2 --
+ src/make.rc              |  3 +++
+ 44 files changed, 170 insertions(+), 18 deletions(-)

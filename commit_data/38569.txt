@@ -1,0 +1,19 @@
+commit f7f4eef385f72ee0617bd8b7878c0a71eb4f3d18
+Author: John <johnchristian@hotmail.es>
+Date:   Wed Mar 27 17:30:32 2019 +0000
+
+    mime: add javascript module mime type (.mjs)
+    
+    There are default mime types in this package for handling static content, but there's
+    a new one missing ".mjs"  that is "Content-Type: text/javascript".
+    
+    https://developers.google.com/web/fundamentals/primers/modules#mjs
+    
+    Change-Id: Ie842ece0cb55770fb6c9eb65f8bfee2ecf7bc624
+    GitHub-Last-Rev: e26d9f76171c987112d5d6db292446819a8393e2
+    GitHub-Pull-Request: golang/go#31071
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169502
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/type.go | 1 +
+ 1 file changed, 1 insertion(+)

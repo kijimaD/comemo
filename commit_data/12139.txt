@@ -1,0 +1,18 @@
+commit 0c2f3b7ffdae1c796f077c08d0cf4b5e7830ee4a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 22 10:49:37 2012 -0800
+
+    go/doc: move firstSentence into go/doc
+    
+    - renamed firstSentence -> Synopsis
+    - also deal with common abbreviations
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5676088
+
+ src/cmd/go/pkg.go               | 29 ++---------------------
+ src/cmd/godoc/dirtrees.go       |  3 ++-
+ src/pkg/go/doc/synopsis.go      | 52 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/doc/synopsis_test.go | 44 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 100 insertions(+), 28 deletions(-)

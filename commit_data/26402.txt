@@ -1,0 +1,23 @@
+commit 8d9ece9dde3a9dfc62f3e4dba0a48ec830cafb09
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Fri Mar 18 08:24:40 2016 +0100
+
+    fmt: unify integer formatting
+    
+    Deduplicate the verb switch for signed and unsigned integer formatting.
+    
+    Make names of integer related functions consistent
+    with names of other fmt functions.
+    
+    Consolidate basic integer tests.
+    
+    Change-Id: I0c19c24f1c2c06a3b1a4d7d377dcdac3b36bb0f5
+    Reviewed-on: https://go-review.googlesource.com/20831
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 91 ++++++++++++++++++++++++-----------------------------
+ src/fmt/format.go   | 51 ++++++++++++++----------------
+ src/fmt/print.go    | 90 +++++++++++++++++++---------------------------------
+ 3 files changed, 97 insertions(+), 135 deletions(-)

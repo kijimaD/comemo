@@ -1,0 +1,12 @@
+commit 2ca589d494ee8dc428bd5ce93603f373b8554e5b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri May 24 07:56:01 2013 -0400
+
+    misc/cgo/testso: use bash to run test.bash
+    
+    R=golang-dev, minux.ma, capnm9
+    CC=golang-dev
+    https://golang.org/cl/9717043
+
+ misc/cgo/testso/test.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

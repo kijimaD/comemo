@@ -1,0 +1,18 @@
+commit cd0a8ed48a4a71fb4fdb3d3b22f91d2335e4793a
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Jun 24 19:25:51 2015 +0200
+
+    cmd/compile: add instrumentation of OKEY
+    
+    Instrument operands of OKEY.
+    Also instrument OSLICESTR. Previously it was not needed
+    because of preceeding bounds checks (which were instrumented).
+    But the preceeding bounds checks have disappeared.
+    
+    Change-Id: I3b0de213e23cbcf5b8ef800abeded5eeeb3f8287
+    Reviewed-on: https://go-review.googlesource.com/11417
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/racewalk.go | 11 ++++++++---
+ src/runtime/race/testdata/slice_test.go | 12 ++++++++++++
+ 2 files changed, 20 insertions(+), 3 deletions(-)

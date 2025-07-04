@@ -1,0 +1,27 @@
+commit 52dfdc5e1e6f4f8ddd99f238e37b6c255f5ab6bd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 5 18:36:02 2022 -0700
+
+    mime: remove test ordering dependency
+    
+    Arrange for tests that call setMimeInit to fully restore the old values,
+    by clearing the sync.Once that controls initialization.
+    
+    Once we've done that, call initMime in initMimeUnixTest because
+    otherwise the test types loaded there will be cleared by the call to
+    initMime that previously was not being done.
+    
+    For golang/go#51648
+    
+    Change-Id: I8bf92b305fc4499337db06113817c9decdc5aedb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421442
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/mime/type_test.go      | 5 ++++-
+ src/mime/type_unix_test.go | 1 +
+ 2 files changed, 5 insertions(+), 1 deletion(-)

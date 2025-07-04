@@ -1,0 +1,40 @@
+commit 5a3900b23c2bbbf802fa2db9dfea916a6befa517
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 19 15:17:42 2022 -0700
+
+    go/types, types2: implement alternative comparable semantics
+    
+    This is an experiment to see the impact of a potential spec change:
+    As an exception to the rule that constraint satisfaction is the same
+    as interface implementation, if the flag Config.AltComparableSemantics
+    is set, an ordinary (non-type parameter) interface satisfies the
+    comparable constraint. (In go/types, the flag is not exported to
+    avoid changing the API.)
+    
+    Disabled by default. Test files can set the flag by adding
+    
+    // -altComparableSemantics
+    
+    as the first line in the file.
+    
+    For #52509.
+    
+    Change-Id: Ib491b086feb5563920eaddefcebdacb2c5b72d61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444635
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/types2/api.go         |  6 +++++-
+ src/cmd/compile/internal/types2/check_test.go  |  1 +
+ src/cmd/compile/internal/types2/instantiate.go | 13 ++++++++----
+ src/cmd/compile/internal/types2/lookup.go      |  2 +-
+ src/cmd/compile/internal/types2/operand.go     |  4 ++--
+ src/go/types/api.go                            |  6 +++++-
+ src/go/types/check_test.go                     |  7 +++++++
+ src/go/types/instantiate.go                    | 13 ++++++++----
+ src/go/types/lookup.go                         |  2 +-
+ src/go/types/operand.go                        |  4 ++--
+ src/internal/types/testdata/spec/comparable.go | 28 ++++++++++++++++++++++++++
+ 11 files changed, 70 insertions(+), 16 deletions(-)

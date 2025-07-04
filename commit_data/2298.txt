@@ -1,0 +1,15 @@
+commit 368b42103e98e612fb688e8e4753276d4c592ffa
+Author: Rob Pike <r@golang.org>
+Date:   Sat May 23 13:53:36 2009 -0700
+
+    add crypto/hmac to makefile
+    
+    R=rsc
+    DELTA=4  (3 added, 0 deleted, 1 changed)
+    OCL=29314
+    CL=29314
+
+ src/lib/Make.deps | 1 +
+ src/lib/Makefile  | 1 +
+ src/lib/deps.bash | 1 +
+ 3 files changed, 3 insertions(+)

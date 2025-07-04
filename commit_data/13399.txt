@@ -1,0 +1,14 @@
+commit c42a1d4906ac22226dd36140984bdb6f578025bf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 25 14:54:26 2012 -0700
+
+          doc: drop video title from homepage
+    
+    It's just stutter.
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/6334053
+
+ doc/root.html | 1 -
+ 1 file changed, 1 deletion(-)

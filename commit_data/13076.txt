@@ -1,0 +1,18 @@
+commit 03e1d4bc2262de4d50e0fe9ebcf743f1f1aef479
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 15 12:21:21 2012 -0700
+
+    go/printer: don't print newlines for empty statements
+    
+    Fixes #3466.
+    
+    gofmt -w src misc causes no changes.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6206073
+
+ src/pkg/go/printer/nodes.go                   | 30 +++++++++++++++------------
+ src/pkg/go/printer/testdata/statements.golden | 26 +++++++++++++++++++++++
+ src/pkg/go/printer/testdata/statements.input  | 24 +++++++++++++++++++++
+ 3 files changed, 67 insertions(+), 13 deletions(-)

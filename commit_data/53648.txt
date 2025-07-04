@@ -1,0 +1,21 @@
+commit e126572f8a91d42b86242012012d0cad4507dca8
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 3 13:16:59 2023 -0700
+
+    runtime: have ReadMemStats do a nil check before switching stacks
+    
+    This gives the user a better stack trace experience. No need to
+    expose them to runtime.systemstack and friends.
+    
+    Fixes #61158
+    
+    Change-Id: I4f423f82e54b062773067c0ae64622e37cb3948b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507755
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/mstats.go    | 1 +
+ src/runtime/traceback.go | 1 +
+ 2 files changed, 2 insertions(+)

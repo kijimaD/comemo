@@ -1,0 +1,22 @@
+commit 972fc055eb43bfe0e777f0301739b95c2053c208
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 8 15:44:57 2023 -0700
+
+    cmd/compile/internal/ir: add Type param to NewBasicLit
+    
+    This CL adds an explicit Type parameter to NewBasicLit so that callers
+    can directly construct typed OLITERAL nodes.
+    
+    Change-Id: I0ab50ac3d7ddb7adcc903633a62ac496921165e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527096
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ir/const.go      | 32 ++++++++++++++++++++++++++++---
+ src/cmd/compile/internal/ir/expr.go       | 14 +++++---------
+ src/cmd/compile/internal/noder/helpers.go |  2 --
+ src/cmd/compile/internal/noder/reader.go  |  6 +++---
+ src/cmd/compile/internal/walk/switch.go   |  2 +-
+ 5 files changed, 38 insertions(+), 18 deletions(-)

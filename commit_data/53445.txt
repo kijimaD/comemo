@@ -1,0 +1,27 @@
+commit 0cd9064cd734501738e20a902f942523df0a5a5a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 1 15:02:54 2023 -0700
+
+    go/types, types2: report inference instead of assignment failure when types can't match
+    
+    Interface inference must only be used if we don't require exact
+    unification, otherwise we may infer types (that are reasonable)
+    but then fail with an assignment error.
+    
+    Only checking if exact is set for defined (named) types is not
+    sufficient, we must also check outside. Oversight.
+    
+    Fixes #60562.
+    
+    Change-Id: I208a74bf7ed80bcb976ba9cc172715c83f9e3d0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499996
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/unify.go           | 10 ++--
+ src/go/types/unify.go                              | 10 ++--
+ .../types/testdata/fixedbugs/issue60562.go         | 62 ++++++++++++++++++++++
+ 3 files changed, 72 insertions(+), 10 deletions(-)

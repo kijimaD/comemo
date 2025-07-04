@@ -1,0 +1,25 @@
+commit 24659717811075fb3b3bf012670229be1636c089
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 7 10:30:49 2017 -0400
+
+    runtime: fix GDB goroutine N command when N is running
+    
+    The current implementation of "goroutine N cmd" assumes it can get
+    goroutine N's state from the goroutine's sched buffer. But this only
+    works if the goroutine is blocked. Extend find_goroutine so that, if
+    there is no saved scheduler state for a goorutine, it tries to find
+    the thread the goroutine is running on and use the thread's current
+    register state. We also extend find_goroutine to understand saved
+    syscall register state.
+    
+    Fixes #13887.
+    
+    Change-Id: I739008a8987471deaa4a9da918655e4042cf969b
+    Reviewed-on: https://go-review.googlesource.com/45031
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime-gdb.py      | 33 +++++++++++++++++++++++++++++++--
+ src/runtime/runtime-gdb_test.go | 12 ++++++++++--
+ 2 files changed, 41 insertions(+), 4 deletions(-)

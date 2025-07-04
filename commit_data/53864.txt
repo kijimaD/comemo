@@ -1,0 +1,34 @@
+commit ed8cbaf6ac58120c7171dadaaa091f031712c6d2
+Author: Srinivas Pokala <Pokala.Srinivas@ibm.com>
+Date:   Wed Jul 12 14:47:31 2023 +0200
+
+    cmd/asm: add s390x crypto related instructions
+    
+    This CL add's the following instructions,useful for cipher and
+    message digest operations:
+    
+     * KM   - cipher message
+     * KMC  - cipher message with chaining
+     * KLMD - compute last message digest
+     * KIMD - compute intermediate message digest
+    
+    Fixes #61163
+    
+    Change-Id: Ib0636430c3e4888ed61b86c5acae45ee596463ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509075
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/s390x.s |  5 ++++
+ src/cmd/internal/obj/s390x/a.out.go       |  6 +++++
+ src/cmd/internal/obj/s390x/anames.go      |  4 +++
+ src/cmd/internal/obj/s390x/asmz.go        | 45 +++++++++++++++++++++++++++++++
+ src/crypto/aes/asm_s390x.s                |  6 ++---
+ src/crypto/sha1/sha1block_s390x.s         |  2 +-
+ src/crypto/sha256/sha256block_s390x.s     |  2 +-
+ src/crypto/sha512/sha512block_s390x.s     |  2 +-
+ src/internal/cpu/cpu_s390x.s              |  8 +++---
+ 9 files changed, 70 insertions(+), 10 deletions(-)

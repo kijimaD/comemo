@@ -1,0 +1,20 @@
+commit 98a80b95b462f2c7c0cfdb4557eb08a5d6d891f2
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 7 06:49:11 2013 +1000
+
+    runtime: use correct types for maxstring and concatstring
+    
+    Updates #6046.
+    This CL just does maxstring and concatstring. There are other functions
+    to fix but doing them a few at a time will help isolate any (unlikely)
+    breakages these changes bring up in architectures I can't test
+    myself.
+    
+    R=golang-dev, dave, iant
+    CC=golang-dev
+    https://golang.org/cl/12519044
+
+ src/pkg/runtime/print.c    | 2 --
+ src/pkg/runtime/runtime.h  | 2 +-
+ src/pkg/runtime/string.goc | 8 ++++----
+ 3 files changed, 5 insertions(+), 7 deletions(-)

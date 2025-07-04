@@ -1,0 +1,13 @@
+commit 61809cd182372930fe821b74e182bc3dd7b9f439
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 18 12:54:36 2012 -0700
+
+    net/url: sort keys in Encode; don't enumerate map randomly
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6303098
+
+ src/pkg/net/url/url.go      | 20 ++++++++++++++++----
+ src/pkg/net/url/url_test.go | 18 +++++++++++-------
+ 2 files changed, 27 insertions(+), 11 deletions(-)

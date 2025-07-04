@@ -1,0 +1,18 @@
+commit 9aa2c06cb5cb4603500e5fbc35385fe890c6779b
+Author: Mikio Hara <mikioh.public.networking@gmail.com>
+Date:   Thu Jan 10 05:14:40 2019 +0900
+
+    net: update BUG sections for go1.12
+    
+    To confirm this change with the go commaned, please run 'go doc net'
+    instead of 'go doc -all net'; the -all option surpresses BUG sections.
+    
+    Change-Id: Iac7bc85fbef48e91d5ede16da0ce4a7ab8cae539
+    Reviewed-on: https://go-review.googlesource.com/c/157297
+    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/interface.go | 4 ++--
+ src/net/unixsock.go  | 7 +++++--
+ 2 files changed, 7 insertions(+), 4 deletions(-)

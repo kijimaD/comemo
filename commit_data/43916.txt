@@ -1,0 +1,40 @@
+commit c32140fa94cfc51a2152855825f57e27ae3ba133
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 4 18:20:17 2020 -0500
+
+    all: update to use filepath.WalkDir instead of filepath.Walk
+    
+    Now that filepath.WalkDir is available, it is more efficient
+    and should be used in place of filepath.Walk.
+    Update the tree to reflect best practices.
+    
+    As usual, the code compiled with Go 1.4 during bootstrap is excluded.
+    (In this CL, that's only cmd/dist.)
+    
+    For #42027.
+    
+    Change-Id: Ib0f7b1e43e50b789052f9835a63ced701d8c411c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267719
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/compile/fmt_test.go               |  3 ++-
+ src/cmd/dist/test.go                      |  1 +
+ src/cmd/fix/main.go                       |  6 +++---
+ src/cmd/go/go_test.go                     |  9 +++------
+ src/cmd/go/internal/modfetch/fetch.go     |  9 +++++----
+ src/cmd/go/internal/version/version.go    | 12 ++++++++++--
+ src/cmd/go/testdata/addmod.go             |  4 ++--
+ src/cmd/go/testdata/savedir.go            |  4 ++--
+ src/cmd/gofmt/gofmt.go                    |  6 +++---
+ src/cmd/gofmt/long_test.go                | 17 +++++++++++++----
+ src/cmd/internal/moddeps/moddeps_test.go  |  2 +-
+ src/compress/gzip/issue14937_test.go      |  2 +-
+ src/go/build/deps_test.go                 |  6 +++---
+ src/go/doc/headscan.go                    |  4 ++--
+ src/index/suffixarray/suffixarray_test.go |  2 +-
+ test/run.go                               | 17 ++++++++++-------
+ test/winbatch.go                          |  6 +++---
+ 17 files changed, 65 insertions(+), 45 deletions(-)

@@ -1,0 +1,62 @@
+commit 324f6ab48c9558a417876b62fd2f633943ed3bb8
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Sep 20 15:06:08 2016 +1200
+
+    cmd/link: use ctxt.{Lookup,ROLookup} in favour of function versions of same
+    
+    Done with two eg templates:
+    
+    package p
+    
+    import (
+            "cmd/link/internal/ld"
+    )
+    
+    func before(ctxt *ld.Link, name string, v int) *ld.Symbol {
+            return ld.Linklookup(ctxt, name, v)
+    }
+    func after(ctxt *ld.Link, name string, v int) *ld.Symbol {
+            return ctxt.Syms.Lookup(name, v)
+    }
+    
+    package p
+    
+    import (
+            "cmd/link/internal/ld"
+    )
+    
+    func before(ctxt *ld.Link, name string, v int) *ld.Symbol {
+            return ld.Linkrlookup(ctxt, name, v)
+    }
+    func after(ctxt *ld.Link, name string, v int) *ld.Symbol {
+            return ctxt.Syms.ROLookup(name, v)
+    }
+    
+    Change-Id: I00647dbf62294557bd24c29ad1f108fc786335f1
+    Reviewed-on: https://go-review.googlesource.com/29343
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go   |  52 ++++++++---------
+ src/cmd/link/internal/arm/asm.go     |  50 ++++++++--------
+ src/cmd/link/internal/arm64/asm.go   |  12 ++--
+ src/cmd/link/internal/ld/data.go     |  94 +++++++++++++++---------------
+ src/cmd/link/internal/ld/deadcode.go |   8 +--
+ src/cmd/link/internal/ld/dwarf.go    |  40 ++++++-------
+ src/cmd/link/internal/ld/elf.go      | 108 +++++++++++++++++------------------
+ src/cmd/link/internal/ld/go.go       |  14 ++---
+ src/cmd/link/internal/ld/ldelf.go    |   8 +--
+ src/cmd/link/internal/ld/ldmacho.go  |   4 +-
+ src/cmd/link/internal/ld/ldpe.go     |   6 +-
+ src/cmd/link/internal/ld/lib.go      |  34 +++++------
+ src/cmd/link/internal/ld/macho.go    |  40 ++++++-------
+ src/cmd/link/internal/ld/objfile.go  |   2 +-
+ src/cmd/link/internal/ld/pcln.go     |   4 +-
+ src/cmd/link/internal/ld/pe.go       |  14 ++---
+ src/cmd/link/internal/ld/symtab.go   |  78 ++++++++++++-------------
+ src/cmd/link/internal/mips64/asm.go  |   4 +-
+ src/cmd/link/internal/ppc64/asm.go   |  36 ++++++------
+ src/cmd/link/internal/s390x/asm.go   |  36 ++++++------
+ src/cmd/link/internal/x86/asm.go     |  56 +++++++++---------
+ 21 files changed, 350 insertions(+), 350 deletions(-)

@@ -1,0 +1,21 @@
+commit ce536837d8e53f1bf0c7ef450d4580d19f7d6f52
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Fri Aug 24 12:10:01 2018 +0100
+
+    net/http: ensure null body in Fetch response is not read
+    
+    The Fetch API returns a null body if there is no response body,
+    on browsers that support streaming the response body. This
+    change ensures we check for both undefined and null bodies
+    before attempting to read the body.
+    
+    Fixes #27196
+    
+    Change-Id: I0da86b61284fe394418b4b431495e715a037f335
+    Reviewed-on: https://go-review.googlesource.com/131236
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/roundtrip_js.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 3bea90d84107889aaaaa0089f615d7070951a832
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 13 17:18:23 2019 -0500
+
+    cmd/go: allow a fork with path […]/vN to replace gopkg.in/[…].vN
+    
+    Fixes #34254
+    
+    Change-Id: Ib4e476d31264342538c2cf381177823183cba890
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206761
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo.go           | 49 +++++++++++++++-------
+ src/cmd/go/testdata/script/mod_replace_gopkgin.txt | 28 +++++++++++++
+ 2 files changed, 62 insertions(+), 15 deletions(-)

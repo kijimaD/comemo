@@ -1,0 +1,32 @@
+commit 5473103666e6ddfb4c036cbc064447759b63d9d8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 12 09:15:59 2011 -0700
+
+    go spec: clarify semantics of range clause
+    
+    This CL proposes some subtle language changes
+    in an attempt to clarify the semantics of range
+    clauses and simplify uses of maps.
+    
+    - nil maps behave like empty maps; but attempting
+      to set a value in a nil map causes a run-time panic
+    - nil channels are never ready for communication;
+      sending or reading from a nil channel blocks forever
+    - if there is only one index iteration variable in a
+      range clause and len(range expression) would be a constant,
+      the range expression is not evaluated.
+      (was discrepancy with len/cap before)
+    - the notion of what is a constant expression len(x)
+      for (pointer to) arrays x has been generalized and
+      simplified (can still be syntactically decided)
+      (before: more restrictive syntactic rule that was not
+      consistently implemented)
+    
+    Fixes #1713.
+    
+    R=r, rsc, iant, ken2, r2, bradfitz, rog
+    CC=golang-dev
+    https://golang.org/cl/4444050
+
+ doc/go_spec.html | 123 ++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 72 insertions(+), 51 deletions(-)

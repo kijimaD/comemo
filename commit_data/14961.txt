@@ -1,0 +1,48 @@
+commit f7ea900a7bfe88cdfc42448d10a4f9bfa83cc36f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jan 23 10:22:33 2013 +1100
+
+    testing: add Skip/Skipf
+    
+    This proposal adds two methods to *testing.T, Skip(string) and Skipf(format, args...). The intent is to replace the existing log and return idiom which currently has 97 cases in the standard library. A simple example of Skip would be:
+    
+    func TestSomethingLong(t *testing.T) {
+            if testing.Short() {
+                    t.Skip("skipping test in short mode.")
+                    // not reached
+            }
+            ... time consuming work
+    }
+    
+    Additionally tests can be skipped anywhere a *testing.T is present. An example adapted from the go.crypto/ssh/test package would be:
+    
+    // setup performs some before test action and returns a func()
+    // which should be defered by the caller for cleanup.
+    func setup(t *testing.T) func() {
+            ...
+            cmd := exec.Command("sshd", "-f", configfile, "-i")
+            if err := cmd.Run(); err != nil {
+                    t.Skipf("could not execute mock ssh server: %v", err)
+            }
+            ...
+            return func() {
+                    // stop subprocess and cleanup
+            }
+    }
+    
+    func TestDialMockServer(t *testing.T) {
+            cleanup := setup(t)
+            defer cleanup()
+            ...
+    }
+    
+    In verbose mode tests that are skipped are now reported as a SKIP, rather than PASS.
+    
+    Link to discussion: https://groups.google.com/d/topic/golang-nuts/BqorNARzt4U/discussion
+    
+    R=adg, rsc, r, n13m3y3r
+    CC=golang-dev, minux.ma
+    https://golang.org/cl/6501094
+
+ src/pkg/testing/testing.go | 49 ++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 47 insertions(+), 2 deletions(-)

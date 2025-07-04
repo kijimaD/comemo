@@ -1,0 +1,26 @@
+commit dac0220841a44815584c83d26e9f9a45f5560f6d
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Dec 9 16:09:24 2021 -0600
+
+    runtime: avoid potential hang in TestGdbAutotmpTypes
+    
+    If a GC related task preempts between hitting the main.main breakpoint
+    and stepping, the test program may halt forever waiting on a GC
+    operation. This happens if gdb is configured to halt other threads
+    while executing a step.
+    
+    Configure gdb to continue running all threads during a step by
+    setting the scheduler-locking option to off.
+    
+    Fixes #49852
+    
+    Change-Id: Iacc9732cbd23526bde0a295e6fa8a0d90f733f59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370775
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/runtime-gdb_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,17 @@
+commit 07a2ffaf0b2961c76e69e3ca910b6a08a687626b
+Author: Leigh McCulloch <leighmcc@gmail.com>
+Date:   Sat Nov 4 20:54:30 2017 +0000
+
+    doc: move single change workflow note in contribution guide
+    
+    The note about the single change workflow is included in the
+    git-codereview installation instructions, but it has nothing to do with
+    installing git-codereview. This note is more relevant for when a change
+    is actually being made.
+    
+    Change-Id: Iccb90f3b7da87fab863fa4808438cd69a21a2fce
+    Reviewed-on: https://go-review.googlesource.com/76317
+    Reviewed-by: Steve Francia <spf@golang.org>
+
+ doc/contribute.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

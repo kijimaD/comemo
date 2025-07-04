@@ -1,0 +1,16 @@
+commit 9d907160d46ee56169b910673c0a934a0422cd73
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Oct 5 08:28:20 2018 +0900
+
+    vendor: update golang_org/x/net/route from upstream
+    
+    Updates the route package to git rev 146acd2 for:
+    - 146acd2 don't run NET_RT_IFLIST vs. NET_RT_IFLISTL test in 386 emulation (again)
+    
+    Change-Id: I24de1eb31b2ca0e24cb9ab1648f7a71b5067cf97
+    Reviewed-on: https://go-review.googlesource.com/c/139937
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ .../golang_org/x/net/route/message_freebsd_test.go      |  8 ++------
+ src/vendor/golang_org/x/net/route/sys_freebsd.go        | 17 +++++++++++------
+ 2 files changed, 13 insertions(+), 12 deletions(-)

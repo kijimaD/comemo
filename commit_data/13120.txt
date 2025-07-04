@@ -1,0 +1,55 @@
+commit f26d61731dd05a1b81f40117fe18630b78f4489e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 22 10:04:34 2012 -0700
+
+    go/parser: fix comment grouping (day 1 bug)
+    
+    Comment groups must end at the end of a line (or the
+    next non-comment token) if the group started on a line
+    with non-comment tokens.
+    
+    This is important for correct computation of "lead"
+    and "line" comments (Doc and Comment fields in AST nodes).
+    
+    Without this fix, the "line" comment for F1 in the
+    following example:
+    
+    type T struct {
+         F1 int // comment1
+         // comment2
+         F2 int
+    }
+    
+    is "// comment1// comment2" rather than just "// comment1".
+    
+    This bug was present from Day 1 but only visible when
+    looking at export-filtered ASTs where only comments
+    associated with AST nodes are printed, and only in rare
+    cases (e.g, in the case above, if F2 where not exported,
+    godoc would show "// comment2" anyway because it was
+    considered part of the "line" comment for F1).
+    
+    The bug fix is very small (parser.go). The bulk of the
+    changes are additional test cases (parser_test.go).
+    
+    The fix exposed a caching bug in go/printer via one of the
+    existing tests, hence the changes to printer.go.
+    
+    As an aside, the fix removes the the need for empty lines
+    before an "// Output" comment for some special cases of
+    code examples (e.g.: src/pkg/strings/example_test.go, Count
+    example).
+    
+    No impact on gofmt formatting of src, misc.
+    
+    Fixes #3139.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6209080
+
+ src/pkg/go/parser/parser.go      |  12 ++--
+ src/pkg/go/parser/parser_test.go | 134 +++++++++++++++++++++++++++++++++++++--
+ src/pkg/go/printer/nodes.go      |  15 ++++-
+ src/pkg/strings/example_test.go  |   1 -
+ 4 files changed, 147 insertions(+), 15 deletions(-)

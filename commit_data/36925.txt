@@ -1,0 +1,56 @@
+commit 9ff11b026089791c4d2bc14c17647f3cb4f4aa22
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 15:50:01 2018 +0200
+
+    net: add AIX operating system
+    
+    This commit adds AIX operating system to net package for ppc64
+    architecture.
+    
+    Updates: #25893
+    
+    Change-Id: I46bbc7b03931019beb969443cb3f9a756956c66c
+    Reviewed-on: https://go-review.googlesource.com/c/138724
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/addrselect.go                    |   2 +-
+ src/net/conf.go                          |   2 +-
+ src/net/dial_unix_test.go                |   2 +-
+ src/net/dnsclient_unix.go                |   2 +-
+ src/net/dnsclient_unix_test.go           |   2 +-
+ src/net/dnsconfig_unix.go                |   2 +-
+ src/net/dnsconfig_unix_test.go           |   2 +-
+ src/net/error_posix.go                   |   2 +-
+ src/net/error_unix.go                    |   2 +-
+ src/net/fd_unix.go                       |   2 +-
+ src/net/file_unix.go                     |   2 +-
+ src/net/hook_unix.go                     |   2 +-
+ src/net/interface_aix.go                 | 165 +++++++++++++++++++++++++++++++
+ src/net/internal/socktest/switch_unix.go |   2 +-
+ src/net/internal/socktest/sys_unix.go    |   2 +-
+ src/net/iprawsock_posix.go               |   2 +-
+ src/net/ipsock_posix.go                  |   4 +-
+ src/net/listen_test.go                   |   2 +-
+ src/net/lookup_unix.go                   |   2 +-
+ src/net/main_unix_test.go                |   2 +-
+ src/net/nss.go                           |   2 +-
+ src/net/platform_test.go                 |   2 +-
+ src/net/port_unix.go                     |   2 +-
+ src/net/rawconn_unix_test.go             |   2 +-
+ src/net/sendfile_stub.go                 |   2 +-
+ src/net/sock_posix.go                    |   2 +-
+ src/net/sock_stub.go                     |   2 +-
+ src/net/sockaddr_posix.go                |   2 +-
+ src/net/sockopt_aix.go                   |  38 +++++++
+ src/net/sockopt_posix.go                 |   2 +-
+ src/net/sockoptip_bsdvar.go              |   2 +-
+ src/net/sockoptip_posix.go               |   2 +-
+ src/net/sys_cloexec.go                   |   2 +-
+ src/net/tcpsock_posix.go                 |   2 +-
+ src/net/tcpsockopt_posix.go              |   2 +-
+ src/net/tcpsockopt_unix.go               |   2 +-
+ src/net/udpsock_posix.go                 |   2 +-
+ src/net/unixsock_posix.go                |   2 +-
+ 38 files changed, 240 insertions(+), 37 deletions(-)

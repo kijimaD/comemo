@@ -1,0 +1,12 @@
+commit 168777d4af9eca993f2b11e193a537fa37c52a05
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Oct 3 15:02:11 2009 -0700
+
+    fix build
+    
+    TBR=r
+    OCL=35308
+    CL=35308
+
+ src/run.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

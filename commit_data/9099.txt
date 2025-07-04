@@ -1,0 +1,13 @@
+commit 9d55c282e3aac4c2d97590785d7a821adcf8ac9e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 18 11:08:55 2011 +1000
+
+    5c: attempt to fix build by silencing warnings about unused variables.
+    The story is more complicated; this is just a bandaid.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4755047
+
+ src/cmd/5c/reg.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,20 @@
+commit da35d425214763d7d51d74e0410dc3a431c4a13d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 5 06:11:10 2013 -0800
+
+    exp/inotify: close event channel before file descriptor
+    
+    Closing the inotify file descriptor can take over a second
+    when running on Ubuntu Precise in an NFS directory, leading to
+    the test error in issue 3132.  Closing the event channel first
+    lets a client that does not care about the error channel move
+    on.
+    
+    Fixes #3132.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/7300045
+
+ src/pkg/exp/inotify/inotify_linux.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

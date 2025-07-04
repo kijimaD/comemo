@@ -1,0 +1,28 @@
+commit 821420d6bbc53d4cd8b3f9a903fccd0c6432eb6f
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Feb 3 08:11:53 2022 -0500
+
+    cmd/link/internal/loadpe: generalize handling of "__imp_*" syms
+    
+    The existing PE file loader has a special case for the symbol
+    "__acrt_iob_func", whose hosting object file contains both an actual
+    definition and also a DLL import symbol "__imp___acrt_iob_func". The
+    normal way of handling __imp_XXX symbols is for the host object loader
+    to rename them to their intended target (e.g. "XXX") however if the
+    target is also defined locally, you get a duplicate definition.
+    
+    This patch generalizes the def/import symbol detection to apply to all
+    symbols in the object file being loaded (not just a hard-coded set),
+    since it will be needed when reading things like crt2.o.
+    
+    Updates #35006.
+    
+    Change-Id: I0d0607c27bb7d5f3cb415bc95db816aa13746ba2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382837
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/loadpe/ldpe.go | 68 +++++++++++++++++++++++++++---------
+ 1 file changed, 51 insertions(+), 17 deletions(-)

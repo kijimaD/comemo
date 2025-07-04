@@ -1,0 +1,14 @@
+commit 68add46af776369dbaade9eb1eb9de9bb0c7fec8
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 2 19:39:08 2011 -0800
+
+    unsafe: fix the documentation
+    Reflection is about Pointer, not uintptr.
+    Also clarify that Reflect and Unreflect are indirect.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4254052
+
+ src/pkg/unsafe/unsafe.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

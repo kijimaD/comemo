@@ -1,0 +1,32 @@
+commit a14a8a3eb99658b6a0856b664cf900c861a2e306
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 22 06:40:06 2017 -0700
+
+    cmd/compile: collapse runs of string constants in walkprint
+    
+    This reduces the code footprint of code like:
+    
+    println("foo=", foo, "bar=", bar)
+    
+    which is fairly common in the runtime.
+    
+    Prior to this change, this makes function calls to print each of:
+    
+    "foo=", " ", foo, " ", "bar=", " ", bar, "\n"
+    
+    After this change, this prints:
+    
+    "foo= ", foo, " bar= ", bar, "\n"
+    
+    This shrinks the hello world binary by 0.4%.
+    More importantly, this improves the instruction
+    density of important runtime routines.
+    
+    Change-Id: I8971bdf5382fbaaf4a82bad4442f9da07c28d395
+    Reviewed-on: https://go-review.googlesource.com/55098
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

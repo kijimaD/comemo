@@ -1,0 +1,23 @@
+commit 77f3e189d2bd4eb015235d200ca75803e45c87ef
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Aug 5 21:35:41 2012 +0200
+
+    runtime: faster string equality.
+    
+    benchmark                                old ns/op    new ns/op    delta
+    BenchmarkCompareStringEqual                     51           35  -30.20%
+    BenchmarkCompareStringIdentical                 51            7  -85.71%
+    BenchmarkCompareStringSameLength                25           18  -28.29%
+    BenchmarkCompareStringDifferentLength            2            2   +1.46%
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6450092
+
+ src/cmd/gc/builtin.c           |  1 +
+ src/cmd/gc/runtime.go          |  1 +
+ src/cmd/gc/walk.c              | 29 ++++++++++++++++-----------
+ src/pkg/runtime/alg.c          |  4 ++++
+ src/pkg/runtime/string.goc     | 20 +++++++++++++++++++
+ src/pkg/runtime/string_test.go | 45 ++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 89 insertions(+), 11 deletions(-)

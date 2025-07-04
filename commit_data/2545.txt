@@ -1,0 +1,20 @@
+commit b32769b1a33c4008c6f314b178f2b30b4192281a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 13:44:46 2009 -0700
+
+    add os.Hostname
+    
+    R=r
+    DELTA=188  (182 added, 3 deleted, 3 changed)
+    OCL=30856
+    CL=30860
+
+ src/pkg/os/Makefile                      |  8 ++--
+ src/pkg/os/os_test.go                    | 40 +++++++++++++++++
+ src/pkg/os/sys_darwin.go                 | 21 +++++++++
+ src/pkg/os/sys_linux.go                  | 29 ++++++++++++
+ src/pkg/syscall/syscall_darwin.go        | 77 +++++++++++++++++++++++++++++++-
+ src/pkg/syscall/syscall_linux.go         |  2 -
+ src/pkg/syscall/zsyscall_darwin_386.go   |  8 ++++
+ src/pkg/syscall/zsyscall_darwin_amd64.go |  8 ++++
+ 8 files changed, 187 insertions(+), 6 deletions(-)

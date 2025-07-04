@@ -1,0 +1,20 @@
+commit 2c8b70eacfc3fd2d86bd8e4e4764f11a2e9b3deb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 17 21:24:17 2017 +0000
+
+    crypto/x509: revert SystemCertPool implementation for Windows
+    
+    Updates #18609
+    
+    Change-Id: I8306135660f52cf625bed4c7f53f632e527617de
+    Reviewed-on: https://go-review.googlesource.com/35265
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ doc/go1.8.html                  |  5 -----
+ src/crypto/x509/cert_pool.go    | 11 ++++++++++-
+ src/crypto/x509/root_windows.go |  5 +++++
+ src/crypto/x509/x509_test.go    |  4 ++++
+ 4 files changed, 19 insertions(+), 6 deletions(-)

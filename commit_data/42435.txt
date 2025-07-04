@@ -1,0 +1,18 @@
+commit c082c1fea376403182444371bbbaf6d203dc12b9
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jun 2 15:33:58 2020 -0400
+
+    doc/go1.15: remove TODOs for tools and go command sections
+    
+    For #37419
+    
+    Change-Id: I35a5cf86ff09a3962959627dce58155b26ad4748
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236160
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ doc/go1.15.html | 8 --------
+ 1 file changed, 8 deletions(-)

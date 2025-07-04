@@ -1,0 +1,20 @@
+commit 84ded8ba8a0233a7f38e3c777dc1c213f98d00a2
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Fri Aug 26 22:21:00 2016 +0100
+
+    net/http: make Server log on bad requests from clients
+    
+    Fixes #12745
+    
+    Change-Id: Iebb7c97cb5b68dc080644d796a6ca1c120d41b26
+    Reviewed-on: https://go-review.googlesource.com/27950
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client_test.go       |  1 +
+ src/net/http/clientserver_test.go |  6 +++++-
+ src/net/http/main_test.go         |  4 ++++
+ src/net/http/serve_test.go        | 25 +++++++++++++++++--------
+ src/net/http/server.go            | 37 +++++++++++++++++++++++++++++--------
+ 5 files changed, 56 insertions(+), 17 deletions(-)

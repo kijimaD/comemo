@@ -1,0 +1,14 @@
+commit fa155066c476c55e2e569587695c83f185091052
+Author: romanyx <romanyx90@yandex.ru>
+Date:   Tue Aug 8 19:37:53 2017 +0300
+
+    math/bits: some regular examples for functions
+    
+    Change-Id: Iee1b3e116b4dcc4071d6512abc5241eabedaeb5c
+    Reviewed-on: https://go-review.googlesource.com/53850
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/bits/example_test.go | 108 ++++++++++++++++++++++++++----------------
+ 1 file changed, 68 insertions(+), 40 deletions(-)

@@ -1,0 +1,18 @@
+commit 710476495a94892f1a07ca4a253101d1e00b4dec
+Author: Jake Bailey <jacob.b.bailey@gmail.com>
+Date:   Fri Mar 21 22:34:52 2025 -0700
+
+    testing: remove redundant variable capture from subtest example
+    
+    Loop variable capturing hasn't been needed like this since Go 1.21;
+    remove it from the example.
+    
+    Change-Id: I231dcfdb57832e32d524f156a605ba36d1c9d6d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660176
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/testing/testing.go | 1 -
+ 1 file changed, 1 deletion(-)

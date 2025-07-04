@@ -1,0 +1,19 @@
+commit 3402c5e8fed860396f6b2b58233989b62fc81014
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jul 30 14:00:59 2010 +1000
+
+    misc/builder: support for uploading tarballs to googlecode
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1784042
+
+ README                              |  35 +++++
+ misc/dashboard/README               |  14 +-
+ misc/dashboard/buildcontrol.py      |  41 +++++-
+ misc/dashboard/buildcron.sh         |   4 +-
+ misc/dashboard/builder.sh           |  15 ++-
+ misc/dashboard/googlecode_upload.py | 248 ++++++++++++++++++++++++++++++++++++
+ src/clean.bash                      |   4 +-
+ src/lib9/Makefile                   |   4 +-
+ 8 files changed, 355 insertions(+), 10 deletions(-)

@@ -1,0 +1,12 @@
+commit cc99ba0a96d6bf6b68e2e87d7961ff593579a8c7
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Apr 6 11:14:44 2010 +1000
+
+    doc/go_mem: remove semicolons
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/893041
+
+ doc/go_mem.html | 94 ++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 47 insertions(+), 47 deletions(-)

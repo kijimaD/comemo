@@ -1,0 +1,21 @@
+commit 0d69747d91071be62f2cf4759e10d56426b84b26
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jul 24 11:24:40 2023 -0400
+
+    net/http: document setting of Proxy-Authorization header
+    
+    Add a test for setting a proxy username/password in
+    the HTTP_PROXY environment variable as well.
+    
+    Fixes #61505
+    
+    Change-Id: I31c3fa94c7bc463133321e9af9289fd47da75b46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512555
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/transport.go      |  4 ++++
+ src/net/http/transport_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

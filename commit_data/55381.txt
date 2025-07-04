@@ -1,0 +1,32 @@
+commit 5f949c4f2f5c45210612aee87713818a991f6a17
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 17 11:04:11 2024 -0800
+
+    go/types, types2: fix range clause checks for constant range expressions
+    
+    Add missing checks for the case where the range expression is
+    a (possibly untyped) constant integer expression.
+    
+    Add context parameter to assignVar for better error message
+    where the expression is part of a range clause.
+    
+    Also, rename s/expr/Expr/ where it denotes an AST expression,
+    for clarity.
+    
+    Fixes #65133.
+    For #65137.
+    
+    Change-Id: I72962d76741abe79f613e251f7b060e99261d3ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556398
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go |  9 ++--
+ src/cmd/compile/internal/types2/stmt.go        | 34 +++++++++----
+ src/go/types/assignments.go                    |  9 ++--
+ src/go/types/stmt.go                           | 34 +++++++++----
+ src/internal/types/testdata/spec/range_int.go  | 68 +++++++++++++++++++++++++-
+ 5 files changed, 123 insertions(+), 31 deletions(-)

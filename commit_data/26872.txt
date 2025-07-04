@@ -1,0 +1,24 @@
+commit 98080a6c64c2d9bc2a759b66a9b861af4ef7367b
+Author: Shawn Walker-Salas <shawn.walker@oracle.com>
+Date:   Fri Apr 8 15:59:04 2016 -0700
+
+    net: broken sendfile on SmartOS/Solaris
+    
+    In the event of a partial write on Solaris and some BSDs, the offset
+    pointer passed to sendfile() will be updated even though the function
+    returns -1 if errno is set to EAGAIN/EINTR.  In that case, calculate the
+    bytes written based on the difference between the updated offset and the
+    original offset.  If no bytes were written, and errno is set to
+    EAGAIN/EINTR, ignore the errno.
+    
+    Fixes #13892
+    
+    Change-Id: I6334b5ef2edcbebdaa7db36fa4f7785967313c2d
+    Reviewed-on: https://go-review.googlesource.com/21769
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/sendfile_solaris.go |  9 ++++-
+ src/net/sendfile_test.go    | 90 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 97 insertions(+), 2 deletions(-)

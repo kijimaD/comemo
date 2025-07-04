@@ -1,0 +1,14 @@
+commit 982e6c44a0c4f7436b6242b6c1cce37fcb880c3a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 13 22:46:50 2012 -0500
+
+    build: set $PATH during make.bash
+    
+    Should fix build breakage.
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5656050
+
+ src/make.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

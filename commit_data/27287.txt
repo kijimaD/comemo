@@ -1,0 +1,15 @@
+commit 6ccab441de1063a16b263107426fe62d2cefa990
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed May 4 23:47:37 2016 -0700
+
+    cmd/compile/internal/gc: skip TestFP on mips64x
+    
+    The legacy mips64 backend doesn't handle large uint->float conversion
+    correctly. See #15552.
+    
+    Change-Id: I84ceeaa95cc4e85f09cc46dfb30ab5d151f6b205
+    Reviewed-on: https://go-review.googlesource.com/22800
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/compile/internal/gc/ssa_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

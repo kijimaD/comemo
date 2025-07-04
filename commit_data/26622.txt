@@ -1,0 +1,17 @@
+commit e7538df7011e3767e9350655ea51edb894d61423
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Mar 4 02:54:51 2016 +0900
+
+    net/mail: throw error when multiple addresses are given to ParseAddress
+    
+    Fixes #14610
+    
+    Change-Id: I3e57dd60b531c1495ea3bc37ef707a1e4e644baa
+    Reviewed-on: https://go-review.googlesource.com/20180
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/mail/message.go      | 17 ++++++++++++++---
+ src/net/mail/message_test.go | 22 ++++++++++++----------
+ 2 files changed, 26 insertions(+), 13 deletions(-)

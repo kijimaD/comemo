@@ -1,0 +1,14 @@
+commit e6cddeaee8a3aba7d2f7b664b0253fec21f18ac3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 20 16:09:34 2009 -0700
+
+    xcode config files, self-describing
+    
+    R=r
+    DELTA=250  (250 added, 0 deleted, 0 changed)
+    OCL=29120
+    CL=29127
+
+ misc/xcode/go.pbfilespec |  31 +++++++
+ misc/xcode/go.xclangspec | 223 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 254 insertions(+)

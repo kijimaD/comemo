@@ -1,0 +1,21 @@
+commit b2c43438d20bafda5c6fee777342371d1685e5cc
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 25 23:30:39 2014 +0400
+
+    runtime: restore scavenger constants
+    Once and for all.
+    Broken in cl/108640043.
+    I've messed it before. To test scavenger-related changes
+    one needs to alter the constants during final testing.
+    And then it's very easy to submit with the altered constants.
+    
+    LGTM=rsc
+    R=golang-codereviews
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/136720044
+
+ src/pkg/runtime/extern.go | 2 ++
+ src/pkg/runtime/proc.c    | 9 +++++++--
+ src/pkg/runtime/runtime.c | 2 ++
+ src/pkg/runtime/runtime.h | 1 +
+ 4 files changed, 12 insertions(+), 2 deletions(-)

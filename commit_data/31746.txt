@@ -1,0 +1,16 @@
+commit 755fd93b604c11bd67a7b1be496c1dcd0e001768
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 7 21:29:01 2017 +0000
+
+    net/http: delete vestigial method
+    
+    Fixes #19850
+    
+    Change-Id: I8c86e288159408c687c2a85f458ade282adae450
+    Reviewed-on: https://go-review.googlesource.com/45077
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/request.go | 5 -----
+ 1 file changed, 5 deletions(-)

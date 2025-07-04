@@ -1,0 +1,26 @@
+commit 8f1e2a2610765528068107e33ab0d1d2ff224ce3
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue Jun 13 12:24:19 2017 +0000
+
+    cmd/internal/obj/arm64: fix assemble fcmp/fcmpe bug
+    
+    The current code treats floating-point constant as integer
+    and does not treat fcmp/fcmpe as the comparison instrucitons
+    that requires special handling.
+    
+    The fix corrects the type of immediate arguments and adds fcmp/fcmpe
+    in the special handing.
+    
+    Uncomment the fcmp/fcmpe cases.
+    
+    Fixes #21567
+    Change-Id: I6782520e2770f6ce70270b667dd5e68f71e2d5ad
+    Reviewed-on: https://go-review.googlesource.com/57852
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/arch/arm64.go           |  4 +++-
+ src/cmd/asm/internal/asm/testdata/arm64enc.s | 16 ++++++++--------
+ src/cmd/internal/obj/arm64/asm7.go           |  2 +-
+ 3 files changed, 12 insertions(+), 10 deletions(-)

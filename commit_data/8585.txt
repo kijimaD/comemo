@@ -1,0 +1,15 @@
+commit b873701dbde3a9ea562d5297c5d06956a00feccd
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jun 2 17:08:56 2011 +1000
+
+    runtime: do not garbage collect windows callbacks
+    
+    Fixes #1883.
+    Fixes #1702.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4532103
+
+ src/pkg/runtime/windows/thread.c | 40 +++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 37 insertions(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit 6b555dc29e98ca756eb3f10edc4b8a17a72b1258
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 29 16:10:03 2022 -0700
+
+    go/types: use singular in version error messages
+    
+    This matches the majority use case as well as types2.
+    
+    For #54511.
+    
+    Change-Id: If800afc35db8d32cca8329ed9d6a80b4a15c4878
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426477
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/go/types/resolver.go                      |  4 ++--
+ src/go/types/testdata/fixedbugs/issue47818.go | 10 ++++++----
+ 2 files changed, 8 insertions(+), 6 deletions(-)

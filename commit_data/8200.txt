@@ -1,0 +1,17 @@
+commit 14531fbaa5390a7057d35e9300ae5dbb4d736ca2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 22 16:59:21 2011 -0700
+
+    fmt: decrease recursion depth
+    
+    This permits the test to run when using gccgo on system
+    without split-stack support.  See
+    http://gcc.gnu.org/ml/gcc-patches/2011-04/msg01420.html
+    http://gcc.gnu.org/PR48553
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4440062
+
+ src/pkg/fmt/scan_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

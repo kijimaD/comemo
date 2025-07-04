@@ -1,0 +1,13 @@
+commit f0c00f7eee25b50d667d6974af1fee15554b7ec6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 21 14:06:14 2009 -0700
+
+    Don't cast nil to a fixed array type.
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=31916
+    CL=31937
+
+ src/pkg/reflect/all_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit b4bf0663fa3334d053981f222eed5015a0a1b8df
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Apr 23 22:36:41 2016 +0900
+
+    net: golang.org/x/net/route plumbing
+    
+    This change makes use of new routing message APIs for BSD variants to
+    support FreeBSD 11 and newer versions of other BSDs.
+    
+    Fixes #7849.
+    Fixes #14724.
+    
+    Change-Id: I56c7886d6622cdeddd7cc29c8a8062dcc06216d5
+    Reviewed-on: https://go-review.googlesource.com/22451
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/deps_test.go                          |   7 +-
+ src/net/interface_bsd.go                           | 167 +++++++--------------
+ ...{interface_dragonfly.go => interface_bsdvar.go} |  16 ++
+ src/net/interface_darwin.go                        |  67 ++++-----
+ src/net/interface_freebsd.go                       |  72 +++++----
+ src/net/interface_netbsd.go                        |  12 --
+ src/net/interface_openbsd.go                       |  12 --
+ src/net/interface_test.go                          |  21 ---
+ 8 files changed, 141 insertions(+), 233 deletions(-)

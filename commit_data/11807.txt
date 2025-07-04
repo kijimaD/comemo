@@ -1,0 +1,15 @@
+commit 7dd90621f8f8ed25708daf279067e8c0024af20b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 11 01:21:12 2012 -0500
+
+    gc: diagnose field+method of same name
+    
+    Fixes #2828.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5653065
+
+ src/cmd/gc/dcl.c         |  8 ++++++++
+ test/fixedbugs/bug416.go | 13 +++++++++++++
+ 2 files changed, 21 insertions(+)

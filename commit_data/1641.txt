@@ -1,0 +1,15 @@
+commit 8a70545b57c05a0b72b83b7d7fd7d6b77bfbf9d3
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Feb 7 12:34:45 2009 -0800
+
+    unsafe.Sizeof and unsafe.Offsetof
+    
+    R=r
+    OCL=24639
+    CL=24639
+
+ src/cmd/gc/dcl.c     | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/go.h      |  1 +
+ src/cmd/gc/go.y      |  4 +++-
+ src/cmd/gc/unsafe.go |  2 ++
+ 4 files changed, 57 insertions(+), 1 deletion(-)

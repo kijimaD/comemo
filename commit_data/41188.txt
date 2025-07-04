@@ -1,0 +1,20 @@
+commit a50c3ffbd47e3dcfc1b5bd2a2d19d55731481eaa
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Jan 29 20:14:18 2020 +1100
+
+    cmd/internal/obj/riscv,cmd/link: shorten the riscv64 call sequence
+    
+    Now that the other dependent offset has been identified, we can remove the
+    unnecessary ADDI instruction from the riscv64 call sequence (reducing it
+    to AUIPC+JALR, rather than the previous AUIPC+ADDI+JALR).
+    
+    Change-Id: I348c4efb686f9f71ed1dd1d25fb9142a41230b0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216798
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/riscv/obj.go | 9 ---------
+ src/cmd/link/internal/ld/pcln.go  | 4 ++--
+ src/runtime/asm_riscv64.s         | 5 ++---
+ 3 files changed, 4 insertions(+), 14 deletions(-)

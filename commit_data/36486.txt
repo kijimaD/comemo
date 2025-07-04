@@ -1,0 +1,12 @@
+commit aacc891df29f742a6a128069256436fa369696c2
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Aug 24 18:44:17 2018 -0400
+
+    doc/go1.11: fix typo
+    
+    Change-Id: I097bd90f62add7838f8c7baf3b777ad167635354
+    Reviewed-on: https://go-review.googlesource.com/131357
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ doc/go1.11.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

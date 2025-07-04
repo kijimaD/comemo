@@ -1,0 +1,16 @@
+commit 558d055352747b2a2b5329ece9fa8ddb3c4ed999
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Nov 18 01:12:57 2011 -0200
+
+    exp/terminal: fix build after os.Errno changes
+    
+    Also include exp/terminal in linux build so such failures
+    are noticed.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5416044
+
+ src/pkg/Makefile             |  1 +
+ src/pkg/exp/terminal/util.go | 31 +++++++++++++++----------------
+ 2 files changed, 16 insertions(+), 16 deletions(-)

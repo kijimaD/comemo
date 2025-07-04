@@ -1,0 +1,20 @@
+commit 48ff5c1042af780dade9f539368e8bc2259d2679
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Nov 3 13:18:13 2022 -0400
+
+    cmd/go: fix a bug printing error output from c compiler
+    
+    fmt.Sprint should be called instead of fmt.Sprintf as is done
+    elsewhere in exec.go
+    
+    Change-Id: I730c1f02238fccb24323701b587d3bf1391c9f62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447656
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/work/exec.go               | 12 ++++++++----
+ src/cmd/go/internal/work/gc.go                 |  3 ++-
+ src/cmd/go/testdata/script/build_cgo_error.txt | 17 +++++++++++++++++
+ 3 files changed, 27 insertions(+), 5 deletions(-)

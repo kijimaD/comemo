@@ -1,0 +1,14 @@
+commit a547ad6ac0d7cb83198b1144ae0e87442b746fd9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 10 11:27:29 2013 -0700
+
+    cmd/go: report real package in errors for go get with wildcard
+    
+    Fixes #5054.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/13609043
+
+ src/cmd/go/get.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

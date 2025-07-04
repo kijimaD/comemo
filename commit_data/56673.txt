@@ -1,0 +1,19 @@
+commit 13e3068b9c0f8640207b1497d15b730b8e31bb51
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 23 13:54:17 2024 -0700
+
+    go/types, types2: add missing Unalias call to type string functionality
+    
+    For #67547.
+    
+    Change-Id: I999cd31f9a01f91e7984b4e7012c81e8bd9c6b06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587940
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/operand.go          | 2 +-
+ src/go/types/operand.go                             | 2 +-
+ src/internal/types/testdata/fixedbugs/issue67547.go | 7 +++++++
+ 3 files changed, 9 insertions(+), 2 deletions(-)

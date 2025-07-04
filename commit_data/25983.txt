@@ -1,0 +1,16 @@
+commit 8ad027c0c401a5b2d58679f8dac2b4c4f68c8ba0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 29 21:48:15 2016 -0800
+
+    go/types: nicer shift error message
+    
+    Updates #13940.
+    
+    Change-Id: I41974c292dd981d82ac03b9b8b406713445362c3
+    Reviewed-on: https://go-review.googlesource.com/20081
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/types/expr.go             | 6 +++---
+ src/go/types/testdata/shifts.src | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

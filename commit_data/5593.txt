@@ -1,0 +1,18 @@
+commit 041d978d849c17750e054a169407e5fc9b2cc942
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 2 16:17:18 2010 -0700
+
+    bufio: change ReadSlice to match description
+    
+    On error, ReadSlice is defined to return the available data
+    and advance past that data, but it was not behaving that
+    way for err == ErrBufferFull, making it harder for callers to
+    handle well.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1480041
+
+ src/pkg/bufio/bufio.go      | 20 +++++---------------
+ src/pkg/bufio/bufio_test.go | 12 ++++++++++++
+ 2 files changed, 17 insertions(+), 15 deletions(-)

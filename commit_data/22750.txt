@@ -1,0 +1,18 @@
+commit a88994c1378c5762a9eee75e683d19e65689bfd1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 28 12:35:06 2015 -0700
+
+    cmd/asm: add comments back for aliases on jumps for x86
+    
+    These were lost in the transition from 8a/6a to asm.
+    Also, in the process, discover more aliases. I'm betting the missing
+    ones were a casualty of the recent merge of 386 and amd64.
+    
+    Update #10385.
+    
+    Change-Id: I1681034b25af3ffc103f75e5fc57baca5feb3fcd
+    Reviewed-on: https://go-review.googlesource.com/9431
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/asm/internal/arch/arch.go | 74 ++++++++++++++++++++++++---------------
+ 1 file changed, 45 insertions(+), 29 deletions(-)

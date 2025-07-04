@@ -1,0 +1,25 @@
+commit be5a201e2a59dbe45157b8939a507830206d86fb
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 21 10:00:30 2017 -0700
+
+    text/template: fix handling of empty blocks
+    
+    This was a subtle bug introduced in the previous release's fix for
+    issue 16156.
+    
+    The definition of empty template was broken, causing the answer
+    to depend on the order of templates in the map.
+    
+    Fixes #16156 (for real).
+    Fixes #19294.
+    Fixes #19204.
+    
+    Change-Id: I1cd915c94534cad3116d83bd158cbc28700510b9
+    Reviewed-on: https://go-review.googlesource.com/38420
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/text/template/multi_test.go | 37 +++++++++++++++++++++++++++++++++++--
+ src/text/template/template.go   |  4 ++--
+ 2 files changed, 37 insertions(+), 4 deletions(-)

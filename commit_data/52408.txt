@@ -1,0 +1,23 @@
+commit c994067e5bf8c9fde09cabfc29d56fdcf98bbee8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 23 17:38:05 2023 -0700
+
+    encoding/gob: update decgen to generate current dec_helpers
+    
+    I edited dec_helpers.go without realizing that it is a generated file.
+    Fix the generator to generate the current version (which generates
+    a small comment change).
+    
+    Change-Id: I70e3bc78eb0728d23c08972611218f288dc1d29c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479117
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Andrew Ekstedt <andrew.ekstedt@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/encoding/gob/dec_helpers.go |  1 +
+ src/encoding/gob/decgen.go      | 22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

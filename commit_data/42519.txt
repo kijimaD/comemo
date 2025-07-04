@@ -1,0 +1,26 @@
+commit 9340bd610bfd386f8a71e480019b44806d53c3db
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Sat Jun 13 19:04:15 2020 +0100
+
+    runtime: avoid lock starvation in TestNetpollBreak on Plan 9
+    
+    TestNetpollBreak was sometimes timing out on Plan 9, where
+    netpoll_stub.go implements only enough of the network poller
+    to support runtime timers, using a notetsleep / notewakeup
+    pair. The runtime.lock which serialises the use of the note
+    doesn't guarantee fairness, and in practice the netpoll call
+    used by the test can be starved by the netpoll call from the
+    scheduler which supports the overall 'go test' timeout.
+    Calling osyield after relinquishing the lock gives the two
+    callers a more even chance to take a turn, which prevents
+    the test from timing out.
+    
+    Fixes #39437
+    
+    Change-Id: Ifbe6aaf95336d162d9d0b6deba19b8debf17b071
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237698
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/netpoll_stub.go | 3 +++
+ 1 file changed, 3 insertions(+)

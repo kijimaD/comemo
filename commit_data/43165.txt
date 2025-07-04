@@ -1,0 +1,20 @@
+commit c78c79f152dff010820a22e9a79cfffe48322914
+Author: David Chase <drchase@google.com>
+Date:   Thu Oct 1 16:22:19 2020 -0400
+
+    cmd/compile: activate revert switch for late call expansion regression
+    
+    Not a fix, but things will work while I fix it.
+    Credit @andybons "for we revert switches for scary stuff".
+    
+    Updates #41736
+    
+    Change-Id: I55f90860eae919765aac4f6d9f108a54139027e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258897
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/config.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

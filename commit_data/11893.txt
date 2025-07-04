@@ -1,0 +1,15 @@
+commit db93edfc286e05b6f1a1a8e0973a1dfa1ba8046d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 14 01:23:25 2012 -0500
+
+    builder: fix windows environment
+    
+    Not causing problems yet, but no need to
+    keep using cygwin paths now that we're off cygwin.
+    
+    R=alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5656053
+
+ misc/dashboard/builder/main.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

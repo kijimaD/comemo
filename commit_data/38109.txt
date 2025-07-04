@@ -1,0 +1,16 @@
+commit 43732816be576bfa3b57e58941d7a46b46090dc3
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Dec 26 12:09:49 2018 +0530
+
+    syscall/js: add a note about a bug in TypedArray
+    
+    Fixes #29355
+    
+    Change-Id: I4018d420c8d413b2681744af18ffb65da03ac504
+    Reviewed-on: https://go-review.googlesource.com/c/155778
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ src/syscall/js/typedarray.go | 5 +++++
+ 1 file changed, 5 insertions(+)

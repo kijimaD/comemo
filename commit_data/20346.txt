@@ -1,0 +1,18 @@
+commit 4a40fb197931a23c11ff4d677ecee6aefd99d5ca
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Sep 8 16:06:41 2014 +1000
+
+    cmd/cc: fix undefined behaviour warning in bv.c
+    
+    Fixes warning
+    
+    # _/home/dfc/go/misc/cgo/test/backdoor
+    /home/dfc/go/src/cmd/cc/bv.c:43:11: runtime error: left shift of 1 by 31 places cannot be represented in type 'int'
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/136330043
+
+ src/cmd/cc/bv.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

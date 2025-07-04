@@ -1,0 +1,17 @@
+commit eef79b6712b306379f5b98259820b1a9736ecbbd
+Author: tengufromsky <nick27surgut@gmail.com>
+Date:   Sun Apr 15 19:08:56 2018 +0300
+
+    encoding/xml: remove unnecessary if conditions
+    
+    Fixes gosimple warning "if err != nil { return err };
+    return nil' can be simplified to 'return err"
+    
+    Change-Id: Ibbc717fb066ff41ab35c481b6d44980ac809ae09
+    Reviewed-on: https://go-review.googlesource.com/107018
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/xml/xml.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

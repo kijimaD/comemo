@@ -1,0 +1,14 @@
+commit 5ac186975c8a792a4504060001df12fa3ba2ba4e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 22 17:44:28 2012 -0700
+
+    doc/articles/c_go_cgo.html: correct "C" comment to mention #cgo
+    
+    Also fix invalid apostrophe characters.
+    
+    R=r, gri, adg
+    CC=golang-dev
+    https://golang.org/cl/5874058
+
+ doc/articles/c_go_cgo.html | 44 ++++++++++++++++++++++++++++++++------------
+ 1 file changed, 32 insertions(+), 12 deletions(-)

@@ -1,0 +1,23 @@
+commit 898ca6ba0af0ea1180fea1f226ff6ef731018ac2
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Sep 11 19:05:29 2016 -0700
+
+    runtime: update mkduff legacy comments
+    
+    Update comments for duffzero and duffcopy
+    which referred to legacy locations:
+    + cmd/?g/cgen.go
+    + cmd/?g/ggen.go
+    
+    Remnants of the old days when we had 5g, 6g etc.
+    
+    Those locations have since moved to:
+    + cmd/compile/internal/<arch>/cgen.go
+    + cmd/compile/internal/<arch>/ggen.go
+    
+    Change-Id: Ie2ea668559d52d42b747260ea69a6d5b3d70e859
+    Reviewed-on: https://go-review.googlesource.com/29073
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mkduff.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

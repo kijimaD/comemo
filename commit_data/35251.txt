@@ -1,0 +1,17 @@
+commit 64f715beb6551f91c271a47b6c2c62dedf27fadf
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu May 3 09:48:32 2018 +0200
+
+    misc/ios: clean up debugger instance on failure
+    
+    Also replace repeated `or` clauses with the Python idiomatic list
+    operator `in`.
+    
+    Change-Id: I4b178f93eb92996d8b5449ee5d252543624aed9e
+    Reviewed-on: https://go-review.googlesource.com/111215
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

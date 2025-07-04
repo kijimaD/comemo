@@ -1,0 +1,28 @@
+commit ba6974fdc3ce96acc259055a051bbfcbabce2be4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Jul 17 14:38:52 2018 +0100
+
+    cmd/compile: fix crash on invalid struct literal
+    
+    If one tries to use promoted fields in a struct literal, the compiler
+    errors correctly. However, if the embedded fields are of struct pointer
+    type, the field.Type.Sym.Name expression below panics.
+    
+    This is because field.Type.Sym is nil in that case. We can simply use
+    field.Sym.Name in this piece of code though, as it only concerns
+    embedded fields, in which case what we are after is the field name.
+    
+    Added a test mirroring fixedbugs/issue23609.go, but with pointer types.
+    
+    Fixes #26416.
+    
+    Change-Id: Ia46ce62995c9e1653f315accb99d592aff2f285e
+    Reviewed-on: https://go-review.googlesource.com/124395
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue26416.go             | 27 +++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

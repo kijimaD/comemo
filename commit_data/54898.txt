@@ -1,0 +1,59 @@
+commit cae35cd2582878341452547378ffdc14fdb0a022
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Sep 1 11:17:19 2023 -0700
+
+    path/filepath: fix various issues in parsing Windows paths
+    
+    On Windows, A root local device path is a path which begins with
+    \\?\ or \??\.  A root local device path accesses the DosDevices
+    object directory, and permits access to any file or device on the
+    system. For example \??\C:\foo is equivalent to common C:\foo.
+    
+    The Clean, IsAbs, IsLocal, and VolumeName functions did not
+    recognize root local device paths beginning with \??\.
+    
+    Clean could convert a rooted path such as \a\..\??\b into
+    the root local device path \??\b. It will now convert this
+    path into .\??\b.
+    
+    IsAbs now correctly reports paths beginning with \??\
+    as absolute.
+    
+    IsLocal now correctly reports paths beginning with \??\
+    as non-local.
+    
+    VolumeName now reports the \??\ prefix as a volume name.
+    
+    Join(`\`, `??`, `b`) could convert a seemingly innocent
+    sequence of path elements into the root local device path
+    \??\b. It will now convert this to \.\??\b.
+    
+    In addition, the IsLocal function did not correctly
+    detect reserved names in some cases:
+    
+      - reserved names followed by spaces, such as "COM1 ".
+      - "COM" or "LPT" followed by a superscript 1, 2, or 3.
+    
+    IsLocal now correctly reports these names as non-local.
+    
+    Fixes #63713
+    Fixes CVE-2023-45283
+    Fixes CVE-2023-45284
+    
+    Change-Id: I446674a58977adfa54de7267d716ac23ab496c54
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/2040691
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540277
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Heschi Kreinick <heschi@google.com>
+
+ src/go/build/deps_test.go                 |   2 +-
+ src/internal/safefilepath/path_windows.go |  98 +++++++++++----
+ src/path/filepath/path.go                 |  17 +--
+ src/path/filepath/path_nonwindows.go      |   9 ++
+ src/path/filepath/path_test.go            |  67 ++++++++++-
+ src/path/filepath/path_windows.go         | 194 +++++++++++++++++++-----------
+ 6 files changed, 269 insertions(+), 118 deletions(-)

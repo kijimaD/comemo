@@ -1,0 +1,28 @@
+commit 2e30c4b4bb7c4426ebc27e8af6d0570dbd97054b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 27 10:28:46 2022 -0800
+
+    go/types, types2: better error reporting for Checker.implements
+    
+    This CL copies (and adjusts as needed) the logic for error reporting
+    from operand.assignableTo to Checker.implements in the case of a missing
+    method failure and assignment to an interface pointer.
+    
+    Preparation for using Checker.implements in operand.assignableTo
+    rather than implementing the same logic twice.
+    
+    This also leads to better errors from Checker.implements as it's
+    using the same logic we already use elsewhere.
+    
+    For #50646.
+    
+    Change-Id: I199a1e02cf328b222ae52c10131db871539863bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381434
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/instantiate.go     | 32 ++++++++++++-------
+ .../internal/types2/testdata/check/issues.go2      |  2 +-
+ src/go/types/instantiate.go                        | 37 ++++++++++++++--------
+ src/go/types/testdata/check/issues.go2             |  2 +-
+ 4 files changed, 46 insertions(+), 27 deletions(-)

@@ -1,0 +1,33 @@
+commit 9cbc76bdf90752e21a2b3f05944552e1373ab433
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue Aug 24 12:46:54 2021 +0800
+
+    cmd/internal/obj/arm64: add checks for incorrect use of REGTMP register
+    
+    The current assembler uses REGTMP as a temporary destination register,
+    when optimizing one instruction into a multi-instruction sequence. But
+    in some cases, when the source register is REGTMP, this behavior is
+    incorrect.
+    
+    For example:
+      ADD   $0x1234567, R27, R3
+    
+    The current assembler encodes it into
+      MOVD  $17767, R27
+      MOVK  $(291<<16), R27
+      ADD   R27, R27, R3
+    
+    It is illegal to overwrite R27. This CL adds the related checks.
+    
+    Add test cases.
+    
+    Change-Id: I0af373d9fd23d8f067c093778dd4cc76748faf38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344689
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64error.s | 21 ++++++++++++++-------
+ src/cmd/internal/obj/arm64/asm7.go             | 21 +++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 7 deletions(-)

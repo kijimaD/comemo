@@ -1,0 +1,19 @@
+commit f3f920ff8d69a639de05ce5af52ba1916878055a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 19 16:25:52 2016 +0900
+
+    crypto/tls: don't send IPv6 literals and absolute FQDNs as SNI values
+    
+    This is a followup change to #13111 for filtering out IPv6 literals and
+    absolute FQDNs from being as the SNI values.
+    
+    Updates #13111.
+    Fixes #14404.
+    
+    Change-Id: I09ab8d2a9153d9a92147e57ca141f2e97ddcef6e
+    Reviewed-on: https://go-review.googlesource.com/19704
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/handshake_client.go      | 30 +++++++++++++++------
+ src/crypto/tls/handshake_client_test.go | 47 +++++++++++++++++++++++++++------
+ 2 files changed, 61 insertions(+), 16 deletions(-)

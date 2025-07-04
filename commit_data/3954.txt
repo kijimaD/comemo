@@ -1,0 +1,8 @@
+commit 1a177a711df675c6042bf95ec10c99b1608a7616
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 14:12:32 2009 -0800
+
+    tag for public release
+
+ .hgtags | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,28 @@
+commit 5ca43acdb3e27117e6994141e518b8d55e4d32aa
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 2 03:58:08 2020 +1100
+
+    runtime: allow physical page aligned stacks to be allocated
+    
+    Add a physPageAlignedStack boolean which if set, results in over allocation
+    by a physical page, the allocation being rounded to physical page alignment
+    and the unused memory surrounding the allocation being freed again.
+    
+    OpenBSD/octeon has 16KB physical pages and requires stacks to be physical page
+    aligned in order for them to be remapped as MAP_STACK. This change allows Go
+    to work on this platform.
+    
+    Based on a suggestion from mknyszek in issue #41008.
+    
+    Updates #40995
+    Fixes #41008
+    
+    Change-Id: Ia5d652292b515916db473043b41f6030094461d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266919
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/mheap.go | 36 +++++++++++++++++++++++++++++++++++-
+ 1 file changed, 35 insertions(+), 1 deletion(-)

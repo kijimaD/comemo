@@ -1,0 +1,92 @@
+commit 705830e2b77cafc95e8e890bbafc4a57c37f8575
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 5 12:35:29 2019 -0400
+
+    net: fix non-cgo macOS resolver code
+    
+    This code was added in April in CL 166297, for #12524.
+    This CL fixes the following problems in the code:
+    
+     - The test for failure in the assembly stubs checked for
+       64-bit -1 instead of 32-bit -1 to decide to fetch errno.
+    
+     - These C routines (res_init and res_search) don't set errno anyway,
+       so the Go code using errno to decide success is incorrect.
+       (The routines set h_errno, which is a racy global variable
+       that can't safely be consulted, storing values in a different
+       error space.)
+    
+     - The Go call passed res_search a non-NUL-terminated name.
+    
+     - The C res_search rejects calls asking for TypeALL as opposed to
+       more specific answers like TypeA/TypeAAAA/TypeCNAME,
+       breaking cgoLookupHost in all cases and cgoLookupIP
+       except with IP-version-specific networks.
+    
+     - The DNS response packet was parsed twice, once with msg.Unpack
+       (discarded), and once with the lower-level dnsmessage.Parser.
+       The Parser loop was missing a call to p.SkipAllQuestions, with the
+       result that no DNS response packet would ever parse successfully.
+    
+     - The parsing of the DNS response answers, if reached, behaved as if
+       that the AResource and AAAAResource record contained textual
+       IP addresses, while in fact they contain binary ones. The calls to
+       parseIPv4 and parseIPv6 therefore would always returns nil,
+       so that no useful result would be returned from the resolver.
+    
+    With these fixes, cgoLookupIP can correctly resolve google.com
+    and return both the A and AAAA addresses.
+    
+    Even after fixing all these things, TestGoLookupIP still fails,
+    because it is testing that in non-cgo builds the cgo stubs
+    correctly report "I can't handle the lookup", and as written the
+    code intentionally violates that expectation.
+    
+    This CL adds new direct tests of the pseudo-cgo routines.
+    The direct IP address lookups succeed, but the CNAME query
+    causes res_search to hang, and the PTR query fails unconditionally
+    (a trivial C program confirms these behaviors are due to res_search itself).
+    
+    Traditionally, res_search is only intended for single-threaded use.
+    It is unclear whether this one is safe for use from multiple goroutines.
+    If you run net.test under lldb, that causes syslog messages to be
+    printed to standard error suggesting double-free bugs:
+    
+            2019-06-05 19:52:43.505246-0400 net.test[6256:6831076] dnssd_clientstub DNSServiceRefDeallocate called with invalid DNSServiceRef 0x5c000f0 FFFFFFFF DDDDDDDD
+            2019-06-05 19:52:43.505274-0400 net.test[6256:6831076] dnssd_clientstub DNSServiceRefDeallocate called with invalid DNSServiceRef 0x5c000f0 FFFFFFFF DDDDDDDD
+            2019-06-05 19:52:43.505303-0400 net.test[6256:6831076] dnssd_clientstub DNSServiceRefDeallocate called with invalid DNSServiceRef 0x5c000f0 FFFFFFFF DDDDDDDD
+            2019-06-05 19:52:43.505329-0400 net.test[6256:6831076] dnssd_clientstub DNSServiceRefDeallocate called with invalid DNSServiceRef 0x5c000f0 FFFFFFFF DDDDDDDD
+    
+    This res_search is from libsystem_info; a normal C program would
+    get res_search (#defined to res_9_search) from libresolv instead.
+    It is unclear what the relation between the two is.
+    Issue #12524 was about supporting the /etc/resolver directory tree,
+    but only libresolv contains code for that; libsystem_info does not.
+    So this code probably does not enable use of /etc/resolver.
+    
+    In short:
+    
+     - Before this CL, the code clearly had never run successfully.
+     - The code appears not to improve upon the usual non-cgo fallback.
+     - The code carries with it no tests of improved behavior.
+     - The code breaks existing tests.
+     - Calling res_search does not work for PTR/CNAME queries,
+       so the code breaks existing behavior, even after this CL.
+     - It's unclear whether res_search is safe to call from multiple threads.
+     - It's unclear whether res_search is used by any other macOS programs.
+    
+    Given this, it probably makes sense to delete this code rather
+    than rejigger the test. This CL fixes the code first, so that there
+    is a working copy to bring back later if we find out that it really
+    is necessary.
+    
+    For #31705.
+    
+    Change-Id: Id2e11e8ade43098b0f90dd4d16a62ca86a7a244a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180842
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/net/cgo_darwin_stub.go      | 183 ++++++++++++++++++++++++----------------
+ src/net/cgo_darwin_stub_test.go |  80 ++++++++++++++++++
+ 2 files changed, 188 insertions(+), 75 deletions(-)

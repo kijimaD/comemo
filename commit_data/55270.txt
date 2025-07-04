@@ -1,0 +1,14 @@
+commit 018c1da0cfcac0cbcff426d15bc2428c47d499ba
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 11 16:45:56 2023 -0500
+
+    doc/go1.22: document io changes
+    
+    Change-Id: I1dd4030782ad20512836927d42bc8fe3d93437d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548880
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ doc/go1.22.html | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

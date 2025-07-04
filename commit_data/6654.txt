@@ -1,0 +1,13 @@
+commit 098e94173a83027dc0fab81ee42925c333aec456
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 28 15:09:21 2010 -0700
+
+    go/typechecker: use append
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2736044
+
+ src/pkg/go/typechecker/typechecker.go      | 17 +++++++----------
+ src/pkg/go/typechecker/typechecker_test.go | 17 ++++-------------
+ 2 files changed, 11 insertions(+), 23 deletions(-)

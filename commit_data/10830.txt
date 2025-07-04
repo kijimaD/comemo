@@ -1,0 +1,13 @@
+commit f99b4128139fddf7a7a3dd05ddbb9c86d1b76694
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 15 18:21:29 2011 -0500
+
+    io/ioutil, old/template: do not assume _test exists for scratch space
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5496052
+
+ src/pkg/io/ioutil/ioutil_test.go      |  6 +++++-
+ src/pkg/old/template/template_test.go | 14 ++++++++++----
+ 2 files changed, 15 insertions(+), 5 deletions(-)

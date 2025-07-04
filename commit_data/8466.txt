@@ -1,0 +1,22 @@
+commit 09dd5bf13bdf6365e364e81f9122b837670de080
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 23 14:05:18 2011 -0700
+
+    gophertool: Chrome extension to aid in Go development
+    
+    Contains common links & a smart text box that recognizes various
+    identifiers and jumps to one of:
+    
+    * issue URL,
+    * codereview URL,
+    * commit URL,
+    * package docs
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4553058
+
+ misc/chrome/gophertool/gopher.png    | Bin 0 -> 5588 bytes
+ misc/chrome/gophertool/manifest.json |  12 ++++++
+ misc/chrome/gophertool/popup.html    |  69 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 81 insertions(+)

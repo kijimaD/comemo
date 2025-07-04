@@ -1,0 +1,12 @@
+commit f63b0d6b716ba55fa73dd3ff823a2e61646bf399
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 12 18:14:07 2009 -0700
+
+    silence gcc warning
+    
+    R=ken
+    OCL=33144
+    CL=33144
+
+ src/cmd/6c/cgen.c | 1 +
+ 1 file changed, 1 insertion(+)

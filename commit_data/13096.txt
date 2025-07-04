@@ -1,0 +1,12 @@
+commit 9cfb845af662c34d8b070506af6b53c408050fd7
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat May 19 08:35:51 2012 +0900
+
+    syscall: add comment
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6215046
+
+ src/pkg/syscall/types_darwin.go | 2 ++
+ 1 file changed, 2 insertions(+)

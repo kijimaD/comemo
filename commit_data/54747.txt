@@ -1,0 +1,19 @@
+commit 1f25f964632b5a650323d638f2cc7d3f2917fe74
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 12 08:35:37 2023 +0700
+
+    cmd/compile: report mismatched version set by //go:build
+    
+    Fixes #63489
+    
+    Change-Id: I5e02dc5165ada7f5c292d56203dc670e96eaf2c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534755
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/noder/irgen.go | 38 +++++++++++++++++++++++----------
+ test/fixedbugs/issue63489a.go           | 16 ++++++++++++++
+ test/fixedbugs/issue63489b.go           | 11 ++++++++++
+ 3 files changed, 54 insertions(+), 11 deletions(-)

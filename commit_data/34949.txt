@@ -1,0 +1,29 @@
+commit 8f6ae3379615c6e9dcf47bafc74710a1346a932e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 11 15:37:16 2018 -0700
+
+    cmd/compile, cmd/link: encode cgo directives using JSON
+    
+    The standard library has plenty of polished encoder/decoder
+    implementations. No need for another ad-hoc one.
+    
+    I considered using encoding/gob instead, but these strings go into the
+    package data part of the object file, so it's important they don't
+    contain "\n$$\n". Package json escapes newlines in strings, so it's
+    safe to use here.
+    
+    Change-Id: I998655524ccee7365c2c8e9a843e6975e95a3e62
+    Reviewed-on: https://go-review.googlesource.com/106463
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/fmt_test.go             |  1 +
+ src/cmd/compile/internal/gc/go.go       |  2 +-
+ src/cmd/compile/internal/gc/lex.go      | 58 +++++++-----------------
+ src/cmd/compile/internal/gc/lex_test.go | 45 ++++++++++---------
+ src/cmd/compile/internal/gc/noder.go    |  8 ++--
+ src/cmd/compile/internal/gc/obj.go      |  8 +++-
+ src/cmd/link/internal/ld/go.go          | 78 +++++++++++++--------------------
+ src/cmd/link/internal/ld/util.go        | 45 -------------------
+ 8 files changed, 82 insertions(+), 163 deletions(-)

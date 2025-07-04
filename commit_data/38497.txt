@@ -1,0 +1,20 @@
+commit eb00167e27ba3525d26bbe9286c82090da782587
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Thu Mar 21 13:42:53 2019 +0100
+
+    cmd/link: skip TestBuildFortvOS if the SDK is missing
+    
+    While we're here, move the test from dwarf_test.go to link_test.go;
+    it doesn't have anything to do with DWARF.
+    
+    Should fix the macOS builders with only the Xcode command line tools
+    installed.
+    
+    Change-Id: Iaaba1b589f4d778705f7b627f78c2b12388e2b3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168462
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/cmd/link/dwarf_test.go | 51 ---------------------------------------------
+ src/cmd/link/link_test.go  | 52 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+), 51 deletions(-)

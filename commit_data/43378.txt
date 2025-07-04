@@ -1,0 +1,24 @@
+commit 9ad090c5fea60c9925b7eb30155ce01961c3537f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jul 18 22:26:00 2020 -0400
+
+    testing/iotest: add TestReader to test readers
+    
+    There are many reader behaviors that are subtle and
+    worth testing, and it's nice to have one complete tester
+    instead of many incomplete ones.
+    
+    For #41190, which will use this as part of a larger
+    file system implementation tester.
+    
+    Change-Id: Ib4cc7fae94b0d9b45dfacadc52baa77ad3761322
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243909
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/testing/iotest/reader.go      | 175 +++++++++++++++++++++++++++++++++++++-
+ src/testing/iotest/reader_test.go |  10 +++
+ 2 files changed, 181 insertions(+), 4 deletions(-)

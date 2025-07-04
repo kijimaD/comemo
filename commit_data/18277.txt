@@ -1,0 +1,24 @@
+commit 701982f173d65cca3f8a88df825c008b203775c8
+Author: Luke Curley <qpingu@gmail.com>
+Date:   Fri Jan 17 11:07:04 2014 -0500
+
+    crypto/cipher: improved cbc performance
+    
+    decrypt: reduced the number of copy calls from 2n to 1.
+    encrypt: reduced the number of copy calls from n to 1.
+    
+    Encryption is straight-forward: use dst instead of tmp when
+    xoring the block with the iv.
+    
+    Decryption now loops backwards through the blocks abusing the
+    fact that the previous block's ciphertext (src) is the iv. This
+    means we don't need to copy the iv every time, in addition to
+    using dst instead of tmp like encryption.
+    
+    R=golang-codereviews, agl, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/50900043
+
+ src/pkg/crypto/cipher/cbc.go          | 50 ++++++++++++++++++++++++++++-------
+ src/pkg/crypto/cipher/cbc_aes_test.go | 46 +++++++++++++++++++++-----------
+ 2 files changed, 70 insertions(+), 26 deletions(-)

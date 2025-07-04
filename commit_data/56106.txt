@@ -1,0 +1,19 @@
+commit e3ec1ca17e339e21ca50fbdb375b4294783bc385
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Apr 2 00:10:47 2024 +0200
+
+    os: define wrapSyscallError only on linux
+    
+    wrapSyscallError by now is only used on linux in the methods defined in
+    os/zero_copy_linux.go. Move the definition there.
+    
+    Change-Id: I0ca5749adaac44e8d095b8452458b647f595d3c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575595
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/error_posix.go     | 18 ------------------
+ src/os/zero_copy_linux.go |  9 +++++++++
+ 2 files changed, 9 insertions(+), 18 deletions(-)

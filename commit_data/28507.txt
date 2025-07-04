@@ -1,0 +1,28 @@
+commit ed915ad421e61c3158ccae4bfbbcfbc796514ee2
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Sep 23 00:02:38 2016 -0400
+
+    runtime: use sched_yield instead of pthread_yield
+    
+    Attempt to fix the linux-amd64-clang builder, which broke
+    with CL 29472.
+    
+    Turns out pthread_yield is a non-portable Linux function, and
+    should have #define _GNU_SOURCE before #include <pthread.h>.
+    GCC doesn't complain about this, but Clang does:
+    
+            ./raceprof.go:44:3: warning: implicit declaration of function 'pthread_yield' is invalid in C99 [-Wimplicit-function-declaration]
+    
+    (Though the error, while explicable, certainly could be clearer.)
+    
+    There is a portable POSIX equivalent, sched_yield, so this
+    CL uses it instead.
+    
+    Change-Id: I58ca7a3f73a2b3697712fdb02e72a8027c391169
+    Reviewed-on: https://go-review.googlesource.com/29675
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/testdata/testprogcgo/raceprof.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

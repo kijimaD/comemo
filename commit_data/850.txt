@@ -1,0 +1,14 @@
+commit e8828dcbe148b54a9c40c174e229443bd900b484
+Author: Rob Pike <r@golang.org>
+Date:   Sat Oct 11 16:48:05 2008 -0700
+
+    add character classes.
+    allocate into an array for easier scanning and printing.
+    
+    R=rsc
+    DELTA=282  (193 added, 44 deleted, 45 changed)
+    OCL=16955
+    CL=16955
+
+ usr/r/regexp/regexp.go | 311 ++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 230 insertions(+), 81 deletions(-)

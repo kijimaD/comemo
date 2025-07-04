@@ -1,0 +1,24 @@
+commit a9e0204c1e82724ac4c5878e36efe882d75b7978
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Aug 19 13:11:09 2017 +0200
+
+    misc/cgo/testcshared: fix tests on android
+    
+    The testcshared test.bash was rewritten in Go, but the rewritten script
+    broke on Android. Make the tests run on Android again by:
+    
+    - Restoring the LD_LIBRARY_PATH path (.).
+    - Restoring the Android specific C flags (-pie -fuse-ld=gold).
+    - Adding runExe to run test executables. All other commands must run on
+    the host.
+    
+    Fixes #21513.
+    
+    Change-Id: I3ea617a943c686b15437cc5c118e9802a913d93a
+    Reviewed-on: https://go-review.googlesource.com/57290
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ misc/cgo/testcshared/cshared_test.go | 47 +++++++++++++++++++++---------------
+ 1 file changed, 28 insertions(+), 19 deletions(-)

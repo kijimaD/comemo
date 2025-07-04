@@ -1,0 +1,15 @@
+commit e69012ce2a366e54bc86cd17f2fb1d73fc567a89
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 15 11:10:26 2013 +0400
+
+    runtime: use enums instead static vars for debugging
+    Compiler can detect and delete dead code with enums,
+    but can not with static vars.
+    
+    R=golang-dev, dave, r
+    CC=golang-dev
+    https://golang.org/cl/9377043
+
+ src/pkg/runtime/chan.c  | 4 ++--
+ src/pkg/runtime/slice.c | 5 ++++-
+ 2 files changed, 6 insertions(+), 3 deletions(-)

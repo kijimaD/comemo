@@ -1,0 +1,15 @@
+commit fd0ffedae2dd9e202efc2dd7f7937baa08600d26
+Author: George Looshch <looshch@loosh.ch>
+Date:   Sat Apr 9 23:55:33 2022 +0100
+
+    doc: replace tabs with spaces for alignment in code snippets
+    
+    Fixes #52255
+    
+    Change-Id: Ibb518cf2f6bac9e1ffc426a014afe80cc4c0df5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399394
+    Reviewed-by: Jamal Carvalho <jamal@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

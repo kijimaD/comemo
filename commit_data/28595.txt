@@ -1,0 +1,35 @@
+commit 9828b7c468029d54e90846e5e2fc23fd6d39782a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 29 21:34:44 2016 -0700
+
+    runtime, syscall: use FP instead of SP for parameters
+    
+    Consistently access function parameters using the FP pseudo-register
+    instead of SP (e.g., x+0(FP) instead of x+4(SP) or x+8(SP), depending
+    on register size). Two reasons: 1) doc/asm says the SP pseudo-register
+    should use negative offsets in the range [-framesize, 0), and 2)
+    cmd/vet only validates parameter offsets when indexed from the FP
+    pseudo-register.
+    
+    No binary changes to the compiled object files for any of the affected
+    package/OS/arch combinations.
+    
+    Change-Id: I0efc6079bc7519fcea588c114ec6a39b245d68b0
+    Reviewed-on: https://go-review.googlesource.com/30085
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/sys_dragonfly_amd64.s |   4 +-
+ src/runtime/sys_freebsd_amd64.s   |   4 +-
+ src/runtime/sys_linux_386.s       |   4 +-
+ src/runtime/sys_linux_amd64.s     |   4 +-
+ src/runtime/sys_netbsd_386.s      |   4 +-
+ src/runtime/sys_netbsd_amd64.s    |   4 +-
+ src/runtime/sys_openbsd_386.s     |   4 +-
+ src/runtime/sys_openbsd_amd64.s   |   4 +-
+ src/runtime/sys_plan9_386.s       |   4 +-
+ src/runtime/sys_plan9_amd64.s     |   4 +-
+ src/runtime/sys_windows_386.s     |   4 +-
+ src/syscall/asm_darwin_arm.s      | 121 +++++++++++++++++++-------------------
+ src/syscall/asm_plan9_386.s       |  30 +++++-----
+ src/syscall/asm_plan9_amd64.s     |  32 +++++-----
+ 14 files changed, 113 insertions(+), 114 deletions(-)

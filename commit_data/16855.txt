@@ -1,0 +1,12 @@
+commit f652bc4acf623e5b68792b47ed1e1e3509c45e15
+Author: Andrew Bonventre <andybons@chromium.org>
+Date:   Wed Jul 24 12:41:52 2013 +1000
+
+    doc/go1.2.txt: document new functions/types added to image/gif and image/draw.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/11492045
+
+ doc/go1.2.txt | 3 +++
+ 1 file changed, 3 insertions(+)

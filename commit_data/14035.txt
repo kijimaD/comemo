@@ -1,0 +1,13 @@
+commit 421b75c0dbab3460dbfdb023d67ce0807c4d5327
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 7 07:15:11 2012 +1100
+
+    text/template: add an unexported method to Node
+    Protects the package a little against undesirable clients.
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/6624054
+
+ src/pkg/text/template/parse/node.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

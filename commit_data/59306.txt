@@ -1,0 +1,21 @@
+commit 2869d55366a55d6a29a166523ac2383d0b2291df
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Mar 6 17:33:27 2025 -0800
+
+    net/http: test intended behavior in TestClientInsecureTransport
+    
+    This test wasn't testing the HTTP/2 case, because it didn't
+    set NextProtos in the tls.Config.
+    
+    Set "Connection: close" on requests to make sure each request
+    gets a new connection.
+    
+    Change-Id: I1ef470e7433a602ce88da7bd7eeec502687ea857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655676
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/net/http/client_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

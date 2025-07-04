@@ -1,0 +1,19 @@
+commit 16328513bfb12d96e8f33fc37f816e1441027135
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Thu Aug 27 13:08:44 2020 +0000
+
+    flag: add Func
+    
+    Fixes #39557
+    
+    Change-Id: Ida578f7484335e8c6bf927255f75377eda63b563
+    GitHub-Last-Rev: b97294f7669c24011e5b093179d65636512a84cd
+    GitHub-Pull-Request: golang/go#39880
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240014
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/flag/example_func_test.go | 41 +++++++++++++++++++++++++++++++++++
+ src/flag/flag.go              | 22 ++++++++++++++++++-
+ src/flag/flag_test.go         | 50 +++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 110 insertions(+), 3 deletions(-)

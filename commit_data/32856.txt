@@ -1,0 +1,29 @@
+commit e61c5e2f2044c7bc606ebdfbd0187598b90c50e5
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Sep 25 17:21:39 2017 +0100
+
+    net/http: error if Transport.Proxy returns https
+    
+    Transport.Proxy is documented as only supporting the http and socks5
+    schemes. If one tries to use it for https URLs, they end up with a
+    cryptic error like:
+    
+            http: TLS handshake error from [...]: tls: oversized record received with length 20037
+    
+    This is because Transport simply skips TLS if Proxy is non-nil, since it
+    knows it doesn't support Proxy with https.
+    
+    However, that error is very confusing and it can take a while to figure
+    out what's going on. Instead, error if Proxy is used and it returns an
+    unsupported scheme.
+    
+    Updates #19493.
+    
+    Change-Id: Ia036357011752f45bb9b8282a4ab5e31bc8d1a69
+    Reviewed-on: https://go-review.googlesource.com/66010
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/transport.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,54 @@
+commit b377c9c6a9b720d0897d298652bebd3887ceeb46
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 23 22:51:39 2014 -0500
+
+    liblink, runtime: fix cgo on arm
+    
+    The addition of TLS to ARM rewrote the MRC instruction
+    differently depending on whether we were using internal
+    or external linking mode. That's clearly not okay, since we
+    don't know that during compilation, which is when we now
+    generate the code. Also, because the change did not introduce
+    a real MRC instruction but instead just macro-expanded it
+    in the assembler, liblink is rewriting a WORD instruction that
+    may actually be looking for that specific constant, which would
+    lead to very unexpected results. It was also using one value
+    that happened to be 8 where a different value that also
+    happened to be 8 belonged. So the code was correct for those
+    values but not correct in general, and very confusing.
+    
+    Throw it all away.
+    
+    Replace with the following. There is a linker-provided symbol
+    runtime.tlsgm with a value (address) set to the offset from the
+    hardware-provided TLS base register to the g and m storage.
+    Any reference to that name emits an appropriate TLS relocation
+    to be resolved by either the internal linker or the external linker,
+    depending on the link mode. The relocation has exactly the
+    semantics of the R_ARM_TLS_LE32 relocation, which is what
+    the external linker provides.
+    
+    This symbol is only used in two routines, runtime.load_gm and
+    runtime.save_gm. In both cases it is now used like this:
+    
+            MRC             15, 0, R0, C13, C0, 3 // fetch TLS base pointer
+            MOVW    $runtime·tlsgm(SB), R2
+            ADD     R2, R0 // now R0 points at thread-local g+m storage
+    
+    It is likely that this change breaks the generation of shared libraries
+    on ARM, because the MOVW needs to be rewritten to use the global
+    offset table and a different relocation type. But let's get the supported
+    functionality working again before we worry about unsupported
+    functionality.
+    
+    LGTM=dave, iant
+    R=iant, dave
+    CC=golang-codereviews
+    https://golang.org/cl/56120043
+
+ src/cmd/ld/data.c         | 25 +++++++++++-----
+ src/cmd/ld/lib.c          |  5 +---
+ src/liblink/asm5.c        | 10 ++++++-
+ src/liblink/obj5.c        | 74 -----------------------------------------------
+ src/pkg/runtime/asm_arm.s | 35 ++++++++++++++--------
+ 5 files changed, 51 insertions(+), 98 deletions(-)

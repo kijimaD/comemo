@@ -1,0 +1,16 @@
+commit b97b7537bc5cf77b8781bd699b17747ca2f02e1a
+Author: Victor Vrantchan <vrancean+github@gmail.com>
+Date:   Sun Oct 16 09:55:33 2016 -0400
+
+    encoding/pem: add Decode example
+    
+    For #16360.
+    
+    Change-Id: I99d1e5ab1f814f65b3066a498158a442f1bd477f
+    Reviewed-on: https://go-review.googlesource.com/31137
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/pem/example_test.go | 44 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

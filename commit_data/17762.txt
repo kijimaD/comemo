@@ -1,0 +1,17 @@
+commit 254dc5fdbee675ca7c85f7b76247313b7b356dee
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Tue Oct 8 10:40:51 2013 -0700
+
+    cmd/go, runtime: express armv5t architecture constraint differently
+    
+    Instead of adding an -march=armv5t flag to the gcc command
+    line, the same effect is obtained with an ".arch armv5t"
+    pseudo op in the assembly file that uses armv5t instructions.
+    
+    R=golang-dev, iant, dave
+    CC=golang-dev
+    https://golang.org/cl/14511044
+
+ src/cmd/go/build.go           | 2 +-
+ src/pkg/runtime/cgo/gcc_arm.S | 7 +++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

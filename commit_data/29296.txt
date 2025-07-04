@@ -1,0 +1,15 @@
+commit 84803f3da1b3921a6eacec435d97d5b9e40fe947
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 1 10:24:06 2016 -0700
+
+    runtime: treat SIGSTOP on Solaris as we do on other systems
+    
+    This makes no practical difference, as SIGSTOP can not be caught, but
+    may as well be consistent.
+    
+    Change-Id: I3efbbf092388bb3f6dccc94cf703c5d94d35f6a1
+    Reviewed-on: https://go-review.googlesource.com/32533
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/signal_solaris.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit ee3a1ff6fd11cd8fab3d3f416c85816af7bef4d1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 15 08:26:01 2015 -0800
+
+    all: update old comments referencing *.goc files
+    
+    Change-Id: Ibf05e55ffe3bb454809cd3450b790e44061511c7
+    Reviewed-on: https://go-review.googlesource.com/2890
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/bytes/bytes_decl.go     | 2 +-
+ src/runtime/malloc2.go      | 4 ++--
+ src/runtime/noasm.go        | 1 -
+ src/syscall/exec_solaris.go | 2 +-
+ 4 files changed, 4 insertions(+), 5 deletions(-)

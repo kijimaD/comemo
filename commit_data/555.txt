@@ -1,0 +1,15 @@
+commit 33ee52727ff61572b64fedc899925e114596a717
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Aug 29 20:30:19 2008 -0700
+
+    fixed labels/break/continue/goto
+    
+    R=r
+    OCL=14675
+    CL=14675
+
+ src/cmd/6g/gen.c | 202 ++++++++++++++++++++++++++++++++++++++++---------------
+ src/cmd/6g/gg.h  |  17 ++++-
+ src/cmd/gc/go.h  |   1 -
+ src/cmd/gc/go.y  |  28 +++++---
+ 4 files changed, 180 insertions(+), 68 deletions(-)

@@ -1,0 +1,25 @@
+commit eb48f83ae261e28e4a17d4a1126c750fded1ce4a
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Nov 5 16:44:02 2009 -0800
+
+    crypto/tls (part 5/5)
+    
+    Make RSA and X509 build by using big. (This involves commenting out
+    key generation for now since I haven't written Miller-Rabin in big
+    yet.)
+    
+    Add entries to the Makefile.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1022005
+
+ src/pkg/Make.deps                   |  9 ++++++---
+ src/pkg/Makefile                    |  3 +++
+ src/pkg/crypto/rsa/pkcs1v15.go      |  2 +-
+ src/pkg/crypto/rsa/pkcs1v15_test.go |  2 +-
+ src/pkg/crypto/rsa/rsa.go           | 16 +++++++++++++++-
+ src/pkg/crypto/rsa/rsa_test.go      |  8 +++++++-
+ src/pkg/crypto/x509/x509.go         |  2 +-
+ src/pkg/crypto/x509/x509_test.go    |  2 +-
+ 8 files changed, 35 insertions(+), 9 deletions(-)

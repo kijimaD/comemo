@@ -1,0 +1,14 @@
+commit d87bc2f0c0e12672592e7dbf30d2c439376891d9
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Jun 2 12:54:28 2012 -0400
+
+    cmd/5c, cmd/5g, cmd/5l: enable use of R12, F8-F15
+    
+    R=dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6248070
+
+ src/cmd/5c/reg.c   |  9 +++++----
+ src/cmd/5g/reg.c   | 21 +++++++++++++++------
+ src/cmd/5l/5.out.h |  3 +--
+ 3 files changed, 21 insertions(+), 12 deletions(-)

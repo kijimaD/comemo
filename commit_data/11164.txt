@@ -1,0 +1,12 @@
+commit c40314821bb0d99c24c516543bcdf01eea231c48
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Fri Jan 13 18:05:47 2012 -0800
+
+    cmd/gofmt: fix simplify.go by running gofmt on cmd/gofmt
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5539061
+
+ src/cmd/gofmt/simplify.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

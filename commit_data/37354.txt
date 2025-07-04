@@ -1,0 +1,21 @@
+commit 039c2081d1178f90a8fa2f4e6958693129f8de33
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 9 22:04:58 2018 -0500
+
+    crypto/tls: set ServerName and unset TLSUnique in ConnectionState in TLS 1.3
+    
+    Fix a couple overlooked ConnectionState fields noticed by net/http
+    tests, and add a test in crypto/tls. Spun off CL 147638 to keep that one
+    cleanly about enabling TLS 1.3.
+    
+    Change-Id: I9a6c2e68d64518a44be2a5d7b0b7b8d78c98c95d
+    Reviewed-on: https://go-review.googlesource.com/c/148900
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/common.go                 |   6 +-
+ src/crypto/tls/conn.go                   |   2 +-
+ src/crypto/tls/handshake_server_tls13.go |   1 +
+ src/crypto/tls/tls_test.go               | 116 +++++++++++++++++++++++++++++++
+ 4 files changed, 121 insertions(+), 4 deletions(-)

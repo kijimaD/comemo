@@ -1,0 +1,15 @@
+commit de7fea0d6161c876fca0b0293be3ac6f3e29a759
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 28 19:51:21 2014 -0700
+
+    test: add test that caused gccgo to crash on valid code
+    
+    Update #8612
+    
+    LGTM=minux
+    R=golang-codereviews, minux
+    CC=golang-codereviews
+    https://golang.org/cl/135170043
+
+ test/fixedbugs/issue8612.go | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

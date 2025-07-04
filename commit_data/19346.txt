@@ -1,0 +1,22 @@
+commit f54f790a77274b132b64587f6cf1baea42d60709
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 13 12:17:49 2014 -0700
+
+    regexp/syntax: don't waste time checking for one pass algorithm
+    The code recurs very deeply in cases like (?:x{1,1000}){1,1000}
+    Since if much time is spent checking whether one pass is possible, it's not
+    worth doing at all, a simple fix is proposed: Stop if the check takes too long.
+    To do this, we simply avoid machines with >1000 instructions.
+    
+    Benchmarks show a percent or less change either way, effectively zero.
+    
+    Fixes #7608.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/92290043
+
+ src/pkg/regexp/all_test.go    | 10 ++++++++++
+ src/pkg/regexp/syntax/prog.go |  5 +++++
+ 2 files changed, 15 insertions(+)

@@ -1,0 +1,15 @@
+commit fd5ba54f7cb7e4f1b74901b1cf120120adc3b633
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 25 00:26:06 2019 -0700
+
+    cmd/compile: stop exporting OPTRLIT
+    
+    Removes TODO left by previous commit to appease toolstash.
+    
+    Change-Id: I5c0bf25f21ba5c0abe3b1b2ed0b17c604717f39b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197121
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/iexport.go | 3 +--
+ src/cmd/compile/internal/gc/iimport.go | 6 ++----
+ 2 files changed, 3 insertions(+), 6 deletions(-)

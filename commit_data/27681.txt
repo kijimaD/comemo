@@ -1,0 +1,19 @@
+commit 53242e49b127ede6d7b258c7e90c39a5afa70c25
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 7 09:42:48 2016 -0700
+
+    crypto/x509: don't ignore asn1.Marshal error
+    
+    I don't see how the call could fail, so, no test. Just a code cleanup in
+    case it can fail in the future.
+    
+    Fixes #15987.
+    
+    Change-Id: If4af0d5e7d19cc8b13fb6a4f7661c37fb0015e83
+    Reviewed-on: https://go-review.googlesource.com/23860
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/crypto/x509/x509.go | 3 +++
+ 1 file changed, 3 insertions(+)

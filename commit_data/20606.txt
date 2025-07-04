@@ -1,0 +1,13 @@
+commit 1a1341afed8454c40d86b20aa3950b75c60068ea
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 1 13:38:00 2014 +1000
+
+    tag go1.3.3
+    
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
+    CC=golang-codereviews
+    https://golang.org/cl/146610043
+
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

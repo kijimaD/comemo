@@ -1,0 +1,14 @@
+commit c8ad1a4dc4d0384d963df749cfc3c373e27d6a17
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 21:49:22 2011 -0400
+
+    cgo, gotest: use error instead of os.Error in generated code
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5319057
+
+ src/cmd/cgo/doc.go       | 2 +-
+ src/cmd/cgo/out.go       | 8 ++++----
+ src/cmd/gotest/gotest.go | 3 +--
+ 3 files changed, 6 insertions(+), 7 deletions(-)

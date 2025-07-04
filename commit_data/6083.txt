@@ -1,0 +1,13 @@
+commit 218afb8fbd8b34f7a9d2a0901d827b6ac14cbe7d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 25 01:26:35 2010 -0400
+
+    syscall: change BUG(brainman) to NOTE(brainman)
+    Avoids the comment appearing in godoc syscall BUGS section.
+    
+    R=brainman
+    CC=golang-dev
+    https://golang.org/cl/1966048
+
+ src/pkg/syscall/syscall_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

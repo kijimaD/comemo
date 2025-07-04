@@ -1,0 +1,20 @@
+commit a48f9c26d5735e7612d919ffe7809e701ffe0a76
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 16 15:24:56 2023 -0400
+
+    go/types: skip tests that require GOROOT/test if it is not present
+    
+    cmd/distpack removes GOROOT/test from its archive of the distribution.
+    
+    For #24904.
+    
+    Change-Id: Ifde441f048f8af52f8973555b196ab0520b48ab7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504057
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/types2/stdlib_test.go | 8 ++++++++
+ src/go/types/stdlib_test.go                    | 8 ++++++++
+ 2 files changed, 16 insertions(+)

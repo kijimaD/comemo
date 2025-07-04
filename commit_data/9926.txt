@@ -1,0 +1,22 @@
+commit 059c68bf0cccea85bea19c44c15d7fec9e9cbd21
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Oct 12 10:29:22 2011 +1100
+
+    net: implement ip protocol name to number resolver for windows
+    
+    Fixes #2215.
+    Fixes #2216.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/5248055
+
+ src/pkg/net/ipraw_test.go                 |  3 ++-
+ src/pkg/net/iprawsock_posix.go            | 38 +++-------------------------
+ src/pkg/net/lookup_unix.go                | 42 +++++++++++++++++++++++++++++++
+ src/pkg/net/lookup_windows.go             | 18 +++++++++++--
+ src/pkg/syscall/syscall_windows.go        |  1 +
+ src/pkg/syscall/zsyscall_windows_386.go   | 16 ++++++++++++
+ src/pkg/syscall/zsyscall_windows_amd64.go | 16 ++++++++++++
+ src/pkg/syscall/ztypes_windows.go         |  6 +++++
+ 8 files changed, 103 insertions(+), 37 deletions(-)

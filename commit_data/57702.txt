@@ -1,0 +1,28 @@
+commit 0bb2183d45a1acec07470d9f041c55377217c8e2
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Oct 8 12:42:33 2024 -0400
+
+    cmd/internal/buildid: skip over Mach-O UUID from buildid computation
+    
+    With the "-B gobuildid" linker option (which will be the default
+    on some platforms), the host build ID (GNU build ID, Mach-O UUID)
+    depends on the Go buildid. If the host build ID is included in the
+    Go buildid computation, it will lead to convergence problem for
+    the toolchain binaries. So ignore the host build ID in the buildid
+    computation.
+    
+    This CL only handles Mach-O UUID. ELF GNU build ID will be handled
+    later.
+    
+    For #68678.
+    For #63934.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_14,gotip-darwin-arm64_13
+    Change-Id: Ie8ff20402a1c6083246d25dea391140c75be40d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618597
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@golang.org>
+
+ src/cmd/internal/buildid/rewrite.go | 42 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

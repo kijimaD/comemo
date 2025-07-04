@@ -1,0 +1,17 @@
+commit 5f8ca7ee24e82fa86171062724ed84e8b6e79ae2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 21 15:39:34 2019 -0500
+
+    misc: add go.mod file
+    
+    Updates #30228
+    Updates #30241
+    
+    Change-Id: I7ee839f4d2840873f7e37b3aff93fe534c6b52e6
+    Reviewed-on: https://go-review.googlesource.com/c/163207
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/go.mod | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

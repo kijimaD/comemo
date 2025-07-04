@@ -1,0 +1,18 @@
+commit 3236097ab02943068c7d29c5fd43e97962363b7d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 7 17:45:28 2011 -0700
+
+    cgi: don't depend on CGI.pm for tests
+    
+    CGI.pm used to be part of the Perl core,
+    but some distros now bundle perl-core
+    and perl-modules separately.
+    
+    It's not worth depending on.
+    
+    R=golang-dev, mattn.jp
+    CC=golang-dev
+    https://golang.org/cl/4675063
+
+ src/pkg/http/cgi/testdata/test.cgi | 37 +++++++++++++++++++++++++++++++++++--
+ 1 file changed, 35 insertions(+), 2 deletions(-)

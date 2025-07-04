@@ -1,0 +1,14 @@
+commit 24075d33a502889a54ae25195c3f9ae6bceb6628
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jun 4 09:57:03 2012 +0900
+
+    path/filepath: fix test
+    
+    Make it possible to run test over symlinked GOROOT.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6268046
+
+ src/pkg/path/filepath/path_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

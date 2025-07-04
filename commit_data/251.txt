@@ -1,0 +1,11 @@
+commit 3719aa4d9ab3672ebb4c82bcabfa2a57ecb6e596
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 27 13:10:56 2008 -0700
+
+    update darwin for segmented stacks
+    
+    SVN=125154
+
+ src/runtime/rt0_amd64_darwin.s | 73 +++++++++++++++++++++++++-----------------
+ src/runtime/rt0_amd64_linux.s  |  2 +-
+ 2 files changed, 45 insertions(+), 30 deletions(-)

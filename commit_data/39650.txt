@@ -1,0 +1,19 @@
+commit 1a432f27d5da052d6e9bae1e0534fa2dc0c44059
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 2 15:24:54 2019 +0700
+
+    cmd/compile: eliminate usage of global Fatalf in ssa.go
+    
+    state and ssafn both have their own Fatalf, so use them instead of
+    global Fatalf.
+    
+    Updates #19683
+    
+    Change-Id: Ie02a961d4285ab0a3f3b8d889a5b498d926ed567
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188539
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

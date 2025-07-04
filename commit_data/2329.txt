@@ -1,0 +1,13 @@
+commit c4a74b0b4aedc7177bbcb5632eb63eed55a458ef
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 27 18:31:28 2009 -0700
+
+    add missing semicolons in example
+    
+    R=rsc
+    DELTA=5  (0 added, 0 deleted, 5 changed)
+    OCL=29475
+    CL=29478
+
+ doc/go_spec.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

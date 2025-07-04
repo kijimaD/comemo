@@ -1,0 +1,25 @@
+commit 1d550b87dbbe711a1bf2e54e0ba065a27165d2c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 11 12:08:30 2014 -0400
+
+    runtime: allow crash from gsignal stack
+    
+    The uses of onM in dopanic/startpanic are okay even from the signal stack.
+    
+    Fixes #8666.
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/134710043
+
+ src/runtime/asm_386.s      | 17 +++++++++++++++++
+ src/runtime/asm_amd64.s    | 17 +++++++++++++++++
+ src/runtime/asm_amd64p32.s | 17 +++++++++++++++++
+ src/runtime/asm_arm.s      | 15 +++++++++++++++
+ src/runtime/crash_test.go  | 16 ++++++++++++++++
+ src/runtime/panic.go       |  4 ++--
+ src/runtime/proc.c         |  1 +
+ src/runtime/runtime.h      |  1 +
+ src/runtime/stubs.go       | 18 ++++++++++++++++++
+ 9 files changed, 104 insertions(+), 2 deletions(-)

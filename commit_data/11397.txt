@@ -1,0 +1,65 @@
+commit 316f81bb1dfca9f109bf3edf77f4da5821d0ec99
+Author: David G. Andersen <dave.andersen@gmail.com>
+Date:   Wed Jan 25 15:04:16 2012 -0800
+
+    math/big:  assembly versions of bitLen for x86-64, 386, and ARM.
+    
+    Roughly 2x speedup for the internal bitLen function in arith.go.  Added TestWordBitLen test.
+    
+    Performance differences against the new version of
+    bitLen generic:
+    
+    x86-64 Macbook pro (current tip):
+    
+    benchmark                old ns/op    new ns/op    delta
+    big.BenchmarkBitLen0             6            4  -37.40%
+    big.BenchmarkBitLen1             6            2  -51.79%
+    big.BenchmarkBitLen2             6            2  -65.04%
+    big.BenchmarkBitLen3             6            2  -66.10%
+    big.BenchmarkBitLen4             6            2  -60.96%
+    big.BenchmarkBitLen5             6            2  -55.80%
+    big.BenchmarkBitLen8             6            2  -56.19%
+    big.BenchmarkBitLen9             6            2  -64.73%
+    big.BenchmarkBitLen16            7            2  -68.84%
+    big.BenchmarkBitLen17            6            2  -67.11%
+    big.BenchmarkBitLen31            7            2  -61.57%
+    
+    386 Intel Atom (current tip):
+    benchmark                old ns/op    new ns/op    delta
+    big.BenchmarkBitLen0            23           20  -13.04%
+    big.BenchmarkBitLen1            23           20  -14.77%
+    big.BenchmarkBitLen2            24           20  -19.28%
+    big.BenchmarkBitLen3            25           20  -21.57%
+    big.BenchmarkBitLen4            24           20  -16.94%
+    big.BenchmarkBitLen5            25           20  -20.78%
+    big.BenchmarkBitLen8            24           20  -19.28%
+    big.BenchmarkBitLen9            25           20  -20.47%
+    big.BenchmarkBitLen16           26           20  -23.37%
+    big.BenchmarkBitLen17           26           20  -25.09%
+    big.BenchmarkBitLen31           32           20  -35.51%
+    
+    ARM v5 SheevaPlug, previous weekly patched with bitLen:
+    benchmark                old ns/op    new ns/op    delta
+    big.BenchmarkBitLen0            50           29  -41.73%
+    big.BenchmarkBitLen1            51           29  -42.75%
+    big.BenchmarkBitLen2            59           29  -50.08%
+    big.BenchmarkBitLen3            60           29  -50.75%
+    big.BenchmarkBitLen4            59           29  -50.08%
+    big.BenchmarkBitLen5            60           29  -50.75%
+    big.BenchmarkBitLen8            59           29  -50.08%
+    big.BenchmarkBitLen9            60           29  -50.75%
+    big.BenchmarkBitLen16           69           29  -57.35%
+    big.BenchmarkBitLen17           70           29  -57.89%
+    big.BenchmarkBitLen31           95           29  -69.07%
+    
+    R=golang-dev, minux.ma, gri
+    CC=golang-dev
+    https://golang.org/cl/5574054
+
+ src/pkg/math/big/arith.go      |  2 +-
+ src/pkg/math/big/arith_386.s   | 13 ++++++++++++-
+ src/pkg/math/big/arith_amd64.s | 13 ++++++++++++-
+ src/pkg/math/big/arith_arm.s   | 11 ++++++++++-
+ src/pkg/math/big/arith_decl.go |  1 +
+ src/pkg/math/big/arith_test.go | 23 +++++++++++++++++++++++
+ 6 files changed, 59 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit 8884fabfd739c232c97158b75a6ad0fe72cf9721
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 30 14:42:47 2012 -0700
+
+    reflect: improve documentation for DeepEqual regarding maps
+    Keys use ==; values use deep equality. Also remove the word 'member'.
+    Fixes #4258.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6812055
+
+ src/pkg/reflect/deepequal.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

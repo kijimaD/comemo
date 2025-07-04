@@ -1,0 +1,16 @@
+commit f3eaaa62a1969161a4d580db0532cb8a771259f0
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 27 16:29:12 2013 -0700
+
+    cmd/vet: fix assembly test files
+    They should be build-tagged for vet_test not ignore,
+    and not have a Go package clause.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8016047
+
+ src/cmd/vet/test_asm1.s | 4 +---
+ src/cmd/vet/test_asm2.s | 4 +---
+ src/cmd/vet/test_asm3.s | 4 +---
+ 3 files changed, 3 insertions(+), 9 deletions(-)

@@ -1,0 +1,17 @@
+commit 57ad05db1540fd949917708a7551866a2c9e2a47
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 21 13:39:09 2012 -0400
+
+    cmd/6g: use all 16 float registers, optimize float moves
+    
+    Fixes #2446.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6557044
+
+ src/cmd/6g/gsubr.c |  8 ++++----
+ src/cmd/6g/peep.c  | 54 ++++++++++++++++++++++++++++++++++++++++++++++--------
+ src/cmd/6g/reg.c   |  2 +-
+ src/cmd/6l/6.out.h |  8 ++++++++
+ 4 files changed, 59 insertions(+), 13 deletions(-)

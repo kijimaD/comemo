@@ -1,0 +1,13 @@
+commit 8fee9bc8c21090b70139216eefebe3bc3c3fa92c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 12:40:45 2011 -0700
+
+    A+C: Ron Minnich (individual CLA)
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5308057
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

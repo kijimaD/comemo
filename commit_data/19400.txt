@@ -1,0 +1,29 @@
+commit 6aee29648fce3af20507787035ae22d06d75d39b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 20 00:30:46 2014 -0400
+
+    runtime: switch default stack size back to 8kB
+    
+    The move from 4kB to 8kB in Go 1.2 was to eliminate many stack split hot spots.
+    
+    The move back to 4kB was predicated on copying stacks eliminating
+    the potential for hot spots.
+    
+    Unfortunately, the fact that stacks do not copy 100% of the time means
+    that hot spots can still happen under the right conditions, and the slowdown
+    is worse now than it was in Go 1.2. There is a real program in issue 8030 that
+    sees about a 30x slowdown: it has a reflect call near the top of the stack
+    which inhibits any stack copying on that segment.
+    
+    Go back to 8kB until stack copying can be used 100% of the time.
+    
+    Fixes #8030.
+    
+    LGTM=khr, dave, iant
+    R=iant, khr, r, bradfitz, dave
+    CC=golang-codereviews
+    https://golang.org/cl/92540043
+
+ doc/go1.3.html          | 7 -------
+ src/pkg/runtime/stack.h | 2 +-
+ 2 files changed, 1 insertion(+), 8 deletions(-)

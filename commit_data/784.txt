@@ -1,0 +1,13 @@
+commit 8dc08788eff7dbf8af5d20b75adc50169ac2b2bd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 30 15:38:41 2008 -0700
+
+    remove ( ) around mismatch type prints,
+    so that they don't look like functions.
+    
+    R=ken
+    OCL=16244
+    CL=16244
+
+ src/cmd/gc/subr.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit 1908d4354b5b1cb02edd9f93d024551fe812eb22
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Nov 29 12:45:01 2023 +0000
+
+    cmd/internal/moddeps: walk GOROOT when it is a symlink
+    
+    Fixes #64375
+    
+    Change-Id: I24ce67ef254db447cdf37a3fda5b5ab5fc782a36
+    GitHub-Last-Rev: 05590b9e20b31413d455a6e87bc38843e33ff116
+    GitHub-Pull-Request: golang/go#64376
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544757
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/internal/moddeps/moddeps_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 56e5e0b69c92c9157c7db39112e27a4b5c026b48
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed May 25 13:19:11 2016 -0400
+
+    runtime: tell race detector about reflectOffs.lock
+    
+    Fixes #15832
+    
+    Change-Id: I6f3f45e3c21edd0e093ecb1d8a067907863478f5
+    Reviewed-on: https://go-review.googlesource.com/23441
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/reflect/all_test.go    | 15 +++++++++++++++
+ src/reflect/export_test.go |  4 ++++
+ src/runtime/runtime1.go    |  4 ++--
+ src/runtime/type.go        | 26 ++++++++++++++++++++------
+ 4 files changed, 41 insertions(+), 8 deletions(-)

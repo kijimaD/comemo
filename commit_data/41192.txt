@@ -1,0 +1,17 @@
+commit 845a91dc491095e042020a60143e86eedc4cfd91
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jan 29 17:18:13 2020 -0500
+
+    doc/go1.14: edit "Go command" section, move zone CPU cap note
+    
+    Minor edits to text on go command changes.
+    
+    Also, moved a note about runtime respecting zone CPU caps from
+    Native Client section to Runtime section.
+    
+    Change-Id: Ic21e59d7ffecb4b5676a841e7f3743203a82d266
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216878
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.14.html | 25 ++++++++++++++-----------
+ 1 file changed, 14 insertions(+), 11 deletions(-)

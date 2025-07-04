@@ -1,0 +1,23 @@
+commit 14f2bfd369cf3e85346130996db058620d656385
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 2 13:38:08 2017 -0400
+
+    cmd/go: make test binary builds reproducible
+    
+    The name of the temporary directory containing _testmain.go
+    was leaking into the binary.
+    
+    Found with GODEBUG=gocacheverify=1 go test std.
+    
+    Change-Id: I5b35f049b564f3eb65c6a791ee785d15255c7885
+    Reviewed-on: https://go-review.googlesource.com/75630
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/go_test.go                   | 12 ++++++++++-
+ src/cmd/go/internal/cache/cache.go      | 20 +++++++++++++++----
+ src/cmd/go/internal/cache/cache_test.go |  8 ++++----
+ src/cmd/go/internal/cache/hash.go       | 35 ++++++++++++++++++++++++++++++++-
+ src/cmd/go/internal/test/test.go        |  4 ++++
+ 5 files changed, 69 insertions(+), 10 deletions(-)

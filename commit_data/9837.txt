@@ -1,0 +1,16 @@
+commit b0cddb98b9b29c9a153bae83095d5f13cbcc4bda
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Thu Sep 29 21:31:41 2011 -0700
+
+    exp/template/html: avoid redundant escaping directives.
+    
+    This is a possible optimization.  I'm not sure the complexity is worth it.
+    The new benchmark in escape_test is 46us without and 35us with the optimization.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5168041
+
+ src/pkg/exp/template/html/escape.go      | 41 ++++++++++++++++++++++++++---
+ src/pkg/exp/template/html/escape_test.go | 44 ++++++++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+), 3 deletions(-)

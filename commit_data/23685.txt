@@ -1,0 +1,15 @@
+commit 9adf684686bad7c6319080d0b1da8308a77b08c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 15:15:37 2015 -0400
+
+    cmd/go: fix TestVendorRun when $GOROOT is inside a symlinked path
+    
+    Fixes #11305.
+    
+    Change-Id: Icaa3a009aa4ab214c9aaf74f52c3e622fa266a9d
+    Reviewed-on: https://go-review.googlesource.com/12194
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

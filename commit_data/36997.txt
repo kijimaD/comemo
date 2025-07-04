@@ -1,0 +1,22 @@
+commit 965fa3b191270bbc23a040a520ce43406ba29343
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 16 12:49:17 2018 -0700
+
+    cmd/compile: remove -dolinkobj flag
+    
+    This used to be used by cmd/vet and some assembly generation tests, but
+    those were removed in CL 37691 and CL 107336. No point in keeping an
+    unneeded flag around.
+    
+    Fixes #28220.
+    
+    Change-Id: I59f8546954ab36ea61ceba81c10d6e16d74b966a
+    Reviewed-on: https://go-review.googlesource.com/c/142677
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/go.go   |   1 -
+ src/cmd/compile/internal/gc/main.go | 113 ++++++++++++++++++------------------
+ src/cmd/compile/internal/gc/obj.go  |   4 --
+ 3 files changed, 55 insertions(+), 63 deletions(-)

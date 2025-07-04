@@ -1,0 +1,19 @@
+commit d0285161f0efb1837ba0942263c33e3d53f59ece
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Aug 19 20:17:46 2017 +1000
+
+    misc/cgo/testcshared: use TestMain
+    
+    This CL uses TestMain to create and remove
+    pkg directory and libgo.so file.
+    
+    Fixes #21531
+    
+    Change-Id: I833cfb22b55d8eef98348dad4d56327ac4c07b36
+    Reviewed-on: https://go-review.googlesource.com/57270
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcshared/cshared_test.go | 145 ++++++++++++++++++++---------------
+ 1 file changed, 84 insertions(+), 61 deletions(-)

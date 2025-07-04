@@ -1,0 +1,18 @@
+commit 990113f3a0285f3ea2fdb590f61e835bf41ba1dc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 1 09:00:46 2023 -0700
+
+    doc/go1.21: reformat flag init change note
+    
+    It reads better as a single paragraph. Also added links.
+    
+    Change-Id: Id6ba54111b63fbd536423272f674e0eb64b087a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499956
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.21.html | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit cb32ea9c195929d2cc9fb60192c1d1aea2e34a98
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 19 10:15:13 2013 -0500
+
+    runtime: replace bubble sort with heap sort in select
+    
+    R=golang-dev, agl
+    CC=golang-dev
+    https://golang.org/cl/7304106
+
+ src/pkg/runtime/chan.c | 38 ++++++++++++++++++++++++++++++++++----
+ 1 file changed, 34 insertions(+), 4 deletions(-)

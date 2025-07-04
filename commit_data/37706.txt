@@ -1,0 +1,35 @@
+commit 47fb1fbd554a76dc961bfdedaa85efcb68646ed1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 13 21:42:33 2018 -0500
+
+    cmd/go/internal/get: move wildcard-trimming to before CheckImportPath
+    
+    Previously, RepoRootForImportPath trimmed certain "..." wildcards from
+    package patterns (even though its name suggests that the argument must
+    be an actual import path). It trimmed at the first path element that
+    was literally "..." (although wildcards in general may appear within a
+    larger path element), and relied on a subsequent check in
+    RepoRootForImportPath to catch confusing resolutions.
+    
+    However, that causes 'go get' with wildcard patterns in fresh paths to
+    fail as of CL 154101: a wildcard pattern is not a valid import path,
+    and fails the path check. (The existing Test{Vendor,Go}Get* packages
+    in go_test.go and vendor_test.go catch the failure, but they are all
+    skipped when the "-short" flag is set — including in all.bash — and we
+    had forgotten to run them separately.)
+    
+    We now trim the path before any element that contains a wildcard, and
+    perform the path check (and repo resolution) on only that prefix. It
+    is possible that the expanded path after fetching the repo will be
+    invalid, but a repository can contain directories that are not valid
+    import paths in general anyway.
+    
+    Fixes #29241
+    
+    Change-Id: I70fb2f7fc6603b7d339fd6c02e8cdeacfc93fc4b
+    Reviewed-on: https://go-review.googlesource.com/c/154108
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/get/get.go | 21 +++++++++++++++++----
+ src/cmd/go/internal/get/vcs.go | 10 ++--------
+ 2 files changed, 19 insertions(+), 12 deletions(-)

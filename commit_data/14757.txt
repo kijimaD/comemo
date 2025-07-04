@@ -1,0 +1,17 @@
+commit be7c0f31c798c0c826e7b92d705a270f2e870ca5
+Author: Péter Surányi <speter.go1@gmail.com>
+Date:   Sat Dec 29 10:41:39 2012 +1100
+
+    doc: fix id attributes in links to godoc
+    
+    CL6449105 changed godoc id attributes to ensure uniqueness.
+    This CL updates links to godoc pages in documents that used
+    the old id attributes.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev, speter.go1
+    https://golang.org/cl/7015051
+
+ doc/articles/godoc_documenting_go_code.html | 2 +-
+ doc/go1.html                                | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit 5201bf7ad184cac07466016a78b80aed5e472be4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 20 22:16:29 2015 -0400
+
+    net: do not look up abc by default
+    
+    Fixes #11665.
+    
+    Change-Id: I0897e8cf695434e77d14dcb1d96f21747edfe37c
+    Reviewed-on: https://go-review.googlesource.com/12523
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/ip_test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

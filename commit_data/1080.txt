@@ -1,0 +1,15 @@
+commit ce15158502dad699a4781908a2fb0bed1dc8b61b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 6 15:24:10 2008 -0800
+
+    Test that a break statement inside a select statement breaks
+    out of the enclosing loop.
+    
+    R=ken
+    DELTA=20  (20 added, 0 deleted, 0 changed)
+    OCL=18686
+    CL=18714
+
+ test/bugs/bug119.go | 20 ++++++++++++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 24 insertions(+)

@@ -1,0 +1,14 @@
+commit 191a6bfc5e99911f905cb582b676b5502c7b5aad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 2 11:07:41 2011 -0700
+
+    big: do not modify divisor
+    
+    Fixes #1907.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4527096
+
+ src/pkg/big/nat.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

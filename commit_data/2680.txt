@@ -1,0 +1,13 @@
+commit 32cd8875744dfc075e5f51eeacdc71c1d97c8588
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 13 13:55:39 2009 -0700
+
+    - handle type forward declarations correctly
+    
+    R=r
+    DELTA=8  (6 added, 0 deleted, 2 changed)
+    OCL=31537
+    CL=31537
+
+ src/pkg/go/doc/doc.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

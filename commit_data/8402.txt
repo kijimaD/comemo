@@ -1,0 +1,17 @@
+commit 0d111a62e14ebdd5c3e2482620a3e9542d97d3c0
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon May 16 10:13:17 2011 -0700
+
+    image/jpeg: decode grayscale images, not just color images.
+    
+    Also add an image package test that DecodeConfig returns the same
+    ColorModel as what Decode would.
+    
+    R=r, r
+    CC=golang-dev
+    https://golang.org/cl/4529065
+
+ src/pkg/image/decode_test.go |  22 ++++-
+ src/pkg/image/jpeg/reader.go | 212 ++++++++++++++++++++++++++-----------------
+ src/pkg/image/jpeg/writer.go |   8 +-
+ 3 files changed, 156 insertions(+), 86 deletions(-)

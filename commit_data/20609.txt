@@ -1,0 +1,15 @@
+commit 5edff3270479962ca67769947eb66adbe75e7fb4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 1 13:19:40 2014 -0700
+
+    testing: clearer comment
+    
+    Fixes #8797.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/146680043
+
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

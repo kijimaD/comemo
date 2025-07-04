@@ -1,0 +1,15 @@
+commit fe838c2ddb89014202299f9ab95685097753784e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 22 12:31:33 2011 -0500
+
+    encoding/xml: fix copy bug
+    
+    Fixes #2484.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5417059
+
+ src/pkg/encoding/xml/xml.go      | 2 +-
+ src/pkg/encoding/xml/xml_test.go | 5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

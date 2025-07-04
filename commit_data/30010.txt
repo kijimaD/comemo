@@ -1,0 +1,18 @@
+commit 0ce3ce010cf03698494944518e8801b17a00aaa1
+Author: Ibrahim AshShohail <ibra.sho@gmail.com>
+Date:   Sun Jan 22 02:46:25 2017 +0300
+
+    archive/zip: update the ZIP spec link
+    
+    Update the link to PKWARE "Application Notes on the .ZIP file format" document.
+    Now uses the permanent link according to 1.5 in version 6.3.3 (https://pkware.cachefly.net/webdocs/APPNOTE/APPNOTE-6.3.3.TXT):
+    http://www.pkware.com/appnote
+    
+    Fixes #18738
+    
+    Change-Id: If252a5fca1dd666e70c2591a83d8714672d02932
+    Reviewed-on: https://go-review.googlesource.com/35500
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/zip/struct.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

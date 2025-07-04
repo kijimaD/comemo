@@ -1,0 +1,22 @@
+commit 6df3aac4ae8d0ca695751ef828a500cd438b00f9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 28 15:27:55 2021 +0700
+
+    cmd/compile: fix offset-generator for storeOneLoad
+    
+    storeOneLoad decompose Load that is then stored, the offset value must
+    be created on the same block with the Load to be dominated, otherwise,
+    it's unsafe if one does not dominate the other.
+    
+    Fixes #48026
+    
+    Change-Id: Iee5e6c5d3e1b09862afe4e65f7bcd771b4c57367
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345434
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/expand_calls.go |  2 +-
+ test/fixedbugs/issue48026.go                 | 26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

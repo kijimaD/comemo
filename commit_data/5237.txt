@@ -1,0 +1,23 @@
+commit caa149f73da050377c8009ae4b7a565d6a36b3b9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 6 16:50:27 2010 -0700
+
+    net: use chan bool instead of chan *netFD to avoid cycle
+    
+    The cycle is *netFD -> cw chanl *netFD in struct ->
+    same *netFD in channel read buffer.
+    
+    Because channels are finalized, the cycle makes them
+    uncollectable.  A better fix is to make channels not
+    finalized anymore, and that will happen, but this is
+    an easy, reasonable workaround until then.
+    
+    Another good fix would be to zero the channel receive
+    buffer entry after the receive.  That too will happen.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/875043
+
+ src/pkg/net/fd.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

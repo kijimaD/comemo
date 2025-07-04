@@ -1,0 +1,14 @@
+commit d9e2631b53395fd3128f62cc621f2b1ed206a109
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 4 18:02:43 2010 -0700
+
+    go/parser.ParseFiles: don't override error (to nil) if there is one
+    
+    Also: Return first instead of last error as that seems more useful.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1897050
+
+ src/pkg/go/parser/interface.go | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)

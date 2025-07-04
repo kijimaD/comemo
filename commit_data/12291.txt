@@ -1,0 +1,15 @@
+commit 5a5279e128e29edcbeec8fc3e36d1ec110ecb558
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 1 11:24:13 2012 +1100
+
+    io: Pipes and ReadAt are safe to use concurrently.
+    
+    Updates #1599.
+    
+    R=golang-dev, bradfitz, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5708056
+
+ src/pkg/io/io.go   | 3 +++
+ src/pkg/io/pipe.go | 4 ++++
+ 2 files changed, 7 insertions(+)

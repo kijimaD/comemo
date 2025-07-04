@@ -1,0 +1,16 @@
+commit 3ba69bf08b507eb8fa9c889b230d3de1ba8fc1a6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 2 10:15:58 2009 -0700
+
+    Some AST tuning:
+    - have explicit XSpec nodes for declarations
+    - have a general GenDecl node instead of DeclList
+    
+    R=rsc
+    DELTA=164  (52 added, 52 deleted, 60 changed)
+    OCL=27005
+    CL=27027
+
+ src/lib/go/ast.go    | 94 ++++++++++++++++++++++++++++------------------------
+ src/lib/go/parser.go | 84 ++++++++++++++++++++++------------------------
+ 2 files changed, 89 insertions(+), 89 deletions(-)

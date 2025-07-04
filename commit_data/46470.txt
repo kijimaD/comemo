@@ -1,0 +1,27 @@
+commit 14e812bfc575400a02e9e7536344a3f78a6cba08
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Sep 16 16:11:19 2021 -0600
+
+    syscall: do not use handle lists on windows when NoInheritHandles is true
+    
+    If NoInheritHandles is passed, then we shouldn't attempt to do anything
+    with handle lists. Otherwise CreateProcess fails with invalid param,
+    because it's being told both to not inherit handles and to inherit
+    certain handles.
+    
+    This commit fixes that by using the same logic for handle lists as it
+    does for enabling or disabling handle inheritance. It also adds a test
+    to make sure this doesn't regress again.
+    
+    Fixes #48040
+    
+    Change-Id: I507261baeec263091738ab90157a991d917dc92f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350411
+    Reviewed-by: Patrik Nyblom <pnyb@google.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/os/exec/exec_windows_test.go | 14 ++++++++++++++
+ src/syscall/exec_windows.go      |  8 +++++---
+ 2 files changed, 19 insertions(+), 3 deletions(-)

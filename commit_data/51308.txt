@@ -1,0 +1,18 @@
+commit 38218f398758f336c4848783b27a02847c317afc
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Wed Nov 16 11:18:32 2022 +0000
+
+    net: remove unused goLookupHost method
+    
+    Change-Id: I62b9d0dcbec647fdd3279d78b9999dd933ff0bbd
+    GitHub-Last-Rev: f83db66c935dd7a14128d1e87c9323539e9d2d16
+    GitHub-Pull-Request: golang/go#56758
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451135
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/dnsclient_unix.go | 10 ----------
+ 1 file changed, 10 deletions(-)

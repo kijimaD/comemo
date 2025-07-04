@@ -1,0 +1,19 @@
+commit bcf41ab0ee1946c42eb50887fe1bc7f20e4030fb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat May 20 13:48:22 2023 -0700
+
+    runtime: remove some unused constants from assembler code
+    
+    Change-Id: Ibcd919afcb7ff4db79036ef427d088097362a574
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496695
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_freebsd_arm64.s   | 3 ---
+ src/runtime/sys_freebsd_riscv64.s | 3 ---
+ src/runtime/sys_netbsd_arm64.s    | 3 ---
+ 3 files changed, 9 deletions(-)

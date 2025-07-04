@@ -1,0 +1,18 @@
+commit b03f1d1a7e1c84d1fa7e4bcf8c705dfeb1a4565d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Sep 24 10:48:18 2017 -0400
+
+    runtime: remove extraneous stackPreempt setting
+    
+    The stackguard is set to stackPreempt earlier in reentersyscall, and
+    as it comes with throwsplit = true there's no way for the stackguard
+    to be set to anything else by the end of reentersyscall.
+    
+    Change-Id: I4e942005b22ac784c52398c74093ac887fc8ec24
+    Reviewed-on: https://go-review.googlesource.com/65673
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/proc.go | 4 ----
+ 1 file changed, 4 deletions(-)

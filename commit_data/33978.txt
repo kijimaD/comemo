@@ -1,0 +1,13 @@
+commit 23aefcd9aee4ad7fe3d4139c60fc773b0ae23953
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 9 16:45:27 2018 -0500
+
+    doc/go1.10: fix more TODOs
+    
+    Change-Id: I7be69a543841343a6ccbb335c7277009528fa0da
+    Reviewed-on: https://go-review.googlesource.com/87024
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.10.html | 47 +++++++++++++++++++++++++++--------------------
+ 1 file changed, 27 insertions(+), 20 deletions(-)

@@ -1,0 +1,14 @@
+commit 3ae849d47d7f02e3702bafab4f7603772f89ca11
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 21 10:52:00 2009 -0700
+
+    - documentation for bignum package
+    - removed some constants from public interface
+    
+    R=r
+    DELTA=375  (238 added, 14 deleted, 123 changed)
+    OCL=27636
+    CL=27668
+
+ src/lib/bignum.go | 466 ++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 345 insertions(+), 121 deletions(-)

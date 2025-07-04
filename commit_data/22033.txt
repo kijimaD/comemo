@@ -1,0 +1,22 @@
+commit 18d9ddc35c2159c30df3db4c2d47ef9d11b51e4f
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Sun Mar 8 14:11:41 2015 +0100
+
+    cmd/asm: add support for ARM64
+    
+    Pre/post-index addressing modes with writeback use .W and .P
+    instruction suffixes, like on ARM.
+    
+    Complex addressing modes are not supported yet.
+    
+    Change-Id: I537a1c3fe5b057c0812662677d0010bc8c468ffb
+    Reviewed-on: https://go-review.googlesource.com/7047
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/asm/internal/arch/arch.go        |  86 +++++++++++++++++++++++
+ src/cmd/asm/internal/arch/arm.go         |   8 ++-
+ src/cmd/asm/internal/arch/arm64.go       | 114 +++++++++++++++++++++++++++++++
+ src/cmd/asm/internal/asm/asm.go          |  43 +++++++++---
+ src/cmd/asm/internal/asm/operand_test.go |  52 ++++++++++++++
+ src/cmd/asm/internal/asm/parse.go        |   2 +-
+ 6 files changed, 291 insertions(+), 14 deletions(-)

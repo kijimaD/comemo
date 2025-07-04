@@ -1,0 +1,18 @@
+commit bf9216055b98e94cb2c96f4534777dd6d0ee0532
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 20 14:06:51 2021 -0400
+
+    runtime/testdata: fix testprogcgo for windows/arm64
+    
+    Our toolchain does not like -mnop-fun-dllimport.
+    
+    Change-Id: Iaaee01fe0f4b0959406a35eb13aefa390116b483
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312043
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/testdata/testprogcgo/windows/win.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

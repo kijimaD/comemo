@@ -1,0 +1,22 @@
+commit 1b316e3571190964d960c6a7af3e17e887c70d45
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Oct 10 14:45:12 2022 -0400
+
+    internal/coverage: minor code cleanups
+    
+    Delete some unused code, various cleanups to fix staticcheck warnings.
+    
+    Change-Id: Ie475d57735a83351a4977f0dd4bc1387ce06a20e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441935
+    Reviewed-by: David Chase <drchase@google.com>
+
+ .../coverage/decodecounter/decodecounterfile.go    | 12 --------
+ src/internal/coverage/encodecounter/encode.go      |  4 +--
+ src/internal/coverage/encodemeta/encode.go         |  2 +-
+ src/internal/coverage/encodemeta/encodefile.go     | 10 +++----
+ src/internal/coverage/pods/pods_test.go            |  3 +-
+ src/internal/coverage/slicewriter/slw_test.go      | 32 +++++++++++-----------
+ src/internal/coverage/stringtab/stringtab.go       |  2 +-
+ src/internal/coverage/test/counter_test.go         | 14 ++++++++--
+ src/internal/coverage/test/roundtrip_test.go       |  7 +++--
+ 9 files changed, 42 insertions(+), 44 deletions(-)

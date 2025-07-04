@@ -1,0 +1,41 @@
+commit 483e298daad38f39515ba20c0fcedc20b5475ae8
+Author: Hugues Bruant <hugues.bruant@gmail.com>
+Date:   Thu Nov 2 19:54:46 2017 -0700
+
+    cmd/compile: fix reassignment check
+    
+    CL 65071 enabled inlining for local closures with no captures.
+    
+    To determine safety of inlining a call sites, we check whether the
+    variable holding the closure has any assignments after its original
+    definition.
+    
+    Unfortunately, that check did not catch OAS2MAPR and OAS2DOTTYPE,
+    leading to incorrect inlining when a variable holding a closure was
+    subsequently reassigned through a type conversion or a 2-valued map
+    access.
+    
+    There was another more subtle issue wherein reassignment check would
+    always return a false positive for closure calls inside other
+    closures. This was caused by the Name.Curfn field of local variables
+    pointing to the OCLOSURE node instead of the corresponding ODCLFUNC,
+    which resulted in reassigned walking an empty Nbody and thus never
+    seeing any reassignments.
+    
+    This CL fixes these oversights and adds many more tests for closure
+    inlining which ensure not only that inlining triggers but also the
+    correctness of the resulting code.
+    
+    Updates #15561
+    
+    Change-Id: I74bdae849c4ecfa328546d6d62b512e8d54d04ce
+    Reviewed-on: https://go-review.googlesource.com/75770
+    Reviewed-by: Hugues Bruant <hugues.bruant@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go |  13 ++-
+ test/closure3.dir/main.go          | 173 +++++++++++++++++++++++++++++++++++++
+ test/closure3.go                   |  10 +++
+ 3 files changed, 194 insertions(+), 2 deletions(-)

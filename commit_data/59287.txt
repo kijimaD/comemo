@@ -1,0 +1,42 @@
+commit 47ab9cbd82b8b1af4b0636ed72173735725678a6
+Author: Than McIntosh <thanm@golang.org>
+Date:   Sat Apr 5 18:59:59 2025 -0400
+
+    cmd: fix DWARF gen bug with packages that use assembly
+    
+    When the compiler builds a Go package with DWARF 5 generation enabled,
+    it emits relocations into various generated DWARF symbols (ex:
+    SDWARFFCN) that use the R_DWTXTADDR_* flavor of relocations. The
+    specific size of this relocation is selected based on the total number
+    of functions in the package -- if the package is tiny (just a couple
+    funcs) we can use R_DWTXTADDR_U1 relocs (which target just a byte); if
+    the package is larger we might need to use the 2-byte or 3-byte flavor
+    of this reloc.
+    
+    Prior to this patch, the strategy used to pick the right relocation
+    size was flawed in that it didn't take into account packages with
+    assembly code. For example, if you have a package P with 200 funcs
+    written in Go source and 200 funcs written in assembly, you can't use
+    the R_DWTXTADDR_U1 reloc flavor for indirect text references since the
+    real function count for the package (asm + go) exceeds 255.
+    
+    The new strategy (with this patch) is to have the compiler look at the
+    "symabis" file to determine the count of assembly functions. For the
+    assembler, rather than create additional plumbing to pass in the Go
+    source func count we just use an dummy (artificially high) function
+    count so as to select a relocation that will be large enough.
+    
+    Fixes #72810.
+    Updates #26379.
+    
+    Change-Id: I98d04f3c6aacca1dafe1f1610c99c77db290d1d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663235
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/asm/main.go                                |    1 +
+ src/cmd/compile/internal/ssagen/abi.go             |    1 +
+ .../testdata/script/dwarf5_gen_assembly_and_go.txt | 1345 ++++++++++++++++++++
+ src/cmd/internal/objabi/reloctype.go               |   24 +
+ 4 files changed, 1371 insertions(+)

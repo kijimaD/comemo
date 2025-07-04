@@ -1,0 +1,11 @@
+commit b351113b50d27dd65e1967880faeb0a5202c517b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 09:36:48 2009 -0800
+
+    make regexp comment not a package comment
+    
+    R=r
+    http://go/go-review/1025036
+
+ src/pkg/testing/regexp.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,13 @@
+commit 553c98dca4b4ef9b745700f3d5d03ba4d8fa9fe6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 5 15:59:34 2008 -0800
+
+    fix renamed-package bug in exported names:
+    always show original name
+    
+    R=ken
+    OCL=18603
+    CL=18603
+
+ src/cmd/gc/subr.c | 21 +++++++--------------
+ 1 file changed, 7 insertions(+), 14 deletions(-)

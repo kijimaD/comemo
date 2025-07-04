@@ -1,0 +1,92 @@
+commit 325cf8ef217b4e9ae2caf53fa0d4534cd5003bd8
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 24 16:46:53 2010 -0700
+
+    delete all uses of panicln by rewriting them using panic or,
+    in the tests, println+panic.
+    gofmt some tests too.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/741041
+
+ src/cmd/goyacc/goyacc.go              |   2 +-
+ src/pkg/crypto/block/cfb.go           |   2 +-
+ src/pkg/crypto/block/eax.go           |   2 +-
+ src/pkg/crypto/block/ecb_test.go      |   8 +-
+ src/pkg/crypto/block/ofb.go           |   3 +-
+ src/pkg/crypto/md4/md4.go             |   2 +-
+ src/pkg/crypto/md5/md5.go             |   2 +-
+ src/pkg/crypto/ripemd160/ripemd160.go |   2 +-
+ src/pkg/crypto/sha1/sha1.go           |   2 +-
+ src/pkg/crypto/sha256/sha256.go       |   2 +-
+ src/pkg/crypto/sha512/sha512.go       |   2 +-
+ src/pkg/exp/eval/abort.go             |   2 +-
+ src/pkg/exp/eval/expr.go              |   9 +-
+ src/pkg/exp/eval/type.go              |   2 -
+ src/pkg/gob/encode.go                 |   2 +-
+ src/pkg/gob/type.go                   |  10 +-
+ src/pkg/gob/type_test.go              |   2 +-
+ src/pkg/http/server.go                |   2 +-
+ src/pkg/net/fd.go                     |   2 +-
+ src/pkg/reflect/tostring_test.go      |   2 +-
+ src/pkg/reflect/type.go               |   2 +-
+ src/pkg/reflect/value.go              |   8 +-
+ src/pkg/regexp/regexp.go              |   2 +-
+ src/pkg/rpc/client.go                 |   2 +-
+ src/pkg/rpc/server_test.go            |   2 +-
+ src/pkg/strconv/fp_test.go            |   4 +-
+ src/pkg/tabwriter/tabwriter_test.go   |   2 +-
+ src/pkg/testing/regexp.go             |   2 +-
+ test/chan/select.go                   |  36 +-
+ test/chancap.go                       |  18 +-
+ test/closure.go                       | 107 +++--
+ test/cmp1.go                          |  73 +--
+ test/const3.go                        |  20 +-
+ test/convert.go                       |  35 +-
+ test/ddd.go                           | 129 +++--
+ test/ddd3.go                          |  12 +-
+ test/fixedbugs/bug113.go              |  28 +-
+ test/fixedbugs/bug114.go              |  11 +-
+ test/fixedbugs/bug116.go              |  35 +-
+ test/fixedbugs/bug119.go              |  13 +-
+ test/fixedbugs/bug120.go              |  45 +-
+ test/fixedbugs/bug147.go              |  26 +-
+ test/fixedbugs/bug180.go              |   7 +-
+ test/fixedbugs/bug184.go              |  38 +-
+ test/fixedbugs/bug185.go              |  24 +-
+ test/fixedbugs/bug196.go              |  39 +-
+ test/fixedbugs/bug199.go              |  12 +-
+ test/fixedbugs/bug201.go              |  40 +-
+ test/fixedbugs/bug242.go              |  52 +-
+ test/fixedbugs/bug246.go              |   5 +-
+ test/fixedbugs/bug247.go              |   3 +-
+ test/fixedbugs/bug248.dir/bug2.go     |  27 +-
+ test/fixedbugs/bug254.go              |   3 +-
+ test/garbage/parser.go                |   3 +-
+ test/indirect.go                      |  41 +-
+ test/initcomma.go                     |  83 +++-
+ test/intcvt.go                        | 284 ++++++-----
+ test/interface/receiver.go            | 112 +++--
+ test/ken/chan1.go                     |  51 +-
+ test/ken/cplx1.go                     |  36 +-
+ test/ken/cplx2.go                     |  39 +-
+ test/ken/divconst.go                  | 882 ++++++++++++++++++++--------------
+ test/ken/divmod.go                    | 211 ++++----
+ test/ken/embed.go                     | 335 ++++++++-----
+ test/ken/interbasic.go                | 263 ++++++----
+ test/ken/modconst.go                  | 882 ++++++++++++++++++++--------------
+ test/ken/range.go                     | 107 +++--
+ test/ken/slicearray.go                | 250 ++++++----
+ test/ken/sliceslice.go                | 238 +++++----
+ test/mallocfin.go                     |   6 +-
+ test/mallocrand.go                    |   6 +-
+ test/mallocrep.go                     |   6 +-
+ test/mallocrep1.go                    |  18 +-
+ test/method.go                        | 119 +++--
+ test/method3.go                       |  18 +-
+ test/range.go                         |  53 +-
+ test/rename.go                        | 112 +++--
+ test/rename1.go                       |  62 ++-
+ test/stack.go                         |  57 +--
+ 79 files changed, 3093 insertions(+), 2105 deletions(-)

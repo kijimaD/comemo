@@ -1,0 +1,12 @@
+commit 4984e6e9fdde23a75b0a8c52d56c7a4b5f5d5736
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 12 22:04:24 2013 -0400
+
+    cmd/6l: fix printing of frame size in TEXT instruction
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/12827043
+
+ src/cmd/6l/list.c | 3 +++
+ 1 file changed, 3 insertions(+)

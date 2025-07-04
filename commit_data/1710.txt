@@ -1,0 +1,13 @@
+commit a9ed30ff377976b9e2fd7fb4a897ffda71649474
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 23 19:26:07 2009 -0800
+
+    Move Types before Declarations and Scopes.
+    This is the only change in this CL: only rearrangement, no content change, so subsequent edits will be easier to understand.
+    
+    R=gri
+    OCL=25353
+    CL=25353
+
+ doc/go_spec.html | 1883 +++++++++++++++++++++++++++---------------------------
+ 1 file changed, 942 insertions(+), 941 deletions(-)

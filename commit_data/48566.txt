@@ -1,0 +1,18 @@
+commit f71daa6fe6eecab08ad47f9dbd584bc11691116a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 28 15:42:30 2022 -0700
+
+    go/types, types2: better error message for blank interface method name (cleanup)
+    
+    Use the 1.17 compiler error message.
+    
+    Change-Id: Ic62de5bfc9681674069934afc590f5840729f8e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396297
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/interface.go             | 6 +-----
+ src/cmd/compile/internal/types2/testdata/check/decls0.go | 4 ++--
+ src/go/types/interface.go                                | 2 +-
+ src/go/types/testdata/check/decls0.go                    | 4 ++--
+ 4 files changed, 6 insertions(+), 10 deletions(-)

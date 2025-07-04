@@ -1,0 +1,24 @@
+commit 648f3febf54465162e095da99149de7a839576c6
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Nov 30 13:43:45 2022 -0500
+
+    net/http: deflake and fix TestWrappedResponseController
+    
+    Read the full (empty) response body before closing it,
+    to avoid cancelling the request while the server handler
+    is still running.
+    
+    Wrap the ResponseWriter before calling NewResponseController:
+    This test is intended to verify that wrapping the controller
+    works properly, but neglected to actually wrap the controller.
+    
+    Fixes #56961.
+    
+    Change-Id: I00269f897448ab34676338707b7a04d19ff17963
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453860
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/responsecontroller_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

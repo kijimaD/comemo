@@ -1,0 +1,44 @@
+commit d6625caf5397a52edc38e19d523a597b531a5f12
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 24 14:20:07 2016 -0400
+
+    runtime: scan mark worker stacks like normal
+    
+    Currently, markroot delays scanning mark worker stacks until mark
+    termination by putting the mark worker G directly on the rescan list
+    when it encounters one during the mark phase. Without this, since mark
+    workers are non-preemptible, two mark workers that attempt to scan
+    each other's stacks can deadlock.
+    
+    However, this is annoyingly asymmetric and causes some real problems.
+    First, markroot does not own the G at that point, so it's not
+    technically safe to add it to the rescan list. I haven't been able to
+    find a specific problem this could cause, but I suspect it's the root
+    cause of issue #17099. Second, this will interfere with the hybrid
+    barrier, since there is no stack rescanning during mark termination
+    with the hybrid barrier.
+    
+    This commit switches to a different approach. We move the mark
+    worker's call to gcDrain to the system stack and set the mark worker's
+    status to _Gwaiting for the duration of the drain to indicate that
+    it's preemptible. This lets another mark worker scan its G stack while
+    the drain is running on the system stack. We don't return to the G
+    stack until we can switch back to _Grunning, which ensures we don't
+    race with a stack scan. This lets us eliminate the special case for
+    mark worker stack scans and scan them just like any other goroutine.
+    The only subtlety to this approach is that we have to disable stack
+    shrinking for mark workers; they could be referring to captured
+    variables from the G stack, so it's not safe to move their stacks.
+    
+    Updates #17099 and #17503.
+    
+    Change-Id: Ia5213949ec470af63e24dfce01df357c12adbbea
+    Reviewed-on: https://go-review.googlesource.com/31820
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go     | 27 +++++++++++++++++++--------
+ src/runtime/mgcmark.go | 15 ++-------------
+ src/runtime/stack.go   |  5 +++++
+ 3 files changed, 26 insertions(+), 21 deletions(-)

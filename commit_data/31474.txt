@@ -1,0 +1,14 @@
+commit b2c60b2b08ea9144041d43be0d7f890e38daa7b2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 2 17:41:24 2017 +0000
+
+    api: update next.txt
+    
+    Change-Id: Ifbfd71a9c0d447e22c369c9d1209063b2a5c657b
+    Reviewed-on: https://go-review.googlesource.com/42490
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ api/next.txt | 136 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 136 insertions(+)

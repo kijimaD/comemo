@@ -1,0 +1,36 @@
+commit e23cc0844d542688c0956900206fca7c602593c5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 19 10:41:32 2022 -0400
+
+    misc/cgo/testplugin: set the package name in TestIssue19534
+    
+    The fix for #19534 (in CL 40994) adjusted escaping in the
+    dynamically-linked name lookup logic for the plugin package. However,
+    the regression test added for it incorrectly included quotes within
+    the -ldflags flag, causing the flag to inadvertently be ignored.
+    
+    Possibly in that same CL or possibly at some other point, the
+    condition that the test thought it was checking stopped working: the
+    dynamic lookup used the path passed to ldflags, but the object file
+    actually contained the symbol indexed by the original package name.
+    
+    Ideally we should stop mucking around with ldflags in this test and
+    run 'go build' from a suitably-named directory instead, to mimic the
+    actual conditions in which the original bug was reported. For now, as
+    a more targeted fix, we can pass the '-p' flag to the compiler to
+    adjust the package path used at compile time to match the one that
+    will be set at link time.
+    
+    For #43177.
+    Updates #19534.
+    
+    Change-Id: I9763961feb37cfb05dee543f273492e91a350663
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407314
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ misc/cgo/testplugin/plugin_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

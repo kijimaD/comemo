@@ -1,0 +1,15 @@
+commit 5e74d4095241655ce6bf6e5d32eeaeef353b614f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 19 14:42:15 2016 -0700
+
+    strconv: fix ParseFloat for special forms of zero values
+    
+    Fixes #15364.
+    
+    Change-Id: Id2a349896064c7c9e00e36c55162068bf18162b2
+    Reviewed-on: https://go-review.googlesource.com/22272
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strconv/atof.go      |  4 +++-
+ src/strconv/atof_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

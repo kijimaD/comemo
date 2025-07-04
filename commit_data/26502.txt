@@ -1,0 +1,17 @@
+commit ba333a3061726b75a8e18fb542f4a43abd1d9999
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Mar 24 20:45:54 2016 +0100
+
+    cmd/go: remove limits on parallel tasks in the Go command for iOS
+    
+    Ther darwin/arm{,64} exec wrapper now limits the number of concurrent
+    executions to 1, so remove the higher level parallel task limit from
+    the Go command.
+    
+    Change-Id: Id84f65c3908305bde0452b3c8db6df8c5a8881bb
+    Reviewed-on: https://go-review.googlesource.com/21100
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/alldocs.go |  8 +++++---
+ src/cmd/go/build.go   | 14 +-------------
+ 2 files changed, 6 insertions(+), 16 deletions(-)

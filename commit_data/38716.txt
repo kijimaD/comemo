@@ -1,0 +1,24 @@
+commit 3cb92fcba71f9c0d64b3b714fc92870065848345
+Author: Aman Gupta <aman@tmm1.net>
+Date:   Tue Apr 2 04:35:50 2019 -0700
+
+    cmd/link/internal/ld: fix c-archive mach-o compatibility
+    
+    These workarounds predate proper DWARF support
+    and are no longer necessary.
+    
+    Before this patch, running `/usr/bin/symbols go.o`
+    using the object in the c-archive would fail, causing
+    App Store rejections.
+    
+    Fixes #31022 #28997
+    
+    Change-Id: I6a210b6369c13038777c6e21e874e81afcb50c2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170377
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/dwarf_test.go        | 20 ++++++++++++++++++++
+ src/cmd/link/internal/ld/macho.go |  8 ++------
+ 2 files changed, 22 insertions(+), 6 deletions(-)

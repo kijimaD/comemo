@@ -1,0 +1,17 @@
+commit bcd36e8857729f6f3306ab22c26e582f1d2f2932
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 11 16:53:34 2014 -0700
+
+    runtime: make gostringnocopy update maxstring
+    
+    Fixes #8706
+    
+    LGTM=josharian
+    R=josharian
+    CC=golang-codereviews
+    https://golang.org/cl/143880043
+
+ src/runtime/export_test.go |  3 +++
+ src/runtime/string.c       |  7 ++++++-
+ src/runtime/string_test.go | 13 +++++++++++++
+ 3 files changed, 22 insertions(+), 1 deletion(-)

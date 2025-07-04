@@ -1,0 +1,20 @@
+commit 30b2b767d6d902787b90476fd00eee4c9b3a3f15
+Author: Mark Freeman <mark@golang.org>
+Date:   Mon Apr 28 13:32:14 2025 -0400
+
+    pkgbits: alias RelocKind with a SectionKind type
+    
+    I think that SectionKind better conveys the original intent here, and
+    goes nicely with codifying section relative indices.
+    
+    Change-Id: I96a245e67295a5f9f8e462756a14f60eccec6862
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668538
+    Reviewed-by: Mark Freeman <mark@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/internal/pkgbits/decoder.go | 24 ++++++++++++------------
+ src/internal/pkgbits/encoder.go | 14 +++++++-------
+ src/internal/pkgbits/reloc.go   |  5 +++--
+ 3 files changed, 22 insertions(+), 21 deletions(-)

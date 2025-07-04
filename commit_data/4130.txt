@@ -1,0 +1,18 @@
+commit a274099340c5f502f31f1942473a415538c4f667
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 18 09:54:51 2009 -0800
+
+    big: implement 386 assembly routines
+    7x speedup on big and crypto/rsa unit tests.
+    also dropped useAsm in favor of making the
+    asm stubs jump to the Go versions.
+    
+    R=agl1
+    CC=golang-dev, gri
+    https://golang.org/cl/157062
+
+ src/pkg/big/arith.go      |  24 ++++---
+ src/pkg/big/arith_386.s   | 162 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/big/arith_amd64.s |   5 --
+ src/pkg/big/arith_arm.s   |  22 +++++--
+ 4 files changed, 184 insertions(+), 29 deletions(-)

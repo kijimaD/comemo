@@ -1,0 +1,19 @@
+commit 7efb0779be523f8629919abc90067382f370f4c0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 30 14:34:16 2017 -0700
+
+    cmd/compile: remove scratchFpMem global
+    
+    Instead, add a scratchFpMem field to ssafn,
+    so that it may be passed on to genssa.
+    
+    Updates #15756
+    
+    Change-Id: Icdeae290d3098d14d31659fa07a9863964bb76ed
+    Reviewed-on: https://go-review.googlesource.com/38728
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go |  7 ++-----
+ src/cmd/compile/internal/gc/ssa.go  | 14 +++++++-------
+ 2 files changed, 9 insertions(+), 12 deletions(-)

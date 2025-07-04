@@ -1,0 +1,30 @@
+commit 52572afa20543a6c71ff536de7aa1ffc33eeba76
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jun 17 12:57:40 2019 -0700
+
+    reflect,doc: use "the" instead of "a" in IsZero docs
+    
+    There is a subtle distinction between a value
+    *being* the zero value vs being *equal to* the zero value.
+    This was discussed at length in #31450.
+    
+    Using "a zero value" in the docs suggests that there may
+    be more than zero value. That is possible on the "equal to
+    zero value" reading, but not the "is zero" reading that we
+    selected for the semantics of IsZero.
+    
+    This change attempts to prevent any confusion on this front by
+    switching to "the zero value" in the documentation.
+    
+    And while we're here, eliminate a double-space.
+    (Darn macbook keyboards.)
+    
+    Change-Id: Iaa02ba297438793f5a90be9919a4d53baef92f8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182617
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.13.html      | 4 ++--
+ src/reflect/value.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

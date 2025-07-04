@@ -1,0 +1,18 @@
+commit 4b30a40d8856cc3f6c8f629a9f825feeaf9848af
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 28 14:15:13 2024 -0700
+
+    strings,bytes: use result of copy in subsequent slicing
+    
+    This can get rid of a bounds check.
+    Followup to CL 622240.
+    
+    Change-Id: I9d0a2c0408b8d274c46136d32d7a5fb09b4aad1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622955
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/bytes/buffer.go   | 4 ++--
+ src/runtime/string.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

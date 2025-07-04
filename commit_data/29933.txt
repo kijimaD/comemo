@@ -1,0 +1,22 @@
+commit ac05542985ab2fac15f2a2c7b62afe29bdb15e5c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 10 23:42:06 2017 +0000
+
+    net/http: deflake TestRetryIdempotentRequestsOnError
+    
+    The test was previously an integration test, relying on luck and many
+    goroutines and lots of time to hit the path to be tested.
+    
+    Instead, rewrite the test to exactly hit the path to be tested, in one
+    try, in one goroutine.
+    
+    Fixes #18205
+    
+    Change-Id: I63cd513316344bfd7375dcc452c1c396dec0e49f
+    Reviewed-on: https://go-review.googlesource.com/35107
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/transport_test.go | 114 ++++++++++++++++++++++++-----------------
+ 1 file changed, 67 insertions(+), 47 deletions(-)

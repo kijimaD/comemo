@@ -1,0 +1,20 @@
+commit 76c18e2ed2e62f34a9afed5e6fa681837cc16b77
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Feb 4 11:16:40 2025 +0100
+
+    cmd/link: add -e (no limit on errors) flag
+    
+    The compiler and assembler have a -e flag that disables the limit
+    on the number of errors before the build fails. This flag is useful
+    for debugging, the linker should have it too.
+    
+    Change-Id: I892cfd6ee1519e9e86261af7d05e1af2ded21684
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646435
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/doc.go              | 2 ++
+ src/cmd/link/internal/ld/main.go | 1 +
+ src/cmd/link/internal/ld/util.go | 2 +-
+ 3 files changed, 4 insertions(+), 1 deletion(-)

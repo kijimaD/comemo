@@ -1,0 +1,19 @@
+commit c4a8a684dacbe07f5524eae07d5e9f048034bcb6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 11 22:14:37 2018 -0500
+
+    cmd/go: reproduce #28680
+    
+    This change encodes the current behavior in mod_clean_cache.txt.
+    A fix for that behavior will probably have to wait for 1.13.
+    
+    Updates #28680
+    
+    Change-Id: I216b5a783971309cc75187502bddccc58c3a9c35
+    Reviewed-on: https://go-review.googlesource.com/c/153818
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/script/mod_clean_cache.txt | 40 ++++++++++++++++++++++++--
+ 1 file changed, 38 insertions(+), 2 deletions(-)

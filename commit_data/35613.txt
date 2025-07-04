@@ -1,0 +1,17 @@
+commit d09d7627f38211eaa02fed660fd1b3001a7812b3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 6 12:35:09 2018 -0700
+
+    go/types: add missing test case for https://golang.org/cl/116735
+    
+    Missed this in the prior submit.
+    
+    For #24182.
+    
+    Change-Id: If8349d39c80b7ff57bc0c857985f9e52241321b8
+    Reviewed-on: https://go-review.googlesource.com/116775
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/types/testdata/errors.src | 5 +++++
+ 1 file changed, 5 insertions(+)

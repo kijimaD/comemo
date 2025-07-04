@@ -1,0 +1,12 @@
+commit 9c4aade584ecc34e714d172a1bb87a8430de2f41
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 25 15:45:25 2015 -0800
+
+    math/big: fix build for 32bit platforms
+    
+    Change-Id: I9c217e5140294a17e4feb65da5b121ee8d8cadc2
+    Reviewed-on: https://go-review.googlesource.com/6050
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/big/float_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

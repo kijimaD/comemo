@@ -1,0 +1,13 @@
+commit 01a7487534d3f8d83a51f100fc25e6a7b08f8413
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 25 11:23:15 2018 -0400
+
+    cmd/vet/all: fix whitelist for CL 108557
+    
+    Change-Id: I831775db5de92d211495acc012fc4366c7c84851
+    Reviewed-on: https://go-review.googlesource.com/109335
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/vet/all/whitelist/all.txt | 1 -
+ 1 file changed, 1 deletion(-)

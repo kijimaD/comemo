@@ -1,0 +1,23 @@
+commit d2552037426fe5a190c74172562d897d921fe311
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Wed Apr 13 00:32:15 2022 +0000
+
+    cmd/compile: remove unused offset calculation in ssagen#rtcall
+    
+    This offR accumulation isn't used and some really similar code is done
+    later in the Load results block.
+    
+    Change-Id: I2f77a7bfd568e7e5eb9fc519e7c552401b3af9b8
+    GitHub-Last-Rev: 2c91e5c8987d21203c494f278ff1e05aa3941211
+    GitHub-Pull-Request: golang/go#52316
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400094
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 7 -------
+ 1 file changed, 7 deletions(-)

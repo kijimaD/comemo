@@ -1,0 +1,15 @@
+commit 83267dce11a75bf07c036e6bb24b0bab41f53a43
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 23 18:34:17 2008 -0700
+
+    - added initial formatting: indentation
+    - more AST nodes built and printed
+    
+    R=r
+    OCL=15735
+    CL=15735
+
+ usr/gri/pretty/ast.go     | 47 ++++++++++++++++++++----
+ usr/gri/pretty/parser.go  | 94 ++++++++++++++++++++++++++++-------------------
+ usr/gri/pretty/printer.go | 87 ++++++++++++++++++++++++++++++++++---------
+ 3 files changed, 165 insertions(+), 63 deletions(-)

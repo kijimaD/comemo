@@ -1,0 +1,18 @@
+commit fa6022607351616844bb063c312f52bc7912cbc2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 14 20:31:31 2009 -0700
+
+    http additions
+            file system server
+            add NotFound, Redirect functions
+            method on a string
+    
+    R=r
+    DELTA=212  (199 added, 4 deleted, 9 changed)
+    OCL=27467
+    CL=27471
+
+ src/lib/http/Makefile  |  14 +++-
+ src/lib/http/fs.go     | 184 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/http/server.go |  24 ++++---
+ 3 files changed, 209 insertions(+), 13 deletions(-)

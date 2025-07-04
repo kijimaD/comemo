@@ -1,0 +1,17 @@
+commit 18d9a8d05f5c9f13b8c2a06ce3a11a2c04d19536
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 11 12:32:11 2015 -0700
+
+    cmd/go: format temporary Go files in testsuite
+    
+    Indent the temporary file source code embedded in go_test.go, so that
+    we don't have temporary Go code in the first column.
+    
+    No real changes to the tests, just formatting.
+    
+    Change-Id: I416b4a812c8db452ea61afe63a00989ec598c228
+    Reviewed-on: https://go-review.googlesource.com/10926
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go | 83 +++++++++++++++++++++++++--------------------------
+ 1 file changed, 41 insertions(+), 42 deletions(-)

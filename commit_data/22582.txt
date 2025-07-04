@@ -1,0 +1,37 @@
+commit 7816a096d904aeab9ab850d1b035fdac6cced1c7
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 9 07:37:17 2015 -0400
+
+    cmd/internal/ld: replace Diag;Errorexit with Exitf
+    
+    I have left the Diag calls in place where I believe Ctxt.Cursym != nil
+    which means this CL is not the improvement I had hoped for. However
+    it is now safe to call Exitf whereever you are in the linker, which
+    makes it easier to reason about some code.
+    
+    Change-Id: I8261e761ca9719f7d216e2747314adfe464e3337
+    Reviewed-on: https://go-review.googlesource.com/8668
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/5l/asm.go                |  4 +-
+ src/cmd/5l/obj.go                |  4 +-
+ src/cmd/6l/obj.go                |  4 +-
+ src/cmd/7l/obj.go                |  4 +-
+ src/cmd/8l/obj.go                |  4 +-
+ src/cmd/9l/obj.go                |  4 +-
+ src/cmd/internal/ld/data.go      |  6 +--
+ src/cmd/internal/ld/decodesym.go |  6 +--
+ src/cmd/internal/ld/dwarf.go     | 40 +++++++----------
+ src/cmd/internal/ld/elf.go       | 40 +++--------------
+ src/cmd/internal/ld/go.go        | 26 +++++------
+ src/cmd/internal/ld/ldelf.go     |  8 +---
+ src/cmd/internal/ld/ldmacho.go   |  3 +-
+ src/cmd/internal/ld/ldpe.go      |  3 +-
+ src/cmd/internal/ld/lib.go       | 94 +++++++++++++++-------------------------
+ src/cmd/internal/ld/macho.go     | 16 +++----
+ src/cmd/internal/ld/pcln.go      |  4 +-
+ src/cmd/internal/ld/pe.go        | 16 +++----
+ src/cmd/internal/ld/pobj.go      |  8 ++--
+ 19 files changed, 98 insertions(+), 196 deletions(-)

@@ -1,0 +1,14 @@
+commit 6540c85c7f191a6064e0f71fd090cf17f72c096a
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 30 12:59:52 2010 -0800
+
+    fmt.Scan: accept Inf and NaN
+    Fixes #1308.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/3280045
+
+ src/pkg/fmt/scan.go      |  8 +++++++
+ src/pkg/fmt/scan_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+)

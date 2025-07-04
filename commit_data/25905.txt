@@ -1,0 +1,23 @@
+commit 687abca1ea828dd4745d50c351f3b73ccd4d09be
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jan 15 18:17:09 2016 -0800
+
+    runtime: avoid using REP prefix for IndexByte
+    
+    REP-prefixed instructions have a large startup cost.
+    Avoid them like the plague.
+    
+    benchmark                  old ns/op     new ns/op     delta
+    BenchmarkIndexByte10-8     22.4          5.34          -76.16%
+    
+    Fixes #13983
+    
+    Change-Id: I857e956e240fc9681d053f2584ccf24c1b272bb3
+    Reviewed-on: https://go-review.googlesource.com/18703
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/bytes_test.go |  37 +++++++++++++
+ src/runtime/asm_amd64.s | 144 ++++++++++++++++++++++++------------------------
+ 2 files changed, 110 insertions(+), 71 deletions(-)

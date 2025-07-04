@@ -1,0 +1,16 @@
+commit a5b80d469a1d07f77067075f9cbff80f5edc2323
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Nov 6 16:32:33 2017 -0800
+
+    cmd/compile: update liveness comments
+    
+    The explanation about VARDEF/VARKILL is from when liveness analysis
+    was performed on Progs. Now that it's performed on SSA, it should
+    reference their corresponding SSA ops (OpVarDef/OpVarKill) instead.
+    
+    Change-Id: Icc4385b52768f6987cda162824b75340aee0b223
+    Reviewed-on: https://go-review.googlesource.com/76313
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go | 32 +++++++++++++-------------------
+ 1 file changed, 13 insertions(+), 19 deletions(-)

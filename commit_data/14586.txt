@@ -1,0 +1,14 @@
+commit 10d14b63c2c2693cd2132859c34342c5f4b398f6
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Dec 9 19:27:23 2012 +0100
+
+    cmd/gc: prevent ngotype from allocating.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6904061
+
+ src/cmd/gc/go.h      |  1 +
+ src/cmd/gc/reflect.c | 13 +++++++++++--
+ src/cmd/gc/subr.c    |  2 +-
+ 3 files changed, 13 insertions(+), 3 deletions(-)

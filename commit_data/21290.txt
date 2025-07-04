@@ -1,0 +1,21 @@
+commit e9ce76b0eca8fa95dddb90b0a72aadab58de2ffc
+Author: Bill Thiede <couchmoney@gmail.com>
+Date:   Sat Jan 17 21:09:15 2015 -0800
+
+    runtime, syscall: use SYSCALL instruction on FreeBSD.
+    
+    This manually reverts 555da73 from #6372 which implies a
+    minimum FreeBSD version of 8-STABLE.
+    Updates docs to mention new minimum requirement.
+    
+    Fixes #9627
+    
+    Change-Id: I40ae64be3682d79dd55024e32581e3e5e2be8aa7
+    Reviewed-on: https://go-review.googlesource.com/3020
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/install.html                |  9 +++++----
+ src/runtime/sys_freebsd_amd64.s | 25 -------------------------
+ src/syscall/asm_freebsd_amd64.s |  5 -----
+ 3 files changed, 5 insertions(+), 34 deletions(-)

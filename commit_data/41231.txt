@@ -1,0 +1,22 @@
+commit fb93cd45a647087a11f96cf2610e64a257a68c19
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Feb 4 19:41:48 2020 -0500
+
+    net: don't check LookupHost error in TestLookupNullByte
+    
+    net.LookupHost("foo\x00bar") may resolve successfully on some networks.
+    Reduce the scope of the test to check only that the call doesn't panic.
+    
+    Also update the test comment to reference the relevant issue.
+    
+    Fixes #37031
+    Updates #31597
+    
+    Change-Id: If175deed8121625ef507598c6145e937ccffd89e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217729
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/lookup_test.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

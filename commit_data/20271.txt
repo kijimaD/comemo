@@ -1,0 +1,17 @@
+commit 4930a8d0582d96d390339d2ca454ff8375bb535a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 3 09:54:53 2014 -0700
+
+    runtime: relax flaky GC pause test
+    
+    We often saw GC pauses of 0 ns, not just on Windows.
+    Google Compute Engine timer granularity might suck
+    too.
+    
+    LGTM=rsc
+    R=rsc, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/140910043
+
+ src/pkg/runtime/gc_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

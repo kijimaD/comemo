@@ -1,0 +1,23 @@
+commit d7acfc75cd5012829c01ff2dbe0aaf71961c6c2b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 1 19:13:44 2009 -0700
+
+    format package
+    
+    R=r,rsc
+    DELTA=2871  (1712 added, 1118 deleted, 41 changed)
+    OCL=29222
+    CL=29704
+
+ src/lib/Make.deps             |   1 +
+ src/lib/Makefile              |   2 +
+ src/lib/format/Makefile       |  76 ++++
+ src/lib/format/format.go      | 786 ++++++++++++++++++++++++++++++++++
+ src/lib/format/format_test.go | 365 ++++++++++++++++
+ src/lib/format/parser.go      | 445 +++++++++++++++++++
+ usr/gri/pretty/Makefile       |   2 +-
+ usr/gri/pretty/ast.txt        |  60 +--
+ usr/gri/pretty/format.go      | 967 ------------------------------------------
+ usr/gri/pretty/format_test.go | 153 -------
+ usr/gri/pretty/pretty.go      |  56 ++-
+ 11 files changed, 1756 insertions(+), 1157 deletions(-)

@@ -1,0 +1,12 @@
+commit 723f4286b9ba8b446e43faea31457e1f3a637423
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed May 23 11:37:59 2018 -0400
+
+    doc: update Code of Conduct
+    
+    Change-Id: I82c03dd026bb797a49b7361389373924acf6366c
+    Reviewed-on: https://go-review.googlesource.com/114085
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/conduct.html | 234 ++++++++++++++++++++++---------------------------------
+ 1 file changed, 93 insertions(+), 141 deletions(-)

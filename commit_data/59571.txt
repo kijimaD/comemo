@@ -1,0 +1,20 @@
+commit 3e82316a4357c44c193790bdc02d1f8032f34289
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri May 16 21:07:46 2025 +0200
+
+    cmd/compile: don't instrument counter globals in internal/fuzz
+    
+    Fixes: #72766
+    
+    Change-Id: I45b521e53c2a11e259dc99e2dfc8e40cac39139a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673575
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/cgo/internal/testsanitizers/asan_test.go               | 3 +++
+ src/cmd/cgo/internal/testsanitizers/testdata/asan_fuzz_test.go | 2 +-
+ src/cmd/compile/internal/pkginit/initAsanGlobals.go            | 6 ++++++
+ 3 files changed, 10 insertions(+), 1 deletion(-)

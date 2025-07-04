@@ -1,0 +1,20 @@
+commit cd8d1bca2cc2ec228b21e5df893fec7a2e766e08
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Nov 8 17:02:49 2022 -0800
+
+    cmd/go: more informative test failures when GOROOT is stale
+    
+    If GOROOT is stale, test fail when commands unexpectedly write to GOROOT.
+    Include an message in the test failure indicating that this is a possible
+    and expected reason for the failure, and how to fix it.
+    
+    For #48698.
+    
+    Change-Id: I057c20260bab09aebf684e8f20794ab8fc0ede1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448895
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/cmd/go/go_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit f0331c524e0d8d32c3918d3515ab8413f38dbd56
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Nov 21 11:01:53 2022 -0500
+
+    testing: skip flaky TestRaiseException on windows-amd64-2012-*
+    
+    Modify skip rule for TestRaiseException to trigger on both the base
+    builder (windows-amd64-2012) and the newcc canary builder
+    (windows-amd64-2012-newcc).
+    
+    Updates #49681.
+    
+    Change-Id: I132f9ddd102666b68ad04cc661fdcc2cd841051a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451294
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/syscall_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

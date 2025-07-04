@@ -1,0 +1,32 @@
+commit 99de78e175bed03e21e0da72d2f084c88e4f62ad
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri Mar 24 23:07:58 2023 -0700
+
+    all: add wasip1 asm and link logic
+    
+    Add wasip1 asm and symbols to cmd/internal/obj, cmd/link and
+    runtime.
+    
+    For #58141
+    
+    Co-authored-by: Richard Musiol <neelance@gmail.com>
+    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
+    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
+    Co-authored-by: Evan Phoenix <evan@phx.io>
+    Change-Id: Ie088d9b65ea13e231694af6341465f95be33093f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479617
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/internal/obj/wasm/wasmobj.go |  5 +++--
+ src/cmd/link/internal/ld/dwarf.go    |  2 +-
+ src/cmd/link/internal/ld/sym.go      |  2 +-
+ src/cmd/link/internal/wasm/asm.go    | 33 +++++++++++++++++++++--------
+ src/runtime/asm_wasm.s               | 41 ++++++++++++++++++++++++++++++++++++
+ src/runtime/rt0_js_wasm.s            | 39 ----------------------------------
+ src/runtime/rt0_wasip1_wasm.s        | 16 ++++++++++++++
+ 7 files changed, 86 insertions(+), 52 deletions(-)

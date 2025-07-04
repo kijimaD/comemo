@@ -1,0 +1,17 @@
+commit e94472a36941157c79268ab3f33ca1b3e0eb56a4
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Thu Jul 4 21:21:02 2019 +0530
+
+    doc/go1.13: fix links and a closing tag
+    
+    - fix link for `Time.Format`
+    - fix closing tag for `go get`
+    - add links for `runtime.Caller`, `runtime.Callers`
+    - remove link for `TypedArrayOf` since it has been removed (CL 177537)
+    
+    Change-Id: I1dc38226e6d91c68fbd2f02c1acfad5327f4ebe8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185038
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ doc/go1.13.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

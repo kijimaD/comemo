@@ -1,0 +1,41 @@
+commit 532c6f1c8d724975f578c8ec519f1f5b07d949da
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Feb 8 13:07:33 2024 -0500
+
+    cmd/compile: fail noder.LookupFunc gracefully if function generic
+    
+    PGO uses noder.LookupFunc to look for devirtualization targets in
+    export data.  LookupFunc does not support type-parameterized
+    functions, and will currently fail the build when attempting to lookup
+    a type-parameterized function because objIdx is passed the wrong
+    number of type arguments.
+    
+    This doesn't usually come up, as a PGO profile will report a generic
+    function with a symbol name like Func[.go.shape.foo]. In export data,
+    this is just Func, so when we do LookupFunc("Func[.go.shape.foo]")
+    lookup simply fails because the name doesn't exist.
+    
+    However, if Func is not generic when the profile is collected, but the
+    source has since changed to make Func generic, then LookupFunc("Func")
+    will find the object successfully, only to fail the build because we
+    failed to provide type arguments.
+    
+    Handle this with a objIdxMayFail, which allows graceful failure if the
+    object requires type arguments.
+    
+    Bumping the language version to 1.21 in pgo_devirtualize_test.go is
+    required for type inference of the uses of mult.MultFn in
+    cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go.
+    
+    Fixes #65615.
+    
+    Change-Id: I84d9344840b851182f5321b8f7a29a591221b29f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562737
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/noder/reader.go           |  53 ++++--
+ src/cmd/compile/internal/noder/unified.go          |  12 +-
+ .../compile/internal/test/pgo_devirtualize_test.go | 181 +++++++++++++++------
+ 3 files changed, 180 insertions(+), 66 deletions(-)

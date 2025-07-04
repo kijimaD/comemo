@@ -1,0 +1,23 @@
+commit 790053b25ed384a81dba1af7c8c0646b48018af3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 15 10:00:12 2016 +0900
+
+    net: filter destination addresses when source address is specified
+    
+    This change filters out destination addresses by address family when
+    source address is specified to avoid running Dial operation with wrong
+    addressing scopes.
+    
+    Fixes #11837.
+    
+    Change-Id: I10b7a1fa325add2cd8ed58f105d527700a10d342
+    Reviewed-on: https://go-review.googlesource.com/20586
+    Reviewed-by: Paul Marks <pmarks@google.com>
+
+ src/net/dial.go       |  69 ++++++++++++++++++++++----
+ src/net/dial_test.go  | 135 +++++++++++++++++++++++++++++++++++++++-----------
+ src/net/error_test.go |   4 +-
+ src/net/ip.go         |   4 ++
+ src/net/ipsock.go     |   7 +--
+ src/net/net.go        |   3 ++
+ 6 files changed, 175 insertions(+), 47 deletions(-)

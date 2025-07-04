@@ -1,0 +1,14 @@
+commit 272d156357950a6979c4bc6671a055a56cf87ec5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 2 23:54:51 2009 -0800
+
+    gc: function argument ordering bug
+    
+    Fixes #370.
+    
+    R=ken2
+    https://golang.org/cl/163097
+
+ src/cmd/gc/walk.c        | 10 +++++-----
+ test/fixedbugs/bug221.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 5 deletions(-)

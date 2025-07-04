@@ -1,0 +1,14 @@
+commit 562bccf89e0cc7ca7e62cb1cde50aea6a231ad19
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 11:57:54 2012 -0500
+
+    doc: update effective_go.tmpl
+    
+    Forgot this half in https://golang.org/cl/5764044
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5770044
+
+ doc/effective_go.tmpl | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

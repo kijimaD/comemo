@@ -1,0 +1,13 @@
+commit b8d88a9913613558ccc2b082e7c3597481e710de
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 15:12:37 2009 -0800
+
+    gofmt-ify strings, template
+    
+    R=r
+    http://go/go-review/1018064
+
+ src/pkg/strings/strings.go        |  74 ++++++++++----------
+ src/pkg/strings/strings_test.go   |  42 +++++------
+ src/pkg/template/template_test.go | 144 +++++++++++++++++++-------------------
+ 3 files changed, 128 insertions(+), 132 deletions(-)

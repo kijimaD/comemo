@@ -1,0 +1,26 @@
+commit 7b177b1a03c2f519bb5e52eb4471a1e2580f6db9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 27 01:05:48 2018 -0700
+
+    cmd/compile: fix method set computation for shadowed methods
+    
+    In expandmeth, we call expand1/expand0 to build a list of all
+    candidate methods to promote, and then we use dotpath to prune down
+    which names actually resolve to a promoted method and how.
+    
+    However, previously we still computed "followsptr" based on the
+    expand1/expand0 traversal (which is depth-first), rather than
+    dotpath (which is breadth-first). The result is that we could
+    sometimes end up miscomputing whether a particular promoted method
+    involves a pointer traversal, which could result in bad code
+    generation for method trampolines.
+    
+    Fixes #24547.
+    
+    Change-Id: I57dc014466d81c165b05d78b98610dc3765b7a90
+    Reviewed-on: https://go-review.googlesource.com/102618
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 42 ++++++++++++++++-----------------
+ test/fixedbugs/issue24547.go        | 46 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 22 deletions(-)

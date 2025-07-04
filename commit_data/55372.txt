@@ -1,0 +1,16 @@
+commit b44f6378233ada888f0dc79e0ac56def4673d9ed
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Mon Oct 9 22:36:01 2023 +0200
+
+    io/fs: godoc links to testing/fstest
+    
+    Add godoc links from io/fs to testing/fstest for discoverability.
+    
+    Change-Id: I6550b4b703d2214faa732987ec8630ac903705b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534095
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/io/fs/fs.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

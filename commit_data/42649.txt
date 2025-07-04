@@ -1,0 +1,30 @@
+commit 813b6bbaf9e24e6e11accca0cb4e7b7e8fb8db8d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Aug 11 18:37:44 2020 -0400
+
+    internal/goversion: update Version to 1.16
+    
+    This is the start of the Go 1.16 development cycle, so update the
+    Version value accordingly. It represents the Go 1.x version that
+    will soon open up for development (and eventually become released).
+    
+    Historically, we used to bump this at an arbitrary time throughout
+    the development cycle, but it's better to be more predictable about
+    updating it. The start of a development cycle should be the most
+    appropriate time: it clearly marks the boundary between 1.15 and
+    1.16 development, and doing it early can help catch issues in other
+    tooling. See issue #38704 for more background.
+    
+    There is no longer a need to update the list of Go versions in
+    src/go/build/doc.go because it does not exist as of CL 232981.
+    
+    For #40705.
+    Updates #38704.
+    Updates #37018.
+    
+    Change-Id: Id8ee733b5e79c53b6cd03509c6560614d8743833
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248038
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/internal/goversion/goversion.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

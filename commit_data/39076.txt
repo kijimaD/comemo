@@ -1,0 +1,26 @@
+commit d21c7b728263c917ad6b83fd36879831f70d1279
+Author: Marwan Sulaiman <marwan.sameer@gmail.com>
+Date:   Fri Mar 8 02:33:59 2019 -0500
+
+    cmd/go: disallow go.sum updates in -mod=readonly
+    
+    When running go build with the flag -mod=readonly, it fails the build if
+    go.sum files requires updating. This ensures that CI/CD systems get a
+    complete go.sum file so that they'd never hit a notary,
+    assuming the CI/CD system passes the above flag.
+    I am not familiar with the entire codebase but I assume goSum.dirty
+    will always be true if go.sum has any missing lines.
+    
+    Fixes #30667
+    
+    Change-Id: I767d3b594055d8c10048f4c68e6687c94bb0545c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166237
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/fetch.go         |  3 +++
+ src/cmd/go/internal/modload/init.go           | 11 ++++++----
+ src/cmd/go/testdata/script/mod_file_proxy.txt |  7 +++++++
+ src/cmd/go/testdata/script/sum_readonly.txt   | 29 +++++++++++++++++++++++++++
+ 4 files changed, 46 insertions(+), 4 deletions(-)

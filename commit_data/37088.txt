@@ -1,0 +1,26 @@
+commit bcc3447be56271a28484a8c8c9d71326355d13a5
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Oct 11 15:13:22 2018 +0100
+
+    cmd/go: use os.UserCacheDir for the default GOCACHE
+    
+    This piece of code predates the addition of os.UserCacheDir, and it
+    looks like os.UserCacheDir was based on this piece of code.
+    
+    The two behaved exactly the same, minus cmd/go's addition of AppData for
+    Windows XP in CL 87675. However, Go 1.11 dropped support for Windows XP,
+    so we can safely ignore that change now.
+    
+    The only tweaks necessary are to return "off" if an error is
+    encountered, and to disable warnings if we're using "/.cache".
+    
+    Change-Id: Ia00577d4575ce4870f7fb103eafaa4d2b630743e
+    Reviewed-on: https://go-review.googlesource.com/c/141538
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/cache/default.go | 60 ++++++++----------------------------
+ 1 file changed, 13 insertions(+), 47 deletions(-)

@@ -1,0 +1,28 @@
+commit 86c6b4763ed486f20cf018d0810cfd7a1fd91998
+Author: miller <millerresearch@gmail.com>
+Date:   Thu May 18 10:17:42 2023 +0100
+
+    internal/poll: handle SetDeadline to time.Now() in Plan 9
+    
+    The implementation of SetDeadline in Plan 9 begins by calculating
+    d = the offset of the requested deadline from time.Now(). If d > 0,
+    a timer is set to interrupt future I/O. If d < 0, the channel is
+    flagged to prevent future I/O and any current I/O is cancelled.
+    But if d = 0, nothing happens and the deadline isn't set.
+    
+    The d = 0 case should be handled the same as d < 0.
+    
+    Fixes #60282
+    Fixes #52896
+    
+    Change-Id: Id8167db3604db1c129d99376fa78a3da75417d20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496137
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/fd_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

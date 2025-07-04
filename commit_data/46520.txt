@@ -1,0 +1,16 @@
+commit 9ab6af9837f924869cd2213ce028b3f4d49c487c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Sep 17 13:45:12 2021 -0700
+
+    runtime, cmd/link: fix comment typos
+    
+    Change-Id: I33a10417939bfcfec117d6ad49c42312731ac30f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350733
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/pcln.go | 4 ++--
+ src/runtime/symtab.go            | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

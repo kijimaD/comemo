@@ -1,0 +1,17 @@
+commit b878d8db66faf9f8d9b2ff394123cdde21d93f8d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 24 20:09:11 2020 -0700
+
+    bufio: don't panic when Scanner sees an impossible Read count
+    
+    Fixes #38053
+    
+    Change-Id: Ib0f9777f37eeaa07eb8ecb6df3e97e9d4b46dcd8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225357
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/bufio/scan.go      |  4 ++++
+ src/bufio/scan_test.go | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+)

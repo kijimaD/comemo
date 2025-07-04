@@ -1,0 +1,15 @@
+commit 6c7e90e7ec1842784436ae623c21469103d52664
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Aug 18 17:49:44 2009 -0700
+
+    container/list: Add InsertBefore and InsertAfter methods.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=84  (68 added, 4 deleted, 12 changed)
+    OCL=33493
+    CL=33499
+
+ src/pkg/container/list/list.go      | 76 +++++++++++++++++++++++++++++--------
+ src/pkg/container/list/list_test.go | 20 ++++++++++
+ 2 files changed, 80 insertions(+), 16 deletions(-)

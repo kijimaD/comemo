@@ -1,0 +1,21 @@
+commit 097a82f54d20cb722b8712025caac44c357c1b13
+Author: nimelehin <nimelehin@gmail.com>
+Date:   Wed Sep 15 10:31:05 2021 +0300
+
+    cmd/compile: don't emit unnecessary amd64 extension checks
+    
+    In case of amd64 the compiler issues checks if extensions are
+    available on a platform. With GOAMD64 microarchitecture levels
+    provided, some of the checks could be eliminated.
+    
+    Change-Id: If15c178bcae273b2ce7d3673415cb8849292e087
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352010
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 13 +++++++++++++
+ test/codegen/math.go                   |  9 +++++++++
+ test/codegen/mathbits.go               |  6 +++++-
+ 3 files changed, 27 insertions(+), 1 deletion(-)

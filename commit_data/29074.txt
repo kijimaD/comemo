@@ -1,0 +1,14 @@
+commit 45baff61e37cb8ac497ca395d8da3f3e87601bb2
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 5 12:31:00 2016 -0400
+
+    runtime: expand comment on work.spans
+    
+    Change-Id: I4b8a6f5d9bc5aba16026d17f99f3512dacde8d2d
+    Reviewed-on: https://go-review.googlesource.com/30534
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

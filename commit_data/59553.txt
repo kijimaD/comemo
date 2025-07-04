@@ -1,0 +1,25 @@
+commit 498899e20549a9e30f7641fc3a3592f89a933a95
+Author: ICHINOSE Shogo <shogo82148@gmail.com>
+Date:   Sun May 18 17:28:09 2025 +0000
+
+    math: fix portable FMA implementation when x*y ~ 0, x*y < 0 and z = 0
+    
+    Adding zero usually does not change the original value.
+    However, there is an exception with negative zero. (e.g. (-0) + (+0) = (+0))
+    This applies when x * y is negative and underflows.
+    
+    Fixes #73757
+    
+    Change-Id: Ib7b54bdacd1dcfe3d392802ea35cdb4e989f9371
+    GitHub-Last-Rev: 30d74883b21667fc9439d9d14932b7edb3e72cd5
+    GitHub-Pull-Request: golang/go#73759
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673856
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/math/all_test.go | 5 +++++
+ src/math/fma.go      | 9 ++++++++-
+ 2 files changed, 13 insertions(+), 1 deletion(-)

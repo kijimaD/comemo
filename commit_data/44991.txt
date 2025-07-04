@@ -1,0 +1,17 @@
+commit 5d5f779db40528faa82e16c361691864dc80975b
+Author: ianwoolf <btw515wolf2@gmail.com>
+Date:   Wed Apr 7 13:42:22 2021 +0800
+
+    net/http: replace os.MkdirTemp with T.TempDir
+    
+    Updates: #45402
+    Change-Id: Ia61f422d058bf57fc3688abc25597d6cc1692c51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307653
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/net/http/filetransport_test.go | 6 ++----
+ src/net/http/fs_test.go            | 6 +-----
+ 2 files changed, 3 insertions(+), 9 deletions(-)

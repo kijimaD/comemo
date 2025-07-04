@@ -1,0 +1,14 @@
+commit 27970af5c9a90e1b50026b4ff003064ff9d04920
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 12 19:40:20 2013 -0800
+
+    go/types: print, println accept 0 or more arguments
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/7304089
+
+ src/pkg/go/types/builtins.go           | 12 +++++++++---
+ src/pkg/go/types/testdata/builtins.src | 26 ++++++++++++++++++++++++++
+ src/pkg/go/types/universe.go           |  4 ++--
+ 3 files changed, 37 insertions(+), 5 deletions(-)

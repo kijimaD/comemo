@@ -1,0 +1,27 @@
+commit 1ce7442ec898cb04f3cedda693816319c97aa24a
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed Feb 8 23:25:40 2017 -0500
+
+    cmd/compile: add missing s390x load with index operations
+    
+    Prior to this CL loads with sign extension could not be replaced with
+    indexed loads (only loads with zero extension).
+    
+    This CL also prevents large offsets (more than 20-bits) from being
+    merged into indexed loads. It is better to keep such offsets
+    separate.
+    
+    Gives a small improvement in binary size, ~1.5KB from .text in cmd/go.
+    
+    Change-Id: Ib848ffc2b05de6660c5ce2394ae1d1d144273e29
+    Reviewed-on: https://go-review.googlesource.com/36845
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/s390x/ssa.go        |    3 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  114 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |   10 +-
+ src/cmd/compile/internal/ssa/opGen.go        |   57 +
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 1501 +++++++++++++++++++++++---
+ 5 files changed, 1488 insertions(+), 197 deletions(-)

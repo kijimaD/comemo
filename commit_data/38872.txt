@@ -1,0 +1,16 @@
+commit 24513d33b1d6f4b5231baf7c1b896968b35841b6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 23 14:06:12 2019 -0700
+
+    cmd/compile: don't call hcrash in Warn
+    
+    Fixes #31638.
+    
+    Change-Id: I748f64b48b75241a9db31c9f37555379a841677a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173443
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

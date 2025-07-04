@@ -1,0 +1,18 @@
+commit 2b6b474f64d8f21d911910b04ef5a806ee37b154
+Author: psampaz <psampaz@gmail.com>
+Date:   Tue Aug 6 16:56:33 2019 +0000
+
+    regexp: add example for ReplaceAll
+    
+    Updates #21450
+    
+    Change-Id: Ia31c20b52bae5daeb33d918234c2f0944a8aeb07
+    GitHub-Last-Rev: cc8554477024277c3c1b4122344e9d14427680b3
+    GitHub-Pull-Request: golang/go#33489
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189137
+    Run-TryBot: Sylvain Zimmer <sylvinus@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/regexp/example_test.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

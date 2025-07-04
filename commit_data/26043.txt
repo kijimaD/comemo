@@ -1,0 +1,19 @@
+commit 2aa2da295f47826032f3fd7b262d9ec00e919422
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 3 16:27:05 2016 -0800
+
+    cmd/compile: convert dcl.go to nodeSeq
+    
+    Add new functions setNodeSeqNode, appendNodeSeq, appendNodeSeqNode.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I6c1745b1108dea45a2c0d029b9de1917ae17a962
+    Reviewed-on: https://go-review.googlesource.com/20196
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go    |  46 +++++++-------
+ src/cmd/compile/internal/gc/syntax.go | 109 +++++++++++++++++++++++++++++++++-
+ 2 files changed, 128 insertions(+), 27 deletions(-)

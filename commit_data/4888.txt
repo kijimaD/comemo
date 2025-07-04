@@ -1,0 +1,15 @@
+commit c2dea2196c336ba195ee713fd0020031d473500e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 18 18:32:33 2010 -0800
+
+    exec: add dir argument to Run.
+    fix, test MergeWithStdout
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/214046
+
+ src/cmd/hgpatch/main.go   |  4 ++--
+ src/pkg/exec/exec.go      |  6 ++---
+ src/pkg/exec/exec_test.go | 57 ++++++++++++++++++++++++++++++++++++++---------
+ 3 files changed, 52 insertions(+), 15 deletions(-)

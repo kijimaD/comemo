@@ -1,0 +1,21 @@
+commit 6f8b120869d5ee86adb163f317b14b1f1ee6d596
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 15 12:13:52 2014 -0700
+
+    cmd/ld: use TLS relocations on ELF systems in external linking mode
+    
+    Fixes #7719.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/87760050
+
+ src/cmd/6l/asm.c   |  7 +++++++
+ src/cmd/8l/asm.c   |  3 ++-
+ src/cmd/ld/data.c  | 21 +++++++++++++++++++++
+ src/cmd/ld/lib.c   |  1 +
+ src/liblink/asm6.c | 33 ++++++++++-----------------------
+ src/liblink/asm8.c | 38 ++++++++++----------------------------
+ src/run.bash       |  1 +
+ 7 files changed, 52 insertions(+), 52 deletions(-)

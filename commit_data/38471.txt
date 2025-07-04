@@ -1,0 +1,22 @@
+commit 72954ebcfdeb5354e43ed781061d46e48137bfc0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 19 06:51:14 2019 -0700
+
+    cmd/cgo: accept __uint8_t as the uint8_t type
+    
+    This works around the NetBSD <stdint.h> which defines the type using
+    "#define" rather than typedef.
+    
+    Fixes #30918
+    Updates #29878
+    
+    Change-Id: I8998eba52139366ae46762bdad5fcae85f9b4027
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168337
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cgo/gcc.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

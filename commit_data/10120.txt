@@ -1,0 +1,24 @@
+commit 1bc1caa802e9ec8170f6e971712579d0c2d321f6
+Author: Ron Minnich <rminnich@gmail.com>
+Date:   Wed Oct 26 15:27:59 2011 -0700
+
+    cc: change cas to newcase
+    
+    Change the name of cas() in cc to newcase() to avoid a NIX conflict.
+    cas() is used in cc to create a new Case struct. There is a name
+    conflict in that cas() is a commonly-used
+    name for compare and swap. Since cas() is only used internally
+    in the compiler in 3 places, change the name to avoid a wider
+    conflict with the NIX runtime. This issue might well come up on
+    other OSes in the future anyway, as the name is fairly common.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5294071
+
+ src/cmd/5c/gc.h   | 2 +-
+ src/cmd/6c/gc.h   | 2 +-
+ src/cmd/8c/gc.h   | 2 +-
+ src/cmd/cc/pgen.c | 6 +++---
+ src/cmd/cc/pswt.c | 2 +-
+ 5 files changed, 7 insertions(+), 7 deletions(-)

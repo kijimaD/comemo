@@ -1,0 +1,12 @@
+commit f884e15aabcdf547eb8c8a10e02e6bddc801e7e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 4 14:03:39 2014 -0500
+
+    runtime: fix arm build (B not JMP)
+    
+    TBR=dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/71060046
+
+ src/pkg/runtime/asm_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

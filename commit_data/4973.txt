@@ -1,0 +1,15 @@
+commit e678afa891b6cd466eeb5f05ad4eb3800ec1dc6b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 3 09:03:31 2010 +1100
+
+    codereview.py: fix for compatibility with hg >=1.4.3
+    
+    hg.parseurl now returns a two-value tuple; codereview.py expected 3.
+    Changed to merely take the first return value.
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/223087
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

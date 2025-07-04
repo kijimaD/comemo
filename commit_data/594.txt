@@ -1,0 +1,13 @@
+commit c59d2f13aa73468c43ec46040689e5219a9c140b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 9 10:48:14 2008 -0700
+
+    - moved spec todo's into spec (as html comment)
+    - cleaned up todo.txt a bit
+    
+    R=r
+    OCL=15009
+    CL=15009
+
+ doc/go_spec.txt | 37 ++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 36 insertions(+), 1 deletion(-)

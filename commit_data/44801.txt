@@ -1,0 +1,13 @@
+commit 80157b5144191e88b18937eb9b6ee5b6046f3f20
+Author: Kevin Burke <kevin@burke.dev>
+Date:   Wed Mar 24 16:02:24 2021 -0700
+
+    crypto/x509: fix spelling error
+    
+    Change-Id: Ieb1900531f42acf2c8b98ac89fceb8b87c8e5d0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304609
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Trust: Kevin Burke <kev@inburke.com>
+
+ src/crypto/x509/verify.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

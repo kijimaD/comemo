@@ -1,0 +1,27 @@
+commit 354c8fb4360ae46f0f978dab7f0b3037f9175e48
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 12 10:32:33 2023 -0800
+
+    cmd/compile: remove support for old comparable semantics
+    
+    Change-Id: I730da5082ea6de1510482aabaa2915e83d3819a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461607
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/base/flag.go              |  3 +--
+ src/cmd/compile/internal/noder/irgen.go            |  5 ++--
+ src/cmd/compile/internal/types2/api.go             |  5 ----
+ src/cmd/compile/internal/types2/check_test.go      |  1 -
+ src/cmd/compile/internal/types2/instantiate.go     |  9 -------
+ src/go/types/api.go                                |  5 ----
+ src/go/types/check_test.go                         |  1 -
+ src/go/types/instantiate.go                        |  9 -------
+ src/internal/types/testdata/check/issues1.go       |  4 +---
+ .../types/testdata/fixedbugs/issue50646.go         | 10 ++++----
+ .../types/testdata/fixedbugs/issue51257.go         |  8 +++----
+ src/internal/types/testdata/spec/oldcomparable.go  | 28 ----------------------
+ 12 files changed, 11 insertions(+), 77 deletions(-)

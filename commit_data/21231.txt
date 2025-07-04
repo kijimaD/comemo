@@ -1,0 +1,16 @@
+commit fcff3ba740ed6638cece4dea8478bd1dfb2411bf
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Dec 23 17:14:04 2014 -0500
+
+    cmd/gc: don't recurse infinitely when a recursive type references itself more than once
+    
+    Fixes #9432
+    
+    Change-Id: I08c92481afa7c7fac890aa780efc1cb2fabad528
+    Reviewed-on: https://go-review.googlesource.com/2115
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/align.c          |  5 +++++
+ test/fixedbugs/issue9432.go | 15 +++++++++++++++
+ 2 files changed, 20 insertions(+)

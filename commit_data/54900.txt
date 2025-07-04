@@ -1,0 +1,30 @@
+commit 72da49caee3319dcdc5f03a8f70352eb4b725a64
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sat Nov 4 23:05:05 2023 +0000
+
+    cmd/compile,runtime: dedup writeBarrier needed
+    
+    The writeBarrier "needed" struct member has the exact same
+    value as "enabled", and used interchangeably.
+    
+    I'm not sure if we plan to make a distinction between the
+    two at some point, but today they are effectively the same,
+    so dedup it and keep only "enabled".
+    
+    Change-Id: I65e596f174e1e820dc471a45ff70c0ef4efbc386
+    GitHub-Last-Rev: f8c805a91606d42c8d5b178ddd7d0bec7aaf9f55
+    GitHub-Pull-Request: golang/go#63814
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538495
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/_builtin/runtime.go |  1 -
+ src/cmd/compile/internal/typecheck/builtin.go          |  2 +-
+ src/runtime/mbarrier.go                                | 12 ++++++------
+ src/runtime/mbitmap.go                                 |  6 +++---
+ src/runtime/mgc.go                                     |  4 +---
+ src/runtime/mgcmark.go                                 |  4 ++--
+ 6 files changed, 13 insertions(+), 16 deletions(-)

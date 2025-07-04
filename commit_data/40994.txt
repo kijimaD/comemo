@@ -1,0 +1,37 @@
+commit 056a3d1c6f6f92b095f88b01d004eb2656a688c5
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Nov 21 16:16:56 2019 +0100
+
+    runtime: do not use PowerRegisterSuspendResumeNotification on systems with "program time" timer
+    
+    Systems where PowerRegisterSuspendResumeNotification returns ERROR_
+    FILE_NOT_FOUND are also systems where nanotime() is on "program time"
+    rather than "real time".  The chain for this is:
+    
+    powrprof.dll!PowerRegisterSuspendResumeNotification ->
+      umpdc.dll!PdcPortOpen ->
+        ntdll.dll!ZwAlpcConnectPort("\\PdcPort") ->
+          syscall -> ntoskrnl.exe!AlpcpConnectPort
+    
+    Opening \\.\PdcPort fails with STATUS_OBJECT_NAME_NOT_FOUND when pdc.sys
+    hasn't been initialized. Pdc.sys also provides the various hooks for
+    sleep resumption events, which means if it's not loaded, then our "real
+    time" timer is actually on "program time". Finally STATUS_OBJECT_NAME_
+    NOT_FOUND is passed through RtlNtStatusToDosError, which returns ERROR_
+    FILE_NOT_FOUND. Therefore, in the case where the function returns ERROR_
+    FILE_NOT_FOUND, we don't mind, since the timer we're using will
+    correspond fine with the lack of sleep resumption notifications. This
+    applies, for example, to Docker users.
+    
+    Fixes #35447
+    Fixes #35482
+    
+    Change-Id: I9e1ce5bbc54b9da55ff7a3918b5da28112647eee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208317
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_windows.go | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit 19dda5cd74401cefaadf2ea46da32890e5737542
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Fri Nov 8 11:31:44 2013 -0500
+
+    emacs: allow users to customize the gofmt command, in particular, to use goimports instead.
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/23680043
+
+ misc/emacs/go-mode.el | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 3773cbba723453653a0598ed9b8f74a8bbf57091
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 13 21:15:05 2018 -0800
+
+    misc/cgo/testcshared: increase sleep in TestUnexportedSymbols
+    
+    Increase the sleep and wait for up to 2 seconds for the dup2.
+    Apparently it can sometimes take a long time.
+    
+    Fixes #23784
+    
+    Change-Id: I929530b057bbcd842b28a7640c39dd68d719ff7d
+    Reviewed-on: https://go-review.googlesource.com/93895
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testcshared/main2.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

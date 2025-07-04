@@ -1,0 +1,30 @@
+commit 0a8e3477519fe4a657f5a8fc212223a436a17f57
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 24 13:22:21 2017 -0800
+
+    test: update issue5089.go for recent gccgo changes
+    
+    As of https://golang.org/cl/43456 gccgo now gives a better error
+    message for this test.
+    
+    Before:
+        fixedbugs/issue5089.go:13:1: error: redefinition of ‘bufio.Buffered’: receiver name changed
+         func (b *bufio.Reader) Buffered() int { // ERROR "non-local|redefinition"
+         ^
+        fixedbugs/issue5089.go:11:13: note: previous definition of ‘bufio.Buffered’ was here
+         import "bufio" // GCCGO_ERROR "previous"
+                     ^
+    
+    Now:
+        fixedbugs/issue5089.go:13:7: error: may not define methods on non-local type
+         func (b *bufio.Reader) Buffered() int { // ERROR "non-local|redefinition"
+               ^
+    
+    Change-Id: I4112ca8d91336f6369f780c1d45b8915b5e8e235
+    Reviewed-on: https://go-review.googlesource.com/c/130955
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue5089.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

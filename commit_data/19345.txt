@@ -1,0 +1,19 @@
+commit 5bc1cef869b0c6caea2d680010908cf6871c6c24
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue May 13 09:53:47 2014 +0400
+
+    reflect: fix map type generation
+    If a map variable is created with reflect.New it has incorrect type (map[unsafe.Pointer]unsafe.Pointer).
+    If GC follows such pointer, it scans Hmap and buckets with incorrect type.
+    This can lead to overscan of up to 120 bytes for map[int8]struct{}.
+    Which in turn can lead to crash if the memory after a bucket object is unaddressable
+    or false retention (buckets are scanned as arrays of unsafe.Pointer).
+    I don't see how it can lead to heap corruptions, though.
+    
+    LGTM=khr
+    R=rsc, khr
+    CC=golang-codereviews
+    https://golang.org/cl/96270044
+
+ src/pkg/reflect/type.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

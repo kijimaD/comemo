@@ -1,0 +1,15 @@
+commit 5a68eb9f25a2a6290800278df972e04a4085cee3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 21 20:09:08 2015 -0700
+
+    runtime: prune some dead variables
+    
+    Change-Id: I7a1c3079b433c4e30d72fb7d59f9594e0d5efe47
+    Reviewed-on: https://go-review.googlesource.com/16178
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/runtime/proc.go     | 1 -
+ src/runtime/runtime2.go | 4 ----
+ 2 files changed, 5 deletions(-)

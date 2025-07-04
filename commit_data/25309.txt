@@ -1,0 +1,20 @@
+commit 64de502caa3f89560756f1fa8534c665cca9ea6c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 01:39:28 2015 +0000
+
+    net/http: update Response.Trailer doc
+    
+    I updated this in the previous commit (https://golang.org/cl/17931)
+    but noticed a typo. and it still wasn't great.
+    
+    The Go 1.5 text was too brief to know how to use it:
+    
+        // Trailer maps trailer keys to values, in the same
+        // format as the header.
+    
+    Change-Id: I33c49b6a4a7a3596735a4cc7865ad625809da900
+    Reviewed-on: https://go-review.googlesource.com/17932
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/response.go | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

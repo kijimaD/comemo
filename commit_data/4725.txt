@@ -1,0 +1,12 @@
+commit d7a5ccf36e55c5bf3d0d48111cdfcad8d4e56d29
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jan 28 17:14:29 2010 -0800
+
+    added StringHeader to reflect
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194133
+
+ src/pkg/reflect/value.go | 5 +++++
+ 1 file changed, 5 insertions(+)

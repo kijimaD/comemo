@@ -1,0 +1,13 @@
+commit f74ec00278914ee8ac57b8dc2339c9393762d1ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 15:41:20 2008 -0700
+
+    add -K flag to check stack underflow
+    
+    R=ken
+    DELTA=38  (36 added, 0 deleted, 2 changed)
+    OCL=15482
+    CL=15491
+
+ src/cmd/6l/pass.c | 40 ++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 38 insertions(+), 2 deletions(-)

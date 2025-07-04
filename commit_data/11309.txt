@@ -1,0 +1,18 @@
+commit 68daa41d1bd3dc133828ddbb8a29cc64cc8802b1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Jan 21 21:51:53 2012 +0900
+
+    net: Dial, ListenPacket with "ip:protocol" network for raw IP sockets
+    
+    Fixes #2654.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5545058
+
+ src/pkg/net/dial.go            | 181 +++++++++++++++++---------------
+ src/pkg/net/ipraw_test.go      | 228 +++++++++++++++++++++++++++--------------
+ src/pkg/net/iprawsock_plan9.go |  41 ++++----
+ src/pkg/net/iprawsock_posix.go |  83 ++++++---------
+ src/pkg/net/lookup_plan9.go    |   5 +
+ 5 files changed, 307 insertions(+), 231 deletions(-)

@@ -1,0 +1,14 @@
+commit ec913c42b3d1a0a7f380aee5c1ce597f0d2f0f07
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 20 17:19:45 2008 -0800
+
+    tweak pcs in traceback so they point to calling line instead of line after call.
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=19745
+    CL=19745
+
+ src/runtime/print.c     | 2 +-
+ src/runtime/rt2_amd64.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,11 @@
+commit aae0aefb70f4fe2f51c17ae45dd695a34efd5736
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 17 16:52:36 2009 -0800
+
+    codereview: handle spaces and other unexpected chars in nicknames
+    
+    R=r
+    https://golang.org/cl/157053
+
+ lib/codereview/codereview.py | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

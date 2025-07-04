@@ -1,0 +1,19 @@
+commit 1e6d9f49da330e61d29588b1e2f0f3685c03f359
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 18 13:40:45 2012 -0700
+
+    encoding/xml: correctly escape newline, carriage return, and tab
+    
+    The generated encodings are those from
+    http://www.w3.org/TR/2000/WD-xml-c14n-20000119.html#charescaping
+    
+    The change to the decoder ensures that we turn &#xD; in the
+    input into \r, not \n.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6747043
+
+ src/pkg/encoding/xml/marshal_test.go | 21 +++++++++++++++++++++
+ src/pkg/encoding/xml/xml.go          | 35 ++++++++++++++++++++---------------
+ 2 files changed, 41 insertions(+), 15 deletions(-)

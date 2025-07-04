@@ -1,0 +1,23 @@
+commit c18744377afa1f9c2310c122e6932fa663f9294a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 14 14:27:28 2021 -0700
+
+    go/types: allow conversion from slice to array ptr
+    
+    These match the changes to cmd/compile/internal/types2 in CL 301650.
+    
+    Updates #395
+    
+    Change-Id: I1e85b6355c8c8fdba0996c26a2505c65fab908d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301651
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/api_test.go    |  3 +++
+ src/go/types/conversions.go | 12 ++++++++++++
+ src/go/types/stdlib_test.go |  4 ----
+ 3 files changed, 15 insertions(+), 4 deletions(-)

@@ -1,0 +1,16 @@
+commit 78933226f114c5c9e6de5addd693d86a7724f2f4
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 4 14:41:31 2009 -0700
+
+    add a bytes package analogous to the strings package.
+    also has Equal and Compare
+    
+    R=rsc
+    DELTA=348  (348 added, 0 deleted, 0 changed)
+    OCL=29892
+    CL=29894
+
+ src/lib/bytes/Makefile      |  68 +++++++++++++++++++
+ src/lib/bytes/bytes.go      | 154 ++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/bytes/bytes_test.go | 130 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 352 insertions(+)

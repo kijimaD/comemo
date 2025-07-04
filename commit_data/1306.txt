@@ -1,0 +1,18 @@
+commit 50d0695ccff6391d1506173b53069d1601c504c0
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 9 15:41:21 2008 -0800
+
+    use unsafe.pointer in reflection objects
+    
+    R=rsc
+    DELTA=326  (4 added, 259 deleted, 63 changed)
+    OCL=20853
+    CL=20856
+
+ src/lib/fmt/print.go         |   8 +-
+ src/lib/reflect/Makefile     |   3 +-
+ src/lib/reflect/cast_amd64.s | 193 -------------------------------------------
+ src/lib/reflect/gencast.sh   |  42 ----------
+ src/lib/reflect/tostring.go  |   2 +-
+ src/lib/reflect/value.go     | 120 +++++++++++----------------
+ 6 files changed, 55 insertions(+), 313 deletions(-)

@@ -1,0 +1,23 @@
+commit f2cd0fa7b773eabcce1b99874188aedcf9acb1ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 3 09:33:31 2018 -0700
+
+    cmd/compile/internal/gc: don't print "internal error" twice
+    
+    The Fatalf mechanism already prints "compiler internal error:"
+    when reporting an error. There's no need to have "internal error"
+    in the error message passed to Fatalf calls. Removed them.
+    
+    Fixes #28575.
+    
+    Change-Id: I12b1bea37bc839780f257c27ef9e2005bf334925
+    Reviewed-on: https://go-review.googlesource.com/c/147287
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/cmd/compile/fmt_test.go            | 60 ++++++++++++++++++----------------
+ src/cmd/compile/internal/gc/dwinl.go   |  2 +-
+ src/cmd/compile/internal/gc/iexport.go |  2 +-
+ src/cmd/compile/internal/gc/plive.go   |  6 ++--
+ 4 files changed, 36 insertions(+), 34 deletions(-)

@@ -1,0 +1,14 @@
+commit 6fe9c4a7bd7e7054071586c9e90f901fa6043ba9
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 1 08:48:19 2015 +1000
+
+    doc: more library in go1.5.html
+    
+    Everything in the library but crypto and net.
+    
+    Change-Id: I89b21b9621e6d338fa1891da0eabba5d7d2fe349
+    Reviewed-on: https://go-review.googlesource.com/11820
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.5.html | 109 +++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 94 insertions(+), 15 deletions(-)

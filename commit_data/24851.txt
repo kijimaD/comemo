@@ -1,0 +1,19 @@
+commit d3498c5abdea7bd8c74f349abb5c2bf110229e75
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Nov 12 13:43:27 2015 -0500
+
+    runtime: move arch_mips64(le)?.go into runtime/internal/sys
+    
+    Somehow these were left out of the orignial CL.
+    
+    Updates #11647
+    
+    Change-Id: I058a30eaa25fbb72d60e7fb6bc9ff0a3b54fdb2a
+    Reviewed-on: https://go-review.googlesource.com/16870
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/arch_mips64.go                | 19 -------------------
+ src/runtime/arch_mips64le.go              | 19 -------------------
+ src/runtime/internal/sys/arch_mips64.go   | 19 +++++++++++++++++++
+ src/runtime/internal/sys/arch_mips64le.go | 19 +++++++++++++++++++
+ 4 files changed, 38 insertions(+), 38 deletions(-)

@@ -1,0 +1,14 @@
+commit a84e9d01f0bb15b192fd2ce202aa3ee095443cca
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Jun 14 15:13:54 2011 -0300
+
+    ld: make .rodata section read-only
+    
+    Fixes the respective warning from elflint.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4607048
+
+ src/cmd/ld/data.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

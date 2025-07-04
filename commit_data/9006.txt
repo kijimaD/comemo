@@ -1,0 +1,19 @@
+commit f19b24a182c445ceb3d998b2ebc20f1d8718df9b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 11 07:25:45 2011 -0700
+
+    strconv: handle [-+]Infinity in atof
+    
+    This is the form as returned by Postgres, as well
+    as JavaScript.
+    
+    I've tried and failed to find authorative docs online
+    about the proper string serialization, if any.
+    
+    R=golang-dev, gri, r, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4650077
+
+ src/pkg/strconv/atof.go      | 10 ++++++----
+ src/pkg/strconv/atof_test.go |  3 +++
+ 2 files changed, 9 insertions(+), 4 deletions(-)

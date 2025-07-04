@@ -1,0 +1,17 @@
+commit 764880e2b2a025e7eb4dfdb226f50ff2586aa384
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Mar 12 11:25:38 2012 +1100
+
+    cmd/api: set compiler for all build contexts.
+    
+    The generated syscall files for Windows are still breaking "go tool api"
+    (unknown function []byte); I'll look at fixing that separately.
+    
+    Fixes #3285.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5777062
+
+ src/cmd/api/goapi.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

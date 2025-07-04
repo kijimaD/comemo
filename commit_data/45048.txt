@@ -1,0 +1,24 @@
+commit 756e2b1529592ffbe1760932d14f8e6eae3fda06
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 9 14:00:59 2021 -0400
+
+    cmd/internal/objabi: make GOEXPERIMENT=none mean "no experiment flags"
+    
+    CL 307819 made GOEXPERIMENT=none mean "restore baseline experiment
+    configuration". This is arguably what you want because any deviation
+    from the baseline configuration is an "experiment". However, cmd/dist
+    requires this to mean "disable all experiment flags", even if some
+    flags are enabled in the baseline configuration, because its build
+    system doesn't know how to deal with any enabled experiment flags.
+    
+    Hence, make GOEXPERIMENT=none mean "disable all experiment flags"
+    again.
+    
+    Change-Id: I1e282177c3f62a55eb9c36566c75672808dae9b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309010
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/internal/objabi/exp.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit 1b7881adb4715e337375ae3a2668237c569ff946
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 8 15:01:22 2009 -0800
+
+    fix:
+            type T []int
+            var a []int
+            var t = T(a)
+    
+    R=ken
+    OCL=22341
+    CL=22341
+
+ src/cmd/6g/cgen.c | 6 ++++++
+ src/cmd/gc/walk.c | 4 +++-
+ 2 files changed, 9 insertions(+), 1 deletion(-)

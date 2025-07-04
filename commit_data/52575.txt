@@ -1,0 +1,60 @@
+commit 66cac9e1e4877ac7e66f888b0599a7a4a5787b76
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Sat Mar 25 10:18:26 2023 -0700
+
+    os: add wasip1 support
+    
+    For #58141
+    
+    Co-authored-by: Richard Musiol <neelance@gmail.com>
+    Co-authored-by: Achille Roussel <achille.roussel@gmail.com>
+    Co-authored-by: Julien Fabre <ju.pryz@gmail.com>
+    Co-authored-by: Evan Phoenix <evan@phx.io>
+    Change-Id: I52e3e161f81dcbe8605570e47d732992979c4d34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479623
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/os/dir_unix.go                         |  2 +-
+ src/os/dirent_wasip1.go                    | 52 ++++++++++++++++++++++++++++++
+ src/os/error_posix.go                      |  2 +-
+ src/os/error_unix_test.go                  |  2 +-
+ src/os/exec/internal/fdtest/exists_js.go   | 18 -----------
+ src/os/exec/internal/fdtest/exists_unix.go |  2 +-
+ src/os/exec/{lp_js.go => lp_wasm.go}       |  2 +-
+ src/os/exec_posix.go                       |  2 +-
+ src/os/exec_unix.go                        |  2 +-
+ src/os/executable_procfs.go                |  2 +-
+ src/os/executable_wasm.go                  | 16 +++++++++
+ src/os/export_unix_test.go                 |  2 +-
+ src/os/file_open_unix.go                   | 17 ++++++++++
+ src/os/file_open_wasip1.go                 | 31 ++++++++++++++++++
+ src/os/file_posix.go                       |  2 +-
+ src/os/file_unix.go                        | 11 ++++---
+ src/os/os_test.go                          | 39 +++++++++++++++++-----
+ src/os/os_unix_test.go                     | 15 +++++++--
+ src/os/path_unix.go                        |  2 +-
+ src/os/pipe_test.go                        |  2 +-
+ src/os/pipe_unix.go                        |  2 +-
+ src/os/pipe_wasm.go                        | 16 +++++++++
+ src/os/rawconn_test.go                     |  2 +-
+ src/os/read_test.go                        |  4 +++
+ src/os/removeall_test.go                   | 11 ++++---
+ src/os/signal/signal_unix.go               |  2 +-
+ src/os/stat_unix.go                        |  2 +-
+ src/os/stat_wasip1.go                      | 40 +++++++++++++++++++++++
+ src/os/sticky_bsd.go                       |  2 +-
+ src/os/sticky_notbsd.go                    |  2 +-
+ src/os/sys_bsd.go                          |  2 +-
+ src/os/sys_wasip1.go                       | 11 +++++++
+ src/os/timeout_test.go                     |  2 +-
+ src/os/user/listgroups_stub.go             |  2 +-
+ src/os/user/listgroups_unix.go             |  2 +-
+ src/os/user/listgroups_unix_test.go        |  2 +-
+ src/os/user/lookup_unix.go                 |  2 +-
+ src/os/wait_unimp.go                       |  4 +--
+ 38 files changed, 271 insertions(+), 62 deletions(-)

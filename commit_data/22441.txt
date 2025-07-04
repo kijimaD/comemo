@@ -1,0 +1,14 @@
+commit 2d8748eb8b21ee4ee3ae7ca306cf636b76d50e34
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 18:54:30 2015 -0400
+
+    syscall: skip fork test on darwin/arm64
+    
+    Just like darwin/arm.
+    
+    Change-Id: Iadc30b7307ae56fd4f8a681d49672bed7ca6966f
+    Reviewed-on: https://go-review.googlesource.com/8810
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/syscall/syscall_unix_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

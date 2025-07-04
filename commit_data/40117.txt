@@ -1,0 +1,19 @@
+commit 5fe3b49a0540aacf685273a43b0fb31b44cf5dd6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 3 18:07:53 2019 +0000
+
+    Revert "cmd/compile: walk the progs to generate debug_lines"
+    
+    This reverts CL 196661.
+    
+    Reason for revert: broke TestGdb* tests on mips64le, ppc64le, and s390x builders.
+    
+    Change-Id: I3b5c97c840819a0d407b943f7cf7e2d97f06042d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198697
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/dwarf.go | 117 +++++++++++++++++++++++++++++-------------
+ src/cmd/internal/obj/pcln.go  |  29 +++++++++++
+ 2 files changed, 109 insertions(+), 37 deletions(-)

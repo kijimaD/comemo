@@ -1,0 +1,35 @@
+commit 3556d3b9bfe3ebfc8cd159464e46574e3de8fe7c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 30 04:19:35 2023 -0700
+
+    cmd/compile/internal/ir: add missing SetTypecheck
+    
+    This was missed earlier, because NewConstAt is only used now to
+    construct the predeclared "true" and "false" constants. But these
+    constants are no longer actually accessed with unified IR.
+    
+    For constant expressions, types2 (and go/types) sets
+    TypeAndValue.Value for the expression to the appropriate constant
+    value. The unified writer recognizes when expressions are constants,
+    and simply writes the underlying value, regardless of the original
+    expression. As a result, we never end up actually referencing the
+    *named* "true" and "false" constants; we just always construct
+    anonymous constant "true" and "false" values.
+    
+    However, a manually constructed tree that includes an *ir.Name that
+    "Uses" the predeclared true/false Const Objects, yet doesn't set
+    TypeAndValue.Value will instead end up trying to use named constants
+    constructed with NewConstAt.
+    
+    Thanks to Russ for reporting the issue on CL 510541, and to Cuong for
+    identifying the fix.
+    
+    Change-Id: I0614105379d63ea76d7244ebd1e4db5c239d4670
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524357
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/name.go | 1 +
+ 1 file changed, 1 insertion(+)

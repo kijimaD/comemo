@@ -1,0 +1,14 @@
+commit 2156961bb78e33e96ec6a20f8ee9ccca378c6105
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 27 09:58:43 2009 -0700
+
+    fix build. changing var to const, which it should be anyway,
+    implicitly works around 6g bug.
+    
+    R=rsc
+    OCL=33953
+    CL=33953
+
+ src/pkg/unicode/maketables.go | 4 ++--
+ src/pkg/unicode/tables.go     | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

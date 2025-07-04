@@ -1,0 +1,12 @@
+commit 38c083c1ca66f7a7cb7b5cbcde229bb91794a342
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 1 00:01:45 2008 -0700
+
+    Require names for return values for functions with complex return types.
+    
+    SVN=117346
+
+ doc/go_lang.txt     | 22 +++++++++-------------
+ src/lib/math/sys.go |  6 +++---
+ src/lib/sys.go      |  6 +++---
+ 3 files changed, 15 insertions(+), 19 deletions(-)

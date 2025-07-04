@@ -1,0 +1,21 @@
+commit c785633941299f5a0f76b5689b3becf47e1239b2
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 24 16:48:05 2020 +0000
+
+    Revert "cmd/compile: convert 386 port to use addressing modes pass"
+    
+    This reverts commit CL 222782.
+    
+    Reason for revert: Reverting to see if 386 errors go away
+    
+    Update #37881
+    
+    Change-Id: I74f287404c52414db1b6ff1649effa4ed9e5cc0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225218
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/ssa/addressingmodes.go |   83 +-
+ src/cmd/compile/internal/ssa/gen/386.rules      |  289 +-
+ src/cmd/compile/internal/ssa/rewrite386.go      | 6442 ++++++++++++++++++-----
+ test/codegen/memops.go                          |   78 +-
+ 4 files changed, 5358 insertions(+), 1534 deletions(-)

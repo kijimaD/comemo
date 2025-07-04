@@ -1,0 +1,17 @@
+commit 26498684cb71de328b28974b87df3d5ab9486e4c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Feb 26 14:18:48 2013 +1100
+
+    os: use windows ReadConsole to read from console
+    
+    Fixes #4760.
+    
+    R=golang-dev, minux.ma, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7312053
+
+ src/pkg/os/file_windows.go                | 38 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_windows.go        |  1 +
+ src/pkg/syscall/zsyscall_windows_386.go   | 13 +++++++++++
+ src/pkg/syscall/zsyscall_windows_amd64.go | 13 +++++++++++
+ 4 files changed, 65 insertions(+)

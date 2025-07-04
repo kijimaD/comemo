@@ -1,0 +1,14 @@
+commit c48f7d6b8af8b1a8ced44453a9970801faeeb9f5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Jan 25 23:07:21 2013 -0500
+
+    cmd/go: add missing tests
+    
+    These changes to test.bash were intended to be submitted with CL 6941058, but were accidentally excluded from the original CL.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7232043
+
+ src/cmd/go/test.bash | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

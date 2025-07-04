@@ -1,0 +1,13 @@
+commit 3efb4c3b6344ea88dbfd3a596d35760da9254b54
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Aug 13 14:30:18 2010 -0700
+
+    fix bounds check in error recovery
+    (thanks to avp@mit.edu)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1998041
+
+ src/cmd/goyacc/goyacc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

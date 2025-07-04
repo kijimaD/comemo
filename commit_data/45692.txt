@@ -1,0 +1,31 @@
+commit 74242baa4136c7a9132a8ccd9881354442788c8c
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue May 11 11:31:31 2021 -0700
+
+    archive/zip: only preallocate File slice if reasonably sized
+    
+    Since the number of files in the EOCD record isn't validated, it isn't
+    safe to preallocate Reader.Files using that field. A malformed archive
+    can indicate it contains up to 1 << 128 - 1 files. We can still safely
+    preallocate the slice by checking if the specified number of files in
+    the archive is reasonable, given the size of the archive.
+    
+    Thanks to the OSS-Fuzz project for discovering this issue and to
+    Emmanuel Odeke for reporting it.
+    
+    Fixes #46242
+    Fixes CVE-2021-33196
+    
+    Change-Id: I3c76d8eec178468b380d87fdb4a3f2cb06f0ee76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318909
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Trust: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/archive/zip/reader.go      | 10 ++++++-
+ src/archive/zip/reader_test.go | 59 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+), 1 deletion(-)

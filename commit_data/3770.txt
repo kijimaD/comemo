@@ -1,0 +1,17 @@
+commit 5d436b9defd0d36436bc22f9852b3e5e7446f5eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 4 15:19:30 2009 -0800
+
+    bytes.SplitAfter and strings.SplitAfter
+    most common usage is:
+    
+            lines := strings.SplitAfter(text, "\n", 0)
+    
+    R=r
+    http://go/go-review/1018042
+
+ src/pkg/bytes/bytes.go          | 24 +++++++++++++++++++-----
+ src/pkg/bytes/bytes_test.go     | 31 +++++++++++++++++++++++++++++++
+ src/pkg/strings/strings.go      | 23 ++++++++++++++++++-----
+ src/pkg/strings/strings_test.go | 30 ++++++++++++++++++++++++++++++
+ 4 files changed, 98 insertions(+), 10 deletions(-)

@@ -1,0 +1,18 @@
+commit d788b27cd4768fbbc82aef636a70b51a5d621181
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Aug 11 11:00:44 2023 +0800
+
+    internal/fuzz: use the built-in min function
+    
+    Change-Id: I26be9a9faa27c6c03cf8b9dec5908d8617d61312
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518276
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/internal/fuzz/mutator.go | 7 -------
+ 1 file changed, 7 deletions(-)

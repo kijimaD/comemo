@@ -1,0 +1,22 @@
+commit 507a44dc228a3817e7007f292a404fe6c9f66315
+Author: Jason7602 <jansonzhe@gmail.com>
+Date:   Mon Nov 1 23:27:45 2021 +0800
+
+    sync: remove the redundant logic on sync.(*Pool).Put
+    
+    When the procUnpin is placed after shared.pushHead, there is
+    no need for x as a flag to indicate the previous process.
+    
+    This CL can make the logic clear, and at the same time reduce
+    a redundant judgment.
+    
+    Change-Id: I34ec9ba4cb5b5dbdf13a8f158b90481fed248cf5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360059
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/sync/pool.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

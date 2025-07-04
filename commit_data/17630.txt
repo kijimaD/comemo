@@ -1,0 +1,22 @@
+commit eeb758546e10b33be161e76b3c3290dbb7a70a87
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Sep 17 14:19:44 2013 +1000
+
+    text/template/parse, html/template: copy Tree.text during html template clone
+    
+    The root cause of the panic reported in https://code.google.com/p/go/issues/detail?id=5980
+    is that parse's Tree.Text wasn't being copied during the clone.
+    
+    Fix this by adding and using a Copy method for parse.Tree.
+    
+    Fixes #5980.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12420044
+
+ src/pkg/html/template/clone_test.go       | 40 +++++++++++++++++++++++++++++++
+ src/pkg/html/template/template.go         |  7 +-----
+ src/pkg/text/template/parse/parse.go      | 13 ++++++++++
+ src/pkg/text/template/parse/parse_test.go | 16 +++++++++++++
+ 4 files changed, 70 insertions(+), 6 deletions(-)

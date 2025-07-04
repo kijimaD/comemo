@@ -1,0 +1,17 @@
+commit 99159cda330e8f71b9e7e5a5287d0f8395836d4c
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Mar 30 11:04:48 2023 +0200
+
+    net: unskip TestConcurrentPreferGoResolversDial on Windows
+    
+    Windows resolver uses the Dial function since CL 409234.
+    
+    Change-Id: Id631a84d2b85fc4f8897e413a0a454cf54c00de4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480418
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+
+ src/net/lookup_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

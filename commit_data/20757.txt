@@ -1,0 +1,13 @@
+commit c57cb7867e834136e55e7a2a171e1b7cc7cf34a0
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 20 13:27:41 2014 -0700
+
+    cmd/go: set exit status for failing "go generate" run.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/154360048
+
+ src/cmd/go/generate.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

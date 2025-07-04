@@ -1,0 +1,14 @@
+commit 4bd79e742a50281a2897eb84de7cf81a211c5dd4
+Author: Paul van Brouwershaven <paul@vanbrouwershaven.com>
+Date:   Mon Jun 17 14:56:45 2013 -0700
+
+    crypto/x509: Added RFC 5280, section 4.2.1.14 to parseCertificate and buildExtensions
+    Support for CRL Distribution Points
+    
+    R=golang-dev, agl, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10258043
+
+ src/pkg/crypto/x509/x509.go      | 89 ++++++++++++++++++++++++++++++++++++----
+ src/pkg/crypto/x509/x509_test.go |  6 +++
+ 2 files changed, 86 insertions(+), 9 deletions(-)

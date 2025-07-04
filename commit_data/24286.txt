@@ -1,0 +1,20 @@
+commit fb3027003738ef67b2c68bc46eb8d8841d04bd7d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 15 13:40:24 2015 -0400
+
+    runtime: preserve R11 in darwin/arm entrypoint
+    
+    The _rt0_arm_darwin_lib entrypoint has to conform to the darwin ARMv7
+    calling convention, which requires functions to preserve the value of
+    R11. Go uses R11 as the liblink REGTMP register, so save it manually.
+    
+    Also avoid using R4, which is also callee-save.
+    
+    Fixes #12590
+    
+    Change-Id: I9c3b374e330f81ff8fc9c01fa20505a33ddcf39a
+    Reviewed-on: https://go-review.googlesource.com/14603
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/rt0_darwin_arm.s | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

@@ -1,0 +1,18 @@
+commit 58244eee01e58c383f501207afd9cb90ec060602
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 2 12:14:47 2021 -0700
+
+    test: only test -G=3 by default
+    
+    -G=0 is in maintenance mode, so limit testing it to the longtest
+    builders.
+    
+    Change-Id: Ie8a01866b506183d0201f2a3730377cfa663da80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347298
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ test/run.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

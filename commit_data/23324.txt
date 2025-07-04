@@ -1,0 +1,16 @@
+commit 9850886fe97ee28b976807f9bec76217662db896
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 11 10:40:20 2015 -0700
+
+    cmd/go: in testsuite, sleep for less than one second if possible
+    
+    Examine the mtime of an existing file to guess a length of time to
+    sleep to ensure a different mtime.
+    
+    Change-Id: I9e8b5c9486f5c3c8bd63125e3ed4763ce1ba767d
+    Reviewed-on: https://go-review.googlesource.com/10932
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 42 +++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 35 insertions(+), 7 deletions(-)

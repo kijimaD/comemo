@@ -1,0 +1,33 @@
+commit 378221bd6e73bdc21884fed9e32f53e6672ca0cd
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Mar 22 08:49:52 2022 -0400
+
+    debug/pe: add APIs for reading section def aux info
+    
+    Add hooks to support reading of section definition symbol aux data
+    (including COMDAT information) from the aux symbols associated with
+    section definition symbols. The COFF symbol array made available by
+    "pe.File" includes entries for aux symbols, but doesn't expose their
+    structure (since it varies depending on the type of aux symbol). This
+    patch adds a function for returning a specific class of aux symbol
+    ("type 5") that immediately follows a COFF symbol corresponding to a
+    section definition.
+    
+    Updates #35006.
+    Updates #51868.
+    
+    Change-Id: I21fcc057150f7a3c64f01a5961aabca0fa43399e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394534
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/51868.txt                                 |  36 ++++++++
+ src/debug/pe/section.go                            |  12 +++
+ src/debug/pe/symbol.go                             |  59 +++++++++++++
+ src/debug/pe/symbols_test.go                       |  91 +++++++++++++++++++++
+ .../llvm-mingw-20211002-msvcrt-x86_64-crt2         | Bin 0 -> 24046 bytes
+ 5 files changed, 198 insertions(+)

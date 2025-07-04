@@ -1,0 +1,19 @@
+commit bd13f6ff8eea412885d6a22a284a259edda57980
+Author: Jan Mercl <befelemepeseveze@gmail.com>
+Date:   Mon May 14 11:50:25 2012 -0700
+
+    regexp/syntax: replace internal error on unexpected ) w/ ErrUnexpectedParen
+    
+    Unbalanced extra right parenthesis produced an internal error instead of
+    a more descriptive one.
+    
+    Fixes #3406.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/6201063
+
+ api/go1.txt                         | 1 +
+ src/pkg/regexp/syntax/parse.go      | 5 +++--
+ src/pkg/regexp/syntax/parse_test.go | 8 ++++++++
+ 3 files changed, 12 insertions(+), 2 deletions(-)

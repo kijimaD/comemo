@@ -1,0 +1,17 @@
+commit 157ce90abe24e7ff8ac51b05660eb7190101138c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 20 10:06:54 2016 -0400
+
+    go/build: allow % in ${SRCDIR} expansion for Jenkins
+    
+    Fixes #16959.
+    
+    Change-Id: Ibbb28fdf26c53788a0edb3e3ea54ec030fa2a8cf
+    Reviewed-on: https://go-review.googlesource.com/31611
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/build.go      | 3 ++-
+ src/go/build/build_test.go | 1 +
+ 2 files changed, 3 insertions(+), 1 deletion(-)

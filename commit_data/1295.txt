@@ -1,0 +1,16 @@
+commit 48e5110151579f1d8491b798cbd923ca8df62141
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 8 11:31:55 2008 -0800
+
+    Tweak comments so that this test passes with gccgo.
+    
+    bug126.go:7:7: error: redefinition of 'none'
+    bug126.go:6:7: note: previous definition of 'none' was here
+    
+    R=gri
+    DELTA=3  (1 added, 0 deleted, 2 changed)
+    OCL=20563
+    CL=20723
+
+ test/bugs/bug126.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

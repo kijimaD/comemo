@@ -1,0 +1,17 @@
+commit bc3a72fa28d45f0dffbb89e6d07566c2b3997393
+Author: William Chan <willchan@chromium.org>
+Date:   Wed Jun 1 17:30:49 2011 -0700
+
+    http/spdy: reorganize package.
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4524087
+
+ src/pkg/http/spdy/Makefile                         |   5 +-
+ src/pkg/http/spdy/framer.go                        | 443 ---------------------
+ src/pkg/http/spdy/read.go                          | 287 +++++++++++++
+ src/pkg/http/spdy/{framer_test.go => spdy_test.go} |   0
+ src/pkg/http/spdy/{protocol.go => types.go}        | 249 +++---------
+ src/pkg/http/spdy/write.go                         | 287 +++++++++++++
+ 6 files changed, 641 insertions(+), 630 deletions(-)

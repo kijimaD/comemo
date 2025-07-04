@@ -1,0 +1,15 @@
+commit 821bf04f2aa6b79d1d66ef7aba7537d346ea5a21
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 3 10:11:53 2021 -0800
+
+    doc/go1.18: add documentation for changes to go/token
+    
+    Updates #47694
+    
+    Change-Id: I232fb20b3a77409b84c15f9ec1586e480f0f6390
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369095
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ doc/go1.18.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

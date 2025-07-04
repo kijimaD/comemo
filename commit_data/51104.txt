@@ -1,0 +1,19 @@
+commit c1c6b0ca79233c8b7612957291c2d47d337cc2de
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Mon Jul 4 10:16:12 2022 +0800
+
+    cmd/compile: remove the resultInArg0 register checks on linux/loong64
+    
+    The automatic resultInArg0 register check has been implemented by CL 296010.
+    
+    Change-Id: Id0e085ded9aa097bd02593c359a750d938a3aaa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416034
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/loong64/ssa.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,0 +1,28 @@
+commit 31b0b73924e83fe3341e5c5ebca8854febcb3157
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 5 11:58:44 2015 +1000
+
+    doc: adjust installation instructions dynamically for a given download
+    
+    This change allows the download page to redirect the user to
+    /doc/install?download=filename so the user can see installation
+    instructions specific to the file they are downloading.
+    
+    This change also expands the "Test your Go installation" section
+    to instruct the user to create a workspace, hopefully leading
+    to less confusion down the line.
+    
+    It also changes the front page download link to go directly
+    to the downloads page, which will in turn take them to the
+    installation instructions (the original destination).
+    
+    This is related to this change to the tools repo:
+    https://golang.org/cl/13180
+    
+    Change-Id: I658327bdb93ad228fb1846e389b281b15da91b1d
+    Reviewed-on: https://go-review.googlesource.com/13151
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ doc/install.html | 80 ++++++++++++++++++++++++++++++++++++++++++++------------
+ doc/root.html    |  2 +-
+ 2 files changed, 65 insertions(+), 17 deletions(-)

@@ -1,0 +1,18 @@
+commit 9f0cabfab97aa2194d5757c1fcd78018d72d65e2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 1 10:48:15 2011 +1000
+
+    goinstall: document GOPATH and support relative/absolute installs
+    goinstall: more verbose logging with -v
+    
+    Fixes #1901.
+    
+    R=rsc, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/4524078
+
+ src/cmd/goinstall/doc.go  |  55 ++++++++++++++++++++++++-
+ src/cmd/goinstall/main.go | 102 ++++++++++++++++++++++++----------------------
+ src/cmd/goinstall/make.go |  32 +++------------
+ src/cmd/goinstall/path.go |  44 +++++++++++++++++---
+ 4 files changed, 151 insertions(+), 82 deletions(-)

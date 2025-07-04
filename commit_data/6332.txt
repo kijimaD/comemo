@@ -1,0 +1,19 @@
+commit a2450c1456984dfb37de3113dff6497d85fc0fb9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 21 22:41:19 2010 -0400
+
+    cgo: bug fixes
+    
+    * Add documentation about array arguments.  Fixes issue 1125.
+    * Do not interpret x, y := z, w as special errno form.  Fixes issue 952.
+    * Fix nested Go calls (brainman).  Fixes issue 907.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2214044
+
+ misc/cgo/stdio/test.go    | 24 +++++++++++++++++++++++-
+ src/cmd/cgo/ast.go        |  2 +-
+ src/cmd/cgo/doc.go        | 12 ++++++++++++
+ src/pkg/runtime/cgocall.c |  7 ++++---
+ 4 files changed, 40 insertions(+), 5 deletions(-)

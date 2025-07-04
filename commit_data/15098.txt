@@ -1,0 +1,12 @@
+commit fc6b530f0ff4b73e6bd42c282bf5409e804f989e
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 2 23:09:49 2013 -0500
+
+    cmd/gc: remove spurious newline from node dump
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7276048
+
+ src/cmd/gc/fmt.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit 7b0c5180324c6ec29105aebbf12f551b02c9dd54
+Author: Vivian Liang <vliang88@gmail.com>
+Date:   Tue Apr 28 00:36:41 2020 +0000
+
+    database/sql: fix incorrect function name in example_test
+    
+    fixes incorrect function name prefix in `example_test.go`
+    
+    Change-Id: I0cce8afc89f6ee6dab3e5152246d28deb597fe53
+    GitHub-Last-Rev: 4e9a6067c8307e049ace2e35414a838bf6c8a8a4
+    GitHub-Pull-Request: golang/go#38715
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230381
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

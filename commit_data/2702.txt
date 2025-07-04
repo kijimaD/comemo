@@ -1,0 +1,16 @@
+commit b07af158a49be49951cd0d5219a31a491ad7b8ca
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 14 13:23:14 2009 -0700
+
+    improve rpc code. more robust. more tests.
+    
+    R=rsc
+    DELTA=186  (133 added, 20 deleted, 33 changed)
+    OCL=31611
+    CL=31616
+
+ src/pkg/gob/decoder.go     |  2 +-
+ src/pkg/rpc/client.go      | 40 ++++++++++++++-------
+ src/pkg/rpc/server.go      | 72 ++++++++++++++++++++++++++++---------
+ src/pkg/rpc/server_test.go | 89 ++++++++++++++++++++++++++++++++++++++--------
+ 4 files changed, 158 insertions(+), 45 deletions(-)

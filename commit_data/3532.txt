@@ -1,0 +1,16 @@
+commit 68c921e25cd7ed5da1ded92677b5c19960f214e5
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 14 11:53:55 2009 -0700
+
+    add an entry in the lang faq about reference types.
+    remove a mention of sawzall in the tutorial.
+    
+    R=rsc
+    DELTA=36  (14 added, 4 deleted, 18 changed)
+    OCL=35717
+    CL=35719
+
+ doc/go_lang_faq.html | 14 ++++++++++++++
+ doc/go_tutorial.html | 30 +++++++++++++-----------------
+ doc/go_tutorial.txt  | 10 +++++-----
+ 3 files changed, 32 insertions(+), 22 deletions(-)

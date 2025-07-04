@@ -1,0 +1,27 @@
+commit 1c50fcf853b0382ac6a98e4c84eb90230b37832f
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Sep 12 21:05:45 2019 +0200
+
+    cmd/compile: add 32 bit float registers/variables on wasm
+    
+    Before this change, wasm only used float variables with a size of 64 bit
+    and applied rounding to 32 bit precision where necessary. This change
+    adds proper 32 bit float variables.
+    
+    Reduces the size of pkg/js_wasm by 254 bytes.
+    
+    Change-Id: Ieabe846a8cb283d66def3cdf11e2523b3b31f345
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195117
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/config.go      |   4 +
+ src/cmd/compile/internal/ssa/gen/Wasm.rules |  59 +--
+ src/cmd/compile/internal/ssa/gen/WasmOps.go | 142 ++++--
+ src/cmd/compile/internal/ssa/gen/main.go    |   8 +
+ src/cmd/compile/internal/ssa/opGen.go       | 652 ++++++++++++++++++++++------
+ src/cmd/compile/internal/ssa/regalloc.go    |  15 +-
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 178 +++-----
+ src/cmd/compile/internal/wasm/ssa.go        |  63 +--
+ src/cmd/internal/obj/wasm/a.out.go          |  22 +-
+ src/cmd/internal/obj/wasm/wasmobj.go        |  26 +-
+ 10 files changed, 798 insertions(+), 371 deletions(-)

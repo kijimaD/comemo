@@ -1,0 +1,13 @@
+commit eccf31b74492d9735fa981998dc9d86e2ce38c79
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 24 11:06:02 2011 +1100
+
+    doc: update contrib.html to be more enticing
+    doc: refer to golang-dev instead of -nuts in contribute.html
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4309043
+
+ doc/contrib.html | 45 +++++++++++++++++++++++++++++++++------------
+ 1 file changed, 33 insertions(+), 12 deletions(-)

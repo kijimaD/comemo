@@ -1,0 +1,13 @@
+commit 800d8adf35ebf340c8bc4769318531717aaab88e
+Author: Mark Zavislak <zavislak@google.com>
+Date:   Mon Apr 21 08:55:23 2014 -0700
+
+    runtime: fix typo in error message
+    
+    LGTM=robert.hencke, iant
+    R=golang-codereviews, robert.hencke, iant
+    CC=golang-codereviews
+    https://golang.org/cl/89760043
+
+ src/pkg/runtime/malloc.goc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

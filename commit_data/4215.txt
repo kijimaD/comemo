@@ -1,0 +1,12 @@
+commit eb33c0bb3593e90e91db3c89ea3d0751e01582f0
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 24 14:19:43 2009 -0800
+
+    timing log update for new version of chameneos
+    
+    R=rsc
+    CC=golang-dev, rog
+    https://golang.org/cl/160054
+
+ test/bench/timing.log | 8 ++++++++
+ 1 file changed, 8 insertions(+)

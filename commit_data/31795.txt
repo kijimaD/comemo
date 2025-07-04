@@ -1,0 +1,21 @@
+commit cd24a8a5509376e4d5c492256a0e1e120cab63e7
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Jun 12 10:46:15 2017 -0700
+
+    database/sql: ensure a Stmt from a Conn executes on the same driver.Conn
+    
+    Ensure a Stmt prepared on a Conn executes on the same driver.Conn.
+    This also removes another instance of duplicated prepare logic
+    as a side effect.
+    
+    Fixes #20647
+    
+    Change-Id: Ia00a19e4dd15e19e4d754105babdff5dc127728f
+    Reviewed-on: https://go-review.googlesource.com/45391
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/sql.go      | 210 ++++++++++++++++++++++++-------------------
+ src/database/sql/sql_test.go |  38 +++++++-
+ 2 files changed, 154 insertions(+), 94 deletions(-)

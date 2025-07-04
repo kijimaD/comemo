@@ -1,0 +1,21 @@
+commit fcecf3e1fa318d4c3e8f2142d17bb2e481e94f9d
+Author: ianwoolf <btw515wolf2@gmail.com>
+Date:   Wed Nov 9 16:52:41 2022 +0800
+
+    cmd/go: enable -x in go mod graph
+    
+    Updates #35849
+    
+    Change-Id: Ifa18e448c0d436c18d7204ac755cd36bc28cd612
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448935
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go                            | 4 +++-
+ src/cmd/go/internal/modcmd/graph.go              | 6 +++++-
+ src/cmd/go/testdata/script/mod_graph.txt         | 5 +++++
+ src/cmd/go/testdata/script/mod_graph_version.txt | 2 +-
+ 4 files changed, 14 insertions(+), 3 deletions(-)

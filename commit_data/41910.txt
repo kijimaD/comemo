@@ -1,0 +1,18 @@
+commit df15eaedd0f48d774edf633a5ae31662f9480921
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Apr 11 03:33:21 2020 +0000
+
+    Revert "cmd/compile: make logopt test skip if cannot create scratch directory"
+    
+    This reverts commit 98534812bdcdd22b13469ea587e310187876b7d2.
+    
+    Reason for revert: The change does not really fixes issue #38251. CL 227497 is real fix.
+    
+    Change-Id: I9f556005baf1de968f059fb8dad89dae05330aa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227802
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 3d68dc332517d7f6ef38d42e9a3211655958b20b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 11 14:24:16 2014 -0700
+
+    math: remove Nextafter64 alias in favor of existing Nextafter
+    
+    LGTM=adonovan
+    R=rsc, adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/104050045
+
+ src/pkg/math/all_test.go     |  6 +++---
+ src/pkg/math/big/rat_test.go |  6 +++---
+ src/pkg/math/nextafter.go    | 10 ++--------
+ 3 files changed, 8 insertions(+), 14 deletions(-)

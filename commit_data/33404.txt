@@ -1,0 +1,19 @@
+commit d6ebbef89de401199f729f2d70239f3e09460164
+Author: Gabriel Aszalos <gabriel.aszalos@gmail.com>
+Date:   Fri Nov 3 09:40:52 2017 +0100
+
+    runtime: clarify GOROOT return value in documentation
+    
+    The current GOROOT documentation could indicate that changing the
+    environment variable at runtime would affect the return value of
+    GOROOT. This is false as the returned value is the one used for the
+    build. This CL aims to clarify the confusion.
+    
+    Fixes #22302
+    
+    Change-Id: Ib68c30567ac864f152d2da31f001a98531fc9757
+    Reviewed-on: https://go-review.googlesource.com/75751
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/extern.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

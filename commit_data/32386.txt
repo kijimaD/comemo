@@ -1,0 +1,13 @@
+commit 1d53fc512379224024569a4e2bb34f5a76fb1575
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 5 14:52:31 2017 +1000
+
+    cmd/link: introduce and use peFile.addDWARFSection
+    
+    Change-Id: I8b23bfb85da9ece47e337f262bafd97f303dd1d1
+    Reviewed-on: https://go-review.googlesource.com/56313
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go |  2 +-
+ src/cmd/link/internal/ld/pe.go    | 40 +++++++++++++++++++--------------------
+ 2 files changed, 21 insertions(+), 21 deletions(-)

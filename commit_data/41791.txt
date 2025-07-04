@@ -1,0 +1,29 @@
+commit a265c2c448497fcee1633d2e2b912da52ea22d3c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Mar 30 00:38:09 2020 +0200
+
+    cmd/cgo, misc/cgo: only cache anonymous struct typedefs with parent name
+    
+    CL 181857 broke the translation of certain C types using cmd/cgo -godefs
+    because it stores each typedef, array and qualified type with their
+    parent type name in the translation cache.
+    
+    Fix this by only considering the parent type for typedefs of anonymous
+    structs which is the only case where types might become ambiguous.
+    
+    Updates #31891
+    Fixes #37479
+    Fixes #37621
+    
+    Change-Id: I301a749ec89585789cb0d213593bb8b7341beb88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226341
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testgodefs/testdata/issue37479.go | 33 ++++++++++++++++++++++++++++++
+ misc/cgo/testgodefs/testdata/issue37621.go | 23 +++++++++++++++++++++
+ misc/cgo/testgodefs/testdata/main.go       |  8 ++++++++
+ misc/cgo/testgodefs/testgodefs_test.go     |  2 ++
+ src/cmd/cgo/gcc.go                         | 19 ++++++++++++++---
+ 5 files changed, 82 insertions(+), 3 deletions(-)

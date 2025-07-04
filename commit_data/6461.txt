@@ -1,0 +1,18 @@
+commit 8599a8372713d51713c09771bb1d7bb6a4e600d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 6 11:54:41 2010 -0400
+
+    runtime: correct iteration of large map values
+    
+    The hash_next_and_deref was a dreg from a
+    previous large value scheme.
+    
+    Fixes #1163.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2369043
+
+ src/pkg/runtime/hashmap.c | 15 ++-------------
+ test/fixedbugs/bug311.go  | 20 ++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 13 deletions(-)

@@ -1,0 +1,19 @@
+commit a088f1b76ccb931eb72e4ef54c1f59053996478c
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Aug 24 21:10:36 2015 -0700
+
+    runtime: soften up hash checks a bit
+    
+    The hash tests generate occasional failures, quiet them some more.
+    
+    In particular we can get 1 collision when the expected number is
+    .001 or so. That shouldn't be a dealbreaker.
+    
+    Fixes #12311
+    
+    Change-Id: I784e91b5d21f4f1f166dc51bde2d1cd3a7a3bfea
+    Reviewed-on: https://go-review.googlesource.com/13902
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/runtime/hash_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

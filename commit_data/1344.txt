@@ -1,0 +1,14 @@
+commit 5bb0c4f88bbfad8173c32dcda304867a22e09add
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 15 10:50:33 2008 -0800
+
+    check printf format strings
+    
+    R=r
+    DELTA=18  (16 added, 0 deleted, 2 changed)
+    OCL=21177
+    CL=21185
+
+ src/runtime/Makefile  |  4 ++--
+ src/runtime/runtime.h | 16 ++++++++++++++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)

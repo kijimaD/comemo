@@ -1,0 +1,13 @@
+commit 2ee03b5e593ce1613150181e831d97e029122117
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Oct 30 09:27:02 2013 +1100
+
+    A+C: Jakob Borg (individual CLA).
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/19510043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

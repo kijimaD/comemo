@@ -1,0 +1,12 @@
+commit 9795c9e72735efdf717df38f9ffe1ca1b0e9c0cb
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Nov 13 13:20:18 2008 -0800
+
+    temp fix for map not multiple of 8
+    
+    R=r
+    OCL=19166
+    CL=19166
+
+ src/runtime/hashmap.c | 1 +
+ 1 file changed, 1 insertion(+)

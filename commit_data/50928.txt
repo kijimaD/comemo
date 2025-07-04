@@ -1,0 +1,20 @@
+commit 7cf06f070e56dfb6507122704bc75d697ccc350f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 4 11:24:47 2022 -0400
+
+    math/rand: refactor to delay allocation of global source
+    
+    This sets up for delaying the decision of which seed to use,
+    but this CL still keeps the original global Seed(1) semantics.
+    
+    Preparation for #54880.
+    
+    Change-Id: Ibfa9d50ec9023aa755a83852e55168fa7d24b115
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443057
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/math/rand/rand.go | 42 +++++++++++++++++++++++++++++-------------
+ 1 file changed, 29 insertions(+), 13 deletions(-)

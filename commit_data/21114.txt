@@ -1,0 +1,14 @@
+commit f3de21767e1ea12e9ec30fc1e9a1b60dfc6cb440
+Author: Emil Hessman <emil@hessman.se>
+Date:   Tue Dec 30 06:45:24 2014 +0100
+
+    doc: update links in FAQ
+    
+    Vitess and protobuf has moved to GitHub; update the links.
+    
+    Change-Id: I2d90bde1a7f2b590c8b7b08ce73d6faa13b51da0
+    Reviewed-on: https://go-review.googlesource.com/2166
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go_faq.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

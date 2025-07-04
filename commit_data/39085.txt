@@ -1,0 +1,19 @@
+commit 5286b2ad424c1c0afe5fc1b7939cd49f0296380f
+Author: David Chase <drchase@google.com>
+Date:   Wed May 8 16:44:05 2019 -0400
+
+    cmd/compile: test delve instead of gdb in ssa/debug_test.go
+    
+    This seems to deflake the test, and also allows testing
+    on macOS.
+    
+    Fixes #31786.
+    
+    Change-Id: I10bfba46dd4b8e64cb09fdd4dd9d175c1ce1f022
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176058
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/debug_test.go | 126 ++++++++++++++++++++---------
+ 1 file changed, 90 insertions(+), 36 deletions(-)

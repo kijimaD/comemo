@@ -1,0 +1,14 @@
+commit 830bb3797eefd8f197aef194d758f9bb550daeac
+Author: Jeff Sickel <jas@corpus-callosum.com>
+Date:   Sat Jan 11 18:58:03 2014 +0100
+
+    net: add plan9 to TestDialTimeout
+         === RUN TestDialTimeout
+         --- PASS: TestDialTimeout (0.21 seconds)
+    
+    R=golang-codereviews, bradfitz, 0intro
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/49710050
+
+ src/pkg/net/dial_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

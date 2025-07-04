@@ -1,0 +1,19 @@
+commit 531f1d50cc15c95822d189d039a9bfe47ff70099
+Author: Maya Rashish <maya@netbsd.org>
+Date:   Sun Apr 21 14:48:28 2019 +0000
+
+    syscall: avoid zeroing unused syscall arguments
+    
+    Zeroing unused registers is not required. Removing it makes the code
+    very slightly smaller and very slightly faster.
+    
+    Change-Id: I1ec17b497db971ca8a3641e3e94c063571419f27
+    GitHub-Last-Rev: f721bb263637717e8ff9fd2c34148b5b2762e8c4
+    GitHub-Pull-Request: golang/go#31596
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173160
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/asm_darwin_amd64.s | 6 ------
+ src/syscall/asm_linux_amd64.s  | 9 ---------
+ src/syscall/asm_unix_amd64.s   | 6 ------
+ 3 files changed, 21 deletions(-)

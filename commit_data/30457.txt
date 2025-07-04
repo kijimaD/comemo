@@ -1,0 +1,22 @@
+commit 5e90bbcc6de54ecbad1d72bc8e71e167829069b5
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon Feb 27 18:26:33 2017 -0500
+
+    testing: fix Benchmark() to start at 1 iteration, not 100
+    
+    The run1 call removed in golang.org/cl/36990 was necessary to
+    initialize the duration of the benchmark. With it gone, the math in
+    launch() starts from 100. This doesn't work out well for second-long
+    benchmark methods. Put it back.
+    
+    Updates #18815
+    
+    Change-Id: I461f3466c805d0c61124a2974662f7ad45335794
+    Reviewed-on: https://go-review.googlesource.com/37530
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+
+ src/testing/benchmark.go |  5 ++++-
+ src/testing/sub_test.go  | 12 ++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

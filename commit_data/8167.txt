@@ -1,0 +1,16 @@
+commit c4cc9c282f29156cd5ed4133830c0ad379332393
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 20 14:22:52 2011 -0700
+
+    gob: have errorf always prefix the message with "gob: "
+    to regularize the errors.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4446055
+
+ src/pkg/gob/debug.go  |  2 +-
+ src/pkg/gob/decode.go | 28 ++++++++++++++--------------
+ src/pkg/gob/encode.go | 12 ++++++------
+ src/pkg/gob/error.go  |  3 ++-
+ 4 files changed, 23 insertions(+), 22 deletions(-)

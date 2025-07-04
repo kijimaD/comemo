@@ -1,0 +1,24 @@
+commit 91f3997ec09d6502f88471f384aad2fe3ddcecb9
+Author: Joshua M. Clulow <josh@sysmgr.org>
+Date:   Mon Oct 28 09:19:48 2019 -0700
+
+    runtime: make NumCPU respect zone CPU cap on illumos
+    
+    On illumos systems, check for the "zone.cpu-cap" resource control when
+    determining how many usable CPUs are available.  If the resource control
+    is not set, or we are unable to read it, ignore the failure and return
+    the value we used to return; i.e., the CPU count from
+    sysconf(_SC_NPROCESSORS_ONLN).
+    
+    Fixes golang/go#35199
+    
+    Change-Id: Ic8a408f84cd140d544d128f1281baad527fb5e35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203758
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/defs_illumos_amd64.go |  14 ++++
+ src/runtime/os3_solaris.go        |   8 ---
+ src/runtime/os_illumos.go         | 132 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/os_only_solaris.go    |  18 ++++++
+ 4 files changed, 164 insertions(+), 8 deletions(-)

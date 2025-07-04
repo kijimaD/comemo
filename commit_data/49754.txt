@@ -1,0 +1,15 @@
+commit 0581d69dc6e67734293ba0c10b63df640a457aab
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 21 14:54:07 2022 -0400
+
+    runtime/internal/atomic: add Pointer[T] type
+    
+    Change-Id: If8fcb37f4a8fcc0668af0df12f1cb8c66f2d2eea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418954
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/internal/atomic/types.go | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

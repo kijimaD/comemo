@@ -1,0 +1,17 @@
+commit b2dc1f82a5b2aa3132cb1fb0135efe1202a1e837
+Author: Todd Neal <todd@tneal.org>
+Date:   Fri Mar 18 07:05:58 2016 -0500
+
+    cmd/compile: perform minimal phi elimination during critical
+    
+    Phi splitting sometimes leads to a phi with only a single predecessor.
+    This must be replaced with a copy to maintain a valid SSA form.
+    
+    Fixes #14857
+    
+    Change-Id: I5ab2423fb6c85a061928e3206b02185ea8c79cd7
+    Reviewed-on: https://go-review.googlesource.com/20826
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/critical.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,0 +1,21 @@
+commit 99b6b77e22428781218f9da572741027fba61e93
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 4 09:37:58 2016 -0800
+
+    cmd/compile: convert inl.go to use nodeSeq
+    
+    Passes toolstash -cmp.
+    
+    Update #14473.
+    
+    Change-Id: I60ef7cac553b346ca6b8cc7152cd184e59994b66
+    Reviewed-on: https://go-review.googlesource.com/20216
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go    | 239 ++++++++++++++--------------------
+ src/cmd/compile/internal/gc/order.go  |   2 +-
+ src/cmd/compile/internal/gc/subr.go   |  14 +-
+ src/cmd/compile/internal/gc/syntax.go |  25 +++-
+ 4 files changed, 127 insertions(+), 153 deletions(-)

@@ -1,0 +1,18 @@
+commit 2c4c189bba57a4a72c371afa7e544c16abd76ffa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 18 20:20:12 2021 -0500
+
+    cmd/go/internal/mvs: add test cases for downgrade interaction with hidden versions
+    
+    For #36460
+    
+    Change-Id: I889c4ece0d2caff7528cf437f89f7446dbd83955
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294292
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/mvs/mvs_test.go | 53 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 53 insertions(+)

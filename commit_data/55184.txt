@@ -1,0 +1,34 @@
+commit 26b1694d9ad06b4f237526f507494edb948a4866
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 30 11:00:56 2023 -0500
+
+    testing: add regression tests for reentrant calls to T.Run
+    
+    These tests represent two patterns of usage, found in Google-internal
+    tests, that deadlocked after CL 506755.
+    
+    TestConcurrentRun is a minor variation on TestParallelSub, with the
+    additional expectation that the concurrent calls to Run (without
+    explicit calls to Parallel) proceed without blocking. It replaces
+    TestParallelSub.
+    
+    TestParentRun is similar, but instead of calling Run concurrently it
+    calls Run from within the subtest body. It almost certainly represents
+    an accidental misuse of T.Run, but since that pattern used to run to
+    completion we don't want to break it accidentally. (Perhaps it should
+    be diagnosed with a vet check instead?)
+    
+    While we are testing concurrency, this also cleans up
+    TestConcurrentCleanup to use a clearer synchronization pattern.
+    
+    Fixes #64402.
+    
+    Change-Id: I14fc7e7085a994c284509eac28190c3a8feb04cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546019
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/testing/sub_test.go     | 28 ++++++++--------------------
+ src/testing/testing_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 20 deletions(-)

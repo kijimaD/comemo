@@ -1,0 +1,12 @@
+commit daacba518425fe2dcbdfd89ff43f8ab11cdabea8
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 13 15:35:08 2012 +1100
+
+    gc: include full text of import path in error message
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5783091
+
+ src/cmd/gc/subr.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

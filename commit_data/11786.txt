@@ -1,0 +1,13 @@
+commit ec878116627919876b429f8eca70815ed10544c0
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Feb 10 22:35:42 2012 -0200
+
+    CONTRIBUTORS: add Bjorn Tipling <bjorn.tipling@gmail.com>
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5645085
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

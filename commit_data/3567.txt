@@ -1,0 +1,19 @@
+commit 545dbd810c8c6ffe1f60574f18dae8b9f36292af
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Oct 15 22:16:31 2009 -0700
+
+    fix OINDEX address generation, leftover misunderstanding about
+    how scale works on amd64/386
+    
+    go/test: passes 85% (294/342)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=27  (26 added, 1 deleted, 0 changed)
+    OCL=35815
+    CL=35818
+
+ src/cmd/5g/cgen.c  |  8 ++++++++
+ src/cmd/5g/gsubr.c | 11 ++++++++++-
+ test/arm-pass.txt  |  8 ++++++++
+ 3 files changed, 26 insertions(+), 1 deletion(-)

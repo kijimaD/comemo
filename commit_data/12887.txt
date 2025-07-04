@@ -1,0 +1,20 @@
+commit e6e8b72377a8235b0dca4bbe485800341c6880cf
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Apr 12 12:35:21 2012 -0400
+
+    crypto/tls: don't always use the default private key.
+    
+    When SNI based certificate selection is enabled, we previously used
+    the default private key even if we selected a non-default certificate.
+    
+    Fixes #3367.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5987058
+
+ src/pkg/crypto/tls/cipher_suites.go         |   4 +-
+ src/pkg/crypto/tls/handshake_server.go      |  29 ++---
+ src/pkg/crypto/tls/handshake_server_test.go | 158 +++++++++++++++++++++++++++-
+ src/pkg/crypto/tls/key_agreement.go         |  12 +--
+ 4 files changed, 177 insertions(+), 26 deletions(-)

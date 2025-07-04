@@ -1,0 +1,16 @@
+commit 6c46afdf413582f37ddebdb6b53923ef2a299610
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Jul 21 22:20:09 2011 +1000
+
+    http: disable sniffer for now.
+    
+    Something is broken, and investigation is underway.
+    In the meantime, godoc is broken, so disable sniffing for now
+    by reverting to the pre-sniffer state.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4809046
+
+ src/pkg/http/server.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,30 @@
+commit a2b615d5270f0bc2ee1dfcdd7849bdd05ee76a14
+Author: Lion Yang <lion@aosc.xyz>
+Date:   Thu Jan 5 05:13:53 2017 +0800
+
+    crypto: detect BMI usability on AMD64 for sha1 and sha256
+    
+    The existing implementations on AMD64 only detects AVX2 usability,
+    when they also contains BMI (bit-manipulation instructions).
+    These instructions crash the running program as 'unknown instructions'
+    on the architecture, e.g. i3-4000M, which supports AVX2 but not
+    support BMI.
+    
+    This change added the detections for BMI1 and BMI2 to AMD64 runtime with
+    two flags as the result, `support_bmi1` and `support_bmi2`,
+    in runtime/runtime2.go. It also completed the condition to run AVX2 version
+    in packages crypto/sha1 and crypto/sha256.
+    
+    Fixes #18512
+    
+    Change-Id: I917bf0de365237740999de3e049d2e8f2a4385ad
+    Reviewed-on: https://go-review.googlesource.com/34850
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/sha1/sha1block_amd64.s     | 18 +++++++++++-------
+ src/crypto/sha256/sha256block_amd64.s |  5 ++++-
+ src/runtime/asm_amd64.s               | 15 ++++++++++++++-
+ src/runtime/runtime2.go               |  2 ++
+ 4 files changed, 31 insertions(+), 9 deletions(-)

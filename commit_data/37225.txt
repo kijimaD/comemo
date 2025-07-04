@@ -1,0 +1,24 @@
+commit 85525c56ab5fdb214fee70b4b4cce8700344258b
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Nov 2 10:09:30 2018 +0100
+
+    all: skip unsupported tests on AIX
+    
+    This commit skips tests which aren't yet supported on AIX.
+    
+    nosplit.go is disabled because stackGuardMultiplier is increased for
+    syscalls.
+    
+    Change-Id: Ib5ff9a4539c7646bcb6caee159f105ff8a160ad7
+    Reviewed-on: https://go-review.googlesource.com/c/146939
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/x86/issue19518_test.go | 10 ++--------
+ src/cmd/internal/obj/x86/obj6_test.go       |  8 +-------
+ src/debug/elf/file_test.go                  |  2 +-
+ src/runtime/crash_test.go                   |  3 +++
+ src/runtime/pprof/pprof_test.go             |  2 +-
+ src/runtime/runtime-gdb_test.go             |  2 ++
+ test/nosplit.go                             |  2 +-
+ 7 files changed, 11 insertions(+), 18 deletions(-)

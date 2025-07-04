@@ -1,0 +1,22 @@
+commit e2a30b8ffba065ea45bb1e18d1bb584898e3bf11
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Sat May 21 17:19:22 2016 +0100
+
+    time: genzabbrs.go skips Feb when checking months
+    
+    getAbbrs looks like it is checking each month looking for a change
+    in the time zone abbreviation, but starts in Dec of the previous year
+    and skips the month of February because of the overflow rules for
+    AddDate. Changing the day to 1 starts at Jan 1 and tries all months
+    in the current year. This isn't very important or likely to change
+    output as zones usually span several months. Discovered when
+    looking into time.AddDate behavior when adding months.
+    
+    Change-Id: I685254c8d21c402ba82cc4176e9a86b64ce8f7f7
+    Reviewed-on: https://go-review.googlesource.com/23322
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/genzabbrs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

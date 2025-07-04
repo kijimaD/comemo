@@ -1,0 +1,18 @@
+commit d3a2f5870034db2d69bd0ef85f18a87f4163c770
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 14 16:17:17 2014 -0700
+
+    go/*: permit "for range x"
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/112970044
+
+ src/pkg/go/ast/ast.go                         |  6 +++---
+ src/pkg/go/parser/parser.go                   | 19 +++++++++++++++----
+ src/pkg/go/parser/short_test.go               |  1 +
+ src/pkg/go/printer/nodes.go                   | 19 +++++++++++--------
+ src/pkg/go/printer/testdata/statements.golden |  9 +++++++++
+ src/pkg/go/printer/testdata/statements.input  |  5 +++++
+ 6 files changed, 44 insertions(+), 15 deletions(-)

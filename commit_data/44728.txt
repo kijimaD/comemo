@@ -1,0 +1,23 @@
+commit af4388aee195c4328a779ba8f8171ad1632feb7e
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 15 16:23:21 2021 -0400
+
+    cmd/internal/objabi: support boolean GOEXPERIMENTs
+    
+    Currently, objabi exports GOEXPERIMENT flags as ints that are either 0
+    or 1. Since the dawn of time, there's been a comment saying that we
+    *could* support general integers here, but it's never happened and all
+    the "== 0" and "!= 0" and "== 1" are driving me crazy and are making
+    the code harder to read and maintain. Hence, this CL adds support for
+    boolean GOEXPERIMENT flags. We'll introduce some bool-typed flags in
+    the next CL.
+    
+    Change-Id: I7813400db130a9b8f71a644fe7912808dbe645bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302069
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/objabi/util.go | 28 ++++++++++++++++++++--------
+ 1 file changed, 20 insertions(+), 8 deletions(-)

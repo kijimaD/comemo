@@ -1,0 +1,12 @@
+commit b910a2739629f10eea56c44467f99263ef303f46
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 1 01:09:22 2011 -0400
+
+    go spec: introduce rune type
+    
+    R=r, iant, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5293048
+
+ doc/go_spec.html | 53 ++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 30 insertions(+), 23 deletions(-)

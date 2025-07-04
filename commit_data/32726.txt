@@ -1,0 +1,19 @@
+commit 99414a5b1dca17a3778d110866881485ef45b0eb
+Author: zhongtao.chen <chenzhongtao@126.com>
+Date:   Tue Aug 22 10:33:10 2017 +0800
+
+    cmd/compile: limit the number of simultaneously opened files to avoid EMFILE/ENFILE errors
+    
+    If the Go packages with enough source files,it will cause EMFILE/ENFILE error,
+    Fix this by limiting the number of simultaneously opened files.
+    
+    Fixes #21621
+    
+    Change-Id: I8555d79242d2f90771e37e073b7540fc7194a64a
+    Reviewed-on: https://go-review.googlesource.com/57751
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go | 5 +++++
+ 1 file changed, 5 insertions(+)

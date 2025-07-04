@@ -1,0 +1,23 @@
+commit 972774c4448f41826577304da0b5fd7d6936df4c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 27 16:07:11 2023 -0700
+
+    go/types, types2: call mustParse when using mustTypecheck
+    
+    Syntactically incorrect source files may produce valid (but
+    unexpected) syntax trees, leading to difficult to understand
+    test failures.
+    
+    Make sure to call mustParse when we call mustTypecheck.
+    
+    Change-Id: I9f5ba3fe57ad3bbc16caabf285d2e7aeb5b9de0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489995
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go | 8 +++++++-
+ src/go/types/api_test.go                    | 9 ++++++++-
+ 2 files changed, 15 insertions(+), 2 deletions(-)

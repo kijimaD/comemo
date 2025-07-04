@@ -1,0 +1,14 @@
+commit 7274b1f6c92a46eb50cc4fdc907542f3da7ad6d9
+Author: Quoc-Viet Nguyen <afelion@gmail.com>
+Date:   Fri Mar 20 00:40:37 2015 +1000
+
+    net/http/pprof: Correct body tag in index template
+    
+    The body tag in the pprof template was misplaced.
+    
+    Change-Id: Icd7948b358f52df1acc7e033ab27a062990ef977
+    Reviewed-on: https://go-review.googlesource.com/7795
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 3e41b18a46ea0cf033be4d9baa2d99f7c8c985dc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 4 20:00:51 2021 -0700
+
+    cmd/compile/internal/types2: use compiler version error when configured for compiler
+    
+    Fixes #49368.
+    
+    Change-Id: I7c7575ae8bb6271160747e3f1888b144c3ab24c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361411
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go    |  4 ++--
+ src/cmd/compile/internal/types2/call.go        |  6 +++---
+ src/cmd/compile/internal/types2/conversions.go |  7 +++----
+ src/cmd/compile/internal/types2/decl.go        |  8 ++------
+ src/cmd/compile/internal/types2/errors.go      | 10 ++++++++++
+ src/cmd/compile/internal/types2/expr.go        |  2 +-
+ src/cmd/compile/internal/types2/typeset.go     |  6 +++---
+ src/cmd/compile/internal/types2/typexpr.go     |  2 +-
+ src/cmd/compile/internal/types2/version.go     |  8 ++++----
+ src/cmd/go/testdata/script/mod_edit_go.txt     |  4 ++--
+ test/fixedbugs/issue49368.go                   | 11 +++++++++++
+ 11 files changed, 42 insertions(+), 26 deletions(-)

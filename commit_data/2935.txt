@@ -1,0 +1,26 @@
+commit 8db8682453e3579daebfd8aa24dc723b9f23ab20
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 10 17:29:55 2009 -0700
+
+    - factored out 128-bit muladd and div into arith.go
+    - wrote corresponding fast versions in fast.arith.s
+    - implemented in-place operations for some routines
+    - updated existing code to be compatible with in-place
+      routines
+    
+    These changes allow the pidigits benchmark to run
+    approx. 30% faster. Enabling the assembly routines
+    in fast.arith.s will give another approx. 3%.
+    
+    R=r
+    DELTA=486  (252 added, 68 deleted, 166 changed)
+    OCL=32980
+    CL=33003
+
+ src/pkg/bignum/Makefile     |  22 ++--
+ src/pkg/bignum/arith.go     | 121 +++++++++++++++++++
+ src/pkg/bignum/bignum.go    | 282 +++++++++++++++++++++-----------------------
+ src/pkg/bignum/fast.arith.s |  41 +++++++
+ src/pkg/bignum/integer.go   |  98 +++++++++------
+ src/pkg/bignum/rational.go  |   8 +-
+ 6 files changed, 379 insertions(+), 193 deletions(-)

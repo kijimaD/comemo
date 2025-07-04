@@ -1,0 +1,27 @@
+commit 0022bd37a7f2483312950bcafbb3916ab76635ec
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed Apr 19 16:51:05 2023 -0400
+
+    log/slog: remove special float handling from JSONHandler
+    
+    Remove the special-case handling of NaN and infinities from
+    appendJSONValue, making JSONHandler behave almost exactly like
+    a json.Encoder without HTML escaping.
+    
+    The only differences are:
+    
+    - Encoding errors are turned into strings, instead of causing the Handle method to fail.
+    
+    - Values of type `error` are displayed as strings by calling their `Error` method.
+    
+    Fixes #59345.
+    
+    Change-Id: Id06bd952bbfef596e864bd5fd3f9f4f178f738c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486855
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/log/slog/json_handler.go      | 42 +++++++++++++++------------------------
+ src/log/slog/json_handler_test.go | 20 +++++++++----------
+ 2 files changed, 26 insertions(+), 36 deletions(-)

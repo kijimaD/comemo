@@ -1,0 +1,21 @@
+commit 31e12b953a2a8fa5f3c849da18ded575c5737532
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Apr 5 13:36:13 2021 -0500
+
+    cmd/link: issue error if elf header overruns
+    
+    This is probably unlikely in practice, but when debugging alignment
+    related issues on ppc64 using very small text section splits, the elf
+    header could grow beyond the preallocated space and quietly stomp
+    on the first few text sections.
+    
+    Change-Id: Ided58aa0b1e60f9da4b3cb277e4ebafcee4ec693
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307430
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/link/internal/ld/elf.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

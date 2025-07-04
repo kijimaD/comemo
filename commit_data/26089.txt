@@ -1,0 +1,19 @@
+commit ff71ed86b6f7d39368a9a276087477c9cb3f9ff7
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 2 17:27:59 2016 -0500
+
+    runtime: merge {bgMark,assist}StartTime
+    
+    We used to start background mark workers and assists at different
+    times, so we needed to keep track of these separately. They're now set
+    to exactly the same time, so clean things up by merging them in to one
+    value, markStartTime.
+    
+    Change-Id: I17c9843c3ed2d6f07b4c8cd0b2c438fc6de23b53
+    Reviewed-on: https://go-review.googlesource.com/20143
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 17 ++++++-----------
+ 1 file changed, 6 insertions(+), 11 deletions(-)

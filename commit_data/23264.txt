@@ -1,0 +1,14 @@
+commit 3ffcbb633e95b17389ce5ce2f6b5dbcbbdf88828
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 28 12:35:35 2015 -0400
+
+    runtime: default GOMAXPROCS to NumCPU(), not 1
+    
+    See golang.org/s/go15gomaxprocs for details.
+    
+    Change-Id: I8de5df34fa01d31d78f0194ec78a2474c281243c
+    Reviewed-on: https://go-review.googlesource.com/10668
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/runtime/proc1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

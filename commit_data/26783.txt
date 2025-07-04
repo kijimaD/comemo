@@ -1,0 +1,16 @@
+commit 9658b7ef83ae9c34f4a52680e7102d958577d5bb
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 7 14:27:15 2016 -0400
+
+    cmd/link: hide go.dwarf symbols
+    
+    Fixes #15179
+    
+    Change-Id: I0f70b7ae1682eafaece7f22d8e76f0aa806f3ec9
+    Reviewed-on: https://go-review.googlesource.com/21589
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 2 ++
+ 1 file changed, 2 insertions(+)

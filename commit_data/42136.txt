@@ -1,0 +1,22 @@
+commit b7a5e7ae920f46936d152b973d88682c0f1d6d0d
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Wed Apr 22 23:33:14 2020 -0700
+
+    cmd/compile: adopt strong aux typing for some s390x rules
+    
+    Apply strong aux typing to lowering rules that do not require
+    modification beyond substituting -> for =>. Other lowering rules
+    and all the optimization rules will follow. I'm breaking it up
+    to allow toolstash-check to pass on the big CLs.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I6f1340058a8eb5a1390411e59fcbea9d7f777e58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229400
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/S390X.rules | 446 ++++++++---------
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 686 +++++++++++++--------------
+ 2 files changed, 566 insertions(+), 566 deletions(-)

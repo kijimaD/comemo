@@ -1,0 +1,28 @@
+commit 12e48f3bbf7a28a6340aee5d9a5eacf3a98e869c
+Author: Silke Hofstra <silke@slxh.eu>
+Date:   Wed Apr 20 15:02:35 2022 +0000
+
+    os: look up hostname from PATH in test
+    
+    When running TestHostname, the location of the hostname binary
+    is hardcoded as /bin/hostname. However, on some systems the actual
+    location is /usr/bin/hostname.
+    
+    Change this behaviour to perform a lookup for hostname in PATH,
+    and skip the test when it cannot be found there.
+    
+    Fixes #52402
+    
+    Change-Id: I5418bf77258f5ffb2a9f834b8c68d8a7b7a452d7
+    GitHub-Last-Rev: 750f36fcf9d4b26b75e91b895d6f7c6a275536ee
+    GitHub-Pull-Request: golang/go#52403
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400794
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/os_test.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

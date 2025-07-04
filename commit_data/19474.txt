@@ -1,0 +1,41 @@
+commit 14d2ee1d00b4fcaef569a84cb84888603405ca31
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat May 31 10:10:12 2014 -0400
+
+    runtime: make continuation pc available to stack walk
+    
+    The 'continuation pc' is where the frame will continue
+    execution, if anywhere. For a frame that stopped execution
+    due to a CALL instruction, the continuation pc is immediately
+    after the CALL. But for a frame that stopped execution due to
+    a fault, the continuation pc is the pc after the most recent CALL
+    to deferproc in that frame, or else 0. That is where execution
+    will continue, if anywhere.
+    
+    The liveness information is only recorded for CALL instructions.
+    This change makes sure that we never look for liveness information
+    except for CALL instructions.
+    
+    Using a valid PC fixes crashes when a garbage collection or
+    stack copying tries to process a stack frame that has faulted.
+    
+    Record continuation pc in heapdump (format change).
+    
+    Fixes #8048.
+    
+    LGTM=iant, khr
+    R=khr, iant, dvyukov
+    CC=golang-codereviews, r
+    https://golang.org/cl/100870044
+
+ src/pkg/runtime/cgocall.c       |   4 +-
+ src/pkg/runtime/heapdump.c      |   1 +
+ src/pkg/runtime/mgc0.c          |   6 ++-
+ src/pkg/runtime/panic.c         |   2 +-
+ src/pkg/runtime/proc.c          |   2 +-
+ src/pkg/runtime/runtime.h       |   6 +++
+ src/pkg/runtime/stack.c         |   8 ++-
+ src/pkg/runtime/traceback_arm.c |  71 ++++++++++++++++++++++++--
+ src/pkg/runtime/traceback_x86.c |  66 +++++++++++++++++++++++--
+ test/fixedbugs/issue8048.go     | 107 ++++++++++++++++++++++++++++++++++++++++
+ 10 files changed, 257 insertions(+), 16 deletions(-)

@@ -1,0 +1,21 @@
+commit e81cc9119f7906ebded91f4cdc149866ac2acc0d
+Author: erifan01 <eric.fang@arm.com>
+Date:   Tue Mar 7 08:49:11 2023 +0800
+
+    cmd/compile: combine similar optimization rules on arm64
+    
+    This CL combines some rules with the same structure.
+    In order to avoid extremely long rules, this CL does not merge some
+    rules. In addition, this CL aligned the components of some rules for
+    better reading.
+    
+    Change-Id: I4ba1493251ace00b10591e3c8eef4b6277a4b226
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476115
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules | 967 +++++++++++---------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go  |  16 +-
+ 2 files changed, 418 insertions(+), 565 deletions(-)

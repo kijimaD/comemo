@@ -1,0 +1,32 @@
+commit ca94e9e223888d6d99a8f7b559f08bb59d2cc5fd
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Apr 12 16:08:22 2024 -0400
+
+    os: make File.Readdir et al concurrency-safe
+    
+    Before, all methods of File (including Close) were
+    safe for concurrent use (I checked), except the three
+    variants of ReadDir.
+    
+    This change makes the ReadDir operations
+    atomic too, and documents explicitly that all methods
+    of File have this property, which was already implied
+    by the package documentation.
+    
+    Fixes #66498
+    
+    Change-Id: I05c88b4e60b44c702062e99ed8f4a32e7945927a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578322
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/dir_darwin.go   | 16 ++++++++++++----
+ src/os/dir_plan9.go    | 10 +++++++---
+ src/os/dir_unix.go     | 14 +++++++++-----
+ src/os/dir_windows.go  | 22 ++++++++++++++++++----
+ src/os/file.go         | 14 ++++++++++----
+ src/os/file_plan9.go   | 15 ++++++++-------
+ src/os/file_unix.go    | 19 +++++++++----------
+ src/os/file_windows.go | 15 +++++++--------
+ src/os/types.go        |  2 ++
+ 9 files changed, 82 insertions(+), 45 deletions(-)

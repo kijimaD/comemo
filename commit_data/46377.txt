@@ -1,0 +1,17 @@
+commit 8fad81cd6294776c63a3e9a5820f196949974861
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 28 16:40:34 2021 +0700
+
+    cmd/compile: fold handling OCONV logic to separate function
+    
+    So next CL can re-use the logic to perform checkptr instrumentation.
+    
+    Change-Id: I3241e9c3c84da04db71fd1d4fd83cb76b2e18521
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345435
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 338 +++++++++++++++++----------------
+ 1 file changed, 170 insertions(+), 168 deletions(-)

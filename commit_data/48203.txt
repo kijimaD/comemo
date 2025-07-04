@@ -1,0 +1,31 @@
+commit 5a9fc946b42cc987db41eabcfcbaffd2fb310d94
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 23 11:55:08 2022 -0500
+
+    cmd/go: avoid +incompatible major versions if a go.mod file exists in a subdirectory for that version
+    
+    Previous versions of the 'go' command would reject a pseudo-version
+    passed to 'go get' if that pseudo-version had a mismatched major
+    version and lacked a "+incompatible" suffix. However, they would
+    erroneously accept a version *with* a "+incompatible" suffix even if
+    the repo contained a vN/go.mod file for the same major version, and
+    would generate a "+incompatible" pseudo-version or version if the user
+    requested a tag, branch, or commit hash.
+    
+    This change uniformly rejects "vN.…" without "+incompatible", and also
+    avoids resolving to "vN.…+incompatible", when vN/go.mod exists.
+    To maintain compatibility with existing go.mod files, it still accepts
+    "vN.…+incompatible" if the version is requested explicitly as such
+    and the repo root lacks a go.mod file.
+    
+    Fixes #51324
+    Updates #36438
+    
+    Change-Id: I2b16150c73fc2abe4d0a1cd34cb1600635db7139
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387675
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modfetch/coderepo.go      | 53 +++++++++++++++++++++------
+ src/cmd/go/internal/modfetch/coderepo_test.go | 48 ++++++++++++++++++++++++
+ 2 files changed, 89 insertions(+), 12 deletions(-)

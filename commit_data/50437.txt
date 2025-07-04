@@ -1,0 +1,27 @@
+commit 41089704ddafa736e73ebd54f837706e979ecb49
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Fri Sep 9 08:48:34 2022 +0800
+
+    all: transfer reflect.{SliceHeader, StringHeader} to unsafeheader.{Slice, String}
+    
+    After we deprecated reflect.{SliceHeader, StringHeader}, it is recommended
+    to use unsafe.{Slice, String} to replace its work. However, the compiler
+    and linker cannot be migrated for the time being.
+    
+    As a temporary strategy, using the "internal/unsafeheader" package like
+    other code is the most suitable choice at present.
+    
+    For #53003.
+    
+    Change-Id: I69d0ef72e2d95caabd0706bbb247a719d225c758
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429755
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+
+ src/cmd/compile/internal/base/mapfile_mmap.go | 6 +++---
+ src/cmd/link/internal/ld/outbuf_windows.go    | 6 +++---
+ src/reflect/value.go                          | 2 +-
+ 3 files changed, 7 insertions(+), 7 deletions(-)

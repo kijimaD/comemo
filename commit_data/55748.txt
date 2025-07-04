@@ -1,0 +1,22 @@
+commit 8a493a667268083a6e33de606fd90e82ddd694f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:56:56 2024 -0500
+
+    runtime: move all timer-locking code into time.go
+    
+    No code changes, only code moves here.
+    Move all code that locks pp.timersLock into time.go
+    so that it is all in one place, for easier abstraction.
+    
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: I1b59af7780431ec6479440534579deb1a3d9d7a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564117
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/proc.go | 123 ++-------------------------------------------------
+ src/runtime/time.go | 124 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 128 insertions(+), 119 deletions(-)

@@ -1,0 +1,17 @@
+commit 23410ced69b90ded4aacde12e40c162c6568e8db
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 10 11:26:04 2011 -0800
+
+    go/ast: correct end position for Index and TypeAssert expressions
+    
+    - added position information for [ and ] brackets of Index and Slice expression nodes
+    - removed a TODO in go/printer
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/3867045
+
+ src/pkg/go/ast/ast.go       | 49 +++++++++++++++++++++++++++------------------
+ src/pkg/go/parser/parser.go | 21 ++++++++++---------
+ src/pkg/go/printer/nodes.go | 20 +++++++-----------
+ 3 files changed, 47 insertions(+), 43 deletions(-)

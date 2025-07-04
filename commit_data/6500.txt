@@ -1,0 +1,18 @@
+commit b390c4b9d602b69e37cf8a52b8e66c4758334884
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Oct 12 09:48:56 2010 -0400
+
+    syscall: add sockaddr_ll support for linux/386, linux/amd64
+    
+    R=rsc, albert.strasheim
+    CC=golang-dev
+    https://golang.org/cl/2356042
+
+ src/pkg/syscall/mkerrors.sh            |  3 ++-
+ src/pkg/syscall/syscall_linux.go       | 39 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/types_linux.c          |  6 ++++-
+ src/pkg/syscall/zerrors_linux_386.go   | 15 +++++++++++++
+ src/pkg/syscall/zerrors_linux_amd64.go | 15 +++++++++++++
+ src/pkg/syscall/ztypes_linux_386.go    | 41 +++++++++++++++++++++-------------
+ src/pkg/syscall/ztypes_linux_amd64.go  | 41 +++++++++++++++++++++-------------
+ 7 files changed, 128 insertions(+), 32 deletions(-)

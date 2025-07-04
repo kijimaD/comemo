@@ -1,0 +1,12 @@
+commit 7ff68b365b68a7afa116b4dac0f1dcad989daa22
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 13 17:08:27 2010 -0500
+
+    go_mem: goroutine exit is not special
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3628041
+
+ doc/go_mem.html | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

@@ -1,0 +1,24 @@
+commit fbf4dd91b9762eeb038c141b21712534310795f1
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Wed Dec 21 13:49:04 2016 +0000
+
+    net/http/httptest: add Client and Certificate methods to Server
+    
+    Adds a function for easily accessing the x509.Certificate
+    of a Server, if there is one. Also adds a helper function
+    for getting a http.Client suitable for use with the server.
+    
+    This makes the steps required to test a httptest
+    TLS server simpler.
+    
+    Fixes #18411
+    
+    Change-Id: I2e78fe1e54e31bed9c641be2d9a099f698c7bbde
+    Reviewed-on: https://go-review.googlesource.com/34639
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/deps_test.go             |  2 +-
+ src/net/http/httptest/example_test.go | 22 ++++++++++++++++++++
+ src/net/http/httptest/server.go       | 38 +++++++++++++++++++++++++++++++++++
+ src/net/http/httptest/server_test.go  | 23 +++++++++++++++++++++
+ 4 files changed, 84 insertions(+), 1 deletion(-)

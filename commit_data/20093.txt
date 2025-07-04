@@ -1,0 +1,43 @@
+commit 7f223e3b3ba732c287db5a57b5091784baa9b86f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Aug 24 12:05:07 2014 +0400
+
+    runtime: fix races on mheap.allspans
+    
+    This is based on the crash dump provided by Alan
+    and on mental experiments:
+    
+    sweep 0 74
+    fatal error: gc: unswept span
+    runtime stack:
+    runtime.throw(0x9df60d)
+    markroot(0xc208002000, 0x3)
+    runtime.parfordo(0xc208002000)
+    runtime.gchelper()
+    
+    I think that when we moved all stacks into heap,
+    we introduced a bunch of bad data races. This was later
+    worsened by parallel stack shrinking.
+    
+    Observation 1: exitsyscall can allocate a stack from heap at any time (including during STW).
+    Observation 2: parallel stack shrinking can (surprisingly) grow heap during marking.
+    Consider that we steadily grow stacks of a number of goroutines from 8K to 16K.
+    And during GC they all can be shrunk back to 8K. Shrinking will allocate lots of 8K
+    stacks, and we do not necessary have that many in heap at this moment. So shrinking
+    can grow heap as well.
+    
+    Consequence: any access to mheap.allspans in GC (and otherwise) must take heap lock.
+    This is not true in several places.
+    
+    Fix this by protecting accesses to mheap.allspans and introducing allspans cache for marking,
+    similar to what we use for sweeping.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=adonovan, golang-codereviews, khr, rlh
+    https://golang.org/cl/126510043
+
+ src/pkg/runtime/malloc.h |  2 +-
+ src/pkg/runtime/mgc0.c   | 68 ++++++++++++++++++++++++++++++------------------
+ src/pkg/runtime/mheap.c  |  2 +-
+ 3 files changed, 45 insertions(+), 27 deletions(-)

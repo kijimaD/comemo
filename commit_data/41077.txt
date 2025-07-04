@@ -1,0 +1,26 @@
+commit 98418c998c73075b050f6e52088f8dbc4cbdf7ef
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jan 2 16:42:43 2020 -0500
+
+    cmd/go: convert TestTestRegexps to the script framework
+    
+    It's hard to convert this one exactly because I don't think
+    we can guarantee that the grep command exists to filter stdout,
+    so I've tried to replicate the intent of the test.
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: Ib593799ef7634ce12efb3ff357eb34475e2ea321
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213130
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                        | 54 ----------------------
+ src/cmd/go/testdata/script/test_regexps.txt  | 68 ++++++++++++++++++++++++++++
+ src/cmd/go/testdata/src/testregexp/x_test.go | 17 -------
+ src/cmd/go/testdata/src/testregexp/z_test.go | 19 --------
+ 4 files changed, 68 insertions(+), 90 deletions(-)

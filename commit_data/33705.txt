@@ -1,0 +1,27 @@
+commit a5b759aab8b9e866c0bf2dd91ffde68b6bc6766b
+Author: David Chase <drchase@google.com>
+Date:   Mon Nov 27 18:06:17 2017 -0500
+
+    cmd/compile: adjust lineno during import to get Pos right
+    
+    Binary import sometimes constructs nodes using functions
+    that use the global lineno for the Position.  This causes
+    spurious numbers to appear in the assembly and the
+    debugging output.
+    
+    Fix (targeted, because late in the cycle): save and restore
+    lineno around bimport calls known to use lineno-sensitive
+    functions.
+    
+    Updates #22600.
+    (Comment: "This is a weird line to step through")
+    
+    Change-Id: I9c4094670380609fe4b6696443fb02579521c596
+    Reviewed-on: https://go-review.googlesource.com/80115
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bimport.go             | 34 +++++++++++++++-------
+ .../internal/ssa/testdata/hist.opt-dlv.nexts       |  2 --
+ 2 files changed, 24 insertions(+), 12 deletions(-)

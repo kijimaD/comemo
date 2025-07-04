@@ -1,0 +1,15 @@
+commit 791ac65b8271ad374df3877d94c3b5eee9c09537
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Sep 27 13:29:39 2012 +1000
+
+    lzw: fix Write returning the wrong number of bytes written.
+    
+    Fixes #4160.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/6564060
+
+ src/pkg/compress/lzw/writer.go      | 11 ++++++-----
+ src/pkg/compress/lzw/writer_test.go |  8 ++++++++
+ 2 files changed, 14 insertions(+), 5 deletions(-)

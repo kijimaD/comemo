@@ -1,0 +1,25 @@
+commit 10a65649a3b2e34ffe8e4202bfa3df851cea0fb4
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Feb 2 18:26:06 2024 -0500
+
+    go/types, types2: ensure that Alias.actual is set in NewAlias
+    
+    Types returned by the go/types API must be immutable (or at least
+    concurrency safe), but NewAlias returned an alias without actual set.
+    
+    Ensure that actual is set by unaliasing. Also make some superficial
+    simplifications to unalias, and avoid indirection where unnecessary.
+    
+    Fixes golang/go#65455
+    
+    Change-Id: Ic9a020da5accf9032056a924b65c9e9e08cb2e0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560915
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/alias.go    | 37 ++++++++++++++++-------------
+ src/cmd/compile/internal/types2/api_test.go |  6 +++++
+ src/go/types/alias.go                       | 37 ++++++++++++++++-------------
+ src/go/types/api_test.go                    |  6 +++++
+ 4 files changed, 54 insertions(+), 32 deletions(-)

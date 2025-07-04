@@ -1,0 +1,12 @@
+commit 63e28ae4ab274d2ce3056e5adf76a2027e453ca7
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 5 13:51:49 2011 -0700
+
+    gotest: fix windows build.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4339055
+
+ src/cmd/gotest/gotest.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

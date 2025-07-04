@@ -1,0 +1,23 @@
+commit 46fa8afca61cf60c64f006685cd6cbb94e080118
+Author: Kevin Herro <kevin109104@gmail.com>
+Date:   Fri Mar 26 08:58:11 2021 -0700
+
+    cmd/go/internal/load/test: parse overlay files for test functions
+    
+    The existing implementation implicitly reads from the filesystem
+    instead of using the overlay file data (due to src == nil), so
+    pass in the overlaid source if we have an overlay for this file.
+    
+    Fixes #44946
+    
+    Change-Id: I61ce09d10c5edac1b47332583efdcd3c1241f58a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305071
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/load/test.go            |  9 ++++++++-
+ src/cmd/go/testdata/script/test_overlay.txt | 24 ++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

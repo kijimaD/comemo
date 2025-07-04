@@ -1,0 +1,22 @@
+commit 4a0dad211c2158e8763c6fd230fbdc1c7d566cb9
+Author: Michael McLoughlin <mmcloughlin@gmail.com>
+Date:   Sun Sep 23 20:29:33 2018 -0700
+
+    crypto/cipher: 8K benchmarks for AES stream modes
+    
+    Some parallelizable cipher modes may achieve peak performance for larger
+    block sizes. For this reason the AES-GCM mode already has an 8K
+    benchmark alongside the 1K version. This change introduces 8K benchmarks
+    for additional AES stream cipher modes.
+    
+    Updates #20967
+    
+    Change-Id: If97c6fbf31222602dcc200f8f418d95908ec1202
+    Reviewed-on: https://go-review.googlesource.com/136897
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/cipher/benchmark_test.go | 67 +++++++++++++------------------------
+ 1 file changed, 23 insertions(+), 44 deletions(-)

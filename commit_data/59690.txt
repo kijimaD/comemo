@@ -1,0 +1,21 @@
+commit 155ba387a93fddbd6ced288fe539a55c31b2597e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu May 22 12:40:51 2025 -0400
+
+    cmd/doc: properly set GOPROXY to avoid deprecation checks
+    
+    This change fixes a bug that was introduced in CL 675155. Instead of
+    doing the two step download and run with GOPROXY=off, do the run with
+    GOPROXY=<download cache>:$GOPROXY, so that we use the previously
+    downloaded version of pkgsite as the latest.
+    
+    Fixes #73833
+    
+    Change-Id: I8803426498ab026602805d6448a130eb11458c99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675576
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/doc/main.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,0 +1,34 @@
+commit ea2c27fe8204225b4d76ed4a541c6b92afec8dde
+Author: David Chase <drchase@google.com>
+Date:   Thu Aug 11 09:58:23 2022 -0400
+
+    cmd/compile: package-annotate structs when error would be ambiguous
+    
+    Before emitting a "wanted Foo but got Bar" message for an interface
+    type match failure, check that Foo and Bar are different.  If they
+    are not, add package paths to first unexported struct field seen,
+    because that is the cause (a cause, there could be more than one).
+    
+    Replicated in go/types.
+    
+    Added tests to go/types and cmd/compile/internal/types2
+    
+    Fixes #54258.
+    
+    Change-Id: Ifc2b2067d62fe2138996972cdf3b6cb7ca0ed456
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422914
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/typecheck/expr.go     |  16 +++-
+ src/cmd/compile/internal/typecheck/stmt.go     |   4 +-
+ src/cmd/compile/internal/typecheck/subr.go     |   3 +-
+ src/cmd/compile/internal/types2/issues_test.go | 121 ++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/lookup.go      |  15 ++-
+ src/cmd/compile/internal/types2/typestring.go  |  25 ++++-
+ src/go/types/issues_test.go                    | 122 +++++++++++++++++++++++++
+ src/go/types/lookup.go                         |  16 +++-
+ src/go/types/object.go                         |   7 ++
+ src/go/types/typestring.go                     |  25 ++++-
+ 10 files changed, 330 insertions(+), 24 deletions(-)

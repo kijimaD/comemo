@@ -1,0 +1,25 @@
+commit 3cb4bdb9ce7135a107ab35e64b39dab9f22acfa1
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Nov 30 16:59:43 2010 -0500
+
+    utf8: make EncodeRune's destination the first argument.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3364041
+
+ src/pkg/bufio/bufio.go               |   2 +-
+ src/pkg/bufio/bufio_test.go          |   4 +-
+ src/pkg/bytes/buffer.go              |   2 +-
+ src/pkg/bytes/buffer_test.go         |   4 +-
+ src/pkg/bytes/bytes.go               |   2 +-
+ src/pkg/crypto/block/cbc_aes_test.go | 102 --------------------------------
+ src/pkg/crypto/block/ctr_aes_test.go | 110 -----------------------------------
+ src/pkg/fmt/print.go                 |   4 +-
+ src/pkg/html/escape.go               |   2 +-
+ src/pkg/json/decode.go               |   6 +-
+ src/pkg/regexp/regexp.go             |   2 +-
+ src/pkg/strings/strings.go           |   2 +-
+ src/pkg/utf8/utf8.go                 |   2 +-
+ src/pkg/utf8/utf8_test.go            |  10 ++--
+ 14 files changed, 21 insertions(+), 233 deletions(-)

@@ -1,0 +1,14 @@
+commit 1d00dc39851cba737d3ada9a9cb4a99e525b3e9f
+Author: Sameer Ajmani <sameer@google.com>
+Date:   Mon Apr 24 09:34:24 2023 -0400
+
+    doc: fix typo in Go 1.21 release notes
+    
+    Change-Id: Ib32567fdd12079cd171a4e1bc118ce27d8ce2a5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488035
+    Run-TryBot: Sameer Ajmani <sameer@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.21.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

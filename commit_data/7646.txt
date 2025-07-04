@@ -1,0 +1,13 @@
+commit e9135403cf04d334dbf739fe98405b01930d6ca4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Mar 5 17:51:53 2011 -0800
+
+    A+C: Robert Hencke (individual CLA)
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4256053
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

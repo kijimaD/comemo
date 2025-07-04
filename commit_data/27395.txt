@@ -1,0 +1,18 @@
+commit 2699da180967e5d5dab2cc64deeca4680bf2b2fb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 13 14:26:30 2016 +1000
+
+    time: set Local.name on windows
+    
+    Local.String() returns "Local" on every OS, but windows.
+    Change windows code to do like others.
+    
+    Updates #15568
+    
+    Change-Id: I7a4d2713d940e2a01cff9d7f5cefc89def07546a
+    Reviewed-on: https://go-review.googlesource.com/23078
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/zoneinfo_test.go    | 9 +++++++++
+ src/time/zoneinfo_windows.go | 2 ++
+ 2 files changed, 11 insertions(+)

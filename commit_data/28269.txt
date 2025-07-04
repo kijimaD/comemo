@@ -1,0 +1,18 @@
+commit 2a36f78e8795c939630e494319c5790bc519ba72
+Author: Jim Kingdon <jim@bolt.me>
+Date:   Thu Sep 8 11:27:04 2016 -0700
+
+    doc: avoid mentioning non-existence of u flag to fmt.Printf.
+    
+    It is better to document what golang does, rather than how it differs
+    from languages which readers may or may not know.
+    
+    That the output format is based on the type is basically self-evident
+    if you consider this just in go terms.
+    
+    Change-Id: I0223e9b4cb67cc83a9ebe4d424e6c151d7ed600f
+    Reviewed-on: https://go-review.googlesource.com/28393
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/doc.go | 3 ---
+ 1 file changed, 3 deletions(-)

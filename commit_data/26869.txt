@@ -1,0 +1,15 @@
+commit b09c274bfabb3edef60b4df3375906852aab7da1
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Apr 12 12:46:54 2016 -0400
+
+    net/http: fix TestLinuxSendfile on s390x
+    
+    s390x doesn't have sendfile64 so apply the same fix as MIPS
+    (eebf7d27) and just use sendfile.
+    
+    Change-Id: If8fe2e974ed44a9883282430157c3545d5bd04bd
+    Reviewed-on: https://go-review.googlesource.com/21892
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/fs_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

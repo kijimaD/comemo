@@ -1,0 +1,12 @@
+commit cc9a5c3be7fb8c5935dbfa49b7926219674fa705
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue May 1 16:15:32 2012 +1000
+
+    misc/dashboard/codereview: preserve CL ordering.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6136056
+
+ misc/dashboard/codereview/dashboard/front.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

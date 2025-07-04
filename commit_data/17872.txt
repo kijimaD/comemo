@@ -1,0 +1,14 @@
+commit 8f10c76471156ea2165816edcd370e290f420753
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Mon Nov 11 12:09:24 2013 +1100
+
+    cmd/godoc: document package-level examples
+    
+    Fixes  issue  5807 .
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/23940043
+
+ src/pkg/testing/testing.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

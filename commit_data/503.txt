@@ -1,0 +1,24 @@
+commit 9c2ade358d451834c8ca67263ba55d605c3628a1
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Aug 8 17:13:31 2008 -0700
+
+    mp constants
+    
+    R=r
+    DELTA=381  (142 added, 26 deleted, 213 changed)
+    OCL=14011
+    CL=14016
+
+ src/cmd/6g/cgen.c   |   3 +-
+ src/cmd/6g/gen.c    |  19 +++---
+ src/cmd/6g/gsubr.c  | 164 ++++++++++++++++++++++++++++------------------------
+ src/cmd/6g/obj.c    |   2 +-
+ src/cmd/gc/Makefile |   2 +-
+ src/cmd/gc/const.c  | 147 +++++++++++++++++++++++++++-------------------
+ src/cmd/gc/export.c |  15 +++--
+ src/cmd/gc/go.h     |  95 +++++++++++++++++++++++++-----
+ src/cmd/gc/go.y     |  10 ++--
+ src/cmd/gc/lex.c    |  83 +++++++++++++-------------
+ src/cmd/gc/subr.c   |  25 ++++----
+ src/cmd/gc/walk.c   |   5 +-
+ 12 files changed, 343 insertions(+), 227 deletions(-)

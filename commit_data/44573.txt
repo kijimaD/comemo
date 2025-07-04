@@ -1,0 +1,21 @@
+commit e4f3cfadf618df5135bf0952507ab491975cceb5
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Thu Feb 25 15:16:25 2021 -0500
+
+    net: don't append a dot to TXT records on Plan 9
+    
+    TXT records are not domain names, so no need to call absDomainName.
+    The output now matches the pure Go resolver.
+    
+    Fixes #44619
+    
+    Change-Id: I1ebf09152ff5c0446d2e2b4c26671358892d9dc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296589
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: David du Colombier <0intro@gmail.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/net/lookup_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

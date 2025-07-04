@@ -1,0 +1,14 @@
+commit 7d403871cb7e319cb1f52ce2ff04c80bdc5ac92a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jan 10 14:17:20 2013 +1100
+
+    doc/contribute: Link to IssueTracker docs for more "special sentences"
+    
+    Update #4582.
+    
+    R=nigeltao, dave, adg
+    CC=golang-dev
+    https://golang.org/cl/7070065
+
+ doc/contribute.html | 2 ++
+ 1 file changed, 2 insertions(+)

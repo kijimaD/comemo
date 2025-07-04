@@ -1,0 +1,13 @@
+commit 77ac8ecbebeafaa1771e21172474b2920a0fcd50
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 26 10:51:00 2014 -0800
+
+    cmd/gc: minor code simplification
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/68980044
+
+ src/cmd/gc/plive.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

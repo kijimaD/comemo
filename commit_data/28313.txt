@@ -1,0 +1,26 @@
+commit 2e4dc86bfb19b1eb2a69ac36c87ada22bacc98c9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Sep 11 14:43:37 2016 -0700
+
+    cmd/compile: add Node.IsMethod helper
+    
+    Changes generated with eg:
+    
+    func before(n *gc.Node) bool { return n.Type.Recv() != nil }
+    func after(n *gc.Node) bool  { return n.IsMethod() }
+    
+    func before(n *gc.Node) bool { return n.Type.Recv() == nil }
+    func after(n *gc.Node) bool  { return !n.IsMethod() }
+    
+    Change-Id: I28e544490d17bbdc06ab11ed32464af5802ab206
+    Reviewed-on: https://go-review.googlesource.com/28968
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/export.go    | 2 +-
+ src/cmd/compile/internal/gc/inl.go       | 6 +++---
+ src/cmd/compile/internal/gc/pgen.go      | 2 +-
+ src/cmd/compile/internal/gc/subr.go      | 6 ++++++
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ 5 files changed, 12 insertions(+), 6 deletions(-)

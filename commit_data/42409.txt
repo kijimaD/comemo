@@ -1,0 +1,29 @@
+commit 86ed0955bf58ecb738b87892b4377e556e2cc88a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 26 16:11:22 2020 -0400
+
+    os: in Symlink, stat the correct target path for drive-relative targets on Windows
+    
+    Previously, when the target (“old”) path passed to os.Symlink was a
+    “root-relative” Windows path,¹ we would erroneously prepend
+    destination (“new”) path when determining which path to Stat,
+    resulting in an invalid path which was then masked by the lack of
+    error propagation for the Stat call (#39183).
+    
+    If the link target is a directory (rather than a file), that would
+    result in the symlink being created without the
+    SYMBOLIC_LINK_FLAG_DIRECTORY flag, which then fails in os.Open.
+    
+    ¹https://docs.microsoft.com/en-us/windows/win32/fileio/creating-symbolic-links
+    
+    Updates #39183
+    
+    Change-Id: I04f179cd2b0c44f984f34ec330acad2408aa3a20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235317
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/file_windows.go    |  14 +++++-
+ src/os/os_windows_test.go | 119 +++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 130 insertions(+), 3 deletions(-)

@@ -1,0 +1,23 @@
+commit 125d187f9ac013cd23daaf447962622f38d3826c
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 21 10:56:35 2019 +0100
+
+    cmd/dist, misc/cgo: enable tests for aix/ppc64
+    
+    Some cgo tests aren't yet available on aix/ppc64.
+    -shared and -static don't work as expected and will be fixed latter.
+    
+    Updates #30565
+    
+    Change-Id: Ic59cabe685cb1cbdf89a8d1d1a1d2c4b0e8ef442
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164018
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/cthread_unix.c  |  2 +-
+ misc/cgo/test/issue18146.go   |  2 ++
+ misc/cgo/testso/so_test.go    |  7 ++++++-
+ misc/cgo/testsovar/so_test.go |  7 ++++++-
+ src/cmd/dist/test.go          | 12 +++++++++---
+ 5 files changed, 24 insertions(+), 6 deletions(-)

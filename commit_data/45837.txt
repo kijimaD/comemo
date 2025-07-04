@@ -1,0 +1,28 @@
+commit 86743e7d8652c316b5f77a84ffc83244ee10a41b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Apr 18 13:38:34 2021 +1000
+
+    image: add RGBA64Image interface
+    
+    The new RGBA64At method is equivalent to the existing At method (and the
+    new SetRGBA64 method is equivalent to the existing Set method in the
+    image/draw package), but they can avoid allocations from converting
+    concrete color types to the color.Color interface type.
+    
+    Also update api/go1.17.txt and doc/go1.17.html
+    
+    Fixes #44808
+    
+    Change-Id: I8671f3144512b1200fa373840ed6729a5d61bc35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311129
+    Trust: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ api/go1.17.txt          |  34 ++++++++-
+ doc/go1.17.html         |  13 ++++
+ src/image/draw/draw.go  |  10 +++
+ src/image/image.go      | 197 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/image/image_test.go |  75 ++++++++++++++++++
+ src/image/ycbcr.go      |  10 +++
+ 6 files changed, 338 insertions(+), 1 deletion(-)

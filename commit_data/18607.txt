@@ -1,0 +1,13 @@
+commit 7403071ada618d2db82b7897cce19cd1627c8831
+Author: Patrick Mézard <patrick@mezard.eu>
+Date:   Mon Feb 24 10:18:40 2014 -0500
+
+    time: explicitely mention Tickers have to be stopped
+    
+    LGTM=rsc
+    R=golang-codereviews, gobot, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/64770043
+
+ src/pkg/time/tick.go | 1 +
+ 1 file changed, 1 insertion(+)

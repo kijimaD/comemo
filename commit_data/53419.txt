@@ -1,0 +1,15 @@
+commit 5f695f7072848e425289ca94bc460da813de66da
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Thu Jun 1 06:11:51 2023 -0700
+
+    doc: add release note for cgo error on methods on C types
+    
+    Change-Id: Ibc5f23f37e5bd45034771a0205eadac3072d6870
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499816
+    TryBot-Bypass: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Eli Bendersky <eliben@google.com>
+
+ doc/go1.21.html | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

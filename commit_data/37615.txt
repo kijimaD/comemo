@@ -1,0 +1,14 @@
+commit f604b6ce3877bf7d612c3aaaa429a304bd2fa383
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 7 10:14:42 2018 -0500
+
+    doc: mention the use of replacements to resolve imports for 1.12
+    
+    Updates #26241
+    
+    Change-Id: I8ffac13d9cc1ee4d4de8fcd2042a7fa60fca567b
+    Reviewed-on: https://go-review.googlesource.com/c/153157
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.12.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

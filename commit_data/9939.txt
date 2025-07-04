@@ -1,0 +1,12 @@
+commit 060100096818f3eb6393a9a8420afa1fef2522e8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 12 10:55:42 2011 -0700
+
+    catch future accidental dependencies to exp/ or old/
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/5247055
+
+ src/pkg/deps.bash | 5 +++++
+ 1 file changed, 5 insertions(+)

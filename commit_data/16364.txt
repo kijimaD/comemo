@@ -1,0 +1,26 @@
+commit 99f67228608db9c9a587586186ec612feb425e48
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 21 15:51:49 2013 -0700
+
+    bufio: reuse Writer buffers after Flush
+    
+    A bufio.Writer.Flush marks the usual end of a Writer's
+    life. Recycle its internal buffer on those explicit flushes,
+    but not on normal, as-needed internal flushes.
+    
+    benchmark               old ns/op    new ns/op    delta
+    BenchmarkWriterEmpty         1959          727  -62.89%
+    
+    benchmark              old allocs   new allocs    delta
+    BenchmarkWriterEmpty            2            1  -50.00%
+    
+    benchmark               old bytes    new bytes    delta
+    BenchmarkWriterEmpty         4215           83  -98.03%
+    
+    R=gri, iant
+    CC=gobot, golang-dev, voidlogic7
+    https://golang.org/cl/9459044
+
+ src/pkg/bufio/bufio.go      | 78 +++++++++++++++++++++++++++++++++++----------
+ src/pkg/bufio/bufio_test.go | 28 ++++++++++++++++
+ 2 files changed, 89 insertions(+), 17 deletions(-)

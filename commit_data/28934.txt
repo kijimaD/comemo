@@ -1,0 +1,26 @@
+commit 5378dd77684e2eee5f05aab4b77497bb635fd544
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 19 09:11:16 2016 -0400
+
+    text/template: add support for reflect.Value args, results in funcs
+    
+    Add support for passing reflect.Values to and returning reflect.Values from
+    any registered functions in the FuncMap, much as if they were
+    interface{} values. Keeping the reflect.Value instead of round-tripping
+    to interface{} preserves addressability of the value, which is important
+    for method lookup.
+    
+    Change index and a few other built-in functions to use reflect.Values,
+    making a loop using explicit indexing now match the semantics that
+    range has always had.
+    
+    Fixes #14916.
+    
+    Change-Id: Iae1a2fd9bb426886a7fcd9204f30a2d6ad4646ad
+    Reviewed-on: https://go-review.googlesource.com/31462
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/exec.go      | 28 ++++++++++++---
+ src/text/template/exec_test.go | 23 ++++++++++++
+ src/text/template/funcs.go     | 81 +++++++++++++++++++++---------------------
+ 3 files changed, 88 insertions(+), 44 deletions(-)

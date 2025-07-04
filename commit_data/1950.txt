@@ -1,0 +1,26 @@
+commit 9ef3d8e2e7abbf2b16e63a2b6168034bbe5ba802
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 2 18:25:18 2009 -0700
+
+    Daily snapshot:
+    first round of cleanups:
+    - removed extra .html templates (reduced to one)
+    - removed dependencies on various local files
+    - minor fixes throughout
+    
+    Basic docserver is now operational: Automatically finds all
+    (multi-file) packages under a root and serves either file
+    or package documentation.
+    
+    R=r
+    OCL=27049
+    CL=27049
+
+ usr/gri/pretty/Makefile               |  20 +--
+ usr/gri/pretty/dir_template.html      |  17 --
+ usr/gri/pretty/docprinter.go          | 108 ++++++------
+ usr/gri/pretty/error_template.html    |  12 --
+ usr/gri/pretty/godoc.go               | 303 +++++++++++++++++++++++++---------
+ usr/gri/pretty/packages_template.html |  10 --
+ usr/gri/pretty/template.html          |  18 --
+ 7 files changed, 282 insertions(+), 206 deletions(-)

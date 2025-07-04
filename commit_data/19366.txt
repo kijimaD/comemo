@@ -1,0 +1,15 @@
+commit 208a1ea564e8b1ce8d6d85a315a410f29d5e952e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 15 16:16:26 2014 -0400
+
+    doc/go1.3.html: add note about unsafe.Pointer strictness
+    
+    The vet check is in CL 10470044.
+    
+    LGTM=bradfitz, r
+    R=r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/91480044
+
+ doc/go1.3.html | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

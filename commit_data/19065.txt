@@ -1,0 +1,13 @@
+commit 96775a3688801bb44878133f40e63d9bea9352b3
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 9 09:45:39 2014 +1000
+
+    doc/go1.3.html: gccgo status
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/85720043
+
+ doc/go1.3.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

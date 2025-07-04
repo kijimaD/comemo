@@ -1,0 +1,12 @@
+commit be32c6aaf5e29a316f75d2063bd57d61b80d8646
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 30 10:28:48 2009 -0800
+
+    codereview: allow editing of local CL description
+    between hg clpatch and hg submit.
+    
+    R=r
+    https://golang.org/cl/162059
+
+ lib/codereview/codereview.py | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

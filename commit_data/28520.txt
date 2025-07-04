@@ -1,0 +1,29 @@
+commit 9f1c78781b320b6d7cf83378b857c1168cb7fd0f
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Sep 24 17:03:30 2016 +0200
+
+    cmd/cgo: fix line info in _cgo_gotypes.go
+    
+    Don't write line info for types, we don't have it.
+    Otherwise types look like:
+    
+    type _Ctype_struct_cb struct {
+    //line :1
+          on_test *[0]byte
+    //line :1
+    }
+    
+    Which is not useful. Moreover we never override source info,
+    so subsequent source code uses the same source info.
+    Moreover, empty file name makes compile emit no source debug info at all.
+    
+    Update #17190
+    
+    Change-Id: I7ae6fa4964520d7665743d340419b787df0b51e8
+    Reviewed-on: https://go-review.googlesource.com/29713
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/out.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

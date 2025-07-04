@@ -1,0 +1,33 @@
+commit 0765da5884adcc8b744979303a36a27092d8fc51
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Aug 12 16:21:09 2022 -0700
+
+    net/url: consistently remove ../ elements in JoinPath
+    
+    JoinPath would fail to remove relative elements from the start of
+    the path when the first path element is "".
+    
+    In addition, JoinPath would return the original path unmodified
+    when provided with no elements to join, violating the documented
+    behavior of always cleaning the resulting path.
+    
+    Correct both these cases.
+    
+        JoinPath("http://go.dev", "../go")
+        // before: http://go.dev/../go
+        // after:  http://go.dev/go
+    
+        JoinPath("http://go.dev/../go")
+        // before: http://go.dev/../go
+        // after:  http://go.dev/go
+    
+    Fixes #54385.
+    
+    Change-Id: I6d22cd160d097c50703dd96e4f453c6c118fd5d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423514
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/net/url/url.go      | 26 +++++++++++++---------
+ src/net/url/url_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 72 insertions(+), 11 deletions(-)

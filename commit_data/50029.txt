@@ -1,0 +1,21 @@
+commit bc69ad3a77129cd4cf4d3bdaa592dfc95ff8c769
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 19 13:42:38 2022 +0000
+
+    Revert "misc/cgo/testcarchive: permit SIGQUIT for TestSignalForwardingExternal"
+    
+    This reverts CL 419014.
+    
+    Reason for revert: broke darwin-amd64 builders
+    
+    Change-Id: I77838e696a55c415d322ebb9846503de25b546d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424954
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ misc/cgo/testcarchive/carchive_test.go          | 235 ++++++++++--------------
+ misc/cgo/testcarchive/testdata/libgo2/libgo2.go |   6 -
+ misc/cgo/testcarchive/testdata/main5.c          |  13 +-
+ 3 files changed, 97 insertions(+), 157 deletions(-)

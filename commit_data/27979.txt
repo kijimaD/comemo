@@ -1,0 +1,20 @@
+commit a1dc9465a1db83912a54927d13367404bfbef363
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Aug 18 13:49:10 2016 -0500
+
+    cmd/compile: PPC64.rules for load/store address folding
+    
+    This adds some additional rules to improve loads and
+    stores for ppc64x.
+    
+    Change-Id: I96b99c3a0019e6ac5393910c086f58330a04fc5a
+    Reviewed-on: https://go-review.googlesource.com/27354
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  48 ++
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   4 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  14 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 706 +++++++++++++++++++++++++++
+ 4 files changed, 764 insertions(+), 8 deletions(-)

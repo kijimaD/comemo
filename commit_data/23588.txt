@@ -1,0 +1,19 @@
+commit 1cbbd7f545870e128ebfc14b3cb93d57be79c773
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Jun 18 16:27:29 2015 +0200
+
+    cmd/trace: fix time scale
+    
+    Integrate the latest trace-viewer changes.
+    It now handles nanoseconds without any issues (thanks to @egonelbre!).
+    So change timestamps from microseconds to nanoseconds.
+    
+    Change-Id: I010f27effde7e80c9992e6f276f6912354d27df4
+    Reviewed-on: https://go-review.googlesource.com/11244
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Egon Elbre <egonelbre@gmail.com>
+
+ misc/trace/README.md              |    2 +-
+ misc/trace/trace_viewer_lean.html | 1975 +++++++++++++++++++------------------
+ src/cmd/trace/trace.go            |   25 +-
+ 3 files changed, 1033 insertions(+), 969 deletions(-)

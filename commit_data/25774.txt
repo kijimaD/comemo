@@ -1,0 +1,17 @@
+commit 0b4f5782664b1e5ff6006cc3a66de520ed1c7c79
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 25 15:21:10 2016 -0500
+
+    cmd/asm: remove nonexistent amd64 instructions
+    
+    These have no accepted input syntax and,
+    as far as I can tell, do not actually exist.
+    
+    Change-Id: Iafdfb71adccad76230191d922eb7ddf78b7d5898
+    Reviewed-on: https://go-review.googlesource.com/19612
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/x86/a.out.go  | 9 ---------
+ src/cmd/internal/obj/x86/anames.go | 9 ---------
+ src/cmd/internal/obj/x86/asm6.go   | 2 --
+ 3 files changed, 20 deletions(-)

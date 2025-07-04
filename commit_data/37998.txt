@@ -1,0 +1,28 @@
+commit 4ad5537bfa47a3cb55bb8194c3b6fa46de938fed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 14 17:34:29 2019 -0800
+
+    cmd/compile: accept 'i' suffix orthogonally on all numbers
+    
+    This change accepts the 'i' suffix on binary and octal integer
+    literals as well as hexadecimal floats. The suffix was already
+    accepted on decimal integers and floats.
+    
+    Note that 0123i == 123i for backward-compatibility (and 09i is
+    valid).
+    
+    See also the respective language in the spec change:
+    https://golang.org/cl/161098
+    
+    Change-Id: I9d2d755cba36a3fa7b9e24308c73754d4568daaf
+    Reviewed-on: https://go-review.googlesource.com/c/162878
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/mpfloat.go          | 28 ++++++++++++++----
+ src/cmd/compile/internal/syntax/scanner.go      |  3 --
+ src/cmd/compile/internal/syntax/scanner_test.go | 20 +++++++------
+ src/cmd/compile/internal/syntax/tokens.go       |  3 ++
+ test/literal2.go                                | 38 +++++++++++++------------
+ 5 files changed, 58 insertions(+), 34 deletions(-)

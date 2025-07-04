@@ -1,0 +1,15 @@
+commit 180541b2b1bde56f31d0f895a12c25bb01d8c58b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 28 14:23:57 2012 +1100
+
+    text/template: fix redefinition bugs
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5696087
+
+ src/pkg/text/template/multi_test.go       |  6 ++++++
+ src/pkg/text/template/parse/parse.go      |  2 ++
+ src/pkg/text/template/parse/parse_test.go |  3 +++
+ src/pkg/text/template/template.go         | 20 +++++++++++---------
+ 4 files changed, 22 insertions(+), 9 deletions(-)

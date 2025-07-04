@@ -1,0 +1,14 @@
+commit 190313e696239feb6cb8187e1389820817575c4c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 24 12:11:58 2015 +0200
+
+    net/http: document that Hijack's net.Conn might have left-over timeouts set
+    
+    Fixes #8296
+    
+    Change-Id: I71b330a0f961d46ae4ed81d5f3f5ce5bf708a29a
+    Reviewed-on: https://go-review.googlesource.com/11411
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/server.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

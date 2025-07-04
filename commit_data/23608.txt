@@ -1,0 +1,38 @@
+commit 7929a0ddfae27d66a6feb4d6fe069359fad613f1
+Author: David Chase <drchase@google.com>
+Date:   Mon Jun 29 16:30:19 2015 -0400
+
+    cmd/compile: initialize line number properly for temporaries
+    
+    The expansion of structure, array, slice, and map literals
+    does not use the right line number in its introduced assignments
+    to temporaries, which leads to incorrect line number attribution
+    for expressions in those literals.
+    
+    Inlining also incorrectly replaced the line numbers of args to
+    inlined functions.
+    
+    This was revealed in CL 9721 because a now-avoided temporary
+    assignment introduced the correct line number.
+    I.e. before CL 9721
+      "tmp_wrongline := expr"
+    was transformed to
+      "tmp_rightline := expr; tmp_wrongline := tmp_rightline"
+    
+    Also includes a repair to CL 10334 involving line numbers
+    where a spurious -1 remained (should have been 0, now is 0).
+    
+    Fixes #11400.
+    
+    Change-Id: I3a4687efe463977fa1e2c996606f4d91aaf22722
+    Reviewed-on: https://go-review.googlesource.com/11730
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go   |   7 +++
+ src/cmd/compile/internal/gc/sinit.go |  10 ++++
+ src/cmd/compile/internal/gc/subr.go  |   2 +-
+ src/runtime/symtab_test.go           | 105 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 123 insertions(+), 1 deletion(-)

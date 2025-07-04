@@ -1,0 +1,15 @@
+commit 9d930040d7060fba20a822f11a1690aeb955d9ac
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 17 15:41:16 2010 +1100
+
+    json: add MarshalIndent (accepts user-specified indent string)
+    
+    Fixes #661
+    
+    R=r, rsc, skorobo
+    CC=golang-dev
+    https://golang.org/cl/576042
+
+ src/pkg/json/struct.go      | 143 ++++++++++++++++++++++++++++----------------
+ src/pkg/json/struct_test.go |  93 +++++++++++++++++++++++++++-
+ 2 files changed, 184 insertions(+), 52 deletions(-)

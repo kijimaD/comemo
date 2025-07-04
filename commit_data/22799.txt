@@ -1,0 +1,13 @@
+commit cfb8b18e75faa1d0cec07268825db06679cd3946
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Apr 30 10:16:23 2015 +0300
+
+    strings: use LastIndexByte in LastIndex
+    
+    Change-Id: I1add1b92f5c2688a99133d90bf9789d770fd9f05
+    Reviewed-on: https://go-review.googlesource.com/9503
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/os/file_plan9.go   | 2 +-
+ src/strings/strings.go | 9 +--------
+ 2 files changed, 2 insertions(+), 9 deletions(-)

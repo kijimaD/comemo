@@ -1,0 +1,13 @@
+commit bfea141ca847e00119a2d897288996dc09289563
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 2 22:39:52 2009 -0700
+
+    - don't show methods of non-exported types
+    (even if the methods are exported)
+    
+    R=rsc
+    OCL=27056
+    CL=27056
+
+ usr/gri/pretty/docprinter.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

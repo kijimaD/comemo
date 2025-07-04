@@ -1,0 +1,20 @@
+commit fccd0b9b70255099691deca5dc1d577efcfc889b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 11 16:43:20 2023 -0700
+
+    context: support non-standard Context in Cause
+    
+    If Cause is called on a non-standard Context, call ctx.Err.
+    
+    Fixes #62582
+    
+    Change-Id: Iac4ed93203eb5529f8839eb479b6ee2ee5ff6cbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527277
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/context/context.go |   7 ++-
+ src/context/x_test.go  | 120 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 126 insertions(+), 1 deletion(-)

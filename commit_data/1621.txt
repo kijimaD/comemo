@@ -1,0 +1,14 @@
+commit 89fc8465a8721da7f8855b0e5606462eeaf4e7c5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 5 14:22:09 2009 -0800
+
+    - caseify parser functions (all but a few should not be exported)
+    - more elegant tracing code
+    - removed some dead code, cleanups
+    
+    R=r
+    OCL=24452
+    CL=24452
+
+ usr/gri/pretty/parser.go | 1044 ++++++++++++++++++++++------------------------
+ 1 file changed, 491 insertions(+), 553 deletions(-)

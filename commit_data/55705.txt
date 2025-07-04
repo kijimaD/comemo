@@ -1,0 +1,18 @@
+commit 74642ddf2ed01cbfd9c2140663ac93d6d88516cb
+Author: guoguangwu <guoguangwu@magic-shield.com>
+Date:   Thu Feb 22 01:32:06 2024 +0000
+
+    crypto/tls: fix typo in comment
+    
+    Change-Id: I77371ef99797e2b53f1292c9d6a4eb157f116f88
+    GitHub-Last-Rev: 7ce7d014c0c46b320f9e4b742ae9360d1b5cf4dc
+    GitHub-Pull-Request: golang/go#65836
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565440
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/tls/tls_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

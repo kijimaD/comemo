@@ -1,0 +1,12 @@
+commit aa2f439c6aa10c3e901afc41d895914cb91529ee
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 12 13:50:08 2011 -0700
+
+    fmt: remove an obsolete reference to os.ErrorString in a comment
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5229057
+
+ src/pkg/fmt/print.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

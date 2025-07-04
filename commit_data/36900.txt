@@ -1,0 +1,19 @@
+commit ccc337d8eeedbf94f56adb7ab22ce009056d0973
+Author: Ben Shi <powerman1st@163.com>
+Date:   Mon Oct 8 02:20:03 2018 +0000
+
+    cmd/compile: combine similar code in amd64's assembly generator
+    
+    BSFQ/BSRQ/BSFL/BSRL/SQRTSD have similar logic in amd64's assembly
+    generator. This CL combines them together while does not impact
+    generated amd64 code. The total size of
+    pkg/linux_amd64/cmd/compile/internal decreases about 1.8KB.
+    
+    Change-Id: I5f3210c5178c20ac9108877c69f17234baf5b6b7
+    Reviewed-on: https://go-review.googlesource.com/c/140438
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go | 37 ++++++++++++++---------------------
+ 1 file changed, 15 insertions(+), 22 deletions(-)

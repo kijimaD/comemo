@@ -1,0 +1,17 @@
+commit 182ec4395eff228673377127b8b8b69911e7762a
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Nov 3 13:41:03 2014 -0500
+
+    misc/cgo/test: fix freebsd test failure by moving test to its own package.
+    
+    (The assertion depends on a per-package gensym counter whose
+    value varies based on what else is in the package.)
+    
+    LGTM=khr
+    R=khr, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/169930043
+
+ misc/cgo/test/issue9026.go           | 30 +++---------------------------
+ misc/cgo/test/issue9026/issue9026.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 27 deletions(-)

@@ -1,0 +1,58 @@
+commit 30940e2cc2f4598b4a9d237c34aac402ee17a71e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 07:51:41 2017 -0700
+
+    cmd/compile: move Linksym, linksymname, and isblanksym to types package
+    
+    Response to code review feedback on CL 40693.
+    
+    This CL was prepared by:
+    
+    (1) manually adding new implementations and the Ctxt var to package types
+    
+    (2) running eg with template:
+    
+    func before(s *types.Sym) *obj.LSym { return gc.Linksym(s) }
+    func after(s *types.Sym) *obj.LSym  { return s.Linksym() }
+    
+    (3) running gofmt -r:
+    
+    gofmt -r 'isblanksym(a) -> a.IsBlank()'
+    
+    (4) manually removing old implementations from package gc
+    
+    Passes toolstash-check.
+    
+    Change-Id: I39c35def7cae5bcbcc7c77253e5d2b066b981dea
+    Reviewed-on: https://go-review.googlesource.com/41302
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/amd64/ggen.go   |  2 +-
+ src/cmd/compile/internal/arm/ggen.go     |  2 +-
+ src/cmd/compile/internal/arm64/ggen.go   |  2 +-
+ src/cmd/compile/internal/gc/alg.go       | 10 +++++-----
+ src/cmd/compile/internal/gc/dcl.go       |  8 ++++----
+ src/cmd/compile/internal/gc/esc.go       |  2 +-
+ src/cmd/compile/internal/gc/export.go    |  4 ++--
+ src/cmd/compile/internal/gc/gen.go       |  2 +-
+ src/cmd/compile/internal/gc/gsubr.go     | 12 +++++------
+ src/cmd/compile/internal/gc/inl.go       |  2 +-
+ src/cmd/compile/internal/gc/main.go      |  3 ++-
+ src/cmd/compile/internal/gc/obj.go       | 32 ++++++------------------------
+ src/cmd/compile/internal/gc/pgen.go      |  8 ++++----
+ src/cmd/compile/internal/gc/reflect.go   | 34 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/sinit.go     |  2 +-
+ src/cmd/compile/internal/gc/ssa.go       | 20 +++++++++----------
+ src/cmd/compile/internal/gc/subr.go      |  6 +-----
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++---
+ src/cmd/compile/internal/gc/walk.go      |  2 +-
+ src/cmd/compile/internal/mips/ggen.go    |  2 +-
+ src/cmd/compile/internal/mips64/ggen.go  |  2 +-
+ src/cmd/compile/internal/ppc64/ggen.go   |  2 +-
+ src/cmd/compile/internal/s390x/ggen.go   |  2 +-
+ src/cmd/compile/internal/types/sym.go    | 24 ++++++++++++++++++++++
+ src/cmd/compile/internal/types/utils.go  |  1 +
+ src/cmd/compile/internal/x86/ggen.go     |  2 +-
+ 26 files changed, 98 insertions(+), 96 deletions(-)

@@ -1,0 +1,25 @@
+commit eac6fe082ba0e54b387eca7604811958fe62a094
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Oct 28 14:23:21 2017 -0400
+
+    cmd/go: adjust default GOROOT to prefer runtime.GOROOT() spelling
+    
+    If runtime.GOROOT() and the os.Executable method for finding GOROOT
+    find the same directory but with different spellings, prefer the spelling
+    returned by runtime.GOROOT().
+    
+    This avoids an inconsistency if "pwd" returns one spelling but a
+    different spelling is used in $PATH (and therefore in os.Executable()).
+    make.bash runs with GOROOT=$(cd .. && pwd); the goal is to allow
+    the resulting toolchain to use that default setting (unless moved)
+    even if the directory spelling is different in $PATH.
+    
+    Change-Id: If96b28b9e8697f4888f153a400b40bbf58a9128b
+    Reviewed-on: https://go-review.googlesource.com/74250
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/internal/cfg/cfg.go | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)

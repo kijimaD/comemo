@@ -1,0 +1,12 @@
+commit 226b5fc666be8a694ef5116007ecf59589ae1e61
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 21 13:48:49 2010 -0700
+
+    syslog: use local network for tests
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1724042
+
+ src/pkg/syslog/syslog_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,47 @@
+commit fce060856112dc1929b77b55aba5c5b8347a8d30
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Aug 24 02:18:22 2013 +1000
+
+    net: dragonfly support
+    
+    Make the net package build and work on dragonfly.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13173044
+
+ src/pkg/net/cgo_bsd.go             |   2 +-
+ src/pkg/net/cgo_unix.go            |   2 +-
+ src/pkg/net/dial_test.go           |   2 +-
+ src/pkg/net/dnsclient_unix.go      |   2 +-
+ src/pkg/net/dnsclient_unix_test.go |   2 +-
+ src/pkg/net/dnsconfig_unix.go      |   2 +-
+ src/pkg/net/fd_poll_runtime.go     |   2 +-
+ src/pkg/net/fd_posix_test.go       |   2 +-
+ src/pkg/net/fd_unix.go             |   2 +-
+ src/pkg/net/fd_unix_test.go        |   2 +-
+ src/pkg/net/file_unix.go           |   2 +-
+ src/pkg/net/interface_bsd.go       |   2 +-
+ src/pkg/net/interface_bsd_test.go  |   2 +-
+ src/pkg/net/interface_dragonfly.go |  12 +++++
+ src/pkg/net/interface_unix_test.go |   2 +-
+ src/pkg/net/iprawsock_posix.go     |   2 +-
+ src/pkg/net/ipsock_posix.go        |   2 +-
+ src/pkg/net/lookup_unix.go         |   2 +-
+ src/pkg/net/multicast_test.go      |   2 +-
+ src/pkg/net/port_unix.go           |   2 +-
+ src/pkg/net/sendfile_dragonfly.go  | 103 +++++++++++++++++++++++++++++++++++++
+ src/pkg/net/sock_bsd.go            |   2 +-
+ src/pkg/net/sock_posix.go          |   2 +-
+ src/pkg/net/sockopt_bsd.go         |   2 +-
+ src/pkg/net/sockopt_posix.go       |   2 +-
+ src/pkg/net/sockoptip_bsd.go       |   2 +-
+ src/pkg/net/sockoptip_posix.go     |   2 +-
+ src/pkg/net/sys_cloexec.go         |   2 +-
+ src/pkg/net/tcpsock_posix.go       |   2 +-
+ src/pkg/net/tcpsockopt_posix.go    |   2 +-
+ src/pkg/net/tcpsockopt_unix.go     |   2 +-
+ src/pkg/net/udp_test.go            |   2 +-
+ src/pkg/net/udpsock_posix.go       |   2 +-
+ src/pkg/net/unixsock_posix.go      |   2 +-
+ 34 files changed, 147 insertions(+), 32 deletions(-)

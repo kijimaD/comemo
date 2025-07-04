@@ -1,0 +1,15 @@
+commit bd3627cd7de3fd5d9640c19bcbe270b9e8056e39
+Author: Pascal S. de Kloe <pascal@quies.net>
+Date:   Fri Aug 26 16:55:25 2011 -0400
+
+    mime: text charset defaults
+    
+    Enforce + document the UTF-8 default.
+    
+    R=rsc, bradfitz, adg
+    CC=golang-dev
+    https://golang.org/cl/4627049
+
+ src/pkg/mime/type.go                        | 43 +++++++++++++++++++++--------
+ src/pkg/mime/{mime_test.go => type_test.go} | 16 ++++++++---
+ 2 files changed, 43 insertions(+), 16 deletions(-)

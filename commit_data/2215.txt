@@ -1,0 +1,16 @@
+commit b725e32c993219d93567c77ee43b7156c3d880c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 15 10:32:05 2009 -0700
+
+    add directory argument to os.ForkExec
+    
+    R=iant
+    DELTA=41  (35 added, 0 deleted, 6 changed)
+    OCL=28892
+    CL=28895
+
+ src/lib/exec/exec.go    |  2 +-
+ src/lib/os/exec.go      |  5 +++--
+ src/lib/os/os_test.go   | 22 ++++++++++++++++++++++
+ src/lib/syscall/exec.go | 18 +++++++++++++++---
+ 4 files changed, 41 insertions(+), 6 deletions(-)

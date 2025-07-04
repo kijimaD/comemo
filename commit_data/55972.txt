@@ -1,0 +1,22 @@
+commit b40dc30d24afe877f4b7d80c69b827765531cdc7
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 15 14:30:34 2024 -0700
+
+    cmd/compile: compute ptrBytes during CalcSize instead of on demand
+    
+    Compute ptrBytes while computing the size of a type.
+    Requires an extra field on the type, but means that we don't
+    have potentially exponential behavior in the PtrDataSize computation.
+    
+    For #65540.
+    
+    Change-Id: Ia23c72bbd996730baddd32d9ed46cfc00c3472ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571543
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/types/size.go        | 102 +++++++++-----------------
+ src/cmd/compile/internal/types/sizeof_test.go |   2 +-
+ src/cmd/compile/internal/types/type.go        |  29 +++++++-
+ 3 files changed, 65 insertions(+), 68 deletions(-)

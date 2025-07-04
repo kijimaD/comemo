@@ -1,0 +1,43 @@
+commit e3ef8d18102d923a1dbd499ce5ae21ee70e13638
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 31 15:22:14 2023 -0400
+
+    net: deflake TestDialTimeout on windows
+    
+    The time granularity on windows is large enough that setting even an
+    implausibly small timeout still gives ConnectEx enough time to succeed
+    before the timeout expires. That causes TestDialTimeout to sometimes
+    flake, because it expects to be able to provoke a timeout using some
+    nonzero duration.
+    
+    This change takes a two-pronged approach to address the problem:
+    
+    1. We can set a deadline on the FD more aggressively. (If the Context
+    has already expired, or the deadline is already known, we can go ahead
+    and set it on the fd without waiting for a background goroutine to get
+    around to it.)
+    
+    2. We can reintroduce a test hook to ensure that Dial takes a
+    measurable amount of time before it completes, so that setting an
+    implausibly short deadline sets that deadline in the past instead of
+    the future.
+    
+    Together, these reduce the flake rate on a windows-amd64-longtest
+    gomote from around 1-in-10 to less than 1-in-2000.
+    
+    For #62377.
+    
+    Change-Id: I03975c32f61fffa9f6f84efb3c474a01ac5a0d1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524936
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/dial.go         |  1 +
+ src/net/fd_windows.go   | 48 ++++++++++++++++++++++++++++++------------------
+ src/net/hook.go         |  6 ++++++
+ src/net/timeout_test.go | 15 +++++++++++++++
+ 4 files changed, 52 insertions(+), 18 deletions(-)

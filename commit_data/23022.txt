@@ -1,0 +1,18 @@
+commit a901d7fb8f3126f5fbaf3be097449769b490503a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 14 13:03:02 2015 -0700
+
+    cmd/dist: support test filtering via repurposed env variable, negation
+    
+    For upcoming sharded ARM builders.
+    
+    Updates #10029
+    
+    Change-Id: I3b1df9560be697c514a8ced0462814d406e23132
+    Reviewed-on: https://go-review.googlesource.com/10055
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 28 +++++++++++++++++++---------
+ 1 file changed, 19 insertions(+), 9 deletions(-)

@@ -1,0 +1,19 @@
+commit 91e3681105912bf39404be544c6d5a41ce2b789a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Feb 28 11:08:32 2014 -0800
+
+    cmd/ld: fix misgenerated pcln file numbers
+    
+    The pcln file number was being encoded incorrectly. The recorded delta was always against -1, not against the previous value.
+    
+    Update #7369
+    
+    This CL fixes the bad DWARF file numbers. It does not, however, fix the gdb continue-to-end bug.
+    
+    LGTM=iant
+    R=rsc, minux.ma, iant
+    CC=golang-codereviews, graham
+    https://golang.org/cl/68960046
+
+ src/cmd/ld/pcln.c | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 49f10f37975f0a08ac5ae320d3a29f936b56d0a9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 24 16:26:50 2020 -0700
+
+    cmd/compile: convert another tranch of generic rules to typed aux
+    
+    Passes toolstash-check.
+    
+    Change-Id: I27c01f03c5303876bbf6878a81ffdc4e95de3e3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230031
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  534 +++++-----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 1250 ++++++++++++------------
+ 2 files changed, 892 insertions(+), 892 deletions(-)

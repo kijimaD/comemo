@@ -1,0 +1,14 @@
+commit 40c27ed5bc9297718809e00e3158967414aa9ee5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 13 11:46:48 2017 -0800
+
+    runtime: if runtime is stale while testing, show cmd/go output
+    
+    Update #19062.
+    
+    Change-Id: If6a4c4f8d12e148b162256f13a8ee423f6e30637
+    Reviewed-on: https://go-review.googlesource.com/36918
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/crash_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,44 @@
+commit 7e97d398795fd91e5ab9637572984291e19de4b9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 12 13:47:55 2013 -0400
+
+    cmd/5g, cmd/6g, cmd/8g: fix line number of caller of deferred func
+    
+    Deferred functions are not run by a call instruction. They are run by
+    the runtime editing registers to make the call start with a caller PC
+    returning to a
+            CALL deferreturn
+    instruction.
+    
+    That instruction has always had the line number of the function's
+    closing brace, but that instruction's line number is irrelevant.
+    Stack traces show the line number of the instruction before the
+    return PC, because normally that's what started the call. Not so here.
+    The instruction before the CALL deferreturn could be almost anywhere
+    in the function; it's unrelated and its line number is incorrect to show.
+    
+    Fix the line number by inserting a true hardware no-op with the right
+    line number before the returned-to CALL instruction. That is, the deferred
+    calls now appear to start with a caller PC returning to the second instruction
+    in this sequence:
+            NOP
+            CALL deferreturn
+    
+    The traceback will show the line number of the NOP, which we've set
+    to be the line number of the function's closing brace.
+    
+    The NOP here is not the usual pseudo-instruction, which would be
+    elided by the linker. Instead it is the real hardware instruction:
+    XCHG AX, AX on 386 and amd64, and AND.EQ R0, R0, R0 on ARM.
+    
+    Fixes #5856.
+    
+    R=ken2, ken
+    CC=golang-dev
+    https://golang.org/cl/11223043
+
+ src/cmd/5g/ggen.c           | 14 ++++++++++++++
+ src/cmd/6g/ggen.c           | 13 +++++++++++++
+ src/cmd/8g/ggen.c           | 13 +++++++++++++
+ test/fixedbugs/issue5856.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 78 insertions(+)

@@ -1,0 +1,24 @@
+commit 6a876283c8c5a832d49bcca7ea1f4b671aef2448
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 8 13:38:20 2011 -0700
+
+    http: change most map[string][]string types to new Values type
+    
+    This replaces most the map[string][]string usage with
+    a new Values type name, with the usual methods.
+    
+    It also changes client.PostForm to take a Values, rather
+    than a map[string]string, closing a TODO in the code.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4532123
+
+ misc/dashboard/builder/http.go   | 14 +++++-----
+ src/pkg/http/client.go           | 16 +++---------
+ src/pkg/http/client_test.go      | 16 +++++++++---
+ src/pkg/http/readrequest_test.go |  4 +--
+ src/pkg/http/request.go          | 56 +++++++++++++++++++++++++++++++++-------
+ src/pkg/http/url.go              | 18 ++++++++++---
+ src/pkg/http/url_test.go         | 35 ++++++++++++++++++++-----
+ 7 files changed, 115 insertions(+), 44 deletions(-)

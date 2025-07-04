@@ -1,0 +1,13 @@
+commit 434c4378c17c0fbbadcc181ce57a04e34b44eda3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 13 11:52:04 2010 -0700
+
+    bug274: test case for issue 777
+    
+    R=r, iant
+    CC=golang-dev
+    https://golang.org/cl/1195042
+
+ test/bugs/bug274.go | 29 +++++++++++++++++++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 32 insertions(+)

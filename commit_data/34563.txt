@@ -1,0 +1,27 @@
+commit 0c5cfec84424bb453ccd270f4b5c439f21ccf617
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 3 19:53:53 2018 +0000
+
+    cmd/internal/test2json: support subtests containing colons
+    
+    The "updates" lines, such as RUN, do not contain a colon. However,
+    test2json looked for one anyway, meaning that it would be thrown off if
+    it encountered a line like:
+    
+            === RUN   TestWithColons/[::1]
+    
+    In that case, it must not use the first colon it encounters to separate
+    the action from the test name.
+    
+    Fixes #23920.
+    
+    Change-Id: I82eff23e24b83dae183c0cf9f85fc5f409f51c25
+    Reviewed-on: https://go-review.googlesource.com/98445
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/test2json/test2json.go             |  7 ++++++-
+ src/cmd/internal/test2json/testdata/issue23920.json | 14 ++++++++++++++
+ src/cmd/internal/test2json/testdata/issue23920.test |  7 +++++++
+ 3 files changed, 27 insertions(+), 1 deletion(-)

@@ -1,0 +1,24 @@
+commit ee788dbae0fc8e074fc66fc76f0597200b443950
+Author: Kirill Che <g4s8.public@gmail.com>
+Date:   Fri Sep 8 07:45:12 2023 +0000
+
+    cmd/go/internal/generate: error if failed to find a package
+    
+    Add check for package loader to print error and fail `go generate` command,
+    if package can not be found.
+    
+    Fixes #60079
+    
+    Change-Id: Ib9e730c2b69df6e5ac307c7bdfea0ee993ab6ed8
+    GitHub-Last-Rev: d93332425a980d0298c74f33f1d154e0afbf5373
+    GitHub-Pull-Request: golang/go#60178
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494836
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/generate/generate.go        | 8 ++++++++
+ src/cmd/go/testdata/script/generate_invalid.txt | 7 ++++++-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

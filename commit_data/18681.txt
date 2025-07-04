@@ -1,0 +1,17 @@
+commit dc6bf295b95f3b1141e81fea3e128d22e4282962
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 27 13:32:40 2014 -0800
+
+    net/http: make Transport.CancelRequest work for requests blocked in a dial
+    
+    Fixes #6951
+    
+    LGTM=josharian
+    R=golang-codereviews, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/69280043
+
+ src/pkg/net/http/export_test.go    |  2 +-
+ src/pkg/net/http/transport.go      | 66 +++++++++++++++++++++++---------------
+ src/pkg/net/http/transport_test.go | 57 ++++++++++++++++++++++++++++++++
+ 3 files changed, 98 insertions(+), 27 deletions(-)

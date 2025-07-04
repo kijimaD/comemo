@@ -1,0 +1,16 @@
+commit e22d24131c8075c344fef790a93ec1addc2663e6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Mar 20 00:10:08 2018 +0000
+
+    Revert "bytes: add optimized Compare for arm64"
+    
+    This reverts commit bfa8b6f8ffa49b3e5796af45a2f0bf9714a37bb9.
+    
+    Reason for revert: This depends on another CL which is not yet submitted.
+    
+    Change-Id: I50e7594f1473c911a2079fe910849a6694ac6c07
+    Reviewed-on: https://go-review.googlesource.com/101496
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/internal/bytealg/compare_arm64.s | 106 +++++++----------------------------
+ 1 file changed, 19 insertions(+), 87 deletions(-)

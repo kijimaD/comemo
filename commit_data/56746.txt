@@ -1,0 +1,53 @@
+commit d2909ec8858371ce19d7fd021f80f9e6ca84911f
+Author: Gopher Robot <gobot@golang.org>
+Date:   Wed Jun 5 18:04:59 2024 +0000
+
+    api: promote next to go1.23
+    
+    Change-Id: I219c59b5efc2ed7fcfdd7cd3c418635831b17b8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590835
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ api/go1.23.txt     | 128 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next/42888.txt |   2 -
+ api/next/44940.txt |   1 -
+ api/next/46443.txt |   1 -
+ api/next/50102.txt |   9 ----
+ api/next/53987.txt |   1 -
+ api/next/57151.txt |   1 -
+ api/next/59473.txt |   1 -
+ api/next/60023.txt |   3 --
+ api/next/60427.txt |   4 --
+ api/next/61308.txt |   1 -
+ api/next/61395.txt |  20 ---------
+ api/next/61472.txt |   1 -
+ api/next/61696.txt |   1 -
+ api/next/61716.txt |   2 -
+ api/next/61897.txt |   4 --
+ api/next/61899.txt |   8 ----
+ api/next/61900.txt |   5 ---
+ api/next/62254.txt |  12 -----
+ api/next/62483.txt |   3 --
+ api/next/62484.txt |   1 -
+ api/next/62490.txt |   1 -
+ api/next/63116.txt |   2 -
+ api/next/63369.txt |   6 ---
+ api/next/63691.txt |   8 ----
+ api/next/65238.txt |   1 -
+ api/next/65772.txt |   1 -
+ api/next/66008.txt |   2 -
+ api/next/66054.txt |   2 -
+ api/next/66056.txt |   4 --
+ api/next/66249.txt |   5 ---
+ api/next/66339.txt |   1 -
+ api/next/66405.txt |   1 -
+ api/next/66408.txt |   1 -
+ api/next/66559.txt |   1 -
+ api/next/66836.txt |   6 ---
+ api/next/67059.txt |   1 -
+ api/next/67143.txt |   4 --
+ 38 files changed, 128 insertions(+), 128 deletions(-)

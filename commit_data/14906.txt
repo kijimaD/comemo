@@ -1,0 +1,12 @@
+commit e19cdc651cfdf2d3aa847f9700df639ddc8af591
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 18 12:25:41 2013 +1100
+
+    testing: allow examples to pass (fix build)
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7132050
+
+ src/pkg/testing/example.go | 2 ++
+ 1 file changed, 2 insertions(+)

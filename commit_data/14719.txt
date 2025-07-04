@@ -1,0 +1,16 @@
+commit b9da27bed238b5bc55f0f92ed60dc691bd4691f5
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 22 11:20:17 2012 -0500
+
+    cmd/6l, cmd/8l: add -Z flag to zero stack frame on entry
+    
+    Replacement for GOEXPERIMENT=zerostack, easier to use.
+    Does not require a separate toolchain.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6996051
+
+ src/cmd/6l/pass.c | 28 ++++++++++++++++++++++++++++
+ src/cmd/8l/pass.c | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+)

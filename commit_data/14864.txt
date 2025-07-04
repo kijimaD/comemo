@@ -1,0 +1,80 @@
+commit 5a9463bda7eaefa416c1ec3733c603c98b7a5f0d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 11 13:53:38 2013 -0800
+
+    go/types: Moving from *ast.Objects to types.Objects (step 1).
+    
+    The existing type checker was relying on augmenting ast.Object
+    fields (empty interfaces) for its purposes. While this worked
+    for some time now, it has become increasingly brittle. Also,
+    the need for package information for Fields and Methods would
+    have required a new field in each ast.Object. Rather than making
+    them bigger and the code even more subtle, in this CL we are moving
+    away from ast.Objects.
+    
+    The types packge now defines its own objects for different
+    language entities (Const, Var, TypeName, Func), and they
+    implement the types.Object interface. Imported packages
+    create a Package object which holds the exported entities
+    in a types.Scope of types.Objects.
+    
+    For type-checking, the current package is still using ast.Objects
+    to make this transition manageable. In a next step, the type-
+    checker will also use types.Objects instead, which opens the door
+    door to resolving ASTs entirely by the type checker. As a result,
+    the AST and type checker become less entangled, and ASTs can be
+    manipulated "by hand" or programmatically w/o having to worry
+    about scope and object invariants that are very hard to maintain.
+    
+    (As a consequence, a future parser can do less work, and a
+    future AST will not need to define objects and scopes anymore.
+    Also, object resolution which is now split across the parser,
+    the ast, (ast.NewPackage), and even the type checker (for composite
+    literal keys) can be done in a single place which will be simpler
+    and more efficient.)
+    
+    Change details:
+    - Check now takes a []*ast.File instead of a map[string]*ast.File.
+    It's easier to handle (I deleted code at all use sites) and does
+    not suffer from undefined order (which is a pain for testing).
+    - ast.Object.Data is now a *types.Package rather then an *ast.Scope
+    if the object is a package (obj.Kind == ast.Pkg). Eventually this
+    will go away altogether.
+    - Instead of an ast.Importer, Check now uses a types.Importer
+    (which returns a *types.Package).
+    - types.NamedType has two object fields (Obj Object and obj *ast.Object);
+    eventually there will be only Obj. The *ast.Object is needed during
+    this transition since a NamedType may refer to either an imported
+    (using types.Object) or locally defined (using *ast.Object) type.
+    - ast.NewPackage is not used anymore - there's a local copy for
+    package-level resolution of imports.
+    - struct fields now take the package origin into account.
+    - The GcImporter is now returning a *types.Package. It cannot be
+    used with ast.NewPackage anymore. If that functionality is still
+    used, a copy of the old GcImporter should be made locally (note
+    that GcImporter was part of exp/types and it's API was not frozen).
+    - dot-imports are not handled for the time being (this will come back).
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/7058060
+
+ src/pkg/exp/gotype/gotype.go        |  19 ++---
+ src/pkg/go/ast/scope.go             |  13 ++--
+ src/pkg/go/types/api.go             |  23 +++++-
+ src/pkg/go/types/check.go           |  52 +++++--------
+ src/pkg/go/types/check_test.go      |  18 ++---
+ src/pkg/go/types/conversions.go     |   2 +-
+ src/pkg/go/types/errors.go          |  11 ++-
+ src/pkg/go/types/expr.go            |  54 +++++++------
+ src/pkg/go/types/gcimporter.go      | 139 +++++++++++++++++++---------------
+ src/pkg/go/types/gcimporter_test.go |  34 +++++++--
+ src/pkg/go/types/objects.go         | 120 +++++++++++++++++++++++++++++
+ src/pkg/go/types/operand.go         |  53 +++++++------
+ src/pkg/go/types/predicates.go      |  37 +++++++--
+ src/pkg/go/types/resolve.go         | 146 ++++++++++++++++++++++++++++++++++++
+ src/pkg/go/types/resolver_test.go   |  29 ++++---
+ src/pkg/go/types/types.go           |  23 +++---
+ src/pkg/go/types/types_test.go      |   7 +-
+ src/pkg/go/types/universe.go        |  59 +++++++++------
+ 18 files changed, 599 insertions(+), 240 deletions(-)

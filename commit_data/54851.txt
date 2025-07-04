@@ -1,0 +1,43 @@
+commit 285ac5a11e36ca4d85a7e97c9040a1e3de0ecc11
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 31 14:22:05 2023 -0700
+
+    go/parser: better error messages for incorrect type parameter list
+    
+    This is a port of CL 538856 from the syntax parser to go/parser.
+    As part of the port, make more portions of parseParameterList
+    matching the equivalent paramList method (from the syntax parser).
+    As a result, this now also produces a better error message in cases
+    where the missing piece might not be a type parameter name but a
+    constraint (this fixes a TODO in a test).
+    
+    Improve comments in the code and adjust the corresponding comments
+    in the syntax parser.
+    
+    Change references to issues to use the format go.dev/issue/ddddd.
+    
+    For #60812.
+    
+    Change-Id: Ia243bd78161ed8543d3dc5deb20ca4a215c5b1e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538858
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/syntax/parser.go        | 28 ++++----
+ src/go/parser/parser.go                          | 81 ++++++++++++++----------
+ src/go/parser/parser_test.go                     |  6 +-
+ src/go/parser/resolver.go                        |  6 +-
+ src/go/parser/short_test.go                      | 15 ++---
+ src/go/parser/testdata/issue11377.src            |  2 +-
+ src/go/parser/testdata/issue23434.src            |  2 +-
+ src/go/parser/testdata/issue3106.src             |  2 +-
+ src/go/parser/testdata/issue34946.src            |  2 +-
+ src/go/parser/testdata/issue44504.src            |  2 +-
+ src/go/parser/testdata/issue49175.go2            |  2 +-
+ src/go/parser/testdata/resolution/typeparams.go2 |  2 +-
+ src/go/parser/testdata/tparams.go2               | 23 +++++--
+ src/go/parser/testdata/typeset.go2               | 16 ++---
+ 14 files changed, 109 insertions(+), 80 deletions(-)

@@ -1,0 +1,15 @@
+commit 43512e6c7007b3cca7b693064e0f1da8e47e154f
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Mar 28 17:34:22 2011 +0200
+
+    runtime: fix gdb support for goroutines.
+    
+    in gdb, 'info goroutines' and 'goroutine <n> <cmd> were crashing
+    because the 'g' and 'm' structures had changed a bit.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4289077
+
+ src/pkg/runtime/runtime-gdb.py | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

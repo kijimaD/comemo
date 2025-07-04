@@ -1,0 +1,17 @@
+commit 05aa4a7b7447051d187e0a86e53eee99fe065851
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 6 15:45:17 2019 -0800
+
+    runtime: set GODEBUG=asyncpreemptoff=1 in TestCrashDumpsAllThreads
+    
+    Fixes #35356
+    
+    Change-Id: I67b9e57b88d00ed98cbc3aa0aeb26b5f2d75a3f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205720
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/crash_unix_test.go | 24 +++++++++++-------------
+ 1 file changed, 11 insertions(+), 13 deletions(-)

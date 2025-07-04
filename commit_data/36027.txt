@@ -1,0 +1,12 @@
+commit 92e03bbaa8731a5857cf0a914f1483af36b781ea
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 17 17:49:37 2018 -0400
+
+    doc/go1.11: compiler and runtime release notes
+    
+    Change-Id: I487bdf0c828d28b2122bd93934dc5a9a5dbc6a00
+    Reviewed-on: https://go-review.googlesource.com/124517
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.11.html | 208 ++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 141 insertions(+), 67 deletions(-)

@@ -1,0 +1,14 @@
+commit 1e1733a9ac8865d75403494bd29bef0cdec44fbc
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Nov 12 15:29:17 2012 +0000
+
+    encoding/pem: write Proc-Type header first.
+    See RFC 1421, section 4.6.1.1
+    
+    R=agl, agl
+    CC=golang-dev
+    https://golang.org/cl/6814104
+
+ src/pkg/encoding/pem/pem.go      |  63 +++++++++++++++---------
+ src/pkg/encoding/pem/pem_test.go | 104 ++++++++++++++++++++++-----------------
+ 2 files changed, 100 insertions(+), 67 deletions(-)

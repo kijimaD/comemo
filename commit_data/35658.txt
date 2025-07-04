@@ -1,0 +1,16 @@
+commit f861f66d1db9f1abcdf91fc54d0d84bd3f9e9310
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 11 16:46:23 2018 -0700
+
+    cmd/link: treat cgo exported symbols as C symbols
+    
+    Fixes #25827
+    
+    Change-Id: I6736c3ac061ca32aac2eb68b01ba53a179d68cf4
+    Reviewed-on: https://go-review.googlesource.com/118076
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/link/internal/ld/pcln.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

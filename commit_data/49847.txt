@@ -1,0 +1,21 @@
+commit b648591b705490d14147f3beb66c68be9a97c5b5
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 11 12:08:35 2022 -0400
+
+    runtime: simplify trace buffer management around footer
+    
+    Writing out the trace footer currently manages trace buffers
+    differently from the rest of trace code. Rearrange it so it looks like
+    the rest of the code. In particular, we now write the frequency event
+    out to the trace buffer rather than returning it in a special byte
+    slice, and (*traceStackTable).dump threads a traceBufPtr like most
+    other functions that write to the trace buffers.
+    
+    Change-Id: I3d0e108e56df884e7bd19823310dfbc0e21af9a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422974
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/trace.go | 40 ++++++++++++++++++++--------------------
+ 1 file changed, 20 insertions(+), 20 deletions(-)

@@ -1,0 +1,14 @@
+commit f73f9ad4ad3c425868f6b5568f0b9a8576505d12
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 4 11:57:48 2010 +0200
+
+    fmt: allow %d on []byte
+    Fixes #1159.
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/2305043
+
+ src/pkg/fmt/fmt_test.go | 3 +++
+ src/pkg/fmt/print.go    | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

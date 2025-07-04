@@ -1,0 +1,11 @@
+commit c9b5ca457d64684a423900951643ae848741373f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 09:44:04 2009 -0800
+
+    correct mailing list URL
+    
+    R=r
+    http://go/go-review/1024047
+
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

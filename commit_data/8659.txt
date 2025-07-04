@@ -1,0 +1,17 @@
+commit 636c5fac2d8bf0f7df69b2ea3cc54aeba92e70c4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 8 09:11:18 2011 -0700
+
+    go spec: handle a corner case of a special case for shifts...
+    
+    - Added some additional examples.
+    - 6g appears to implement this semantics already.
+    
+    Fixes #658.
+    
+    R=rsc, r, iant, ken
+    CC=golang-dev
+    https://golang.org/cl/4538119
+
+ doc/go_spec.html | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

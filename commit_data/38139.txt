@@ -1,0 +1,15 @@
+commit e32203f647370897c6a28018c16cfd9584849569
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 27 14:13:55 2019 -0800
+
+    doc/go1.12: new go line in go.mod can break builds with Go 1.11 - 1.11.3
+    
+    Fixes #30446
+    
+    Change-Id: If069f72fa9735f839df92f3ede3bf7b6d7a695a5
+    Reviewed-on: https://go-review.googlesource.com/c/164317
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.12.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

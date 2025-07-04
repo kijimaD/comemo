@@ -1,0 +1,14 @@
+commit 86bf6324c14bedbd96eabb70134b93a9e4228400
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 16 13:18:28 2014 -0700
+
+    encoding/xml: fix format in test message
+    Found by go vet.
+    
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
+    CC=golang-codereviews
+    https://golang.org/cl/100510044
+
+ src/pkg/encoding/xml/marshal_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

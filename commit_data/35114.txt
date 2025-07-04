@@ -1,0 +1,14 @@
+commit ae26d57f96f38159bba8fed535879d5eb6188655
+Author: Keith Randall <khr@google.com>
+Date:   Tue Apr 24 13:05:53 2018 -0700
+
+    cmd/compile: update SSA TODO file
+    
+    Get rid of a bunch of stuff we've already done.
+    
+    Change-Id: Ibae4be7535ddb58590a072a2390c5f3e948c2fd7
+    Reviewed-on: https://go-review.googlesource.com/109136
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/TODO | 30 ++++--------------------------
+ 1 file changed, 4 insertions(+), 26 deletions(-)

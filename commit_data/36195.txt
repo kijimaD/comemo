@@ -1,0 +1,16 @@
+commit 16ec18084e246b4a8dacf8bd1386e7f5c649eeab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 2 12:41:48 2018 -0700
+
+    doc/go1.11: remove go/scanner note
+    
+    The relevant change was reverted in CL 127658.
+    
+    Updates #26671
+    
+    Change-Id: I0c555c8e18f4c7e289de56d3ef840d79cf0adac2
+    Reviewed-on: https://go-review.googlesource.com/127659
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.11.html | 12 +-----------
+ 1 file changed, 1 insertion(+), 11 deletions(-)

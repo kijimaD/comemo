@@ -1,0 +1,15 @@
+commit 925454e932a57768b42bddfc8b267fedbf009ee7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 17 07:41:18 2008 -0700
+
+    make sure errchk only says BUG once,
+    so that run's count is correct
+    
+    R=iant,r
+    DELTA=20  (12 added, 0 deleted, 8 changed)
+    OCL=17329
+    CL=17342
+
+ test/errchk     | 18 +++++++++++++++---
+ test/golden.out | 10 +++++-----
+ 2 files changed, 20 insertions(+), 8 deletions(-)

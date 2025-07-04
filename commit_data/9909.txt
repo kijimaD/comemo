@@ -1,0 +1,12 @@
+commit bffadd6bd78465e4a9b2e736963fea0630bd9308
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Oct 8 10:11:38 2011 -0400
+
+    crypto/tls: forgot this file in the last change.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5244042
+
+ src/pkg/crypto/tls/conn.go | 3 +++
+ 1 file changed, 3 insertions(+)

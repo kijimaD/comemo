@@ -1,0 +1,28 @@
+commit 0ae9c3b98bf01862f11d764ee379bebc29a76431
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Fri Feb 26 14:41:19 2021 +0100
+
+    runtime/pprof: fix block profile bias
+    
+    Block profiles were biased towards infrequent long events over frequent
+    short events. This fix corrects the bias by aggregating shorter events
+    as longer but less frequent in the profiles. As a result their
+    cumulative duration will be accurately represented in the profile
+    without skewing their sample mean (duration/count).
+    
+    Credit to @dvyukov for suggesting to adjust the count in the
+    saveblockevent function.
+    
+    Fixes #44192.
+    
+    Change-Id: I71a99d7f6ebdb2d484d44890a2517863cceb4004
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299991
+    Trust: Michael Pratt <mpratt@google.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mprof.go            | 35 +++++++++++++++------
+ src/runtime/pprof/pprof_test.go | 70 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 95 insertions(+), 10 deletions(-)

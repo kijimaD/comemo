@@ -1,0 +1,36 @@
+commit 7bc8aacec185ca80839ef0a4f58b85e482ab769e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 28 17:07:36 2023 +0000
+
+    misc/android: rework GOROOT installation
+    
+    - Fall back to 'go env GOROOT' to locate GOROOT if runtime.GOROOT() is
+      empty (as may be the case if the tool is built with -trimpath).
+    
+    - Copy all of $GOROOT/android_$GOARCH/bin, not just cmd/go, to
+      $GOROOT/bin.
+    
+    - For consistency with CL 404134, place $GOROOT/bin at the beginning
+      of $PATH, not the end.
+    
+    - Don't use the install target for the "runtime" package to locate pkg/tool.
+      As of Go 1.20 "runtime" doesn't have an install directory anyway.
+      Since the real reason we need pkg/tool is for commands in "cmd",
+      use an arbitrary command (namely "cmd/compile") to locate it.
+    
+    - Use 'go list' to determine the package import path for the current
+      directory, instead of assuming that it is within GOROOT or GOPATH.
+      (That assumption does not hold in module mode.)
+    
+    Updates #58775.
+    
+    Change-Id: If76ff22bce76d05175c40678230f046a4aff0940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472096
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Changkun Ou <mail@changkun.de>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ misc/android/go_android_exec.go | 228 ++++++++++++++++++++++++++++------------
+ 1 file changed, 159 insertions(+), 69 deletions(-)

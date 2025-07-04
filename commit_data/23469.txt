@@ -1,0 +1,24 @@
+commit eabdd05892d7cf2d1e14a135367cf2445fa6c848
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 23 14:04:09 2015 -0400
+
+    runtime: document memory ordering for h_spans
+    
+    h_spans can be accessed concurrently without synchronization from
+    other threads, which means it needs the appropriate memory barriers on
+    weakly ordered machines. It happens to already have the necessary
+    memory barriers because all accesses to h_spans are currently
+    protected by the heap lock and the unlocks happen in exactly the
+    places where release barriers are needed, but it's easy to imagine
+    that this could change in the future. Document the fact that we're
+    depending on the barrier implied by the unlock.
+    
+    Related to issue #9984.
+    
+    Change-Id: I1bc3c95cd73361b041c8c95cd4bb92daf8c1f94a
+    Reviewed-on: https://go-review.googlesource.com/11361
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/mheap.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

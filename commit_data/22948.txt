@@ -1,0 +1,15 @@
+commit 19e81a9b3b0d103fe7a9a9605c16eb4ba1f20ed8
+Author: Patrick Mezard <patrick@mezard.eu>
+Date:   Sat May 9 15:44:58 2015 +0200
+
+    internal/syscall/windows/registry: handle invalid integer values
+    
+    I have around twenty of such values on a Windows 7 development machine.
+    regedit displays (translated): "invalid 32-bits DWORD value".
+    
+    Change-Id: Ib37a414ee4c85e891b0a25fed2ddad9e105f5f4e
+    Reviewed-on: https://go-review.googlesource.com/9901
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/internal/syscall/windows/registry/value.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

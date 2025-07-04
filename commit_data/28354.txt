@@ -1,0 +1,19 @@
+commit 429eb3c6960a0b919a150aaa570e6a3f6f8758e9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 13 15:33:55 2016 -0700
+
+    cmd/compile: remove two unnecessary Pkg fields
+    
+    Exported is no longer used since removing the text-format exporter,
+    and Safe is only used within importfile so it can be made into a local
+    variable.
+    
+    Change-Id: I92986f704d7952759c79d9243620a22c24602333
+    Reviewed-on: https://go-review.googlesource.com/29115
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/go.go   |  2 --
+ src/cmd/compile/internal/gc/main.go | 10 +++++-----
+ 2 files changed, 5 insertions(+), 7 deletions(-)

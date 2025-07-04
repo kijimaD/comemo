@@ -1,0 +1,25 @@
+commit 15ea61c50ca25295497e78354f7f8397e73e3590
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 29 17:07:21 2019 -0400
+
+    runtime: clear m.gsignal when the M exits
+    
+    On some platforms (currently ARM and ARM64), when calling into
+    VDSO we store the G to the gsignal stack, if there is one, so if
+    we receive a signal during VDSO we can find the G.
+    
+    When an M exits, it frees the gsignal stack. But m.gsignal.stack
+    still points to that stack. When we call nanotime on this M, we
+    will write to the already freed gsignal stack, which is bad.
+    Prevent this by unlinking the freed stack from the M.
+    
+    Should fix #35235.
+    
+    Change-Id: I338b1fc8ec62aae036f38afaca3484687e11a40d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204158
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/proc.go | 5 +++++
+ 1 file changed, 5 insertions(+)

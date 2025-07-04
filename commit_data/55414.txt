@@ -1,0 +1,23 @@
+commit 704401ffa06c60e059c9e6e4048045b4ff42530a
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jan 14 15:34:49 2024 +1100
+
+    fmt: don't pad strings with zeros
+    
+    It's what the documentation says, and oddly it already behaves correctly
+    for right padding, not left. (We never pad with zeros on the right.)
+    
+    Just don't do it.
+    
+    Fixes #56486
+    
+    Change-Id: I2465edea93c69084e33bee0d945d5a1b85e6cd14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555776
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/fmt/fmt_test.go | 4 ++--
+ src/fmt/print.go    | 5 +++++
+ 2 files changed, 7 insertions(+), 2 deletions(-)

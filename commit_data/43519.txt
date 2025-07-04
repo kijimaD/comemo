@@ -1,0 +1,30 @@
+commit 79781e8dd382ac34e502ed6a088dff6860a08c05
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Aug 4 17:29:03 2020 +0000
+
+    runtime: move malloc stats into consistentHeapStats
+    
+    This change moves the mcache-local malloc stats into the
+    consistentHeapStats structure so the malloc stats can be managed
+    consistently with the memory stats. The one exception here is
+    tinyAllocs for which moving that into the global stats would incur
+    several atomic writes on the fast path. Microbenchmarks for just one CPU
+    core have shown a 50% loss in throughput. Since tiny allocation counnt
+    isn't exposed anyway and is always blindly added to both allocs and
+    frees, let that stay inconsistent and flush the tiny allocation count
+    every so often.
+    
+    Change-Id: I2a4b75f209c0e659b9c0db081a3287bf227c10ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247039
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/export_test.go | 37 ++++++++--------------
+ src/runtime/malloc.go      |  2 +-
+ src/runtime/mcache.go      | 70 ++++++++++++++---------------------------
+ src/runtime/mgcsweep.go    | 10 ++++--
+ src/runtime/mstats.go      | 78 ++++++++++++++++++++++++++--------------------
+ src/runtime/proc.go        |  2 +-
+ 6 files changed, 90 insertions(+), 109 deletions(-)

@@ -1,0 +1,19 @@
+commit 644493f1090e965cbde3e3245bc8b12bb5486477
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 14 08:48:36 2016 -0700
+
+    cmd/compile: clear hidden value at end of channel range body
+    
+    While we’re here, clean up a few comments.
+    
+    Fixes #15281
+    
+    Change-Id: Ia6173e9941133db08f57bc80bdd3c5722122bfdb
+    Reviewed-on: https://go-review.googlesource.com/22082
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/range.go | 14 +++++---
+ test/fixedbugs/issue15281.go         | 64 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 73 insertions(+), 5 deletions(-)

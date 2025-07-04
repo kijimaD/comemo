@@ -1,0 +1,18 @@
+commit e2390ec18352f25066074331449cbcb74957068e
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Wed Feb 8 11:17:47 2017 -0800
+
+    doc: remove the confusing use of CL
+    
+    CL (change list) pops out of nowhere and confuses the
+    reader. Use "change" instead to be consistent with the
+    rest of the document.
+    
+    Fixes #18989.
+    
+    Change-Id: I525a63a195dc6bb992c8ad0f10c2f2e1b2b952df
+    Reviewed-on: https://go-review.googlesource.com/36564
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

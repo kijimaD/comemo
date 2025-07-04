@@ -1,0 +1,16 @@
+commit abab21b1d1e9a33851b8b04e605f154d4198c2ee
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Aug 24 10:44:36 2015 +1200
+
+    misc/cgo/testshared: do not run gccgo tests when gccgo is too old
+    
+    Fixes #12083
+    
+    Change-Id: I8256739b33cf08d84dec23120d527667de2e6eea
+    Reviewed-on: https://go-review.googlesource.com/13822
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testshared/shared_test.go | 42 +++++++++++++++++++++-----------------
+ 1 file changed, 23 insertions(+), 19 deletions(-)

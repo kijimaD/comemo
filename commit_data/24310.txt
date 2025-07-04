@@ -1,0 +1,24 @@
+commit 3a80e5bacabc93ee825c60e269f90a1bdf84397d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 16 11:15:54 2015 -0700
+
+    go/types: report detailed reason in error messages for invalid assignments
+    
+    Fixes #10260.
+    
+    Change-Id: I52d059144608912e6f7f9516e4961a75e9463355
+    Reviewed-on: https://go-review.googlesource.com/14644
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/api.go              |  2 +-
+ src/go/types/assignments.go      | 26 +++++++-------
+ src/go/types/builtins.go         | 12 +++----
+ src/go/types/call.go             |  4 +--
+ src/go/types/conversions.go      |  2 +-
+ src/go/types/errors.go           |  8 +++++
+ src/go/types/expr.go             | 26 +++++++-------
+ src/go/types/operand.go          | 77 ++++++++++++++++++++--------------------
+ src/go/types/stmt.go             |  7 ++--
+ src/go/types/testdata/issues.src | 53 +++++++++++++++++++++++++++
+ src/go/types/testdata/stmt0.src  |  4 +--
+ 11 files changed, 141 insertions(+), 80 deletions(-)

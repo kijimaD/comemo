@@ -1,0 +1,28 @@
+commit 9caaac2c92f866383b52fca544b9871acf5fda1c
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 26 14:35:05 2019 -0400
+
+    sync: only check for successful PopHeads in long mode
+    
+    In TestPoolDequeue it's surprisingly common for the queue to stay
+    nearly empty the whole time and for a racing PopTail to happen in the
+    window between the producer doing a PushHead and doing a PopHead. In
+    short mode, there are only 100 PopTail attempts. On linux/amd64, it's
+    not uncommon for this to fail 50% of the time. On linux/arm64, it's
+    not uncommon for this to fail 100% of the time, causing the test to
+    fail.
+    
+    This CL fixes this by only checking for a successful PopTail in long
+    mode. Long mode makes 200,000 PopTail attempts, and has never been
+    observed to fail.
+    
+    Fixes #31422.
+    
+    Change-Id: If464d55eb94fcb0b8d78fbc441d35be9f056a290
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183981
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/sync/pool_test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

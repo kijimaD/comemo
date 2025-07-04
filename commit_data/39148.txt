@@ -1,0 +1,20 @@
+commit 1956b28ae3cf5e75fd8ad193d3ceec183581844b
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Feb 25 09:44:33 2019 +0100
+
+    runtime: call atomic.Storeuintptr in noteclear on AIX
+    
+    The memory might not be synchronized in a thread being woken up after a
+    semasleep. Using atomic instructions in noteclear function will force
+    this synchronisation.
+    
+    Fixes #30189
+    
+    Change-Id: If7432f29b2a1a56288231822db52f3f8d1d6dbfe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163624
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/lock_sema.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

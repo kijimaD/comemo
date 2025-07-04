@@ -1,0 +1,26 @@
+commit 027855e8d86f461b50946b006ea032d4b4a7d817
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 27 14:36:05 2022 -0400
+
+    os/exec: add GODEBUG setting to opt out of ErrDot changes
+    
+    The changes are likely to break users, and we need
+    to make it easy to unbreak without code changes.
+    
+    For #43724.
+    Fixes #53962.
+    
+    Change-Id: I105c5d6c801d354467e0cefd268189c18846858e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419794
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/go/build/deps_test.go |  8 +++--
+ src/os/exec/dot_test.go   | 86 ++++++++++++++++++++++++++++-------------------
+ src/os/exec/exec.go       |  5 +++
+ src/os/exec/lp_plan9.go   |  3 +-
+ src/os/exec/lp_unix.go    |  3 +-
+ src/os/exec/lp_windows.go |  6 +++-
+ 6 files changed, 71 insertions(+), 40 deletions(-)

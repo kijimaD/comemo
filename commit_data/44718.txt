@@ -1,0 +1,16 @@
+commit 42c25e65f321a75b9be1725d77ea3e7175dc34ad
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Mar 17 01:39:11 2021 +1100
+
+    cmd/compile: actually intrinsify runtime/internal/atomic.{And,Or}{8,} on RISCV64
+    
+    Actually enable intrinsics for runtime/internal/atomic.{And,Or}{8,} on RISCV64.
+    This seems to have been lost when CL 268098 was rebased.
+    
+    Change-Id: If072daa79c8964b186c127d5e065a7cc9e23ba27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302229
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

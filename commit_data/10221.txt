@@ -1,0 +1,12 @@
+commit 1738dc0e71b0a0356f5f88737c8b10d92b619063
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 3 11:32:37 2011 -0400
+
+    8a: fix IMULL grammar
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5298091
+
+ src/cmd/8a/lex.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit 7e4191e686c192b9c85065fd3b8775190d3e9c5f
+Author: scott <scottwangsxll@gmail.com>
+Date:   Fri Nov 11 03:55:08 2022 +0000
+
+    os/exec: fix TestWaitInterrupt/WaitDelay error message
+    
+    As the comments say. Here we expect err to be nil instead of ctx.Err()
+    
+    Change-Id: I4cd02d62ac0a13c9577a567de36742f13d140d36
+    GitHub-Last-Rev: 6bedfbc9d2511140d088dc9ee5f40015725f68db
+    GitHub-Pull-Request: golang/go#56698
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449737
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/exec/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

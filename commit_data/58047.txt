@@ -1,0 +1,18 @@
+commit 700c7b95ae001244e60e820dcc4f63ae4f5fc5b1
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Aug 13 16:31:27 2024 +0000
+
+    internal/sync: add LoadAndDelete to HashTrieMap
+    
+    This change adds the LoadAndDelete operation (with the same semantics as
+    sync.Map's LoadAndDelete) to HashTrieMap.
+    
+    Change-Id: Id6777dffcd3ebc98490aa51f0e85e59a56f63074
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606456
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/sync/hashtriemap.go      |  73 +++++++++++++++
+ src/internal/sync/hashtriemap_test.go | 170 +++++++++++++++++++++++++++++++++-
+ 2 files changed, 238 insertions(+), 5 deletions(-)

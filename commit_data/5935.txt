@@ -1,0 +1,13 @@
+commit b91c70ad52c638453ef97ef46223d53353a3ed8e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 3 00:36:44 2010 -0700
+
+    A+C: Tarmigan Casebolt
+    
+    R=adg
+    CC=golang-dev, tarm
+    https://golang.org/cl/1923041
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

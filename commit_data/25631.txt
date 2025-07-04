@@ -1,0 +1,18 @@
+commit 36edf48a1078f1a39f1299276354ecd3190f6837
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 21 22:48:29 2016 -0500
+
+    cmd/asm: report more than one instruction encoding error
+    
+    Also, remove output file if there are encoding errors.
+    The extra reports are convenient.
+    Removing the output file is very important.
+    Noticed while testing.
+    
+    Change-Id: I0fab17d4078f93c5a0d6d1217d8d9a63ac789696
+    Reviewed-on: https://go-review.googlesource.com/18845
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/asm/main.go              | 13 ++++++++++---
+ src/cmd/internal/obj/x86/asm6.go |  3 ++-
+ 2 files changed, 12 insertions(+), 4 deletions(-)

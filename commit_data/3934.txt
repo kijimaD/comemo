@@ -1,0 +1,12 @@
+commit 0b4de7aa8a58e61c5cdee7f2d06e018b77efc84a
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 9 16:09:57 2009 -0800
+
+    comment out red TODO clauses except for the last one
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1024037
+
+ doc/go_spec.html | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

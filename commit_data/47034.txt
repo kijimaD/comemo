@@ -1,0 +1,34 @@
+commit 23fdd7f0f75bca03a092faeeef60d8b0b804bf8d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Oct 25 07:48:12 2021 +0200
+
+    syscall: add utimensat libc wrapper on darwin
+    
+    Add utimensat as a wrapper around the libc function of the same name.
+    utimensat was added in macOS 10.13 which is the minimum supported
+    release since Go 1.17 dropped support for macOS 10.12.
+    
+    This also allows to drop the fallback to setattrlistTimes which was
+    used to set timestamps with nanosecond resolution before utimensat could
+    be used, see #22528 and CL 74952.
+    
+    Updates #22528
+    
+    Change-Id: I87b6a76acf1d642ceede9254f7d9d06dddc3fd71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358274
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_bsd.go           |  7 +----
+ src/syscall/syscall_darwin.go        | 53 +-----------------------------------
+ src/syscall/syscall_dragonfly.go     |  5 ----
+ src/syscall/syscall_freebsd.go       |  5 ----
+ src/syscall/syscall_netbsd.go        |  5 ----
+ src/syscall/syscall_openbsd.go       |  5 ----
+ src/syscall/zsyscall_darwin_amd64.go | 19 +++++++++++++
+ src/syscall/zsyscall_darwin_amd64.s  |  4 +--
+ src/syscall/zsyscall_darwin_arm64.go | 19 +++++++++++++
+ src/syscall/zsyscall_darwin_arm64.s  |  4 +--
+ 10 files changed, 44 insertions(+), 82 deletions(-)

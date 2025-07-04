@@ -1,0 +1,37 @@
+commit c46966653f6144e20f8b9bccb96e7a7f1d32aeb9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jan 22 16:34:41 2024 +0000
+
+    runtime: use the correct M ID for syscalling goroutines in traces
+    
+    Earlier in the development of the new tracer, m.id was used as a the
+    canonical ID for threads. Later, we switched to m.procid because it
+    matches the underlying OS resource. However, in that switch, we missed a
+    spot.
+    
+    The tracer catches and emits statuses for goroutines that have remained
+    in either waiting or syscall across a whole generation, and emits a
+    thread ID for the latter set. The ID being used here, however, was m.id
+    instead of m.procid, like the rest of the tracer.
+    
+    This CL also adds a regression test. In order to make the regression
+    test actually catch the failure, we also have to make the parser a
+    little less lenient about GoStatus events with GoSyscall: if this isn't
+    the first generation, then we should've seen the goroutine bound to an
+    M already when its status is getting emitted for its context. If we emit
+    the wrong ID, then we'll catch the issue when we emit the right ID when
+    the goroutine exits the syscall.
+    
+    Fixes #65196.
+    
+    Change-Id: I78b64fbea65308de5e1291c478a082a732a8bf9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557456
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/trace/v2/order.go                     |  7 +++
+ .../trace/v2/testdata/testprog/wait-on-pipe.go     | 66 ++++++++++++++++++++++
+ src/internal/trace/v2/trace_test.go                |  9 +++
+ src/runtime/trace2.go                              |  2 +-
+ 4 files changed, 83 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit e9a8ab031d82df6e84bc58cdca272a672a31ce8e
+Author: Devon H. O'Dell <devon.odell@gmail.com>
+Date:   Wed Dec 2 08:18:26 2009 -0800
+
+            lxml.etree is the wrong location for this alt package
+    
+      on my linux machine this is the correct one. lxml.etree
+      exists with an ElementTree class, but does not contain
+      an .XML method.
+    
+    R=rsc
+    https://golang.org/cl/163082
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

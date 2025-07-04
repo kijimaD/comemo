@@ -1,0 +1,14 @@
+commit 96f57186ba79b6a649fa0bb901ee5b222877f0d3
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 22 13:02:00 2013 -0800
+
+    exp/ssa: silence go vet
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/7386052
+
+ src/pkg/exp/ssa/interp/interp.go  | 2 +-
+ src/pkg/exp/ssa/interp/reflect.go | 2 +-
+ src/pkg/exp/ssa/literal.go        | 5 ++++-
+ 3 files changed, 6 insertions(+), 3 deletions(-)

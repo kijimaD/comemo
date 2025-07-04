@@ -1,0 +1,16 @@
+commit 547a82c36cbeb59544943848ec6c5cadbe0b770a
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Feb 6 14:44:30 2014 -0800
+
+    math/big: replace goto with for loop
+    I just added support for goto statements to my GopherJS project and now I am trying to get rid of my patches. These occurrences of goto however are a bit problematic:
+    GopherJS has to emulate gotos, so there is some performance drawback when doing so. In this case the drawback is major, since this is a core function of math/big which is called quite often. Additionally I can't see any reason here why the implementation with gotos should be preferred over my proposal.
+    That's why I would kindly ask to include this patch, even though it is functional equivalent to the existing code.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/55470046
+
+ src/pkg/math/big/arith.go | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

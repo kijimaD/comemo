@@ -1,0 +1,16 @@
+commit 0fe6b1293a9b65bc8b23be41d111bc9e4914684a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Mar 2 14:53:07 2015 +1100
+
+    image/jpeg: when following component selectors, only consider valid
+    components.
+    
+    This fixes decoding JPEG images where the component selector is 0. Such
+    images are rare, but not impossible.
+    
+    Change-Id: I6d221bce01cce8cc0440e117543233371782ca22
+    Reviewed-on: https://go-review.googlesource.com/6421
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/jpeg/scan.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

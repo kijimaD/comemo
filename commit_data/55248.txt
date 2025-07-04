@@ -1,0 +1,17 @@
+commit b55bf2d786e947a7ab33585420c4ac8841945f5d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Dec 8 15:11:47 2023 -0500
+
+    doc/go1.22: remove stale TODO and comments for vet changes
+    
+    They are already mentioned in the Vet section.
+    
+    For #61422.
+    
+    Change-Id: I773881df8c6a97263fc3d516e1d38b95679f2693
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548480
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Bypass: Cherry Mui <cherryyz@google.com>
+
+ doc/go1.22.html | 25 -------------------------
+ 1 file changed, 25 deletions(-)

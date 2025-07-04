@@ -1,0 +1,20 @@
+commit 0fec65d281af8932ce8da946faa55884f2427cfc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 29 08:40:37 2022 -0400
+
+    os/exec: add a GODEBUG setting to diagnose leaked processes
+    
+    Updates #52580.
+    For #50436.
+    
+    Change-Id: I669f13863f1f85d576c3c94500b118e6989000eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436655
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/os/exec/dot_test.go  |  2 +-
+ src/os/exec/exec.go      | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/os/exec/exec_test.go | 15 +++++++++++++++
+ 3 files changed, 58 insertions(+), 1 deletion(-)

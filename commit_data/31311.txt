@@ -1,0 +1,15 @@
+commit 26536b2f327781ad76afe22109b94b7b193407bf
+Author: 张嵩 <zs349596@gmail.com>
+Date:   Thu Apr 20 23:47:07 2017 -0700
+
+    test/chan: add missing flag.Parse in doubleselect.go
+    
+    doubleselect.go defines a flag to control the number of iterations,
+    but never called flag.Parse so it was unusable.
+    
+    Change-Id: Ib5d0c7119e7f7c9a808dcc02d0d9cc6ba5bbc16e
+    Reviewed-on: https://go-review.googlesource.com/41299
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/chan/doubleselect.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,13 @@
+commit cdf7654062412a3213a217e34ce2c563653d140d
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Mon Jan 16 16:02:31 2012 +1100
+
+    image/color: simplify documentation
+    
+    R=nigeltao, dsymonds, adg
+    CC=golang-dev
+    https://golang.org/cl/5544073
+
+ src/pkg/image/color/color.go | 63 ++++++++++++++++++++++----------------------
+ src/pkg/image/color/ycbcr.go | 12 ++++-----
+ 2 files changed, 38 insertions(+), 37 deletions(-)

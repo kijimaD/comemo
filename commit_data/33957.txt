@@ -1,0 +1,26 @@
+commit 65fa53183b3978085e20e3f5794e88ae8c2671c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 5 16:06:47 2018 -0500
+
+    cmd/test2json: fix processing of --- BENCH: output
+    
+    If a benchmark calls b.Log without failing (without b.Error/b.Fatal/b.FailNow)
+    then that turns into output very much like a test passing,
+    except it says BENCH instead of PASS.
+    Benchmarks failing say FAIL just like tests failing.
+    
+    Fixes #23346.
+    
+    Change-Id: Ib188e695952da78057ab4a13f90d49937aa3c232
+    Reviewed-on: https://go-review.googlesource.com/86396
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/test2json/test2json.go            | 10 ++++++++--
+ src/cmd/internal/test2json/testdata/bench.json     | 14 ++++++++++++++
+ src/cmd/internal/test2json/testdata/bench.test     | 12 ++++++++++++
+ src/cmd/internal/test2json/testdata/benchfail.json |  6 ++++++
+ src/cmd/internal/test2json/testdata/benchfail.test |  4 ++++
+ src/cmd/test2json/main.go                          | 13 +++++++++++--
+ 6 files changed, 55 insertions(+), 4 deletions(-)

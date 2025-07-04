@@ -1,0 +1,13 @@
+commit d4b6a198b3b44c8c9617c72ceca9c32ba089b5a8
+Author: Patrick Mézard <patrick@mezard.eu>
+Date:   Sun Feb 23 12:53:02 2014 -0800
+
+    os/exec: explicitly mention Cmd.Wait() has to be called eventually
+    
+    LGTM=minux.ma, r
+    R=golang-codereviews, minux.ma, r
+    CC=golang-codereviews
+    https://golang.org/cl/67280043
+
+ src/pkg/os/exec/exec.go | 5 +++++
+ 1 file changed, 5 insertions(+)

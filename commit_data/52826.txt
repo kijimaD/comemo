@@ -1,0 +1,21 @@
+commit 5901ab80b9c9ac2daa7c30f0c0ede3b7adfc7007
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Sun Apr 30 11:38:00 2023 +0200
+
+    runtime/cgo: use atomic.Uintptr instead of atomic.AddUintptr.
+    
+    cgo.NewHandle atomically increments a global uintptr index using
+    atomic.AddUintptr. Use atomic.Uintptr instead, which is
+    cleaner and clearer.
+    
+    Change-Id: I845b3e4cb8c461e787a9b9bb2a9ceaaef1d21d8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490775
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/cgo/handle.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

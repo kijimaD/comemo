@@ -1,0 +1,18 @@
+commit 9da64156a62e4661fb5b0e64a2f196f253ce0dc5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Apr 12 22:40:36 2021 +0000
+
+    runtime: track scannable globals space
+    
+    For #44167.
+    
+    Change-Id: I2cd13229d88f630451fabd113b0e5a04841e9e79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309590
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgcpacer.go | 10 ++++++++++
+ src/runtime/symtab.go   |  7 +++++--
+ 2 files changed, 15 insertions(+), 2 deletions(-)

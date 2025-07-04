@@ -1,0 +1,27 @@
+commit b5946ed48d75332ba95962a181a28bb6b203459f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 17 15:40:46 2019 -0700
+
+    test: fix escape_runtime_atomic.go
+    
+    Casp1 is implemented in Go on js/wasm, so escape analysis correctly
+    determines that the "old" parameter does not escape (which is good).
+    
+    Unfortunately, test/run.go doesn't have a way to indicate that ERROR
+    messages are optional, and cmd/compile only emits diagnostics for "var
+    x int" when it's moved to the heap; not when it stays on the stack.
+    
+    To accomodate that this test currently passes on some GOARCHes but not
+    others, rewrite the Casp1 test to use "x := new(int)" and allow both
+    "new(int) escapes to heap" or "new(int) does not escape".
+    
+    Updates #31525.
+    
+    Change-Id: I40150a7ff9042f184386ccdb2d4d428f63e8ba4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172602
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/escape_runtime_atomic.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

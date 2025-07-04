@@ -1,0 +1,18 @@
+commit 35483c8e2540a4ba731ded6b9f19b2f5244fe4fa
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Oct 6 12:55:20 2017 +1100
+
+    misc/cgo/testcshared: delete testp0.exe not testp0 file
+    
+    Otherwise we end up with testp?.exe files after the tests run.
+    
+    Updates #11058
+    
+    Change-Id: Ieccfc42da6192622bdab1f9a411ccd50bb59fd5b
+    Reviewed-on: https://go-review.googlesource.com/68770
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcshared/cshared_test.go | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)

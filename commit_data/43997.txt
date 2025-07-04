@@ -1,0 +1,39 @@
+commit 0a02371b0576964e81c3b40d328db9a3ef3b031b
+Author: Cuong Manh Le <cuong@orijtech.com>
+Date:   Mon Dec 14 09:45:44 2020 +0700
+
+    cmd/compile: set correct type for OpIData
+    
+    Since CL 270057, there're many attempts to fix the expand_calls pass
+    with interface{}-typed. But all of them did not fix the root cause. The
+    main issue is during SSA conversion in gc/ssa.go, for empty interface
+    case, we make its type as n.Type, instead of BytePtr.
+    
+    To fix these, we can just use BytePtr for now, since when itab fields
+    are treated as scalar.
+    
+    No significal changes on compiler speed, size.
+    
+    cmd/compile/internal/ssa
+    expandCalls.func6 9488 -> 9232  (-2.70%)
+    
+    file                       before   after    Δ       %
+    cmd/compile/internal/ssa.s 3992893  3992637  -256    -0.006%
+    total                      20500447 20500191 -256    -0.001%
+    
+    Fixes #43112
+    Updates #42784
+    Updates #42727
+    Updates #42568
+    
+    Change-Id: I0b15d9434e0be5448453e61f98ef9c2d6cd93792
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276952
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go           |  4 +--
+ src/cmd/compile/internal/ssa/expand_calls.go |  8 +-----
+ test/fixedbugs/issue43112.go                 | 41 ++++++++++++++++++++++++++++
+ 3 files changed, 44 insertions(+), 9 deletions(-)

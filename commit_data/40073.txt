@@ -1,0 +1,23 @@
+commit 2c47caa900cb4aca9ab9e802289fa0671ad843a4
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Sep 28 14:33:10 2019 +0200
+
+    cmd/compile: use %v for Node formatting
+    
+    CL 197817 replaced a use of n.Rlist with n.Right in a Fprintf call,
+    but it left the corresponding format as %.v, which broke the
+    TestFormats test on the longtest builder.
+    
+    Since with n.Right is custom to use %v (and not %.v), replace the
+    format with %v.
+    
+    Fixes the longtest builder.
+    
+    Change-Id: Icf5bf820a936c51e633c25ada1a71a1ffb6d28c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197837
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

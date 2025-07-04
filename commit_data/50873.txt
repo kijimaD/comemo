@@ -1,0 +1,19 @@
+commit 1a7f08cf408ff4c4f05be25839a0d7c5ec28ed05
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 11 15:09:02 2022 -0700
+
+    os/signal: document behavior of SIGPIPE on non-Go thread
+    
+    Fixes #56150
+    
+    Change-Id: Id990783562950ba8be7ce9526b7a811625f2190a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442415
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/os/signal/doc.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

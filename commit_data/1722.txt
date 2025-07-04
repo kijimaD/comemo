@@ -1,0 +1,13 @@
+commit e9b40580ba724d3e2bc5552b3ee3277db9c26d58
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 2 16:12:04 2009 -0800
+
+    fix names: s/fd/r/
+    
+    R=r
+    DELTA=9  (0 added, 0 deleted, 9 changed)
+    OCL=25593
+    CL=25593
+
+ src/lib/io/io.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

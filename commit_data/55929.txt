@@ -1,0 +1,30 @@
+commit be58fd00707a6e90cd868c279e0fd348a9ae7092
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Mar 13 17:46:29 2024 +0000
+
+    Revert: "cmd/link: add option to enable full RELRO for ELF"
+    
+    This reverts https://go.dev/cl/c/go/+/473495.
+    
+    Reason for revert: breaks some Google-internal tests.
+    
+    This revert will be temporary until we can gather more info on the
+    nature of the failures and hopefully develop an upstream test case,
+    etc.
+    
+    Updates #45681.
+    
+    Change-Id: Ib628ddc53bc5489e4f76c0f4ad809b75e899102c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571415
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/go/internal/work/security.go      |   3 +-
+ src/cmd/go/internal/work/security_test.go |   4 -
+ src/cmd/link/doc.go                       |   2 -
+ src/cmd/link/internal/ld/elf.go           |  32 ++-----
+ src/cmd/link/internal/ld/elf_test.go      | 150 ------------------------------
+ src/cmd/link/internal/ld/lib.go           |   8 +-
+ src/cmd/link/internal/ld/main.go          |   1 -
+ src/internal/testenv/testenv.go           |   9 --
+ 8 files changed, 11 insertions(+), 198 deletions(-)

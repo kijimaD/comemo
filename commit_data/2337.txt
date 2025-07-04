@@ -1,0 +1,16 @@
+commit 6e1762c06e40d0bc3bb4b6787c72843bf897cf11
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 29 00:13:09 2009 -0700
+
+    64-bit integer arithmetic.
+    passes ridiculous test from CL 29569.
+    
+    R=ken
+    OCL=29571
+    CL=29573
+
+ src/cmd/8g/cgen.c      | 351 ++++++++++++++++++++++++++++++++++++++++++++++---
+ src/cmd/8g/gg.h        |   1 +
+ src/cmd/8g/gsubr.c     |  31 +++--
+ src/runtime/386/vlrt.c |  14 ++
+ 4 files changed, 367 insertions(+), 30 deletions(-)

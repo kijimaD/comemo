@@ -1,0 +1,15 @@
+commit b7376442669a0ea48e06bd98a3350c33cefe1113
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Sep 9 23:53:48 2012 +0900
+
+    net: change cname lookup test target to iana.org
+    
+    It might be meaningful, and stable than others.
+    
+    R=golang-dev, agl
+    CC=golang-dev
+    https://golang.org/cl/6499091
+
+ src/pkg/net/dialgoogle_test.go | 11 -----------
+ src/pkg/net/lookup_test.go     | 12 ++++++++++++
+ 2 files changed, 12 insertions(+), 11 deletions(-)

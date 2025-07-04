@@ -1,0 +1,19 @@
+commit e3bb53a7683eb9c3d04c09f28abb4cf9aa89a7c1
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 27 17:08:57 2020 +0700
+
+    cmd/compile: remove isLiteral
+    
+    It has duplicated logic with "n.isGoConst".
+    
+    Passes toolstash-check.
+    
+    Change-Id: I5bf871ef81c7188ca09dae29c7ff55b3a254d972
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265437
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/sinit.go | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)

@@ -1,0 +1,12 @@
+commit cc5c2ee0ec93bc75560ea2e635f14e5a2453f97b
+Author: Graham Miller <graham.miller@gmail.com>
+Date:   Thu Oct 7 04:52:13 2010 -0400
+
+    life: fix for new slice rules
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/2341049
+
+ misc/cgo/life/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit f31f9a61c5c36421f56bd27a6be8ef9fcd377431
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 14 09:54:56 2013 +1100
+
+    misc/dashboard/codereview: add campoy to list of gophers
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7106044
+
+ misc/dashboard/codereview/dashboard/people.go | 1 +
+ 1 file changed, 1 insertion(+)

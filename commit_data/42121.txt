@@ -1,0 +1,16 @@
+commit b0a87544754a41312aa454f69d4e820979f19ef0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 23:11:08 2020 -0700
+
+    cmd/compile: convert race cleanup rule to typed aux
+    
+    Passes toolstash-check.
+    
+    Change-Id: I3005210cc156d01a6ac1ccaafb4311c607681bf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229691
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules | 2 +-
+ src/cmd/compile/internal/ssa/rewrite.go        | 4 ++--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

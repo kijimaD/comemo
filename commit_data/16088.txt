@@ -1,0 +1,12 @@
+commit 1b9e36356be410adf3b0b80e99996f8f3476d8cf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 4 12:07:53 2013 +1100
+
+    misc/dist: don't ship race-enabled commands
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8350044
+
+ misc/dist/bindist.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

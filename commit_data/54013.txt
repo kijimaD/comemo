@@ -1,0 +1,27 @@
+commit b51a4dd6c43194d8680a05ea735a02d70af976af
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Fri Aug 4 17:31:43 2023 -0400
+
+    runtime: restore caller's frame pointer when recovering from panic
+    
+    When recovering from a panic, restore the caller's frame pointer before
+    returning control to the caller. Otherwise, if the function proceeds to
+    run more deferred calls before returning, the deferred functions will
+    get invalid frame pointers pointing to an address lower in the stack.
+    This can cause frame pointer unwinding to crash, such as if an execution
+    trace event is recorded during the deferred call on architectures which
+    support frame pointer unwinding.
+    
+    Fixes #61766
+    
+    Change-Id: I45f41aedcc397133560164ab520ca638bbd93c4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516157
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+
+ src/runtime/callers_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ src/runtime/export_test.go  |  2 ++
+ src/runtime/panic.go        | 12 +++++++++++-
+ 3 files changed, 49 insertions(+), 1 deletion(-)

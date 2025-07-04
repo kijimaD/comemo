@@ -1,0 +1,14 @@
+commit 40bd28f0c79b6791c7fd86ce42badde300286864
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Fri Mar 18 12:10:47 2016 +0100
+
+    fmt: remove unused field from printer struct
+    
+    Change-Id: I0ec775c51f461c6f0cbff88e796a7af55b736fcb
+    Reviewed-on: https://go-review.googlesource.com/20838
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/fmt/print.go | 1 -
+ 1 file changed, 1 deletion(-)

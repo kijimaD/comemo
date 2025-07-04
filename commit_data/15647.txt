@@ -1,0 +1,13 @@
+commit 33e8ca4d67ecd1fb02d9189160cb3a91b4285748
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 8 13:53:17 2013 -0800
+
+    effective_go.html: add a section on type assertions
+    The information was missing, oddly enough.
+    
+    R=golang-dev, rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/7636044
+
+ doc/effective_go.html | 94 +++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 88 insertions(+), 6 deletions(-)

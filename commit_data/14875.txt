@@ -1,0 +1,39 @@
+commit 94878070af6f7efe1aa002089b800fe9393f9923
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Jan 13 10:33:08 2013 -0800
+
+    go/types: Moving from *ast.Objects to types.Objects (step 2).
+    
+    Completely removed *ast.Objects from being exposed by the
+    types API. *ast.Objects are still required internally for
+    resolution, but now the door is open for an internal-only
+    rewrite of identifier resolution entirely at type-check
+    time. Once that is done, ASTs can be type-checked whether
+    they have been created via the go/parser or otherwise,
+    and type-checking does not require *ast.Object or scope
+    invariants to be maintained externally.
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/7096048
+
+ src/pkg/exp/gotype/gotype.go          |   2 +-
+ src/pkg/go/types/api.go               |   4 +-
+ src/pkg/go/types/builtins.go          |   2 +-
+ src/pkg/go/types/check.go             | 336 ++++++++++++++++++----------------
+ src/pkg/go/types/check_test.go        |   4 +-
+ src/pkg/go/types/errors.go            |  14 +-
+ src/pkg/go/types/expr.go              |  78 ++++----
+ src/pkg/go/types/gcimporter.go        |   7 +-
+ src/pkg/go/types/objects.go           | 142 ++++++++------
+ src/pkg/go/types/operand.go           |   6 -
+ src/pkg/go/types/predicates.go        |   9 +-
+ src/pkg/go/types/resolve.go           |  90 +++++----
+ src/pkg/go/types/resolver_test.go     |  92 +++++-----
+ src/pkg/go/types/scope.go             |  59 ++++++
+ src/pkg/go/types/stmt.go              |  77 ++++----
+ src/pkg/go/types/testdata/decls2a.src |   2 +-
+ src/pkg/go/types/types.go             |  41 ++---
+ src/pkg/go/types/types_test.go        |   8 +-
+ src/pkg/go/types/universe.go          | 197 ++++++++------------
+ 19 files changed, 629 insertions(+), 541 deletions(-)

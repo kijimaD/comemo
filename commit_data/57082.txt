@@ -1,0 +1,21 @@
+commit e8776e19b93dc59860dad2f23da68d373b3fea39
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Wed Jul 31 13:45:53 2024 -0700
+
+    runtime: benchmark mutex handoffs
+    
+    The speed of handing off a mutex to a waiting thread is sensitive to the
+    configuration of the spinning section of lock2. Measure that latency
+    directly, to complement our existing benchmarks of mutex throughput.
+    
+    For #68578
+    
+    Change-Id: I7637684bcff62eb05cc008491f095f653d13af4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602176
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/runtime_test.go | 110 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 110 insertions(+)

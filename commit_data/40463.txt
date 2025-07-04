@@ -1,0 +1,16 @@
+commit e071cc4873d6b22c4ffe66f541bc65698b86afe2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 28 08:32:06 2019 -0700
+
+    cmd/compile: update comment about OpPhi argLength
+    
+    We use -1 for Phi argLength, not "a really large number".
+    
+    Change-Id: I5d4fa364c22c3cf40213f2368a9a20de7e989aac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203883
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

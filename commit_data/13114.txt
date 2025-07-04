@@ -1,0 +1,13 @@
+commit 5c6162cdd16d7d706342946c0f2a8a944f2796fe
+Author: Benjamin Black <b@b3k.us>
+Date:   Tue May 22 11:03:59 2012 -0400
+
+    crypto/x509: Add ECDSA support
+    
+    R=golang-dev, agl, rsc
+    CC=golang-dev
+    https://golang.org/cl/6208087
+
+ src/pkg/crypto/x509/x509.go      | 144 +++++++++++++++++++++++++++++++++++----
+ src/pkg/crypto/x509/x509_test.go | 111 ++++++++++++++++++++++++++++++
+ 2 files changed, 241 insertions(+), 14 deletions(-)

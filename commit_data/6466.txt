@@ -1,0 +1,14 @@
+commit 62355959c6b56f90f2b83f4a766598d734d8785f
+Author: Graham Miller <graham.miller@gmail.com>
+Date:   Thu Oct 7 03:13:24 2010 -0400
+
+    runtime: faster strequal, memequal
+    
+    Fixes #1161.
+    
+    R=rsc, cwvh
+    CC=golang-dev
+    https://golang.org/cl/2317044
+
+ src/pkg/runtime/runtime.c | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

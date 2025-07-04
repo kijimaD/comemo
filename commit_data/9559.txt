@@ -1,0 +1,19 @@
+commit 7349d21f8ea7b121b2b691a01538f8a16bc09aed
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 30 21:47:41 2011 -0700
+
+    http: add file protocol transport
+    
+    Off by default (security risk), but users can
+    wire it up if desired.
+    
+    Fixes #2113
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4959049
+
+ src/pkg/http/Makefile              |   1 +
+ src/pkg/http/filetransport.go      | 124 +++++++++++++++++++++++++++++++++++++
+ src/pkg/http/filetransport_test.go |  63 +++++++++++++++++++
+ 3 files changed, 188 insertions(+)

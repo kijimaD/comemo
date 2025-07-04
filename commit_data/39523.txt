@@ -1,0 +1,15 @@
+commit 5bc46cb71215f445797fb55e2b4eee795ee1ca17
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Jul 14 19:08:57 2019 +0200
+
+    doc/go1.13: remove 1.12 reference from 1.13 release notes
+    
+    While it's true that CL 168479 was also backported to 1.12, this is
+    irrelevant for the Go1.13 release notes.
+    
+    Change-Id: I044be69f8f2bc005f58a0d63db05129add15f674
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186138
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.13.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

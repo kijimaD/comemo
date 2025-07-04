@@ -1,0 +1,12 @@
+commit 005fe41125dc2a23bc25eb553d194a40dd4d99e0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 23 09:44:23 2011 +1100
+
+    godoc: add -template flag to specify custom templates
+    
+    R=gri, niemeyer, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4291059
+
+ src/cmd/godoc/godoc.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

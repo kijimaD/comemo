@@ -1,0 +1,22 @@
+commit dd307da10c3582c195928d9bf073d1b0b01f2135
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Oct 11 14:24:59 2016 +1100
+
+    runtime/cgo: do not explicitly link msvcrt.dll
+    
+    CL 14472 solved issue #12030 by explicitly linking msvcrt.dll
+    to every cgo executable we build. This CL achieves the same
+    by manually loading ntdll.dll during startup.
+    
+    Updates #12030
+    
+    Change-Id: I5d9cd925ef65cc34c5d4031c750f0f97794529b2
+    Reviewed-on: https://go-review.googlesource.com/30737
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/cgo/cgo.go    |  4 +---
+ src/runtime/os_windows.go | 14 ++++++++++++--
+ 2 files changed, 13 insertions(+), 5 deletions(-)

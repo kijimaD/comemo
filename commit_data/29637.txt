@@ -1,0 +1,17 @@
+commit c2bb52b8304a814b8e2b447953c3341ac31bbee8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 23 16:41:15 2016 +0000
+
+    test: remove amd64 build tag from test
+    
+    It was supposed to be testing SSA, not amd64.
+    
+    For #18024
+    
+    Change-Id: Ibe65d7eb6bed9bc4b3eda68e1eaec5fa39fe8f76
+    Reviewed-on: https://go-review.googlesource.com/33491
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue8613.go | 1 -
+ 1 file changed, 1 deletion(-)

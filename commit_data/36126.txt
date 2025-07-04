@@ -1,0 +1,33 @@
+commit b39fb9ec85c95cd760b8916eb85c92a185ca7a48
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Jul 27 11:24:00 2018 +0100
+
+    cmd/go/internal/par: fix TestWorkParallel retries
+    
+    When the test retried multiple times, it reused the same Work variable,
+    causing in the builders being flaky due to panics. I was able to
+    immediately reproduce the failure with stress and -race:
+    
+            $ go test -race -c && stress -p 32 ./par.test -test.run=TestWorkParallel$
+    
+            /tmp/go-stress909062277
+            --- FAIL: TestWorkParallel (0.07s)
+            panic: par.Work.Do: already called Do [recovered]
+                    panic: par.Work.Do: already called Do
+    
+    Instead, use a new Work variable at each retry. Now, the line above
+    seems to never fail. Of course, much higher 'stress -p' values will
+    still result in "does not seem to be parallel" test failures since the
+    machine lacks resources. But those are test failures, not panics.
+    
+    Fixes #26642.
+    
+    Change-Id: I5e962eca7602cf413d911ff5669f56d4f52da5a7
+    Reviewed-on: https://go-review.googlesource.com/126355
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/par/work_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit f9dcda3fd83e83fb29cc6b0f710faa49ba98a54b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 11 16:32:16 2021 -0800
+
+    cmd/compile/internal/types2: better error for type assertion/switch on type parameter value
+    
+    Change-Id: I98751d0b2d8aefcf537b6d5200d0b52ffacf1105
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363439
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/expr.go                       |  7 ++++++-
+ src/cmd/compile/internal/types2/stmt.go                       | 11 ++++++-----
+ src/cmd/compile/internal/types2/testdata/check/typeparams.go2 |  8 ++++----
+ test/interface/explicit.go                                    |  2 +-
+ test/typeswitch3.go                                           |  4 ++--
+ 5 files changed, 19 insertions(+), 13 deletions(-)

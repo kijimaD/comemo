@@ -1,0 +1,14 @@
+commit 1308f7c94f8e5af49c809840af796129f97ce6c8
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 10 14:37:20 2012 +1100
+
+    testing/iotest: adjust adverbial imprecision in package comment
+    
+    Fixes #2959.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5651053
+
+ src/pkg/testing/iotest/reader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

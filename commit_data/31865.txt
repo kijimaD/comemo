@@ -1,0 +1,29 @@
+commit 6c2458e72d85dd0d388e4d27b6b361899084d526
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 16 14:48:38 2017 -0700
+
+    cmd/compile: permit Unicode spaces in (expanded) package paths
+    
+    This doesn't change the existing restriction with disallows
+    spaces in import paths (as found in an import declaration).
+    It simply permits packages to be under a directory name that
+    may contain spaces.
+    
+    Verified manually that it works. This could use a test, but the
+    change is trivial. We also can't use the existing test framework
+    (under test/) because the way those tests are run with test/run.go,
+    the mechanims for compiling a directory, even if it contains blanks
+    it its name, does't produce compiler paths with blanks
+    (the compilation is local).
+    
+    Fixes #20306.
+    
+    Change-Id: I6cbffb86c3394347897c3c94b110da0aadc5bfdf
+    Reviewed-on: https://go-review.googlesource.com/46001
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go | 2 +-
+ src/cmd/compile/internal/gc/main.go    | 4 ++--
+ src/cmd/compile/internal/gc/subr.go    | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

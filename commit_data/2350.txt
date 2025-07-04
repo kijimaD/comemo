@@ -1,0 +1,43 @@
+commit 8cbb5d03bf882cfcfa08f4313219e4fc68db7517
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun May 31 11:18:52 2009 -0700
+
+    Adjust expected errors to work with gccgo.
+    
+    The change to assign.go is because the gcc testsuite fails to
+    handle .* in a normal way: it matches against the entire
+    compiler output, not just a single line.
+    
+    assign.go:15:6: error: incompatible types in assignment (implicit assignment of 'sync.Mutex' hidden field 'key')
+    assign.go:19:6: error: incompatible types in assignment (implicit assignment of 'sync.Mutex' hidden field 'key')
+    assign.go:23:6: error: incompatible types in assignment (implicit assignment of 'sync.Mutex' hidden field 'key')
+    assign.go:27:6: error: incompatible types in assignment (implicit assignment of 'sync.Mutex' hidden field 'key')
+    
+    chan/perm.go:14:5: error: incompatible types in assignment
+    chan/perm.go:15:5: error: incompatible types in assignment
+    chan/perm.go:16:6: error: incompatible types in assignment
+    chan/perm.go:17:6: error: incompatible types in assignment
+    chan/perm.go:24:7: error: invalid send on receive-only channel
+    chan/perm.go:25:12: error: invalid send on receive-only channel
+    chan/perm.go:31:4: error: invalid receive on send-only channel
+    chan/perm.go:32:9: error: invalid receive on send-only channel
+    chan/perm.go:38:2: error: invalid send on receive-only channel
+    chan/perm.go:42:2: error: invalid receive on send-only channel
+    
+    initializerr.go:14:17: error: reference to undefined variable 'X'
+    initializerr.go:14:19: error: mixture of field and value initializers
+    initializerr.go:15:26: error: duplicate value for field 'Y'
+    initializerr.go:16:10: error: too many values in struct composite literal
+    initializerr.go:18:19: error: index expression is not integer constant
+    initializerr.go:17:11: error: too many elements in composite literal
+    
+    R=rsc
+    DELTA=12  (0 added, 0 deleted, 12 changed)
+    OCL=29657
+    CL=29665
+
+ test/assign.go       | 8 ++++----
+ test/chan/perm.go    | 8 ++++----
+ test/golden.out      | 2 +-
+ test/initializerr.go | 6 +++---
+ 4 files changed, 12 insertions(+), 12 deletions(-)

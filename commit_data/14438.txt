@@ -1,0 +1,13 @@
+commit 09f3c2f10f3336375975620c8ea47e03f2850c92
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 19 12:36:15 2012 -0800
+
+    doc/articles/wiki: fix racy test
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6853069
+
+ doc/articles/wiki/get.go    | 19 ++++++++++++++-----
+ doc/articles/wiki/test.bash |  4 +---
+ 2 files changed, 15 insertions(+), 8 deletions(-)

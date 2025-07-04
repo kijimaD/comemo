@@ -1,0 +1,20 @@
+commit a174987a7c137f3c76f30a32a5429a4060dcd4b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 11 14:48:33 2009 -0800
+
+    two gopack nits.
+    
+    1. allocate an extra byte for use by write.
+    2. throw away the code trying to translate
+       uid and gid to names.  i suspect it of causing
+       seg faults in some situations, and it is
+       not needed by the compilers.
+    
+    Fixes #48.  (I hope.)
+    
+    R=r
+    https://golang.org/cl/152077
+
+ src/cmd/gopack/ar.c |  4 ++++
+ src/lib9/_p9dir.c   | 13 -------------
+ 2 files changed, 4 insertions(+), 13 deletions(-)

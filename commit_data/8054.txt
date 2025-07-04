@@ -1,0 +1,14 @@
+commit 11e07d23ed4fe12a05565a2a201cc9792b67ed32
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Tue Apr 12 11:00:09 2011 -0700
+
+    ld: ELF header function declarations.
+    
+    Added "void" inside "()" for two functions.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4381056
+
+ src/cmd/ld/elf.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

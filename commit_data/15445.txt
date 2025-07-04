@@ -1,0 +1,36 @@
+commit bd92dd6a5f2576fbf8144da0e531a57b4ebc8961
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Feb 26 13:32:22 2013 -0500
+
+    exp/ssa: reimplement logic for field selection.
+    
+    The previous approach desugared the ast.SelectorExpr
+    to make implicit field selections explicit.  But:
+    1) it was clunky since it required allocating temporary
+       syntax trees.
+    2) it was not thread-safe since it required poking
+       types into the shared type map for the new ASTs.
+    3) the desugared syntax had no place to represent the
+       package lexically enclosing each implicit field
+       selection, so it was as if they all occurred in the
+       same package as the explicit field selection.
+       This meant unexported field names changed meaning.
+    
+    This CL does what I should have done all along: just
+    generate the SSA instructions directly from the original
+    AST and the promoted field information.
+    
+    Also:
+    - add logStack util for paired start/end log messages.
+      Useful for debugging crashes.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/7395052
+
+ src/pkg/exp/ssa/builder.go | 183 +++++++++++++++++++++++++--------------------
+ src/pkg/exp/ssa/func.go    |   6 --
+ src/pkg/exp/ssa/promote.go |   4 +-
+ src/pkg/exp/ssa/ssa.go     |   2 +-
+ src/pkg/exp/ssa/util.go    |  17 +++++
+ 5 files changed, 120 insertions(+), 92 deletions(-)

@@ -1,0 +1,25 @@
+commit 0edc6c4fa088a74bef98d55cc93ffa387d4f7b2d
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Aug 16 09:37:07 2021 -0500
+
+    cmd/internal/obj/ppc64: generate prologue code compatible with new ABI
+    
+    This changes the ppc64 prologue to avoid clobbering the registers
+    that could contain incoming argument values. This means preserving
+    the values in R3 - R10 and R14 - R19 for ppc64.
+    
+    Instead of modifying R3, R4, R5 and R6 the registers R22, R23, R24
+    and R25 are used.
+    
+    The argument registers that could be clobbered by the call to
+    morestack are saved and restored around that call.
+    
+    Change-Id: If354c3dc73f2c8537ef4e513e5a4c05d7bd22866
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343872
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/ppc64/obj9.go | 63 +++++++++++++++++++++-----------------
+ 1 file changed, 35 insertions(+), 28 deletions(-)

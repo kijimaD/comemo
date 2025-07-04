@@ -1,0 +1,12 @@
+commit e3dc59f33d87f93a28a913ec56db25de3a654f0c
+Author: Yongjian Xu <i3dmaster@gmail.com>
+Date:   Tue Jun 16 21:33:03 2015 -0700
+
+    runtime: fix typos in os_linux_arm.go
+    
+    Change-Id: I750900e0aed9ec528fea3f442c35196773e3ba5e
+    Reviewed-on: https://go-review.googlesource.com/11163
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/os_linux_arm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

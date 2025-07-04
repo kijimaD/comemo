@@ -1,0 +1,21 @@
+commit c99f4f5bf648217987859d8afa0bd6eac8f74ae4
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 19 13:23:27 2011 -0800
+
+    doc: delete go course notes
+    They're out of date, a pain to maintain, and most of the material
+    is better served by the Go Tour.
+    
+    Fixes #2101.
+    
+    R=golang-dev, rsc, r, adg
+    CC=golang-dev
+    https://golang.org/cl/5489053
+
+ doc/GoCourseDay1.pdf | Bin 287552 -> 0 bytes
+ doc/GoCourseDay2.pdf | Bin 268707 -> 0 bytes
+ doc/GoCourseDay3.pdf | Bin 178003 -> 0 bytes
+ doc/docs.html        |  11 -----------
+ doc/go_tutorial.html |   7 ++-----
+ doc/go_tutorial.tmpl |   7 ++-----
+ 6 files changed, 4 insertions(+), 21 deletions(-)

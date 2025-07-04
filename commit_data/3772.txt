@@ -1,0 +1,12 @@
+commit 688a6ff71da455d001c57d03395de87a69fb967a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 16:49:28 2009 -0800
+
+    gofmt-ify bytes
+    
+    R=r
+    http://go/go-review/1016044
+
+ src/pkg/bytes/buffer.go | 2 +-
+ src/pkg/bytes/bytes.go  | 5 +++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)

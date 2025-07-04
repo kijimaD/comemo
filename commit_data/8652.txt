@@ -1,0 +1,14 @@
+commit 6998ea2982ad97db0166cbf5e22bab3087063154
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jun 8 10:46:15 2011 +1000
+
+    gc: alternative clang compatible abort.
+    
+    Tested on clang 2.9/amd64
+    
+    R=rsc, jeff, r
+    CC=golang-dev
+    https://golang.org/cl/4517143
+
+ src/cmd/gc/subr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

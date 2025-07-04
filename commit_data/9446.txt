@@ -1,0 +1,21 @@
+commit d8594f3d3c819d03280749584c5e92a5c4429e56
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 22 18:51:51 2011 -0700
+
+    go/ast: generalize ast.FilterFile
+    
+    ast.FilterFile(src, ast.IsExported) has the same
+    effect as ast.FileExports(src) with this change.
+    
+    1st step towards removing FileExports - it is
+    just a special case of FilterFile with this CL.
+    
+    Added corresponding test.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4938041
+
+ src/pkg/go/ast/filter.go         | 134 +++++++++++++++++++++++++++------------
+ src/pkg/go/parser/filter_test.go |  91 ++++++++++++++++++++++++++
+ 2 files changed, 184 insertions(+), 41 deletions(-)

@@ -1,0 +1,15 @@
+commit b91d2339bb80116d49656e6f07e0f8ff440b431e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 10 11:19:53 2014 -0700
+
+    docs: link to the assembler document from the Documents tab
+    
+    Fixes #8156.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/108840045
+
+ doc/docs.html | 1 +
+ 1 file changed, 1 insertion(+)

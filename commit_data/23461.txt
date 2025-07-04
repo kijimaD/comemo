@@ -1,0 +1,16 @@
+commit 98c9e9e74ffbdaeb7ff4af8a478d502123014626
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 23 06:12:11 2015 +1000
+
+    cmd/vet: refer info about -printfuncs to the -printf flag
+    
+    And vice versa.
+    
+    The flags are tightly coupled so make the connection clear.
+    
+    Change-Id: I505f76be631ffa6e489a441c2f3c717aa09ec802
+    Reviewed-on: https://go-review.googlesource.com/11324
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/vet/doc.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

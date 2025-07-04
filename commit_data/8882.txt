@@ -1,0 +1,12 @@
+commit 660b22988b2ee68c630806817f6dfdd70cf43518
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jun 28 11:15:24 2011 -0400
+
+    runtime: add Semacquire/Semrelease benchmarks
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4625065
+
+ src/pkg/runtime/sema_test.go | 100 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 100 insertions(+)

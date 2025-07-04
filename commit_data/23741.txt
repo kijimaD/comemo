@@ -1,0 +1,12 @@
+commit 60315002f3642f25437548e597e684b88a54e78f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 17 09:25:45 2015 -0700
+
+    doc: document GODEBUG=netdns=X and netcgo in go1.5.txt
+    
+    Change-Id: I720aeb1511e407750617e23c4cba1edcddf745bb
+    Reviewed-on: https://go-review.googlesource.com/12326
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.html | 5 +++++
+ 1 file changed, 5 insertions(+)

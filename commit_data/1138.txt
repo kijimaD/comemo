@@ -1,0 +1,23 @@
+commit 75647d202475edd41e811e936760e834cafc8594
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 17 12:32:35 2008 -0800
+
+    First pieces of malloc.
+    
+    R=r
+    DELTA=756  (754 added, 0 deleted, 2 changed)
+    OCL=19266
+    CL=19378
+
+ src/runtime/runtime.c          |   2 +-
+ src/runtime/runtime.h          |   8 +-
+ usr/rsc/mem/Makefile           |  33 +++
+ usr/rsc/mem/allocator.go       |  12 ++
+ usr/rsc/mem/malloc.c           | 443 +++++++++++++++++++++++++++++++++++++++++
+ usr/rsc/mem/malloc.h           |  32 +++
+ usr/rsc/mem/pagemap.c          |  66 ++++++
+ usr/rsc/mem/testrandom.go      |  62 ++++++
+ usr/rsc/mem/testrepeat.go      |  37 ++++
+ usr/rsc/mem/testsizetoclass.go |  11 +
+ usr/rsc/mem/triv.c             |  64 ++++++
+ 11 files changed, 768 insertions(+), 2 deletions(-)

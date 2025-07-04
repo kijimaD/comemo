@@ -1,0 +1,17 @@
+commit b2cb3b416c538406c52e8c83a8f833fae812b9fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 00:27:59 2015 -0400
+
+    cmd/go: add -pkgdir build flag
+    
+    Fixes #10210.
+    
+    Change-Id: I82ddd665bca31773b1fb1b056338c04818ef68f5
+    Reviewed-on: https://go-review.googlesource.com/12171
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/alldocs.go | 14 +++++++++-----
+ src/cmd/go/build.go   | 26 ++++++++++++++++----------
+ src/cmd/go/go_test.go | 12 ++++++++++++
+ src/cmd/go/pkg.go     |  7 +++++++
+ 4 files changed, 44 insertions(+), 15 deletions(-)

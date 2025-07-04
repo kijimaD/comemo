@@ -1,0 +1,16 @@
+commit 21e75b3251a0e6dde7a05d77ac390fa342a1e2f8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 9 12:18:50 2014 -0400
+
+    testing: write profiles on failure
+    
+    Fixes #7901.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/90930044
+
+ doc/go1.3.html             | 1 +
+ src/pkg/testing/testing.go | 1 +
+ 2 files changed, 2 insertions(+)

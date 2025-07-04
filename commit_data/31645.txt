@@ -1,0 +1,26 @@
+commit 8a2553e380196dda556608e2fe79881004770eb9
+Author: Wade Simmons <wade@wades.im>
+Date:   Mon May 22 20:31:17 2017 -0400
+
+    crypto/rand: only read necessary bytes for Int
+    
+    We only need to read the number of bytes required to store the value
+    "max - 1" to generate a random number in the range [0, max).
+    
+    Before, there was an off-by-one error where an extra byte was read from
+    the io.Reader for inputs like "256" (right at the boundary for a byte).
+    There was a similar off-by-one error in the logic for clearing bits and
+    thus for any input that was a power of 2, there was a 50% chance the
+    read would continue to be retried as the mask failed to remove a bit.
+    
+    Fixes #18165.
+    
+    Change-Id: I548c1368990e23e365591e77980e9086fafb6518
+    Reviewed-on: https://go-review.googlesource.com/43891
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/rand/util.go      | 17 +++++++++-----
+ src/crypto/rand/util_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 65 insertions(+), 5 deletions(-)

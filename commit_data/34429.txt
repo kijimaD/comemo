@@ -1,0 +1,38 @@
+commit f1fc9da3167e4424935524a1479442d28e9fd72a
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Jan 24 13:26:15 2018 -0500
+
+    cmd/link: fix up location lists for dsymutil
+    
+    LLVM tools, particularly lldb and dsymutil, don't support base address
+    selection entries in location lists. When targeting GOOS=darwin,
+    mode, have the linker translate location lists to CU-relative form
+    instead.
+    
+    Technically, this isn't necessary when linking internally, as long as
+    nobody plans to use anything other than Delve to look at the DWARF. But
+    someone might want to use lldb, and it's really confusing when dwarfdump
+    shows gibberish for the location entries. The performance cost isn't
+    noticeable, so enable it even for internal linking.
+    
+    Doing this in the linker is a little weird, but it was more expensive in
+    the compiler, probably because the compiler is much more stressful to
+    the GC. Also, if we decide to only do it for external linking, the
+    compiler can't see the link mode.
+    
+    Benchmark before and after this commit on Mac with -dwarflocationlists=1:
+    
+    name        old time/op       new time/op       delta
+    StdCmd            21.3s ± 1%        21.3s ± 1%    ~     (p=0.310 n=27+27)
+    
+    Only StdCmd is relevant, because only StdCmd runs the linker. Whatever
+    the cost is here, it's not very large.
+    
+    Change-Id: Ic8ef780d0e263230ce6aa3ca3a32fc9abd750b1e
+    Reviewed-on: https://go-review.googlesource.com/97956
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/link/internal/ld/dwarf.go | 71 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 71 insertions(+)

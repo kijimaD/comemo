@@ -1,0 +1,35 @@
+commit 9670e81c2e776b4781bc4cecddf45052ebf0afe6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 5 08:51:44 2019 -0500
+
+    all: add -mod=vendor to GOFLAGS in tests that execute 'go' commands within std or cmd
+    
+    Updates #30228
+    Updates #30240
+    Updates #30241
+    
+    Change-Id: Idc311ba77e99909318b5b86f8ef82d4878f73e47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165378
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/addr2line/addr2line_test.go             |  2 ++
+ src/cmd/compile/internal/gc/scope_test.go       |  2 ++
+ src/cmd/cover/cover_test.go                     |  2 ++
+ src/cmd/go/go_test.go                           |  4 +++-
+ src/cmd/internal/obj/x86/obj6_test.go           |  2 ++
+ src/cmd/link/internal/ld/ld_test.go             |  2 ++
+ src/cmd/link/link_test.go                       |  2 ++
+ src/cmd/nm/nm_test.go                           |  2 ++
+ src/cmd/objdump/objdump_test.go                 |  2 ++
+ src/cmd/vet/all/main.go                         |  1 +
+ src/cmd/vet/vet_test.go                         |  2 ++
+ src/crypto/x509/x509_test.go                    |  2 ++
+ src/debug/gosym/pclntab_test.go                 |  2 ++
+ src/go/importer/importer_test.go                |  2 ++
+ src/go/internal/srcimporter/srcimporter_test.go | 18 +----------------
+ src/internal/testenv/testenv.go                 | 26 +++++++++++++++++++++++++
+ src/runtime/crash_test.go                       |  2 ++
+ src/runtime/pprof/proto_test.go                 |  2 ++
+ 18 files changed, 59 insertions(+), 18 deletions(-)

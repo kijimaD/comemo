@@ -1,0 +1,23 @@
+commit 29bc4f12581d836a96139c924f16a4987324edd1
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sun Oct 28 01:44:09 2018 +0700
+
+    encoding/json: add Path to UnmarshalTypeError
+    
+    When parsing nested object, UnmarshalTypeError does not contain actual
+    path to nested field in original JSON.
+    
+    This commit change Field to contain the full path to that field. One
+    can get the Field name by stripping all the leading path elements.
+    
+    Fixes #22369
+    
+    Change-Id: I6969cc08abe8387a351e3fb2944adfaa0dccad2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/145218
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/decode.go      |  8 ++++++--
+ src/encoding/json/decode_test.go | 24 ++++++++++++++++++++++--
+ 2 files changed, 28 insertions(+), 4 deletions(-)

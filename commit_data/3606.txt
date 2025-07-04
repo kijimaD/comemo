@@ -1,0 +1,13 @@
+commit f591591a28bd715e79e4ff1270a8a5dcea22bfc2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 20 13:30:32 2009 -0700
+
+    remove superfluous tracing support
+    
+    R=rsc
+    DELTA=5  (0 added, 4 deleted, 1 changed)
+    OCL=35930
+    CL=35930
+
+ src/cmd/gofmt/gofmt.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

@@ -1,0 +1,36 @@
+commit 77c473f4197b5ad4d90689d665534e598f3c0750
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Nov 9 13:31:45 2021 -0500
+
+    all: update vendored golang.org/x/{net,text} for Go 1.18 release
+    
+    The Go 1.18 code freeze has recently started. This is a time to update
+    all golang.org/x/... module versions that contribute packages to the
+    std and cmd modules in the standard library to latest master versions.
+    
+    This CL updates only the net, text modules.
+    The next CL will update further ones.
+    
+    For #36905.
+    
+    Change-Id: I9a5ac3cca22da961cfd09f3202e01e1187d42bdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362735
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/go.mod                                         |   4 +-
+ src/go.sum                                         |   8 +-
+ src/net/http/h2_bundle.go                          | 368 ++++++++++++++-------
+ .../golang.org/x/net/http/httpproxy/proxy.go       |   4 +-
+ src/vendor/golang.org/x/net/http2/hpack/huffman.go |  38 ++-
+ src/vendor/golang.org/x/net/idna/go118.go          |  14 +
+ src/vendor/golang.org/x/net/idna/idna10.0.0.go     |   6 +-
+ src/vendor/golang.org/x/net/idna/idna9.0.0.go      |   4 +-
+ src/vendor/golang.org/x/net/idna/pre_go118.go      |  12 +
+ src/vendor/golang.org/x/net/idna/punycode.go       |  36 +-
+ src/vendor/golang.org/x/net/nettest/nettest.go     |  14 +-
+ src/vendor/golang.org/x/text/unicode/bidi/core.go  |   6 +-
+ src/vendor/modules.txt                             |   4 +-
+ 13 files changed, 347 insertions(+), 171 deletions(-)

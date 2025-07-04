@@ -1,0 +1,13 @@
+commit 53eaf40ebaddf60b7b3584424219041012f28d54
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 6 14:29:05 2010 -0500
+
+    netchan: fix dumb locking bug introduced in recent editing.
+    -found by Dave Cheney
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3460042
+
+ src/pkg/netchan/export.go | 1 +
+ 1 file changed, 1 insertion(+)

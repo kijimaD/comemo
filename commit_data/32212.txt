@@ -1,0 +1,15 @@
+commit b1fab099011b2ec9499e99a32ed8de515e576b86
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 14 13:47:13 2017 +1000
+
+    cmd/vet: fix a couple of minor word choices in README
+    
+    No semantic change, just clarifying a bit by choosing better words
+    in a couple of places.
+    
+    Change-Id: I4496062ee7909baf83d4d22d25e13ef93b358b4b
+    Reviewed-on: https://go-review.googlesource.com/55255
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/vet/README | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

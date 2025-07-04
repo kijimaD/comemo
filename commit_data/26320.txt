@@ -1,0 +1,35 @@
+commit a96884cf6c76a5d409ec4b193b6cc52534b80bad
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 16 18:26:43 2016 +0000
+
+    net/http: use dynamic type assertion to remove HTTP server code from cmd/go
+    
+    I was wondering why cmd/go includes the HTTP server implementations.
+    
+    Dumping the linker's deadcode dependency graph into a file and doing
+    some graph analysis, I found that the only reason cmd/go included an
+    HTTP server was because the maxBytesReader type (used by both the HTTP
+    transport & HTTP server) did a static type assertion to an HTTP server
+    type.
+    
+    Changing it to a interface type assertion reduces the size of cmd/go
+    by 533KB (5.2%)
+    
+    On linux/amd64, cmd/go goes from 10549200 to 10002624 bytes.
+    
+    Add a test too so this doesn't regress. The test uses cmd/go as the
+    binary to test (a binary which needs the HTTP client but not the HTTP
+    server), but this change and test are equally applicable to any such
+    program.
+    
+    Change-Id: I93865f43ec03b06d09241fbd9ea381817c2909c5
+    Reviewed-on: https://go-review.googlesource.com/20763
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/http_test.go | 43 ++++++++++++++++++++++++++++++++++++++++++-
+ src/net/http/request.go   | 13 ++++++++++++-
+ 2 files changed, 54 insertions(+), 2 deletions(-)

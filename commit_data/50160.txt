@@ -1,0 +1,22 @@
+commit 846c378b8c0cebd2d8522a5693b45ca95b018a78
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Aug 7 18:41:42 2022 +0700
+
+    cmd/cgo: add and use runtime/cgo.Incomplete instead of //go:notinheap
+    
+    Updates #46731
+    
+    Change-Id: Ia83f27c177cc2f57e240cb5c6708d4552423f5be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421879
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/46731.txt     | 14 ++++++++++++++
+ src/cmd/cgo/gcc.go     | 48 ++++++++++++++++++++----------------------------
+ src/cmd/cgo/main.go    |  1 -
+ src/cmd/cgo/out.go     | 13 ++++++-------
+ src/runtime/cgo/cgo.go |  7 +++++++
+ 5 files changed, 47 insertions(+), 36 deletions(-)

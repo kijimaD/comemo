@@ -1,0 +1,24 @@
+commit 61b9315d3797ff9c007952c5096592542e655472
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 14 21:14:15 2016 -0700
+
+    cmd/internal/obj: remove LSym.Value
+    
+    It is unused.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I22ae2bb432ce6be377dea43cf018ffccb6e95f37
+    Reviewed-on: https://go-review.googlesource.com/20698
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/link.go        | 1 -
+ src/cmd/internal/obj/mips/asm0.go   | 4 ++--
+ src/cmd/internal/obj/objfile.go     | 2 +-
+ src/cmd/internal/obj/pcln.go        | 2 +-
+ src/cmd/internal/obj/ppc64/asm9.go  | 4 ++--
+ src/cmd/internal/obj/sizeof_test.go | 2 +-
+ src/cmd/internal/obj/sym.go         | 1 -
+ 7 files changed, 7 insertions(+), 9 deletions(-)

@@ -1,0 +1,28 @@
+commit 808d40d7809a46703f43fc2d6911957135f4563c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Feb 24 17:00:12 2022 -0500
+
+    syscall: define Syscall6 in terms of RawSyscall6 on linux
+    
+    This is an exact copy of CL 388478 after fixing #52472 in CL 401654.
+    
+    For #51087
+    For #52472
+    
+    Change-Id: I6c6bd7ddcab1512c682e6b44f61c7bcde97f5c58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401655
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/syscall/asm_linux_386.s     | 26 --------------------------
+ src/syscall/asm_linux_amd64.s   | 26 --------------------------
+ src/syscall/asm_linux_arm.s     | 31 -------------------------------
+ src/syscall/asm_linux_arm64.s   | 26 --------------------------
+ src/syscall/asm_linux_mips64x.s | 24 ------------------------
+ src/syscall/asm_linux_mipsx.s   | 30 ------------------------------
+ src/syscall/asm_linux_ppc64x.s  | 24 ------------------------
+ src/syscall/asm_linux_riscv64.s | 27 ---------------------------
+ src/syscall/asm_linux_s390x.s   | 26 --------------------------
+ src/syscall/syscall_linux.go    | 12 ++++++++++--
+ 10 files changed, 10 insertions(+), 242 deletions(-)

@@ -1,0 +1,23 @@
+commit 4b1170d2b1985a7530a559b9ef3dfdd350fb422e
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jun 11 09:25:18 2011 +1000
+
+    sort: change IntArray etc. to IntSlice for better name hygiene.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4602054
+
+ doc/go_tutorial.html          | 12 ++++++------
+ doc/go_tutorial.txt           |  2 +-
+ doc/progs/sort.go             | 36 ++++++++++++++++++------------------
+ doc/progs/sortmain.go         |  4 ++--
+ src/pkg/flag/flag.go          |  2 +-
+ src/pkg/sort/search.go        |  4 ++--
+ src/pkg/sort/search_test.go   |  4 ++--
+ src/pkg/sort/sort.go          | 32 ++++++++++++++++----------------
+ src/pkg/sort/sort_test.go     |  8 ++++----
+ src/pkg/syscall/exec_plan9.go |  6 +++---
+ src/pkg/syscall/exec_unix.go  | 10 +++++-----
+ src/pkg/unicode/maketables.go |  4 ++--
+ 12 files changed, 62 insertions(+), 62 deletions(-)

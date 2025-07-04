@@ -1,0 +1,23 @@
+commit 89eb6b76ae4b81b2b5613d62a8afec9e791c55ec
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 17 22:13:22 2023 -0700
+
+    cmd/compile: remove some uses of ir.CurFunc
+    
+    This CL updates several frontend passes to stop relying on
+    ir.CurFunc (at least directly).
+    
+    Change-Id: I3c3529e81e27fb05d54a828f081f7c7efc31af67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520606
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/devirtualize/pgo.go | 10 +++++-----
+ src/cmd/compile/internal/gc/main.go          |  6 +++---
+ src/cmd/compile/internal/inline/inl.go       | 26 +++++++++++++-------------
+ src/cmd/compile/internal/loopvar/loopvar.go  |  6 +++---
+ src/cmd/compile/internal/noder/reader.go     |  5 +----
+ 5 files changed, 25 insertions(+), 28 deletions(-)

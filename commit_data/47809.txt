@@ -1,0 +1,23 @@
+commit 4cda05d41a8585c79bfe00f867ed3513672e69fa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 15 11:24:56 2021 -0800
+
+    cmd/compile/internal/types2: externalize union type sets
+    
+    This is a port of CL 371756 from go/types to types2 with
+    minor adjustments due to different error handling or AST.
+    
+    Updates #50093
+    
+    Change-Id: Iab6a4634f8fc917bf99df439d31098624085f52a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372474
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check.go       |  2 ++
+ src/cmd/compile/internal/types2/predicates.go  |  7 +++++--
+ src/cmd/compile/internal/types2/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types2/subst.go       |  2 +-
+ src/cmd/compile/internal/types2/typeset.go     | 28 +++++++++++++++++---------
+ src/cmd/compile/internal/types2/union.go       |  7 +++----
+ 6 files changed, 31 insertions(+), 17 deletions(-)

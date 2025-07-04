@@ -1,0 +1,50 @@
+commit 007fa019a30de94174922aa50b80401921f54f85
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 23 16:49:30 2015 -0700
+
+    cmd/doc: don't stop after first package if the symbol is not found
+    
+    The test case is
+            go doc rand.Float64
+    The first package it finds is crypto/rand, which does not have a Float64.
+    Before this change, cmd/doc would stop there even though math/rand
+    has the symbol. After this change, we get:
+    
+            % go doc rand.Float64
+            package rand // import "math/rand"
+    
+            func Float64() float64
+    
+                Float64 returns, as a float64, a pseudo-random number in [0.0,1.0) from the
+                default Source.
+            %
+    
+    Another nice consequence is that if a symbol is not found, we might get
+    a longer list of packages that were examined:
+    
+            % go doc rand.Int64
+            doc: no symbol Int64 in packages crypto/rand, math/rand
+            exit status 1
+            %
+    
+    This change introduces a coroutine to scan the file system so that if
+    the symbol is not found, the coroutine can deliver another path to try.
+    (This is darned close to the original motivation for coroutines.)
+    Paths are delivered on an unbuffered channel so the scanner does
+    not proceed until candidate paths are needed.
+    
+    The scanner is attached to a new type, called Dirs, that caches the results
+    so if we need to scan a second time, we don't walk the file system
+    again. This is significantly more efficient than the existing code, which
+    could scan the tree multiple times looking for a package with
+    the symbol.
+    
+    Change-Id: I2789505b9992cf04c19376c51ae09af3bc305f7f
+    Reviewed-on: https://go-review.googlesource.com/14921
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/doc/dirs.go     | 118 ++++++++++++++++++++++++++
+ src/cmd/doc/doc_test.go |  77 ++++++++++++++---
+ src/cmd/doc/main.go     | 214 +++++++++++++++++++++---------------------------
+ src/cmd/doc/pkg.go      |  40 +++++++--
+ 4 files changed, 309 insertions(+), 140 deletions(-)

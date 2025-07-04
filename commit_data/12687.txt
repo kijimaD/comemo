@@ -1,0 +1,12 @@
+commit 7905faaee2ee5ebd628856b05f22b9e1264b7b92
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Mar 20 10:57:54 2012 +0900
+
+    net: drop unnecessary type assertions and fix leak in test
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5847064
+
+ src/pkg/net/unicast_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

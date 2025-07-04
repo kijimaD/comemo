@@ -1,0 +1,13 @@
+commit 8003849498048a30f065113e21f80b1e676a6a61
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jul 16 17:22:54 2008 -0700
+
+    parameter declartions in func literals
+    
+    SVN=127678
+
+ src/cmd/6g/gen.c |  7 ++++---
+ src/cmd/gc/dcl.c | 26 ++++++++++++++++++++++++++
+ src/cmd/gc/go.h  |  2 ++
+ src/cmd/gc/go.y  |  4 ----
+ 4 files changed, 32 insertions(+), 7 deletions(-)

@@ -1,0 +1,28 @@
+commit f033bc1819d6f4830216b969d8e88aa5cb3dc82a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 4 18:39:52 2024 +0700
+
+    cmd: use 20 bytes hash when possible
+    
+    CL 402595 changes all usages of 20 bytes hash to 32 bytes hash by using
+    notsha256.
+    
+    However, since CL 454836, notsha256 is not necessary anymore, so this CL
+    reverts those changes to 20 bytes hash using cmd/internal/hash package.
+    
+    Updates #51940
+    Updates #64751
+    
+    Change-Id: Icb08d5a0d8032a3c4d050ff7b2298d31c483b88b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610597
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/liveness/plive.go | 2 +-
+ src/cmd/internal/obj/objfile.go            | 2 +-
+ src/cmd/link/internal/ld/elf.go            | 4 ++--
+ src/cmd/link/internal/ld/lib.go            | 4 ++--
+ 4 files changed, 6 insertions(+), 6 deletions(-)

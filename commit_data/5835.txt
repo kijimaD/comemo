@@ -1,0 +1,12 @@
+commit 08e65f79c17d29eb10c4c4c6a0c8b9aaf8339311
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 16 18:54:38 2010 -0700
+
+    codereview: make 'hg submit' work with Mercurial 1.6
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1841044
+
+ lib/codereview/codereview.py | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

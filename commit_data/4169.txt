@@ -1,0 +1,13 @@
+commit b30f753dc36ed55207295bc8e6dbadca305339a9
+Author: Eden Li <eden.li@gmail.com>
+Date:   Thu Nov 19 22:09:01 2009 -0800
+
+    cgo now renders types with unknown size as [0]byte instead of raising a
+    fatal error.
+    Fixes #126.
+    
+    R=rsc
+    https://golang.org/cl/157101
+
+ src/cmd/cgo/gcc.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

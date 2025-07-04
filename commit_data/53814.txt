@@ -1,0 +1,22 @@
+commit a37da52d75e7268943e4a9879736fd0c04998ddf
+Author: Srinivas Pokala <Pokala.Srinivas@ibm.com>
+Date:   Fri Jul 14 07:49:03 2023 +0200
+
+    math: enable huge argument tests on s390x
+    
+    new s390x assembly implementation of Sin/Cos/SinCos/Tan handle huge argument
+    test's.
+    
+    Updates #29240
+    
+    Change-Id: I9f22d9714528ef2af52c749079f3727250089baf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509675
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/math/huge_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

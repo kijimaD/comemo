@@ -1,0 +1,17 @@
+commit 7b47f9a5f2092dcbc1546304f1f1b739883fa4c4
+Author: Michael Schaller <misch@google.com>
+Date:   Fri Mar 12 12:12:48 2021 +0000
+
+    cmd/compile: mention that -m can be increased or given multiple times
+    
+    -m can be increased or it can be given up to 4 times to increase the verbosity of the printed optimization decisions: https://github.com/golang/go/search?q=LowerM
+    
+    Change-Id: I0cc304385be052664fad455ff075846a3a63f298
+    GitHub-Last-Rev: 140f08529024dd17c5ca1cbad52dd1d17c6126c0
+    GitHub-Pull-Request: golang/go#44857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299709
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/doc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

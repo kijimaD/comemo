@@ -1,0 +1,17 @@
+commit 3c51a69937c2bd99c746007c99b9b44d44a0060b
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Jan 28 18:26:26 2013 -0500
+
+    exp/gotype: fix build breakage due to https://code.google.com/p/go/source/detail?r=ca5e5de48173
+    
+    Add 'math/big' to blacklist of packages that use shift
+    operations as yet unsupported by go/types.
+    
+    (The failure was masked due to local bugfixes in my client.)
+    
+    R=rsc, bradfitz, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7220057
+
+ src/pkg/exp/gotype/gotype_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

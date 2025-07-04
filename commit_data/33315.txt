@@ -1,0 +1,22 @@
+commit c1e026a5f6f24b4638740f0a602119d22c2c5fef
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Oct 28 09:00:35 2017 -0400
+
+    build: quiet make.bash, make.bat, make.rc
+    
+    The signal-to-noise ratio is too low.
+    Stop printing the name of every package.
+    Can still get the old output with make.bash -v.
+    
+    Change-Id: Ib2c82e037166e6d2ddc31ae2a4d29af5becce574
+    Reviewed-on: https://go-review.googlesource.com/74351
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/build.go     | 40 +++++++++++++++++++++++++++++++---------
+ src/cmd/dist/buildtool.go | 10 +++++++---
+ src/make.bash             | 22 +++++++++++++++++-----
+ src/make.bat              | 21 +++++++++++++++++----
+ src/make.rc               | 19 ++++++++++++++-----
+ 5 files changed, 86 insertions(+), 26 deletions(-)

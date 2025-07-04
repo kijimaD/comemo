@@ -1,0 +1,29 @@
+commit 2b3f37908060837f8715c61af110b01b8a590c7c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Nov 20 09:51:02 2014 -0500
+
+    runtime: fix atomic operations on non-heap addresses
+    Race detector runtime does not tolerate operations on addresses
+    that was not previously declared with __tsan_map_shadow
+    (namely, data, bss and heap). The corresponding address
+    checks for atomic operations were removed in
+    https://golang.org/cl/111310044
+    Restore these checks.
+    It's tricker than just not calling into race runtime,
+    because it is the race runtime that makes the atomic
+    operations themselves (if we do not call into race runtime
+    we skip the atomic operation itself as well). So instead we call
+    __tsan_go_ignore_sync_start/end around the atomic operation.
+    This forces race runtime to skip all other processing
+    except than doing the atomic operation itself.
+    Fixes #9136.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/179030043
+
+ src/runtime/race.c                 | 13 ++++++------
+ src/runtime/race/race_unix_test.go | 30 ++++++++++++++++++++++++++
+ src/runtime/race_amd64.s           | 43 ++++++++++++++++++++++++++++++++------
+ 3 files changed, 73 insertions(+), 13 deletions(-)

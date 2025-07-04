@@ -1,0 +1,28 @@
+commit 39bb4bd454b915aed58d1732c6d7c6e3b233d706
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 18 14:11:31 2012 -0800
+
+    go/doc: rewrote and completed test framework
+    
+    Packages to test are kept in ./testdata together
+    with the corresponding golden (packagename.out)
+    file.
+    
+    To update the golden files, run: go test -update
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5543054
+
+ src/pkg/go/doc/doc_test.go           | 189 +++++++---------
+ src/pkg/go/doc/testdata/a.out        |  13 ++
+ src/pkg/go/doc/testdata/a0.go        |   8 +
+ src/pkg/go/doc/testdata/a1.go        |   8 +
+ src/pkg/go/doc/testdata/b.go         |  13 ++
+ src/pkg/go/doc/testdata/b.out        |  31 +++
+ src/pkg/go/doc/testdata/benchmark.go | 293 +++++++++++++++++++++++++
+ src/pkg/go/doc/testdata/example.go   |  81 +++++++
+ src/pkg/go/doc/testdata/template.txt |  65 ++++++
+ src/pkg/go/doc/testdata/testing.go   | 404 +++++++++++++++++++++++++++++++++++
+ src/pkg/go/doc/testdata/testing.out  | 144 +++++++++++++
+ 11 files changed, 1141 insertions(+), 108 deletions(-)

@@ -1,0 +1,15 @@
+commit 63b0a0a5b83e28f55ce68cf1099d9c5ff3998b60
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 16 17:09:23 2021 -0700
+
+    spec: fix rendering of >=
+    
+    Follow-up on https://golang.org/cl/297249.
+    
+    Change-Id: Ib4df91df530e4e7d7dd8c54d89c834cee55031f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302370
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

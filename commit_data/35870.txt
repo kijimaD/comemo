@@ -1,0 +1,22 @@
+commit 4ba55273713bebfbfe0bed9ce196e845c0c69567
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 2 16:45:49 2018 -0700
+
+    cmd/vet: make vetx output deterministic
+    
+    The vetx output file is a build output, and as such should be
+    deterministic. This CL changes it to not depend on map iteration order.
+    
+    This avoids a pointless GODEBUG=gocacheverify=1 failure.
+    
+    Updates #25666
+    
+    Change-Id: Ic132bad134cb10938275f883c2c68432cb7c4409
+    Reviewed-on: https://go-review.googlesource.com/121941
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/main.go  | 26 ++++++++++++++++++++++----
+ src/cmd/vet/print.go | 37 +++++++++++++++++++++++++++++++++----
+ 2 files changed, 55 insertions(+), 8 deletions(-)

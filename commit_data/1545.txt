@@ -1,0 +1,16 @@
+commit 1b3299ed0beb81066ea2baef3bd9eaf9428c3d11
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 23 12:40:55 2009 -0800
+
+    change the representation of arrays in protobufs from *[]item to []item.
+    for simplicity of user's code, optional arrays of bytes also don't have a pointer.
+    requires adding a "Set()" method to arrays in reflect.
+    still to do: protocol compilers, google/net/rpc.
+    
+    R=rsc
+    DELTA=227  (36 added, 95 deleted, 96 changed)
+    OCL=23387
+    CL=23389
+
+ src/lib/reflect/value.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

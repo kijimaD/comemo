@@ -1,0 +1,12 @@
+commit ff45e7bcbdc28b5d936a6cad21906bf0daa8ee2b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 06:49:56 2009 -0700
+
+    missed Makefile before; fix build
+    
+    TBR=dsymonds
+    OCL=29155
+    CL=29155
+
+ src/lib/hash/Makefile | 68 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 68 insertions(+)

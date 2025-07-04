@@ -1,0 +1,15 @@
+commit 4d350710a23c505f0afcc6bcd8ac7ba37145b521
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Wed Apr 27 21:34:48 2022 +0800
+
+    cmd/compile: intrinsify math/big.mulWW on MIPS64(LE),RISCV64
+    
+    Change-Id: Ib8b18a892b0b1a59229ebc97a38200b53e701a77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402574
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

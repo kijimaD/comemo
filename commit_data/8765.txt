@@ -1,0 +1,12 @@
+commit 8155ff545201f478626a89011f2f8eb2e32923a2
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jun 17 16:41:59 2011 +1000
+
+    go/build: use back quotes for regular expression
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4643045
+
+ src/pkg/go/build/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

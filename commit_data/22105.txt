@@ -1,0 +1,24 @@
+commit a5e18416fcf4eb66b852074141df48ce4988783f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 16 15:18:49 2015 -0400
+
+    cmd/dist: add //line to copied bootstrap files
+    
+    This way the error messages will show the original file name
+    in addition to the bootstrap file name, so that you have some
+    chance of making the correction in the original instead of the copy
+    (which will be blown away).
+    
+    Before:
+    /Users/rsc/g/go/pkg/bootstrap/src/bootstrap/5g/gsubr.go:863: undefined: a
+    
+    After:
+    /Users/rsc/g/go/src/cmd/5g/gsubr.go:860[/Users/rsc/g/go/pkg/bootstrap/src/bootstrap/5g/gsubr.go:863]: undefined: a
+    
+    Change-Id: I8d6006abd9499edb16d9f27fe8b7dc6cae143fca
+    Reviewed-on: https://go-review.googlesource.com/7741
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/buildtool.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,247 @@
+commit b7c9cdd53cb39934f74b1cdbe08ad1f9e4a12e78
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Tue Jan 14 22:13:29 2025 +0100
+
+    cmd/compile: establish limits of bool to uint8 conversions
+    
+    Improves bound check elimination for:
+    
+    func arrayLargeEnough(b bool, a [2]int64) int64 {
+        c := byte(0)
+        if b {
+            c = 1
+        }
+    
+        // this bound check gets elided
+        return a[c]
+    }
+    
+    We also detect never true branches like:
+    
+    func cCanOnlyBe0or1(b bool) byte {
+        var c byte
+        if b {
+            c = 1
+        }
+        // this statement can never be true so we can elide it
+        if c == 2 {
+            c = 3
+        }
+    
+        return c
+    }
+    
+    Hits a few times:
+    
+    crypto/internal/sysrand
+    crypto/internal/sysrand.Read 357 -> 349  (-2.24%)
+    
+    testing
+    testing.(*F).Fuzz.func1.1 837 -> 828  (-1.08%)
+    
+    image/png
+    image/png.(*Encoder).Encode 1735 -> 1733  (-0.12%)
+    
+    vendor/golang.org/x/crypto/cryptobyte
+    vendor/golang.org/x/crypto/cryptobyte.(*Builder).callContinuation 187 -> 185  (-1.07%)
+    
+    crypto/internal/sysrand [cmd/compile]
+    crypto/internal/sysrand.Read 357 -> 349  (-2.24%)
+    
+    go/parser
+    go/parser.(*parser).parseType 463 -> 457  (-1.30%)
+    go/parser.(*parser).embeddedElem 633 -> 626  (-1.11%)
+    go/parser.(*parser).parseFuncDecl 917 -> 914  (-0.33%)
+    go/parser.(*parser).parseDotsType 393 -> 391  (-0.51%)
+    go/parser.(*parser).error 1061 -> 1054  (-0.66%)
+    go/parser.(*parser).parseTypeName 537 -> 532  (-0.93%)
+    go/parser.(*parser).parseParamDecl 1478 -> 1451  (-1.83%)
+    go/parser.(*parser).parseFuncTypeOrLit 498 -> 495  (-0.60%)
+    go/parser.(*parser).parseValue 375 -> 371  (-1.07%)
+    go/parser.(*parser).parseElementList 594 -> 593  (-0.17%)
+    go/parser.(*parser).parseResult 593 -> 583  (-1.69%)
+    go/parser.(*parser).parseElement 506 -> 504  (-0.40%)
+    go/parser.(*parser).parseImportSpec 1110 -> 1108  (-0.18%)
+    go/parser.(*parser).parseStructType 741 -> 735  (-0.81%)
+    go/parser.(*parser).parseTypeSpec 1054 -> 1048  (-0.57%)
+    go/parser.(*parser).parseIdentList 625 -> 623  (-0.32%)
+    go/parser.(*parser).parseOperand 1221 -> 1199  (-1.80%)
+    go/parser.(*parser).parseIndexOrSliceOrInstance 2713 -> 2694  (-0.70%)
+    go/parser.(*parser).parseSwitchStmt 1458 -> 1447  (-0.75%)
+    go/parser.(*parser).parseArrayFieldOrTypeInstance 1865 -> 1861  (-0.21%)
+    go/parser.(*parser).parseExpr 307 -> 305  (-0.65%)
+    go/parser.(*parser).parseSelector 427 -> 425  (-0.47%)
+    go/parser.(*parser).parseTypeInstance 1433 -> 1420  (-0.91%)
+    go/parser.(*parser).parseCaseClause 629 -> 626  (-0.48%)
+    go/parser.(*parser).parseParameterList 4212 -> 4189  (-0.55%)
+    go/parser.(*parser).parsePointerType 393 -> 391  (-0.51%)
+    go/parser.(*parser).parseFuncType 465 -> 463  (-0.43%)
+    go/parser.(*parser).parseTypeAssertion 559 -> 557  (-0.36%)
+    go/parser.(*parser).parseSimpleStmt 2443 -> 2388  (-2.25%)
+    go/parser.(*parser).parseCallOrConversion 1093 -> 1087  (-0.55%)
+    go/parser.(*parser).parseForStmt 2168 -> 2159  (-0.42%)
+    go/parser.(*parser).embeddedTerm 657 -> 649  (-1.22%)
+    go/parser.(*parser).parseCommClause 1509 -> 1501  (-0.53%)
+    
+    cmd/internal/objfile
+    cmd/internal/objfile.(*goobjFile).symbols 5299 -> 5274  (-0.47%)
+    
+    net
+    net.initConfVal 378 -> 374  (-1.06%)
+    net.(*conf).hostLookupOrder 269 -> 267  (-0.74%)
+    net.(*conf).addrLookupOrder 261 -> 255  (-2.30%)
+    
+    cmd/internal/obj/loong64
+    cmd/internal/obj/loong64.(*ctxt0).oplook 1829 -> 1813  (-0.87%)
+    
+    cmd/internal/obj/mips
+    cmd/internal/obj/mips.(*ctxt0).oplook 1428 -> 1400  (-1.96%)
+    
+    go/types
+    go/types.(*typeWriter).signature 605 -> 601  (-0.66%)
+    go/types.(*Checker).instantiateSignature 1469 -> 1467  (-0.14%)
+    
+    go/parser [cmd/compile]
+    go/parser.(*parser).parseSwitchStmt 1458 -> 1447  (-0.75%)
+    go/parser.(*parser).parseDotsType 393 -> 391  (-0.51%)
+    go/parser.(*parser).embeddedElem 633 -> 626  (-1.11%)
+    go/parser.(*parser).parseTypeAssertion 559 -> 557  (-0.36%)
+    go/parser.(*parser).parseCommClause 1509 -> 1501  (-0.53%)
+    go/parser.(*parser).parseCaseClause 629 -> 626  (-0.48%)
+    go/parser.(*parser).parseImportSpec 1110 -> 1108  (-0.18%)
+    go/parser.(*parser).parseTypeSpec 1054 -> 1048  (-0.57%)
+    go/parser.(*parser).parseElementList 594 -> 593  (-0.17%)
+    go/parser.(*parser).parseParamDecl 1478 -> 1451  (-1.83%)
+    go/parser.(*parser).parseType 463 -> 457  (-1.30%)
+    go/parser.(*parser).parseSimpleStmt 2443 -> 2388  (-2.25%)
+    go/parser.(*parser).parseIdentList 625 -> 623  (-0.32%)
+    go/parser.(*parser).parseTypeInstance 1433 -> 1420  (-0.91%)
+    go/parser.(*parser).parseResult 593 -> 583  (-1.69%)
+    go/parser.(*parser).parseValue 375 -> 371  (-1.07%)
+    go/parser.(*parser).parseFuncDecl 917 -> 914  (-0.33%)
+    go/parser.(*parser).error 1061 -> 1054  (-0.66%)
+    go/parser.(*parser).parseElement 506 -> 504  (-0.40%)
+    go/parser.(*parser).parseFuncType 465 -> 463  (-0.43%)
+    go/parser.(*parser).parsePointerType 393 -> 391  (-0.51%)
+    go/parser.(*parser).parseTypeName 537 -> 532  (-0.93%)
+    go/parser.(*parser).parseExpr 307 -> 305  (-0.65%)
+    go/parser.(*parser).parseFuncTypeOrLit 498 -> 495  (-0.60%)
+    go/parser.(*parser).parseStructType 741 -> 735  (-0.81%)
+    go/parser.(*parser).parseOperand 1221 -> 1199  (-1.80%)
+    go/parser.(*parser).parseIndexOrSliceOrInstance 2713 -> 2694  (-0.70%)
+    go/parser.(*parser).parseForStmt 2168 -> 2159  (-0.42%)
+    go/parser.(*parser).parseParameterList 4212 -> 4189  (-0.55%)
+    go/parser.(*parser).parseArrayFieldOrTypeInstance 1865 -> 1861  (-0.21%)
+    go/parser.(*parser).parseSelector 427 -> 425  (-0.47%)
+    go/parser.(*parser).parseCallOrConversion 1093 -> 1087  (-0.55%)
+    go/parser.(*parser).embeddedTerm 657 -> 649  (-1.22%)
+    
+    crypto/tls
+    crypto/tls.(*Conn).clientHandshake 3430 -> 3421  (-0.26%)
+    
+    cmd/internal/obj/mips [cmd/compile]
+    cmd/internal/obj/mips.(*ctxt0).oplook 1428 -> 1400  (-1.96%)
+    
+    cmd/internal/obj/loong64 [cmd/compile]
+    cmd/internal/obj/loong64.(*ctxt0).oplook 1829 -> 1813  (-0.87%)
+    
+    cmd/compile/internal/types2
+    cmd/compile/internal/types2.(*typeWriter).signature 605 -> 601  (-0.66%)
+    cmd/compile/internal/types2.(*Checker).infer 10646 -> 10614  (-0.30%)
+    cmd/compile/internal/types2.(*Checker).instantiateSignature 1567 -> 1561  (-0.38%)
+    
+    cmd/compile/internal/types2 [cmd/compile]
+    cmd/compile/internal/types2.(*Checker).instantiateSignature 1567 -> 1561  (-0.38%)
+    cmd/compile/internal/types2.(*typeWriter).signature 605 -> 601  (-0.66%)
+    cmd/compile/internal/types2.(*Checker).infer 10718 -> 10654  (-0.60%)
+    
+    cmd/vendor/golang.org/x/arch/s390x/s390xasm
+    cmd/vendor/golang.org/x/arch/s390x/s390xasm.GoSyntax 36778 -> 36682  (-0.26%)
+    
+    net/http
+    net/http.(*Client).do 4202 -> 4170  (-0.76%)
+    net/http.(*http2clientStream).writeRequest 3692 -> 3686  (-0.16%)
+    
+    cmd/vendor/github.com/ianlancetaylor/demangle
+    cmd/vendor/github.com/ianlancetaylor/demangle.(*rustState).genericArgs 466 -> 463  (-0.64%)
+    
+    cmd/compile/internal/devirtualize
+    cmd/compile/internal/devirtualize.ProfileGuided.func1 1364 -> 1357  (-0.51%)
+    
+    cmd/compile/internal/inline/interleaved
+    cmd/compile/internal/inline/interleaved.DevirtualizeAndInlinePackage.func2 533 -> 526  (-1.31%)
+    
+    cmd/compile/internal/devirtualize [cmd/compile]
+    cmd/compile/internal/devirtualize.ProfileGuided.func1 1343 -> 1332  (-0.82%)
+    
+    cmd/compile/internal/inline/interleaved [cmd/compile]
+    cmd/compile/internal/inline/interleaved.DevirtualizeAndInlinePackage.func2 533 -> 526  (-1.31%)
+    
+    cmd/link/internal/ld
+    cmd/link/internal/ld.mustLinkExternal 2739 -> 2674  (-2.37%)
+    
+    cmd/compile/internal/ssa
+    cmd/compile/internal/ssa.(*poset).Ordered 391 -> 389  (-0.51%)
+    cmd/compile/internal/ssa.(*poset).Equal 318 -> 313  (-1.57%)
+    cmd/compile/internal/ssa.(*poset).Undo 1842 -> 1832  (-0.54%)
+    cmd/compile/internal/ssa.(*expandState).decomposeAsNecessary 4587 -> 4555  (-0.70%)
+    cmd/compile/internal/ssa.(*poset).OrderedOrEqual 390 -> 389  (-0.26%)
+    cmd/compile/internal/ssa.(*poset).NonEqual 613 -> 606  (-1.14%)
+    
+    cmd/compile/internal/ssa [cmd/compile]
+    cmd/compile/internal/ssa.(*poset).OrderedOrEqual 368 -> 365  (-0.82%)
+    cmd/compile/internal/ssa.(*poset).Equal 318 -> 313  (-1.57%)
+    cmd/compile/internal/ssa.(*expandState).decomposeAsNecessary 4952 -> 4938  (-0.28%)
+    cmd/compile/internal/ssa.(*poset).NonEqual 613 -> 606  (-1.14%)
+    cmd/compile/internal/ssa.(*poset).SetEqual 2533 -> 2505  (-1.11%)
+    cmd/compile/internal/ssa.(*poset).SetNonEqual 785 -> 777  (-1.02%)
+    cmd/compile/internal/ssa.(*poset).Ordered 370 -> 366  (-1.08%)
+    
+    cmd/compile/internal/gc [cmd/compile]
+    cmd/compile/internal/gc.Main.DevirtualizeAndInlinePackage.func2 492 -> 489  (-0.61%)
+    
+    file                                                    before   after    Δ       %
+    crypto/internal/sysrand.s                               1553     1545     -8      -0.515%
+    internal/zstd.s                                         49179    49190    +11     +0.022%
+    testing.s                                               115197   115188   -9      -0.008%
+    image/png.s                                             36109    36107    -2      -0.006%
+    vendor/golang.org/x/crypto/cryptobyte.s                 30980    30978    -2      -0.006%
+    crypto/internal/sysrand [cmd/compile].s                 1553     1545     -8      -0.515%
+    go/parser.s                                             112638   112354   -284    -0.252%
+    cmd/internal/objfile.s                                  49994    49969    -25     -0.050%
+    net.s                                                   299558   299546   -12     -0.004%
+    cmd/internal/obj/loong64.s                              71651    71635    -16     -0.022%
+    cmd/internal/obj/mips.s                                 59681    59653    -28     -0.047%
+    go/types.s                                              558839   558833   -6      -0.001%
+    cmd/compile/internal/types.s                            71305    71306    +1      +0.001%
+    go/parser [cmd/compile].s                               112749   112465   -284    -0.252%
+    crypto/tls.s                                            388859   388850   -9      -0.002%
+    cmd/internal/obj/mips [cmd/compile].s                   59792    59764    -28     -0.047%
+    cmd/internal/obj/loong64 [cmd/compile].s                71762    71746    -16     -0.022%
+    cmd/compile/internal/types2.s                           540608   540566   -42     -0.008%
+    cmd/compile/internal/types2 [cmd/compile].s             577428   577354   -74     -0.013%
+    cmd/vendor/golang.org/x/arch/s390x/s390xasm.s           267664   267568   -96     -0.036%
+    net/http.s                                              620704   620666   -38     -0.006%
+    cmd/vendor/github.com/ianlancetaylor/demangle.s         299991   299988   -3      -0.001%
+    cmd/compile/internal/devirtualize.s                     21452    21445    -7      -0.033%
+    cmd/compile/internal/inline/interleaved.s               8358     8351     -7      -0.084%
+    cmd/compile/internal/devirtualize [cmd/compile].s       20994    20983    -11     -0.052%
+    cmd/compile/internal/inline/interleaved [cmd/compile].s 8328     8321     -7      -0.084%
+    cmd/link/internal/ld.s                                  641802   641737   -65     -0.010%
+    cmd/compile/internal/ssa.s                              3552939  3552957  +18     +0.001%
+    cmd/compile/internal/ssa [cmd/compile].s                3752191  3752197  +6      +0.000%
+    cmd/compile/internal/ssagen.s                           405780   405786   +6      +0.001%
+    cmd/compile/internal/ssagen [cmd/compile].s             434472   434496   +24     +0.006%
+    cmd/compile/internal/gc [cmd/compile].s                 38499    38496    -3      -0.008%
+    total                                                   36185267 36184243 -1024   -0.003%
+    
+    Change-Id: I867222b0f907b29d32b2676e55c6b5789ec56511
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642716
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/prove.go |  4 ++++
+ test/prove.go                         | 18 ++++++++++++++++++
+ 2 files changed, 22 insertions(+)

@@ -1,0 +1,19 @@
+commit d2b436d95d99cb3ff587bf0d2e893a8d027f8292
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Nov 30 15:46:33 2020 -0500
+
+    cmd/go: fix infinite loop in modload.keepSums
+    
+    Fixes #42891
+    
+    Change-Id: I0cce4204a1c4959b896188a2ab3719c0507f95e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274172
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/init.go                  |  2 +-
+ src/cmd/go/testdata/script/mod_import_issue42891.txt | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

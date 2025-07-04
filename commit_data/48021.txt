@@ -1,0 +1,23 @@
+commit f4aa021985e9ae4a9a395f8fbe32ad08d2bfda3b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jan 26 13:26:45 2022 -0800
+
+    cmd/compile: support structural typing in unified IR
+    
+    This CL updates unified IR to look at the structural type of a
+    composite literal type, rather than merely the underlying type, to
+    determine if it's a structure. This fixes a number of currently
+    failing regress test cases.
+    
+    Updates #50833.
+    
+    Change-Id: I11c040c77ec86c23e8ffefcf1ce1aed548687dc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381074
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/noder/writer.go | 4 +++-
+ test/run.go                              | 4 ----
+ 2 files changed, 3 insertions(+), 5 deletions(-)

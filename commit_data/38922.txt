@@ -1,0 +1,22 @@
+commit 2177bfb343c4950be88536044bb38c90f05ad3ed
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Apr 26 11:46:26 2019 -0700
+
+    database/sql: add NullInt32
+    
+    It is common for database integers to be represented as int32
+    internally. Although NullInt64 is already defined,
+    this should remove some type casts and make working with those eaiser.
+    
+    For #31231
+    
+    Change-Id: Ia0c37ecef035fee0734c1d1fb6f58aef6905cf5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174178
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/fakedb_test.go |  4 ++++
+ src/database/sql/sql.go         | 26 ++++++++++++++++++++++++++
+ src/database/sql/sql_test.go    | 13 +++++++++++++
+ 3 files changed, 43 insertions(+)

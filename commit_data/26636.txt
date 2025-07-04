@@ -1,0 +1,20 @@
+commit 9f66636c93affa363f59196cacd160fa17deeb96
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 31 14:09:04 2016 -0700
+
+    cmd/compile: don't put SP in index slot
+    
+    For idx1 ops, SP can appear in the index slot.
+    Swap SP into the base register slot so we can encode
+    the instruction.
+    
+    Fixes #15053
+    
+    Change-Id: I19000cc9d6c86c7611743481e6e2cb78b1ef04eb
+    Reviewed-on: https://go-review.googlesource.com/21384
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go | 40 ++++++++++++++++++++++++++---------
+ 1 file changed, 30 insertions(+), 10 deletions(-)

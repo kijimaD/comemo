@@ -1,0 +1,21 @@
+commit b201cf4afa01e97b53afc383b2815ed7a0db147c
+Author: Ville Skyttä <ville.skytta@iki.fi>
+Date:   Mon Oct 9 21:03:10 2023 +0000
+
+    testing: remove unnecessary TempDir implementation detail from its doc
+    
+    The "by Cleanup" detail about the removal mechanism is not necessary for
+    users. The previous wording could even cause confusion whether they
+    should do something for Cleanup to occur.
+    
+    Change-Id: I617a7a4e118a70a3ad8a83a2d81cd911dde8ee08
+    GitHub-Last-Rev: fba4cde6362d1f0ea0c730d50fdd3fbaae4e17cf
+    GitHub-Pull-Request: golang/go#63479
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534016
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

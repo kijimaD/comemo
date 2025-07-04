@@ -1,0 +1,15 @@
+commit a74cc47244513c97315574f580652128126f6739
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 24 15:07:19 2018 -0400
+
+    cmd/go: add 'go help goproxy'
+    
+    Fixes #26553.
+    
+    Change-Id: I522a0fa96ae161b67d89f38dafde528adcbae243
+    Reviewed-on: https://go-review.googlesource.com/125658
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go | 80 ++++++++++++++++++++++++++++++++++++++++++++++++---
+ src/cmd/go/main.go    |  2 ++
+ 2 files changed, 78 insertions(+), 4 deletions(-)

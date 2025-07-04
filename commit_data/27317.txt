@@ -1,0 +1,19 @@
+commit 1ff57143af65014c80e39cc0f19cd97a455f5b49
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 6 16:24:57 2016 +0000
+
+    net: ignore network failures on some builders
+    
+    We run the external network tests on builders, but some of our
+    builders have less-than-ideal DNS connectivity. This change continues
+    to run the tests on all builders, but marks certain builders as flaky
+    (network-wise), and only validates their DNS results if they got DNS
+    results.
+    
+    Change-Id: I826dc2a6f6da55add89ae9c6db892b3b2f7b526b
+    Reviewed-on: https://go-review.googlesource.com/22852
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/testenv/testenv.go |  7 +++++++
+ src/net/lookup_test.go          | 11 +++++++++--
+ 2 files changed, 16 insertions(+), 2 deletions(-)

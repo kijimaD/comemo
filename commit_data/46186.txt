@@ -1,0 +1,26 @@
+commit 2c60a99f723e779a39664b5f12cb41878fd4a700
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 26 14:52:32 2021 -0700
+
+    cmd/compile/internal/syntax: make valid type parameter list in presence of errors
+    
+    Make sure the parser fills in names and types for type parameter
+    lists, even in the case of errors.
+    
+    While at it, adjust some of the test functions to accept generic
+    code and report all syntax errors.
+    
+    Added offending source as test for types2.
+    
+    Fixes #47996.
+    
+    Change-Id: I449bcf5e2cb80fa2a24cdd3945f484bfca218a06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345476
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/dumper_test.go                    | 6 +-----
+ src/cmd/compile/internal/syntax/parser.go                         | 5 +----
+ src/cmd/compile/internal/syntax/printer_test.go                   | 6 +-----
+ src/cmd/compile/internal/types2/testdata/fixedbugs/issue47996.go2 | 8 ++++++++
+ 4 files changed, 11 insertions(+), 14 deletions(-)

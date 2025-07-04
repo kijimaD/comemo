@@ -1,0 +1,30 @@
+commit b6d5831caa219aa00574fbacb1026585cf11d6b4
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Thu Sep 15 03:57:43 2022 +0000
+
+    debug/elf: validate shstrndx
+    
+    Changes:
+    
+    1. When e_shstrndx holds the value SHN_UNDEF (0), the file has no section
+    name string table. In this case, do not try to set section names .
+    2. e_shstrndx should point to an SHT_STRTAB section. If it does not, returns
+    an error.
+    
+    Reference:
+    https://refspecs.linuxfoundation.org/elf/gabi4+/ch4.eheader.html
+    
+    Updates #54967.
+    
+    Change-Id: Ic8f228061d996fd7845dfa630719a1ba12d2bb60
+    GitHub-Last-Rev: aeb70ca8a08e7dbc36ed61bd5a2dabcf432540e9
+    GitHub-Pull-Request: golang/go#55001
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430155
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/debug/elf/file.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

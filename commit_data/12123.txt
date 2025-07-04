@@ -1,0 +1,14 @@
+commit 7b22e4628296518691a8ce6e4e4065ff4aeb69d8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 21 18:12:37 2012 -0800
+
+    godoc: fix absolute->relative mapping
+    
+    Fixes #3096.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5690063
+
+ src/cmd/godoc/mapping.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

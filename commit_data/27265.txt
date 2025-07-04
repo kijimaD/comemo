@@ -1,0 +1,14 @@
+commit dcd613862bc51db8455ccd22c03336111afe6883
+Author: Cherry Zhang <lunaria21@gmail.com>
+Date:   Wed Apr 27 22:18:33 2016 -0400
+
+    cmd/link/internal/ld: force external linking for mips64x with cgo
+    
+    cgo internal linking is not supported yet (issue #14449).
+    
+    Change-Id: Ic968916383d77b7f449db8f230c928a1e81939e0
+    Reviewed-on: https://go-review.googlesource.com/19807
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

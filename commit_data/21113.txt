@@ -1,0 +1,20 @@
+commit 4b96409aacfb569ac2564240d8aadd668b7c25fa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 29 19:32:07 2014 -0800
+
+    net/http: support for setting trailers from a server Handler
+    
+    We already had client support for trailers, but no way for a server to
+    set them short of hijacking the connection.
+    
+    Fixes #7759
+    
+    Change-Id: Ic83976437739ec6c1acad5f209ed45e501dbb93a
+    Reviewed-on: https://go-review.googlesource.com/2157
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/client_test.go | 24 ++++-----------
+ src/net/http/http_test.go   | 41 +++++++++++++++++++++++++
+ src/net/http/server.go      | 73 ++++++++++++++++++++++++++++++++++++++++-----
+ src/net/http/transfer.go    |  1 -
+ 4 files changed, 112 insertions(+), 27 deletions(-)

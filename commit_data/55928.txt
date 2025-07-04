@@ -1,0 +1,17 @@
+commit 1e20af021ffe12efdaa3b82c7027af21d491457d
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Thu Mar 14 03:16:23 2024 +0000
+
+    cmd/go/internal/modcmd: fix typo in comment
+    
+    Change-Id: I331c46083e9608227615183ba7e25f6299669341
+    GitHub-Last-Rev: 0cb78ae1c1e7554b0ef54c5e82fab0901a178494
+    GitHub-Pull-Request: golang/go#66305
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571536
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+
+ src/cmd/go/internal/modcmd/vendor.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

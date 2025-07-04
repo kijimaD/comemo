@@ -1,0 +1,13 @@
+commit cdd9539362e68aacb8cff2360ea274ad9f0c6322
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 9 17:13:15 2009 -0700
+
+    token.go documentation
+    
+    R=r
+    DELTA=34  (24 added, 2 deleted, 8 changed)
+    OCL=25946
+    CL=25954
+
+ src/lib/go/token.go | 42 ++++++++++++++++++++++++++++++++----------
+ 1 file changed, 32 insertions(+), 10 deletions(-)

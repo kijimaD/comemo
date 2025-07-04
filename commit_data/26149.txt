@@ -1,0 +1,25 @@
+commit 7758a9405f45970cb545505b9adcaccc6b23e7e7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 8 15:02:40 2016 -0800
+
+    cmd/compile: simplify Iter
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I325b02dcc8412ded0dc304d43377c0bdf59c66a8
+    Reviewed-on: https://go-review.googlesource.com/20405
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/align.go     |  25 +++----
+ src/cmd/compile/internal/gc/cgen.go      |  12 ++--
+ src/cmd/compile/internal/gc/gsubr.go     |   3 +-
+ src/cmd/compile/internal/gc/order.go     |   3 +-
+ src/cmd/compile/internal/gc/pgen.go      |   3 +-
+ src/cmd/compile/internal/gc/ssa.go       |   3 +-
+ src/cmd/compile/internal/gc/subr.go      |   7 +-
+ src/cmd/compile/internal/gc/type.go      | 113 ++++++++-----------------------
+ src/cmd/compile/internal/gc/typecheck.go |   5 +-
+ src/cmd/compile/internal/gc/walk.go      |  31 ++++-----
+ 10 files changed, 62 insertions(+), 143 deletions(-)

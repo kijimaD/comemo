@@ -1,0 +1,19 @@
+commit 93dfb49d86ff085a4e644d596a0632de66feb135
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 30 04:12:33 2016 +0000
+
+    doc: more go1.8.html
+    
+    Mutex profiling, syscall, fmt, go/types, html/template.
+    
+    TBR=See https://golang.org/cl/33244
+    
+    Updates #17929
+    
+    Change-Id: I1ba0649171d6f6a69646a90eb65db6674cb903af
+    Reviewed-on: https://go-review.googlesource.com/33684
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 92 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ doc/go1.8.txt  | 27 -----------------
+ 2 files changed, 89 insertions(+), 30 deletions(-)

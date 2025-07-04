@@ -1,0 +1,14 @@
+commit ba9833269d2ebeab691eac72efadf094e12545d1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Aug 5 09:20:13 2011 +1000
+
+    net: fix /proc/net/igmp,igmp6 reading bug on linux
+    
+    Fixes #2130.
+    
+    R=rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/4846044
+
+ src/pkg/net/interface_linux.go | 29 ++++++++++-------------------
+ 1 file changed, 10 insertions(+), 19 deletions(-)

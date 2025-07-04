@@ -1,0 +1,26 @@
+commit 1f14d45e7dc17d397e437e3bd9b507e5316e6ed6
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Apr 21 10:01:32 2012 +1000
+
+    net: fix race between Close and Read
+    
+    Fixes #3507.
+    
+    Applied the suggested fix from rsc. If the connection
+    is in closing state then errClosing will bubble up to
+    the caller.
+    
+    The fix has been applied to udp, ip and unix as well as
+    their code path include nil'ing c.fd on close. Func
+    tests are available in the linked issue that verified
+    the bug existed there as well.
+    
+    R=rsc, fullung, alex.brainman, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/6002053
+
+ src/pkg/net/iprawsock_posix.go | 4 +---
+ src/pkg/net/tcpsock_posix.go   | 4 +---
+ src/pkg/net/udpsock_posix.go   | 4 +---
+ src/pkg/net/unixsock_posix.go  | 4 +---
+ 4 files changed, 4 insertions(+), 12 deletions(-)

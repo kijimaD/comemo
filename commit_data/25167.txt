@@ -1,0 +1,15 @@
+commit e0c05fcb5b92dee3ab130e41c574b31625514dfe
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sun Aug 23 12:41:07 2015 +0000
+
+    cmd/pprof/internal: map/slice literals janitoring
+    
+    Simplify slice/map literal expression.
+    Caught with gofmt -d -s, fixed with gofmt -w -s
+    
+    Change-Id: I19723900d0649019bf79b9330d68525a68ed69c4
+    Reviewed-on: https://go-review.googlesource.com/13835
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/pprof/internal/profile/legacy_profile.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

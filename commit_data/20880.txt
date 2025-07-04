@@ -1,0 +1,16 @@
+commit c99616fc6795123ec1a6b4d742099789865bd939
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 9 21:10:49 2014 -0500
+
+    test: fix nacl build
+    
+    Disable linkx_run.go and sinit_run.go, because they
+    exec subprocesses, which NaCl cannot.
+    
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/171350043
+
+ test/linkx_run.go | 1 +
+ test/sinit_run.go | 1 +
+ 2 files changed, 2 insertions(+)

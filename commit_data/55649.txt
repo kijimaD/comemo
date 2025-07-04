@@ -1,0 +1,22 @@
+commit 808c8fb815183f0bd6978b17e41e7edf254b78ec
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Feb 16 15:01:47 2024 -0500
+
+    cmd/go: change the naming of flag counters
+    
+    We're making the following changes:
+     * From cmd/go/flag-<flagname> to cmd/go/flag:<flagname>
+     * From cmd/go/<subcommand-name>:flag-<flagname> to
+           cmd/go/flag:<subcommand-name>-<flagname>
+     * From cmd/go:subcommand-<subcommand-name> to
+           cmd/go/subcommand:<subcommand-name>
+    
+    Change-Id: Id682840bb4330fceeb070fc69203d0bfb03f3a29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564857
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/go/main.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

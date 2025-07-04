@@ -1,0 +1,17 @@
+commit ea14d1b6e1167159dfc8408073ef411c3cf1d7e0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 13 21:16:09 2022 -0800
+
+    spec: document which recursive arrays and structs are valid/invalid
+    
+    Fixes #5069.
+    
+    Change-Id: I4bc0f52a9cd1e64a49846dffeb4be5cbecc29a96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457342
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ doc/go_spec.html | 61 +++++++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 56 insertions(+), 5 deletions(-)

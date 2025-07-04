@@ -1,0 +1,28 @@
+commit 97fd7d5f34744de9327b3f9850bef4b21777263c
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Tue Jan 10 21:24:31 2012 +0100
+
+    gc: inlining fixes
+    
+    flag -l means: inlining on, -ll inline with early typecheck
+    -l lazily typechecks imports on use and re-export, nicer for debugging
+    -lm produces output suitable for errchk tests, repeated -mm... increases inl.c's verbosity
+    export processed constants, instead of originals
+    outparams get ->inlvar too, and initialized to zero
+    fix shared rlist bug, that lead to typecheck messing up the patched tree
+    properly handle non-method calls to methods T.meth(t, a...)
+    removed embryonic code to handle closures in inlined bodies
+    also inline calls inside closures (todo: move from phase 6b to 4)
+    
+    Fixes #2579.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5489106
+
+ src/cmd/gc/export.c |  30 ++++++-
+ src/cmd/gc/fmt.c    |  20 ++++-
+ src/cmd/gc/go.h     |   1 +
+ src/cmd/gc/inl.c    | 219 +++++++++++++++++++++++++++++-----------------------
+ src/cmd/gc/lex.c    |  27 +++----
+ 5 files changed, 180 insertions(+), 117 deletions(-)

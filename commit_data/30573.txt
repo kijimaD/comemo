@@ -1,0 +1,16 @@
+commit e577a55b78bb2d36841504c00ff1d984c167308e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 6 23:49:49 2017 -0800
+
+    cmd/compile: change signatlist to []*Type
+    
+    No need to keep as Nodes when they're all Types anyway.
+    
+    Change-Id: I8157914ba5b09cadf2263247844680a60233a0f2
+    Reviewed-on: https://go-review.googlesource.com/37886
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 15 +++++----------
+ 1 file changed, 5 insertions(+), 10 deletions(-)

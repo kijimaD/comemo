@@ -1,0 +1,19 @@
+commit 1206e974a1a6f1132c6ea5d746763a841d2d293a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 12 17:41:49 2017 -0800
+
+    cmd/go: don't use a testlog if there is an exec command
+    
+    An exec command is normally used on platforms were the test is run in
+    some unusual way, making it less likely that the testlog will be useful.
+    
+    Updates #22593
+    
+    Change-Id: I0768f6da89cb559d8d675fdf6d685db9ecedab9e
+    Reviewed-on: https://go-review.googlesource.com/83578
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/test/test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

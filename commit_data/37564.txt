@@ -1,0 +1,19 @@
+commit 54cbc5b4bf554742b7037308bd45da010340628d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 3 10:53:10 2018 -0800
+
+    cmd/cgo: use a plausible position for typedef error messages
+    
+    Fixes #28069
+    
+    Change-Id: I7e0f96b8b6d123de283325fcb78ec76455050f6d
+    Reviewed-on: https://go-review.googlesource.com/c/152158
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ misc/cgo/errors/errors_test.go    |  7 ++++++-
+ misc/cgo/errors/src/issue28069.go | 26 ++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go                | 35 +++++++++++++++++++----------------
+ src/cmd/cgo/main.go               |  9 ++++++++-
+ 4 files changed, 59 insertions(+), 18 deletions(-)

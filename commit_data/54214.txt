@@ -1,0 +1,24 @@
+commit 611c3af30d5c7d17c8da3712cd23152c7f0f52ef
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 24 17:21:58 2023 -0700
+
+    cmd/compile/internal/ir: mark Addrtaken in NewAddrExpr
+    
+    This CL changes NewAddrExpr to require its operand to always be
+    typechecked, so it can return an appropriately typechecked node and
+    mark Addrtaken as appropriate in the process.
+    
+    Change-Id: I97c1f29305a9abfda35c42a43561c4c15fb5b52e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522879
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/main.go             | 11 -----
+ src/cmd/compile/internal/ir/expr.go             | 19 ++++++++-
+ src/cmd/compile/internal/typecheck/expr.go      | 32 --------------
+ src/cmd/compile/internal/typecheck/subr.go      | 56 +------------------------
+ src/cmd/compile/internal/typecheck/typecheck.go |  4 --
+ 5 files changed, 19 insertions(+), 103 deletions(-)

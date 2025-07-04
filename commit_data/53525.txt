@@ -1,0 +1,20 @@
+commit ee46f0b5084461978432aa20df003ac52500b0f0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jun 10 17:42:54 2023 -0700
+
+    net/url: correct field name in Redacted doc comment
+    
+    Fixes #60716
+    
+    Change-Id: I86037784d6c12fd22bd03c3efabef379fa0646aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502355
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/url/url.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

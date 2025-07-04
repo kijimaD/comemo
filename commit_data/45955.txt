@@ -1,0 +1,17 @@
+commit 8a7ee4c51e992174d432ce0f40d9387a32d6ee4a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 31 15:39:08 2021 -0700
+
+    io/fs: don't use absolute path in DirEntry.Name doc
+    
+    Fixes #47485
+    
+    Change-Id: I64ac00905a403b7594c706141679051a93058a31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338889
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/io/fs/fs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

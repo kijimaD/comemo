@@ -1,0 +1,15 @@
+commit 3d3b8cc47716b9ce3df37b8babe48cfd074cd121
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Dec 7 13:29:26 2017 +0900
+
+    cmd/vendor/golang.org/x/arch/arm64: update from upstream
+    
+    Updates x/arch/arm64 to git rev. 530ae47 for CL 82437.
+    
+    Change-Id: I0131f7ac783462fcaeddf5625c59784fe30bbd5a
+    Reviewed-on: https://go-review.googlesource.com/82435
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/condition.go      | 0
+ src/cmd/vendor/golang.org/x/arch/arm64/arm64asm/condition_util.go | 0
+ 2 files changed, 0 insertions(+), 0 deletions(-)

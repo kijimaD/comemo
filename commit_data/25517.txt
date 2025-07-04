@@ -1,0 +1,22 @@
+commit a8fc547f786f17ad5a2176d9041a8d1f76895748
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 8 11:36:36 2016 -0500
+
+    cmd/compile: apply -importmap to imports before checking for package unsafe
+    
+    There are fewer special cases this way: the import map applies
+    to all import paths, not just the ones not spelled "unsafe".
+    
+    This is also consistent with what the code in cmd/go and go/build expects.
+    They make no exception for "unsafe".
+    
+    For #13703.
+    
+    Change-Id: I622295261ca35a6c1e83e8508d363bddbddb6c0a
+    Reviewed-on: https://go-review.googlesource.com/18438
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

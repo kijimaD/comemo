@@ -1,0 +1,16 @@
+commit bd6f4cd886458bb4ab1f492202fa2b499dcfc6f7
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Mar 2 04:23:12 2020 +1100
+
+    cmd/compile: improve subtraction of constants on riscv64
+    
+    Convert subtraction of a constant into an ADDI with a negative immediate,
+    where possible.
+    
+    Change-Id: Ie8d54b7538f0012e5f898abea233b2957fe31899
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221679
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules | 14 +++--
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 75 ++++++++++++++++++++++++++
+ 2 files changed, 86 insertions(+), 3 deletions(-)

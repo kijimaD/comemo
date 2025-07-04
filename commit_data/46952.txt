@@ -1,0 +1,23 @@
+commit 7999fd4710e7f987e86d7b32dd9af31ced4810ba
+Author: Matt T. Proud <matt.proud@gmail.com>
+Date:   Tue Oct 19 10:09:06 2021 +0200
+
+    errors: mention Is methods should not call Unwrap
+    
+    errors.Is internally unwraps the error until the error matches the
+    target. Because of this, a user-authored Is method on an error type
+    need not call errors.Unwrap on itself or the target, because that would
+    make the unwrapping operation O(N^2). It is a subtle detail to remind
+    authors for resource efficiency reasons.
+    
+    Change-Id: Ic1ba59a5bdbfe2c7cb51a2cba2537ab6de4a13ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356789
+    Reviewed-by: Jean de Klerk <deklerk@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Jean de Klerk <deklerk@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Jean de Klerk <deklerk@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/errors/wrap.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

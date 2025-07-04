@@ -1,0 +1,25 @@
+commit a825e8a69f3811c55d9bbf988ef0cec667d5380c
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri May 27 08:46:51 2011 -0300
+
+    cgo: restrict #cgo directives to prevent shell expansion
+    
+    Fixes issue #1879.
+    
+    Directives were not directly expanded, but since their
+    content ended up in makefiles, further expansion would
+    take place there.  This prevents such artifacts by
+    restricting the set of characters that may be used in
+    a directive value.
+    
+    To build the list of safe characters I went through the
+    contents of /usr/lib/pkgconfig and extracted LDFLAGS
+    and CFLAGS information, so hopefully this is a
+    reasonable default to get started.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4532092
+
+ src/cmd/cgo/gcc.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

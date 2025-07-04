@@ -1,0 +1,17 @@
+commit fda5e6d6fa7abfe974a58dfeeceb95a8165d1b63
+Author: Ahsun Ahmed <ahmed.ahsun@gmail.com>
+Date:   Thu Mar 21 22:45:49 2019 +0600
+
+    errors: return false if nil error is passed to As
+    
+    Fixes #30970
+    
+    Change-Id: I333676b55a2364e329fffeafca8fc57d45a0b84b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168598
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/errors/wrap.go      | 9 ++++-----
+ src/errors/wrap_test.go | 4 ++++
+ 2 files changed, 8 insertions(+), 5 deletions(-)

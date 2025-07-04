@@ -1,0 +1,26 @@
+commit c15c04d9e85a6a2c46ae57cb830192e0eee276dc
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Jul 28 10:56:48 2018 +0200
+
+    runtime: use internal/cpu variables in assembler code
+    
+    Using internal/cpu variables has the benefit of avoiding false sharing
+    (as those are padded) and allows memory and cache usage for these variables
+    to be shared by multiple packages.
+    
+    Change-Id: I2bf68d03091bf52b466cf689230d5d25d5950037
+    Reviewed-on: https://go-review.googlesource.com/126599
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/asm_386.s         |  2 +-
+ src/runtime/cpuflags.go       | 17 +++++++++++++++++
+ src/runtime/cpuflags_amd64.go |  6 ------
+ src/runtime/memclr_386.s      |  3 ++-
+ src/runtime/memclr_amd64.s    |  2 +-
+ src/runtime/memmove_386.s     |  5 +++--
+ src/runtime/memmove_amd64.s   |  3 ++-
+ src/runtime/proc.go           |  3 ++-
+ src/runtime/runtime2.go       |  5 ++---
+ 9 files changed, 30 insertions(+), 16 deletions(-)

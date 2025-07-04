@@ -1,0 +1,16 @@
+commit fa3c5173a5ab4d011cf77ab9775e677d2a9682ea
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 18 11:14:28 2017 -0400
+
+    runtime: improve out-of-memory message when VirtualAlloc fails
+    
+    Fixes #19514.
+    
+    Change-Id: I93600d5c3d11ecab5a47dd4cd55ed3aea05e221e
+    Reviewed-on: https://go-review.googlesource.com/49611
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mem_windows.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

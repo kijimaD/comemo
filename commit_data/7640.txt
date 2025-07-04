@@ -1,0 +1,16 @@
+commit 7bc90eda690debde8dce18c8370904beefff5960
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Mar 5 14:35:15 2011 -0500
+
+    http: fix, use WriteProxy
+    
+    Fixes #53.
+    
+    R=bradfitzgo, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4240075
+
+ src/pkg/http/request.go           | 13 +++++----
+ src/pkg/http/requestwrite_test.go | 59 ++++++++++++++++++++++++++++++++++++---
+ src/pkg/http/transport.go         |  5 +++-
+ 3 files changed, 66 insertions(+), 11 deletions(-)

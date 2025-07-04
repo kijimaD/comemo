@@ -1,0 +1,22 @@
+commit 6adadeb3ab7060b424090f76947b92e59b9b44e4
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Wed Aug 5 11:49:51 2009 -0700
+
+    Implement struct types, selector expressions, and type
+    declarations.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=587  (519 added, 21 deleted, 47 changed)
+    OCL=32754
+    CL=32788
+
+ usr/austin/eval/compiler.go |   1 +
+ usr/austin/eval/decls.go    |   9 ++
+ usr/austin/eval/expr.go     | 176 +++++++++++++++++++++++++++++++++--
+ usr/austin/eval/scope.go    |   5 +-
+ usr/austin/eval/stmt.go     |  25 +++--
+ usr/austin/eval/type.go     | 133 +++++++++++++++++++++++++-
+ usr/austin/eval/typec.go    | 220 ++++++++++++++++++++++++++++++++++++--------
+ usr/austin/eval/value.go    |  47 +++++++++-
+ 8 files changed, 557 insertions(+), 59 deletions(-)

@@ -1,0 +1,15 @@
+commit bed884e8b9ff1657fbd4f8f52d0c7a18b6445e00
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jan 26 18:04:44 2015 +0900
+
+    net: update test cases for network interface API
+    
+    This change extends existing test case to Windows for helping to fix
+    golang.org/issue/5395.
+    
+    Change-Id: Iff077fa98ede511981df513f48d84c19375b3e04
+    Reviewed-on: https://go-review.googlesource.com/3304
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/net/interface_test.go | 160 +++++++++++++++++++++++++++++++---------------
+ 1 file changed, 109 insertions(+), 51 deletions(-)

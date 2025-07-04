@@ -1,0 +1,18 @@
+commit 3efc7215cbf6c7842cba0f5ebe90f72f0b6de9e1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 8 09:51:29 2022 -0500
+
+    fmt, strconv: document use of Unicode replacement character in %q
+    
+    Fixes #51526.
+    
+    Change-Id: I365a763454bd201f804df29f800416b1731b8ebc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390436
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/fmt/doc.go       | 4 ++++
+ src/strconv/quote.go | 6 ++++++
+ 2 files changed, 10 insertions(+)

@@ -1,0 +1,12 @@
+commit dc331e656501cdb3f244582ec347549b22c9288e
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Feb 8 16:55:59 2011 -0800
+
+    peep: more optimization
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4149044
+
+ src/cmd/5g/peep.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

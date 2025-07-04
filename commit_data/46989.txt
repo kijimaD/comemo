@@ -1,0 +1,19 @@
+commit 23e57e59556f42d6935b65be63b59a8b0fc0e6ad
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 21 23:35:05 2021 +0700
+
+    reflect: make Value.Pointer panic on bad notinheap pointers
+    
+    Same as CL 350153 did for Value.Elem to panic on bad notinheap pointers.
+    While at it, also add more tests for notinheap deref.
+    
+    Change-Id: Id7d9d12ad8467de5926b6a7e8f9d659fea5fedb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357630
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/all_test.go |  2 ++
+ src/reflect/value.go    | 12 +++++++-----
+ 2 files changed, 9 insertions(+), 5 deletions(-)

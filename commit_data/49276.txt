@@ -1,0 +1,33 @@
+commit 00847065287a11353c66b4144f5692848c7e837e
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu May 19 20:01:10 2022 +0800
+
+    runtime: implement signal for linux/loong64
+    
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
+    
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: Ifa0229d2044dd53683de4a2b3ab965b16263f267
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368075
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/defs_linux_loong64.go   | 212 ++++++++++++++++++++++++++++++++++++
+ src/runtime/signal_linux_loong64.go |  75 +++++++++++++
+ src/runtime/signal_loong64.go       |  98 +++++++++++++++++
+ 3 files changed, 385 insertions(+)

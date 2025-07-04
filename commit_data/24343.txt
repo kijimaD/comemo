@@ -1,0 +1,12 @@
+commit b307910b6e0695a1bf972cb3970dd49a652d5a43
+Author: Austin Clements <austin@google.com>
+Date:   Mon Sep 21 11:49:52 2015 -0400
+
+    runtime: fix offset in invalidptr panic message
+    
+    Change-Id: I00e1eebbf5e1a01c8fad5ca5324aa8eec1e4d731
+    Reviewed-on: https://go-review.googlesource.com/14792
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mbitmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,82 @@
+commit e85265e8c2a41e4a0e703e5fb6fe762cc382d0af
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 2 16:16:46 2016 -0700
+
+    cmd/compile: optimize bool to int conversion
+    
+    This CL teaches SSA to recognize code of the form
+    
+    // b is a boolean value, i is an int of some flavor
+    if b {
+            i = 1
+    } else {
+            i = 0
+    }
+    
+    and use b's underlying 0/1 representation for i
+    instead of generating jumps.
+    
+    Unfortunately, it does not work on the obvious code:
+    
+    func bool2int(b bool) int {
+            if b {
+                    return 1
+            }
+            return 0
+    }
+    
+    This is left for future work.
+    Note that the existing phiopt optimizations also don't work for:
+    
+    func neg(b bool) bool {
+            if b {
+                    return false
+            }
+            return true
+    }
+    
+    In the meantime, runtime authors and the like can use:
+    
+    func bool2int(b bool) int {
+            var i int
+            if b {
+                    i = 1
+            } else {
+                    i = 0
+            }
+            return i
+    }
+    
+    This compiles to:
+    
+    "".bool2int t=1 size=16 args=0x10 locals=0x0
+            0x0000 00000 (x.go:25)  TEXT    "".bool2int(SB), $0-16
+            0x0000 00000 (x.go:25)  FUNCDATA        $0, gclocals·23e8278e2b69a3a75fa59b23c49ed6ad(SB)
+            0x0000 00000 (x.go:25)  FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (x.go:32)  MOVBLZX "".b+8(FP), AX
+            0x0005 00005 (x.go:32)  MOVBQZX AL, AX
+            0x0008 00008 (x.go:32)  MOVQ    AX, "".~r1+16(FP)
+            0x000d 00013 (x.go:32)  RET
+    
+    The extraneous MOVBQZX is #15300.
+    
+    This optimization also helps range and slice.
+    The compiler must protect against pointers pointing
+    to the end of a slice/string. It does this by increasing
+    a pointer by either 0 or 1 * elemsize, based on a condition.
+    This CL optimizes away a jump in that code.
+    
+    This CL triggers 382 times while compiling the standard library.
+    
+    Updating code to utilize this optimization is left for future CLs.
+    
+    Updates #6011
+    
+    Change-Id: Ia7c1185f8aa223c543f91a3cd6d4a2a09c691c70
+    Reviewed-on: https://go-review.googlesource.com/22711
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/phiopt.go | 61 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 60 insertions(+), 1 deletion(-)

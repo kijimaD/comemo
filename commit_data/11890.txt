@@ -1,0 +1,12 @@
+commit 1c987a321f5013517a0c1987826f9595dde7cb72
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 14 01:13:14 2012 -0500
+
+    5g: fix memory corruption
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5666043
+
+ src/cmd/5g/gsubr.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

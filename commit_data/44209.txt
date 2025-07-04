@@ -1,0 +1,22 @@
+commit c8bd8010ff7c0115bf186443119216ba51f09d2b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Jan 28 19:19:47 2021 +1100
+
+    syscall: generate readlen/writelen for openbsd libc
+    
+    Rather than hand rolling readlen and writelen, move it to being generated
+    via mksyscall.pl, as is done for most other functions.
+    
+    Updates #36435
+    
+    Change-Id: I649aed7b182b41c8639686feae25ce19dab812c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287532
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/syscall/syscall_openbsd_libc.go   | 28 ++++++----------------------
+ src/syscall/zsyscall_openbsd_amd64.go | 22 ++++++++++++++++++++++
+ src/syscall/zsyscall_openbsd_arm64.go | 22 ++++++++++++++++++++++
+ 3 files changed, 50 insertions(+), 22 deletions(-)

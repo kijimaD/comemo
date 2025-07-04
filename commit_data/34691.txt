@@ -1,0 +1,20 @@
+commit b1892d740eaeddc46a0c735b472718149c438844
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Mar 23 20:20:50 2018 +0000
+
+    cmd/compile/internal/gc: various cleanups
+    
+    Remove a couple of unnecessary var declarations, an unused sort.Sort
+    type, and simplify a range by using the two-name variant.
+    
+    Change-Id: Ia251f634db0bfbe8b1d553b8659272ddbd13b2c3
+    Reviewed-on: https://go-review.googlesource.com/102336
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go    | 4 ++--
+ src/cmd/compile/internal/gc/plive.go   | 7 +++----
+ src/cmd/compile/internal/gc/reflect.go | 5 ++---
+ src/cmd/compile/internal/gc/scope.go   | 8 --------
+ 4 files changed, 7 insertions(+), 17 deletions(-)

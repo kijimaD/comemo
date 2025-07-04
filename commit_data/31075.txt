@@ -1,0 +1,18 @@
+commit 5a8eae6d47d768a8900ddf7a6a4d20db53ae519d
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Apr 11 09:54:08 2017 +0900
+
+    os: adjust error in Stat on windows
+    
+    Current code could return a non-nil os.FileInfo even if there is an error.
+    This is a bit incompatible with Stat on other OSes.
+    
+    Change-Id: I37b608da234f957bb89b82509649de78ccc70bbb
+    Reviewed-on: https://go-review.googlesource.com/40330
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/os_test.go      | 39 +++++++++++++++++++++++++++++++++++++++
+ src/os/stat_windows.go |  4 ++--
+ 2 files changed, 41 insertions(+), 2 deletions(-)

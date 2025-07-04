@@ -1,0 +1,18 @@
+commit e3ada56537e0fdf04111de01a336902b1e0fb9ab
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 10 21:06:54 2023 +0000
+
+    runtime: hide sysExitTicks a little better
+    
+    Just another step to hiding implementation details.
+    
+    Change-Id: I71b7cc522d18c23f03a9bf32e428279e62b39a89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494192
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go  |  7 +++----
+ src/runtime/trace.go | 12 +++++++-----
+ 2 files changed, 10 insertions(+), 9 deletions(-)

@@ -1,0 +1,18 @@
+commit 8f4f1f63e9d5d171a669d0a9c4594bbaaf9ea6f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 30 23:14:21 2017 -0400
+
+    fmt: hide bad format in test from vet
+    
+    Hide in the source code instead of in the separate whitelist.
+    Removes the only printf false positive in the standard library.
+    
+    Change-Id: I99285e67588c7c93bd56d59ee768a03be7c301e7
+    Reviewed-on: https://go-review.googlesource.com/74590
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/all/whitelist/all.txt | 3 ---
+ src/fmt/fmt_test.go               | 4 +++-
+ 2 files changed, 3 insertions(+), 4 deletions(-)

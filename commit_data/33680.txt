@@ -1,0 +1,15 @@
+commit e22d79ec1d6f6bae0fbc0d658baf7718c9dd01b0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Nov 23 11:21:06 2017 +0100
+
+    syscall: remove dragonfly/386 from mkall.sh
+    
+    dragonfly/386 isn't a valid GOOS/GOARCH pair and there are no generated
+    files for this pair in syscall.
+    
+    Change-Id: Ibea2103c2f5e139139d850df3aac9b5a9c4ac9ab
+    Reviewed-on: https://go-review.googlesource.com/79675
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/mkall.sh | 6 ------
+ 1 file changed, 6 deletions(-)

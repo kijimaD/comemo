@@ -1,0 +1,21 @@
+commit 313ce55a866b20f22ea68d6b4359ebd0c4489ada
+Author: Jonathan Hall <flimzy@flimzy.com>
+Date:   Mon Mar 27 13:23:36 2023 +0200
+
+    regexp: add Regexp.TextMarshaler/TextUnmarshaler
+    
+    Fixes #46159
+    
+    Change-Id: I51dc4e9e8915ab5a73f053690fb2395edbeb1151
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479401
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ api/next/46159.txt     |  2 ++
+ src/regexp/all_test.go | 26 ++++++++++++++++++++++++++
+ src/regexp/regexp.go   | 21 +++++++++++++++++++++
+ 3 files changed, 49 insertions(+)

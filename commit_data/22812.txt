@@ -1,0 +1,12 @@
+commit cf3ac26a4c79ec53a8a5161f15cc91ab75b3ac46
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 30 17:42:16 2015 -0700
+
+    doc/go1.5.txt: cover has moved
+    
+    Change-Id: Ie4b59d72e2b704559e075494e79fdc7b0bca6556
+    Reviewed-on: https://go-review.googlesource.com/9562
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

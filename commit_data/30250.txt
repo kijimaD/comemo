@@ -1,0 +1,16 @@
+commit 83c58ac710517e0b3fb2654cdba187e45900cca2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 13 15:33:03 2017 -0800
+
+    internal/poll: return error if WriteConsole fails
+    
+    Fixes #19068.
+    
+    Change-Id: Id76037826376b5fe8b588fe3dc02182dfaff8c21
+    Reviewed-on: https://go-review.googlesource.com/36935
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/poll/fd_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

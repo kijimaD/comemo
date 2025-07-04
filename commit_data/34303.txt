@@ -1,0 +1,15 @@
+commit ac81c5c402ac1023296d4c418287d26aa48061d7
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon Feb 5 16:55:54 2018 -0500
+
+    cmd/compile/internal/ssa: refactor buildLocationLists
+    
+    Change the closures to methods on debugState, mostly just for aesthetic
+    reasons.
+    
+    Change-Id: I5242807f7300efafc7efb4eb3bd305ac3ec8e826
+    Reviewed-on: https://go-review.googlesource.com/92403
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/debug.go | 245 +++++++++++++++++-----------------
+ 1 file changed, 125 insertions(+), 120 deletions(-)

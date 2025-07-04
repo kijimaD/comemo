@@ -1,0 +1,14 @@
+commit e46b00a43b62bd67ec13ca75c51037db3b312043
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 12 14:44:49 2016 -0700
+
+    cmd/internal/obj: remove unused Pciter type
+    
+    Change-Id: Ie8323cfcd1193f390729d0d3dd67863aedf47d13
+    Reviewed-on: https://go-review.googlesource.com/21906
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/link.go | 13 -------------
+ 1 file changed, 13 deletions(-)

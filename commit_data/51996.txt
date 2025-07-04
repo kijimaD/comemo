@@ -1,0 +1,19 @@
+commit 117fe2e08d2fb385e4febed020b834d2d8e4358a
+Author: cui fliter <imcusg@gmail.com>
+Date:   Tue Feb 14 22:42:38 2023 +0800
+
+    all: fix some comments
+    
+    Change-Id: I16ec916b47de2f417b681c8abff5a1375ddf491b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468055
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/math/big/int.go      | 2 +-
+ src/net/http/server.go   | 4 ++--
+ src/net/http/transfer.go | 2 +-
+ src/os/tempfile.go       | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)

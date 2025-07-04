@@ -1,0 +1,14 @@
+commit 21f8ae8fec711a4d8146c70a041f2da132b5311c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 29 16:39:17 2010 -0700
+
+    strconv: fix %.2g, 40
+    Fixes #845.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1673049
+
+ src/pkg/strconv/ftoa.go      | 14 ++++++++++----
+ src/pkg/strconv/ftoa_test.go | 11 +++++++++++
+ 2 files changed, 21 insertions(+), 4 deletions(-)

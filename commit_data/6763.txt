@@ -1,0 +1,14 @@
+commit 8f651ff742a3dc69b03afa6ba6a09c5c1d47c450
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 12 16:08:56 2010 -0800
+
+    sort.Search: slightly more precise wording in comment
+    
+    (+ some cosmetic changes)
+    
+    R=iant, iant2
+    CC=golang-dev
+    https://golang.org/cl/3076041
+
+ src/pkg/sort/search.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

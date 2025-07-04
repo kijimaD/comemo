@@ -1,0 +1,19 @@
+commit 9abcd53eda0629d009941027ffa2dc680b5f1d00
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 6 18:36:32 2014 -0500
+
+    cmd/go: add test case for cgo coverage
+    
+    This is a test case for CL 34680044.
+    
+    Fixes #6333.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/71230049
+
+ src/cmd/go/test.bash                   | 10 ++++++++++
+ src/cmd/go/testdata/cgocover/p.go      | 19 +++++++++++++++++++
+ src/cmd/go/testdata/cgocover/p_test.go |  7 +++++++
+ 3 files changed, 36 insertions(+)

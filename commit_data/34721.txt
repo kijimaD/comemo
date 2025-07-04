@@ -1,0 +1,33 @@
+commit a42ea51ae94af2005970a480ddc8ee257874908c
+Author: HaraldNordgren <haraldnordgren@gmail.com>
+Date:   Sat Jan 6 21:30:42 2018 +0100
+
+    cmd/go: print each import error only once
+    
+    This change prevents import errors from being printed multiple times.
+    Creating a bare-bones package 'p' with only one file importing itself
+    and running 'go build p', the current implementation gives this error
+    message:
+    
+            can't load package: import cycle not allowed
+            package p
+                    imports p
+            import cycle not allowed
+            package p
+                    imports p
+    
+    With this change we will show the message only once.
+    
+    Updates #23295
+    
+    Change-Id: I653b34c1c06c279f3df514f12ec0b89745a7e64a
+    Reviewed-on: https://go-review.googlesource.com/86535
+    Reviewed-by: Harald Nordgren <haraldnordgren@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go                                    | 16 ++++++++++++++++
+ src/cmd/go/internal/load/pkg.go                          |  1 +
+ .../go/testdata/importcycle/src/selfimport/selfimport.go |  3 +++
+ 3 files changed, 20 insertions(+)

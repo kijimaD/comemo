@@ -1,0 +1,15 @@
+commit 2e405bde03c7aec0e4fadcb9490e14f4dd8425b7
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Oct 4 00:02:37 2017 -0400
+
+    doc: update contribute.html to clarify replying to reviews via email
+    
+    Update golang/go#22120
+    
+    Change-Id: Ie7dbd0e7b01b116c960243a8cd3fa9fd121f317d
+    Reviewed-on: https://go-review.googlesource.com/68021
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ doc/contribute.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

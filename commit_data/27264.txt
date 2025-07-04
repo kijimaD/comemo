@@ -1,0 +1,16 @@
+commit b6687c8933e2e123cd336d6ee96aa43df40bfc24
+Author: Cherry Zhang <lunaria21@gmail.com>
+Date:   Wed Apr 27 22:18:24 2016 -0400
+
+    runtime: add linux/mips64x cgo support
+    
+    Change-Id: Id40dd05b7b264f3b779fdf9ccc2421ba4bc70589
+    Reviewed-on: https://go-review.googlesource.com/19806
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/asm_mips64x.s       | 100 ++++++++++++++++++++++++++++++++--------
+ src/runtime/cgo_mips64x.go      |  12 +++++
+ src/runtime/cgocall.go          |   6 ++-
+ src/runtime/sys_linux_mips64x.s |   4 +-
+ src/runtime/tls_mips64x.s       |   7 +++
+ 5 files changed, 106 insertions(+), 23 deletions(-)

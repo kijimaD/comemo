@@ -1,0 +1,15 @@
+commit 1b2d5b4c9389aecc56a4547a9770d0c73925b248
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 6 16:37:05 2011 -0800
+
+    ld: Permit an ELF symbol to be exported in the dynamic symbol table.
+    
+    This permits exporting crosscall2 from the runtime/cgo
+    package.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3885041
+
+ src/cmd/ld/ldelf.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit 11f6cb43a0db4f8c8a7c91c23cb88a30c5ed37bf
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jun 5 22:41:10 2018 +0200
+
+    crypto/x509: use SecItemExport instead of deprecated SecKeychainItemExport
+    
+    SecKeychainItemExport is deprecated as of macOS 10.7. The minimum
+    supported version is macOS 10.10, so use SecItemExport instead.
+    
+    While at it also bump macosx-version-min to 10.10 and
+    __MAC_OS_X_VERSION_MAX_ALLOWED to 101300 (for macOS 10.13).
+    
+    Tested on macOS 10.10, 10.11 and 10.12.
+    
+    Updates #23122
+    
+    Change-Id: Id4cd6a5cea93315791253dc248e40e5615760a6c
+    Reviewed-on: https://go-review.googlesource.com/116396
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/root_cgo_darwin.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

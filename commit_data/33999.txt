@@ -1,0 +1,16 @@
+commit 1c0d5427decb389df87cb1bf12456274f7702cf7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 10 17:48:37 2018 -0800
+
+    cmd/go: correct buildmode test (from "c-header" to "c-shared")
+    
+    Change-Id: I8688a47ae83f6719f6134c64fb3d3f2aa275c641
+    Reviewed-on: https://go-review.googlesource.com/87158
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 47 ++++++++++++++++
+ misc/cgo/testcshared/cshared_test.go   | 97 ++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/work/exec.go       |  2 +-
+ 3 files changed, 145 insertions(+), 1 deletion(-)

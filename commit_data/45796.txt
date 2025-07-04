@@ -1,0 +1,18 @@
+commit 77aa209b386a184e7f4b44938f2a05a1b5c5a3cf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 10 15:35:05 2021 -0700
+
+    runtime: loop on EINTR in macOS sigNoteSleep
+    
+    Fixes #46466
+    
+    Change-Id: I8fb15d0c8ef7ef6e6fc1b9e0e033d213255fe0df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326778
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/os_darwin.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

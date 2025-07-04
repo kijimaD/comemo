@@ -1,0 +1,12 @@
+commit e4b464242ac94f4f6e49bc55f9278b68b2fa66b2
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Nov 3 14:34:35 2011 +1100
+
+    http: update mime sniffing doc reference.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5303095
+
+ src/pkg/http/sniff.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

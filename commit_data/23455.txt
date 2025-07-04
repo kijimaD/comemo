@@ -1,0 +1,21 @@
+commit 794c01b8b42e436e9e73dae9c078e9ca2827d115
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 19 14:43:09 2015 -0400
+
+    cmd/go: fix test for issue 8181
+    
+    The test was translated from shell incorrectly,
+    and it depended on having hg installed, which
+    may not be the case.
+    
+    Moved repo to GitHub, updated code, and fixed
+    go list ... command to be expected to succeed.
+    
+    Fixes test for #8181.
+    
+    Change-Id: I7f3e8fb20cd16cac5ed24de6fd952003bc5e08d4
+    Reviewed-on: https://go-review.googlesource.com/11301
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

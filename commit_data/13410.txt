@@ -1,0 +1,12 @@
+commit 8744d35dd3429b175559ca89799858b1fd497bcb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 27 17:06:49 2012 -0400
+
+    runtime: avoid allocation for "" + x + ""
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6359043
+
+ src/pkg/runtime/string.goc | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

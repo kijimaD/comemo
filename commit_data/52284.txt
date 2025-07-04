@@ -1,0 +1,24 @@
+commit 7789966286a97c2e60140c7108c6df8238436dbe
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Sat Mar 11 22:26:39 2023 +0800
+
+    cmd/compile/internal, runtime: use NOOP for hardware NOPs on loong64
+    
+    The canonical LoongArch NOP instruction form is "andi r0, r0, 0", as
+    described in the LoongArch Reference Manual Volume 1, Section 2.2.1.10.
+    We currently use NOR instead, which may or may not change anything (e.g.
+    performance on less capable micro-architectures) but is deviation from
+    upstream standards nevertheless. Fix them to use the explicit hardware
+    NOP which happens to be supported as `NOOP`.
+    
+    Change-Id: I0a799a1da959e9c3b582feb88202df2bab0ab23a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475615
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/loong64/ggen.go | 6 +-----
+ src/runtime/asm_loong64.s                | 4 ++--
+ 2 files changed, 3 insertions(+), 7 deletions(-)

@@ -1,0 +1,19 @@
+commit 5501a097a9ec5d082dad447c92d0eac298dede4d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 14:58:57 2012 -0400
+
+    cmd/cgo: prepare for 64-bit ints
+    
+    This CL makes the size of an int controlled by a variable
+    in cgo instead of hard-coding 4 (or 32 bits) in various places.
+    
+    Update #2188.
+    
+    R=iant, r, dave
+    CC=golang-dev
+    https://golang.org/cl/6548061
+
+ src/cmd/cgo/gcc.go  |  6 ++++--
+ src/cmd/cgo/main.go | 14 +++++++++++++-
+ src/cmd/cgo/out.go  | 29 +++++++++++++++++++++--------
+ 3 files changed, 38 insertions(+), 11 deletions(-)

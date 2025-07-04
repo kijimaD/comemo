@@ -1,0 +1,26 @@
+commit d29dd2ecf7563a8cb15a662a7ec5caa461068bbe
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Mon Feb 6 07:18:53 2023 +0100
+
+    cmd/compile: call phiElimValue from removePhiArg
+    
+    With the exception of the shortcircuit pass, removePhiArg is always unconditionally followed by phiElimValue.
+    Move the phiElimValue inside removePhiArg.
+    
+    Resolves a TODO.
+    
+    See CL 357964 for more info.
+    
+    Change-Id: I8460b35864f4cd7301ba86fc3dce08ec8041da7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465435
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Jakub Ciolek <jakub@ciolek.dev>
+
+ src/cmd/compile/internal/ssa/block.go               | 3 ++-
+ src/cmd/compile/internal/ssa/critical.go            | 5 -----
+ src/cmd/compile/internal/ssa/deadcode.go            | 1 -
+ src/cmd/compile/internal/ssa/fuse_branchredirect.go | 1 -
+ 4 files changed, 2 insertions(+), 8 deletions(-)

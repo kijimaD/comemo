@@ -1,0 +1,13 @@
+commit c5f41cc58c5d843396f927185746633f49c6fe94
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 18 10:51:47 2009 -0800
+
+    removed semantic check from parsers
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/179099
+
+ src/pkg/exp/parser/parser.go | 3 ---
+ src/pkg/go/parser/parser.go  | 3 ---
+ 2 files changed, 6 deletions(-)

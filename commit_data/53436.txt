@@ -1,0 +1,22 @@
+commit 459cca5cb20e69f0546f7f480571e7eeaeac17e1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 1 12:55:58 2023 -0400
+
+    cmd/go: move version constants from modload to gover
+    
+    For #57001.
+    
+    Change-Id: Ia76478b8eaa934b7e1dc1e9cd7fe8a2428fc291a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499978
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/gover/version.go     | 54 ++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/modcmd/download.go   |  2 +-
+ src/cmd/go/internal/modload/buildlist.go |  2 +-
+ src/cmd/go/internal/modload/init.go      | 16 +++++-----
+ src/cmd/go/internal/modload/load.go      |  4 +--
+ src/cmd/go/internal/modload/modfile.go   | 51 +-----------------------------
+ 6 files changed, 67 insertions(+), 62 deletions(-)

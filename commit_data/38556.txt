@@ -1,0 +1,25 @@
+commit b5cf035d1ca21ee4bf799c6d97b2759471b76483
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Mar 25 10:26:44 2019 +0100
+
+    runtime: improve sigtramp on aix/ppc64 to handle SIGPROF
+    
+    R14, R15 must be saved in sigtramp because they might be modified by Go
+    code when a SIGPROF occurs.
+    
+    Fixes #28555
+    
+    Change-Id: I573541f108d7d6aac8e60d33c649e5db943f3ef5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169117
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_cgo_test.go   |  3 ---
+ src/runtime/crash_test.go       |  3 ---
+ src/runtime/os_aix.go           |  2 ++
+ src/runtime/pprof/pprof_test.go |  2 +-
+ src/runtime/pprof/proto_test.go |  4 ---
+ src/runtime/proc.go             |  2 +-
+ src/runtime/sys_aix_ppc64.s     | 60 ++++++++++++++++++++---------------------
+ 7 files changed, 33 insertions(+), 43 deletions(-)

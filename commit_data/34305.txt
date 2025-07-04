@@ -1,0 +1,22 @@
+commit cacf8127e3ce1b0a69df66bec68dbd80126aac87
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Jan 25 15:38:09 2018 -0500
+
+    cmd/trace: present the GC time in the usertask view
+    
+    The GC time for a task is defined by the sum of GC duration
+    overlapping with the task's duration.
+    
+    Also, grey out non-overlapping slices in the task-oriented
+    trace view.
+    
+    R=go1.11
+    
+    Change-Id: I42def0eb520f5d9bd07edd265e558706f6fab552
+    Reviewed-on: https://go-review.googlesource.com/90219
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/trace/annotations.go      | 125 ++++++++++++++++++++++++++++++++++----
+ src/cmd/trace/annotations_test.go |  75 ++++++++++++++++++++++-
+ src/cmd/trace/trace.go            |  13 ++++
+ 3 files changed, 200 insertions(+), 13 deletions(-)

@@ -1,0 +1,12 @@
+commit 1b311776c499e35444d891206e9975995ffc293a
+Author: Paul Borman <borman@google.com>
+Date:   Mon Mar 5 13:34:12 2012 -0500
+
+    csv: clarify what a negative FieldsPerRecord means
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5729068
+
+ src/pkg/encoding/csv/reader.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

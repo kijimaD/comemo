@@ -1,0 +1,22 @@
+commit f7670b9f9471d0d40666c28faaaa67851eb8ec2e
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Feb 8 11:56:10 2022 -0500
+
+    cmd/go: update TestCgoHandlesWlORIGIN to avoid -rpath on windows
+    
+    Tweak the cgo recipe for the TestCgoHandlesWlORIGIN testpoint to avoid
+    using "-rpath" on Windows, where it doesn't make sense to use it. This
+    change needed to avoid an "unknown flag -rpath" from clang/ldd on
+    windows.
+    
+    Updates #35006.
+    
+    Change-Id: I4fcd649df4687aa3aff5690e11a15fc0e0f42332
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384155
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit bf9b8f2c1717f825ab8a0a2c2ca1417e9a92dc1b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 24 15:17:00 2010 -0700
+
+    Delete panicln from the spec.
+    
+    R=rsc, gri, iant, ken2
+    CC=golang-dev
+    https://golang.org/cl/738041
+
+ doc/go_spec.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

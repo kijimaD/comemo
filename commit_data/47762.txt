@@ -1,0 +1,26 @@
+commit c473ca087733236a6524900d037d92f32d5f6b70
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 3 14:02:58 2021 -0500
+
+    net: ignore EADDRINUSE errors when dialing to IPv4 from IPv6 on FreeBSD
+    
+    The failure mode in #34264 appears to match
+    https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=210726.
+    
+    That bug was supposed to have been fixed in FreeBSD 12, but we're
+    still observing failures specifically for the 6-to-4 case on FreeBSD
+    12.2. It is not clear to me whether FreeBSD 13.0 is also affected.
+    
+    For #34264
+    
+    Change-Id: Iba7c7fc57676ae628b13c0b8fe43ddf2251c3637
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369157
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial_test.go      | 17 +++++++++++++++--
+ src/net/dial_unix_test.go |  7 +++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

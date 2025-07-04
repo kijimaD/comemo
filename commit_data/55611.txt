@@ -1,0 +1,21 @@
+commit b138b19d2f7d99c462bf53b0dcc1ee98884630ab
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Dec 13 13:20:01 2023 -0800
+
+    cmd/compile: use symbolic offsets of fields in internal/abi.ITab
+    
+    After this CL, we can reorder or pad internal/abi.ITab fields at will
+    (keeping Fun last, and updating ITabTypeOff correctly) without
+    breaking anything.
+    
+    Change-Id: Ib7bb5828519813e0d1aa36be5092f96fcd62b3be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549516
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go  | 15 ++++++++-------
+ src/cmd/compile/internal/walk/switch.go |  2 +-
+ src/cmd/compile/internal/walk/walk.go   |  5 +++--
+ src/internal/abi/iface.go               |  3 ---
+ 4 files changed, 12 insertions(+), 13 deletions(-)

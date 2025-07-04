@@ -1,0 +1,26 @@
+commit c8eb71b057dc28874902e9344d8a82de3edbb9eb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 28 14:30:36 2012 -0800
+
+    go/types: Steps towards removing ast.Object from exported API.
+    
+    - introduced type Method for methods
+    - renamed StructField -> Field
+    - removed ObjList
+    - methods are not sorted anymore in interfaces (for now)
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/7023043
+
+ src/pkg/go/types/api.go              |  2 ++
+ src/pkg/go/types/errors.go           |  4 ++--
+ src/pkg/go/types/expr.go             | 39 +++++++++++++++++--------------
+ src/pkg/go/types/gcimporter.go       | 15 ++++++------
+ src/pkg/go/types/operand.go          | 14 +++++------
+ src/pkg/go/types/predicates.go       | 45 +++++++++++++++++++++++++-----------
+ src/pkg/go/types/testdata/decls0.src |  2 +-
+ src/pkg/go/types/types.go            | 40 +++++++++++++-------------------
+ src/pkg/go/types/types_test.go       |  5 +---
+ src/pkg/go/types/universe.go         |  5 ++--
+ 10 files changed, 92 insertions(+), 79 deletions(-)

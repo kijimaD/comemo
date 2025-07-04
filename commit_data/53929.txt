@@ -1,0 +1,41 @@
+commit aca6577196d61073a74c2ba791aa89c166db9521
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 1 14:41:42 2023 -0400
+
+    runtime: drop stack-allocated pcvalueCaches
+    
+    Now that pcvalue keeps its cache on the M, we can drop all of the
+    stack-allocated pcvalueCaches and stop carefully passing them around
+    between lots of operations. This significantly simplifies a fair
+    amount of code and makes several structures smaller.
+    
+    This series of changes has no statistically significant effect on any
+    runtime Stack benchmarks.
+    
+    I also experimented with making the cache larger, now that the impact
+    is limited to the M struct, but wasn't able to measure any
+    improvements.
+    
+    Change-Id: I4719ebf347c7150a05e887e75a238e23647c20cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515277
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/runtime/debugcall.go      |  2 +-
+ src/runtime/heapdump.go       |  2 +-
+ src/runtime/mbitmap.go        |  2 +-
+ src/runtime/mgcmark.go        |  2 +-
+ src/runtime/mgcstack.go       |  2 --
+ src/runtime/preempt.go        |  4 ++--
+ src/runtime/race.go           |  2 +-
+ src/runtime/stack.go          |  3 +--
+ src/runtime/stkframe.go       |  4 ++--
+ src/runtime/symtab.go         | 30 ++++++++++++++----------------
+ src/runtime/symtabinl.go      |  7 +++----
+ src/runtime/symtabinl_test.go |  3 +--
+ src/runtime/trace.go          |  3 +--
+ src/runtime/traceback.go      | 17 +++++++----------
+ 14 files changed, 36 insertions(+), 47 deletions(-)

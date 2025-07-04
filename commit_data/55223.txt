@@ -1,0 +1,18 @@
+commit 71fc9d4da5c9f626802630cd2b220518e71c4ad5
+Author: lotusirous <ngtrongkha92@gmail.com>
+Date:   Mon Nov 13 22:03:09 2023 +0700
+
+    gover: support Semantic Versioning major versions beyond 1
+    
+    For #64033
+    
+    Change-Id: Iab132f86c66aa6115a349d8032e9766a14dad02e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541915
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/go/version/version.go      | 11 +++++++++--
+ src/go/version/version_test.go |  1 +
+ 2 files changed, 10 insertions(+), 2 deletions(-)

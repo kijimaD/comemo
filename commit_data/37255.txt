@@ -1,0 +1,12 @@
+commit f999576dd8df6e4d09e3c67c23ba4d8dc18d53d3
+Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
+Date:   Mon Nov 5 22:04:46 2018 +0530
+
+    cmd/addr2line: defer closing objfile
+    
+    Change-Id: I19ff9d231c4cc779b0737802c3c40ee2e00934dd
+    Reviewed-on: https://go-review.googlesource.com/c/147477
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/addr2line/main.go | 1 +
+ 1 file changed, 1 insertion(+)

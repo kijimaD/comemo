@@ -1,0 +1,12 @@
+commit 2a87a8a5ecd68d80399224e03b2abbd567f58141
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 16 13:49:06 2015 +1100
+
+    misc/makerelease: a couple of small fixes
+    
+    Change-Id: Iec19d6152b95ba67daac366b32d42f69e1dba9a4
+    Reviewed-on: https://go-review.googlesource.com/2951
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/makerelease/makerelease.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

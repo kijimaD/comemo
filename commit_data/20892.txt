@@ -1,0 +1,13 @@
+commit 59439f8ea343ad79f289910d71d98dd6e6af8661
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Nov 14 14:05:14 2014 +1100
+
+    doc: fix small typo in doc
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/170660043
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

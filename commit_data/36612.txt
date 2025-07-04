@@ -1,0 +1,20 @@
+commit f64c0b2a281fd1587c2e2e1c488cec0fa5de6e3e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Sep 7 12:45:49 2018 +0200
+
+    debug/elf: add R_RISCV_32_PCREL relocation
+    
+    This were missed in CL 107339 as it is not documented (yet) in
+    https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.md
+    
+    But binutils already uses it. See
+    https://github.com/riscv/riscv-elf-psabi-doc/issues/36
+    
+    Change-Id: I1b084cbf70eb6ac966136bed1bb654883a97b6a9
+    Reviewed-on: https://go-review.googlesource.com/134015
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/elf/elf.go | 2 ++
+ 1 file changed, 2 insertions(+)

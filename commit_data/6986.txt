@@ -1,0 +1,12 @@
+commit aa78cec69cb04c77f514a4331b593cff39f1d4b7
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 16 12:38:14 2010 -0800
+
+    test/bench: update numbers for regex-dna after speedup to regexp
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3634042
+
+ test/bench/timing.log | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

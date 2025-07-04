@@ -1,0 +1,16 @@
+commit 444e7ddb276ff6e515fad846037c0ffcf1425076
+Author: Jeremy Jackins <jeremyjackins@gmail.com>
+Date:   Mon Jun 25 19:04:31 2018 +0000
+
+    runtime/trace: reword the trace package summary
+    
+    Reword the package summary to be a little easier to read.
+    
+    Change-Id: I84a9301a02e228b46165410a429548b3774762d5
+    GitHub-Last-Rev: 1342c7219f0ed06144d3bca9acd77790707e4b77
+    GitHub-Pull-Request: golang/go#26052
+    Reviewed-on: https://go-review.googlesource.com/120795
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/trace/trace.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

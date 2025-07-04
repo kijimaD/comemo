@@ -1,0 +1,26 @@
+commit 49325dc1d23b74eed40ea414c015f080acf21a32
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Mar 26 10:41:11 2018 +0200
+
+    os: fix TestDevNullFile on Plan 9
+    
+    CL 102457 added TestDevNullFile. However, this
+    test is failing on Plan 9, because it checks
+    that /dev/null is a character device while there
+    are no special files on Plan 9.
+    
+    We fix this issue by changing Stat to consider
+    all files served by the console device (#c)
+    as character devices.
+    
+    Fixes #24534.
+    
+    Change-Id: I1c60cdf25770358b908790b3fb71910fa914dec0
+    Reviewed-on: https://go-review.googlesource.com/102424
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/stat_plan9.go | 4 ++++
+ 1 file changed, 4 insertions(+)

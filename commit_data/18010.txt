@@ -1,0 +1,13 @@
+commit 98f16ad1123ffcdec1122a0f7b535b590e879423
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Dec 17 02:43:14 2013 -0500
+
+    time: fix test error in Chinese edition of Windows
+    On the Chinese Windows XP system that I'm using, GetTimeZoneInformation returns a struct containing "中国标准时间" (China Standard Time in Chinese) in both StandardName and DaylightName (which is correct, because China does not use DST). However, in registry, under key HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Time Zones\China Standard Time, the key Std and Dlt contain "中国标准时间" (China Standard Time in Chinese) and "中国夏季时间" (China Summer Time in Chinese) respectively. This means that time.toEnglishName() cannot determine the abbreviation for the local timezone (CST) and causes test failures (time.Local is empty)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/43210043
+
+ src/pkg/time/zoneinfo_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

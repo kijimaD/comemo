@@ -1,0 +1,14 @@
+commit 7f4860640b8cb5e00fe14719d2cb8e91e087eea5
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 11 11:18:17 2009 -0800
+
+    docs: list make as a build dep.
+    
+    Fixes #45.
+    
+    R=rsc, r1
+    CC=golang-dev
+    https://golang.org/cl/154055
+
+ doc/install.html | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

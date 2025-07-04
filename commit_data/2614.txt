@@ -1,0 +1,22 @@
+commit 8afeb52cace7236687b3a7a14753b30b02d1977e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 7 10:03:42 2009 -0700
+
+    - removed implementation restrictions for creation of small
+      Natural, Integer, and Rational numbers
+    - added Value() methods to access small Natural and Integers
+      as uint64 or int64 respectively, and to get the components
+      of Rational numbers
+    - fixed a bug with Integer creation
+    - removed some _'s from names
+    - added more comments in places
+    - added test cases
+    
+    R=rsc
+    DELTA=184  (127 added, 11 deleted, 46 changed)
+    OCL=31210
+    CL=31265
+
+ src/pkg/bignum/bignum.go      | 139 +++++++++++++++++++++++++++++++-----------
+ src/pkg/bignum/bignum_test.go |  73 ++++++++++++++++++----
+ 2 files changed, 164 insertions(+), 48 deletions(-)

@@ -1,0 +1,25 @@
+commit 0aef57e37f2af1cb7b87654e72607f0224b296f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 23 15:30:59 2009 -0700
+
+    fix a 6g crash after type errors.
+    
+    do not bother warning about marks left
+    on stack after syntax errors.
+    
+    leave OCONV nodes in tree to avoid type errors
+    arising from multiple walks.
+    
+    R=ken
+    OCL=30639
+    CL=30662
+
+ src/cmd/5g/cgen.c  | 18 +++++++-----------
+ src/cmd/6g/cgen.c  | 16 ++++++----------
+ src/cmd/8g/cgen.c  | 12 ++++++------
+ src/cmd/gc/go.h    |  3 ++-
+ src/cmd/gc/go.y    |  3 ++-
+ src/cmd/gc/sinit.c |  3 +++
+ src/cmd/gc/subr.c  |  5 ++++-
+ src/cmd/gc/walk.c  | 18 +++++++++++++-----
+ 8 files changed, 43 insertions(+), 35 deletions(-)

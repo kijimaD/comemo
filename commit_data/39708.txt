@@ -1,0 +1,31 @@
+commit 53227762153afb39c979810bd59ec139e3c8127d
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Thu May 30 13:01:03 2019 +0700
+
+    cmd/compile: make isfat handle 1-element array, 1-field struct
+    
+    This will improve liveness analysis slightly, the same logic as
+    isdirectiface curently does. In:
+    
+            type T struct {
+                m map[int]int
+            }
+    
+            v := T{}
+            v.m = make(map[int]int)
+    
+    T is considered "fat", now it is not. So assigning to v.m is considered
+    to clobber the entire v.
+    
+    This is follow up of CL 179057.
+    
+    Change-Id: Id6b4807b8e8521ef5d8bcb14fedb6dceb9dbf18c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179578
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/plive.go | 14 +++++++++++++-
+ test/live.go                         |  2 +-
+ test/live2.go                        |  4 ++--
+ 3 files changed, 16 insertions(+), 4 deletions(-)

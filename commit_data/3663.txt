@@ -1,0 +1,15 @@
+commit 58ee1f5d546e80b508c1bfd536735d204c873408
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Oct 27 22:38:45 2009 -0700
+
+    shift for non-64 bit integers.
+    
+    R=rsc
+    http://go/go-review/1015017
+
+ src/cmd/5g/cgen.c  |  7 +++--
+ src/cmd/5g/gg.h    |  1 +
+ src/cmd/5g/ggen.c  | 89 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/5g/gsubr.c |  1 +
+ src/cmd/8g/ggen.c  |  2 +-
+ 5 files changed, 97 insertions(+), 3 deletions(-)

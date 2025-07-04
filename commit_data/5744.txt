@@ -1,0 +1,14 @@
+commit 269df5827010fa29822d0ed655e104b559f1e870
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Jun 30 18:05:38 2010 -0400
+
+            x509: fix English.
+    
+            (addressing comments from 1741045)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1678047
+
+ src/pkg/crypto/x509/x509.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

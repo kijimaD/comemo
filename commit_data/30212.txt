@@ -1,0 +1,18 @@
+commit e7ec06e000627ad699a274a5a672bc3f63d6a709
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 7 07:28:49 2017 -0800
+
+    cmd/go: copy FFLAGS from build.Package
+    
+    Fixes #18975.
+    
+    Change-Id: I60dfb299233ecfed4b2da93750ea84e7921f1fbb
+    Reviewed-on: https://go-review.googlesource.com/36482
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go           | 21 +++++++++++++++++++++
+ src/cmd/go/internal/load/pkg.go |  1 +
+ 2 files changed, 22 insertions(+)

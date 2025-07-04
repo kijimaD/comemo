@@ -1,0 +1,18 @@
+commit ae3abf16e451238a25379f721613e540252e4f30
+Author: cui fliter <imcusg@gmail.com>
+Date:   Wed Sep 28 09:12:11 2022 +0000
+
+    cmd/compile/internal/base: replace io/ioutil with os package
+    
+    Change-Id: Ide7618b65fcff7947809051d51b993d330e35717
+    GitHub-Last-Rev: 298853a82006655fe4f226cc5bea3bc21613b832
+    GitHub-Pull-Request: golang/go#55914
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435537
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/base/flag.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

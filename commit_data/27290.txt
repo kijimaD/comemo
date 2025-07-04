@@ -1,0 +1,82 @@
+commit eeca3ba92fdb07e44abf3e2bebfcede03e1eae12
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Apr 28 07:16:08 2016 -0500
+
+    sync/atomic, runtime/internal/atomic: improve ppc64x atomics
+    
+    The following performance improvements have been made to the
+    low-level atomic functions for ppc64le & ppc64:
+    
+    - For those cases containing a lwarx and stwcx (or other sizes):
+    sync, lwarx, maybe something, stwcx, loop to sync, sync, isync
+    The sync is moved before (outside) the lwarx/stwcx loop, and the
+     sync after is removed, so it becomes:
+    sync, lwarx, maybe something, stwcx, loop to lwarx, isync
+    
+    - For the Or8 and And8, the shifting and manipulation of the
+    address to the word aligned version were removed and the
+    instructions were changed to use lbarx, stbcx instead of
+    register shifting, xor, then lwarx, stwcx.
+    
+    - New instructions LWSYNC, LBAR, STBCC were tested and added.
+    runtime/atomic_ppc64x.s was changed to use the LWSYNC opcode
+    instead of the WORD encoding.
+    
+    Fixes #15469
+    
+    Ran some of the benchmarks in the runtime and sync directories.
+    Some results varied from run to run but the trend was improvement
+    based on best times for base and new:
+    
+    runtime.test:
+    BenchmarkChanNonblocking-128         0.88          0.89          +1.14%
+    BenchmarkChanUncontended-128         569           511           -10.19%
+    BenchmarkChanContended-128           63110         53231         -15.65%
+    BenchmarkChanSync-128                691           598           -13.46%
+    BenchmarkChanSyncWork-128            11355         11649         +2.59%
+    BenchmarkChanProdCons0-128           2402          2090          -12.99%
+    BenchmarkChanProdCons10-128          1348          1363          +1.11%
+    BenchmarkChanProdCons100-128         1002          746           -25.55%
+    BenchmarkChanProdConsWork0-128       2554          2720          +6.50%
+    BenchmarkChanProdConsWork10-128      1909          1804          -5.50%
+    BenchmarkChanProdConsWork100-128     1624          1580          -2.71%
+    BenchmarkChanCreation-128            237           212           -10.55%
+    BenchmarkChanSem-128                 705           667           -5.39%
+    BenchmarkChanPopular-128             5081190       4497566       -11.49%
+    
+    BenchmarkCreateGoroutines-128             532           473           -11.09%
+    BenchmarkCreateGoroutinesParallel-128     35.0          34.7          -0.86%
+    BenchmarkCreateGoroutinesCapture-128      4923          4200          -14.69%
+    
+    sync.test:
+    BenchmarkUncontendedSemaphore-128      112           94.2          -15.89%
+    BenchmarkContendedSemaphore-128        133           128           -3.76%
+    BenchmarkMutexUncontended-128          1.90          1.67          -12.11%
+    BenchmarkMutex-128                     353           310           -12.18%
+    BenchmarkMutexSlack-128                304           283           -6.91%
+    BenchmarkMutexWork-128                 554           541           -2.35%
+    BenchmarkMutexWorkSlack-128            567           556           -1.94%
+    BenchmarkMutexNoSpin-128               275           242           -12.00%
+    BenchmarkMutexSpin-128                 1129          1030          -8.77%
+    BenchmarkOnce-128                      1.08          0.96          -11.11%
+    BenchmarkPool-128                      29.8          27.4          -8.05%
+    BenchmarkPoolOverflow-128              40564         36583         -9.81%
+    BenchmarkSemaUncontended-128           3.14          2.63          -16.24%
+    BenchmarkSemaSyntNonblock-128          1087          1069          -1.66%
+    BenchmarkSemaSyntBlock-128             897           893           -0.45%
+    BenchmarkSemaWorkNonblock-128          1034          1028          -0.58%
+    BenchmarkSemaWorkBlock-128             949           886           -6.64%
+    
+    Change-Id: I4403fb29d3cd5254b7b1ce87a216bd11b391079e
+    Reviewed-on: https://go-review.googlesource.com/22549
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/internal/obj/ppc64/a.out.go      |  3 ++
+ src/cmd/internal/obj/ppc64/anames.go     |  3 ++
+ src/cmd/internal/obj/ppc64/asm9.go       | 10 +++++
+ src/cmd/internal/obj/ppc64/obj9.go       |  3 ++
+ src/runtime/atomic_ppc64x.s              |  2 +-
+ src/runtime/internal/atomic/asm_ppc64x.s | 69 ++++++++------------------------
+ src/sync/atomic/asm_ppc64x.s             | 22 ++++------
+ 7 files changed, 44 insertions(+), 68 deletions(-)

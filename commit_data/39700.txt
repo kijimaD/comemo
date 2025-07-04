@@ -1,0 +1,18 @@
+commit 7ed973b4d9dab38347f34e87febf3c8659160ce6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 4 22:26:09 2019 +0000
+
+    net/http: don't panic serving dir in ServeFile with empty Request.URL.Path
+    
+    Updates #30165
+    Updates #31622
+    
+    Change-Id: I7a4b91aa7c5c3af8c0b1273cbb42046feddf7d78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180499
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/fs.go      |  2 +-
+ src/net/http/fs_test.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

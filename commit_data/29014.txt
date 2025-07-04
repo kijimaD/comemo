@@ -1,0 +1,20 @@
+commit accf5cc3862830bb8bb54af31aa1861e6a2b8481
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Oct 23 14:10:11 2016 -0700
+
+    all: minor vet fixes
+    
+    Change-Id: I22f0f3e792052762499f632571155768b4052bc9
+    Reviewed-on: https://go-review.googlesource.com/31759
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/compress/gzip/example_test.go       |  2 +-
+ src/crypto/tls/handshake_server_test.go |  8 ++++----
+ src/database/sql/example_test.go        |  2 +-
+ src/math/modf_arm64.s                   |  2 +-
+ src/os/os_windows_test.go               |  5 ++---
+ src/reflect/all_test.go                 | 18 +++++++++---------
+ src/text/template/exec_test.go          |  2 +-
+ 7 files changed, 19 insertions(+), 20 deletions(-)

@@ -1,0 +1,33 @@
+commit a81c8b3bf2697b86ac7d3d29d7c0fb71c0716a84
+Author: Koya IWAMURA <kiwamura0314@gmail.com>
+Date:   Wed Apr 24 01:16:08 2024 +0900
+
+    net/url: improve URL.String performance
+    
+    URL.String performs memory allocation many times, but it can improve
+    performance by allocating memory that it clearly knows it needs.
+    This CL achieves 24.6% speedup, 18.3% memory reduction, and 46.7% fewer memory
+    allocations on existing benchmarks.
+    
+              │ string_old.txt │           string_new2.txt           │
+              │     sec/op     │   sec/op     vs base                │
+    String-16      3.622µ ± 5%   2.730µ ± 2%  -24.63% (p=0.000 n=10)
+    
+              │ string_old.txt │           string_new2.txt            │
+              │      B/op      │     B/op      vs base                │
+    String-16     1.406Ki ± 0%   1.148Ki ± 0%  -18.33% (p=0.000 n=10)
+    
+              │ string_old.txt │          string_new2.txt           │
+              │   allocs/op    │ allocs/op   vs base                │
+    String-16       60.00 ± 0%   32.00 ± 0%  -46.67% (p=0.000 n=10)
+    
+    Change-Id: I70199be952eddc44134945077e52740e8921088f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581155
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+
+ src/net/url/url.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

@@ -1,0 +1,17 @@
+commit 3114bd6f97492461d2027a49fee9f7fce3742b75
+Author: Ron Hashimoto <mail@h2so5.net>
+Date:   Fri Oct 10 09:21:32 2014 +1100
+
+    net: disable SIO_UDP_CONNRESET behavior on windows.
+    
+    Fixes #5834.
+    
+    LGTM=alex.brainman
+    R=golang-codereviews, bradfitz, alex.brainman, mikioh.mikioh, in60jp, iant
+    CC=golang-codereviews
+    https://golang.org/cl/149510043
+
+ src/net/fd_windows.go         | 12 ++++++++++++
+ src/net/udp_test.go           | 36 ++++++++++++++++++++++++++++++++++++
+ src/syscall/ztypes_windows.go |  1 +
+ 3 files changed, 49 insertions(+)

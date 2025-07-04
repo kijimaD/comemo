@@ -1,0 +1,20 @@
+commit cb97fd7741fc8bfa257bb020dab756a14c420daf
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Apr 29 10:37:37 2016 +1200
+
+    cmd/link: fix -no-pie / -race check
+    
+    golang.org/cl/22453 was supposed to pass -no-pie to the linker when linking a
+    race-enabled binary if the host toolchain supports it. But I bungled the
+    supported check as I forgot to pass -c to the host compiler so it tried to
+    compile a 0 byte .c file into an executable, which will never work. Fix it to
+    pass -c as it should have all along.
+    
+    Change-Id: I4801345c7a29cb18d5f22cec5337ce535f92135d
+    Reviewed-on: https://go-review.googlesource.com/22587
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

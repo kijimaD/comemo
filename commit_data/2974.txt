@@ -1,0 +1,17 @@
+commit 090efde4071a283f38598983d5fcc17e92110d9e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 13 14:41:10 2009 -0700
+
+    makefile fixes; convert runtime to use new makefiles
+    
+    R=r
+    DELTA=67  (17 added, 29 deleted, 21 changed)
+    OCL=33215
+    CL=33219
+
+ src/Make.386             |  1 +
+ src/Make.amd64           |  1 +
+ src/Make.arm             |  1 +
+ src/Make.pkg             |  8 +++--
+ src/pkg/runtime/Makefile | 77 ++++++++++++++++++------------------------------
+ 5 files changed, 38 insertions(+), 50 deletions(-)

@@ -1,0 +1,23 @@
+commit a69fffbaf864ad88f9f7472960e39e2a03c1ff5f
+Author: Andy Pan <i@andypan.me>
+Date:   Wed Oct 30 08:18:25 2024 +0800
+
+    net,os: consolidate poll.SendFile sending until EOF with 0
+    
+    We've already use size==0 to indicate sending until EOF for
+    poll.SendFile on non-Linux platforms: Windows/*BSD/macOS/Solaris.
+    
+    Let's harmonize Linux with others, making poll.SendFile on Linux
+    match its comment.
+    
+    Change-Id: Ibfe9c9aa8f16bc37812afce9f95995c715cce0bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623057
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/sendfile_linux.go   | 2 +-
+ src/os/zero_copy_linux.go   | 2 +-
+ src/os/zero_copy_solaris.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

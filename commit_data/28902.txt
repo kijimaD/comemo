@@ -1,0 +1,16 @@
+commit 8a255cb85cf4a0b20d0f5dc513d3bb0c56518ec2
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Oct 18 15:28:44 2016 +0200
+
+    net: enable TestCancelRequestWithChannelBeforeDo on Plan 9
+    
+    This issue has been fixed in CL 31390.
+    
+    Fixes #11476.
+    
+    Change-Id: I6658bda2e494d3239d62c49d0bd5d34a36b744d0
+    Reviewed-on: https://go-review.googlesource.com/31394
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport_test.go | 6 ------
+ 1 file changed, 6 deletions(-)

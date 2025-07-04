@@ -1,0 +1,17 @@
+commit a29c30f620bdf5eba16263ed53d3efa01961d615
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 21:42:50 2024 -0400
+
+    time: fix longtest flake
+    
+    Should fix longtest build dashboard flake:
+    https://ci.chromium.org/ui/p/golang/builders/ci/gotip-linux-amd64-longtest/b8753459332096992401/overview
+    
+    Change-Id: I613bd4337aa65180389674e136d215135fde3196
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571803
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/time/tick_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

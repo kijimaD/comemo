@@ -1,0 +1,15 @@
+commit 5be1821a31f1b88b8b9b9083454143f5aa90790d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 20 15:25:43 2013 -0400
+
+    cmd/gc: fix imported and not used error for import .
+    
+    Fixes issues 6420.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/13703044
+
+ src/cmd/gc/lex.c | 4 ++--
+ test/import1.go  | 3 ++-
+ 2 files changed, 4 insertions(+), 3 deletions(-)

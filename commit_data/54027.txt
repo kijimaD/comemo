@@ -1,0 +1,17 @@
+commit 16ec27b47c4c103ddcdd46888e1b5175cc574d7a
+Author: cui fliter <imcusg@gmail.com>
+Date:   Tue Aug 15 23:07:18 2023 +0800
+
+    errors: add a colon after Output to make the Example in the document display correctly
+    
+    Change-Id: Iaa1751c6ac0df9d5b2cb74efb16996f4eaea0503
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519236
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/errors/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

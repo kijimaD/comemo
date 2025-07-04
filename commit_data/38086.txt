@@ -1,0 +1,14 @@
+commit dc0455225acdc98685064964defc6df7cd3d4c40
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Fri Feb 22 15:51:40 2019 +0000
+
+    net: explain why we ignore the first line of Plan 9 interface-status files
+    
+    Change-Id: Ia0847790a597c35ebb572db6fc1b7534ecf8f006
+    GitHub-Last-Rev: 03f039d0abbce0e2a2bf15201948e46354950a22
+    GitHub-Pull-Request: golang/go#30022
+    Reviewed-on: https://go-review.googlesource.com/c/160446
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/interface_plan9.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 4a4d48328bb3f24aad5b25ac55c42a561d4a6341
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jul 12 05:06:43 2013 +0800
+
+    runtime: fix build for windows.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/11188043
+
+ src/pkg/runtime/sys_windows_386.s   | 4 ++--
+ src/pkg/runtime/sys_windows_amd64.s | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

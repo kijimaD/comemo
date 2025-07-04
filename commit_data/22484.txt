@@ -1,0 +1,15 @@
+commit 47f095501eb331a4cd2b6b80345317be099331bf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 13 17:19:09 2015 -0700
+
+    net: remove old comment
+    
+    The memory model has been clarified since. This is legal and doesn't
+    need justification.
+    
+    Change-Id: I60f9938503f86f52bb568ca1a99ac721ee72cee5
+    Reviewed-on: https://go-review.googlesource.com/8913
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/net/net.go | 4 ----
+ 1 file changed, 4 deletions(-)

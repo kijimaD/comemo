@@ -1,0 +1,10 @@
+commit 8152cb8a712ab0d71919c1dd215cd0f5c529bf37
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 11 20:40:20 2008 -0700
+
+    examples contradicted text: '\octal' and '\hex' are fixed size
+    
+    SVN=112150
+
+ doc/go_lang.txt | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

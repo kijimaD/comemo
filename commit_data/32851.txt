@@ -1,0 +1,22 @@
+commit 08a17966712f6edf1600e3eafb7758a153b55ec4
+Author: Nicolas BRULEZ <n.brulez@gmail.com>
+Date:   Tue Sep 26 10:35:04 2017 +0200
+
+    syscall: allow abstract unix socket to use the full Path len
+    
+    The previous implementation forced all Unix socket to have a name
+    strictly shorter than len(sa.raw.Path) to allow a terminating NULL
+    byte to be added. This requirement does not apply to abstract socket
+    names under Linux, so for this case we allow the full length.
+    
+    Fixes #21965
+    
+    Change-Id: I1d1f58b6b6172d589428c7230cfeae984de78b4b
+    Reviewed-on: https://go-review.googlesource.com/66190
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/unixsock_test.go     | 54 ++++++++++++++++++++++++++++++++++++++++++++
+ src/syscall/syscall_linux.go |  5 +++-
+ 2 files changed, 58 insertions(+), 1 deletion(-)

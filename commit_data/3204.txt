@@ -1,0 +1,16 @@
+commit 37aa6c9962e15a3781000e967c4144f7a2e7713b
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Sep 3 10:55:20 2009 -0700
+
+    Fix uninstalling of breakpoints when a process exits.  Process
+    exit is still handled poorly.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=6  (6 added, 0 deleted, 0 changed)
+    OCL=34288
+    CL=34315
+
+ src/pkg/debug/proc/proc_linux.go  | 3 +++
+ usr/austin/ptrace/ptrace_linux.go | 3 +++
+ 2 files changed, 6 insertions(+)

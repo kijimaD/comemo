@@ -1,0 +1,23 @@
+commit 8e38b80b64e53b08fcde3f8596941237488e3158
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 3 16:00:40 2021 -0400
+
+    cmd: update x/text to pull in CL 315571
+    
+    Because x/text is now lazy, the go.sum file no longer needs a checksum
+    for the go.mod file for the outdated x/tools required by x/text.
+    
+    For #36460
+    Updates #36905
+    
+    Change-Id: Id7395e61909af3889c1615dc33139e5bb45504c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316490
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+
+ src/go.mod             | 2 +-
+ src/go.sum             | 5 ++---
+ src/vendor/modules.txt | 4 ++--
+ 3 files changed, 5 insertions(+), 6 deletions(-)

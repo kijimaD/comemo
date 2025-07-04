@@ -1,0 +1,20 @@
+commit 0fd20ed5b67a950c7085b20c36dbfd9a70d2bfda
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 14 14:30:46 2021 -0700
+
+    reflect: use same conversion panic in reflect and runtime
+    
+    Consistently say "pointer to array", not "array pointer".
+    
+    Fixes #46743
+    
+    Change-Id: I2388ec5c16f96e82a3a383b9b462b350686ddc5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327870
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/reflect/all_test.go | 2 +-
+ src/reflect/value.go    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

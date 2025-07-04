@@ -1,0 +1,12 @@
+commit c6336155f1718bd0485be8800d6cebedfe920073
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 16:44:40 2010 -0800
+
+    contribute.html: suggest hg mail instead of hg upload
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/186145
+
+ doc/contribute.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

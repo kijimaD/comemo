@@ -1,0 +1,16 @@
+commit f574726f16887112e9165f9fd0b8832eada76c2f
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Mon Dec 9 17:51:30 2013 -0800
+
+    runtime: check for signed zero in printfloat
+    
+    Fixes #6899
+    
+    R=golang-dev, r, cshapiro, iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/38120043
+
+ src/pkg/runtime/print.c      |  5 ++++-
+ test/fixedbugs/issue6899.go  | 13 +++++++++++++
+ test/fixedbugs/issue6899.out |  1 +
+ 3 files changed, 18 insertions(+), 1 deletion(-)

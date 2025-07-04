@@ -1,0 +1,13 @@
+commit e50611d235f785d2e196b98bb5f89b92f3b9b50a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 7 16:29:07 2010 -0400
+
+    os, exec: rename argv0 to name
+    
+    R=r, gri1
+    CC=golang-dev
+    https://golang.org/cl/2119044
+
+ src/pkg/exec/exec.go |  6 +++---
+ src/pkg/os/exec.go   | 20 ++++++++++----------
+ 2 files changed, 13 insertions(+), 13 deletions(-)

@@ -1,0 +1,12 @@
+commit 7e235c1e27f4d7d92ef872ad65ff0630acb9c859
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 8 15:29:43 2009 -0700
+
+    fix build - missing file
+    
+    TBR=r
+    OCL=28575
+    CL=28575
+
+ src/lib/os/proc.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

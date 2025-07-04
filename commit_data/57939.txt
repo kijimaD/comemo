@@ -1,0 +1,24 @@
+commit 1f8fa4941f632575468498bfac48fc1cbbf1a54f
+Author: Youlin Feng <fengyoulin@live.com>
+Date:   Tue Nov 5 17:21:57 2024 +0800
+
+    runtime: fix iterator returns map entries after clear (pre-swissmap)
+    
+    Fixes #70189
+    Fixes #59411
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-noswissmap
+    Change-Id: I4ef7ecd7e996330189309cb2a658cf34bf9e1119
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625275
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ .../compile/internal/reflectdata/map_noswiss.go    | 14 +++++---
+ src/reflect/map_noswiss.go                         |  1 +
+ src/runtime/map_noswiss.go                         | 28 +++++-----------
+ src/runtime/map_noswiss_test.go                    |  4 +--
+ test/fixedbugs/issue70189.go                       | 38 ++++++++++++++++++++++
+ 5 files changed, 58 insertions(+), 27 deletions(-)

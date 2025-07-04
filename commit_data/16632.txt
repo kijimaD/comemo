@@ -1,0 +1,14 @@
+commit 02991bb960b4dcbcd9f9450d16df2251d964ed06
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jun 25 10:52:37 2013 +1000
+
+    libmach: trivial: resolve unused parameter warnings
+    
+    Fix a bunch of warnings detected by https://golang.org/cl/8090044
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10483044
+
+ src/libmach/darwin.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

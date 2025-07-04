@@ -1,0 +1,14 @@
+commit 86092b3d450da7f4075d96c4b0cb27c31500bcc8
+Author: Michael Lewis <mikelikespie@gmail.com>
+Date:   Tue Apr 3 15:36:48 2012 -0700
+
+    sql: Propagate error from subsetTypeArgs in Exec
+    
+    Fixes #3449
+    
+    R=golang-dev
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/5970076
+
+ src/pkg/database/sql/sql.go | 3 +++
+ 1 file changed, 3 insertions(+)

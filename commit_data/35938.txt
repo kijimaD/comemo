@@ -1,0 +1,50 @@
+commit be9c994609eace4ef26966e86374685dce4b3413
+Author: Keith Randall <khr@google.com>
+Date:   Mon Jul 9 11:09:42 2018 -0700
+
+    internal/bytealg: specify argmaps for exported functions
+    
+    Functions exported on behalf of other packages need to have their
+    argument stack maps specified explicitly.  They don't get an implicit
+    map because they are not in the local package, and if they get defer'd
+    they need argument maps.
+    
+    Fixes #24419
+    
+    Change-Id: I35b7d8b4a03d4770ba88699e1007cb3fcb5397a9
+    Reviewed-on: https://go-review.googlesource.com/122676
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/internal/bytealg/compare_386.s        |  1 +
+ src/internal/bytealg/compare_amd64.s      |  1 +
+ src/internal/bytealg/compare_amd64p32.s   |  1 +
+ src/internal/bytealg/compare_arm.s        |  1 +
+ src/internal/bytealg/compare_arm64.s      |  1 +
+ src/internal/bytealg/compare_mipsx.s      |  1 +
+ src/internal/bytealg/compare_ppc64x.s     |  1 +
+ src/internal/bytealg/compare_s390x.s      |  1 +
+ src/internal/bytealg/compare_wasm.s       |  1 +
+ src/internal/bytealg/equal_386.s          |  1 +
+ src/internal/bytealg/equal_amd64.s        |  1 +
+ src/internal/bytealg/equal_amd64p32.s     |  1 +
+ src/internal/bytealg/equal_arm.s          |  1 +
+ src/internal/bytealg/equal_arm64.s        |  1 +
+ src/internal/bytealg/equal_mips64x.s      |  1 +
+ src/internal/bytealg/equal_mipsx.s        |  1 +
+ src/internal/bytealg/equal_ppc64x.s       |  1 +
+ src/internal/bytealg/equal_s390x.s        |  1 +
+ src/internal/bytealg/equal_wasm.s         |  1 +
+ src/internal/bytealg/indexbyte_386.s      |  2 ++
+ src/internal/bytealg/indexbyte_amd64.s    |  2 ++
+ src/internal/bytealg/indexbyte_amd64p32.s |  2 ++
+ src/internal/bytealg/indexbyte_arm.s      |  2 ++
+ src/internal/bytealg/indexbyte_arm64.s    |  2 ++
+ src/internal/bytealg/indexbyte_mips64x.s  |  2 ++
+ src/internal/bytealg/indexbyte_mipsx.s    |  2 ++
+ src/internal/bytealg/indexbyte_ppc64x.s   |  2 ++
+ src/internal/bytealg/indexbyte_s390x.s    |  2 ++
+ src/internal/bytealg/indexbyte_wasm.s     |  2 ++
+ test/fixedbugs/issue24419.go              | 51 +++++++++++++++++++++++++++++++
+ 30 files changed, 90 insertions(+)

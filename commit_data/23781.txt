@@ -1,0 +1,14 @@
+commit a502fb21820aed165a24a00e969e8cc7735ff09d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 22 13:11:54 2015 -0400
+
+    crypto/x509: disable sha2 test with system APIs
+    
+    Fixes #11730.
+    
+    Change-Id: I5bc60779a87dc07899dd70659a830996bf7812ca
+    Reviewed-on: https://go-review.googlesource.com/12527
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/verify_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

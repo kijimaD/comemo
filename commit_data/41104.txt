@@ -1,0 +1,19 @@
+commit ae0b735369317197773920ee282c68a01effaad3
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Fri Jan 10 11:36:44 2020 -0500
+
+    cmd/compile: emit only '/' in DWARF file names
+    
+    Make file names consistent, using only forward slashes in the path.
+    
+    Fixes #36495
+    
+    Change-Id: I337119d6dff233ab9d4bfe757147ec25961ae021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214286
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/objfile.go        |  2 +-
+ src/cmd/link/internal/ld/dwarf_test.go | 66 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+), 1 deletion(-)

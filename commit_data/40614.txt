@@ -1,0 +1,20 @@
+commit 6dc250f456e078b213cee0f1099e915aa0d4d4d9
+Author: Clément Chigot <chigot.c@gmail.com>
+Date:   Tue Nov 5 16:31:05 2019 +0100
+
+    cmd/link: fix the size of typerel.* with c-archive buildmode
+    
+    With buildmode=c-archive, "runtime.types" type isn't STYPE but
+    STYPERELRO.
+    On AIX, this symbol is present in the symbol table and not under
+    typerel.* outersymbol. Therefore, the size of typerel.* must be adapted.
+    
+    Fixes #35342
+    
+    Change-Id: Ib982c6557d9b41bc3d8775e4825650897f9e0ee6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205338
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/xcoff.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

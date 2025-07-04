@@ -1,0 +1,39 @@
+commit c5c1955077cb94736b0f311b3a02419d166f45ac
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Dec 1 15:26:31 2021 +0000
+
+    runtime: break out new minimum heap size into a goexperiment
+    
+    The new minimum heap of 512 KiB has been the cause of some build
+    slowdown (~1%) and microbenchmark slowdown (usually ~0%, up to ~50%)
+    because of two reasons:
+    1. Applications with lots of small short-lived processes execute many
+       more GC cycles.
+    2. Applications with heaps <4 MiB GC up to 8x more often.
+    
+    In many ways these consequences are inevitable given how GOGC works,
+    however we need to investigate more as to whether the apparent slowdowns
+    are indeed unavoidable or if the GC has issues scaling down, which it's
+    too late for for this release.
+    
+    Given that this release is already huge, it's OK to push this back.
+    We'll take a closer look at it next cycle, so place block it behind a
+    new goexperiment to allow users and ourselves to easily experiment with
+    it.
+    
+    Fixes #49744.
+    Updates #44167.
+    
+    Change-Id: Ibad51f7873de7517490c89802f3c593834e77ff0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368137
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/internal/goexperiment/exp_heapminimum512kib_off.go | 9 +++++++++
+ src/internal/goexperiment/exp_heapminimum512kib_on.go  | 9 +++++++++
+ src/internal/goexperiment/flags.go                     | 7 +++++++
+ src/runtime/mgcpacer.go                                | 4 ++--
+ 4 files changed, 27 insertions(+), 2 deletions(-)

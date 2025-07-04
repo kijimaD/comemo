@@ -1,0 +1,12 @@
+commit be596f049a3ba75abc2180ebe3dc26450d783498
+Author: Dmitry Savintsev <dsavints@gmail.com>
+Date:   Thu Aug 3 23:25:59 2017 +0200
+
+    doc/1.9: fix stray html in CL 53030
+    
+    Change-Id: Ib4102b1e2a8863712f725c4d1e37fdbe3dfe3c07
+    Reviewed-on: https://go-review.googlesource.com/53210
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.9.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

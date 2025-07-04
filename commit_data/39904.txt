@@ -1,0 +1,22 @@
+commit 75da700d0ae307ebfd4a3493b53e8f361c16f481
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Sep 14 01:29:19 2019 +0700
+
+    cmd/compile: consistently use strlit to access constants string values
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ieaef20b7649787727b69469f93ffc942022bc079
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195198
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go     |  4 ++--
+ src/cmd/compile/internal/gc/noder.go     |  6 +++---
+ src/cmd/compile/internal/gc/order.go     |  2 +-
+ src/cmd/compile/internal/gc/sinit.go     |  2 +-
+ src/cmd/compile/internal/gc/ssa.go       |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 10 +++++-----
+ src/cmd/compile/internal/gc/walk.go      | 12 ++++++------
+ 7 files changed, 19 insertions(+), 19 deletions(-)

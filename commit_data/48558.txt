@@ -1,0 +1,25 @@
+commit c3fcd0117784ac05e35120ac0de6c960b400a31e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 3 18:21:37 2022 -0800
+
+    go/build: recognize "unix" build tag
+    
+    The new "unix" build tag matches any Unix or Unix-like system.
+    This is only recognized on go:build lines, not in file names.
+    
+    For #20322
+    Fixes #51572
+    
+    Change-Id: I3a991f9e69353b25e259bc6462709cdcd83640fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389934
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/build.go               | 37 +++++++++++++++++++++++++++++++++----
+ src/cmd/go/alldocs.go               |  1 +
+ src/cmd/go/internal/help/helpdoc.go |  1 +
+ src/go/build/build.go               |  3 +++
+ src/go/build/syslist.go             | 27 ++++++++++++++++++++++++---
+ 5 files changed, 62 insertions(+), 7 deletions(-)

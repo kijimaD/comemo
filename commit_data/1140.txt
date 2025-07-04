@@ -1,0 +1,41 @@
+commit 079c00a475d11f71a69fe848dd67e8fe34ac88a8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 17 12:34:03 2008 -0800
+
+    correctly rounded floating-point conversions
+    in new package strconv.
+    
+    move atoi etc to strconv too.
+    
+    update fmt, etc to use strconv.
+    
+    R=r
+    DELTA=2232  (1691 added, 424 deleted, 117 changed)
+    OCL=19286
+    CL=19380
+
+ src/lib/fmt/Makefile        |  10 +-
+ src/lib/fmt/format.go       | 245 ++++++----------------------
+ src/lib/fmt/print.go        |  51 ++++--
+ src/lib/http/server.go      |   4 +-
+ src/lib/make.bash           |   9 +-
+ src/lib/net/net.go          |   6 +-
+ src/lib/reflect/test.go     |  16 +-
+ src/lib/reflect/tostring.go |  20 +--
+ src/lib/strconv/Makefile    |  58 +++++++
+ src/lib/strconv/atof.go     | 220 +++++++++++++++++++++++++
+ src/lib/strconv/atoi.go     |  75 +++++++++
+ src/lib/strconv/decimal.go  | 385 ++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/strconv/ftoa.go     | 379 +++++++++++++++++++++++++++++++++++++++++++
+ src/lib/strconv/itoa.go     |  38 +++++
+ src/lib/strconv/test.bash   |  20 +++
+ src/lib/strconv/testatof.go |  46 ++++++
+ src/lib/strconv/testfp.go   | 156 ++++++++++++++++++
+ src/lib/strconv/testfp.txt  | 181 +++++++++++++++++++++
+ src/lib/strconv/testftoa.go |  96 +++++++++++
+ src/lib/strings.go          | 269 -------------------------------
+ src/run.bash                |   6 +
+ test/chan/goroutines.go     |   4 +-
+ test/fmt_test.go            |  22 +--
+ test/stringslib.go          |  29 ++--
+ 24 files changed, 1817 insertions(+), 528 deletions(-)

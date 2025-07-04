@@ -1,0 +1,17 @@
+commit 961411900730bd8dd14781ce8e965701eefe5577
+Author: Robert Obryk <robryk@gmail.com>
+Date:   Wed Jun 5 21:16:44 2013 -0700
+
+    io/ioutil: make WriteFile notice errors from Close()
+    
+    WriteFile should not successfully return if the file's
+    Close call failed.
+    
+    Fixes #5644.
+    
+    R=golang-dev, kr, r
+    CC=golang-dev
+    https://golang.org/cl/10067043
+
+ src/pkg/io/ioutil/ioutil.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

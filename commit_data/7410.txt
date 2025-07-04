@@ -1,0 +1,22 @@
+commit 56faae21d24eeb51afdbe8a32e3e4c5e68441ad1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 9 14:28:47 2011 -0500
+
+    syscall: do not use NULL for zero-length read, write
+    
+    Avoids problems running Linux binaries under QEMU.
+    
+    R=r, gri
+    CC=golang-dev
+    https://golang.org/cl/4151043
+
+ src/pkg/syscall/mksyscall.sh              |  9 +++------
+ src/pkg/syscall/syscall.go                |  4 ++++
+ src/pkg/syscall/zsyscall_darwin_386.go    | 20 ++++++++++++++++++++
+ src/pkg/syscall/zsyscall_darwin_amd64.go  | 20 ++++++++++++++++++++
+ src/pkg/syscall/zsyscall_freebsd_386.go   | 20 ++++++++++++++++++++
+ src/pkg/syscall/zsyscall_freebsd_amd64.go | 20 ++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_386.go     | 22 ++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_amd64.go   | 26 ++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_arm.go     | 22 ++++++++++++++++++++++
+ 9 files changed, 157 insertions(+), 6 deletions(-)

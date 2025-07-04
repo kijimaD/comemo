@@ -1,0 +1,15 @@
+commit 74b131c0abf977a4ee94aec42412b16f30f4549c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 3 17:30:29 2010 -0800
+
+    net: fix nil deref in testTimeout when Dial fails
+    Pointed out by Scott Schwartz.
+    
+    Fixes #637.
+    
+    R=scotts
+    CC=golang-dev
+    https://golang.org/cl/225042
+
+ src/pkg/net/timeout_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

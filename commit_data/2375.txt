@@ -1,0 +1,12 @@
+commit ea7f5505d1e2c6003564efafb414ea77d170e999
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 3 16:10:13 2009 -0700
+
+    zero struct in T{}
+    
+    R=ken
+    OCL=29849
+    CL=29849
+
+ src/cmd/gc/walk.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

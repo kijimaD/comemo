@@ -1,0 +1,20 @@
+commit 7648f61c7d7d1cd05a507086821133fae61c37af
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue May 22 10:31:08 2012 +1000
+
+    exp/html: adjust inCellIM to match spec
+    
+    Clean up flow of control.
+    
+    Ignore </table>, </tbody>, </tfoot>, </thead>, </tr> if there is not
+    an appropriate element in table scope.
+    
+    Pass 3 more tests.
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6206093
+
+ src/pkg/exp/html/parse.go                  | 34 ++++++++++++++----------------
+ src/pkg/exp/html/testlogs/webkit02.dat.log |  6 +++---
+ 2 files changed, 19 insertions(+), 21 deletions(-)

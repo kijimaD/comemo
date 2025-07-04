@@ -1,0 +1,19 @@
+commit 928fe516616f6a9acae814acd90c00209029f99d
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Feb 13 00:15:07 2013 -0500
+
+    exp/ssa: add Instruction.Operands and Value.Referrers methods.
+    
+    Operands returns the SSA values used by an instruction.
+    Referrers returns the SSA instructions that use a value, for
+    some values.  These will be used for SSA renaming, to follow.
+    
+    R=iant, gri
+    CC=golang-dev
+    https://golang.org/cl/7312090
+
+ src/pkg/exp/ssa/func.go          |  17 ++-
+ src/pkg/exp/ssa/interp/interp.go |   2 +-
+ src/pkg/exp/ssa/literal.go       |   4 +
+ src/pkg/exp/ssa/ssa.go           | 237 +++++++++++++++++++++++++++++++++------
+ 4 files changed, 226 insertions(+), 34 deletions(-)

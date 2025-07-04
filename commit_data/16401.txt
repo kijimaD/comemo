@@ -1,0 +1,12 @@
+commit ee78a707c07123cd50e0c56880e04ae8a5069319
+Author: Christopher Nielsen <m4dh4tt3r@gmail.com>
+Date:   Fri May 24 11:01:04 2013 -0700
+
+    path/filepath: Skip TestEvalSymlinks. Plan 9 doesn't have symlinks.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9713044
+
+ src/pkg/path/filepath/path_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

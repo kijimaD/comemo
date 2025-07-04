@@ -1,0 +1,15 @@
+commit e86dcf16039bd617fb0bb6dafd3e2f7f438a1124
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 17 15:09:17 2009 -0700
+
+    more elf64 support: phdrs, constants
+    
+    R=rsc
+    DELTA=130  (68 added, 6 deleted, 56 changed)
+    OCL=31798
+    CL=31798
+
+ src/cmd/6l/asm.c   | 85 ++++++++++++++++++++++++++++--------------------------
+ src/cmd/ld/elf64.c | 32 ++++++++++++--------
+ src/cmd/ld/elf64.h | 65 ++++++++++++++++++++++++++++++++++++-----
+ 3 files changed, 122 insertions(+), 60 deletions(-)

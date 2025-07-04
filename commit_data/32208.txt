@@ -1,0 +1,16 @@
+commit e0789d734d4d8072f3a30a516b2f445cf05633ca
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Aug 11 08:36:13 2017 -0700
+
+    runtime: remove indentation in mapiternext
+    
+    Invert the condition and continue, to remove indentation.
+    
+    Change-Id: Id62a5d9abc9a4df1193bcf15f95f70f2c2e2abac
+    Reviewed-on: https://go-review.googlesource.com/55091
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/runtime/hashmap.go | 145 +++++++++++++++++++++++++------------------------
+ 1 file changed, 73 insertions(+), 72 deletions(-)

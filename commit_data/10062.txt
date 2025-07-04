@@ -1,0 +1,12 @@
+commit 57d07e32d82e1ea0f8edd7fba95bd192cb5f539e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Oct 19 18:30:06 2011 -0200
+
+    misc/vim: add highlighting for delete
+    
+    R=golang-dev, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/5303050
+
+ misc/vim/syntax/go.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

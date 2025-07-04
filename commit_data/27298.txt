@@ -1,0 +1,21 @@
+commit 6db98a3c51549eb5e1e481e9bca6ede7e8e15f54
+Author: David Chase <drchase@google.com>
+Date:   Thu May 5 13:35:10 2016 -0700
+
+    cmd/compile: repair MININT conversion bug in arm softfloat
+    
+    Negative-case conversion code was wrong for minimum int32,
+    used negate-then-widen instead of widen-then-negate.
+    
+    Test already exists; this fixes the failure.
+    
+    Fixes #15563.
+    
+    Change-Id: I4b0b3ae8f2c9714bdcc405d4d0b1502ccfba2b40
+    Reviewed-on: https://go-review.googlesource.com/22830
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/softfloat_arm.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

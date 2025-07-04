@@ -1,0 +1,12 @@
+commit 07d2195c66cfbd289925acea2951bcd311bb0a76
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Mon Nov 25 13:36:16 2013 +1100
+
+    doc/install.html: fix a tag.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/30900044
+
+ doc/install.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

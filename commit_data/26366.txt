@@ -1,0 +1,17 @@
+commit 3a17fdaba037aa0fac9ee06f2cd8636ba61182d0
+Author: David Chase <drchase@google.com>
+Date:   Thu Mar 17 16:14:41 2016 -0400
+
+    cmd/compile: correct maintain use count when phi args merge
+    
+    The critical phase did not correctly maintain the use count
+    when two predecessors of a new critical block transmit the
+    same value.
+    
+    Change-Id: Iba802c98ebb84e36a410721ec32c867140efb6d4
+    Reviewed-on: https://go-review.googlesource.com/20822
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
+
+ src/cmd/compile/internal/ssa/critical.go | 1 +
+ 1 file changed, 1 insertion(+)

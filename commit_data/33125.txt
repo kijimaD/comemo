@@ -1,0 +1,51 @@
+commit 4b7325c7e30fcfd3aec4bc5968069c07f0f48e21
+Author: griesemer <gri@golang.org>
+Date:   Wed Oct 11 11:14:30 2017 -0700
+
+    cmd/compile/internal/syntax: cleanups around parser tracing
+    
+    These changes affect the parser only when the internal trace
+    constant is set.
+    
+    - factored our printing code used for tracing
+    - streamlined advance function and added trace output
+    
+    The parser's trace output now more clearly prints what tokens
+    are skipped and which is the next token in case of an error.
+    
+    Example trace:
+    
+        4: . . . . . . . . . . call (
+        4: . . . . . . . . . . . expr (
+        4: . . . . . . . . . . . . unaryExpr (
+        4: . . . . . . . . . . . . . pexpr (
+        4: . . . . . . . . . . . . . . operand name (
+        4: . . . . . . . . . . . . . . )
+        4: . . . . . . . . . . . . . . call (
+        4: . . . . . . . . . . . . . . )
+        4: . . . . . . . . . . . . . )
+        4: . . . . . . . . . . . . )
+        4: . . . . . . . . . . . )
+        4: . . . . . . . . . . . syntax error: expecting comma or )
+        4: . . . . . . . . . . . skip ;
+        6: . . . . . . . . . . . skip name
+        6: . . . . . . . . . . . skip :=
+        6: . . . . . . . . . . . skip literal
+        6: . . . . . . . . . . . skip ;
+        7: . . . . . . . . . . . skip }
+        7: . . . . . . . . . . . skip ;
+        9: . . . . . . . . . . . skip func
+        9: . . . . . . . . . . . skip name
+        9: . . . . . . . . . . . skip (
+        9: . . . . . . . . . . . next )
+        9: . . . . . . . . . . )
+    
+    For #22164.
+    
+    Change-Id: I4a233696b1f989ee3287472172afaf92cf424565
+    Reviewed-on: https://go-review.googlesource.com/70490
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/fmt_test.go               |  3 +-
+ src/cmd/compile/internal/syntax/parser.go | 62 ++++++++++++++++++++-----------
+ 2 files changed, 42 insertions(+), 23 deletions(-)

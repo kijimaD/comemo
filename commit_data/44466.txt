@@ -1,0 +1,28 @@
+commit 09f4ef4fa73a110eefd2cb9d78439f51d9294f65
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 19 14:03:45 2021 -0500
+
+    cmd/go/internal/mvs: prune spurious dependencies in Downgrade
+    
+    Previously, mvs.Downgrade could introduce spurious dependencies if the
+    downgrade computed for one module lands on a “hidden” version (such as
+    a pseudo-version) due to a requirement introduced by the downgrade for
+    another module.
+    
+    To eliminate those spurious dependencies, we can add one more call to
+    BuildList to recompute the “actual” downgraded versions, and then
+    including only those actual versions in the final call to BuildList.
+    
+    For #36460
+    
+    Change-Id: Icc6b54aa004907221b2bcbbae74598b0e4100776
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294294
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/mvs/mvs.go                     | 35 ++++++++++++++++++++++
+ src/cmd/go/internal/mvs/mvs_test.go                |  7 +++--
+ .../script/mod_get_downup_pseudo_artifact.txt      |  9 ++----
+ 3 files changed, 42 insertions(+), 9 deletions(-)

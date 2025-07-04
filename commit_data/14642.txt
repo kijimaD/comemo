@@ -1,0 +1,15 @@
+commit 9509cbf203dbdf39008c238c96563c11b942d7ba
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 13 12:11:24 2012 -0800
+
+    test: move map delete test to nil.go
+    
+    No need for a separate test for this.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6941045
+
+ test/fixedbugs/issue4535.go | 12 ------------
+ test/nil.go                 |  3 +++
+ 2 files changed, 3 insertions(+), 12 deletions(-)

@@ -1,0 +1,15 @@
+commit e454af4d641fa0b6c09767f488f191883d5a5e90
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 10 11:32:58 2010 -0800
+
+    cgo: avoid self-interference of global names
+    
+    Fixes #1332.
+    
+    R=iant, iant2
+    CC=golang-dev
+    https://golang.org/cl/3555041
+
+ src/cmd/cgo/main.go | 20 ++++++++++++++++++++
+ src/cmd/cgo/out.go  |  6 +++---
+ 2 files changed, 23 insertions(+), 3 deletions(-)

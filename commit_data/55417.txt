@@ -1,0 +1,31 @@
+commit 8c45dddd5de44a5c2f469d80195f8347d7baa41c
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Tue Jan 23 00:42:58 2024 +0000
+
+    reflect: delete TODO pass safe to packEface don't need to copy if safe==true
+    
+    valueInterface not copy result in the follow incorrect behavior
+    w1.  x := ValueOf(&v).Elem()
+    r1.  iface := Value.Interface()
+    w2.  x.Set() or x.SetT()
+    
+    The write operation of W2 will be observed by the read operation of r1,
+    but the existing behavior is not.
+    
+    The valueInterface in deepValueEqual can, in theory, pass safe==true to not copy the object,
+    but there is no benchmark to indicate that the memory allocation has changed,
+    maybe we don't actually need safe==true here.
+    
+    Change-Id: I55c423fd50adac8822a7fdbfe67af89ee223eace
+    GitHub-Last-Rev: 4a6386709817f3ea6055711dd39d2694d58b3043
+    GitHub-Pull-Request: golang/go#64618
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548436
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/reflect/value.go | 3 ---
+ 1 file changed, 3 deletions(-)

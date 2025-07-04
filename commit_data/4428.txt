@@ -1,0 +1,12 @@
+commit 101f499fa572da4ef6c56cfa7b62f90b94c10d5b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 15 16:20:37 2009 -0800
+
+    gc: allow ... in method lists
+    
+    R=ken2
+    https://golang.org/cl/179070
+
+ src/cmd/gc/go.y          | 2 +-
+ test/fixedbugs/bug232.go | 8 ++++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

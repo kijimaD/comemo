@@ -1,0 +1,12 @@
+commit 568465a93138576ced153d88ba4af225b47442c5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 24 13:36:54 2009 -0800
+
+    Mention golang-dev as a default code review destination.
+    
+    R=rsc
+    CC=r
+    https://golang.org/cl/160056
+
+ doc/contribute.html | 4 ++++
+ 1 file changed, 4 insertions(+)

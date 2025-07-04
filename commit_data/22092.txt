@@ -1,0 +1,21 @@
+commit fa2f9c2c0923edf539cdcce82473e7131826d677
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 18 11:22:12 2015 -0400
+
+    runtime: run concurrent mark phase on regular stack
+    
+    Currently, the GC's concurrent mark phase runs on the system
+    stack. There's no need to do this, and running it this way ties up the
+    entire M and P running the GC by preventing the scheduler from
+    preempting the GC even during concurrent mark.
+    
+    Fix this by running concurrent mark on the regular G stack. It's still
+    non-preemptible because we also set preemptoff around the whole GC
+    process, but this moves us closer to making it preemptible.
+    
+    Change-Id: Ia9f1245e299b8c5c513a4b1e3ef13eaa35ac5e73
+    Reviewed-on: https://go-review.googlesource.com/7730
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

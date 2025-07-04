@@ -1,0 +1,41 @@
+commit f8df205e74d5122c43f41923280451641e566ee2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 7 18:29:51 2020 -0400
+
+    all: enable more tests on macOS/ARM64
+    
+    On macOS, we can do "go build", can exec, and have the source
+    tree available, so we can enable more tests.
+    
+    Skip ones that don't work. Most of them are due to that it
+    requires external linking (for now) and some tests don't work
+    with external linking (e.g. runtime deadlock detection). For
+    them, helper functions CanInternalLink/MustInternalLink are
+    introduced. I still want to have internal linking implemented,
+    but it is still a good idea to identify which tests don't work
+    with external linking.
+    
+    Updates #38485.
+    
+    Change-Id: I6b14697573cf3f371daf54b9ddd792acf232f2f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260719
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/go_test.go                  |  9 ++++---
+ src/cmd/internal/sys/supported.go      |  1 +
+ src/cmd/internal/sys/supported_test.go | 18 ++++++++++++++
+ src/cmd/link/internal/ld/dwarf_test.go | 17 +++++++++++++
+ src/cmd/link/internal/ld/ld_test.go    |  7 +++++-
+ src/cmd/link/link_test.go              |  1 +
+ src/cmd/nm/nm_cgo_test.go              |  5 ++++
+ src/cmd/nm/nm_test.go                  |  3 +++
+ src/internal/cpu/cpu_test.go           |  9 +++++++
+ src/internal/testenv/testenv.go        | 44 +++++++++++++++++++++++-----------
+ src/os/exec/exec_test.go               |  4 ++++
+ src/runtime/crash_test.go              | 21 ++++++++++++++++
+ src/runtime/time_test.go               |  4 ++++
+ 13 files changed, 123 insertions(+), 20 deletions(-)

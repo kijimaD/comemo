@@ -1,0 +1,28 @@
+commit f346a4c44c7200454d01c05879fbcd76a1ca9237
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 24 17:35:15 2019 -0700
+
+    test: add regress test for #27557
+    
+    This commit just adds a regress test for a few of the important corner
+    cases that I identified in #27557, which turn out to not be tested
+    anywhere.
+    
+    While here, annotate a few of the existing test cases where we could
+    improve escape analysis.
+    
+    Updates #27557.
+    
+    Change-Id: Ie57792a538f7899bb17915485fabc86100f469a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197137
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/escape.go |  5 +----
+ test/escape2.go                       |  1 +
+ test/escape2n.go                      |  1 +
+ test/fixedbugs/issue21709.go          |  2 ++
+ test/fixedbugs/issue27557.go          | 42 +++++++++++++++++++++++++++++++++++
+ 5 files changed, 47 insertions(+), 4 deletions(-)

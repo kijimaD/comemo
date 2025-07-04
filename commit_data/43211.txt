@@ -1,0 +1,20 @@
+commit 234de9e1c2afc518e33c0adcf2928a2a9ebf5ce1
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 3 23:36:58 2020 -0400
+
+    cmd/link: support PIE on macOS/ARM64
+    
+    On macOS/ARM64 everything must be PIE, and we already build PIE
+    in exe buildmode. Support PIE buildmode as well.
+    
+    Updates #38485.
+    
+    Change-Id: I10b68c2f6eb77714e31c26116c61a0e28bf9a358
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259442
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/dist/test.go               | 2 +-
+ src/cmd/internal/sys/supported.go  | 2 +-
+ src/cmd/link/internal/ld/config.go | 8 +++++++-
+ 3 files changed, 9 insertions(+), 3 deletions(-)

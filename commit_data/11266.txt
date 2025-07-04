@@ -1,0 +1,15 @@
+commit d888ab80a308e30b326a3303cc8c611ca22b9988
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Jan 19 10:19:33 2012 -0800
+
+    testing: do not recover example's panic
+            So as to give out stack trace for panic in examples.
+            This behavior also matches the tests'.
+            Fixes #2691.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5554061
+
+ src/pkg/testing/example.go | 7 -------
+ 1 file changed, 7 deletions(-)

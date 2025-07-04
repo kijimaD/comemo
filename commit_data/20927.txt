@@ -1,0 +1,88 @@
+commit 09d92b6bbf26f195a1fe136513238d227bc73f82
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 5 19:13:20 2014 -0500
+
+    all: power64 is now ppc64
+    
+    Fixes #8654.
+    
+    LGTM=austin
+    R=austin
+    CC=golang-codereviews
+    https://golang.org/cl/180600043
+
+ include/link.h                                     | 10 ++++-----
+ src/cmd/9a/doc.go                                  |  4 ++--
+ src/cmd/9a/lex.c                                   |  8 ++++----
+ src/cmd/9g/doc.go                                  |  6 +++---
+ src/cmd/9g/galign.c                                |  8 ++++----
+ src/cmd/9g/ggen.c                                  |  6 +++---
+ src/cmd/9g/peep.c                                  |  4 ++--
+ src/cmd/9l/asm.c                                   |  2 +-
+ src/cmd/9l/doc.go                                  |  6 +++---
+ src/cmd/9l/obj.c                                   | 10 ++++-----
+ src/cmd/cgo/main.go                                | 24 +++++++++-------------
+ src/cmd/dist/build.c                               |  4 ++--
+ src/cmd/dist/unix.c                                |  4 ++--
+ src/cmd/internal/objfile/disasm.go                 | 10 ++++-----
+ src/cmd/internal/objfile/elf.go                    |  2 +-
+ src/cmd/internal/objfile/macho.go                  |  2 +-
+ src/cmd/ld/ldelf.c                                 |  4 ++--
+ src/cmd/objdump/objdump_test.go                    |  4 ++--
+ src/debug/elf/elf.go                               |  2 +-
+ src/go/build/build.go                              |  2 +-
+ src/go/build/syslist.go                            |  2 +-
+ src/hash/crc32/crc32_generic.go                    |  2 +-
+ src/liblink/obj9.c                                 | 10 ++++-----
+ src/math/{abs_power64x.s => abs_ppc64x.s}          |  2 +-
+ src/math/big/{arith_power64x.s => arith_ppc64x.s}  |  2 +-
+ src/math/{stubs_power64x.s => stubs_ppc64x.s}      |  2 +-
+ src/os/signal/sig.s                                |  6 +++---
+ src/reflect/{asm_power64x.s => asm_ppc64x.s}       |  2 +-
+ src/runtime/{arch1_power64.go => arch1_ppc64.go}   |  0
+ .../{arch1_power64le.go => arch1_ppc64le.go}       |  0
+ src/runtime/{arch_power64.go => arch_ppc64.go}     |  0
+ src/runtime/{arch_power64le.go => arch_ppc64le.go} |  0
+ src/runtime/{asm_power64x.s => asm_ppc64x.s}       |  6 +++---
+ .../{atomic_power64x.go => atomic_ppc64x.go}       |  2 +-
+ src/runtime/{atomic_power64x.s => atomic_ppc64x.s} |  2 +-
+ src/runtime/debug/stubs.s                          |  4 ++--
+ src/runtime/defs3_linux.go                         |  2 +-
+ .../{defs_linux_power64.go => defs_linux_ppc64.go} |  0
+ ...fs_linux_power64le.go => defs_linux_ppc64le.go} |  0
+ src/runtime/gcinfo_test.go                         |  2 +-
+ ...k_linux_power64x.go => lfstack_linux_ppc64x.go} |  4 ++--
+ src/runtime/{memclr_power64x.s => memclr_ppc64x.s} |  2 +-
+ .../{memmove_power64x.s => memmove_ppc64x.s}       |  2 +-
+ src/runtime/noasm.go                               |  2 +-
+ src/runtime/panic.go                               |  2 +-
+ src/runtime/panic1.go                              |  2 +-
+ .../{rt0_linux_power64.s => rt0_linux_ppc64.s}     |  2 +-
+ .../{rt0_linux_power64le.s => rt0_linux_ppc64le.s} |  2 +-
+ ...al_linux_power64x.go => signal_linux_ppc64x.go} |  2 +-
+ .../{signal_power64x.go => signal_ppc64x.go}       |  2 +-
+ .../{sys_linux_power64x.s => sys_linux_ppc64x.s}   |  8 ++++----
+ src/runtime/{sys_power64x.go => sys_ppc64x.go}     |  2 +-
+ src/runtime/thunk.s                                |  4 ++--
+ src/runtime/zgoarch_386.go                         |  4 ++--
+ src/runtime/zgoarch_amd64.go                       |  4 ++--
+ src/runtime/zgoarch_amd64p32.go                    |  4 ++--
+ src/runtime/zgoarch_arm.go                         |  4 ++--
+ .../{zgoarch_power64.go => zgoarch_ppc64.go}       |  6 +++---
+ .../{zgoarch_power64le.go => zgoarch_ppc64le.go}   |  6 +++---
+ src/sync/atomic/{asm_power64x.s => asm_ppc64x.s}   |  2 +-
+ src/syscall/asm.s                                  |  4 ++--
+ .../{asm_linux_power64x.s => asm_linux_ppc64x.s}   |  4 ++--
+ src/syscall/mkall.sh                               |  8 ++++----
+ ...l_linux_power64x.go => syscall_linux_ppc64x.go} |  2 +-
+ ...ors_linux_power64.go => zerrors_linux_ppc64.go} |  0
+ ...linux_power64le.go => zerrors_linux_ppc64le.go} |  0
+ ...ll_linux_power64.go => zsyscall_linux_ppc64.go} |  2 +-
+ ...inux_power64le.go => zsyscall_linux_ppc64le.go} |  2 +-
+ ...num_linux_power64.go => zsysnum_linux_ppc64.go} |  0
+ ...linux_power64le.go => zsysnum_linux_ppc64le.go} |  0
+ ...ypes_linux_power64.go => ztypes_linux_ppc64.go} |  0
+ ..._linux_power64le.go => ztypes_linux_ppc64le.go} |  0
+ test/nilptr3.go                                    |  4 ++--
+ test/nosplit.go                                    |  6 +++---
+ 74 files changed, 131 insertions(+), 135 deletions(-)

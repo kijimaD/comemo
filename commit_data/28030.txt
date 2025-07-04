@@ -1,0 +1,19 @@
+commit 67bcee8d985697678ced806569c17cbbab067478
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 16 14:23:12 2016 -0700
+
+    cmd/compile: convert Dodata to a bool, rename to IsStatic
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I2c204ec14b0a72b592fb336acdd4dff55650f7f6
+    Reviewed-on: https://go-review.googlesource.com/26751
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go    |  4 ++--
+ src/cmd/compile/internal/gc/sinit.go  | 16 ++++++++--------
+ src/cmd/compile/internal/gc/syntax.go |  2 +-
+ src/cmd/compile/internal/gc/walk.go   |  6 +++---
+ 4 files changed, 14 insertions(+), 14 deletions(-)

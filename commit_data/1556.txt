@@ -1,0 +1,15 @@
+commit 65ad3ce1795c3c1e1a65d7eecbc9f00451068fc8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 11:22:21 2009 -0800
+
+    make time fields public
+    
+    R=r
+    DELTA=49  (0 added, 0 deleted, 49 changed)
+    OCL=23480
+    CL=23487
+
+ src/lib/Makefile          |  2 +-
+ src/lib/time/time.go      | 78 +++++++++++++++++++++++------------------------
+ src/lib/time/time_test.go | 18 +++++------
+ 3 files changed, 49 insertions(+), 49 deletions(-)

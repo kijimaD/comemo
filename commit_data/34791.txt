@@ -1,0 +1,17 @@
+commit e55475ca3b6652d2d24b7bf48bcaf3e216c3ed68
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Apr 1 18:22:56 2018 +0000
+
+    Revert "net: mark tests with retry as parallel"
+    
+    This reverts commit CL 103975 (a9b799a229787).
+    
+    Reason for revert: adds data race, breaks race builders, and Brad forgot
+    to run the Trybots.
+    
+    Change-Id: Id227dad7069560dbb3ea978a1dcd77ce1979034e
+    Reviewed-on: https://go-review.googlesource.com/104015
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/lookup_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

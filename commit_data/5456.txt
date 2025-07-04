@@ -1,0 +1,14 @@
+commit 56c5710b388d918322764fdb29f0c434e1c5c263
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 7 11:44:41 2010 -0700
+
+    gob: add an internal commentary example showing how the
+    values are encoded for transmission.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1146041
+
+ src/pkg/gob/encode.go  | 249 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/gob/encoder.go | 176 ----------------------------------
+ 2 files changed, 249 insertions(+), 176 deletions(-)

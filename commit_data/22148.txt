@@ -1,0 +1,32 @@
+commit 717cb74907f3597850398a48a52f1a19a3beb447
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 5 17:45:11 2015 -0800
+
+    cmd/internal/ld: edit into more idiomatic Go code
+    
+    Instead of reimplementing chained hash tables, just use maps.
+    
+    Use bool instead of uint8 for variables only set to 0 or 1.
+    
+    Fix parsing of `import foo "foo" // indirect` lines.  Previously, this
+    was treated as an import of package path `"foo" // indirect`, which
+    could result in the cycle-detection code failing to detect a cycle
+    because it would be treated as a separate package from `"foo"`.
+    
+    Also, since there are theoretically multiple quoted forms for a
+    package path, use strconv.Unquote to normalize them.  Side benefit:
+    Unquote will complain if any trailing comments sneak back in.
+    
+    Aside: For most Go archives, Go package data is only present in the
+    __.PKGDEF member, but unless -u is used, ldpkg is only called on the
+    _go_.6 member.  Consequently, importcycles is a no-op when -u isn't
+    used as it has no package data to inspect.
+    
+    Change-Id: I7076cf91a66726a8d9c5676adfea13c5532001fa
+    Reviewed-on: https://go-review.googlesource.com/7002
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/ld/go.go | 134 +++++++++++++++++++---------------------------
+ 1 file changed, 56 insertions(+), 78 deletions(-)

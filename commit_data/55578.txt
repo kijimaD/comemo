@@ -1,0 +1,15 @@
+commit 4619121d8491ad44884529e6294b576e4ed6296a
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Feb 12 10:34:54 2024 -0500
+
+    runtime: skip failing traceback test on Android
+    
+    See e.g. https://build.golang.org/log/1e6bd28cf75679c66479025c1a0d9082734cf33e
+    
+    Change-Id: Ic13bc0a40d04afe693d1de07973e2540dadacb23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563415
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/traceback_system_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

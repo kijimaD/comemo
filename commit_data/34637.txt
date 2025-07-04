@@ -1,0 +1,18 @@
+commit b3be2f4da787f1287882c40e327f79644b934a77
+Author: quasilyte <quasilyte@gmail.com>
+Date:   Mon Mar 19 13:21:35 2018 +0300
+
+    strconv: make code formatting more consistent in doc.go
+    
+    Replaces " \t" code indentation with "\t".
+    
+    Issues like this are easy to spot with editor that prints
+    whitespace charecters.
+    
+    Change-Id: Ia82877e7c99121bf369fa76e46ba52dff84f36bf
+    Reviewed-on: https://go-review.googlesource.com/101355
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strconv/doc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

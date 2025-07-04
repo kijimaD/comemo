@@ -1,0 +1,32 @@
+commit f1b7b2fc52947711b8e78f7078c9e0bda35320d3
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 19 17:26:05 2022 -0400
+
+    runtime: make mSpanStateBox accessors nosplit
+    
+    get, at least, is called from typedmemclr which must not be interruptible.
+    These were previously nosplit by accident before CL 424395 (the only
+    call they had was an intrinsic, so they were leaf functions, so they had
+    no prologue). After CL 424395 they contained a call (in noinline builds),
+    thus had a prologue, thus had a suspension point.
+    
+    I have no idea how we might test this.
+    
+    This is another motivating use case for having a nosplitrec directive
+    in the runtime.
+    
+    Fixes #55156
+    Fixes #54779
+    Fixes #54906
+    Fixes #54907
+    
+    Change-Id: I851d733d71bda7172c4c96e027657e22b499ee00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431919
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/mbarrier.go | 2 ++
+ src/runtime/mheap.go    | 7 +++++++
+ 2 files changed, 9 insertions(+)

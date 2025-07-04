@@ -1,0 +1,12 @@
+commit b47cef394b779b647dd033895dd13445451c77c5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 29 15:50:46 2012 -0500
+
+    path/filepath: note that SplitList is different from strings.Split
+    
+    R=golang-dev, r, bradfitz, gustavo
+    CC=golang-dev
+    https://golang.org/cl/5712044
+
+ src/pkg/path/filepath/path.go | 1 +
+ 1 file changed, 1 insertion(+)

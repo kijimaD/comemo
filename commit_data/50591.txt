@@ -1,0 +1,22 @@
+commit deaec39323aced382a12ed0360fad03ad1dbb906
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Sep 25 20:15:12 2022 +0200
+
+    cmd/go/internal/mmap: fix build for js/wasm
+    
+    Even though there isn't much point in building cmd/go for js/wasm given
+    it relies on executing sub-processes, this change is trivial enough and
+    makes cmd/go build for js/wasm again.
+    
+    Fixes #54219
+    
+    Change-Id: I91e3adec0f31a4e261af89b4cc829711828ac2ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433480
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/internal/mmap/{mmap_plan9.go => mmap_other.go} | 2 ++
+ 1 file changed, 2 insertions(+)

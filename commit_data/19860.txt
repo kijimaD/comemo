@@ -1,0 +1,29 @@
+commit a2a97684146d63cbde77b5c95b4403da53b79459
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jul 31 15:07:05 2014 -0700
+
+    runtime: convert hash functions to Go calling convention.
+    
+    Create proper closures so hash functions can be called
+    directly from Go.  Rearrange calling convention so return
+    value is directly accessible.
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov, dave, khr
+    CC=golang-codereviews
+    https://golang.org/cl/119360043
+
+ src/cmd/gc/reflect.c            |   9 +-
+ src/cmd/gc/subr.c               |  69 +++++++------
+ src/pkg/runtime/alg.goc         | 221 +++++++++-------------------------------
+ src/pkg/runtime/asm_386.s       |  76 ++++----------
+ src/pkg/runtime/asm_amd64.s     |  76 ++++----------
+ src/pkg/runtime/asm_amd64p32.s  |  36 +------
+ src/pkg/runtime/asm_arm.s       |  36 +------
+ src/pkg/runtime/export_test.go  |   6 --
+ src/pkg/runtime/hashmap.go      |  16 +--
+ src/pkg/runtime/hashmap_fast.go |  12 +--
+ src/pkg/runtime/iface.goc       |   7 +-
+ src/pkg/runtime/runtime.h       |  24 +++--
+ src/pkg/runtime/stubs.go        |  24 +++++
+ 13 files changed, 196 insertions(+), 416 deletions(-)

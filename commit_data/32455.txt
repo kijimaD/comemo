@@ -1,0 +1,20 @@
+commit a9f832a6aedbce206d44d099c67448e8aa747690
+Author: griesemer <gri@golang.org>
+Date:   Thu Aug 24 15:20:18 2017 +0200
+
+    spec: clarify zero value for complex types
+    
+    The enumeration of numeric types missed the complex types.
+    Clarify by removing the explicit enumeration and referring
+    to numeric types instead.
+    
+    Fixes #21579.
+    
+    Change-Id: If36c2421f8501eeec82a07f442ac2e16a35927ba
+    Reviewed-on: https://go-review.googlesource.com/58491
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

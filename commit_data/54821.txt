@@ -1,0 +1,19 @@
+commit b6a3c0273eac570d8993f348d1db35323442af13
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Aug 10 03:32:21 2023 +1000
+
+    cmd/dist,internal/platform: enable openbsd/ppc64 port
+    
+    Updates #56001
+    
+    Change-Id: I16440114ecf661e9fc17d304ab3b16bc97ef82f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517935
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/cmd/dist/build.go            | 1 -
+ src/internal/platform/zosarch.go | 2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)

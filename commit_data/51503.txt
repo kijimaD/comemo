@@ -1,0 +1,18 @@
+commit c0497d1a81b1104a3981be33abfd66252cea90c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 29 15:13:52 2022 -0500
+
+    runtime/debug: add missing period
+    
+    Pointed out in review of CL 453602,
+    but it looks like I forgot to re-upload before submitting.
+    
+    Change-Id: I8f4fac52ea0f904f6f9b06e13fc8ed2e778f2360
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454835
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+
+ src/runtime/debug/mod.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

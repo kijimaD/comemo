@@ -1,0 +1,41 @@
+commit 5df59a4fc98991fc16872c384bd1e9f830a369c5
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Dec 19 17:18:45 2016 -0800
+
+    Revert: "archive/zip: handle mtime in NTFS/UNIX/ExtendedTS extra fields"
+    
+    This change reverts the following CLs:
+            CL/18274: handle mtime in NTFS/UNIX/ExtendedTS extra fields
+            CL/30811: only use Extended Timestamp on non-zero MS-DOS timestamps
+    
+    We are reverting support for extended timestamps since the support was not
+    not complete. CL/18274 added full support for reading extended timestamp fields
+    and minimal support for writing them. CL/18274 is incomplete because it made
+    no changes to the FileHeader struct, so timezone information was lost when
+    reading and/or writing.
+    
+    While CL/18274 was a step in the right direction, we should provide full
+    support for high precision timestamps in both the reader and writer.
+    This will probably require that we add a new field of type time.Time.
+    The complete fix is too involved to add in the time remaining for Go 1.8
+    and will be completed in Go 1.9.
+    
+    Updates #10242
+    Updates #17403
+    Updates #18359
+    Fixes #18378
+    
+    Change-Id: Icf6d028047f69379f7979a29bfcb319a02f4783e
+    Reviewed-on: https://go-review.googlesource.com/34651
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/zip/reader.go                    |  49 ++-------------------------
+ src/archive/zip/reader_test.go               |  31 ++++++-----------
+ src/archive/zip/struct.go                    |   3 --
+ src/archive/zip/testdata/extra-timestamp.zip | Bin 152 -> 0 bytes
+ src/archive/zip/writer.go                    |  17 ----------
+ src/archive/zip/writer_test.go               |  27 ---------------
+ src/archive/zip/zip_test.go                  |  39 ---------------------
+ 7 files changed, 12 insertions(+), 154 deletions(-)

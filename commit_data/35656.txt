@@ -1,0 +1,67 @@
+commit f864d89ef7142687fabcbc28e9058868bce82468
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Fri Jun 1 18:55:36 2018 +0300
+
+    runtime: remove TODO notes suggesting jump tables
+    
+    For memmove/memclr using jump tables only reduces overall
+    function performance for both amd64 and 386.
+    
+    Benchmarks for 32-bit memclr:
+    
+            name            old time/op    new time/op    delta
+            Memclr/5-8        8.01ns ± 0%    8.94ns ± 2%  +11.59%  (p=0.000 n=9+9)
+            Memclr/16-8       9.05ns ± 0%    9.49ns ± 0%   +4.81%  (p=0.000 n=8+8)
+            Memclr/64-8       9.15ns ± 0%    9.49ns ± 0%   +3.76%  (p=0.000 n=9+10)
+            Memclr/256-8      16.6ns ± 0%    16.6ns ± 0%     ~     (p=1.140 n=10+9)
+            Memclr/4096-8      179ns ± 0%     166ns ± 0%   -7.26%  (p=0.000 n=9+8)
+            Memclr/65536-8    3.36µs ± 1%    3.31µs ± 1%   -1.48%  (p=0.000 n=10+9)
+            Memclr/1M-8       59.5µs ± 3%    60.5µs ± 2%   +1.67%  (p=0.009 n=10+10)
+            Memclr/4M-8        239µs ± 3%     245µs ± 0%   +2.49%  (p=0.004 n=10+8)
+            Memclr/8M-8        618µs ± 2%     614µs ± 1%     ~     (p=0.315 n=10+8)
+            Memclr/16M-8      1.49ms ± 2%    1.47ms ± 1%   -1.11%  (p=0.029 n=10+10)
+            Memclr/64M-8      7.06ms ± 1%    7.05ms ± 0%     ~     (p=0.573 n=10+8)
+            [Geo mean]        3.36µs         3.39µs        +1.14%
+    
+    For less predictable data, like loop iteration dependant sizes,
+    branch table still shows 2-5% worse results.
+    It also makes code slightly more complicated.
+    
+    This CL removes TODO note that directly suggest trying this
+    optimization out. That encourages people to spend their time
+    in a quite hopeless endeavour.
+    
+    The code used to implement branch table used a 32/64-entry table
+    with pointers to TEXT blocks that implemented every associated
+    label work. Most last entries point to "loop" code that is
+    a fallthrough for all other sizes that do not map into specialized
+    routines. The only inefficiency is extra MOVL/MOVQ required
+    to fetch table pointer itself as MOVL $sym<>(SB)(AX*4) is not valid
+    in Go asm (it works in other assemblers):
+    
+            TEXT ·memclrNew(SB), NOSPLIT, $0-8
+                    MOVL    ptr+0(FP), DI
+                    MOVL    n+4(FP), BX
+                    // Handle 0 separately.
+                    TESTL   BX, BX
+                    JEQ     _0
+                    LEAL    -1(BX), CX // n-1
+                    BSRL    CX, CX
+                    // AX or X0 zeroed inside every text block.
+                    MOVL    $memclrTable<>(SB), AX
+                    JMP     (AX)(CX*4)
+            _0:
+                    RET
+    
+    Change-Id: I4f706931b8127f85a8439b95834d5c2485a5d1bf
+    Reviewed-on: https://go-review.googlesource.com/115678
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/memclr_386.s    | 2 +-
+ src/runtime/memclr_amd64.s  | 2 +-
+ src/runtime/memmove_386.s   | 2 +-
+ src/runtime/memmove_amd64.s | 3 ++-
+ 4 files changed, 5 insertions(+), 4 deletions(-)

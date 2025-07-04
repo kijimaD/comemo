@@ -1,0 +1,17 @@
+commit f89d05eb7ba1885474d03bb62f0a36a2d3cf56ea
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 1 10:58:47 2020 -0400
+
+    runtime: update and tidy cgo callback description
+    
+    The documentation on how cgo callbacks (C -> Go calls) works
+    internally has gotten somewhat stale. This CL refreshes it.
+    
+    Change-Id: I1ab66225c9da52d698d97ebeb4f3c7b9b5ee97db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258937
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/cgocall.go | 42 +++++++++++++++++++++++-------------------
+ 1 file changed, 23 insertions(+), 19 deletions(-)

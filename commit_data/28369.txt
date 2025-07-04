@@ -1,0 +1,20 @@
+commit 33ed35647520f2162c2fed1b0e5f19cec2c65de3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Sep 14 11:16:50 2016 -0700
+
+    cmd: add internal/browser package
+    
+    cmd/cover, cmd/trace, and cmd/pprof all open browsers.
+    'go bug' will soon also open a browser.
+    It is time to unify the browser-handling code.
+    
+    Change-Id: Iee6b443e21e938aeaaac366a1aefb1afbc7d9b2c
+    Reviewed-on: https://go-review.googlesource.com/29160
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cover/html.go                       | 22 ++--------------
+ src/cmd/internal/browser/browser.go         | 41 +++++++++++++++++++++++++++++
+ src/cmd/internal/pprof/commands/commands.go | 15 +++--------
+ src/cmd/trace/main.go                       | 23 ++--------------
+ 4 files changed, 48 insertions(+), 53 deletions(-)

@@ -1,0 +1,18 @@
+commit d743e67e0695a8082f03fd90bb07e71cf9f34cf1
+Author: KimMachineGun <geon0250@gmail.com>
+Date:   Sun May 23 14:05:15 2021 +0000
+
+    doc/go1.17: document flag changes for Go 1.17
+    
+    For #44513
+    Fixes #46010
+    
+    Change-Id: I1fe638e5db0b4f3b64dbfbd948154a7c7a80afc9
+    GitHub-Last-Rev: d5bd53b1df202329661ffb1818803f2ec1d3f57a
+    GitHub-Pull-Request: golang/go#46150
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319273
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Trust: Robert Findley <rfindley@google.com>
+
+ doc/go1.17.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

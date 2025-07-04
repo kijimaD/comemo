@@ -1,0 +1,14 @@
+commit b3b3e0da94a421fe6f6cc1ad1daf7738ac154448
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 8 09:58:25 2009 -0700
+
+    conversion bug
+    
+    R=r
+    DELTA=24  (24 added, 0 deleted, 0 changed)
+    OCL=28451
+    CL=28508
+
+ test/bugs/bug149.go | 24 ++++++++++++++++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 28 insertions(+)

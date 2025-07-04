@@ -1,0 +1,27 @@
+commit 1135071b47b1c9c0069d384c136e94d2883282bc
+Author: majiang <ma.jiang@zte.com.cn>
+Date:   Fri Nov 16 15:39:59 2018 +0000
+
+    cmd/link, runtime: add initial cgo support for ppc64
+    
+    We should be able to build docker after this get applied.
+    
+    Updates #13192
+    
+    Change-Id: I5378d3518fac52d6bd4c97828884c1b382b7ace5
+    GitHub-Last-Rev: 210b7bc2e172f641f1102982e04542bf73a1aa46
+    GitHub-Pull-Request: golang/go#28546
+    Reviewed-on: https://go-review.googlesource.com/c/146898
+    Reviewed-by: Jiang Ma <ma.jiang@zte.com.cn>
+    Reviewed-by: Clément Chigot <clement.chigot@atos.net>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ppc64/asm.go |  7 +++++++
+ src/cmd/link/internal/ppc64/obj.go |  3 ---
+ src/runtime/asm_ppc64x.s           | 27 +++++++++++++++++++++++++++
+ src/runtime/rt0_linux_ppc64.s      | 17 ++++++++++++-----
+ src/runtime/sys_linux_ppc64x.s     |  2 +-
+ 5 files changed, 47 insertions(+), 9 deletions(-)

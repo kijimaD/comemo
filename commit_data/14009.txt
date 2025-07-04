@@ -1,0 +1,14 @@
+commit 256daf2c85c0277298d7066e5b24c137ef332aa5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 3 08:16:27 2012 -0700
+
+    misc/dashboard: set charset utf-8 on build log downloads
+    
+    Fixes #4187
+    
+    R=golang-dev, dave, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6587071
+
+ misc/dashboard/app/build/handler.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

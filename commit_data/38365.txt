@@ -1,0 +1,21 @@
+commit 10aede26d0603c16f6f66c87a84bccfeb2e0c8e0
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Mar 12 16:21:43 2019 +0100
+
+    misc/android: fix detection of GOROOT tests
+    
+    strings.HasPrefix is not good enough to determine whether a path
+    is a subdirectory of another because it does not respect path
+    boundaries. filepath.Rel is good eonugh as long as we filter out results
+    that use parent directories, "..".
+    
+    Hopefully fix the android emulator builders on the subrepositories.
+    
+    Change-Id: I17ee7e0028c0b0b26a6c5f67629f53c9a660c6e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167117
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/android/go_android_exec.go | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)

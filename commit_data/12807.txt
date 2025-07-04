@@ -1,0 +1,14 @@
+commit a9de5bb3eb36fcae6d0744603a5bd7a5be606796
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Apr 2 22:33:38 2012 +0800
+
+    cmd/dist, sudo.bash: don't mention sudo.bash if cov or prof is not present
+            Fixes #3422.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5967057
+
+ src/cmd/dist/build.c | 13 ++++++++-----
+ src/sudo.bash        |  7 ++++++-
+ 2 files changed, 14 insertions(+), 6 deletions(-)

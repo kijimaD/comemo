@@ -1,0 +1,14 @@
+commit 517503dab8cab086b431c9cb1a9292ce9831a629
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 2 13:36:21 2011 +1100
+
+    doc: correct weekly snapshot notes on hash.Hash change
+    
+    I had the wrong idea when I wrote this.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5437111
+
+ doc/devel/weekly.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

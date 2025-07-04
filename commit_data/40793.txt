@@ -1,0 +1,17 @@
+commit e77106cc54af58d3eedbb134310668c6993474c7
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Nov 13 10:02:17 2019 +0900
+
+    os: handle backslash and slash both in the path on Windows
+    
+    Fixes #35492
+    
+    Change-Id: I00dce8fd1228f809e0c61013ac4de7a5953cbbf9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206997
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/file_windows.go      | 11 +++++++++--
+ src/os/path_windows_test.go | 15 +++++++++++++++
+ 2 files changed, 24 insertions(+), 2 deletions(-)

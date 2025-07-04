@@ -1,0 +1,20 @@
+commit 889377c5721abfa2eb70932e7f48f83020799dc7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 7 17:21:00 2010 -0700
+
+    godoc: moved package directory support code into separate file
+    
+    - in prep. for some restructuring to be able to better deal
+      with very large file systems
+    - moved a utility function into index.go
+    - no functionality changes, only code reorg.
+    
+    R=r, adg1
+    CC=golang-dev
+    https://golang.org/cl/2098044
+
+ src/cmd/godoc/Makefile    |   1 +
+ src/cmd/godoc/dirtrees.go | 301 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/godoc/godoc.go    | 299 +--------------------------------------------
+ src/cmd/godoc/index.go    |   9 ++
+ 4 files changed, 312 insertions(+), 298 deletions(-)

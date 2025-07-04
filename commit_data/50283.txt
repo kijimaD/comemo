@@ -1,0 +1,21 @@
+commit 5b1fbfba1c00be5f2e9fd9e75fb7530f218fca40
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 17 13:09:12 2022 -0700
+
+    cmd/compile: rewrite >>c<<c to &^(1<<c-1)
+    
+    Fixes #54496
+    
+    Change-Id: I3c2ed8cd55836d5b07c8cdec00d3b584885aca79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424856
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  11 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 288 +++++++++++++++++++++++++
+ test/codegen/shift.go                          |   9 +
+ 3 files changed, 308 insertions(+)

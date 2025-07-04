@@ -1,0 +1,15 @@
+commit 85647c94e60340285e1e15c854662fc978b4df4e
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 6 03:35:38 2009 -0800
+
+    document fmt.
+    the description of the format verbs still needs to be done.
+    
+    R=rsc
+    DELTA=288  (88 added, 12 deleted, 188 changed)
+    OCL=25814
+    CL=25833
+
+ src/lib/fmt/format.go | 236 +++++++++++++++++++++++++++++---------------------
+ src/lib/fmt/print.go  |  62 ++++++++++---
+ 2 files changed, 187 insertions(+), 111 deletions(-)

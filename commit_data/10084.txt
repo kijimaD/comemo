@@ -1,0 +1,12 @@
+commit 7959aeb0f9d143986f1230d907280b3b9de7f1f7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 25 12:49:51 2011 -0700
+
+    syscall: correct name of mksyscall script in comment
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5310055
+
+ src/pkg/syscall/syscall.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

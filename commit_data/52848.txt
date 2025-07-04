@@ -1,0 +1,28 @@
+commit 6dca1a29ab57576807d84485ff7d908d68e5c008
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Wed Apr 26 10:07:02 2023 +0200
+
+    runtime: add test for systemstack frame pointer adjustment
+    
+    Add TestSystemstackFramePointerAdjust as a regression test for CL
+    489015.
+    
+    By turning stackPoisonCopy into a var instead of const and introducing
+    the ShrinkStackAndVerifyFramePointers() helper function, we are able to
+    trigger the exact combination of events that can crash traceEvent() if
+    systemstack restores a frame pointer that is pointing into the old
+    stack.
+    
+    Updates #59692
+    
+    Change-Id: I60fc6940638077e3b60a81d923b5f5b4f6d8a44c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489115
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+
+ src/runtime/export_test.go | 17 +++++++++++++++++
+ src/runtime/stack.go       |  5 ++++-
+ src/runtime/stack_test.go  | 19 +++++++++++++++++++
+ 3 files changed, 40 insertions(+), 1 deletion(-)

@@ -1,0 +1,24 @@
+commit 29c600bba1279d63a40bc99a7e6212d3f0bffa06
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Oct 12 14:24:39 2016 +0200
+
+    cmd/link: fix build on plan9/amd64
+    
+    Support for multiple text sections was added in CL 27790.
+    However, this change broke the build on plan9/amd64.
+    
+    In relocsym, the R_ADDROFF relocation was changed to
+    use offsets relative to the start of the first text
+    section. However, Segtext.Vaddr is the address of
+    the text segment, while we expect to start from
+    the first section (text.runtime) of the text segment.
+    
+    Fixes #17411.
+    
+    Change-Id: I86bbcbda81cea735b0ecf156eab2e6e5d63acce3
+    Reviewed-on: https://go-review.googlesource.com/30911
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

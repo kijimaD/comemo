@@ -1,0 +1,22 @@
+commit 164f99e584a352631275dbf6bf7a8b77c336a261
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon May 1 00:56:09 2017 +0000
+
+    Revert "cmd/link: replace SHIDDEN bit in SymKind with a bit of Attribute"
+    
+    This reverts commit a69222d949bcc2c4453248ee233b63b75d79967e.
+    
+    Reason for revert: broke ppc64le
+    
+    Change-Id: I57d275177e90f036caf7dbade9669b8121dfa437
+    Reviewed-on: https://go-review.googlesource.com/42194
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/cmd/link/internal/arm64/asm.go  | 2 +-
+ src/cmd/link/internal/ld/data.go    | 2 +-
+ src/cmd/link/internal/ld/ldelf.go   | 9 +++++----
+ src/cmd/link/internal/ld/link.go    | 6 ------
+ src/cmd/link/internal/ld/pe.go      | 4 +---
+ src/cmd/link/internal/ld/symkind.go | 1 +
+ src/cmd/link/internal/ld/symtab.go  | 8 ++------
+ 7 files changed, 11 insertions(+), 21 deletions(-)

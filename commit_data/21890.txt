@@ -1,0 +1,20 @@
+commit e05388335285928b354aa00b9e6ebd3ab4a392b2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 2 15:36:19 2015 -0800
+
+    math/big: implement NaN
+    
+    This change introduces NaNs (for situations like Inf-Inf, etc.).
+    The implementation is incomplete (the four basic operations produce
+    a NaN if any of the operands is an Inf or a NaN); and some operations
+    produce incorrect accuracy for NaN arguments. These are known bugs
+    which are documented.
+    
+    Change-Id: Ia88841209e47930681cef19f113e178f92ceeb33
+    Reviewed-on: https://go-review.googlesource.com/6540
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 603 ++++++++++++++++++++++++++++-----------------
+ src/math/big/float_test.go | 112 ++++++++-
+ src/math/big/floatconv.go  |   5 +
+ 3 files changed, 490 insertions(+), 230 deletions(-)

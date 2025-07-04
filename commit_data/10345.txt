@@ -1,0 +1,14 @@
+commit 3199a6ca8d06ef608080f1ef6c0523ebbbeb0025
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Fri Nov 11 14:40:24 2011 -0500
+
+    ld: fix .bss for ldpe.
+    
+    Fixes #2409.
+    
+    R=mattn.jp, rsc, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5334046
+
+ src/cmd/ld/ldpe.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

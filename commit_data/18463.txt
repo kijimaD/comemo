@@ -1,0 +1,18 @@
+commit 384f4380e8a4fee35ac5ba8449b9fd5cf0865069
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 12 11:58:48 2014 -0500
+
+    crypto/subtle: panic if slices of different lengths are passed to ConstantTimeCompare.
+    
+    ConstantTimeCompare has always been documented to take equal length
+    slices but perhaps this is too subtle, even for 'subtle'.
+    
+    Fixes #7304.
+    
+    LGTM=hanwen, bradfitz
+    R=golang-codereviews, hanwen, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/62190043
+
+ src/pkg/crypto/subtle/constant_time.go | 4 ++++
+ 1 file changed, 4 insertions(+)

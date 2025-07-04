@@ -1,0 +1,19 @@
+commit e9abf1a7166186cdcf84ccfd028c2c66f1ec4788
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 8 13:58:21 2017 +1100
+
+    cmd/link: introduce shNames
+    
+    Introduce a slice that keeps long pe section names as we add them.
+    It will be used later to output pe symbol table and dwarf relocations.
+    
+    For #10776.
+    
+    Change-Id: I02f808a456393659db2354031baf1d4f9e0b2d61
+    Reviewed-on: https://go-review.googlesource.com/36977
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit b6f294def34b14e7a881834830b22eb2830c41ee
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 14 12:03:26 2010 -0700
+
+    godoc documentation: fixed typo, more precise comment
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/2184042
+
+ src/cmd/godoc/doc.go   | 4 ++--
+ src/cmd/godoc/godoc.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

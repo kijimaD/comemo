@@ -1,0 +1,23 @@
+commit c7ae41e5770b2258074eee68a6a3c4d0d71a251f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 28 17:06:59 2016 -0700
+
+    runtime: better error message for newosproc failure
+    
+    If creating a new thread fails with EAGAIN, point the user at ulimit.
+    
+    Fixes #15476.
+    
+    Change-Id: Ib36519614b5c72776ea7f218a0c62df1dd91a8ea
+    Reviewed-on: https://go-review.googlesource.com/24570
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os3_solaris.go  | 3 +++
+ src/runtime/os_dragonfly.go | 1 +
+ src/runtime/os_freebsd.go   | 1 +
+ src/runtime/os_linux.go     | 3 +++
+ src/runtime/os_netbsd.go    | 5 +++++
+ src/runtime/os_openbsd.go   | 3 +++
+ 6 files changed, 16 insertions(+)

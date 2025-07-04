@@ -1,0 +1,12 @@
+commit d687ea5588ef04942e3c1a41bdf31f447258f2b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 12 15:16:47 2010 -0400
+
+    arm: fix syscall build again
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2465041
+
+ src/pkg/syscall/ztypes_linux_arm.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

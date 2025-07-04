@@ -1,0 +1,12 @@
+commit f18b0b0c16c663aad4f66b29c681e5dee8bdeb2a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Feb 18 16:13:02 2012 +1100
+
+    doc: various updates to doc/code.html
+    
+    R=golang-dev, adg, r
+    CC=golang-dev
+    https://golang.org/cl/5649068
+
+ doc/code.html | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

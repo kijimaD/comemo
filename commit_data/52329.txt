@@ -1,0 +1,129 @@
+commit 2c6aaaea6497715b787e8d95a7e6f1fb7b9efcef
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Feb 21 13:20:49 2023 -0500
+
+    cmd/compile/internal/ssa: drop overwritten regalloc basic block input requirements
+    
+    For the following description, consider the following basic block graph:
+    
+          b1 ───┐┌──── b2
+                ││
+                ││
+                ▼▼
+                b3
+    
+    For register allocator transitions between basic blocks, there are two
+    key passes (significant paraphrasing):
+    
+    First, each basic block is visited in some predetermined visit order.
+    This is the core visitOrder range loop in regAllocState.regalloc. The
+    specific ordering heuristics aren't important here, except that the
+    order guarantees that when visiting a basic block at least one of its
+    predecessors has already been visited.
+    
+    Upon visiting a basic block, that block sets its expected starting
+    register state (regAllocState.startRegs) based on the ending register
+    state (regAlloc.State.endRegs) of one of its predecessors. (How it
+    chooses which predecessor to use is not important here.)
+    
+    From that starting state, registers are assigned for all values in the
+    block, ultimately resulting in some ending register state.
+    
+    After all blocks have been visited, the shuffle pass
+    (regAllocState.shuffle) ensures that for each edge, endRegs of the
+    predecessor == startRegs of the successor. That is, it makes sure that
+    the startRegs assumptions actually hold true for each edge. It does this
+    by adding moves to the end of the predecessor block to place values in
+    the expected register for the successor block. These may be moves from
+    other registers, or from memory if the value is spilled.
+    
+    Now on to the actual problem:
+    
+    Assume that b1 places some value v1 into register R10, and thus ends
+    with endRegs containing R10 = v1.
+    
+    When b3 is visited, it selects b1 as its model predecessor and sets
+    startRegs with R10 = v1.
+    
+    b2 does not have v1 in R10, so later in the shuffle pass, we will add a
+    move of v1 into R10 to the end of b2 to ensure it is available for b3.
+    
+    This is all perfectly fine and exactly how things should work.
+    
+    Now suppose that b3 does not use v1. It does need to use some other
+    value v2, which is not currently in a register. When assigning v2 to a
+    register, it finds all registers are already in use and it needs to dump
+    a value. Ultimately, it decides to dump v1 from R10 and replace it with
+    v2.
+    
+    This is fine, but it has downstream effects on shuffle in b2. b3's
+    startRegs still state that R10 = v1, so b2 will add a move to R10 even
+    though b3 will unconditionally overwrite it. i.e., the move at the end
+    of b2 is completely useless and can result in code like:
+    
+    // end of b2
+    MOV n(SP), R10 // R10 = v1 <-- useless
+    // start of b3
+    MOV m(SP), R10 // R10 = v2
+    
+    This is precisely what happened in #58298.
+    
+    This CL addresses this problem by dropping registers from startRegs if
+    they are never used in the basic block prior to getting dumped. This
+    allows the shuffle pass to avoid placing those useless values into the
+    register.
+    
+    There is a significant limitation to this CL, which is that it only
+    impacts the immediate predecessors of an overwriting block. We can
+    discuss this by zooming out a bit on the previous graph:
+    
+    b4 ───┐┌──── b5
+          ││
+          ││
+          ▼▼
+          b1 ───┐┌──── b2
+                ││
+                ││
+                ▼▼
+                b3
+    
+    Here we have the same graph, except we can see the two predecessors of
+    b1.
+    
+    Now suppose that rather than b1 assigning R10 = v1 as above, the
+    assignment is done in b4. b1 has startRegs R10 = v1, doesn't use the
+    value at all, and simply passes it through to endRegs R10 = v1.
+    
+    Now the shuffle pass will require both b2 and b5 to add a move to
+    assigned R10 = v1, because that is specified in their successor
+    startRegs.
+    
+    With this CL, b3 drops R10 = v1 from startRegs, but there is no
+    backwards propagation, so b1 still has R10 = v1 in startRegs, and b5
+    still needs to add a useless move.
+    
+    Extending this CL with such propagation may significantly increase the
+    number of useless moves we can remove, though it will add complexity to
+    maintenance and could potentially impact build performance depending on
+    how efficiently we could implement the propagation (something I haven't
+    considered carefully).
+    
+    As-is, this optimization does not impact much code. In bent .text size
+    geomean is -0.02%. In the container/heap test binary, 18 of ~2500
+    functions are impacted by this CL. Bent and sweet do not show a
+    noticeable performance impact one way or another, however #58298 does
+    show a case where this can have impact if the useless instructions end
+    up in the hot path of a tight loop.
+    
+    For #58298.
+    
+    Change-Id: I2fcef37c955159d068fa0725f995a1848add8a5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471158
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 49 +++++++++++++++++++++++++++++++-
+ 1 file changed, 48 insertions(+), 1 deletion(-)

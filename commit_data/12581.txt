@@ -1,0 +1,24 @@
+commit bccafa72107a60c1443bd405849df94349d3302e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 12 16:49:12 2012 -0400
+
+    cmd/go: respect $GOBIN always
+    
+    Before, we only consulted $GOBIN for source code
+    found in $GOROOT, but that's confusing to explain
+    and less useful.  The new behavior lets users set
+    GOBIN=$HOME/bin and have all go-compiled binaries
+    installed there.
+    
+    Fixes #3269.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5754088
+
+ doc/install-source.html |  5 +++--
+ src/cmd/go/build.go     | 35 ++++++++++++++++++-----------------
+ src/cmd/go/doc.go       |  4 +++-
+ src/cmd/go/help.go      |  4 +++-
+ src/cmd/go/pkg.go       |  4 +++-
+ 5 files changed, 30 insertions(+), 22 deletions(-)

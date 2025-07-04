@@ -1,0 +1,14 @@
+commit 9c5eadf41379b53db38787e70012eeb2de8f41c9
+Author: Pablo Santiago Blum de Aguiar <scorphus@gmail.com>
+Date:   Sat Jul 15 12:13:45 2017 -0600
+
+    strings: add example for IndexByte
+    
+    Change-Id: Ib6a59735381ce744553f1ac96eeb65a194c8da10
+    Reviewed-on: https://go-review.googlesource.com/48860
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/strings/example_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

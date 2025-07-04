@@ -1,0 +1,16 @@
+commit 1afe0105a6c415fe204fcb778e042210f1225b47
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Tue Nov 29 20:40:40 2016 +0000
+
+    net/http: remove logging on bad client requests
+    
+    As discussed in #18095 the server should not log for bad user input.
+    
+    Change-Id: I628a796926eff3a971e5b04abec17ea377c3f9b7
+    Reviewed-on: https://go-review.googlesource.com/33617
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/server.go | 2 --
+ 1 file changed, 2 deletions(-)

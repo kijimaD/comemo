@@ -1,0 +1,17 @@
+commit 8afa086ce67b44abb9c9639efca214db7acf7b3f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri May 2 17:39:25 2014 +0100
+
+    runtime: do not set m->locks around memory allocation
+    If slice append is the only place where a program allocates,
+    then it will consume all available memory w/o triggering GC.
+    This was demonstrated in the issue.
+    Fixes #7922.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, iant, khr
+    https://golang.org/cl/91010048
+
+ src/pkg/runtime/slice.goc | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)

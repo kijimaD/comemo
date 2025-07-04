@@ -1,0 +1,26 @@
+commit 781b2a25190f163af848c04a71adfbbf7ce457e2
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Jun 4 16:30:55 2013 -0700
+
+    cmd/cc: support 21-bit runes in wide string constants
+    
+    Changeset 7557a627e9b5 added a temporary stop-gap to silence
+    a print format warning for %S. This has been reverted.
+    
+    None of this code is original. It was copied from the latest
+    Plan 9 compilers.
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/8630044
+
+ src/cmd/cc/cc.h    |   10 +-
+ src/cmd/cc/cc.y    |   12 +-
+ src/cmd/cc/com.c   |    7 +-
+ src/cmd/cc/dcl.c   |    2 +-
+ src/cmd/cc/lex.c   |   20 +-
+ src/cmd/cc/pswt.c  |   21 +-
+ src/cmd/cc/sub.c   |    5 +-
+ src/cmd/cc/y.tab.c | 1068 ++++++++++++++++++++++++++++++++--------------------
+ src/cmd/cc/y.tab.h |   68 ++--
+ 9 files changed, 742 insertions(+), 471 deletions(-)

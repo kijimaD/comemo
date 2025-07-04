@@ -1,0 +1,14 @@
+commit 6270c5ac28e89322268acd92c14a7a490a53e3a1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 1 09:15:39 2016 -0800
+
+    test: add test case for which gccgo generated incorrect GC info
+    
+    Change-Id: I5e33db9e63f70706882b85ab124a48509797b05a
+    Reviewed-on: https://go-review.googlesource.com/33790
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/bug500.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)

@@ -1,0 +1,18 @@
+commit fe734d8630b7e781399d99d73c88149fff56785e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 20 10:08:48 2009 -0700
+
+    clean up generation of exec header.
+    make endianness explicit when writing values.
+    
+    R=rsc
+    DELTA=129  (37 added, 7 deleted, 85 changed)
+    OCL=31826
+    CL=31854
+
+ src/cmd/6l/asm.c   | 98 +++++++++++++++++++++++++-----------------------------
+ src/cmd/6l/l.h     | 11 ++++--
+ src/cmd/6l/span.c  | 18 +++++-----
+ src/cmd/ld/elf64.c | 83 ++++++++++++++++++++++++++++++---------------
+ src/cmd/ld/elf64.h |  2 ++
+ 5 files changed, 121 insertions(+), 91 deletions(-)

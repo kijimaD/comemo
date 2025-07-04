@@ -1,0 +1,31 @@
+commit 42f4ccb6f9c2f64f3ebe684c6bc81a6f286dd164
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 21 11:26:15 2023 -0700
+
+    cmd/compile/internal/reflectdata: share hmap and hiter types
+    
+    There's no need for distinct hmap and hiter types for each map.
+    
+    Shaves 9kB off cmd/go binary size.
+    
+    Change-Id: I7bc3b2d8ec82e7fcd78c1cb17733ebd8b615990a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521615
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 92 +++++++++++++++----------
+ src/cmd/compile/internal/ssagen/ssa.go          |  4 +-
+ src/cmd/compile/internal/typecheck/subr.go      | 10 +--
+ src/cmd/compile/internal/types/fmt.go           |  4 --
+ src/cmd/compile/internal/types/sizeof_test.go   |  2 +-
+ src/cmd/compile/internal/types/type.go          |  2 -
+ src/cmd/compile/internal/walk/builtin.go        |  4 +-
+ src/cmd/compile/internal/walk/order.go          |  2 +-
+ src/cmd/compile/internal/walk/range.go          |  4 +-
+ test/live.go                                    |  4 +-
+ test/live2.go                                   |  4 +-
+ test/live_regabi.go                             |  4 +-
+ 12 files changed, 69 insertions(+), 67 deletions(-)

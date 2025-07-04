@@ -1,0 +1,21 @@
+commit 2ad521c19a3ba0184349fe3272db1433c8d07138
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Thu Oct 7 11:13:06 2010 +0200
+
+    [568]a: precise linenumbers for statements.
+    
+    R=rsc, ken2, r, rsc1
+    CC=golang-dev
+    https://golang.org/cl/2297042
+
+ src/cmd/5a/a.h     |  5 +++--
+ src/cmd/5a/a.y     |  8 ++++++--
+ src/cmd/5a/lex.c   | 10 +++++-----
+ src/cmd/6a/a.h     |  9 +++++----
+ src/cmd/6a/a.y     |  8 ++++++--
+ src/cmd/6a/lex.c   | 10 +++++-----
+ src/cmd/8a/a.h     |  9 +++++----
+ src/cmd/8a/a.y     |  8 ++++++--
+ src/cmd/8a/lex.c   | 10 +++++-----
+ src/cmd/ld/dwarf.c | 11 ++++++++---
+ 10 files changed, 54 insertions(+), 34 deletions(-)

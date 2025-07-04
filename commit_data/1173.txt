@@ -1,0 +1,16 @@
+commit 34533f06eb30308849ca46a920134d30f2a89de5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 18 19:25:43 2008 -0800
+
+    - support for alignment via tabs instead of blanks
+    - exclude a test due to syntax errors
+    
+    R=r
+    OCL=19563
+    CL=19565
+
+ usr/gri/pretty/printer.go   |  9 ++++++---
+ usr/gri/pretty/tabwriter.go | 43 ++++++++++++++++++++++++++++++++++---------
+ usr/gri/pretty/test.sh      |  2 +-
+ usr/gri/pretty/untab.go     |  3 ++-
+ 4 files changed, 43 insertions(+), 14 deletions(-)

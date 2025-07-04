@@ -1,0 +1,35 @@
+commit 404127c30f3f66eb234da2dc1a78e6eea0ef4ee0
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jul 14 18:52:44 2021 -0400
+
+    cmd/compile: fix off-by-one error in traceback argument counting
+    
+    For traceback argument printing, we want to print at most 10
+    words, then print "..." if there are still more args and/or
+    fields. The current code has off-by-one error that for 11
+    non-aggregate typed args, it prints the first 10 but without the
+    "...". Also, for aggregate-typed args, in some cases it may print
+    an extra "..." when there is actually no more fields.
+    
+    The problem for this is that visitType return false (meaning not
+    to continue visiting) if it reaches the limit anywhere during the
+    recursive visit. It doesn't distinguish whether it has printed
+    anything for the current arg. If it reaches the limit before it
+    prints anything, it means that we're visiting the extra arg/field,
+    so the caller should print "..." and stop. If it prints
+    something then reaches the limit, however, the caller should keep
+    going, and only print "..." at the next iteration when there is
+    actually an extra arg/field. This CL does so.
+    
+    Fixes #47159.
+    
+    Change-Id: I93fc25b73ada2b5a98df780c45e5b0c9565dc2fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334710
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go |  43 +++-----
+ src/runtime/traceback_test.go          | 179 ++++++++++++++++++++++++++++++++-
+ 2 files changed, 190 insertions(+), 32 deletions(-)

@@ -1,0 +1,15 @@
+commit 2da651f11537e05fa394df605570f1429cd084db
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Dec 16 10:32:14 2011 +1100
+
+    ld: allow for IMAGE_REL_AMD64_ADDR32NB relocation type
+    
+    enable cgo again on windows/amd64
+    
+    R=rsc, vcc.163
+    CC=golang-dev
+    https://golang.org/cl/5488074
+
+ src/Make.inc      | 3 ---
+ src/cmd/ld/ldpe.c | 6 ++----
+ 2 files changed, 2 insertions(+), 7 deletions(-)

@@ -1,0 +1,42 @@
+commit a918864c52355d2f73657825b4e0905c9d7fa279
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 13 14:10:06 2017 -0500
+
+    cmd/go: split out cmd/go/internal/cfg
+    
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
+    
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
+    
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
+    
+    For #18653.
+    
+    Change-Id: Icb3f168ade91e7da5fcab89ac75b768daefff359
+    Reviewed-on: https://go-review.googlesource.com/36191
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/bug.go              |  17 +-
+ src/cmd/go/build.go            | 359 +++++++++++++++++++----------------------
+ src/cmd/go/clean.go            |  13 +-
+ src/cmd/go/doc.go              |   4 +-
+ src/cmd/go/env.go              |  65 ++++----
+ src/cmd/go/fix.go              |   7 +-
+ src/cmd/go/generate.go         |  13 +-
+ src/cmd/go/get.go              |  11 +-
+ src/cmd/go/http.go             |   7 +-
+ src/cmd/go/internal/cfg/cfg.go |  59 +++++++
+ src/cmd/go/list.go             |   3 +-
+ src/cmd/go/main.go             |  28 ++--
+ src/cmd/go/pkg.go              |  65 ++++----
+ src/cmd/go/pkg_test.go         |   7 +-
+ src/cmd/go/run.go              |  13 +-
+ src/cmd/go/test.go             |  51 +++---
+ src/cmd/go/testflag.go         |  13 +-
+ src/cmd/go/tool.go             |   5 +-
+ src/cmd/go/vcs.go              |   9 +-
+ src/cmd/go/vet.go              |   3 +-
+ 20 files changed, 401 insertions(+), 351 deletions(-)

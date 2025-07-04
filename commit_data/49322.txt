@@ -1,0 +1,19 @@
+commit 0a30cf9536f06d52a214370e9eeb03f8bcfc1e6a
+Author: Sean Liao <sean@liao.dev>
+Date:   Mon May 23 23:52:21 2022 +0100
+
+    builtin: clarify effect of close on receive
+    
+    Fixes #53041
+    
+    Change-Id: If6580c8f0f14edfdc297d3239a7767ce0570ff79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407975
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/builtin/builtin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

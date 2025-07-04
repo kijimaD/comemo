@@ -1,0 +1,25 @@
+commit 950a56899aaf48da9691fbbfb8f48328863e02fa
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 5 22:42:16 2018 -0700
+
+    cmd/compile: fix method expressions with anonymous receivers
+    
+    Method expressions with anonymous receiver types like "struct { T }.m"
+    require wrapper functions, which we weren't always creating. This in
+    turn resulted in linker errors.
+    
+    This CL ensures that we generate wrapper functions for any anonymous
+    receiver types used in a method expression.
+    
+    Fixes #22444.
+    
+    Change-Id: Ia8ac27f238c2898965e57b82a91d959792d2ddd4
+    Reviewed-on: https://go-review.googlesource.com/105044
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go   |  1 +
+ src/cmd/compile/internal/gc/typecheck.go | 10 ++++++++++
+ test/method7.go                          |  7 +++----
+ 3 files changed, 14 insertions(+), 4 deletions(-)

@@ -1,0 +1,23 @@
+commit fb0c27c514b7d6bbb88b72cfd7baff01e567f6bb
+Author: Damien Neil <dneil@google.com>
+Date:   Fri May 30 14:05:10 2025 -0700
+
+    os: do not follow dangling symlinks in Root when O_CREATE|O_EXCL on AIX
+    
+    OpenFile with O_CREATE|O_EXCL should not follow dangling symlinks.
+    On AIX it does, because AIX's openat(2) apparently returns ELOOP
+    in this case. Most Unices return EEXIST.
+    
+    Ensure that we never follow symlinks in the final component of
+    the path when opening a file with O_CREATE|O_EXCL.
+    
+    Fixes #73924
+    
+    Change-Id: I869afb7faefccb0bb29d155553a7d7e5be80467d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677735
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/os/root_unix.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

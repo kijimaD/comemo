@@ -1,0 +1,17 @@
+commit bf90da97c1aaec78d2f8ad8b74a506d3b6f0ee75
+Author: Sam Whited <sam@samwhited.com>
+Date:   Thu Aug 24 12:39:34 2017 -0500
+
+    cmd/fix: rewrite x/net/context by default
+    
+    Since these are type aliases in Go 1.9 make rewriting
+    golang.org/x/net/context imports to context the default.
+    
+    Change-Id: Ib7ee58b59ea5463b92e1590c8b8f5c0ef87d310b
+    Reviewed-on: https://go-review.googlesource.com/58590
+    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+    Run-TryBot: Sam Whited <sam@samwhited.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/fix/context.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 304cf4dc9b6c289d4e458872d83d8f409ab72c07
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 18:48:45 2011 -0400
+
+    reflect: disallow Interface method on Value obtained via unexported name
+    
+    Had been allowing it for use by fmt, but it is too hard to lock down.
+    Fix other packages not to depend on it.
+    
+    R=r, r
+    CC=golang-dev
+    https://golang.org/cl/5266054
+
+ src/pkg/fmt/fmt_test.go      |  16 +--
+ src/pkg/fmt/print.go         | 247 ++++++++++++++++++++++++++-----------------
+ src/pkg/reflect/all_test.go  | 115 +++++++++++++++-----
+ src/pkg/reflect/deepequal.go |   2 +-
+ src/pkg/reflect/value.go     |  31 +++---
+ test/interface/fake.go       |  40 +++----
+ 6 files changed, 286 insertions(+), 165 deletions(-)

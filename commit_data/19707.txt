@@ -1,0 +1,24 @@
+commit 783bcba84d253227950fa005bf8214a6350d1104
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Jul 10 15:14:37 2014 -0400
+
+    cmd/5c, cmd/5g, cmd/5l, liblink: nacl/arm support
+    
+    LGTM=dave, rsc
+    R=rsc, iant, dave
+    CC=golang-codereviews
+    https://golang.org/cl/108360043
+
+ src/cmd/5c/peep.c  |   4 +
+ src/cmd/5c/reg.c   |  10 ++
+ src/cmd/5c/swt.c   |   2 +-
+ src/cmd/5g/cgen.c  |   2 +-
+ src/cmd/5g/ggen.c  |   4 +-
+ src/cmd/5g/peep.c  |   4 +
+ src/cmd/5g/reg.c   |   4 +
+ src/cmd/5l/5.out.h |   2 +
+ src/cmd/5l/asm.c   |   1 +
+ src/cmd/5l/obj.c   |  13 +-
+ src/liblink/asm5.c | 385 ++++++++++++++++++++++++++++++++++++++++++++++++-----
+ src/liblink/sym.c  |   3 +
+ 12 files changed, 397 insertions(+), 37 deletions(-)

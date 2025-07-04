@@ -1,0 +1,21 @@
+commit 34f3ac5f165d50356d3a8940dc87b77e9b2b7fb9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jun 29 00:07:37 2022 +0700
+
+    cmd/compile: fix generic inter-inter comparisons from value switch statements
+    
+    If value is a non-empty interface and has shape, we still need to
+    convert it to an interface{} first.
+    
+    Fixes #53477
+    
+    Change-Id: I516063ba4429a6cc24c483758387ec13815fc63e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414834
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/noder/stencil.go | 4 ++--
+ test/run.go                               | 1 -
+ 2 files changed, 2 insertions(+), 3 deletions(-)

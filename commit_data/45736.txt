@@ -1,0 +1,17 @@
+commit dc8f87b7493e173d65d3587389cc41468ba16dc0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jun 1 12:22:12 2021 +0200
+
+    runtime/internal/sys: generate //go:build lines in gengoos.go
+    
+    For #41184
+    
+    Change-Id: If7a1c3980f47bc28d0a13fe497eaba6178c65c91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323750
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/internal/sys/gengoos.go | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

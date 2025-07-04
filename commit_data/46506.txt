@@ -1,0 +1,34 @@
+commit 3c764babe7b5e01a4e04b1a2c7975cdb5c5651a0
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Sep 9 09:38:55 2021 -0700
+
+    cmd/go: write go.mod requirements more consistently for go 1.17+
+    
+    If go.mod declares 1.17 or higher, when the go command rewrites go.mod
+    (for example, after 'go mod tidy'), it will be more consistent about
+    moving requirements in two blocks, one containing only direct
+    requirements, and one containing only indirect requirements.
+    
+    The go command will not move requirements into or out of a block with
+    comments. It may still update versions and "// indirect" comments, and
+    it may delete unneeded requirements though.
+    
+    Fixes #47563
+    Fixes #47733
+    
+    Change-Id: Ia6fb3e302be53097893abf01aa7cea60ac7b069a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343432
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go.mod                                     |  11 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/go/testdata/script/mod_all.txt             |  67 ++++-
+ src/cmd/go/testdata/script/mod_retention.txt       |  22 +-
+ .../testdata/script/mod_tidy_compat_ambiguous.txt  |   7 +-
+ .../script/mod_tidy_compat_incompatible.txt        |   7 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go    | 295 ++++++++++++---------
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/go.mod                                         |   3 +
+ 9 files changed, 266 insertions(+), 152 deletions(-)

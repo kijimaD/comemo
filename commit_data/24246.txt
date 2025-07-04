@@ -1,0 +1,26 @@
+commit 5e89acb580dcb09e41c56b638753d7a9467d8614
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 10 15:48:23 2015 -0700
+
+    cmd/asm: fix some fuzz bugs
+    
+    One (12466) was an actual logic error, backing up when there was
+    nothing there. The others were due to continuing to process an
+    instruction when it cannot work.
+    
+    Methodically stop assembling an instruction when it's not going to
+    succeed.
+    
+    Fixes #12466.
+    Fixes #12467.
+    Fixes #12468.
+    
+    Change-Id: I88c568f2b9c1a8408043b2ac5a78f5e2ffd62abd
+    Reviewed-on: https://go-review.googlesource.com/14498
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/asm/internal/asm/asm.go          | 23 +++++++++++++++++++----
+ src/cmd/asm/internal/asm/operand_test.go |  1 +
+ src/cmd/asm/internal/asm/parse.go        | 17 ++++++++++++++---
+ src/cmd/asm/internal/asm/pseudo_test.go  |  2 ++
+ 4 files changed, 36 insertions(+), 7 deletions(-)

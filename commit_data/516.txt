@@ -1,0 +1,12 @@
+commit 2738f42d18a239aa7e58995de7120bc0a4060c79
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 11 13:32:13 2008 -0700
+
+    add test for maps.
+    
+    R=gri
+    OCL=14090
+    CL=14090
+
+ test/map.go | 531 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 531 insertions(+)

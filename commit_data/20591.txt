@@ -1,0 +1,59 @@
+commit c75f81f0edd73d5f7d6528cec795b49c5d205c0c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 30 12:28:24 2014 -0400
+
+    cmd/objdump: move armasm, x86asm into internal packages
+    
+    For Go 1.3 these external packages were collapsed into
+    large single-file implementations stored in the cmd/objdump
+    directory.
+    
+    For Go 1.4 we want pprof to be able to link against them too,
+    so move them into cmd/internal, where they can be shared.
+    
+    The new files are copied from the repo in the file path (rsc.io/...).
+    Those repos were code reviewed during development
+    (mainly by crawshaw and minux), because we knew the
+    main repo would use them.
+    
+    Update #8798
+    
+    LGTM=bradfitz
+    R=crawshaw, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/153750044
+
+ src/cmd/internal/rsc.io/arm/armasm/Makefile        |     2 +
+ src/cmd/internal/rsc.io/arm/armasm/decode.go       |   567 +
+ src/cmd/internal/rsc.io/arm/armasm/decode_test.go  |    69 +
+ src/cmd/internal/rsc.io/arm/armasm/ext_test.go     |   614 +
+ src/cmd/internal/rsc.io/arm/armasm/gnu.go          |   164 +
+ src/cmd/internal/rsc.io/arm/armasm/inst.go         |   438 +
+ src/cmd/internal/rsc.io/arm/armasm/objdump_test.go |   258 +
+ .../internal/rsc.io/arm/armasm/objdumpext_test.go  |   260 +
+ src/cmd/internal/rsc.io/arm/armasm/plan9x.go       |   211 +
+ src/cmd/internal/rsc.io/arm/armasm/tables.go       |  9448 +++++++++++++
+ .../internal/rsc.io/arm/armasm/testdata/Makefile   |     5 +
+ .../internal/rsc.io/arm/armasm/testdata/decode.txt |   306 +
+ src/cmd/internal/rsc.io/x86/x86asm/Makefile        |     3 +
+ src/cmd/internal/rsc.io/x86/x86asm/decode.go       |  1616 +++
+ src/cmd/internal/rsc.io/x86/x86asm/decode_test.go  |    71 +
+ src/cmd/internal/rsc.io/x86/x86asm/ext_test.go     |   811 ++
+ src/cmd/internal/rsc.io/x86/x86asm/gnu.go          |   926 ++
+ src/cmd/internal/rsc.io/x86/x86asm/inst.go         |   641 +
+ src/cmd/internal/rsc.io/x86/x86asm/inst_test.go    |    20 +
+ src/cmd/internal/rsc.io/x86/x86asm/intel.go        |   518 +
+ src/cmd/internal/rsc.io/x86/x86asm/objdump_test.go |   383 +
+ .../internal/rsc.io/x86/x86asm/objdumpext_test.go  |   314 +
+ .../internal/rsc.io/x86/x86asm/plan9ext_test.go    |   120 +
+ src/cmd/internal/rsc.io/x86/x86asm/plan9x.go       |   346 +
+ src/cmd/internal/rsc.io/x86/x86asm/plan9x_test.go  |    54 +
+ src/cmd/internal/rsc.io/x86/x86asm/tables.go       |  9760 +++++++++++++
+ .../internal/rsc.io/x86/x86asm/testdata/Makefile   |    12 +
+ .../internal/rsc.io/x86/x86asm/testdata/decode.txt |  6731 +++++++++
+ src/cmd/internal/rsc.io/x86/x86asm/xed_test.go     |   211 +
+ src/cmd/internal/rsc.io/x86/x86asm/xedext_test.go  |   206 +
+ src/cmd/objdump/armasm.go                          | 10821 ---------------
+ src/cmd/objdump/main.go                            |    11 +-
+ src/cmd/objdump/x86.go                             | 13800 -------------------
+ 33 files changed, 35092 insertions(+), 24625 deletions(-)

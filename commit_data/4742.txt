@@ -1,0 +1,14 @@
+commit 20195bbe6170f604d4067db1297774e45cda905e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 1 17:17:25 2010 +1100
+
+    Fix redirection if the page is in a subdirectory.
+    Fixes buggy links in the devel subdirectory.
+    Code from rsc; tested by me.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/197041
+
+ src/cmd/godoc/godoc.go | 3 +++
+ 1 file changed, 3 insertions(+)

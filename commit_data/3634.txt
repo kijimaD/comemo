@@ -1,0 +1,12 @@
+commit 95499a27ea56797ea3993981cd9cef3451f11a41
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 22 22:19:22 2009 -0700
+
+    Fix printer_test.go to invoke Fprint as a method of cfg.
+    This matches the change to printer.go in revision 3632.
+    
+    R=gri
+    http://go/go-review/1015001
+
+ src/pkg/go/printer/printer_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit a4fb8c13db3f1501f8195306de571b64ed1aeb73
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Nov 1 12:30:54 2015 -0800
+
+    test: add gcc6798, valid code that caused gccgo to crash
+    
+    Change-Id: I288bd3091ea81db7b616747cbec8958a31d98b7e
+    Reviewed-on: https://go-review.googlesource.com/16532
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/gcc67968.dir/a.go | 12 ++++++++++++
+ test/fixedbugs/gcc67968.dir/b.go | 12 ++++++++++++
+ test/fixedbugs/gcc67968.go       | 14 ++++++++++++++
+ 3 files changed, 38 insertions(+)

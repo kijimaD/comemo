@@ -1,0 +1,33 @@
+commit 7aefdfded022f9775eb463156eda3a25a658a0ae
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 6 09:44:41 2017 -0500
+
+    runtime: use 4K as the boundary of legal pointers
+    
+    Currently, the check for legal pointers in stack copying uses
+    _PageSize (8K) as the minimum legal pointer. By default, Linux won't
+    let you map under 64K, but
+    
+    1) it's less clear what other OSes allow or will allow in the future;
+    
+    2) while mapping the first page is a terrible idea, mapping anywhere
+    above that is arguably more justifiable;
+    
+    3) the compiler only assumes the first physical page (4K) is never
+    mapped.
+    
+    Make the runtime consistent with the compiler and more robust by
+    changing the bad pointer check to use 4K as the minimum legal pointer.
+    
+    This came out of discussions on CLs 34663 and 34719.
+    
+    Change-Id: Idf721a788bd9699fb348f47bdd083cf8fa8bd3e5
+    Reviewed-on: https://go-review.googlesource.com/34890
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/ssa/nilcheck.go | 2 ++
+ src/runtime/malloc.go                    | 7 +++++++
+ src/runtime/stack.go                     | 2 +-
+ 3 files changed, 10 insertions(+), 1 deletion(-)

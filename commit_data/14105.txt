@@ -1,0 +1,12 @@
+commit e7c222cada118fe936f61bf257b8c28990c63ecd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 10 11:15:41 2012 +1100
+
+    bytes: make examples work in playground
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6633050
+
+ src/pkg/bytes/example_test.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit b1679e4d03268a6792e6b8d573ac31080d9d9baf
+Author: Nate Wilkinson <nathanwilk7@gmail.com>
+Date:   Mon Feb 12 10:33:27 2018 -0700
+
+    cmd/go: put "go help" list in alphabetical order
+    
+    Fixes #23791
+    
+    Change-Id: I3ded0cd6e9fea14f477f90cf4ad1fb9ff95257f4
+    Reviewed-on: https://go-review.googlesource.com/93416
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go | 256 +++++++++++++++++++++++++-------------------------
+ src/cmd/go/main.go    |   6 +-
+ 2 files changed, 131 insertions(+), 131 deletions(-)

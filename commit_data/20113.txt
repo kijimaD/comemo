@@ -1,0 +1,26 @@
+commit 20e97677fd61dbdca128e9628e28327988c39bb4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 25 07:05:45 2014 -0400
+
+    cmd/gc: fix order of channel evaluation of receive channels
+    
+    Normally, an expression of the form x.f or *y can be reordered
+    with function calls and communications.
+    
+    Select is stricter than normal: each channel expression is evaluated
+    in source order. If you have case <-x.f and case <-foo(), then if the
+    evaluation of x.f causes a panic, foo must not have been called.
+    (This is in contrast to an expression like x.f + foo().)
+    
+    Enforce this stricter ordering.
+    
+    Fixes #8336.
+    
+    LGTM=dvyukov
+    R=golang-codereviews, dvyukov
+    CC=golang-codereviews, r
+    https://golang.org/cl/126570043
+
+ src/cmd/gc/order.c          |  8 ++++++++
+ test/fixedbugs/issue8336.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

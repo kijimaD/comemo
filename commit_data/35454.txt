@@ -1,0 +1,46 @@
+commit f045ddc624dea292257249a618e4ad1bd2bd5c6e
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Jan 26 12:14:27 2018 +0100
+
+    internal/cpu: add experiment to disable CPU features with GODEBUGCPU
+    
+    Needs the go compiler to be build with GOEXPERIMENT=debugcpu to be active.
+    
+    The GODEBUGCPU environment variable can be used to disable usage of
+    specific processor features in the Go standard library.
+    This is useful for testing and benchmarking different code paths that
+    are guarded by internal/cpu variable checks.
+    
+    Use of processor features can not be enabled through GODEBUGCPU.
+    
+    To disable usage of AVX and SSE41 cpu features on GOARCH amd64 use:
+    GODEBUGCPU=avx=0,sse41=0
+    
+    The special "all" option can be used to disable all options:
+    GODEBUGCPU=all=0
+    
+    Updates #12805
+    Updates #15403
+    
+    Change-Id: I699c2e6f74d98472b6fb4b1e5ffbf29b15697aab
+    Reviewed-on: https://go-review.googlesource.com/91737
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/objabi/util.go     |  2 +
+ src/internal/cpu/cpu.go             | 78 ++++++++++++++++++++++++++++++++++--
+ src/internal/cpu/cpu_386.go         |  7 ++++
+ src/internal/cpu/cpu_amd64.go       |  7 ++++
+ src/internal/cpu/cpu_amd64p32.go    |  7 ++++
+ src/internal/cpu/cpu_arm64.go       | 29 ++++++++++++++
+ src/internal/cpu/cpu_arm64_test.go  | 26 ++++++++++++
+ src/internal/cpu/cpu_no_init.go     |  2 +
+ src/internal/cpu/cpu_ppc64x.go      | 16 +++++++-
+ src/internal/cpu/cpu_ppc64x_test.go | 34 ++++++++++++++++
+ src/internal/cpu/cpu_test.go        | 80 +++++++++++++++----------------------
+ src/internal/cpu/cpu_x86.go         | 25 ++++++++++++
+ src/internal/cpu/cpu_x86_test.go    | 47 ++++++++++++++++++++++
+ src/internal/cpu/export_test.go     | 10 +++++
+ src/runtime/proc.go                 | 46 ++++++++++++++++++---
+ 15 files changed, 358 insertions(+), 58 deletions(-)

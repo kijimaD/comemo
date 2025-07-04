@@ -1,0 +1,20 @@
+commit 9d81ade223e105880853ff31d0e04affd2fec488
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 11 00:08:07 2014 -0400
+
+    runtime: make stack growth test shorter
+    
+    It runs too long in -short mode.
+    
+    Disable the one in init, because it doesn't respect -short.
+    
+    Make the part that claims to test execution in a finalizer
+    actually execute the test in the finalizer.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=aram.h, golang-codereviews, iant, khr
+    https://golang.org/cl/86550045
+
+ src/pkg/runtime/stack_test.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

@@ -1,0 +1,20 @@
+commit 09b7f4f12a961ed8dad8a37de782f9403e211562
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Fri Mar 27 07:31:31 2015 +1100
+
+    io: clarify the behavior of PipeWriter.CloseWithError(nil).
+    
+    The previous wording implied that reads would return no error, rather
+    than EOF. It's convenient for users to know that Close() is equivalent
+    to CloseWithError(nil) because it can remove a branch from their error
+    handling code where they want to close the pipe in the appropriate way.
+    For example:
+    
+        https://github.com/jacobsa/gcloud/blob/6e9a8cec0a3f0834da3e9c9725dfe0bf79cccebb/gcs/bucket.go#L637-L643
+    
+    Change-Id: I618bffe556eb518011e7ba5cdce1eb0ff536350e
+    Reviewed-on: https://go-review.googlesource.com/8152
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/io/pipe.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

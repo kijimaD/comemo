@@ -1,0 +1,18 @@
+commit 7732d80ceb1b5ea5c7a7a52c7bcf6f433a7a4d53
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 1 09:25:55 2009 -0800
+
+    misc cleanup
+    
+    R=r
+    http://go/go-review/1016017
+
+ src/clean.bash                      |  1 -
+ src/cmd/gc/dcl.c                    |  2 +-
+ src/pkg/encoding/ascii85/ascii85.go |  3 --
+ src/pkg/exp/datafmt/parser.go       |  1 -
+ src/pkg/reflect/value.go            |  2 +-
+ src/pkg/strconv/decimal.go          |  4 --
+ src/pkg/strconv/ftoa.go             |  4 +-
+ src/pkg/strconv/quote.go            | 79 ++++++++++++++++++-------------------
+ 8 files changed, 43 insertions(+), 53 deletions(-)

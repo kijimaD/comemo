@@ -1,0 +1,13 @@
+commit 1b6402ea9d760d539c347a94b5ecf7f43b43a4df
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Tue Mar 29 01:10:15 2016 +0300
+
+    cmd/link: remove some more dead fields from Pcln
+    
+    Change-Id: Ibb98de29d84a605fb1588c7dc11ad66e3965a137
+    Reviewed-on: https://go-review.googlesource.com/21223
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/cmd/link/internal/ld/link.go | 2 --
+ 1 file changed, 2 deletions(-)

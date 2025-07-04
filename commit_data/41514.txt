@@ -1,0 +1,17 @@
+commit ba0e651130cfe0a8fc8ab2845b2f7c6ae44db1e1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 27 18:56:28 2020 -0800
+
+    cmd/compile: add more amd64 constant simplifications
+    
+    More minor optimization opportunities from CL 220499.
+    
+    Change-Id: Ic4f34c41ed8ab0fce227ac194731c1be12c602db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221608
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  17 ++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 136 +++++++++++++++++++++++++++
+ 2 files changed, 153 insertions(+)

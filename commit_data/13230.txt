@@ -1,0 +1,15 @@
+commit 5b2cd445fbc586e6a1c12420436a5523cd9f8d78
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu May 31 09:10:03 2012 +1000
+
+    cmd/go: add -ccflags
+    
+    Add -ccflags to pass arguments to {5,6,8}c
+    similar to -gcflags for {5,6,8}g.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6260047
+
+ src/cmd/go/build.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

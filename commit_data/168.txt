@@ -1,0 +1,11 @@
+commit a432e09b449d6644adb1abafcbc8a887a7a83d7f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 13 09:09:22 2008 -0700
+
+    Add nil test, with bug
+    
+    SVN=122644
+
+ test/golden.out |  4 ++++
+ test/nil.go     | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

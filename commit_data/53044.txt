@@ -1,0 +1,21 @@
+commit 5f345e8eb995409fec5e1abf231031613885f2ae
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 15 13:53:21 2023 -0700
+
+    os, syscall: permit setting mtime to Unix 0 on Windows
+    
+    This edge case was accidentally broken by CL 219638.
+    
+    Change-Id: I673b3b580fbe379a04f8650cf5969fe9bce83691
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495036
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/file_windows.go         |  3 ++-
+ src/os/os_test.go              | 26 ++++++++++++++++++++++++++
+ src/syscall/syscall_windows.go |  7 +++++--
+ 3 files changed, 33 insertions(+), 3 deletions(-)

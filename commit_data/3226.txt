@@ -1,0 +1,13 @@
+commit a24a26c10727304cde89ad7b17f535bb4a2b3e46
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Sep 6 15:03:51 2009 -0700
+
+    more static init
+    almost done
+    
+    R=rsc
+    OCL=34422
+    CL=34422
+
+ src/cmd/gc/walk.c | 93 +++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 87 insertions(+), 6 deletions(-)

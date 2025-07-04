@@ -1,0 +1,14 @@
+commit 6eb11b2c398b19ab2201487139e569eecebf8626
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 29 14:39:06 2016 -0800
+
+    go/ast: fix doc string for ast.GenDecl
+    
+    Fixes #18109.
+    
+    Change-Id: I5e3a44422794b7bae7741523fb7cacb6ba147af7
+    Reviewed-on: https://go-review.googlesource.com/33669
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/ast/ast.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

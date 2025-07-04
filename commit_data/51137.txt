@@ -1,0 +1,33 @@
+commit e7422b05915759a8e4a8f38382ffd4d38d4fa2ea
+Author: Dan Peterson <danp@danp.net>
+Date:   Sun Nov 6 17:03:00 2022 -0400
+
+    net: adjust build tags for darwin libc calls
+    
+    Support for direct libc calls was added in CL 446178 but the build
+    tags weren't quite activating it when cgo was not enabled. Adjust them
+    and add a new supporting file for darwin.
+    
+    This should use the new direct libc calls with both CGO_ENABLED=0 and
+    CGO_ENABLED=1 when building for darwin.
+    
+    Updates #12524
+    
+    Change-Id: Ieee4b298dee13f389ed3a63c0a4a3a18c9180163
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448020
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Dan Peterson <danp@danp.net>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/cgo_bsd.go          | 2 +-
+ src/net/cgo_darwin.go       | 9 +++++++++
+ src/net/cgo_stub.go         | 2 +-
+ src/net/cgo_unix.go         | 2 +-
+ src/net/cgo_unix_syscall.go | 2 +-
+ src/net/cgo_unix_test.go    | 2 +-
+ src/net/netgo.go            | 4 ++--
+ src/net/netgo_unix_test.go  | 2 +-
+ 8 files changed, 17 insertions(+), 8 deletions(-)

@@ -1,0 +1,22 @@
+commit 3207f038ac10f775c569e12450660c764a3c56af
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Jan 25 15:39:09 2024 -0500
+
+    net/http: allow nothingWrittenError in TestTransportPersistConnReadLoopEOF
+    
+    Flakes in #64317 are a result of a race where the server shutdown
+    schedules ahead of the client read loop. Normal network latency usually
+    hides this, but wasm's net_fake.go has very low latency.
+    
+    Explicitly allow the results of this race in the test.
+    
+    For #64317.
+    
+    Change-Id: I9c2572fb44643762fe3f3d7cb133d7e7a8a47881
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558595
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/net/http/transport_internal_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

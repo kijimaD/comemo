@@ -1,0 +1,12 @@
+commit d11df8baa8c18c7cf14e7286f55ae56f4439d1cd
+Author: Takayoshi Nishida <takayoshi.nishida@gmail.com>
+Date:   Sat Apr 21 23:30:44 2018 +0700
+
+    sort: fix typo in comment
+    
+    Change-Id: Ia2c87473d63175db6cb36a21be0769ae9fcb4f8b
+    Reviewed-on: https://go-review.googlesource.com/108695
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/sort/sort.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

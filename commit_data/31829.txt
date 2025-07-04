@@ -1,0 +1,30 @@
+commit cabf622da864740fdc8b692ee2b8812f15e8a8bd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 14 14:03:46 2017 -0700
+
+    cmd/compile: fix detection of calls to reflect.Method
+    
+    The existing code used Type.String() to obtain the name of a type;
+    specifically type reflect.Method in this case. However, Type.String()
+    formatting is intended for error messages and uses the format
+    pkgpath.name instead of pkgname.name if a package (in this case
+    package reflect) is imported multiple times. As a result, the
+    reflect.Method type detection failed under peculiar circumstances
+    (see the included test case).
+    
+    Thanks to https://github.com/ericlagergren for tracking down
+    an easy way to make the bug disappear (which in turn directly
+    led to the underlying cause).
+    
+    Fixes #19028.
+    
+    Change-Id: I1b9c5dfd183260a9be74969fe916a94146fc36da
+    Reviewed-on: https://go-review.googlesource.com/45777
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go   | 11 ++++++-----
+ test/fixedbugs/issue19028.dir/a.go    |  9 +++++++++
+ test/fixedbugs/issue19028.dir/main.go | 26 ++++++++++++++++++++++++++
+ test/fixedbugs/issue19028.go          | 13 +++++++++++++
+ 4 files changed, 54 insertions(+), 5 deletions(-)

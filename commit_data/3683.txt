@@ -1,0 +1,12 @@
+commit fb12ad063e5a4f5f56ecdf9f37758024105da60c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 30 13:19:04 2009 -0700
+
+    fix build
+    
+    R=agl
+    CC=rsc
+    http://go/go-review/1016008
+
+ src/cmd/cgo/out.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

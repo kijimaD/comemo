@@ -1,0 +1,43 @@
+commit bebf82cbf696002acfde605735e0f454b730df9d
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Fri Sep 15 06:45:15 2023 +0000
+
+    internal/zstd: use circular buffer for backreference window
+    
+    Use circular buffer to reduce data movements.
+    The CL also increases size of bigData to make changes of benchmark results apparent.
+    
+    goos: linux
+    goarch: amd64
+    pkg: internal/zstd
+            │ /tmp/BenchmarkLarge.old │       /tmp/BenchmarkLarge.new       │
+            │         sec/op          │   sec/op     vs base                │
+    Large-8              12.672m ± 1%   9.521m ± 0%  -24.87% (p=0.000 n=10)
+    
+            │ /tmp/BenchmarkLarge.old │       /tmp/BenchmarkLarge.new        │
+            │           B/s           │     B/s       vs base                │
+    Large-8              13.43Mi ± 1%   17.88Mi ± 0%  +33.08% (p=0.000 n=10)
+    
+            │ /tmp/BenchmarkLarge.old │       /tmp/BenchmarkLarge.new        │
+            │          B/op           │     B/op      vs base                │
+    Large-8              58.23Ki ± 5%   41.72Ki ± 1%  -28.35% (p=0.000 n=10)
+    
+            │ /tmp/BenchmarkLarge.old │    /tmp/BenchmarkLarge.new     │
+            │        allocs/op        │ allocs/op   vs base            │
+    Large-8                0.000 ± 0%   0.000 ± 0%  ~ (p=1.000 n=10)
+    
+    Change-Id: Ic03fabfc575c5e6d18bcd5ba1c845aa502c12497
+    GitHub-Last-Rev: 16cb1e13ff61f0fc8c9209cb034f31ec6c37f596
+    GitHub-Pull-Request: golang/go#62625
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528318
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/internal/zstd/block.go       |  6 +--
+ src/internal/zstd/window.go      | 90 ++++++++++++++++++++++++++++++++++++++++
+ src/internal/zstd/window_test.go | 72 ++++++++++++++++++++++++++++++++
+ src/internal/zstd/zstd.go        | 41 ++++--------------
+ src/internal/zstd/zstd_test.go   |  2 +-
+ 5 files changed, 173 insertions(+), 38 deletions(-)

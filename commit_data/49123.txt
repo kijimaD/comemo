@@ -1,0 +1,27 @@
+commit 4d716e4d4a25526ba963a7cfb2b5208eb52e71c0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 24 16:12:34 2022 -0500
+
+    cmd/go/internal/modfetch: simplify handling of weird version tags
+    
+    This fixes an obscure bug in 'go list -versions' if the repo contains
+    a tag with an explicit "+incompatible" suffix. However, I've never
+    seen such a repo in the wild; mostly it's an attempt to wrap my brain
+    around the code and simplify things a bit for the future.
+    
+    Updates #51324
+    Updates #51312
+    
+    Change-Id: I1b078b5db36470cf61aaa85b5244c99b5ee2c842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387917
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modfetch/codehost/codehost.go |  2 +-
+ src/cmd/go/internal/modfetch/codehost/git.go      | 12 ++--
+ src/cmd/go/internal/modfetch/coderepo.go          | 41 +++++++++-----
+ src/cmd/go/internal/modfetch/coderepo_test.go     | 68 +++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_list_odd_tags.txt  | 13 +++++
+ 5 files changed, 113 insertions(+), 23 deletions(-)

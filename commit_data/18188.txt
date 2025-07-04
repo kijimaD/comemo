@@ -1,0 +1,20 @@
+commit f952d45508a463929442180605b7c37caaecc755
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Tue Jan 7 23:53:30 2014 -0500
+
+    all: add solaris build tags
+    
+    R=golang-codereviews, minux.ma, gobot, rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/36040043
+
+ src/cmd/go/signal_unix.go          | 2 +-
+ src/pkg/archive/tar/stat_atim.go   | 2 +-
+ src/pkg/archive/tar/stat_unix.go   | 2 +-
+ src/pkg/crypto/rand/rand_unix.go   | 2 +-
+ src/pkg/crypto/x509/root_unix.go   | 2 +-
+ src/pkg/mime/type_unix.go          | 2 +-
+ src/pkg/path/filepath/path_unix.go | 2 +-
+ src/pkg/time/sys_unix.go           | 2 +-
+ src/pkg/time/zoneinfo_unix.go      | 2 +-
+ 9 files changed, 9 insertions(+), 9 deletions(-)

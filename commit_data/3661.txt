@@ -1,0 +1,22 @@
+commit 32810a5dedf058c12d18c51375e321460bbe887f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 27 10:34:31 2009 -0700
+
+    code search for godoc:
+    - added goroutine to automatically index in the background
+    - added handler for search requests
+    - added search box to top-level godoc template
+    - added search.html template for the display of search results
+    - changes to spec.go because of name conflicts
+    - added extra styles to style.css (for shorter .html files)
+    
+    R=rsc
+    http://go/go-review/1014011
+
+ doc/style.css          |  46 ++++++++++-
+ lib/godoc/godoc.html   |  20 +++--
+ lib/godoc/search.html  |  65 +++++++++++++++
+ src/cmd/godoc/Makefile |   2 +
+ src/cmd/godoc/godoc.go | 209 ++++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/godoc/spec.go  |  16 ++--
+ 6 files changed, 296 insertions(+), 62 deletions(-)

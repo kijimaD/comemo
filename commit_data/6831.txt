@@ -1,0 +1,19 @@
+commit 730e39cd134ba13d1df4a5c0645d6a083fb540bc
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 6 14:23:37 2010 -0500
+
+    fmt: add %U format for standard Unicode representation of integer values.
+            fmt.Printf("%U", 1) yields "U+0001"
+    It's essentially "U+%.4x" but lets you override the precision works in scan, too.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3423043
+
+ src/pkg/fmt/doc.go       |  1 +
+ src/pkg/fmt/fmt_test.go  |  8 ++++++++
+ src/pkg/fmt/format.go    |  8 ++++++++
+ src/pkg/fmt/print.go     | 21 ++++++++++++++++++++-
+ src/pkg/fmt/scan.go      | 37 ++++++++++++++++++++++++++++---------
+ src/pkg/fmt/scan_test.go |  2 ++
+ 6 files changed, 67 insertions(+), 10 deletions(-)

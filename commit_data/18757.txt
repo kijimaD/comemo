@@ -1,0 +1,24 @@
+commit 13e359bdca44f204cbeb3368a0ba44c3bc92d55d
+Author: Kelsey Hightower <kelsey.hightower@gmail.com>
+Date:   Thu Mar 6 06:52:18 2014 +1100
+
+    encoding/gob: improve interface assignment error message
+    
+    During the glob decoding process interface values are set to concrete
+    values after a test for assignability. If the assignability test fails
+    a slightly vague error message is produced. While technically accurate
+    the error message does not clearly describe the problem.
+    
+    Rewrite the error message to include the usage of the word assignable,
+    which makes it clear the concrete value type is not assignable to the
+    interface value type.
+    
+    Fixes #6467.
+    
+    LGTM=r
+    R=golang-codereviews, rsc, r
+    CC=golang-codereviews
+    https://golang.org/cl/71590043
+
+ src/pkg/encoding/gob/decode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

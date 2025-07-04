@@ -1,0 +1,22 @@
+commit 443a32e707d247be219a5e230bfb53167dba2560
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri May 1 10:15:33 2015 +1000
+
+    cmd/8g: don't call gc.Fatal during initalisation
+    
+    Fixes #10592
+    
+    Calling gc.Fatal before gc.Main has been called ends up flushing gc.bstdout before
+    it is properly set up. Ideally obj.Bflush would handle this case, but that type
+    and its callers are rather convoluted, so take the simpler route and avoid calling
+    gc.Fatal altogether.
+    
+    Change-Id: I338b469e86edba558b6bedff35bb904bfc3d6990
+    Reviewed-on: https://go-review.googlesource.com/9525
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/8g/galign.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

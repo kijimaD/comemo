@@ -1,0 +1,22 @@
+commit a64919945bdb65202783c5f9e078c3e735efc58f
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri Jan 27 22:53:25 2023 -0800
+
+    net/http: improve js fetch errors
+    
+    The Error type used in failed fetch invocations contain more
+    information than we're currently extracting. Optimistically
+    look for the cause field for extra context for errors.
+    
+    Change-Id: I6c8e4b230a21ec684af2107707aa605fc2148fcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463978
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Evan Phoenix <evan@phx.io>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+
+ src/net/http/roundtrip_js.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

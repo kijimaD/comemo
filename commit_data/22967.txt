@@ -1,0 +1,26 @@
+commit 7c0db1b7e23e14f7a9cc0c424f57a57a613846d3
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sat May 9 17:21:42 2015 +0000
+
+    cmd/gc: do not display ~b identifiers in error messages
+    
+    Instead of errors like:
+    
+    ./blank2.go:15: cannot use ~b1 (type []int) as type int in assignment
+    
+    we now have:
+    
+    ./blank2.go:15: cannot use _ (type []int) as type int in assignment
+    
+    Less confusing for users.
+    
+    Fixes #9521
+    
+    Change-Id: Ieab9859040e8e0df95deeaee7eeb408d3be61c0f
+    Reviewed-on: https://go-review.googlesource.com/9902
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/gc/fmt.go  |  2 +-
+ test/fixedbugs/issue9521.go | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

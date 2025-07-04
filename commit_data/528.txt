@@ -1,0 +1,12 @@
+commit 68fb2d04d0addfd88c39807d24a5ea58b384f558
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 12 11:38:34 2008 -0700
+
+    use tabs for indentation consistently
+    
+    R=gri
+    OCL=14125
+    CL=14125
+
+ doc/go_lang.txt | 1270 ++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 639 insertions(+), 631 deletions(-)

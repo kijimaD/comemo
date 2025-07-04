@@ -1,0 +1,25 @@
+commit 54f78cf8f1b8deea787803aeff5fb6150d7fac8f
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri Sep 22 13:53:22 2023 +0000
+
+    SECURITY.md: update the Reporting a Vulnerability link
+    
+    The https://go.dev/security is about: "This page provides
+    resources for Go developers to improve security for their
+    projects.", https://go.dev/security/policy is about Go Security Policy.
+    
+    go.dev/security links to go.dev/security/policy,
+    but I think it is better to link directly to go.dev/security/policy
+    in this case.
+    
+    Change-Id: Ic6515961dc48055236bb06cc814072caa10a8f54
+    GitHub-Last-Rev: 37ac8ab440a42679833b67ce96b7fd19ecac6ca3
+    GitHub-Pull-Request: golang/go#63163
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530119
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ SECURITY.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

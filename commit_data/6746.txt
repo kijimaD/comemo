@@ -1,0 +1,13 @@
+commit 013af62ae9cf4c4e34ba40294090b496693a8647
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 10 14:22:40 2010 -0800
+
+    release step 1
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3022041
+
+ .hgtags                |  1 -
+ doc/devel/release.html | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)

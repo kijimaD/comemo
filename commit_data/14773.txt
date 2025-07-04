@@ -1,0 +1,17 @@
+commit ae2131ab3b0ade61a3b21bfea013350a825ad45a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 2 15:34:28 2013 -0500
+
+    cmd/gc: make redeclaration between import and func less confusing
+    
+    Fixes #4510.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7001054
+
+ src/cmd/gc/dcl.c                   | 20 +++++++++++++++++---
+ test/fixedbugs/issue4510.dir/f1.go |  9 +++++++++
+ test/fixedbugs/issue4510.dir/f2.go |  7 +++++++
+ test/fixedbugs/issue4510.go        |  7 +++++++
+ 4 files changed, 40 insertions(+), 3 deletions(-)

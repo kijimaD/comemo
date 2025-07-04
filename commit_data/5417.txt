@@ -1,0 +1,23 @@
+commit 6361f52fc4ae682e3dae3264cee1f45876272c54
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat May 1 13:15:42 2010 -0700
+
+    gc: be pickier about slice, chan, array, and map sizes
+    
+    Fixes #589.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1032044
+
+ src/cmd/gc/align.c        | 10 ++++-
+ src/cmd/gc/builtin.c.boot | 58 ++++++++++++++---------------
+ src/cmd/gc/runtime.go     |  6 +--
+ src/cmd/gc/typecheck.c    | 10 ++---
+ src/cmd/gc/walk.c         | 14 ++++---
+ src/pkg/runtime/chan.c    |  9 +++--
+ src/pkg/runtime/hashmap.c |  9 +++--
+ src/pkg/runtime/runtime.h |  4 +-
+ src/pkg/runtime/slice.c   | 19 ++++++----
+ test/fixedbugs/bug273.go  | 95 +++++++++++++++++++++++++++++++++++++++++++++++
+ 10 files changed, 174 insertions(+), 60 deletions(-)

@@ -1,0 +1,20 @@
+commit 449691b3ef1d93125757037a9ab3f462ccab8f31
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 17:48:19 2022 -0400
+
+    runtime: convert schedt.ngsys to atomic type
+    
+    Note that this converts ngsys from uint32 to int32 to match the other
+    (non-atomic) counters.
+    
+    For #53821.
+    
+    Change-Id: I3acbfbbd1dabc59b0ea5ddc86a97e0d0afa9f80c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419444
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/proc.go     | 12 ++++++------
+ src/runtime/runtime2.go |  2 +-
+ 2 files changed, 7 insertions(+), 7 deletions(-)

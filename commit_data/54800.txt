@@ -1,0 +1,27 @@
+commit b46aec07655bb5536fd9b9dbff0680de805214e8
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Oct 27 15:01:35 2023 +0000
+
+    bytes,internal/bytealg: eliminate HashStrBytes,HashStrRevBytes using …
+    
+    …generics
+    
+    The logic of HashStrBytes, HashStrRevBytes and HashStr, HashStrRev,
+    are exactly the same, except that the types are different.
+    
+    Since the bootstrap toolchain is bumped to 1.20, we can eliminate them
+    by using generics.
+    
+    Change-Id: I4336b1cab494ba963f09646c169b45f6b1ee62e3
+    GitHub-Last-Rev: b11a2bf9476d54bed4bd18a3f9269b5c95a66d67
+    GitHub-Pull-Request: golang/go#63766
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538175
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/bytes/bytes.go              |  2 +-
+ src/internal/bytealg/bytealg.go | 46 ++++++-----------------------------------
+ 2 files changed, 7 insertions(+), 41 deletions(-)

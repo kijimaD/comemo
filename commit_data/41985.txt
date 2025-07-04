@@ -1,0 +1,16 @@
+commit ef5c59d47b7f4376ea8ff54fb0a882528c0f5588
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Apr 17 12:21:24 2020 -0400
+
+    crypto/x509: clarify MarshalPKIXPublicKey and ParsePKIXPublicKey docs
+    
+    Fixes #35313
+    
+    Change-Id: I7be3c40f338de6b1808358ea01e729db8b533ce5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228778
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/x509.go | 4 ++++
+ 1 file changed, 4 insertions(+)

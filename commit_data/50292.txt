@@ -1,0 +1,19 @@
+commit 55ca6a20afb718972f0625ce971081f78efe10bf
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 26 14:38:19 2022 -0400
+
+    runtime: simplify stkframe.argMapInternal
+    
+    Use an early return to reduce indentation and clarify flow.
+    
+    For #54466.
+    
+    Change-Id: I12ce810bea0f22b8707a175dc5ba66241c0a9a21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425936
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/stkframe.go | 99 +++++++++++++++++++++++++------------------------
+ 1 file changed, 50 insertions(+), 49 deletions(-)

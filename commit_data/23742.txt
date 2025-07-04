@@ -1,0 +1,14 @@
+commit 4a0d9587f23b42bb604666a65a81559ff7944dc5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jul 18 10:54:50 2015 +1000
+
+    runtime: skip TestReturnAfterStackGrowInCallback if gcc is not found
+    
+    Fixes #11754
+    
+    Change-Id: Ifa423ca6eea46d1500278db290498724a9559d14
+    Reviewed-on: https://go-review.googlesource.com/12347
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/syscall_windows_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

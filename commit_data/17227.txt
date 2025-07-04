@@ -1,0 +1,18 @@
+commit 13c7896fb69cb42da34c31480207aa4e8de19aa5
+Author: Matt Joiner <anacrolix@gmail.com>
+Date:   Wed Aug 14 09:27:30 2013 -0700
+
+    database/sql: fix accumulation of bad conns on prepared statements
+    
+    Fixes an issue where prepared statements that outlive many
+    connections become expensive to invoke.
+    
+    Fixes #6081
+    
+    R=golang-dev
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/12646044
+
+ src/pkg/database/sql/sql.go      | 7 ++++---
+ src/pkg/database/sql/sql_test.go | 1 -
+ 2 files changed, 4 insertions(+), 4 deletions(-)

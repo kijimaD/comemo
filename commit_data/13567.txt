@@ -1,0 +1,15 @@
+commit 823962c52186415d61f23a819af298dd45ed3a52
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Aug 3 22:05:51 2012 +0200
+
+    cmd/8g: fix miscompilation due to BADWIDTH.
+    
+    Fixes #3899.
+    
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6453084
+
+ src/cmd/8g/gsubr.c       |  1 +
+ test/fixedbugs/bug450.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

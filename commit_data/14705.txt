@@ -1,0 +1,13 @@
+commit c9eb6267dfdbda9e9704477322903688d72ae8dc
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Dec 22 02:39:54 2012 +0800
+
+    cmd/dist: make GOARM detection better compatible with thumb toolchain
+    Fixes #4557.
+    
+    R=dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6946078
+
+ src/cmd/dist/arm.c | 28 +++++++++++++++++++++++++---
+ 1 file changed, 25 insertions(+), 3 deletions(-)

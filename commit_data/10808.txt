@@ -1,0 +1,13 @@
+commit cebf55dc9b2bf6b298f60cf3bffb4ad7a4583f05
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu Dec 15 11:23:01 2011 -0500
+
+    time: new AddDate method
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5465044
+
+ src/pkg/time/time.go      | 14 ++++++++++++++
+ src/pkg/time/time_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+)

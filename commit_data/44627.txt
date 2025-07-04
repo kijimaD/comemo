@@ -1,0 +1,26 @@
+commit 086357e8f617c325339fdaedd13563dbdb05b00d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Mar 12 11:21:38 2021 -0500
+
+    cmd/go: include default GOEXPERIMENT in build config
+    
+    Currently, the build config includes GOEXPERIMENT environment
+    variable if it is not empty, but that doesn't take the default
+    value (set at make.bash/bat/rc time) into consideration. This
+    may cause standard library packages appearing stale, as the
+    build config appears changed.
+    
+    This CL changes it to use cfg.GOEXPERIMENT variable, which
+    includes the default value (if it is not overwritten).
+    
+    May fix regabi and staticlockranking builders.
+    
+    Change-Id: I242f887167f8e99192010be5c1a046eb88ab0c2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301269
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/work/exec.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

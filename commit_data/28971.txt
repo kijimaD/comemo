@@ -1,0 +1,20 @@
+commit 40d4be59ccd83c29a72fb6a9a8c2eee4c91f628b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 21 10:27:57 2016 -0700
+
+    net: make all Resolver methods respect Resolver.PreferGo
+    
+    Fixes #17532
+    
+    Change-Id: Id62671d505c77ea924b3570a504cdc3b157e5a0d
+    Reviewed-on: https://go-review.googlesource.com/31734
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/lookup.go         | 37 +++++++++++++++----------------------
+ src/net/lookup_nacl.go    | 22 +++++++++-------------
+ src/net/lookup_plan9.go   | 22 ++++++++++------------
+ src/net/lookup_unix.go    | 29 ++++++++++++++++-------------
+ src/net/lookup_windows.go | 30 ++++++++++++++----------------
+ 5 files changed, 64 insertions(+), 76 deletions(-)

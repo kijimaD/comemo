@@ -1,0 +1,13 @@
+commit 349095885e0d322d9c774193d925db09333b332a
+Author: Maxim Ushakov <ushakov@google.com>
+Date:   Fri Dec 11 13:04:03 2009 -0800
+
+    encoding/binary: Add support for slices of arrays of fixed-size values.
+    
+    R=rsc
+    CC=krasin
+    https://golang.org/cl/167050
+
+ src/pkg/encoding/binary/binary.go      | 43 +++++++++++++++++++++++++++++-----
+ src/pkg/encoding/binary/binary_test.go | 15 ++++++++++++
+ 2 files changed, 52 insertions(+), 6 deletions(-)

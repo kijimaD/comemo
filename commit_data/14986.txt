@@ -1,0 +1,12 @@
+commit 5a49acc72fd41a8a9b02ac9f4e4c9c41d1bf8c42
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 25 15:35:25 2013 -0800
+
+    CONTRIBUTORS: add Carl Shapiro's golang.org address
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7220046
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

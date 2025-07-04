@@ -1,0 +1,12 @@
+commit 1a7ce9dd59f03d8ad44026d8b19c4466b6ffc420
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Nov 21 08:21:11 2017 +0100
+
+    net: fix typo in parsePort documentation
+    
+    Change-Id: Ia302d9018690cd26890f874c70bd0c429a4b51f0
+    Reviewed-on: https://go-review.googlesource.com/78975
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/port.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

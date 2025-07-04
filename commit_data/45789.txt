@@ -1,0 +1,16 @@
+commit 27f83723e98d8e3795a07bdca2b3a8155b0d72b3
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Jun 9 15:21:39 2021 -0400
+
+    api: promote next to go1.17
+    
+    Change-Id: If631878a2f6ec0317b4fad614f98ab102810ed47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326410
+    Trust: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ api/go1.17.txt | 159 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt   |  99 -----------------------------------
+ 2 files changed, 159 insertions(+), 99 deletions(-)

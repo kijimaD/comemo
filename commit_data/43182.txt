@@ -1,0 +1,16 @@
+commit 39d562ecea74bb41aa8fbb9d016fa64165e84bb3
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Mon Oct 5 17:51:54 2020 +0200
+
+    misc/ios: fixup review comments from CL 255257
+    
+    Change-Id: I247fc9e0e26e706e6af07367f953eaa1b7e544c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259577
+    Trust: Elias Naur <mail@eliasnaur.com>
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ misc/ios/detect.go      | 2 +-
+ misc/ios/go_ios_exec.go | 8 ++++----
+ 2 files changed, 5 insertions(+), 5 deletions(-)

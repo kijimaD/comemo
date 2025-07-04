@@ -1,0 +1,15 @@
+commit 71d9e956a00e95f734f633056882475832d534f4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 30 13:12:59 2012 +0100
+
+    cmd/api: handle contexts re-converging
+    
+    Fixes #4303
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6816058
+
+ src/cmd/api/goapi.go      | 35 +++++++++++++++++++++++++----------
+ src/cmd/api/goapi_test.go | 21 ++++++++++++++++++---
+ 2 files changed, 43 insertions(+), 13 deletions(-)

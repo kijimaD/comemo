@@ -1,0 +1,20 @@
+commit 32002079083e533e11209824bd9e3a797169d1c4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 28 20:03:41 2017 +0000
+
+    doc: document the state of NetBSD in the Go 1.9 release notes
+    
+    Updates #20836
+    Updates #19339
+    Updates #19652
+    Updates #20835
+    Updates #16511
+    Updates #10166
+    Updates #8574
+    
+    Change-Id: If9a7f560489f1a8d628dafab227925bd8989326e
+    Reviewed-on: https://go-review.googlesource.com/47036
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.9.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

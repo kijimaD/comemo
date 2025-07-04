@@ -1,0 +1,16 @@
+commit 7c96d87eda45c93bf7218b79bc8ba85a3a21b066
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Oct 12 20:56:12 2018 +0200
+
+    test/codegen: test ppc64 TrailingZeros, OnesCount codegen
+    
+    This change adds codegen tests for the intrinsification on ppc64 of
+    the OnesCount{64,32,16,8}, and TrailingZeros{64,32,16,8} math/bits
+    functions.
+    
+    Change-Id: Id3364921fbd18316850e15c8c71330c906187fdb
+    Reviewed-on: https://go-review.googlesource.com/c/141897
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ test/codegen/mathbits.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

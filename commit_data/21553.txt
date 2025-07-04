@@ -1,0 +1,49 @@
+commit f3b73e040c24c5a589373e431b91babc249640bc
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 10 23:51:25 2015 -0500
+
+    cmd/dist: fetch version when needed, instead of at init
+    
+    Currently, if there is a VERSION.cache, running make.bash will set
+    runtime.theVersion to the revision as of the *last* make.bash run
+    instead of the current make.bash run.
+    
+    For example,
+    
+    $ git rev-parse --short HEAD
+    5c4a86d
+    $ ./make.bash
+    ...
+    $ cat ../VERSION.cache
+    devel +5c4a86d Tue Feb 10 01:46:30 2015 +0000
+    $ git checkout a1dbb92
+    $ ./make.bash
+    ...
+    $ go version
+    go version devel +5c4a86d Tue Feb 10 01:46:30 2015 +0000 linux/amd64
+    $ ./make.bash
+    ...
+    $ go version
+    go version devel +a1dbb92 Tue Feb 10 02:31:27 2015 +0000 linux/amd64
+    
+    This happens because go tool dist reads the potentially stale
+    VERSION.cache into goversion during early initialization; then cleans,
+    which deletes VERSION.cache; then builds the runtime using the stale
+    revision read in to goversion.  It isn't until make later in the build
+    process, when make.bash invokes go tool dist again, that VERSION.cache
+    gets updated with the current revision.
+    
+    To address this, simply don't bother fetching the version until go
+    tool dist needs it and don't bother caching the value in memory.  This
+    is more robust since it interacts with cleaning in the expected ways.
+    Futhermore, there's no downside to eliminating the in-memory cache;
+    the file system cache is perfectly reasonable for the whole three
+    times make.bash consults it.
+    
+    Change-Id: I8c480100e56bb2db0816e8a088177004d9e87973
+    Reviewed-on: https://go-review.googlesource.com/4540
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/build.go        | 8 +++-----
+ src/cmd/dist/buildruntime.go | 2 +-
+ 2 files changed, 4 insertions(+), 6 deletions(-)

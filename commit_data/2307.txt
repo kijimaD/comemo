@@ -1,0 +1,16 @@
+commit 1f0f2e44a9f4c304ca320bf57dda4ff9aa4f8643
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 26 14:34:32 2009 -0700
+
+    6ar: explain why __.SYMDEF didn't get put in.
+    
+    people using ar for non-object archives
+    will just have to deal with the warnings.
+    
+    R=r
+    DELTA=3  (2 added, 0 deleted, 1 changed)
+    OCL=29384
+    CL=29398
+
+ src/cmd/ar/ar.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit d4bfe006155ea0d9c2970e22fca5a027125c8a98
+Author: David Chase <drchase@google.com>
+Date:   Wed Apr 21 10:28:27 2021 -0400
+
+    cmd/go: make build cache tag sensitive to GOSSADIR; remove unused
+    
+    GOSSADIR is a useful compiler flag for debugging.
+    Removed GO_SSA_PHI_LOC_CUTOFF, it is no longer mentioned in the compiler.
+    
+    Change-Id: I3600f4c6ded95c9d34b85a6f0da6ba89b17a13ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312290
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/work/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

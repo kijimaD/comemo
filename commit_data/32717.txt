@@ -1,0 +1,30 @@
+commit 0d8a3b208c7356c08c29df79319149985b0a46b8
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Sep 13 15:04:16 2017 +0200
+
+    cmd/compile: add TestIntendedInlining from runtime
+    
+    Move it from the runtime package, as we will soon add more packages and
+    functions for it to check.
+    
+    The test used the testEnv func, which cleaned certain environment
+    variables from a command, so it was moved to internal/testenv under a
+    more descriptive (and less ambiguous) name. Add a simple godoc to it
+    too.
+    
+    For #21851.
+    
+    Change-Id: I6f39c1f23b45377718355fafe66ffd87047d8ab6
+    Reviewed-on: https://go-review.googlesource.com/63550
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/compile/internal/gc/inl_test.go | 51 +++++++++++++++++++++++++++++++++
+ src/internal/testenv/testenv.go         | 22 ++++++++++++++
+ src/runtime/crash_cgo_test.go           | 18 ++++++------
+ src/runtime/crash_test.go               | 33 +++++----------------
+ src/runtime/crash_unix_test.go          |  8 +++---
+ src/runtime/runtime-gdb_test.go         |  6 ++--
+ src/runtime/runtime_test.go             | 42 ---------------------------
+ 7 files changed, 96 insertions(+), 84 deletions(-)

@@ -1,0 +1,20 @@
+commit ff5b54d24a7fda589d3fc4516aa153a3f2e1a224
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 17 11:36:29 2018 -0400
+
+    runtime: disable compressed DWARF for lldb test
+    
+    lldb doesn't support compressed DWARF, so right now we're just always
+    skipping the lldb test. This CL makes the test run again by disabling
+    compressed DWARF just for this test.
+    
+    Updates #25925.
+    
+    Change-Id: Ib9ddc442305fe6d37060d48f36bc4458b6fd8c86
+    Reviewed-on: https://go-review.googlesource.com/124385
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/runtime-lldb_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

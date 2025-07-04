@@ -1,0 +1,12 @@
+commit a3caf073a584a17eb0a7a17e1ce2ec014bae9a5c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Mar 3 00:50:18 2012 +0800
+
+    net: during short test, don't bother timeout longer than expected
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5716053
+
+ src/pkg/net/timeout_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

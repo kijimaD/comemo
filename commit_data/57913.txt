@@ -1,0 +1,52 @@
+commit e534989d18dce2c3b80b883f27f652b746c9f3a3
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Thu Sep 19 19:50:23 2024 +0800
+
+    cmd/compile/internal: intrinsify publicationBarrier on loong64
+    
+    The publication barrier is a StoreStore barrier, which is implemented
+    by "DBAR 0x1A" [1] on loong64.
+    
+    goos: linux
+    goarch: loong64
+    pkg: runtime
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                         |   bench.old   |  bench.new                            |
+                         |    sec/op     |   sec/op        vs base               |
+    Malloc8                 31.76n ± 0%     22.79n ± 0%   -28.24% (p=0.000 n=20)
+    Malloc8-2               25.46n ± 0%     18.33n ± 0%   -28.00% (p=0.000 n=20)
+    Malloc8-4               25.75n ± 0%     18.43n ± 0%   -28.41% (p=0.000 n=20)
+    Malloc16                62.97n ± 0%     42.41n ± 0%   -32.65% (p=0.000 n=20)
+    Malloc16-2              49.11n ± 0%     31.68n ± 0%   -35.50% (p=0.000 n=20)
+    Malloc16-4              49.64n ± 1%     31.95n ± 0%   -35.62% (p=0.000 n=20)
+    MallocTypeInfo8         58.57n ± 0%     46.51n ± 0%   -20.61% (p=0.000 n=20)
+    MallocTypeInfo8-2       51.43n ± 0%     38.01n ± 0%   -26.09% (p=0.000 n=20)
+    MallocTypeInfo8-4       51.65n ± 0%     38.15n ± 0%   -26.13% (p=0.000 n=20)
+    MallocTypeInfo16        68.07n ± 0%     51.62n ± 0%   -24.17% (p=0.000 n=20)
+    MallocTypeInfo16-2      54.73n ± 0%     41.13n ± 0%   -24.85% (p=0.000 n=20)
+    MallocTypeInfo16-4      55.05n ± 0%     41.28n ± 0%   -25.02% (p=0.000 n=20)
+    MallocLargeStruct       491.5n ± 0%     454.8n ± 0%    -7.47% (p=0.000 n=20)
+    MallocLargeStruct-2     351.8n ± 1%     323.8n ± 0%    -7.94% (p=0.000 n=20)
+    MallocLargeStruct-4     333.6n ± 0%     316.7n ± 0%    -5.10% (p=0.000 n=20)
+    geomean                 71.01n          53.78n        -24.26%
+    
+    [1]: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    
+    Change-Id: Ica0c89db6f2bebd55d9b3207a1c462a9454e9268
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577515
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/cmd/compile/internal/loong64/ssa.go            | 7 +++++++
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules    | 3 +++
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    | 3 +++
+ src/cmd/compile/internal/ssa/opGen.go              | 8 ++++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go     | 3 +++
+ src/cmd/compile/internal/ssagen/intrinsics.go      | 2 +-
+ src/cmd/compile/internal/ssagen/intrinsics_test.go | 1 +
+ src/runtime/atomic_loong64.s                       | 2 +-
+ 8 files changed, 27 insertions(+), 2 deletions(-)

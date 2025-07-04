@@ -1,0 +1,32 @@
+commit b02233402961621e1cd705d79dcf63387daadea2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 17 21:43:33 2013 -0500
+
+    cmd/gc: implement -pack flag
+    
+    The -pack flag causes 5g, 6g, 8g to write a Go archive directly,
+    instead of requiring the use of 'go tool pack' to convert the .5/.6/.8
+    to .a format.
+    
+    Writing directly avoids the copy and also avoids having the
+    export data stored twice in the archive (once in __.PKGDEF,
+    once in .5/.6/.8).
+    
+    A separate CL will enable the use of this flag by cmd/go.
+    
+    Other build systems that do not know about -pack will be unaffected.
+    
+    The changes to cmd/ld handle a minor simplification to the format:
+    an unused section is removed.
+    
+    R=iant, r
+    CC=golang-dev
+    https://golang.org/cl/42880043
+
+ src/cmd/gc/export.c |  5 ++---
+ src/cmd/gc/go.h     |  1 +
+ src/cmd/gc/lex.c    | 12 +++++++-----
+ src/cmd/gc/obj.c    | 52 ++++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/ld/go.c     | 21 ++-------------------
+ src/cmd/ld/lib.c    | 21 +++++++++------------
+ 6 files changed, 71 insertions(+), 41 deletions(-)

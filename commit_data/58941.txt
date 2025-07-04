@@ -1,0 +1,18 @@
+commit f27d86c631188239362d2db78fd36440743dac2e
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Mar 3 14:46:18 2025 -0800
+
+    cmd/compile: add tests for too-large shift amounts
+    
+    Update #72018
+    
+    Change-Id: I3188019658c37da3c31f06472023b39e13170ebf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654316
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/test/shift_test.go | 203 ++++++++++++++++++++++++++++
+ 1 file changed, 203 insertions(+)

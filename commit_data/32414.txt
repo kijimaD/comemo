@@ -1,0 +1,26 @@
+commit 8bbae3d5c9589635225b3a614ffda33989e1f424
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Aug 18 18:40:12 2017 +0200
+
+    cmd/compile: make argument length mismatch in mkcall an error
+    
+    mkcall is used to construct calls to builtin functions.
+    
+    Instead of silently ignoring any additional arguments to mkcall
+    abort compilation with an error.
+    
+    This protects against accidentally supplying too many arguments to mkcall
+    when compiler changes are made.
+    
+    Change appendslice and copyany to construct calls to
+    slicestringcopy and slicecopy explicitly instead of
+    relying on the old behavior as a feature.
+    
+    Change-Id: I3cfe815a57d454a129e3c08aac824f6107779a42
+    Reviewed-on: https://go-review.googlesource.com/57770
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 32 ++++++++++++++++++++------------
+ 1 file changed, 20 insertions(+), 12 deletions(-)

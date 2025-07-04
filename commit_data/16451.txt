@@ -1,0 +1,18 @@
+commit af7f7b7515a335b593049f04d4fedff7c7c7d128
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri May 31 15:53:26 2013 -0700
+
+    lib9/utf: remove unneccesary includes
+    
+    R=golang-dev, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8651043
+
+ src/lib9/utf/rune.c     | 2 --
+ src/lib9/utf/utfecpy.c  | 2 +-
+ src/lib9/utf/utflen.c   | 2 --
+ src/lib9/utf/utfnlen.c  | 2 --
+ src/lib9/utf/utfrrune.c | 1 -
+ src/lib9/utf/utfrune.c  | 1 -
+ src/lib9/utf/utfutf.c   | 1 -
+ 7 files changed, 1 insertion(+), 10 deletions(-)

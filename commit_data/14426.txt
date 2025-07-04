@@ -1,0 +1,33 @@
+commit 38458ce3fea94ed9c89eb2dc78be9bc79b2b0c66
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Nov 18 02:23:34 2012 +0800
+
+    crypto/md5: speed up aligned writes and test/bench unaligned writes
+    Write() can safely use uint32 loads when input is aligned.
+    Also add test and benchmarks for unaligned writes.
+    
+    Benchmark result obtained by Dave Cheney on ARMv5TE @ 1.2GHz:
+    benchmark                       old ns/op    new ns/op    delta
+    BenchmarkHash8Bytes                  4104         3417  -16.74%
+    BenchmarkHash1K                     22061        11208  -49.20%
+    BenchmarkHash8K                    146630        65148  -55.57%
+    BenchmarkHash8BytesUnaligned         4128         3436  -16.76%
+    BenchmarkHash1KUnaligned            22054        21473   -2.63%
+    BenchmarkHash8KUnaligned           146658       146909   +0.17%
+    
+    benchmark                        old MB/s     new MB/s  speedup
+    BenchmarkHash8Bytes                  1.95         2.34    1.20x
+    BenchmarkHash1K                     46.42        91.36    1.97x
+    BenchmarkHash8K                     55.87       125.74    2.25x
+    BenchmarkHash8BytesUnaligned         1.94         2.33    1.20x
+    BenchmarkHash1KUnaligned            46.43        47.69    1.03x
+    BenchmarkHash8KUnaligned            55.86        55.76    1.00x
+    
+    R=golang-dev, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6782072
+
+ src/pkg/crypto/md5/gen.go      |  2 ++
+ src/pkg/crypto/md5/md5_test.go | 42 ++++++++++++++++++++++++++++++++++--------
+ src/pkg/crypto/md5/md5block.go |  2 ++
+ 3 files changed, 38 insertions(+), 8 deletions(-)

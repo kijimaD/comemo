@@ -1,0 +1,13 @@
+commit d79b17e60a36639edfecbae370a04b815e908a5f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 26 16:12:43 2008 -0700
+
+    - Make Coco/R-based parser work w/ UTF-8 encoded files even if there is
+      no (optional) UTF-8 marker present.
+    
+    SVN=113931
+
+ test/char_lit.go   | 5 ++---
+ test/runtests.sh   | 3 ++-
+ test/string_lit.go | 8 ++++----
+ 3 files changed, 8 insertions(+), 8 deletions(-)

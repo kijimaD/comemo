@@ -1,0 +1,12 @@
+commit 33145c48682523177ac1cf62ee6b86eed680fffa
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Mon Dec 27 10:05:32 2010 -0800
+
+    simple fix to not have 'exp/eval' panic in presence of slices like s[:2]
+    
+    R=golang-dev, gri
+    CC=binet, golang-dev
+    https://golang.org/cl/3782044
+
+ src/pkg/exp/eval/expr.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

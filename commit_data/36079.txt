@@ -1,0 +1,20 @@
+commit 50df4b30cc5f4e7cc504ada0c1276399be3c37c2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 18 14:40:20 2018 -0400
+
+    cmd/go: document $GOPROXY, other module adjustments
+    
+    Also document module use of GOPATH including GOPATH/src/mod
+    and GOPATH/bin (unless GOBIN is set).
+    
+    Fixes #26399.
+    Fixes #26406.
+    
+    Change-Id: I7be8eaf110f4fa6fc76ea4cd39aea3dd8addf0b0
+    Reviewed-on: https://go-review.googlesource.com/124707
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/help/helpdoc.go   | 34 ++++++++++++++---
+ src/cmd/go/internal/modfetch/proxy.go | 69 ++++++++++++++++++++++++++++++++++-
+ src/cmd/go/internal/modload/help.go   | 22 ++++++++++-
+ 3 files changed, 116 insertions(+), 9 deletions(-)

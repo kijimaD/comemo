@@ -1,0 +1,15 @@
+commit 96f968df9ca9533b5f6bd04bc288a047e275b9a2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 21 08:30:47 2011 -0700
+
+    http: add a (disabled) test for TLS handshake timeouts
+    
+    It's currently broken and disabled, pending a fix
+    for Issue 2281.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5092045
+
+ src/pkg/http/serve_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

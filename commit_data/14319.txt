@@ -1,0 +1,15 @@
+commit 2355409988305be158a55bfa5817ab2351fce825
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 6 11:36:59 2012 -0800
+
+    cmd/gc: don't require that slice index constants be small ints
+    
+    The test for this is test/index.go, which is not run by
+    default.
+    
+    R=remyoudompheng, rsc
+    CC=golang-dev
+    https://golang.org/cl/6812089
+
+ src/cmd/gc/walk.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

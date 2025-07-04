@@ -1,0 +1,15 @@
+commit 9cd759aecc97c2044df015d624d323277444740f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue May 20 15:52:08 2014 +1000
+
+    misc/makerelease: handle update tour file layout
+    
+    Fixes #7835.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/94670044
+
+ misc/makerelease/makerelease.go | 1 -
+ 1 file changed, 1 deletion(-)

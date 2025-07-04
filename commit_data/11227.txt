@@ -1,0 +1,12 @@
+commit dcc5fe1e204c7ad19b302c87e4b2ee2aecd1ff82
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Wed Jan 18 09:40:50 2012 -0800
+
+    pkg/bytes: add the usual copyright notice to example_test.go
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5553050
+
+ src/pkg/bytes/example_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

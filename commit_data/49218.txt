@@ -1,0 +1,31 @@
+commit 2a6e13843d5bc0a380ce7081e33db9b636e394f9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 9 17:19:58 2022 -0700
+
+    cmd/compile/internal/ir: more idiomatic DynamicType{,AssertExpr}
+    
+    Rename DynamicType's "X" field to "RType".
+    
+    Split DynamicTypeAssertExpr's "T" field into "RType" and "ITab", the
+    same as DynamicType, updating all uses accordingly.
+    
+    Change-Id: I8cec8171349c93234a10ac50708f800dee6fb1d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405334
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ir/expr.go           | 37 +++++++++++++++------------
+ src/cmd/compile/internal/ir/node_gen.go       | 18 ++++++++-----
+ src/cmd/compile/internal/ir/type.go           | 24 +++++++++++++----
+ src/cmd/compile/internal/noder/reader.go      | 28 +++++++++++++++-----
+ src/cmd/compile/internal/noder/stencil.go     | 10 +++++---
+ src/cmd/compile/internal/ssagen/ssa.go        | 17 +++++++-----
+ src/cmd/compile/internal/typecheck/iexport.go | 12 ++++-----
+ src/cmd/compile/internal/typecheck/iimport.go |  3 +++
+ src/cmd/compile/internal/walk/expr.go         |  5 ++--
+ src/cmd/compile/internal/walk/order.go        |  3 ++-
+ src/cmd/compile/internal/walk/switch.go       | 13 +++-------
+ 11 files changed, 107 insertions(+), 63 deletions(-)

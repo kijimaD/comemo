@@ -1,0 +1,12 @@
+commit 92b7b4821359e1e43a630cc6471a94600b6ab386
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Oct 15 08:42:31 2011 +1100
+
+    doc: add go-tour-kr, a Korean translation of A Tour of Go
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5273043
+
+ doc/docs.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

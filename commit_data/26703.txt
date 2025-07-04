@@ -1,0 +1,21 @@
+commit c1c7547f6ad7264c1d6eea3fc1645b2eab104694
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 4 13:31:08 2016 -0700
+
+    net/http: add Request.Context and Request.WithContext
+    
+    Currently only used by the client. The server is not yet wired up.  A
+    TODO remains to document how it works server-side, once implemented.
+    
+    Updates #14660
+    
+    Change-Id: I27c2e74198872b2720995fa8271d91de200e23d5
+    Reviewed-on: https://go-review.googlesource.com/21496
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/go/build/deps_test.go      |  3 ++-
+ src/net/http/request.go        | 37 +++++++++++++++++++++++++++++++++++++
+ src/net/http/response_test.go  |  7 ++++++-
+ src/net/http/transport.go      |  9 +++++++++
+ src/net/http/transport_test.go | 21 +++++++++++++++++----
+ 5 files changed, 71 insertions(+), 6 deletions(-)

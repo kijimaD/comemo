@@ -1,0 +1,16 @@
+commit 42d62946946eb0e6dc55fe76973c84eafd113154
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Apr 1 11:49:25 2016 +1100
+
+    crypto/x509: fix build break on darwin/{arm,arm64}
+    
+    Fix build error on darwin/{arm,arm64} caused by a62ae9f6.
+    
+    Change-Id: I7da4d147a529b11b3e71352a9276a57595ec4b05
+    Reviewed-on: https://go-review.googlesource.com/21356
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/root_darwin_arm_gen.go | 2 +-
+ src/crypto/x509/root_darwin_armx.go    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

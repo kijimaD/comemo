@@ -1,0 +1,12 @@
+commit 5960f835cadeb41d7a6864f4e0e5b51b9a477ca6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 3 13:04:02 2010 -0700
+
+    CONTRIBUTORS: Rietveld alias for brad@danga.com
+    
+    R=adg
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/1715060
+
+ CONTRIBUTORS | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

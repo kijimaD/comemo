@@ -1,0 +1,12 @@
+commit be96fa5a2e3e146a4bb4ba28f2b2c0f9c8e37b71
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sun Jul 31 12:59:58 2011 +1000
+
+    go_faq: drop a dramatic comma.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4809064
+
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

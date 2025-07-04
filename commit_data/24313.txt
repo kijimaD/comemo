@@ -1,0 +1,19 @@
+commit 3f08151ec34cebbe4f95ab87cf0f01d77c3d84df
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 17 11:06:27 2015 -0700
+
+    go/types: cleanup handling of multi-valued expressions
+    
+    - more uniform error messages
+    - removed unused code
+    
+    Change-Id: I625d5c2e51a543450ad091f97cec538023ddb1dd
+    Reviewed-on: https://go-review.googlesource.com/14692
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/assignments.go      | 13 ++-----------
+ src/go/types/call.go             | 25 ++++++++++++-------------
+ src/go/types/expr.go             |  7 ++++---
+ src/go/types/testdata/expr3.src  |  2 +-
+ src/go/types/testdata/issues.src | 16 ++++++++--------
+ 5 files changed, 27 insertions(+), 36 deletions(-)

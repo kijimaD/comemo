@@ -1,0 +1,18 @@
+commit 467a6d28be15cfef05870262345201b133dc1a89
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Sep 3 20:47:30 2014 +0400
+
+    runtime: adopt race detector for runtime written in Go
+    Ignore memory access on g0/gsignal.
+    See the issue for context and explanation.
+    Fixes #8627.
+    
+    LGTM=khr
+    R=golang-codereviews, mdempsky, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/137070043
+
+ src/pkg/runtime/cpuprof.go | 10 +++-------
+ src/pkg/runtime/proc.c     |  8 +++++---
+ src/pkg/runtime/race.c     | 10 ++++++++++
+ 3 files changed, 18 insertions(+), 10 deletions(-)

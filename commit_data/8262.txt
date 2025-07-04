@@ -1,0 +1,12 @@
+commit df2c5d5429cb52abcf5933bef6c6ba701a65f5ab
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 28 11:36:06 2011 -0700
+
+    http: update cookie doc to reference new RFC 6265
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/4442100
+
+ src/pkg/http/cookie.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

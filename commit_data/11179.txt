@@ -1,0 +1,14 @@
+commit 8ba9191264f881a3ac5f11ff4a26ef1b359d776e
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Jan 15 19:52:45 2012 -0500
+
+    CONTRIBUTORS: add Johnathan Pittman
+    
+    (Google CLA)
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5544072
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

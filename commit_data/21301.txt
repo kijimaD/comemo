@@ -1,0 +1,42 @@
+commit 3965d7508ef6387c1e524e812fda6ccef221723b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 16 14:43:38 2015 -0500
+
+    runtime: factor out bitmap, finalizer code from malloc/mgc
+    
+    The code in mfinal.go is moved from malloc*.go and mgc*.go
+    and substantially unchanged.
+    
+    The code in mbitmap.go is also moved from those files, but
+    cleaned up so that it can be called from those files (in most cases
+    the code being moved was not already a standalone function).
+    I also renamed the constants and wrote comments describing
+    the format. The result is a significant cleanup and isolation of
+    the bitmap code, but, roughly speaking, it should be treated
+    and reviewed as new code.
+    
+    The other files changed only as much as necessary to support
+    this code movement.
+    
+    This CL does NOT change the semantics of the heap or type
+    bitmaps at all, although there are now some obvious opportunities
+    to do so in followup CLs.
+    
+    Change-Id: I41b8d5de87ad1d3cd322709931ab25e659dbb21d
+    Reviewed-on: https://go-review.googlesource.com/2991
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/gcinfo_test.go |  56 +--
+ src/runtime/heapdump.go    |  45 ++-
+ src/runtime/malloc.go      | 478 ++----------------------
+ src/runtime/malloc1.go     |   4 +-
+ src/runtime/malloc2.go     |  13 +
+ src/runtime/mbarrier.go    |  14 +-
+ src/runtime/mbitmap.go     | 889 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mcentral.go    |   6 +-
+ src/runtime/mfinal.go      | 380 +++++++++++++++++++
+ src/runtime/mgc.go         | 880 +++-----------------------------------------
+ src/runtime/mgc1.go        |  80 ----
+ src/runtime/stack1.go      |  16 +-
+ src/runtime/type.go        |   2 +-
+ 13 files changed, 1425 insertions(+), 1438 deletions(-)

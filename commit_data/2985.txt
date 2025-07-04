@@ -1,0 +1,18 @@
+commit 84852fe220ba0980bd46f5828f50761e5f86c9d0
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Aug 14 14:36:49 2009 -0700
+
+    Make the runtime correctly decode the symbol table history
+    stacks produced by whole-package compilation.
+    
+    Fix some off-by-ones in PC/line table parsing.  Hopefully.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=42  (24 added, 6 deleted, 12 changed)
+    OCL=33250
+    CL=33293
+
+ src/libmach/sym.c        |  6 ++----
+ src/pkg/runtime/symtab.c | 48 ++++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 36 insertions(+), 18 deletions(-)

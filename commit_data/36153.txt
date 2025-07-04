@@ -1,0 +1,23 @@
+commit b294fe9b0a9a0b9032cb2ecf9924e4c90f8de0ac
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jul 25 15:56:43 2018 -0400
+
+    cmd/go: prohibit modules from importing vendored golang_org packages
+    
+    Expand mod_internal tests to cover vendoring, replacements, and failure
+    messages.
+    
+    Packages beginning with "golang_org/" resolve to $GOROOT/src/vendor, and should
+    therefore not be visible within module code.
+    
+    Fixes #23970.
+    
+    Change-Id: I706e9c4a1d1e025883e84b897972678d0fa3f2bd
+    Reviewed-on: https://go-review.googlesource.com/125836
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/load/pkg.go             | 34 ++++++++++++++++++---
+ src/cmd/go/testdata/script/mod_internal.txt | 47 ++++++++++++++++++++++++++---
+ 2 files changed, 72 insertions(+), 9 deletions(-)

@@ -1,0 +1,32 @@
+commit f30c564529b8297eadfd2441679e5ffe0f9850b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 23 16:49:44 2019 -0400
+
+    cmd/go: add support for GOPROXY list
+    
+    Following discussion on golang.org/issue/26334, this CL changes
+    the GOPROXY environment setting to be a list of proxies, tried in
+    sequence. The first successful or non-404/410 error is taken as
+    authoritative. Otherwise the next proxy is tried, and so on.
+    
+    As in earlier releases, GOPROXY=direct means "connect directly",
+    but now it can appear in a longer list as well.
+    
+    This will let companies run a proxy holding only their private modules
+    and let users set GOPROXY=thatproxy,publicproxy or GOPROXY=thatproxy,direct
+    to fall back to an alternate mechanism for fetching public modules.
+    
+    Fixes #26334.
+    
+    Change-Id: I642f0ae655ec307d9cdcad0830c0baac8670eb9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173441
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go                         |   9 +-
+ src/cmd/go/internal/modfetch/proxy.go         | 226 ++++++++++++++++++++++----
+ src/cmd/go/internal/modfetch/repo.go          |   4 +
+ src/cmd/go/proxy_test.go                      |  11 ++
+ src/cmd/go/testdata/script/mod_proxy_list.txt |  29 ++++
+ 5 files changed, 249 insertions(+), 30 deletions(-)

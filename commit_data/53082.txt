@@ -1,0 +1,23 @@
+commit 3d46eedbc97ddb25384307dea063021ba7b59c06
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 12 15:04:21 2023 -0400
+
+    cmd/dist: simplify work list functions
+    
+    There are no uses of addCmd, so delete it. The only use of bgDirCmd is
+    dirCmd, so inline it. Now the only function that interacts with the
+    work queue is registerTest and dist's "background commands" are used
+    exclusively in goTest.bgCommand and registerTest (which calls
+    goTest.bgCommand).
+    
+    For #37486.
+    
+    Change-Id: Iebbb24cf9dbee45f3975fe9504d858493e1cd947
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494956
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/dist/test.go | 33 ++++++---------------------------
+ 1 file changed, 6 insertions(+), 27 deletions(-)

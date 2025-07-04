@@ -1,0 +1,59 @@
+commit 73edd7b20868825223bce7947587fb1a1ddab213
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Apr 3 18:27:17 2016 +0000
+
+    cmd/link: simplify readSymName, taking advantage of bufio.Reader
+    
+    Now that cmd/link uses bufio.Reader, take advantage of it.
+    I find this new version easier to reason about.
+    
+    Reduces allocations by 1.1% when linking a basic HTTP server.
+    
+    Numbers are stable with each round measuring using:
+    rm prof.mem; go tool link -o foo  -memprofile=prof.mem -memprofilerate=1 foo.a
+    
+    Before:
+    
+    65.36MB of 74.53MB total (87.70%)
+    Dropped 157 nodes (cum <= 0.37MB)
+    Showing top 10 nodes out of 39 (cum >= 1.47MB)
+          flat  flat%   sum%        cum   cum%
+       21.48MB 28.81% 28.81%    21.48MB 28.81%  cmd/link/internal/ld.Linklookup
+       16.04MB 21.52% 50.33%    16.04MB 21.52%  cmd/link/internal/ld.(*objReader).readSlices
+        4.61MB  6.19% 56.52%     4.61MB  6.19%  cmd/link/internal/ld.(*objReader).readSymName
+        4.51MB  6.05% 62.57%     6.32MB  8.48%  cmd/link/internal/ld.writelines
+        4.50MB  6.03% 68.60%     4.50MB  6.03%  cmd/link/internal/ld.Symgrow
+        4.02MB  5.39% 73.99%     4.02MB  5.39%  cmd/link/internal/ld.linknew
+        3.98MB  5.34% 79.33%     3.98MB  5.34%  cmd/link/internal/ld.setaddrplus
+        2.96MB  3.97% 83.30%    28.78MB 38.62%  cmd/link/internal/ld.(*objReader).readRef
+        1.81MB  2.43% 85.73%     1.81MB  2.43%  cmd/link/internal/ld.newcfaoffsetattr
+        1.47MB  1.97% 87.70%     1.47MB  1.97%  cmd/link/internal/ld.(*objReader).readSym
+    
+    After:
+    
+    64.66MB of 73.87MB total (87.53%)
+    Dropped 156 nodes (cum <= 0.37MB)
+    Showing top 10 nodes out of 40 (cum >= 1.47MB)
+          flat  flat%   sum%        cum   cum%
+       21.48MB 29.08% 29.08%    21.48MB 29.08%  cmd/link/internal/ld.Linklookup
+       16.04MB 21.71% 50.79%    16.04MB 21.71%  cmd/link/internal/ld.(*objReader).readSlices
+        4.51MB  6.10% 56.90%     6.32MB  8.56%  cmd/link/internal/ld.writelines
+        4.50MB  6.09% 62.99%     4.50MB  6.09%  cmd/link/internal/ld.Symgrow
+        4.02MB  5.44% 68.42%     4.02MB  5.44%  cmd/link/internal/ld.linknew
+        3.98MB  5.38% 73.81%     3.98MB  5.38%  cmd/link/internal/ld.setaddrplus
+        3.90MB  5.28% 79.09%     3.90MB  5.28%  cmd/link/internal/ld.(*objReader).readSymName
+        2.96MB  4.01% 83.09%    28.08MB 38.01%  cmd/link/internal/ld.(*objReader).readRef
+        1.81MB  2.45% 85.55%     1.81MB  2.45%  cmd/link/internal/ld.newcfaoffsetattr
+        1.47MB  1.99% 87.53%     1.47MB  1.99%  cmd/link/internal/ld.(*objReader).readSym
+    
+    Also tested locally with asserts that that the calculated length is
+    always correct and thus the adjName buf never reallocates.
+    
+    Change-Id: I19e3e8bfa6a12bcd8b5216f6232f42c122e4f80e
+    Reviewed-on: https://go-review.googlesource.com/21481
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/objfile.go | 37 +++++++++++++++++++++++--------------
+ 1 file changed, 23 insertions(+), 14 deletions(-)

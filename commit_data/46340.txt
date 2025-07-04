@@ -1,0 +1,22 @@
+commit 3fff213ac24dc3b9b92c8a1f5f18ec0c97bac4c0
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Aug 31 08:01:44 2021 -0700
+
+    cmd/compile: add CONVIFACE nodes needed in generic code due to assignments
+    
+    Added new function earlyTransformAssign() to add needed CONVIFACE nodes
+    due to assignments in generic functions.
+    
+    Fixes #48049
+    
+    Change-Id: I7cd9cee6ecf34ed2ef0743d1b17645b9f520fa00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347914
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/stmt.go      |  3 ++
+ src/cmd/compile/internal/noder/transform.go | 53 +++++++++++++++++++++++++++++
+ test/typeparam/issue48049.go                | 33 ++++++++++++++++++
+ 3 files changed, 89 insertions(+)

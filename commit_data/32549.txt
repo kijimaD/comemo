@@ -1,0 +1,35 @@
+commit b0392159f611427ad351548e172048395bc4ac5a
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 21 14:25:28 2017 -0400
+
+    runtime,cmd/trace: trace GC STW events
+    
+    Right now we only kind of sort of trace GC STW events. We emit events
+    around mark termination, but those start well after stopping the world
+    and end before starting it again, and we don't emit any events for
+    sweep termination.
+    
+    Fix this by generalizing EvGCScanStart/EvGCScanDone. These were
+    already re-purposed to indicate mark termination (despite the names).
+    This commit renames them to EvGCSTWStart/EvGCSTWDone, adds an argument
+    to indicate the STW reason, and shuffles the runtime to generate them
+    right before stopping the world and right after starting the world,
+    respectively.
+    
+    These events will make it possible to generate precise minimum mutator
+    utilization (MMU) graphs and could be useful in detecting
+    non-preemptible goroutines (e.g., #20792).
+    
+    Change-Id: If95783f370781d8ef66addd94886028103a7c26f
+    Reviewed-on: https://go-review.googlesource.com/55411
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/cmd/trace/trace.go                             |   6 +-
+ src/internal/trace/parser.go                       |  65 ++++++++++++++-------
+ src/internal/trace/testdata/http_1_10_good         | Bin 0 -> 2201 bytes
+ src/internal/trace/testdata/stress_1_10_good       | Bin 0 -> 370999 bytes
+ .../trace/testdata/stress_start_stop_1_10_good     | Bin 0 -> 6338 bytes
+ src/runtime/mgc.go                                 |  31 +++++-----
+ src/runtime/proc.go                                |   7 ++-
+ src/runtime/trace.go                               |  14 ++---
+ 8 files changed, 73 insertions(+), 50 deletions(-)

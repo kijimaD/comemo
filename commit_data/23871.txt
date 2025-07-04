@@ -1,0 +1,18 @@
+commit a7e81c37f4f52da7188082b1384e42d14ec8f586
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Thu Jul 23 14:56:13 2015 +0200
+
+    cmd/go: avoid long lines in help messages
+    
+    Reformat some help messages to stay within 80 characters.
+    
+    Fixes #11840.
+    
+    Change-Id: Iebafcb616f202ac44405e5897097492a79a51722
+    Reviewed-on: https://go-review.googlesource.com/12514
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/alldocs.go | 43 +++++++++++++++++++++++--------------------
+ src/cmd/go/doc.go     | 41 +++++++++++++++++++++--------------------
+ src/cmd/go/run.go     |  3 ++-
+ 3 files changed, 46 insertions(+), 41 deletions(-)

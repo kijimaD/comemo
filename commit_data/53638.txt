@@ -1,0 +1,22 @@
+commit da5d8fdd0c8963ca8f355088bf810c030eb7da27
+Author: Chris O'Hara <cohara87@gmail.com>
+Date:   Wed Jun 14 12:16:38 2023 +1000
+
+    runtime: run wasip1 tests with wazero
+    
+    The latest wazero release supports non-blocking I/O and pre-opened
+    sockets. Unmask the relevant wasip1 tests so that there are multiple
+    WebAssembly runtimes exercising these code paths.
+    
+    Change-Id: I8506ab35186f98fde2cd3ce84634d5fcb7b053f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503595
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+
+ src/runtime/internal/wasitest/nonblock_test.go | 2 --
+ src/runtime/internal/wasitest/tcpecho_test.go  | 2 ++
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 0b071e40195c7f202933d3b3ec3da3b4f40cd472
+Author: diplozoon <huyuumi.dev@gmail.com>
+Date:   Fri Oct 26 05:03:15 2018 +0000
+
+    cmd/go: add /v2 to go.mod require example
+    
+    I added /v2 to go.mod require example
+    
+    Fixes #28374
+    
+    Change-Id: I74cca374838d106eb79acb9189a02fe9443962c0
+    Reviewed-on: https://go-review.googlesource.com/c/144917
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/internal/modload/help.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

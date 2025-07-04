@@ -1,0 +1,12 @@
+commit de2feeafdcd41a7ba2ff67299d4ccd33ad2fdf75
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jun 24 15:47:22 2014 -0700
+
+    race.bash: support freebsd
+    
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/110150044
+
+ src/race.bash | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

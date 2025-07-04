@@ -1,0 +1,53 @@
+commit 76d39ae3499238ac7efb731f4f4cd47b1b3288ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 4 09:21:14 2023 -0500
+
+    cmd/link, runtime: Apple libc atfork workaround take 3
+    
+    CL 451735 worked around bugs in Apple's atfork handlers by calling
+    notify_is_valid_token and xpc_atfork_child at startup, so that init
+    code that wouldn't be safe in the child process would be warmed up in
+    the parent process instead, but xpc_atfork_child broke use of the xpc
+    library in Go programs, and xpc is internally used by various macOS
+    frameworks (#57263).
+    
+    CL 459175 reverted that change, and then CL 459176 tried a new
+    approach: use __fork, which doesn't call any of the atfork handlers at all.
+    That worked, but an Apple engineer reviewing the change in private
+    email suggests that since __fork is not public API, it should be avoided.
+    The same engineer (with access to the source code for the xpc library)
+    suggests that the breakage in #57263 is caused by xpc_atfork_child
+    marking the library as unusable, expecting an imminent call to exec,
+    and that calling xpc_date_create_from_current instead would do the
+    necessary initialization without marking xpc as unusable.
+    
+    CL 460475 reverted that change, to prepare for this one.
+    
+    This CL goes back to the original “call functions to warm things up”
+    approach, replacing xpc_atfork_child with xpc_date_create_from_current.
+    
+    The CL also updates cmd/link to use OS and SDK version 10.13.0 for
+    x86 macOS binaries, up from 10.9.0, also suggested by the Apple engineer.
+    Combined with the two warmup calls, this makes the fork hangs go away.
+    The minimum macOS version has been 10.13 High Sierra since Go 1.17,
+    so there should be no problem with writing that in the binaries too.
+    
+    Fixes #33565.
+    Fixes #56784.
+    Fixes #57263.
+    Fixes #57577.
+    
+    Change-Id: I20769d9daa1fe9ea930f8009481335f8a14dc21b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460476
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/macho.go |  7 +++++--
+ src/runtime/os_darwin.go          |  2 ++
+ src/runtime/sys_darwin.go         | 42 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/sys_darwin_amd64.s    |  9 +++++++++
+ src/runtime/sys_darwin_arm64.s    |  6 ++++++
+ 5 files changed, 64 insertions(+), 2 deletions(-)

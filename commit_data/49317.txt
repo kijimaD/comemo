@@ -1,0 +1,24 @@
+commit 62e130226767a088ace196da90a774c9a9d14689
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon May 23 20:20:07 2022 -0400
+
+    misc/cgo/testsanitizers: use buffered channel in tsan12.go
+    
+    os/signal.Notify requires that "the caller must ensure that c has
+    sufficient buffer space to keep up with the expected signal rate"
+    as it does a nonblocking send when it receives a signal. The test
+    currently using a unbuffered channel, which means it may miss the
+    signal if the signal arrives before the channel receive operation.
+    
+    Fixes #52998.
+    
+    Change-Id: Icdcab9396d735506480ef880fb45a4669fa7cc8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407888
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/cgo/testsanitizers/testdata/tsan12.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

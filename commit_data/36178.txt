@@ -1,0 +1,18 @@
+commit 6b9c782f9fe7c2f241776f39527714bcfcc24910
+Author: Daniela Petruzalek <daniela.petruzalek@gmail.com>
+Date:   Wed Aug 1 00:19:55 2018 +0000
+
+    strconv: clarify "g" and "G" precision in the docs
+    
+    Fix the wording in "strconv" and "fmt" to make explicit
+    that the "g" and "G" formats remove trailing zeroes.
+    
+    Fixes #25082
+    
+    Change-Id: I2e2ad0a98d2ea27a3a8a006a0563b366f7a3b71b
+    Reviewed-on: https://go-review.googlesource.com/127135
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/doc.go      | 9 +++++----
+ src/strconv/ftoa.go | 7 ++++---
+ 2 files changed, 9 insertions(+), 7 deletions(-)

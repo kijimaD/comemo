@@ -1,0 +1,14 @@
+commit 62d4b8ebd2c00e3c3d54d05dc7fe56d829b5aa01
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Aug 4 08:20:53 2011 -0400
+
+    http: correct path to serve index.html.
+    calling filepath.FromSlash(x) make invalid character to serve file.
+    Fixes #2128
+    
+    R=golang-dev, alex.brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/4810064
+
+ src/pkg/http/fs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

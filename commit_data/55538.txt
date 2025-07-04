@@ -1,0 +1,24 @@
+commit adbf71eb9869caef8eb61471c0e6a93ead7479e1
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Oct 26 15:10:23 2023 -0500
+
+    cmd/internal/obj/ppc64: combine C_SBRA and C_LBRA optab classes
+    
+    The assembler treats C_SBRA and C_LBRA optab classes identically,
+    combine them into one class to reduce the number of optab classes.
+    
+    Likewise, C_LBRAPIC is renamed to C_BRAPIC for consistency with
+    the above change.
+    
+    Change-Id: I47000e7273cb8f89a4d0621d71433ccbfb7afb70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557916
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/obj/ppc64/a.out.go    |  5 ++---
+ src/cmd/internal/obj/ppc64/anames9.go  |  5 ++---
+ src/cmd/internal/obj/ppc64/asm9.go     | 31 +++++++++++++------------------
+ src/cmd/internal/obj/ppc64/asm_test.go |  4 ++--
+ 4 files changed, 19 insertions(+), 26 deletions(-)

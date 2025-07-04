@@ -1,0 +1,13 @@
+commit 836643400cccf84c06591f92e8ca1d1f52962bf3
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Tue Dec 7 15:28:26 2010 -0500
+
+    build: Allow archiver to be specified in the environment with HOST_AR.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2515043
+
+ src/Make.clib | 2 +-
+ src/Make.inc  | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

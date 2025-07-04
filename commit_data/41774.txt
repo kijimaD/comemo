@@ -1,0 +1,17 @@
+commit 78a45d8b4592dbd38057a2e9af83c9cf9d62ddc9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 26 09:13:11 2020 -0700
+
+    runtime: lock mtxpoll in AIX netpollBreak
+    
+    netpollBreak calls netpollwakeup, and netpollwakeup expects the mtxpoll
+    lock to be held, so that it has exclusive access to pendingUpdates.
+    Not acquiring the lock was a mistake in CL 171824. Fortunately it
+    rarely matters in practice.
+    
+    Change-Id: I32962ec2575c846ef3d6a91a4d821b2ff02d983c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225618
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/netpoll_aix.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,25 @@
+commit 34fb2b2ed5687ec85aa8c1db1481bb4f31b35b29
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 29 11:36:44 2021 -0700
+
+    cmd/compile/internal/types2: review of decl.go
+    
+    The changes between (equivalent, and reviewed) go/types/decl.go
+    and decl.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker and a minor comment
+    update.
+    
+    The primary differences to go/types/decl.go are:
+    - use of syntax rather than go/ast package
+    - use of error_ objects to collect follow-on error info
+    - use of check.conf.Trace rather than global trace flag
+    - more aggressively marking variables as used in the presence errors
+    - not using a walkDecl abstraction for const/var/type declarations
+    
+    Change-Id: I5cf26779c9939b686a3dbaa4d38fdd0c154a92ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305570
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/decl.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

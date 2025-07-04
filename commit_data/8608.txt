@@ -1,0 +1,13 @@
+commit f4f5836840c8d4654957ad66f519cdf130f1ebf0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jun 3 15:27:28 2011 +1000
+
+    dashboard: add favicon.ico
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4547082
+
+ misc/dashboard/godashboard/app.yaml           |   4 ++++
+ misc/dashboard/godashboard/static/favicon.ico | Bin 0 -> 785 bytes
+ 2 files changed, 4 insertions(+)

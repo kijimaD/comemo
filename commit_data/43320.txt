@@ -1,0 +1,30 @@
+commit e981936855383883edb5fcc85a196c485b15f0f9
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Oct 6 17:08:31 2020 -0400
+
+    cmd/internal/obj/ppc64,cmd/asm/internal/asm/testdata: fix up ppc64 testcases
+    
+    When a fix was made at the end of the last release related to
+    NOPs, it was discovered that the ppc64.s testcase was out of date
+    and contained comments that weren't being processed. Essentially the
+    instructions in that test were being assembled but there was no
+    verification that the encodings weres correct. The ppc64enc.s file
+    was mostly complete and included the valid encodings for verification.
+    This change moves ppc64enc.s to ppc64.s and adds the instructions
+    that were missing.
+    
+    This also adds a minor fix to asm9.go on the assembly of the
+    addex that was discovered during this testing.
+    
+    Change-Id: Iaada1563b137849ad195fa88f32ecc9ab3e1e95f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260217
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/asm/internal/asm/endtoend_test.go    |    4 -
+ src/cmd/asm/internal/asm/testdata/ppc64.s    | 2006 +++++++++-----------------
+ src/cmd/asm/internal/asm/testdata/ppc64enc.s |  642 ---------
+ src/cmd/internal/obj/ppc64/asm9.go           |    2 +-
+ 4 files changed, 707 insertions(+), 1947 deletions(-)

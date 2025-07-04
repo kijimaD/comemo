@@ -1,0 +1,14 @@
+commit 4710e16d34354a555cc6ebe54c6855bf5502fcbf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 30 13:50:03 2016 -0700
+
+    cmd/compile: cleanup addmethod
+    
+    Change-Id: Icb1671187d70edd962e2bda2cc45771b17a8e770
+    Reviewed-on: https://go-review.googlesource.com/28175
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go | 71 +++++++++++++++-----------------------
+ 1 file changed, 28 insertions(+), 43 deletions(-)

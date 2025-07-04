@@ -1,0 +1,16 @@
+commit 3f442ab06242d76c17f909fc7fc2de7908f3fc1c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 11 16:19:42 2023 -0500
+
+    doc/go1.22: document archive/tar and archive/zip changes
+    
+    For #61422.
+    
+    Change-Id: Icf56cba0ac40b46caf3072bf2951b07403f47f36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548939
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ doc/go1.22.html | 20 ++++++--------------
+ 1 file changed, 6 insertions(+), 14 deletions(-)

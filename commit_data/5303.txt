@@ -1,0 +1,12 @@
+commit a8c18e14ef62ce2bf043fd088f023a6d7be34bad
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Apr 16 17:40:49 2010 +1000
+
+    add Sam Thorogood (of Google Inc.) to CONTRIBUTORS
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/890048
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

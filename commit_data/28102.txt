@@ -1,0 +1,22 @@
+commit 595cebb055d327e52bd447985b53dcca869cea1d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 29 10:37:13 2016 -0700
+
+    cmd/compile: remove ignored bool from exported ODCL nodes
+    
+    This shortens the export format by 1 byte for each exported ODCL
+    node in inlined function bodies.
+    
+    Maintain backward compatibility by updating format version and
+    continue to accept older format.
+    
+    Change-Id: I549bb3ade90bc0f146decf8016d5c9c3f14eb293
+    Reviewed-on: https://go-review.googlesource.com/27999
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 14 ++------------
+ src/cmd/compile/internal/gc/bimport.go | 18 +++++++++---------
+ src/cmd/compile/internal/gc/builtin.go |  4 ++--
+ src/go/internal/gcimporter/bimport.go  |  4 ++--
+ 4 files changed, 15 insertions(+), 25 deletions(-)

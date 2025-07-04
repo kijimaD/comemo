@@ -1,0 +1,19 @@
+commit 9f52b5ab146572213bfd40463cbf2a513310a2bc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 3 10:08:50 2017 -0400
+
+    cmd/dist: fix mkdeps
+    
+    Mistake introduced just before submitting CL 67650 that somehow
+    did not break a final pre-submit all.bash on my laptop.
+    
+    Not sure why all.bash passes locally when mkdeps.go doesn't build.
+    I guess the test only runs on builders?
+    
+    Change-Id: I18fb91ada47605035345ba4b2f5e360a5c4b7f6e
+    Reviewed-on: https://go-review.googlesource.com/67850
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/mkdeps.go | 1 +
+ 1 file changed, 1 insertion(+)

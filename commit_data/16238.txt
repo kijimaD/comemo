@@ -1,0 +1,14 @@
+commit 5c20a4f2608f80ca6a81b76b2e8b5df15128b3f3
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 30 11:21:48 2013 +0800
+
+    encoding/json: document that marshaling invalid utf-8 sequence will return error
+    Also added docs for InvalidUTF8Error.
+    Fixes #5360.
+    
+    R=golang-dev, adg, r
+    CC=golang-dev
+    https://golang.org/cl/8926046
+
+ src/pkg/encoding/json/encode.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

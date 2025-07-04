@@ -1,0 +1,15 @@
+commit fd2bc8681d10d3ca98647f4911e498d4e341ab65
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Nov 25 14:27:26 2015 +1300
+
+    runtime: fix conflict resolution in golang.org/cl/14207
+    
+    Fixes testshared on arm64 and ppc64le.
+    
+    Change-Id: Ie94bc0c85c7666fbb5ab6fc6d3dbb180407a9955
+    Reviewed-on: https://go-review.googlesource.com/17212
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/asm_arm64.s  | 1 +
+ src/runtime/asm_ppc64x.s | 1 +
+ 2 files changed, 2 insertions(+)

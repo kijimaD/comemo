@@ -1,0 +1,25 @@
+commit 34416d7f6f93cd6562636e311c362ebe421f1a4c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 5 12:56:04 2023 -0800
+
+    cmd/compile: fix escape analysis of string min/max
+    
+    When I was plumbing min/max support through the compiler, I was
+    thinking mostly about numeric argument types. As a result, I forgot
+    that escape analysis would need to be aware that min/max can operate
+    on string values, which contain pointers.
+    
+    Fixes #64565.
+    
+    Change-Id: I36127ce5a2da942401910fa0f9de922726c9f94d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547715
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/escape/call.go | 13 ++++++++++---
+ test/escape_calls.go                    |  7 +++++++
+ test/fixedbugs/issue64565.go            | 15 +++++++++++++++
+ test/fixedbugs/issue64565.out           |  3 +++
+ 4 files changed, 35 insertions(+), 3 deletions(-)

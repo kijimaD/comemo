@@ -1,0 +1,32 @@
+commit 81ae993e54547415ba674082801b05961e3f2aa3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 6 12:03:37 2022 -0400
+
+    net/http: ignore ECONNRESET errors in TestTransportConcurrency on netbsd
+    
+    The source of these errors is undiagnosed, but they have only been
+    observed on netbsd builders (on a variety of architectures).
+    
+    Tested manually by injecting this code into the test's handler:
+    
+                    if mrand.Intn(4) == 0 {
+                            if conn, _, err := w.(Hijacker).Hijack(); err == nil {
+                                    conn.(*net.TCPConn).SetLinger(0)
+                                    conn.Close()
+                                    return
+                            }
+                    }
+    
+    and temporarily disabling the 'runtime.GOOS' part of the condition.
+    
+    For #52168.
+    
+    Change-Id: I10965803e5a0d493ac4a000575de8b5f0266989c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398635
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/transport_test.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

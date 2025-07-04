@@ -1,0 +1,32 @@
+commit 2d41444ad0c1540f064695a9a4678dda6c0d2a51
+Author: zdjones <zachj1@gmail.com>
+Date:   Sat Mar 30 17:28:05 2019 +0000
+
+    cmd/compile: make prove learn index >= 0 from successful bounds checks
+    
+    When branching at a bounds check for indexing or slicing ops, prove currently
+    only learns from the upper bound. On the positive branch, we currently learn
+    i < len(a) (or i <= len(a)) in both the signed and unsigned domains.
+    
+    This CL makes prove also learn from the lower bound. Specifically, on the
+    positive branch from index or slicing ops, prove will now ALSO learn i >= 0 in
+    the signed domain (this fact is of no value in the unsigned domain).
+    
+    The substantive change itself is only an additional call to addRestrictions,
+    though I've also inverted the nested switch statements around that call for the
+    sake of clarity.
+    
+    This CL removes 92 bounds checks from std and cmd. It passes all tests and
+    shows no deltas on compilecmp.
+    
+    Fixes #28885
+    
+    Change-Id: I13eccc36e640eb599fa6dc5aa3be3c7d7abd2d9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170121
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 48 +++++++++++++++++++++--------------
+ test/prove.go                         | 10 ++++++++
+ 2 files changed, 39 insertions(+), 19 deletions(-)

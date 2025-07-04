@@ -1,0 +1,20 @@
+commit ef7212e2cfc786e5b81a0d3ac55371628177e013
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Mon May 28 17:15:11 2018 +0300
+
+    cmd/compile: use  yyerrorl(n.Pos, ...) in typecheckdef
+    
+    n.Pos.IsKnown() is not needed because it is performed in setlineno.
+    
+    toolstash-check passed.
+    
+    Updates #19683.
+    
+    Change-Id: I34d6a0e6dc9970679d99e8f3424f289ebf1e86ba
+    Reviewed-on: https://go-review.googlesource.com/114915
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)

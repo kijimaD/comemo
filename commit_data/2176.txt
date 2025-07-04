@@ -1,0 +1,81 @@
+commit 918afd9491bd07aed10bc364012683fc52c734bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 8 15:21:41 2009 -0700
+
+    move things out of sys into os and runtime
+    
+    R=r
+    OCL=28569
+    CL=28573
+
+ doc/progs/cat.go                  |  4 ++--
+ doc/progs/cat_rot13.go            |  4 ++--
+ doc/progs/helloworld3.go          |  3 ++-
+ doc/progs/strings.go              |  3 ++-
+ src/cmd/gc/Makefile               |  2 +-
+ src/cmd/gc/builtin.c.boot         | 15 ++++++++-------
+ src/cmd/gc/go.h                   |  1 +
+ src/cmd/gc/lex.c                  |  4 ++++
+ src/cmd/gc/mkbuiltin              |  9 +++++----
+ src/cmd/gc/runtime.go             |  9 +++++++++
+ src/cmd/gc/sys.go                 | 14 --------------
+ src/cmd/gobuild/gobuild.go        |  2 +-
+ src/cmd/gobuild/util.go           |  2 +-
+ src/lib/flag/flag.go              | 24 ++++++++++++------------
+ src/lib/http/triv.go              |  2 +-
+ src/lib/log/log.go                |  9 +++++----
+ src/lib/os/Makefile               |  5 +++--
+ src/lib/os/env.go                 |  2 +-
+ src/lib/os/file.go                |  2 +-
+ src/lib/regexp/regexp.go          |  3 ++-
+ src/lib/template/template.go      |  5 +++--
+ src/lib/testing/testing.go        |  6 ++++--
+ src/runtime/386/asm.s             |  4 ++--
+ src/runtime/386/traceback.c       |  2 +-
+ src/runtime/amd64/asm.s           |  4 ++--
+ src/runtime/amd64/traceback.c     |  2 +-
+ src/runtime/chan.c                | 10 +++++-----
+ src/runtime/darwin/386/signal.c   |  6 +++---
+ src/runtime/darwin/386/sys.s      |  2 +-
+ src/runtime/darwin/amd64/signal.c |  6 +++---
+ src/runtime/darwin/amd64/sys.s    |  2 +-
+ src/runtime/linux/386/signal.c    |  6 +++---
+ src/runtime/linux/386/sys.s       |  2 +-
+ src/runtime/linux/amd64/signal.c  |  6 +++---
+ src/runtime/linux/amd64/sys.s     |  2 +-
+ src/runtime/proc.c                | 30 ++++++++++++++++++++++++------
+ src/runtime/runtime.c             | 28 ++++++++++++++--------------
+ src/runtime/runtime.h             | 12 ++++--------
+ src/runtime/sema.c                |  2 +-
+ src/runtime/string.c              |  2 --
+ test/235.go                       |  4 +++-
+ test/args.go                      |  8 +++++---
+ test/chan/fifo.go                 |  4 +++-
+ test/chan/goroutines.go           |  6 +++---
+ test/chan/nonblock.go             |  7 ++++---
+ test/chan/powser1.go              |  4 +++-
+ test/chan/powser2.go              |  4 +++-
+ test/chan/sieve.go                |  4 +++-
+ test/char_lit.go                  |  6 ++++--
+ test/env.go                       |  6 +++---
+ test/fixedbugs/bug006.go          |  4 +++-
+ test/fixedbugs/bug059.go          |  4 +++-
+ test/fixedbugs/bug060.go          |  4 +++-
+ test/fixedbugs/bug120.go          |  3 ++-
+ test/fixedbugs/bug130.go          |  4 +++-
+ test/fixedbugs/bug141.go          |  4 +++-
+ test/if1.go                       |  4 +++-
+ test/int_lit.go                   |  4 +++-
+ test/interface10.go               |  4 +++-
+ test/interface4.go                |  4 +++-
+ test/interface6.go                |  4 +++-
+ test/ken/chan.go                  | 16 +++++++++-------
+ test/ken/chan1.go                 |  8 +++++---
+ test/string_lit.go                |  4 +++-
+ test/stringrange.go               |  3 ++-
+ test/switch1.go                   |  6 ++++--
+ test/typeswitch.go                |  4 +++-
+ usr/gri/pretty/godoc.go           |  8 ++++----
+ usr/gri/pretty/pretty.go          | 12 ++++++------
+ usr/gri/pretty/untab.go           |  2 +-
+ 70 files changed, 243 insertions(+), 174 deletions(-)

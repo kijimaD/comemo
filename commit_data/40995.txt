@@ -1,0 +1,17 @@
+commit ae2bf169f6282a2715a3c0faf194910278044b03
+Author: Alexander Rakoczy <alex@golang.org>
+Date:   Mon Dec 16 13:58:27 2019 -0500
+
+    api: promote next to go1.14
+    
+    Change-Id: I14b1a21a8639b3241326e74ab6152673d5d71243
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211517
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ api/go1.14.txt | 198 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt   |   5 --
+ 2 files changed, 198 insertions(+), 5 deletions(-)

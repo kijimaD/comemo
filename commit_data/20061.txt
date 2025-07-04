@@ -1,0 +1,33 @@
+commit 684de0411878ba02c4e949d9c88a0cb8ff0d6a44
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 21 20:41:09 2014 +0400
+
+    runtime: convert common scheduler functions to Go
+    These are required for chans, semaphores, timers, etc.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rlh, rsc
+    https://golang.org/cl/123640043
+
+ src/cmd/api/goapi.go           |  2 +-
+ src/cmd/gc/select.c            |  1 +
+ src/pkg/runtime/asm_386.s      |  6 ++++
+ src/pkg/runtime/asm_amd64.s    |  6 ++++
+ src/pkg/runtime/asm_amd64p32.s |  7 +++++
+ src/pkg/runtime/asm_arm.s      |  6 ++++
+ src/pkg/runtime/chan.goc       | 16 +++++-----
+ src/pkg/runtime/chan.h         |  1 +
+ src/pkg/runtime/heapdump.c     |  4 +--
+ src/pkg/runtime/malloc.h       |  4 +++
+ src/pkg/runtime/mgc0.c         |  9 +++---
+ src/pkg/runtime/netpoll.goc    |  2 +-
+ src/pkg/runtime/proc.c         | 53 ++++++++++++++++++-------------
+ src/pkg/runtime/proc.go        | 71 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/runtime.h      |  8 ++---
+ src/pkg/runtime/sema.goc       |  6 ++--
+ src/pkg/runtime/stack.c        |  4 +--
+ src/pkg/runtime/stubs.go       |  8 ++++-
+ src/pkg/runtime/stubs.goc      |  5 +++
+ src/pkg/runtime/time.goc       |  6 ++--
+ 20 files changed, 175 insertions(+), 50 deletions(-)

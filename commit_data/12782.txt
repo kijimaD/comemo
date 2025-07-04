@@ -1,0 +1,12 @@
+commit 14da5298cd2b2099909545976e7cb8e5c8fadae9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 27 20:53:16 2012 +1100
+
+    doc: use relative links in Laws of Reflection article
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5924050
+
+ doc/articles/laws_of_reflection.html | 47 ++++++++++++++++--------------------
+ 1 file changed, 21 insertions(+), 26 deletions(-)

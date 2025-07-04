@@ -1,0 +1,24 @@
+commit 8e8219deb5166ee67c8ba4409692de6fd7b67303
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 4 23:00:01 2015 -0400
+
+    runtime: update gcController.scanWork regularly
+    
+    Currently, gcController.scanWork is updated as lazily as possible
+    since it is only read at the end of the GC cycle. We're about to read
+    it during the GC cycle to improve the assist ratio revisions, so
+    modify gcDrain* to regularly flush to gcController.scanWork in much
+    the same way as we regularly flush to gcController.bgScanCredit.
+    
+    One consequence of this is that it's difficult to keep gcw.scanWork
+    monotonic, so we give up on that and simply return the amount of scan
+    work done by gcDrainN rather than calculating it in the caller.
+    
+    Change-Id: I7b50acdc39602f843eed0b5c6d2dacd7e762b81d
+    Reviewed-on: https://go-review.googlesource.com/15407
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go     | 19 ++++++++-------
+ src/runtime/mgcmark.go | 65 +++++++++++++++++++++++++++++++-------------------
+ src/runtime/mgcwork.go |  2 +-
+ 3 files changed, 52 insertions(+), 34 deletions(-)

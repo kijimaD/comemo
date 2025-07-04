@@ -1,0 +1,24 @@
+commit ab3365d34e34b7d16ae1e4cf4a39240c2212d8f6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Jul 9 20:16:45 2011 +1000
+
+    doc/progs: gofmt -w
+    
+    R=r, gri, r
+    CC=golang-dev
+    https://golang.org/cl/4662085
+
+ doc/progs/echo.go         |  6 +++---
+ doc/progs/file_windows.go |  4 ++--
+ doc/progs/helloworld.go   |  2 +-
+ doc/progs/helloworld3.go  |  2 +-
+ doc/progs/print.go        |  2 +-
+ doc/progs/server.go       | 10 +++++-----
+ doc/progs/server1.go      | 10 +++++-----
+ doc/progs/sieve.go        | 12 ++++++------
+ doc/progs/sieve1.go       |  4 ++--
+ doc/progs/sort.go         | 36 ++++++++++++++++--------------------
+ doc/progs/sortmain.go     | 24 ++++++++++++------------
+ doc/progs/strings.go      |  4 +++-
+ doc/progs/sum.go          |  1 -
+ 13 files changed, 57 insertions(+), 60 deletions(-)

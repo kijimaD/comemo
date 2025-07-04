@@ -1,0 +1,23 @@
+commit 7e4ef4ebfc4f24bb030716c81e0f812aa3a36c97
+Author: Raul Silvera <rsilvera@google.com>
+Date:   Wed Dec 14 13:32:18 2016 -0800
+
+    cmd/pprof: search for sample types in profile
+    
+    Search the sample types in the profile being processed to map
+    sample type options to indices in the profile sample type array.
+    
+    Previously these were hardcoded, which caused issues when the
+    sample types for a profile type changed. For instance, this was
+    triggered by the native generation of profiles in profile.proto
+    format.
+    
+    This fixes #18230. A similar mechanism already exists on the upstream
+    pprof.
+    
+    Change-Id: I945d8d842a0c2ca14299dabefe83124746ecd7e2
+    Reviewed-on: https://go-review.googlesource.com/34382
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/pprof/internal/driver/driver.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

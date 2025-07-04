@@ -1,0 +1,25 @@
+commit eab0c46af7331484a7d5837cad68d9d01890b90f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 3 00:17:56 2021 -0400
+
+    cmd/go/internal/modload: remove outdated comments and redundant tests
+    
+    The outdated comment in modfile.go was missed in CL 315409.
+    
+    Upon a closer look at the test case in mod_go_version_vendor.txt, it
+    is almost completely redundant with the new test in
+    mod_vendor_goversion.txt. Make it completely redundant and remove it.
+    
+    Updates #36876
+    
+    Change-Id: Ibcd1f6b426460aaafbd6dc0be93078547904572b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316209
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/modfile.go             |  3 --
+ .../go/testdata/script/mod_go_version_vendor.txt   | 38 ----------------------
+ .../go/testdata/script/mod_vendor_goversion.txt    | 23 ++++++++++---
+ 3 files changed, 19 insertions(+), 45 deletions(-)

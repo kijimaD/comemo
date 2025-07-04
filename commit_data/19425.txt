@@ -1,0 +1,15 @@
+commit 765b4a3f8651d7523f46f7e6f3839ae4b704b4f2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 21 08:53:47 2014 -0700
+
+    test/float_lit2.go: compute test values from first principles
+    
+    These constants pass go/types constant conversions as well.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/91590047
+
+ test/float_lit2.go | 75 ++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 65 insertions(+), 10 deletions(-)

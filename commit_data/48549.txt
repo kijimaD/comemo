@@ -1,0 +1,15 @@
+commit 26a8cf56e0cfdb555025f60acf2e2ec773a5f492
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 25 19:03:37 2022 -0700
+
+    cmd/compile/internal/syntax: fix scanner.{op,prec} docs
+    
+    These fields are also valid for _Star.
+    
+    Change-Id: I2582000ac1737c41416e69f91404f7cac279d718
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395916
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/syntax/scanner.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

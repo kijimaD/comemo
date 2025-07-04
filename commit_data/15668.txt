@@ -1,0 +1,20 @@
+commit 9e13803ae1a66afdb03c7f584f70c07c8b4517a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 10 19:07:16 2013 -0700
+
+    cmd/ld: avoid redundant external relocation calculations
+    
+    R=ken2, ken
+    CC=golang-dev
+    https://golang.org/cl/7483045
+
+ src/cmd/5l/asm.c  |  9 +++++----
+ src/cmd/5l/l.h    |  3 +++
+ src/cmd/6l/asm.c  | 10 ++++++----
+ src/cmd/6l/l.h    |  3 +++
+ src/cmd/8l/asm.c  |  7 ++++---
+ src/cmd/8l/l.h    |  3 +++
+ src/cmd/ld/data.c | 49 +++++++++++++++++++++++++++++++++++--------------
+ src/cmd/ld/elf.c  | 32 ++++++++------------------------
+ src/cmd/ld/elf.h  |  2 +-
+ 9 files changed, 68 insertions(+), 50 deletions(-)

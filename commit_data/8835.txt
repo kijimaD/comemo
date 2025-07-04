@@ -1,0 +1,16 @@
+commit b4bab6f8b351630211b0617ac91fb532d6aaf16d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jun 24 13:01:17 2011 +1000
+
+    goinstall: build with make by default, add -make flag
+    
+    This is a temporary measure until go/build can build cgo packages.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4627056
+
+ src/cmd/goinstall/Makefile |   1 +
+ src/cmd/goinstall/main.go  |  49 +++++++-----
+ src/cmd/goinstall/make.go  | 180 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 210 insertions(+), 20 deletions(-)

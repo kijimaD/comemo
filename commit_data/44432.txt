@@ -1,0 +1,20 @@
+commit 5f15af111cb40c3ac154be88288abd381e6f61e2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 15 09:48:39 2021 -0500
+
+    syscall: comment on fields omitted from the win32finddata1 struct
+    
+    Updates #42637
+    
+    Change-Id: I4c7d38034b60c2c04efdeb530a97d96deddfd6fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/284152
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/syscall/types_windows.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

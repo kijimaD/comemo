@@ -1,0 +1,20 @@
+commit c06eef27d754b0c4e112dbff1233e393a8362844
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 21 16:14:19 2025 -0400
+
+    runtime: skip TestTimePprof on sanitizers
+    
+    This test asserts there is no external code, but the sanitizer runtimes
+    are external code.
+    
+    Fixes #73783.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-race
+    Change-Id: I6a6a636cf93b7950e3ea35e00ec2eaf89911d712
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675296
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/crash_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

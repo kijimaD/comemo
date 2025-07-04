@@ -1,0 +1,12 @@
+commit aec01c36272832d07507bfc4c7779eb466a846c3
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Mar 15 19:28:07 2012 +1100
+
+    doc/play: use []rune insetead of []int.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5823058
+
+ doc/play/solitaire.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

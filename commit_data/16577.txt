@@ -1,0 +1,15 @@
+commit 8a4efed63c02f18c14b3e445f399d421d23dfa32
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Mon Jun 17 19:31:58 2013 +1000
+
+    run.bash: raise ulimit for the number of threads.
+    
+    This is needed on NetBSD-current. Support for
+    ulimit -T in bash was added in 4.2nb3.
+    
+    R=golang-dev, minux.ma, rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/10078047
+
+ src/run.bash | 5 +++++
+ 1 file changed, 5 insertions(+)

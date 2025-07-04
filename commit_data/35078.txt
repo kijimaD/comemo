@@ -1,0 +1,28 @@
+commit 566e3e074c089568412a44a8d315c2881cfd8e8f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 18 18:28:34 2018 -0700
+
+    cmd/compile: avoid runtime call during switch string(byteslice)
+    
+    This triggers three times while building std,
+    once in image/png and twice in go/internal/gccgoimporter.
+    
+    There are no instances in std in which a more aggressive
+    optimization would have triggered.
+    
+    This doesn't necessarily avoid an allocation,
+    because escape analysis is already able in many cases
+    to use a temporary backing for the string,
+    but it does at a minimum avoid the runtime call and copy.
+    
+    Fixes #24937
+    
+    Change-Id: I7019e85638ba8cd7e2f03890e672558b858579bc
+    Reviewed-on: https://go-review.googlesource.com/108035
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/swt.go | 28 ++++++++++++++++++++++++++++
+ test/fixedbugs/issue24937.go       | 15 +++++++++++++++
+ 2 files changed, 43 insertions(+)

@@ -1,0 +1,18 @@
+commit 117c9c35cde8444d26db91bfa8346dde252989b1
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Tue Oct 25 22:35:01 2016 -0400
+
+    net/http: Improve docs for Response.ParseForm
+    
+    - Removes a subject-verb disagreement.
+    - Documents that PATCH requests also populate PostForm.
+    - Explains that r.PostForm is always set (but blank for GET etc.).
+    
+    Fixes #16609
+    
+    Change-Id: I6b4693f8eb6db7c66fd9b9cd1df8927f50d46d50
+    Reviewed-on: https://go-review.googlesource.com/32091
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

@@ -1,0 +1,19 @@
+commit e9c57bea11c75810225ee1abf24a0daeed2bfb64
+Author: unknown <geon0250@gmail.com>
+Date:   Mon Feb 26 04:41:20 2018 +0000
+
+    net/http,doc: use HTTP status code constants where applicable
+    
+    There are a few places where the integer value is used.
+    Use the equivalent constants to aid with readability.
+    
+    Change-Id: I023b1dbe605340544c056d0e0d9d6d5a7d7d0edc
+    GitHub-Last-Rev: c1c90bcd251901f9f2a305ce5ddd0d85009a3d49
+    GitHub-Pull-Request: golang/go#24123
+    Reviewed-on: https://go-review.googlesource.com/96984
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/progs/error2.go  | 4 ++--
+ doc/progs/error3.go  | 2 +-
+ src/net/http/triv.go | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

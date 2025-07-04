@@ -1,0 +1,25 @@
+commit a1fb024ac923bba8350ead22188fbcf0cca985a7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 18 11:57:05 2017 -0400
+
+    cmd/go: hide work subdirectory names in gcc/clang object files
+    
+    Until now the subdirectories under $WORK have had predictable
+    names, so it was OK to strip just $WORK from the file names that
+    end up in object files. In the future, those predictable names would
+    cause predictable collisions when compiling one package in two
+    different ways, so we're moving toward arbitrary, unpredictable
+    subdirectory names instead. When we do that, if the names appear
+    in the object files we won't get reproducible builds.
+    
+    Take the subdirectory names out now, to make the later change safe.
+    
+    Change-Id: I8057d1cc73f6e35c98b7718c9789c161dcbd87c0
+    Reviewed-on: https://go-review.googlesource.com/67251
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/envcmd/env.go |  4 +--
+ src/cmd/go/internal/work/build.go | 56 +++++++++++++++++++++------------------
+ 2 files changed, 32 insertions(+), 28 deletions(-)

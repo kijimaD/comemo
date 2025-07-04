@@ -1,0 +1,13 @@
+commit dfffc7a5d5b9436ce5c1c59cda53d19393fa7041
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 14 11:32:06 2011 +1000
+
+    exp/template: include function name in error returned by function or method call.
+    
+    R=golang-dev, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4711049
+
+ src/pkg/exp/template/exec.go      | 2 +-
+ src/pkg/exp/template/exec_test.go | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

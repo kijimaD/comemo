@@ -1,0 +1,13 @@
+commit 9e85c790e57d509602f86ae5c5b8b45f07265565
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 2 17:14:30 2009 -0700
+
+    fix initialization of noreturn
+    
+    R=ken
+    DELTA=3  (0 added, 0 deleted, 3 changed)
+    OCL=34283
+    CL=34283
+
+ src/cmd/6g/reg.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit ffc0830c75ce6d0269bd35025f611066dc63d156
+Author: John Asmuth <jasmuth@gmail.com>
+Date:   Mon Aug 8 11:27:09 2011 -0700
+
+    container/vector: removed last instances of vector outside of container/vector itself from the core libs
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4810078
+
+ src/pkg/exp/datafmt/parser.go | 41 ++++++++++++++++++++---------------------
+ src/pkg/go/scanner/errors.go  | 23 +++++++++++++----------
+ 2 files changed, 33 insertions(+), 31 deletions(-)

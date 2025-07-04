@@ -1,0 +1,17 @@
+commit 0f1d439e82eb0c85e397afb22b448ea1ab3d2881
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 12 17:07:33 2008 -0700
+
+    update bugs
+    exploit the compiler now supporting i2s and i2i and clean up some code
+    fix up some panics and prints
+    
+    R=gri
+    OCL=14141
+    CL=14141
+
+ src/lib/container/vector.go        | 1 +
+ test/{bugs => fixedbugs}/bug054.go | 0
+ test/{bugs => fixedbugs}/bug089.go | 0
+ test/golden.out                    | 8 --------
+ 4 files changed, 1 insertion(+), 8 deletions(-)

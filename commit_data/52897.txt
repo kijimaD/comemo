@@ -1,0 +1,66 @@
+commit bdc6ae579aa86d21183c612c8c37916f397afaa8
+Author: David Chase <drchase@google.com>
+Date:   Fri Jan 20 16:41:57 2023 -0500
+
+    internal/abi: refactor (basic) type struct into one definition
+    
+    This touches a lot of files, which is bad, but it is also good,
+    since there's N copies of this information commoned into 1.
+    
+    The new files in internal/abi are copied from the end of the stack;
+    ultimately this will all end up being used.
+    
+    Change-Id: Ia252c0055aaa72ca569411ef9f9e96e3d610889e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462995
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/base/base.go           |   1 +
+ src/cmd/compile/internal/reflectdata/reflect.go |  30 +-
+ src/cmd/link/internal/ld/decodesym.go           |  18 +-
+ src/internal/abi/compiletype.go                 | 167 ++++++
+ src/internal/abi/type.go                        | 712 ++++++++++++++++++++++++
+ src/internal/abi/unsafestring_go119.go          |  32 ++
+ src/internal/abi/unsafestring_go120.go          |  18 +
+ src/internal/reflectlite/swapper.go             |   2 +-
+ src/internal/reflectlite/type.go                |  95 +---
+ src/internal/reflectlite/value.go               |   2 +-
+ src/reflect/abi.go                              |  16 +-
+ src/reflect/benchmark_test.go                   |   2 +-
+ src/reflect/deepequal.go                        |   2 +-
+ src/reflect/export_test.go                      |  10 +-
+ src/reflect/swapper.go                          |   2 +-
+ src/reflect/type.go                             | 340 +++++------
+ src/reflect/value.go                            |  50 +-
+ src/runtime/alg.go                              |  19 +-
+ src/runtime/arena.go                            |  48 +-
+ src/runtime/cgocall.go                          |  30 +-
+ src/runtime/cgocheck.go                         |  54 +-
+ src/runtime/chan.go                             |  20 +-
+ src/runtime/checkptr.go                         |   4 +-
+ src/runtime/debuglog.go                         |   2 +-
+ src/runtime/error.go                            |   2 +-
+ src/runtime/export_debug_test.go                |   6 +-
+ src/runtime/export_test.go                      |   8 +-
+ src/runtime/heapdump.go                         |   6 +-
+ src/runtime/iface.go                            |  18 +-
+ src/runtime/malloc.go                           |  20 +-
+ src/runtime/map.go                              |  80 +--
+ src/runtime/map_fast32.go                       |  12 +-
+ src/runtime/map_fast64.go                       |  12 +-
+ src/runtime/map_faststr.go                      |   8 +-
+ src/runtime/mbarrier.go                         |  58 +-
+ src/runtime/mbitmap.go                          |  72 +--
+ src/runtime/mfinal.go                           |  14 +-
+ src/runtime/plugin.go                           |   2 +-
+ src/runtime/race.go                             |   8 +-
+ src/runtime/select.go                           |  20 +-
+ src/runtime/slice.go                            |  52 +-
+ src/runtime/stkframe.go                         |  10 +-
+ src/runtime/syscall_windows.go                  |  30 +-
+ src/runtime/type.go                             |  68 +--
+ src/runtime/typekind.go                         |   2 +-
+ src/runtime/unsafe.go                           |   6 +-
+ 46 files changed, 1479 insertions(+), 711 deletions(-)

@@ -1,0 +1,19 @@
+commit 29604312784cfbf530fcf54837b7cf42c0500d0b
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 19:19:27 2022 +0800
+
+    text/template: use strings.Builder
+    
+    Change-Id: I559986b5408d3967c58c9abc6e8f4b04b25496a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428280
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/text/template/exec_test.go  | 18 +++++++++---------
+ src/text/template/funcs.go      |  5 ++---
+ src/text/template/multi_test.go | 10 +++++-----
+ 3 files changed, 16 insertions(+), 17 deletions(-)

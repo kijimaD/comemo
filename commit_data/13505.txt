@@ -1,0 +1,19 @@
+commit a1f340fa1a26fd29f1369cbc91755e7519813dd0
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Jul 27 16:05:25 2012 +1000
+
+    exp/html: parse CDATA sections in foreign content
+    
+    Also convert NUL to U+FFFD in comments.
+    
+    Pass 23 additional tests.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6446055
+
+ src/pkg/exp/html/parse.go                          |  4 ++
+ .../exp/html/testlogs/plain-text-unsafe.dat.log    |  6 +-
+ src/pkg/exp/html/testlogs/tests21.dat.log          | 40 ++++++------
+ src/pkg/exp/html/token.go                          | 72 +++++++++++++++++++---
+ 4 files changed, 91 insertions(+), 31 deletions(-)

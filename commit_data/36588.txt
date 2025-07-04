@@ -1,0 +1,17 @@
+commit d7fc2205d44e5cc2b1b0161bc71084e8f5eea54e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 5 11:39:59 2018 +0200
+
+    test: fix nilptr3 check for wasm
+    
+    CL 131735 only updated nilptr3.go for the adjusted nil check. Adjust
+    nilptr3_wasm.go as well.
+    
+    Change-Id: I4a6257d32bb212666fe768dac53901ea0b051138
+    Reviewed-on: https://go-review.googlesource.com/133495
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/nilptr3_wasm.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

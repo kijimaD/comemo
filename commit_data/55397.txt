@@ -1,0 +1,23 @@
+commit b3cfb24f8d19e402b5f03f28777af2a27dd65658
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed Nov 15 08:23:23 2023 -0500
+
+    doc/README.md: explain new release note system
+    
+    This is the first CL in a sequence that adds support
+    for generating release notes from fragments.
+    
+    The actual generator will live elsewhere, in x/build.
+    This repo will hold the content and some validity
+    checks.
+    
+    For #64169.
+    
+    Change-Id: Iaa8d9ad96393ab9433170b3cfa47334837f3f691
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542515
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/README.md | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

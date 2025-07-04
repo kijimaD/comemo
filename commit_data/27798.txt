@@ -1,0 +1,14 @@
+commit 392bf3a9cfee297ec106d5a67c37d8edb4c8c183
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Aug 8 16:56:22 2016 -0700
+
+    doc/go1.7.html: update compress/flate section
+    
+    Updates #15810.
+    
+    Change-Id: Ifa7d2fd7fbfe58dff8541b18a11f007a5ff5818a
+    Reviewed-on: https://go-review.googlesource.com/25591
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.7.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

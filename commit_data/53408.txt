@@ -1,0 +1,17 @@
+commit eee6f2b921e13d10faff6d45dc099c3a45d389b9
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri May 26 10:36:54 2023 -0400
+
+    go1.21.html: remove log/slog package "changes"
+    
+    Since log/slog doesn't appear in earlier Go versions, we don't need
+    to document these proposals as changes.
+    
+    Change-Id: Iae6ed9ca6bd22d8c46c21deece9ddedf7d739032
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498272
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Bypass: Jonathan Amsterdam <jba@google.com>
+
+ doc/go1.21.html | 56 +++-----------------------------------------------------
+ 1 file changed, 3 insertions(+), 53 deletions(-)

@@ -1,0 +1,21 @@
+commit bf9f1c15035ab9bb695a9a3504e465a1896b4b8c
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Feb 3 16:29:54 2018 +0100
+
+    runtime: use new instead of newobject to create hmap in makemap
+    
+    The runtime.hmap type is known at compile time.
+    Using new(hmap) avoids loading the hmap type from the maptype
+    supplied as an argument to makemap which is only known at runtime.
+    
+    This change makes makemap consistent with makemap_small
+    by using new(hmap) instead of newobject in both functions.
+    
+    Change-Id: Ia47acfda527e8a71d15a1a7a4c2b54fb923515eb
+    Reviewed-on: https://go-review.googlesource.com/91775
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

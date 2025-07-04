@@ -1,0 +1,18 @@
+commit 441c4bb939666555f697c1d5abf30b2f78528962
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 25 11:22:22 2014 -0500
+
+    cmd/go: fix bug in remote package discovery
+    
+    The parser was assuming it would find <body> or </head>.
+    If the entire response is just <meta> tags, it finds EOF and
+    treats that as an error. It's not.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/68520044
+
+ src/cmd/go/discovery.go |  3 +++
+ src/cmd/go/pkg_test.go  | 48 +++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 50 insertions(+), 1 deletion(-)

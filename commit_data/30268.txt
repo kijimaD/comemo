@@ -1,0 +1,101 @@
+commit 4477fd097fcc16c6d2703ec6228f47c9af030655
+Author: Kirill Smelkov <kirr@nexedi.com>
+Date:   Thu Dec 1 23:43:21 2016 +0300
+
+    cmd/compile/internal/ssa: combine 2 byte loads + shifts into word load + rolw 8 on AMD64
+    
+    ... and same for stores. This does for binary.BigEndian.Uint16() what
+    was already done for Uint32 and Uint64 with BSWAP in 10f75748 (CL 32222).
+    
+    Here is how generated code changes e.g. for the following function
+    (omitting saying the same prologue/epilogue):
+    
+            func get16(b [2]byte) uint16 {
+                    return binary.BigEndian.Uint16(b[:])
+            }
+    
+    "".get16 t=1 size=21 args=0x10 locals=0x0
+    
+            // before
+            0x0000 00000 (x.go:15)  MOVBLZX "".b+9(FP), AX
+            0x0005 00005 (x.go:15)  MOVBLZX "".b+8(FP), CX
+            0x000a 00010 (x.go:15)  SHLL    $8, CX
+            0x000d 00013 (x.go:15)  ORL     CX, AX
+    
+            // after
+            0x0000 00000 (x.go:15)  MOVWLZX "".b+8(FP), AX
+            0x0005 00005 (x.go:15)  ROLW    $8, AX
+    
+    encoding/binary is speedup overall a bit:
+    
+    name                    old time/op    new time/op    delta
+    ReadSlice1000Int32s-4     4.83µs ± 0%    4.83µs ± 0%     ~     (p=0.206 n=4+5)
+    ReadStruct-4              1.29µs ± 2%    1.28µs ± 1%   -1.27%  (p=0.032 n=4+5)
+    ReadInts-4                 384ns ± 1%     385ns ± 1%     ~     (p=0.968 n=4+5)
+    WriteInts-4                534ns ± 3%     526ns ± 0%   -1.54%  (p=0.048 n=4+5)
+    WriteSlice1000Int32s-4    5.02µs ± 0%    5.11µs ± 3%     ~     (p=0.175 n=4+5)
+    PutUint16-4               0.59ns ± 0%    0.49ns ± 2%  -16.95%  (p=0.016 n=4+5)
+    PutUint32-4               0.52ns ± 0%    0.52ns ± 0%     ~     (all equal)
+    PutUint64-4               0.53ns ± 0%    0.53ns ± 0%     ~     (all equal)
+    PutUvarint32-4            19.9ns ± 0%    19.9ns ± 1%     ~     (p=0.556 n=4+5)
+    PutUvarint64-4            54.5ns ± 1%    54.2ns ± 0%     ~     (p=0.333 n=4+5)
+    
+    name                    old speed      new speed      delta
+    ReadSlice1000Int32s-4    829MB/s ± 0%   828MB/s ± 0%     ~     (p=0.190 n=4+5)
+    ReadStruct-4            58.0MB/s ± 2%  58.7MB/s ± 1%   +1.30%  (p=0.032 n=4+5)
+    ReadInts-4              78.0MB/s ± 1%  77.8MB/s ± 1%     ~     (p=0.968 n=4+5)
+    WriteInts-4             56.1MB/s ± 3%  57.0MB/s ± 0%     ~     (p=0.063 n=4+5)
+    WriteSlice1000Int32s-4   797MB/s ± 0%   783MB/s ± 3%     ~     (p=0.190 n=4+5)
+    PutUint16-4             3.37GB/s ± 0%  4.07GB/s ± 2%  +20.83%  (p=0.016 n=4+5)
+    PutUint32-4             7.73GB/s ± 0%  7.72GB/s ± 0%     ~     (p=0.556 n=4+5)
+    PutUint64-4             15.1GB/s ± 0%  15.1GB/s ± 0%     ~     (p=0.905 n=4+5)
+    PutUvarint32-4           201MB/s ± 0%   201MB/s ± 0%     ~     (p=0.905 n=4+5)
+    PutUvarint64-4           147MB/s ± 1%   147MB/s ± 0%     ~     (p=0.286 n=4+5)
+    
+    ( "a bit" only because most of the time is spent in reflection-like things
+      there, not actual bytes decoding. Even for direct PutUint16 benchmark the
+      looping adds overhead and lowers visible benefit. For code-generated encoders /
+      decoders actual effect is more than 20% )
+    
+    Adding Uint32 and Uint64 raw benchmarks too for completeness.
+    
+    NOTE I had to adjust load-combining rule for bswap case to match first 2 bytes
+    loads as result of "2-bytes load+shift" -> "loadw + rorw 8" rewrite. Reason is:
+    for loads+shift, even e.g. into uint16 var
+    
+            var b []byte
+            var v uin16
+            v = uint16(b[1]) | uint16(b[0])<<8
+    
+    the compiler eventually generates L(ong) shift - SHLLconst [8], probably
+    because it is more straightforward / other reasons to work on the whole
+    register. This way 2 bytes rewriting rule is using SHLLconst (not SHLWconst) in
+    its pattern, and then it always gets matched first, even if 2-byte rule comes
+    syntactically after 4-byte rule in AMD64.rules because 4-bytes rule seemingly
+    needs more applyRewrite() cycles to trigger. If 2-bytes rule gets matched for
+    inner half of
+    
+            var b []byte
+            var v uin32
+            v = uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+    
+    and we keep 4-byte load rule unchanged, the result will be MOVW + RORW $8 and
+    then series of byte loads and shifts - not one MOVL + BSWAPL.
+    
+    There is no such problem for stores: there compiler, since it probably knows
+    store destination is 2 bytes wide, uses SHRWconst 8 (not SHRLconst 8) and thus
+    2-byte store rule is not a subset of rule for 4-byte stores.
+    
+    Fixes #17151  (int16 was last missing piece there)
+    
+    Change-Id: Idc03ba965bfce2b94fef456b02ff6742194748f6
+    Reviewed-on: https://go-review.googlesource.com/34636
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go      |  32 ++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  73 ++++---
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 277 +++++++++++++++++++++------
+ src/encoding/binary/binary_test.go           |  24 +++
+ 4 files changed, 325 insertions(+), 81 deletions(-)

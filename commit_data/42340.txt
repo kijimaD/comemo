@@ -1,0 +1,15 @@
+commit c9442dc8506e52c2846e436adb6be3831c37beb6
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat May 9 17:10:32 2020 +0200
+
+    runtime: fix dead link in gcc_androd.c file
+    
+    Old url 404s because the file no longer exists on master; change it to
+    point to the android 10 release branch.
+    
+    Change-Id: If0f8b645f2c746f9fc8bbd68f4d1fe41868493ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232809
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/gcc_android.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

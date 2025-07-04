@@ -1,0 +1,14 @@
+commit cb58ed75d2a8dcc9ce345cc8d89693f2be704f25
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 26 18:20:15 2010 -0800
+
+    cgo: update for package global name space
+    
+    Fixes #560.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/195051
+
+ src/cmd/cgo/out.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

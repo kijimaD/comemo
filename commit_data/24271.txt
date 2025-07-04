@@ -1,0 +1,26 @@
+commit 211cdf1e004b35e817935537671f9577066800df
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Fri Sep 11 00:03:19 2015 +0200
+
+    cmd/compile/internal/gc: cleaning lex.go
+    
+    Cleaning along the way:
+    -convert variable types from int to bool
+    -remove unnecessary functions
+    -remove unnecessary type conversion
+    -remove unnecessary variable declarations
+    -transform struct{string,string} with lookup to map[string]string
+    
+    This change passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: I259728fe4afd7f23b67f08fab856ce0abee57b21
+    Reviewed-on: https://go-review.googlesource.com/14435
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/go.go   |  10 +-
+ src/cmd/compile/internal/gc/go.y    |   2 +-
+ src/cmd/compile/internal/gc/lex.go  | 245 +++++++++++++++---------------------
+ src/cmd/compile/internal/gc/subr.go |   2 +-
+ src/cmd/compile/internal/gc/util.go |  12 +-
+ src/cmd/compile/internal/gc/y.go    |   2 +-
+ 6 files changed, 120 insertions(+), 153 deletions(-)

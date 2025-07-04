@@ -1,0 +1,22 @@
+commit 181153369534c6987306c47630f9e4fbf07b467f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 20 11:14:15 2020 -0700
+
+    cmd/compile: refactor Escape.tagHole
+    
+    This CL refactors tagHole to handle all three call situations (unknown
+    function; known function in same analysis batch; known function in
+    previous analysis batch). This will make it somewhat easier to reuse
+    in a followup CL.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I764d047a333dfc593d721a881361683e94b485df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229059
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/escape.go | 66 +++++++++++++++++++----------------
+ 1 file changed, 35 insertions(+), 31 deletions(-)

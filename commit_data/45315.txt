@@ -1,0 +1,40 @@
+commit 142151697397235ba5f30a7a660ed8a159adce0b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 2 13:24:35 2021 -0400
+
+    cmd/compile, internal/abi: add FuncPCABIxxx intrinsics
+    
+    When ABI wrappers are used, there are cases where in Go code we
+    need the PC of the defined function instead of the ABI wrapper.
+    Currently we work around this by define such functions as
+    ABIInternal, even if they do not actually follow the internal ABI.
+    
+    This CL introduces internal/abi.FuncPCABIxxx functions as compiler
+    intrinsics, which return the underlying defined function's entry
+    PC if the argument is a direct reference of a function of the
+    expected ABI, and reject it if it is of a different ABI.
+    
+    As a proof of concept, change runtime.goexit back to ABI0 and use
+    internal/abi.FuncPCABI0 to retrieve its PC.
+    
+    Updates #44065.
+    
+    Change-Id: I02286f0f9d99e6a3090f9e8169dbafc6804a2da6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304232
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/staticdata/data.go |  9 ++--
+ src/cmd/compile/internal/walk/expr.go       | 37 ++++++++++++++
+ src/cmd/compile/internal/walk/order.go      | 23 +++++++++
+ src/internal/abi/abi.go                     | 24 +++++++++
+ src/internal/abi/abi_test.go                | 76 +++++++++++++++++++++++++++++
+ src/internal/abi/abi_test.s                 | 27 ++++++++++
+ src/internal/abi/export_test.go             | 14 ++++++
+ src/internal/abi/testdata/x.go              | 22 +++++++++
+ src/internal/abi/testdata/x.s               |  6 +++
+ src/runtime/asm_amd64.s                     |  7 +--
+ src/runtime/proc.go                         |  5 +-
+ 11 files changed, 239 insertions(+), 11 deletions(-)

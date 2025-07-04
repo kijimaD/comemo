@@ -1,0 +1,18 @@
+commit 5163d50c7dfb6c3e11ec67b01b61d1640ed51531
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 29 22:38:39 2010 -0800
+
+    Recognize gccgo error messages.
+    
+    bug228.go:11:25: error: invalid use of ‘...’
+    bug228.go:13:13: error: ‘...’ only permits one name
+    bug228.go:15:20: error: ‘...’ must be last parameter
+    bug228.go:17:7: error: expected type
+    bug228.go:19:8: error: expected type
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/196077
+
+ test/fixedbugs/bug228.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

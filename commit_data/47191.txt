@@ -1,0 +1,24 @@
+commit c45c32b1cd6ba635fda3add12f48766fd6aef5d8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Nov 2 11:23:34 2021 -0700
+
+    go/types: avoid closure allocations in mono check
+    
+    This CL replaces monoEdge's "report" field with fields "pos" and
+    "typ", and pushes the logic for formatting them into the report
+    loop. This avoids needing to allocate a function closure for each
+    edge.
+    
+    Also tweak a test case so the two type parameters involved in the
+    cycle aren't both "T" so they're easier to understand.
+    
+    Change-Id: I9d392ad1d99a4c5e89da4613084e885149ebad07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360815
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/mono.go      | 42 +++++++++++++++++++++++-------------------
+ src/go/types/mono_test.go |  2 +-
+ 2 files changed, 24 insertions(+), 20 deletions(-)

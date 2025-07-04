@@ -1,0 +1,19 @@
+commit 51fe7062d3bdcf3c1fc6de5b8ef8aa689a1d2b73
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 12 15:09:03 2023 -0400
+
+    doc/go1.21: document reflect.Value escape improvements
+    
+    With CL 408826, CL 413474, etc. reflect.ValueOf no longer
+    unconditionally escapes its argument, allowing a Value's content
+    to be allocated on the stack.
+    
+    Change-Id: I3a0af85c11e2fd0df42b056095565f0ce5548886
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494657
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.21.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,0 +1,16 @@
+commit 7718c626926beb0e5fed152d8d1a86be22570a34
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 7 16:59:11 2014 -0800
+
+    net/rpc/jsonrpc: set exactly one of result or error to non-null in response
+    
+    Fixes #7442
+    
+    LGTM=gri
+    R=golang-codereviews, gri
+    CC=golang-codereviews
+    https://golang.org/cl/72570044
+
+ src/pkg/net/rpc/jsonrpc/all_test.go | 1 -
+ src/pkg/net/rpc/jsonrpc/server.go   | 6 ++----
+ 2 files changed, 2 insertions(+), 5 deletions(-)

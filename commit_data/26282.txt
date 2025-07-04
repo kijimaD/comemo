@@ -1,0 +1,21 @@
+commit 04f23b64287b14240b11cd1c14e14f19329d428f
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 15 14:02:08 2016 +1100
+
+    cmd/internal/obj: remove dead code
+    
+    Partial automatic cleanup driven by Dominik Honnef's unused tool.
+    
+    As _lookup now only has one caller, merge it into the caller and remove
+    the conditional create logic.
+    
+    Change-Id: I2ea354d9d4b32a19905271eca74725231b6d8a93
+    Reviewed-on: https://go-review.googlesource.com/20589
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/flag.go |  5 ----
+ src/cmd/internal/obj/pcln.go | 58 --------------------------------------------
+ src/cmd/internal/obj/sym.go  | 20 ++++-----------
+ 3 files changed, 5 insertions(+), 78 deletions(-)

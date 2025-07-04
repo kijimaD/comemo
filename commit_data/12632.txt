@@ -1,0 +1,15 @@
+commit 1ddc9feb53d039f06ceb94cc4f6d0339be9a7ae2
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Wed Mar 14 12:49:57 2012 -0400
+
+    cmd/go: trivial help message fix for go help get
+    
+    Direct reference to go help build where the flags are described.
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/5825046
+
+ src/cmd/go/doc.go | 2 +-
+ src/cmd/go/get.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

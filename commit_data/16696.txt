@@ -1,0 +1,17 @@
+commit e55517259217b29383d1a77e3c70e5cd19fa778b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Jul 3 00:33:38 2013 +0800
+
+    runtime: fix runtime.sigreturn_tramp for NetBSD/ARM
+    using m->tls[0] to save ucontext pointer is not re-entry safe, and
+    the old code didn't set it before the early return when signal is
+    received on non-Go threads.
+    
+    so misc/cgo/test used to hang when testing issue 5337.
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/10076045
+
+ src/pkg/runtime/sys_netbsd_arm.s | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

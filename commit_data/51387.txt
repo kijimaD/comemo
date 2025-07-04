@@ -1,0 +1,35 @@
+commit 5aa6313e587d7fa7caba9a76d23dd4d246cb6d1f
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Oct 23 20:03:45 2022 +0200
+
+    crypto/rsa: precompute moduli
+    
+    This change adds some private fields to PrecomputedValues.
+    
+    If applications were for some reason manually computing the
+    PrecomputedValues, which they can't do anymore, things will still work
+    but revert back to the unoptimized path.
+    
+    name                    old time/op  new time/op  delta
+    DecryptPKCS1v15/2048-8  1.40ms ± 0%  1.24ms ± 0%  -10.98%  (p=0.000 n=10+8)
+    DecryptPKCS1v15/3072-8  4.14ms ± 0%  3.78ms ± 1%   -8.55%  (p=0.000 n=10+10)
+    DecryptPKCS1v15/4096-8  9.09ms ± 0%  8.62ms ± 0%   -5.20%  (p=0.000 n=9+8)
+    EncryptPKCS1v15/2048-8   139µs ± 0%   138µs ± 0%     ~     (p=0.436 n=9+9)
+    DecryptOAEP/2048-8      1.40ms ± 0%  1.25ms ± 0%  -11.01%  (p=0.000 n=9+9)
+    EncryptOAEP/2048-8       139µs ± 0%   139µs ± 0%     ~     (p=0.315 n=10+10)
+    SignPKCS1v15/2048-8     1.53ms ± 0%  1.29ms ± 0%  -15.93%  (p=0.000 n=9+10)
+    VerifyPKCS1v15/2048-8    138µs ± 0%   138µs ± 0%     ~     (p=0.052 n=10+10)
+    SignPSS/2048-8          1.54ms ± 0%  1.29ms ± 0%  -15.89%  (p=0.000 n=9+9)
+    VerifyPSS/2048-8         139µs ± 0%   139µs ± 0%     ~     (p=0.442 n=8+8)
+    
+    Change-Id: I843c468db96aa75b18ddff17cec3eadfb579cd0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445020
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/rsa/pkcs1v15.go |   4 +-
+ src/crypto/rsa/pss.go      |   4 +-
+ src/crypto/rsa/rsa.go      | 115 +++++++++++++++++++++++++--------------------
+ 3 files changed, 69 insertions(+), 54 deletions(-)

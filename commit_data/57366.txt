@@ -1,0 +1,30 @@
+commit db07c8607a1da5f618a7a8c2fae3e557dc6cb1af
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Wed Sep 4 16:19:22 2024 +0800
+
+    cmd/internal/obj/loong64: add support for instructions ANDN and ORN
+    
+    Go asm syntax:
+            ANDN/ORN        RK, RJ, RD
+        or  ANDN/ORN        RK, RD
+    
+    Equivalent platform assembler syntax:
+            andn/orn        rd, rj, rk
+        or  andn/orn        rd, rd, rk
+    
+    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    
+    Change-Id: I6d240ecae8f9443811ca450aed3574f13f0f4a81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610475
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Commit-Queue: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 5 +++++
+ src/cmd/internal/obj/loong64/a.out.go           | 4 ++++
+ src/cmd/internal/obj/loong64/anames.go          | 2 ++
+ src/cmd/internal/obj/loong64/asm.go             | 6 ++++++
+ 4 files changed, 17 insertions(+)

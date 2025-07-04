@@ -1,0 +1,19 @@
+commit 1271e9a9ccfdb0906ecf69d2047ad3b470eeca02
+Author: Ahmet Aktürk <aakturk000@gmail.com>
+Date:   Mon Apr 5 22:05:05 2021 +0300
+
+    time: properly quote strings containing quotes and backslashes
+    
+    Fixes #45391
+    
+    Change-Id: I43ea597f6a9596a621ae7b63eb05440d5b9e2d8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307192
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/time/export_test.go |  2 ++
+ src/time/format.go      | 11 ++++++++++-
+ src/time/format_test.go | 22 ++++++++++++++++++++++
+ 3 files changed, 34 insertions(+), 1 deletion(-)

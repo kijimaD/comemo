@@ -1,0 +1,15 @@
+commit 7f1d62dcefc868361e15db12608a8c8261be0e10
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 19 08:54:19 2014 -0700
+
+    spec: clarify when a program exits
+    
+    Fixes #8023.
+    
+    LGTM=rsc
+    R=r, iant, ken, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/98340043
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

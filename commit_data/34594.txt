@@ -1,0 +1,18 @@
+commit d32018a50017b075cd46be6b1f5cfb5050337140
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 13 17:45:17 2018 +0100
+
+    test: check that size argument errors are emitted at call site
+    
+    Add tests for the "negative size argument in make.*" and "size argument
+    too large in make.*" error messages to appear at call sites in case the
+    size is a const defined on another line.
+    
+    As suggested by Matthew in a comment on CL 69910.
+    
+    Change-Id: I5c33d4bec4e3d20bb21fe8019df27999997ddff3
+    Reviewed-on: https://go-review.googlesource.com/100395
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/makemap.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

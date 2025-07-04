@@ -1,0 +1,16 @@
+commit c6fd23ce6db5f4de12180132f874b0a87b58cf5b
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Aug 24 13:57:04 2009 -0700
+
+    64bit literal RSH
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=85  (35 added, 0 deleted, 50 changed)
+    OCL=33761
+    CL=33767
+
+ src/cmd/5g/cgen64.c | 127 ++++++++++++++++++++++++++++++++--------------------
+ src/cmd/5g/gsubr.c  |   2 +-
+ src/cmd/5l/5.out.h  |   6 +++
+ 3 files changed, 85 insertions(+), 50 deletions(-)

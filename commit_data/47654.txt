@@ -1,0 +1,26 @@
+commit 2c5d2083e41371aa4f5aab9e86921002c1f9b504
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Mon Nov 29 16:48:34 2021 -0800
+
+    runtime: fix riscv64 sigaction mask field offset
+    
+    The Linux kernel for riscv64 does not include an sa_restorer field on
+    its sigaction struct, and expects sa_mask to come immediately after the
+    sa_flags field. Arrange the fields of the sigaction struct that are
+    known to the kernel so they appear at the correct byte offsets, and so
+    they agree with the output of "go tool cgo -godefs".
+    
+    Follow the example set by the mips/mipsle port to leave the sa_restorer
+    field in place, but at an offset where it won't hurt anything.
+    
+    Fixes #49709
+    
+    Change-Id: I9bb0d7dbd7439d07e3a204461c7d790f33fd4977
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367635
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/defs_linux_riscv64.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

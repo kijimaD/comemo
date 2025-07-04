@@ -1,0 +1,14 @@
+commit 7841cb14d95cf64c29b865c8a761a9e00fbbb37c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Jun 13 16:00:28 2021 -0700
+
+    doc/go1.17: assorted fixes
+    
+    Change-Id: I64235ad920240de9e2414b9ee6f4cfc4006b2862
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327709
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.17.html | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

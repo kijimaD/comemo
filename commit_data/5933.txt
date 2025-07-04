@@ -1,0 +1,17 @@
+commit 0cd877725597a9e7c35afdcdb1dbcd1c2c4264b8
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Tue Aug 3 13:35:14 2010 +1000
+
+    strings: fix Split("", "", -1)
+    Fixes #980.
+    
+    Made it return an empty array, rather than crash.
+    Added relevant test cases to strings.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/1914041
+
+ src/pkg/strings/strings.go      | 6 ++++--
+ src/pkg/strings/strings_test.go | 1 +
+ 2 files changed, 5 insertions(+), 2 deletions(-)

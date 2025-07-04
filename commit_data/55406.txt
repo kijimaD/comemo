@@ -1,0 +1,26 @@
+commit a807295d438f9575c32a5d4fa0bbaf6b8827f344
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jan 22 22:35:04 2024 +0000
+
+    Revert "cmd/preprofile: Add preprocess tool to pre-parse the profile file."
+    
+    This reverts CL 529738.
+    
+    Reason for revert: Breaking longtest builders
+    
+    For #58102.
+    Fixes #65220.
+    
+    Change-Id: Id295e3249da9d82f6a9e4fc571760302a1362def
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557460
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/base/flag.go              |   2 +-
+ .../compile/internal/pgo/internal/graph}/graph.go  |  13 +-
+ src/cmd/compile/internal/pgo/irgraph.go            | 207 ++++---------------
+ src/cmd/compile/internal/test/pgo_inl_test.go      |  35 +---
+ .../testdata/pgo/inline/inline_hot.pprof.node_map  |  13 --
+ src/cmd/preprofile/main.go                         | 224 ---------------------
+ 6 files changed, 44 insertions(+), 450 deletions(-)

@@ -1,0 +1,12 @@
+commit bf91e827ac08ba3375353108840d641c5a581865
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Mar 18 10:19:19 2011 +1100
+
+    filepath: do not run TestEvalSymlinks on Windows
+    
+    R=golang-dev, rsc1
+    CC=adg, golang-dev
+    https://golang.org/cl/4274069
+
+ src/pkg/path/filepath/path_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

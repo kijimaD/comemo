@@ -1,0 +1,15 @@
+commit 0d1e903c8a1d6060a1bb82eb8f78fc4de35425b7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:40:05 2017 -0700
+
+    cmd/compile: unify a Linksym call in dcommontype
+    
+    Passes toolstash-check.
+    
+    Change-Id: I9940909949da58e780696e6de0c21f95be7a8816
+    Reviewed-on: https://go-review.googlesource.com/41407
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/reflect.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

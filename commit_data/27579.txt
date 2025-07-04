@@ -1,0 +1,31 @@
+commit 7cd6cae6a63f09caa88bbcc394053b40cdeeccd1
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sun May 29 00:47:45 2016 -0700
+
+    compress/flate: use seperate const block for exported constants
+    
+    As rendered on https://tip.golang.org/pkg/compress/flate/, there is an
+    extra new-line because of the unexported constants in the same block.
+    
+    <<<
+    const (
+        NoCompression      = 0
+        BestSpeed          = 1
+        BestCompression    = 9
+        DefaultCompression = -1
+        HuffmanOnly        = -2 // Disables match search and only does Huffman entropy reduction.
+    
+    )
+    >>>
+    
+    Instead, seperate the exported compression level constants into its own
+    const block. This is both more readable and also fixes the issue.
+    
+    Change-Id: I60b7966c83fb53356c02e4640d05f55a3bee35b7
+    Reviewed-on: https://go-review.googlesource.com/23557
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/compress/flate/deflate.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

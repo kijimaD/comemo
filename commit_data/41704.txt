@@ -1,0 +1,16 @@
+commit 2910c5b4a01a573ebc97744890a07c1a3122c67a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Mar 21 16:57:26 2020 -0700
+
+    cmd/go: fix function name in comment
+    
+    Fixes #37991
+    
+    Change-Id: Ica58223f8564ec5d501d5b90b4258ffb78c42af1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224587
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/cmd/go/internal/str/path.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit bb5e45219af69135c389c6b68f9a67207bb32e05
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 4 20:54:25 2021 -0400
+
+    cmd/go.sum: remove untidy checksums
+    
+    I missed the 'go mod tidy' step in CL 316751 because I forgot to run
+    the cmd/internal/moddeps test in long mode. 😞
+    
+    Updates #45932
+    
+    Change-Id: Ic3f9b303ad5798ecd8cb044d4b8c766aa820bf69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317129
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go.sum | 2 --
+ 1 file changed, 2 deletions(-)

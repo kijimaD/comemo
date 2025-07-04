@@ -1,0 +1,17 @@
+commit dada467fc688ef5970bf4af30c2644c0d2ccdb54
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 19 13:23:32 2018 -0400
+
+    cmd/go/internal/par: actually make par.Work run things in parallel
+    
+    This was an unfortunate debugging print introduced
+    while working on the unfortunately large CL 123576.
+    At least now we're done with that awfulness.
+    
+    Change-Id: Ib83db59382a799f649832d22d3c6f039d2ef9d2c
+    Reviewed-on: https://go-review.googlesource.com/125015
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/par/work.go      |  1 -
+ src/cmd/go/internal/par/work_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

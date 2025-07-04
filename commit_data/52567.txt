@@ -1,0 +1,28 @@
+commit 47b22b6548822d7b51ba3dca3c8c5fe669bfdd59
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Tue Mar 28 19:30:04 2023 +0800
+
+    cmd/link, cmd/internal/obj/loong64: support the PCALIGN directive
+    
+    Allow writing `PCALIGN $imm` where imm is a power-of-2 between 8 and
+    2048 (inclusive), for ensuring that the following instruction is
+    placed at an imm-byte boundary relative to the beginning of the
+    function. If the PC is not sufficiently aligned, NOOPs will be
+    inserted to make it so, otherwise the directive will do nothing.
+    
+    This could be useful for both asm performance hand-tuning, and future
+    scenarios where a certain bigger alignment might be required.
+    
+    Change-Id: Iad6244669a3d5adea88eceb0dc7be1af4f0d4fc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479815
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: WANG Xuerui <git@xen0n.name>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/loong64/asm.go | 45 +++++++++++++++++++++++++++++++++----
+ src/cmd/link/link_test.go           | 25 ++++++++++++++++-----
+ 2 files changed, 61 insertions(+), 9 deletions(-)

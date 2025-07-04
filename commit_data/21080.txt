@@ -1,0 +1,17 @@
+commit fbdf59a7c4c987cab294cf889dbcc20208c28045
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Dec 23 09:05:28 2014 +0100
+
+    test: disable bug248 and bug345 tests on Plan 9
+    
+    These tests were enabled as part of change 1774.
+    They depend on the errchk tool, which is a Perl
+    script. However, Perl is not available on Plan 9.
+    
+    Change-Id: I82707aae16013acc9a3800d39b0084588b852b53
+    Reviewed-on: https://go-review.googlesource.com/2031
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ test/fixedbugs/bug248.go | 2 +-
+ test/fixedbugs/bug345.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

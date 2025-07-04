@@ -1,0 +1,12 @@
+commit 985461fd9ee121642fd30ae774d2b4d2b54606c2
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Apr 11 21:25:35 2015 +0300
+
+    cmd/go: fix error message
+    
+    Change-Id: I440435927fc9f417d81ed4e8656a73787bf0968a
+    Reviewed-on: https://go-review.googlesource.com/8801
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/testflag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

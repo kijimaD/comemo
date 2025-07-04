@@ -1,0 +1,12 @@
+commit 72a2979ef07e309f1168ed5a5e144ceeddb25472
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Nov 29 15:47:36 2011 -0800
+
+    spec: update spacing to match gofmt, where reasonable.
+    
+    R=gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/5327053
+
+ doc/go_spec.html | 136 +++++++++++++++++++++++++++----------------------------
+ 1 file changed, 68 insertions(+), 68 deletions(-)

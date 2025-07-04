@@ -1,0 +1,15 @@
+commit c7ebfed65567b9ac4a429bc87c48c29577a577b7
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 11 10:21:02 2008 -0700
+
+    add sections about types and constants
+    
+    R=gri
+    DELTA=133  (124 added, 0 deleted, 9 changed)
+    OCL=15122
+    CL=15143
+
+ doc/go_tutorial.txt  | 118 +++++++++++++++++++++++++++++++++++++++++++++++----
+ doc/progs/strings.go |  13 ++++++
+ doc/progs/sum.go     |  19 +++++++++
+ 3 files changed, 141 insertions(+), 9 deletions(-)

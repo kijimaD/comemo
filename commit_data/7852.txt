@@ -1,0 +1,16 @@
+commit 14b9032f840040e5f098be6302735a82abe7ca31
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Mar 23 23:11:29 2011 +0100
+
+    5l/6l/8l: undo spadj cleanup at ARET for following instructions in the same stackframe.
+    
+    5l was already correct, clarified comment and added diags for unmaintained code.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4277070
+
+ src/cmd/5l/noop.c | 18 ++++++++++++------
+ src/cmd/6l/pass.c |  9 +++++++--
+ src/cmd/8l/pass.c | 15 +++++++++------
+ 3 files changed, 28 insertions(+), 14 deletions(-)

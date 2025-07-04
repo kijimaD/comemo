@@ -1,0 +1,16 @@
+commit 8b03a3992bc755eadbccc10d97adc21d0b229401
+Author: Kevin Gillette <extemporalgenome@gmail.com>
+Date:   Mon Aug 26 03:30:21 2019 +0000
+
+    net/http: make docs refer to Context.Value as a getter instead of context.WithValue
+    
+    The doc comments of both ServerContextKey and LocalAddrContextKey both suggest that context.WithValue can be used to access (get) properties of the server or connection. This PR fixes those comments to refer to Context.Value instead.
+    
+    Change-Id: I4ed383ef97ba1951f90c555243007469cfc18d4d
+    GitHub-Last-Rev: 05bc3acf82322e3dc77abc7fa0412efe01a77eac
+    GitHub-Pull-Request: golang/go#33833
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191838
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,78 @@
+commit 8c445b7c9fe6738cbef2040a1011bd11489b0806
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri May 12 16:39:43 2023 -0400
+
+    cmd/compile: enable PGO-driven call devirtualization
+    
+    This CL is originally based on CL 484838 from rajbarik@uber.com.
+    
+    Add a new PGO-based devirtualize pass. This pass conditionally
+    devirtualizes interface calls for the hottest callee. That is, it
+    performs a transformation like:
+    
+            type Iface interface {
+                    Foo()
+            }
+    
+            type Concrete struct{}
+    
+            func (Concrete) Foo() {}
+    
+            func foo(i Iface) {
+                    i.Foo()
+            }
+    
+    to:
+    
+            func foo(i Iface) {
+                    if c, ok := i.(Concrete); ok {
+                            c.Foo()
+                    } else {
+                            i.Foo()
+                    }
+            }
+    
+    The primary benefit of this transformation is enabling inlining of the
+    direct calls.
+    
+    Today this change has no impact on the escape behavior, as the fallback
+    interface always forces an escape. But improving escape analysis to take
+    advantage of this is an area of potential work.
+    
+    This CL is the bare minimum of a devirtualization implementation. There
+    are still numerous limitations:
+    
+    * Callees not directly referenced in the current package can be missed
+      (even if they are in the transitive dependences).
+    * Callees not in the transitive dependencies of the current package are
+      missed.
+    * Only interface method calls are supported, not other indirect function
+      calls.
+    * Multiple calls to compatible interfaces on the same line cannot be
+      distinguished and will use the same callee target.
+    * Callees that only partially implement an interface (they are embedded
+      in another type that completes the interface) cannot be devirtualized.
+    * Others, mentioned in TODOs.
+    
+    Fixes #59959
+    
+    Change-Id: I8bedb516139695ee4069650b099d05957b7ce5ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492436
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/base/debug.go             |   1 +
+ src/cmd/compile/internal/base/flag.go              |   1 +
+ .../compile/internal/devirtualize/devirtualize.go  |  22 +-
+ src/cmd/compile/internal/devirtualize/pgo.go       | 532 +++++++++++++++++++++
+ src/cmd/compile/internal/gc/main.go                |  17 +-
+ src/cmd/compile/internal/inline/inl.go             | 145 +++---
+ src/cmd/compile/internal/pgo/irgraph.go            | 217 +++++++--
+ .../compile/internal/test/pgo_devirtualize_test.go | 126 +++++
+ .../test/testdata/pgo/devirtualize/devirt.go       |  83 ++++
+ .../test/testdata/pgo/devirtualize/devirt.pprof    | Bin 0 -> 682 bytes
+ .../test/testdata/pgo/devirtualize/devirt_test.go  |  27 ++
+ 11 files changed, 1049 insertions(+), 122 deletions(-)

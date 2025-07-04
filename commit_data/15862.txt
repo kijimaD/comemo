@@ -1,0 +1,24 @@
+commit 656bc3eb960fb2af7fb057700dd2f5b352b21317
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Mar 21 08:53:52 2013 +0100
+
+    cmd/gc: implement more cases in racewalk.
+    
+    Add missing CLOSUREVAR in switch.
+    Mark MAKE, string conversion nodes as impossible.
+    Control statements do not need instrumentation.
+    Instrument COM and LROT nodes.
+    Instrument map length.
+    
+    Update #4228
+    
+    R=dvyukov, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7504047
+
+ src/cmd/gc/racewalk.c                            | 65 ++++++++--------
+ src/pkg/runtime/race/testdata/map_test.go        |  6 +-
+ src/pkg/runtime/race/testdata/mop_test.go        | 96 ++++++++++++++++++++++++
+ src/pkg/runtime/race/testdata/regression_test.go | 12 +++
+ src/pkg/runtime/race/testdata/slice_test.go      | 21 ++++++
+ 5 files changed, 162 insertions(+), 38 deletions(-)

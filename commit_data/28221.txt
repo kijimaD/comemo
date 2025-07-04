@@ -1,0 +1,39 @@
+commit 276a52de55fb48c4e56a778f1f7cac9292d8fad7
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 18 21:40:02 2016 -0400
+
+    runtime: fetch physical page size from the OS
+    
+    Currently the physical page size assumed by the runtime is hard-coded.
+    On Linux the runtime at least fetches the OS page size during init and
+    sanity checks against the hard-coded value, but they may still differ.
+    On other OSes we wouldn't even notice.
+    
+    Add support on all OSes to fetch the actual OS physical page size
+    during runtime init and lift the sanity check of PhysPageSize from the
+    Linux init code to general malloc init. Currently this is the only use
+    of the retrieved page size, but we'll add more shortly.
+    
+    Updates #12480 and #10180.
+    
+    Change-Id: I065f2834bc97c71d3208edc17fd990ec9058b6da
+    Reviewed-on: https://go-review.googlesource.com/25050
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/defs1_solaris_amd64.go |  1 +
+ src/runtime/export_mmap_test.go    |  6 +++++
+ src/runtime/malloc.go              | 22 +++++++++++++++++
+ src/runtime/os3_solaris.go         |  9 +++++++
+ src/runtime/os_darwin.go           | 22 ++++++++++++++++-
+ src/runtime/os_dragonfly.go        | 17 +++++++++++--
+ src/runtime/os_freebsd.go          | 17 +++++++++++--
+ src/runtime/os_linux.go            | 12 +--------
+ src/runtime/os_nacl.go             |  1 +
+ src/runtime/os_netbsd.go           | 17 +++++++++++--
+ src/runtime/os_openbsd.go          | 17 +++++++++++--
+ src/runtime/os_plan9.go            | 50 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/os_windows.go          |  8 ++++++
+ src/runtime/runtime_mmap_test.go   | 28 +++++++++++++++++++--
+ 14 files changed, 205 insertions(+), 22 deletions(-)

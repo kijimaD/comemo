@@ -1,0 +1,21 @@
+commit 1ff89009f198ad5bae3549dd3b992882bd97e5f8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 25 11:31:28 2023 -0700
+
+    io: clarify that Read(nil) can return 0, EOF
+    
+    Fixes #40385
+    
+    Change-Id: I965b5db985fd4418a992e883073cbc8309b2cb88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498355
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/io/io.go | 3 +++
+ 1 file changed, 3 insertions(+)

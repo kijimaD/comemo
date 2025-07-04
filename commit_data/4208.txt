@@ -1,0 +1,11 @@
+commit 5f484ec118ebcfe752b94a1fbc53026579a8b792
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 24 11:47:53 2009 -0800
+
+    http: redirect to correct URL
+    
+    R=r, r1
+    https://golang.org/cl/157154
+
+ src/pkg/http/fs.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

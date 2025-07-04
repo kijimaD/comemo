@@ -1,0 +1,13 @@
+commit ae55858e049179539479c325965407b4b6ebb2ec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 4 20:30:26 2014 -0700
+
+    syscall: fix typo in comment
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/120570043
+
+ src/pkg/syscall/syscall_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

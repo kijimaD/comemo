@@ -1,0 +1,10 @@
+commit caa7193c95e1fd19b7665979e252fb78d60ba11f
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Jul 6 11:20:44 2008 -0700
+
+    took out vlong/uvlong/rune conversions
+    
+    SVN=126053
+
+ src/cmd/6g/align.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

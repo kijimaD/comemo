@@ -1,0 +1,51 @@
+commit ad73de2f5f8395e26d3d3d736ec7087f309f8afd
+Author: Giles Lean <giles.lean@pobox.com>
+Date:   Fri Mar 26 13:23:54 2010 -0700
+
+    syscall: Create syscall_bsd.go for code used by Darwin and other *BSDs
+    
+    In this change I'd like to combine the common code that is
+    present in syscall_darwin.go and syscall_freebsd.go.  I
+    have three reasons for wanting to do this now:
+    
+    1. reducing code duplication is nearly always good :-)
+    2. the duplication will get worse if I duplicate this code
+       a third time for the NetBSD port I'm working on, which
+       I need to do almost immediately
+    3. by making this change all in one lump and ignoring any
+       commonality with the syscall_linux*.go files the diff
+       is long but, I think, readable
+    
+    In future it may be possible to cherry pick functions that
+    also apply to Linux and put them in (say) syscall_unix.go,
+    and of course some functions may diverge in future and have
+    to move out to OS or architecture specific files, but today
+    I want just the low hanging fruit.
+    
+    Tested and passed on:
+    
+      Darwin (Snow Leopard, 10.6): amd64 and 386
+      FreeBSD (8.0-RELEASE):       386 only(*)
+    
+    (*) All my virtualisation software has stopped playing nice
+    with FreeBSD for the moment, so I don't have facilities to
+    test the amd64 port.  As the OS X port is OK and the diff
+    looks all right to my eyes I shall keep my fingers crossed.
+    If someone with a FreeBSD/amd64 system cares to test and
+    report I would be appreciative.
+    
+    2010-03-27 update: I have replaced my virtualisation software, and have working FreeBSD/i386 and FreeBSD/amd64 virtual machines again.
+    
+    As I hoped (and expected -- programmers are optimists :-) the code built and passed all but the two currently known to fail tests on FreeBSD/amd64. I rechecked FreeBSD/i386 too: same results.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/751041
+
+ src/pkg/syscall/Makefile                 |   2 +
+ src/pkg/syscall/syscall_bsd.go           | 467 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_darwin.go        | 463 +-----------------------------
+ src/pkg/syscall/syscall_freebsd.go       | 467 +------------------------------
+ src/pkg/syscall/zsyscall_darwin_386.go   |  12 +-
+ src/pkg/syscall/zsyscall_darwin_amd64.go |  12 +-
+ 6 files changed, 489 insertions(+), 934 deletions(-)

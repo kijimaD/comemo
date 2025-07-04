@@ -1,0 +1,16 @@
+commit 3ddfaa5653cfc5c8663319d017a5fb4de97814f4
+Author: Benoit Sigoure <tsunanet@gmail.com>
+Date:   Fri Feb 5 17:18:46 2016 -0800
+
+    cmd/gofmt: Ignore file not found errors.
+    
+    gofmt prints an error to stderr when a file is deleted during its
+    `filepath.Walk()', which can happen in builds that change the tree
+    concurrently with gofmt running.
+    
+    Change-Id: Ia1aa4804f6bc2172baf061c093e16fe56a3ee50c
+    Reviewed-on: https://go-review.googlesource.com/19301
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/gofmt/gofmt.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

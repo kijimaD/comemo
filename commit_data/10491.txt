@@ -1,0 +1,16 @@
+commit 8362ee99b046bdbc19d6e8a806c656295ba56b2a
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Nov 23 09:04:02 2011 -0800
+
+    fmt: don't check for nil when printing arrays as Go syntax.
+    
+    Also add array values to printing test suite.
+    Fixes #2468.
+    
+    R=golang-dev, r
+    CC=golang-dev, remy
+    https://golang.org/cl/5436053
+
+ src/pkg/fmt/fmt_test.go | 16 ++++++++++++++--
+ src/pkg/fmt/print.go    |  2 +-
+ 2 files changed, 15 insertions(+), 3 deletions(-)

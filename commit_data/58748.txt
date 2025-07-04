@@ -1,0 +1,45 @@
+commit 242ef7cb05a6d406912389b6b3b6ad3bda1f7484
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Dec 28 22:32:59 2024 +0100
+
+    crypto/rsa: normalize GenerateKey benchmark
+    
+    Benchmarking key generation is a pain. The number of random candidates
+    explored before finding a prime varies greatly, and on top of that some
+    rejections happen in the trial divisions step and some in the
+    Miller-Rabin step.
+    
+    However, we can calculate on average how many candidates we should
+    reject before finding a prime, and of those how many should be divisible
+    by small primes. (And even the number of multiplications in a
+    Miller-Rabin iteration.) The new checked in sequence of candidates is
+    normalized to represent the average case.
+    
+    It doesn't normalize the runtime of GCD, but running the benchmark with
+    20 different randomly generated "average cases" produces very consistent
+    results, so it must not matter much.
+    
+    goos: darwin
+    goarch: arm64
+    pkg: crypto/rsa
+    cpu: Apple M2
+                       │  regen.txt  │
+                       │   sec/op    │
+    GenerateKey/2048-8   136.4m ± 0%
+    
+    Changed slightly the excess masking in keygen.go to make it easier to
+    feed fixed candidates. This might also make it easier to share test
+    vectors in the future.
+    
+    Change-Id: I66696c693f35da7bda27db537aa3bf3b991e970e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639335
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/fips140/rsa/keygen.go |  17 +-
+ src/crypto/rsa/rsa_test.go                |  59 ++-
+ src/crypto/rsa/testdata/keygen2048.txt    | 719 ++++++++++++++++++++++++++++++
+ 3 files changed, 781 insertions(+), 14 deletions(-)

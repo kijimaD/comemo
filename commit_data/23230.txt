@@ -1,0 +1,24 @@
+commit e346adf5685b5c310ecdd6b121591ecb0ea91ea0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 20 11:41:31 2015 -0400
+
+    cmd/dist: do not rewrite files that already have the correct content
+    
+    In particular, this avoids moving the mtime on runtime/zversion.go
+    forward unless the file is out of date. In turn, this makes cross compiles
+    that run dist multiple times coexist nicely.
+    
+    (It's no longer necessary to run dist multiple times to set up cross compiles,
+    but people still might, and it's easy to fix regardless.)
+    
+    Fixes #4749.
+    
+    Change-Id: Id430525f168f106bc4b821ca74b2ca498a748f14
+    Reviewed-on: https://go-review.googlesource.com/9152
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/build.go        |  4 ++--
+ src/cmd/dist/buildruntime.go |  4 ++--
+ src/cmd/dist/buildtool.go    |  2 +-
+ src/cmd/dist/util.go         | 25 ++++++++++++++++++++-----
+ 4 files changed, 25 insertions(+), 10 deletions(-)

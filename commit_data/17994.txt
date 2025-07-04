@@ -1,0 +1,53 @@
+commit a9f6db58cea016957391f3ca9d36247177895e96
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 16 12:51:58 2013 -0500
+
+    cmd/ld: move instruction selection + layout into compilers, assemblers
+    
+    - new object file reader/writer (liblink/objfile.c)
+    - remove old object file writing routines
+    - add pcdata iterator
+    - remove all trace of "line number stack" and "path fragments" from
+      object files, linker (!!!)
+    - dwarf now writes a single "compilation unit" instead of one per package
+    
+    This CL disables the check for chains of no-split functions that
+    could overflow the stack red zone. A future CL will attack the problem
+    of reenabling that check (issue 6931).
+    
+    This CL is just the liblink and cmd/ld changes.
+    There are minor associated adjustments in CL 37030045.
+    Each depends on the other.
+    
+    R=golang-dev, dave, iant
+    CC=golang-dev
+    https://golang.org/cl/39680043
+
+ include/link.h        |  82 +++----
+ src/cmd/5l/obj.c      |   4 +-
+ src/cmd/6l/obj.c      |  12 -
+ src/cmd/8l/obj.c      |  13 -
+ src/cmd/ld/data.c     |  54 ++--
+ src/cmd/ld/dwarf.c    | 465 +++++++----------------------------
+ src/cmd/ld/dwarf.h    |   6 -
+ src/cmd/ld/go.c       |  54 +---
+ src/cmd/ld/lib.c      |  53 ++--
+ src/cmd/ld/lib.h      |   2 -
+ src/cmd/ld/pcln.c     |  53 +---
+ src/cmd/ld/pobj.c     |  34 +--
+ src/liblink/asm5.c    |  25 +-
+ src/liblink/asm6.c    |   1 +
+ src/liblink/asm8.c    |  15 +-
+ src/liblink/ld.c      | 340 +-------------------------
+ src/liblink/obj.c     | 279 +++++----------------
+ src/liblink/obj5.c    | 240 ++++++------------
+ src/liblink/obj6.c    | 269 ++++++++++----------
+ src/liblink/obj8.c    | 231 ++++++++----------
+ src/liblink/objfile.c | 665 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/liblink/pass.c    |  17 +-
+ src/liblink/pcln.c    |  70 +++++-
+ src/liblink/rdobj5.c  | 585 --------------------------------------------
+ src/liblink/rdobj6.c  | 495 -------------------------------------
+ src/liblink/rdobj8.c  | 466 -----------------------------------
+ src/liblink/sym.c     |  96 +++++++-
+ 27 files changed, 1417 insertions(+), 3209 deletions(-)

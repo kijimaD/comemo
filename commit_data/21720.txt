@@ -1,0 +1,21 @@
+commit 9f926e81c262f11e2980a25f06ac17f3bbeb378a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 23 17:05:30 2015 +0900
+
+    runtime: simplify OpenBSD semaphores
+    
+    OpenBSD's thrsleep system call includes an "abort" parameter, which
+    specifies a memory address to be tested after being registered on the
+    sleep channel (i.e., capable of being woken up by thrwakeup).  By
+    passing a pointer to waitsemacount for this parameter, we avoid race
+    conditions without needing a lock.  Instead we just need to use
+    atomicload, cas, and xadd to mutate the semaphore count.
+    
+    Change-Id: If9f2ab7cfd682da217f9912783cadea7e72283a8
+    Reviewed-on: https://go-review.googlesource.com/5563
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Joel Sing <jsing@google.com>
+
+ src/runtime/os1_openbsd.go | 40 ++++++++++++++--------------------------
+ src/runtime/os_openbsd.go  |  2 +-
+ 2 files changed, 15 insertions(+), 27 deletions(-)

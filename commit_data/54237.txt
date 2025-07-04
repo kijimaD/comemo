@@ -1,0 +1,25 @@
+commit b2e809bab59a692aa6a69e1bd1d32eeeab4622e3
+Author: Paul Murphy <murp@ibm.com>
+Date:   Thu Aug 17 16:35:55 2023 -0500
+
+    internal/bytealg: improve compare on Power10/PPC64
+    
+    Handle comparisons of 15 or less bytes more efficiently
+    with Power10 instructions when building with GOPPC64=power10.
+    
+    name            old time/op  new time/op  delta
+    BytesCompare/1  2.53ns ± 0%  2.17ns ± 0%  -14.17%
+    BytesCompare/2  2.70ns ± 0%  2.17ns ± 0%  -19.77%
+    BytesCompare/4  2.59ns ± 0%  2.17ns ± 0%  -16.20%
+    BytesCompare/8  2.66ns ± 0%  2.17ns ± 0%  -18.63%
+    
+    Change-Id: I6d7c6af0a58ea3e03acc3930c54b77f2ac1dfbd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522315
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/bytealg/compare_ppc64x.s | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

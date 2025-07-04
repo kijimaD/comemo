@@ -1,0 +1,66 @@
+commit 69ff0ba7984e01f13dd91b8dd89f134c4127d75a
+Author: zdjones <zachj1@gmail.com>
+Date:   Tue Apr 9 23:19:43 2019 +0100
+
+    cmd/compile: handle sign/zero extensions in prove, via update method
+    
+    Array accesses with index types smaller than the machine word size may
+    involve a sign or zero extension of the index value before bounds
+    checking. Currently, this defeats prove because the facts about the
+    original index value don't flow through the sign/zero extension.
+    
+    This CL fixes this by looking back through value-preserving sign/zero
+    extensions when adding facts via Update and, where appropriate, applying
+    the same facts using the pre-extension value. This fix is enhanced by
+    also looking back through value-preserving extensions within
+    ft.isNonNegative to infer whether the extended value is known to be
+    non-negative. Without this additional isNonNegative enhancement, this
+    logic is rendered significantly less effective by the limitation
+    discussed in the next paragraph.
+    
+    In Update, the application of facts to pre-extension values is limited
+    to cases where the domain of the new fact is consistent with the type of
+    the pre-extension value. There may be cases where this cross-domain
+    passing of facts is valid, but distinguishing them from the invalid
+    cases is difficult for me to reason about and to implement.
+    Assessing which cases to allow requires details about the context and
+    inferences behind the fact being applied which are not available
+    within Update. Additional difficulty arises from the fact that the SSA
+    does not curently differentiate extensions added by the compiler for
+    indexing operations, extensions added by the compiler for implicit
+    conversions, or explicit extensions from the source.
+    
+    Examples of some cases that would need to be filtered correctly for
+    cross-domain facts:
+    
+    (1) A uint8 is zero-extended to int for indexing (a value-preserving
+    zeroExt). When, if ever, can signed domain facts learned about the int be
+    applied to the uint8?
+    
+    (2) An int8 is sign-extended to int16 (value-preserving) for an equality
+    comparison. Equality comparison facts are currently always learned in both
+    the signed and unsigned domains. When, if ever, can the unsigned facts
+    learned about the int16, from the int16 != int16 comparison, be applied
+    to the original int8?
+    
+    This is an alternative to CL 122695 and CL 174309. Compared to CL 122695,
+    this CL differs in that the facts added about the pre-extension value will
+    pass through the Update method, where additional inferences are processed
+    (e.g. fence-post implications, see #29964). CL 174309 is limited to bounds
+    checks, so is narrower in application, and makes the code harder to read.
+    
+    Fixes #26292.
+    Fixes #29964.
+    Fixes #15074
+    
+    Removes 238 bounds checks from std/cmd.
+    
+    Change-Id: I1f87c32ee672bfb8be397b27eab7a4c2f304893f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174704
+    Run-TryBot: Zach Jones <zachj1@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 41 +++++++++++++++++++++++++
+ test/prove.go                         | 57 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 98 insertions(+)

@@ -1,0 +1,18 @@
+commit 27f7e3b2177b6968563fc85e61acd48540c48ab1
+Author: Bill Thiede <couchmoney@gmail.com>
+Date:   Tue May 14 09:54:16 2013 -0700
+
+    misc/vim: test.sh seems to only work on Mac OS X.
+    
+    cmp(1) on FreeBSD requires two file arguments.  grep -P on Linux (at least
+    Ubuntu 12.04) is described in the man page as "This is highly
+    experimental" and doesn't seem to work. On FreeBSD the man page states
+    "This option  is not supported in FreeBSD."  Needed this to work while
+    debugging some funky behavior of 'Import' in my local vim setup.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7675043
+
+ misc/vim/ftplugin/go/test.sh | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,32 @@
+commit 876eca7924d5dc7355361ac4f4050a3ffcbc4cc7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 22 11:39:22 2023 -0400
+
+    cmd/go: add support for 'go' and 'toolchain' repos in modfetch
+    
+    To make the new go lines work with 'go get' as minimum requirements,
+    this CL creates a synthetic 'go' module that has as its versions the valid
+    versions that can be listed on the 'go' line.
+    
+    In preparation for allowing 'toolchain' changes as well, an equivalent
+    synthetic module is introduced for 'toolchain'.
+    
+    For #57001.
+    
+    Change-Id: Id0ebbd283f0f991859d516d21dffe59a834db540
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497080
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/gover/mod.go                   |  17 ++-
+ src/cmd/go/internal/gover/mod_test.go              |   5 +-
+ src/cmd/go/internal/modfetch/cache.go              |  34 +++++
+ src/cmd/go/internal/modfetch/fetch.go              |   6 +
+ src/cmd/go/internal/modfetch/repo.go               |   5 +
+ src/cmd/go/internal/modfetch/toolchain.go          | 144 +++++++++++++++++++++
+ src/cmd/go/internal/modload/modfile.go             |   6 +
+ src/cmd/go/internal/modload/query.go               |   4 +-
+ src/cmd/go/testdata/script/gotoolchain_version.txt |  13 ++
+ 9 files changed, 230 insertions(+), 4 deletions(-)

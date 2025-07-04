@@ -1,0 +1,15 @@
+commit 4f2620285d7ce1802aff3d1f85e5ab0168d57bf3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 24 21:12:06 2021 -0700
+
+    cmd/compile/internal/types2: fix type set printing and add test
+    
+    Change-Id: I44ca1f889b041467d5febacaf6037cfd75859175
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344873
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/types2/typeset.go      | 12 ++---
+ src/cmd/compile/internal/types2/typeset_test.go | 67 ++++++++++++++++++++++++-
+ 2 files changed, 71 insertions(+), 8 deletions(-)

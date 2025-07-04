@@ -1,0 +1,33 @@
+commit 6052838bc325049505aba9c3b87256161f9e05e8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 24 18:35:17 2020 -0800
+
+    all: avoid string(i) where i has type int
+    
+    Instead use string(r) where r has type rune.
+    
+    This is in preparation for a vet warning for string(i).
+    
+    Updates #32479
+    
+    Change-Id: Ic205269bba1bd41723950219ecfb67ce17a7aa79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220844
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Akhil Indurti <aindurti@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+
+ src/bufio/bufio_test.go                     |  2 +-
+ src/encoding/xml/xml.go                     |  4 +-
+ src/fmt/fmt_test.go                         | 10 ++---
+ src/fmt/scan.go                             |  8 ++--
+ src/go/types/conversions.go                 |  2 +-
+ src/net/dnsclient_test.go                   |  2 +-
+ src/net/rpc/jsonrpc/all_test.go             |  4 +-
+ src/reflect/value.go                        |  4 +-
+ src/runtime/pprof/internal/profile/proto.go |  2 +-
+ src/runtime/string_test.go                  |  4 +-
+ src/strconv/quote_test.go                   | 66 ++++++++++++++---------------
+ src/strings/strings_test.go                 |  4 +-
+ 12 files changed, 56 insertions(+), 56 deletions(-)

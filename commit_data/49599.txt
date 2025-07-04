@@ -1,0 +1,29 @@
+commit 486fc0177068277a51235c7794660b238e70d622
+Author: Aaron Gable <aaron@letsencrypt.org>
+Date:   Tue Jun 28 15:28:21 2022 -0700
+
+    crypto/x509: correctly parse CRL entry extensions
+    
+    When checking to see if a CRL entry has any extensions, attempt to read
+    them from the individual revokedCertificate, rather than from the parent
+    TBSCertList.
+    
+    Additionally, crlEntryExtensions is not an EXPLICIT field (c.f.
+    crlExtension and Certificate extensions), so do not perform an extra
+    layer of unwrapping when parsing the field.
+    
+    The added test case fails without the accompanying changes.
+    
+    Fixes #53592
+    
+    Change-Id: Icc00e4c911f196aef77e3248117de64ddc5ea27f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414877
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/x509/parser.go    |  5 +----
+ src/crypto/x509/x509_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 4 deletions(-)

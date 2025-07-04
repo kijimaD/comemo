@@ -1,0 +1,15 @@
+commit 3379414b210d1c03c27b4b340c3a12da430ec2e9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 29 00:45:29 2011 -0400
+
+    codereview: restrict sync to default branch
+    
+    'default' is the name of the main branch,
+    the one that isn't a release branch.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4636072
+
+ lib/codereview/codereview.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

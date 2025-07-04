@@ -1,0 +1,17 @@
+commit 056dfe6ff34fd479ec5c86d9b26a03c639b3f3f7
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 28 00:33:19 2021 +0700
+
+    reflect: undeprecate Value.{Pointer,UnsafeAddr}
+    
+    Fixes #49187
+    
+    Change-Id: I4d8c87af8a709f1b909dd4fae3734d422eb36900
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359194
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/value.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

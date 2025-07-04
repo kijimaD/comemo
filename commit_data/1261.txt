@@ -1,0 +1,15 @@
+commit 748287d49e6896aa4529e906091a4f54c7638399
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 2 12:52:47 2008 -0800
+
+    The flag and fmt libraries are now available from gccgo by
+    default.  Fix PRETTY_OBJS to include compilation.o rather than
+    compilation.go.
+    
+    R=gri
+    DELTA=10  (0 added, 8 deleted, 2 changed)
+    OCL=20248
+    CL=20257
+
+ usr/gri/pretty/Makefile.iant | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)

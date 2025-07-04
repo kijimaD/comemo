@@ -1,0 +1,13 @@
+commit 99c5b2ed4d96b2b070d9a902b86d9480292ad1fb
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 13 12:26:58 2008 -0700
+
+    6g thinks a struct with one entry yields a composite that is a basic conversion
+    
+    R=rsc
+    DELTA=12  (12 added, 0 deleted, 0 changed)
+    OCL=16989
+    CL=16998
+
+ test/bugs/bug112.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

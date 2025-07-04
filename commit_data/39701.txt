@@ -1,0 +1,48 @@
+commit 501b786e5c04f6f21b8b7e56fbfa6eda29e527d6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jul 25 12:54:03 2019 -0700
+
+    test: remove -newescape from regress tests
+    
+    Prep for subsequent CLs to remove old escape analysis pass.
+    
+    This CL removes -newescape=true from tests that use it, and deletes
+    tests that use -newescape=false. (For history, see CL 170447.)
+    
+    Notably, this removes escape_because.go without any replacement, but
+    this is being tracked by #31489.
+    
+    Change-Id: I6f6058d58fff2c5d210cb1d2713200cc9f501ca7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187617
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ test/escape2.go                        |    2 +-
+ test/escape2n.go                       |    2 +-
+ test/escape5.go                        |    2 +-
+ test/escape_because.go                 |  209 ----
+ test/escape_calls.go                   |    2 +-
+ test/escape_closure.go                 |    2 +-
+ test/escape_field.go                   |    2 +-
+ test/escape_iface.go                   |    2 +-
+ test/escape_param.go                   |    2 +-
+ test/escape_struct_return.go           |    2 +-
+ test/fixedbugs/issue12006.go           |    2 +-
+ test/fixedbugs/issue17318.go           |    2 +-
+ test/fixedbugs/issue27732a.go          |    2 +-
+ test/fixedbugs/oldescape_issue12006.go |  174 ---
+ test/fixedbugs/oldescape_issue17318.go |   47 -
+ test/linkname.go                       |    2 +-
+ test/oldescape2.go                     | 1847 --------------------------------
+ test/oldescape2n.go                    | 1847 --------------------------------
+ test/oldescape5.go                     |  247 -----
+ test/oldescape_calls.go                |   54 -
+ test/oldescape_closure.go              |  173 ---
+ test/oldescape_field.go                |  174 ---
+ test/oldescape_iface.go                |  261 -----
+ test/oldescape_linkname.go             |   15 -
+ test/oldescape_param.go                |  441 --------
+ test/oldescape_struct_return.go        |   74 --
+ test/runtime/inlinegcpc.go             |    2 +-
+ 27 files changed, 14 insertions(+), 5577 deletions(-)

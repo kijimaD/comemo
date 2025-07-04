@@ -1,0 +1,14 @@
+commit cba0957a91b7f3ce16c06046b5c971e46ff806ef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 31 14:38:12 2016 -0700
+
+    go/types: basic Defs/Uses test for aliases
+    
+    Change-Id: I113ea712838511ee823375d9ea059089195414f5
+    Reviewed-on: https://go-review.googlesource.com/32449
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/api_test.go | 83 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 83 insertions(+)

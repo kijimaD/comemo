@@ -1,0 +1,19 @@
+commit 32e117d971eb4f802f27b98a0f13b7d9fc2d73fb
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Tue Jul 25 14:04:50 2017 +0800
+
+    time: don't match '---' month in time.Parse
+    
+    The existing implementation will panic when month in date string is '---'.
+    
+    Fixed #21113
+    
+    Change-Id: I8058ae7a4102e882f8b7e9c65d80936b563265e4
+    Reviewed-on: https://go-review.googlesource.com/51010
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/format.go      | 4 ++--
+ src/time/format_test.go | 3 +++
+ 2 files changed, 5 insertions(+), 2 deletions(-)

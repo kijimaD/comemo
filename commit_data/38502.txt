@@ -1,0 +1,23 @@
+commit 686b8142290a1eeba5a430b69be2c43273042dd7
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Mar 21 18:22:58 2019 +0100
+
+    cmd/go/internal/modfetch: update TestCodeRepo for gopkg.in/yaml.v2
+    
+    New release, it broke again the longtest builder. Align the expected
+    data with the current release.
+    
+    Making these tests independent of external repositories is #28856.
+    
+    This fixes the longtest builder.
+    
+    Updates #28856
+    
+    Change-Id: I32d2f3325af828d26ab417a5e986e3aeefa1a897
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168561
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/modfetch/coderepo_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

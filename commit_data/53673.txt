@@ -1,0 +1,40 @@
+commit 167c8b73bf92bdfed147e53b030331ac9260e0f6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jul 11 10:52:42 2023 -0400
+
+    net/http/fcgi: eliminate goroutine leaks in tests
+    
+    Also fix a (minor) double-Close error in Serve that was exposed by the
+    test fix.
+    
+    Serve accepts a net.Listener, which produces net.Conn instances.
+    The documentation for net.Conn requires its methods to be safe for
+    concurrent use, so most implementations likely allow Close to be
+    called multiple times as a side effect of making it safe to call
+    concurrently with other methods. However, the net.Conn interface is a
+    superset of the io.Closer interface, io.Closer explicitly leaves the
+    behavior of multiple Close calls undefined, and net.Conn does not
+    explicitly document a stricter requirement.
+    
+    Perhaps more importantly, the test for the fcgi package calls
+    unexported functions that accept an io.ReadWriteCloser (not a
+    net.Conn), and at least one of the test-helper ReadWriteCloser
+    implementations expects Close to be called only once.
+    
+    The goroutine leaks were exposed by a racy arbitrary timeout reported
+    in #61271. Fixing the goroutine leak exposed the double-Close error:
+    one of the leaked goroutines was blocked on reading from an unclosed
+    pipe. Closing the pipe (to unblock the goroutine) triggered the second
+    Close call.
+    
+    Fixes #61271.
+    
+    Change-Id: I5cfac8870e4bb4f13adeee48910d165dbd4b76fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508815
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/fcgi/fcgi.go      | 13 +++++++---
+ src/net/http/fcgi/fcgi_test.go | 57 +++++++++++++++++++++---------------------
+ 2 files changed, 38 insertions(+), 32 deletions(-)

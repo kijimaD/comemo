@@ -1,0 +1,16 @@
+commit 983d90e11dd0e12a484def454530fe9f5de031fc
+Author: Nakul Bajaj <nbajaj@umich.edu>
+Date:   Tue Oct 17 23:24:20 2023 -0700
+
+    testing/slogtest: test no source key with empty PC in record
+    
+    Fixes #62280
+    
+    Change-Id: Ideaffb797d8bb9cc70e635f0b019ae3cb90abc92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536117
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/testing/slogtest/slogtest.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

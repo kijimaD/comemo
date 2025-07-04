@@ -1,0 +1,17 @@
+commit fb64e0d96fa56eb6eefd2e5083b0986f1cb33d10
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 7 16:29:07 2011 -0800
+
+    go spec: clarify return statement rules
+    
+    Added example of a return statement w/o expressions
+    in a function with a _ result parameter.
+    
+    See also: http://code.google.com/p/go/issues/detail?id=1586
+    
+    R=rsc, r, iant
+    CC=golang-dev
+    https://golang.org/cl/4266049
+
+ doc/go_spec.html | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

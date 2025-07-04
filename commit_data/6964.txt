@@ -1,0 +1,12 @@
+commit d96685ed6a19c0f4775e5265b66e76922f30769a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Dec 15 20:54:11 2010 +1100
+
+    reflect: remove unnecessary indirection in TestCopy.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3642041
+
+ src/pkg/reflect/all_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

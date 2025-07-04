@@ -1,0 +1,15 @@
+commit a5d6b414493fdbd958dfbc973e6e890c2ee045d1
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Fri Sep 15 21:50:28 2017 +0100
+
+    cmd/compile: test constant folded integer to/from float conversions
+    
+    Improves test coverage of the rules added in CL 63795 and would have
+    detected the bug fixed by CL 63950.
+    
+    Change-Id: I107ee8d8e0b6684ce85b2446bd5018c5a03d608a
+    Reviewed-on: https://go-review.googlesource.com/64130
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/float_test.go | 117 +++++++++++++++++++++++++++++-
+ 1 file changed, 115 insertions(+), 2 deletions(-)

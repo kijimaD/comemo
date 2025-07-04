@@ -1,0 +1,12 @@
+commit c1e1e882d2a1e474e21bc44edf26e3fb5ab87ebc
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 25 08:26:01 2018 +1000
+
+    doc: fix a couple of drive-by review comments in FAQ
+    
+    Change-Id: I10cc2073e28cefb1b9a10c0ae89d819ad6417d66
+    Reviewed-on: https://go-review.googlesource.com/125695
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go_faq.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

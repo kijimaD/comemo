@@ -1,0 +1,26 @@
+commit 2b44b36487a341fc2a8a23f8b35113bd4958af92
+Author: Aulus Egnatius Varialus <varialus@gmail.com>
+Date:   Wed Sep 4 15:19:21 2013 -0700
+
+    cgo: enable cgo on dragonfly
+    
+    Enable cgo for dragonfly/386 and dragonfly/amd64.
+    
+    R=golang-dev, jsing, iant, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13247046
+
+ misc/cgo/test/cthread_unix.c              |  2 +-
+ misc/cgo/testso/cgoso.go                  |  1 +
+ src/cmd/6l/obj.c                          |  1 +
+ src/cmd/ld/lib.c                          | 10 ++++
+ src/pkg/go/build/build.go                 | 32 +++++++------
+ src/pkg/os/user/lookup_unix.go            |  2 +-
+ src/pkg/runtime/cgo/cgo.go                |  1 +
+ src/pkg/runtime/cgo/dragonfly.c           | 13 ++++++
+ src/pkg/runtime/cgo/gcc_dragonfly_386.c   | 77 +++++++++++++++++++++++++++++++
+ src/pkg/runtime/cgo/gcc_dragonfly_amd64.c | 77 +++++++++++++++++++++++++++++++
+ src/pkg/runtime/cgo/gcc_setenv.c          |  2 +-
+ src/pkg/runtime/cgo/setenv.c              |  2 +-
+ src/run.bash                              |  5 +-
+ 13 files changed, 204 insertions(+), 21 deletions(-)

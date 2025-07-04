@@ -1,0 +1,38 @@
+commit df0892cbf854e76fae6e875043b05c194e37f52d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 12 22:36:03 2017 -0700
+
+    runtime, syscall: reset signal handlers to default in child
+    
+    Block all signals during a fork. In the parent process, after the
+    fork, restore the signal mask. In the child process, reset all
+    currently handled signals to the default handler, and then restore the
+    signal mask.
+    
+    The effect of this is that the child will be operating using the same
+    signal regime as the program it is about to exec, as exec resets all
+    non-ignored signals to the default, and preserves the signal mask.
+    
+    We do this so that in the case of a signal sent to the process group,
+    the child process will not try to run a signal handler while in the
+    precarious state after a fork.
+    
+    Fixes #18600.
+    
+    Change-Id: I9f39aaa3884035908d687ee323c975f349d5faaa
+    Reviewed-on: https://go-review.googlesource.com/45471
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/crash_unix_test.go                 | 13 +++++
+ src/runtime/os_nacl.go                         |  5 ++
+ src/runtime/os_plan9.go                        |  5 ++
+ src/runtime/os_windows.go                      |  5 ++
+ src/runtime/proc.go                            | 32 ++++++++----
+ src/runtime/signal_unix.go                     | 29 +++++++++++
+ src/runtime/testdata/testprognet/signalexec.go | 70 ++++++++++++++++++++++++++
+ src/syscall/exec_bsd.go                        |  3 ++
+ src/syscall/exec_linux.go                      |  3 ++
+ src/syscall/exec_solaris.go                    |  3 ++
+ 10 files changed, 158 insertions(+), 10 deletions(-)

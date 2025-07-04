@@ -1,0 +1,22 @@
+commit cca3d1e5533cb40beb9ef55bbc332b733adcc6ba
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jul 23 22:16:46 2020 +0000
+
+    runtime: don't flush local_tinyallocs
+    
+    This change makes local_tinyallocs work like the rest of the malloc
+    stats and doesn't flush local_tinyallocs, instead making that the
+    source-of-truth.
+    
+    Change-Id: I3e6cb5f1b3d086e432ce7d456895511a48e3617a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246967
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/export_test.go | 7 +++++--
+ src/runtime/mcache.go      | 8 +++++---
+ src/runtime/mheap.go       | 4 ----
+ src/runtime/mstats.go      | 6 ++++--
+ 4 files changed, 14 insertions(+), 11 deletions(-)

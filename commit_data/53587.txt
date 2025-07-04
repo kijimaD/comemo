@@ -1,0 +1,19 @@
+commit dbf9bf2c39116f1330002ebba8f8870b96645d87
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 16 15:58:03 2023 -0400
+
+    cmd/internal/moddeps: allow the "misc" module to be missing from GOROOT
+    
+    cmd/distpack deletes that module from its distribution.
+    
+    For #24904.
+    
+    Change-Id: I69dd328d0f790a49db7a053d703ae985d9ebe9e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504060
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/internal/moddeps/moddeps_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

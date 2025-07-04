@@ -1,0 +1,15 @@
+commit ab215f73fcee7b5a3cbb6f05dbc17036f6565c63
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 1 14:37:11 2010 -0700
+
+    big: bug fix for Quo aliasing problem
+    
+    Fixes #820.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1453041
+
+ src/pkg/big/rat.go      |  8 +++++---
+ src/pkg/big/rat_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 3 deletions(-)

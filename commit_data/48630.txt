@@ -1,0 +1,19 @@
+commit 6a40bdcbaf97ca6a815bf48998d90ccfa5a0b6fc
+Author: vpachkov <slava.pach@gmail.com>
+Date:   Fri Nov 19 14:38:23 2021 +0300
+
+    runtime: check GOAMD64 v4 compatibility on Darwin
+    
+    Darwin requires a different approach to check AVX512 support.
+    
+    Update #45453
+    
+    Change-Id: Ia3dfecc04b47aab16f472000e92e46d4fc6d596d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365395
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Heschi Kreinick <heschi@google.com>
+
+ src/runtime/asm_amd64.s | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)

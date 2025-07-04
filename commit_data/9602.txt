@@ -1,0 +1,24 @@
+commit 686181edfed0f738fe6aafe76fafded9d0be155b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 6 12:24:24 2011 -0400
+
+    url: handle ; in ParseQuery
+    
+    Most web frameworks allow ; as a synonym for &,
+    following a recommendation in some versions of
+    the HTML specification.  Do the same.
+    
+    Remove overuse of Split.
+    
+    Move ParseQuery tests from package http to package url.
+    
+    Fixes #2210.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4973062
+
+ src/pkg/http/request_test.go | 51 ------------------------------------
+ src/pkg/url/url.go           | 30 +++++++++++++--------
+ src/pkg/url/url_test.go      | 62 ++++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 76 insertions(+), 67 deletions(-)

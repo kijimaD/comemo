@@ -1,0 +1,36 @@
+commit af2ac479fc9e4833357a3281a67cd517d2da07ad
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 9 20:17:51 2017 +0000
+
+    all: single space after period
+    
+    Done with grep & interactive search & replace, to double-check
+    replacements. Not many remained after CL 20022.
+    
+    Fixes #18572
+    
+    Change-Id: Idbe90ba3b584f9b9661d2bbd141607daaadfa41a
+    Reviewed-on: https://go-review.googlesource.com/45270
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/bufio/bufio.go                       |  2 +-
+ src/cmd/cgo/doc.go                       | 80 ++++++++++++++++----------------
+ src/cmd/go/alldocs.go                    | 70 ++++++++++++++--------------
+ src/cmd/go/go_test.go                    |  6 +--
+ src/cmd/go/internal/doc/doc.go           |  2 +-
+ src/cmd/go/internal/envcmd/env.go        |  4 +-
+ src/cmd/go/internal/fmtcmd/fmt.go        |  2 +-
+ src/cmd/go/internal/generate/generate.go |  2 +-
+ src/cmd/go/internal/get/get.go           |  8 ++--
+ src/cmd/go/internal/get/vcs.go           |  4 +-
+ src/cmd/go/internal/help/help.go         |  2 +-
+ src/cmd/go/internal/help/helpdoc.go      | 32 ++++++-------
+ src/cmd/go/internal/list/list.go         |  6 +--
+ src/cmd/go/internal/load/pkg.go          |  6 +--
+ src/cmd/go/internal/test/test.go         | 16 +++----
+ src/cmd/go/internal/work/build.go        |  8 ++--
+ src/sort/search.go                       |  2 +-
+ src/text/template/doc.go                 | 10 ++--
+ src/time/time.go                         | 16 +++----
+ src/unicode/letter.go                    |  4 +-
+ 20 files changed, 141 insertions(+), 141 deletions(-)

@@ -1,0 +1,33 @@
+commit e6134702bb63603a3a26b7167dab73d145886c0f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 15 01:42:58 2016 -0700
+
+    cmd/compile: simplify obj.ProgInfo and extract from obj.Prog
+    
+    Updates #16357.
+    
+    Change-Id: Ia837dd44bad76931baa9469e64371bc253d6694b
+    Reviewed-on: https://go-review.googlesource.com/29219
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/prog.go  | 102 +++++++++++---------------------
+ src/cmd/compile/internal/amd64/reg.go   |  52 ----------------
+ src/cmd/compile/internal/arm/prog.go    |  15 ++---
+ src/cmd/compile/internal/arm/reg.go     |  65 --------------------
+ src/cmd/compile/internal/arm64/prog.go  |  33 ++---------
+ src/cmd/compile/internal/arm64/reg.go   |  55 -----------------
+ src/cmd/compile/internal/gc/go.go       |   4 +-
+ src/cmd/compile/internal/gc/plive.go    |  23 ++++---
+ src/cmd/compile/internal/mips64/prog.go |  27 ++-------
+ src/cmd/compile/internal/mips64/reg.go  |  55 -----------------
+ src/cmd/compile/internal/ppc64/prog.go  |  33 ++---------
+ src/cmd/compile/internal/ppc64/reg.go   |  55 -----------------
+ src/cmd/compile/internal/s390x/prog.go  |  28 ++-------
+ src/cmd/compile/internal/s390x/reg.go   |  54 -----------------
+ src/cmd/compile/internal/x86/prog.go    |  88 ++++++++++-----------------
+ src/cmd/compile/internal/x86/reg.go     |  40 -------------
+ src/cmd/internal/obj/link.go            |  13 ----
+ src/cmd/internal/obj/sizeof_test.go     |   2 +-
+ 18 files changed, 103 insertions(+), 641 deletions(-)

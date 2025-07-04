@@ -1,0 +1,26 @@
+commit 36fc721419f0fd9e2088f67b3bc43e8869f4a4c8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 16 17:29:41 2023 -0700
+
+    cmd/compile/internal/ir: remove ODCLCONST and ODCLTYPE
+    
+    These aren't constructed by the unified frontend.
+    
+    Change-Id: Ied87baa9656920bd11055464bc605933ff448e21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520264
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/escape/stmt.go         |   2 +-
+ src/cmd/compile/internal/inline/inl.go          |   7 +-
+ src/cmd/compile/internal/ir/node.go             |   4 +-
+ src/cmd/compile/internal/ir/op_string.go        | 218 ++++++++++++------------
+ src/cmd/compile/internal/ir/stmt.go             |   2 +-
+ src/cmd/compile/internal/ssagen/ssa.go          |   3 +-
+ src/cmd/compile/internal/typecheck/typecheck.go |  11 --
+ src/cmd/compile/internal/walk/order.go          |   2 -
+ src/cmd/compile/internal/walk/stmt.go           |   2 -
+ 9 files changed, 114 insertions(+), 137 deletions(-)

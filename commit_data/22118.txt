@@ -1,0 +1,15 @@
+commit 43dfb879a3154cd9e87ce752f9b9f1662eb7931e
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Thu Feb 26 21:23:31 2015 +0100
+
+    mime/quotedprintable: add writer
+    
+    Updates #4943
+    
+    Change-Id: I082b97ccd787cf91245d39b8d93783732db6f42c
+    Reviewed-on: https://go-review.googlesource.com/6171
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/mime/quotedprintable/writer.go      | 168 ++++++++++++++++++++++++++++++++
+ src/mime/quotedprintable/writer_test.go | 141 +++++++++++++++++++++++++++
+ 2 files changed, 309 insertions(+)

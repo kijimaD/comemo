@@ -1,0 +1,23 @@
+commit 117793624b630b0ee63abb16dcb019301adc6472
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 16 13:33:29 2016 -0700
+
+    cmd/compile/internal/syntax: expose additional information for gc
+    
+    gc needs access to line offsets for Nodes. It also needs access to the
+    end line offset for function bodies so it knows what line number to
+    use for things like implicit returns and defer executions.
+    
+    Lastly, include an extra bool to distinguish between simple and full
+    slice expressions. This is redundant in valid parse trees, but needed
+    by gc for producing complete warnings in invalid inputs.
+    
+    Change-Id: I64baf334a35c72336d26fa6755c67eb9d6f4e93c
+    Reviewed-on: https://go-review.googlesource.com/27196
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/syntax/nodes.go  | 26 +++++++++++++++++++-------
+ src/cmd/compile/internal/syntax/parser.go |  4 ++++
+ 2 files changed, 23 insertions(+), 7 deletions(-)

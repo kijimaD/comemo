@@ -1,0 +1,17 @@
+commit bf991bb7dfb08fdbe25fca0003e60dd5539f152f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 1 05:43:26 2009 -0800
+
+    Make.pkg: add DEPS= support
+    
+    allow Makefiles using Make.pkg to specify a
+    list of directories that should be installed
+    before trying to build the package.
+    this is a stopgap for small package trees
+    maintained outside the standard tree.
+    
+    R=r
+    http://go/go-review/1016012
+
+ src/Make.pkg | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

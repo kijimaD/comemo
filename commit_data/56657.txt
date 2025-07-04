@@ -1,0 +1,27 @@
+commit ff2070d9398aff1c44691a90761eb35ea3cd4601
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 17 12:07:15 2024 -0400
+
+    runtime: move exit hooks into internal/runtime/exithook
+    
+    This removes a //go:linkname usage in the coverage implementation.
+    
+    For #67401.
+    
+    Change-Id: I0602172c7e372a84465160dbf46d9fa371582fff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586259
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/noder/reader.go           |  5 +-
+ src/cmd/internal/objabi/pkgspecial.go              |  1 +
+ src/go/build/deps_test.go                          |  2 +
+ src/internal/coverage/cfile/hooks.go               | 10 +---
+ src/internal/runtime/exithook/hooks.go             | 64 ++++++++++++++++++++
+ src/runtime/exithook.go                            | 68 ----------------------
+ src/runtime/linkname.go                            |  3 -
+ src/runtime/proc.go                                |  7 +++
+ .../testdata/testexithooks/testexithooks.go        | 34 +++++------
+ 9 files changed, 97 insertions(+), 97 deletions(-)

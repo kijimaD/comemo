@@ -1,0 +1,18 @@
+commit 66e8471391faa33aced2752f4c06a9fab444542b
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Fri Aug 9 16:05:40 2013 +1000
+
+    cmd/gc: make missing package error fatal
+    
+    No longer continue assuming package main.
+    
+    Fixes #4776.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12677043
+
+ src/cmd/gc/go.y             |  3 +--
+ src/cmd/gc/y.tab.c          |  3 +--
+ test/fixedbugs/issue4776.go | 10 ++++++++++
+ 3 files changed, 12 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit 761ac75a948e14fcd8472684effedf75f3fc316e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 14:33:06 2015 -0500
+
+    cmd/go: fix git submodule fetch
+    
+    Thanks to @toxeus on GitHub for the test case.
+    
+    Fixes #12612.
+    
+    Change-Id: I0c32fbe5044f3552053460a5347c062568093dff
+    Reviewed-on: https://go-review.googlesource.com/17974
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/vcs.go         |  2 +-
+ src/cmd/go/vendor_test.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit b02450da0227c757205fd16b6648bddceb980d83
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 8 17:22:34 2014 -0700
+
+    runtime: zero a few more dead pointers.
+    
+    In channels, zeroing of gp.waiting is missed on a closed channel panic.
+    m.morebuf.g is not zeroed.
+    
+    I don't expect the latter causes any problems, but just in case.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/151610043
+
+ src/runtime/chan.go | 11 +++++++----
+ src/runtime/stack.c |  1 +
+ 2 files changed, 8 insertions(+), 4 deletions(-)

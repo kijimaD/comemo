@@ -1,0 +1,12 @@
+commit c7ef0fd26be0797e66db5987462921e7255b6351
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Mar 7 10:37:10 2011 -0500
+
+    rpc: use httptest.Server for tests
+    
+    R=golang-dev, rsc1, rsc
+    CC=golang-dev
+    https://golang.org/cl/4253060
+
+ src/pkg/rpc/server_test.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

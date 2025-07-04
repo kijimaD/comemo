@@ -1,0 +1,23 @@
+commit 8b4278ffb75e79c277bfa90c5e473bfad9f7c1bd
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Mon Jun 29 10:07:31 2015 +1000
+
+    net/http: add a Request.Cancel channel.
+    
+    This allows for "race free" cancellation, in the sense discussed in
+    issue #11013: in contrast to Transport.CancelRequest, the cancellation
+    will not be lost if the user cancels before the request is put into the
+    transport's internal map.
+    
+    Fixes #11013.
+    
+    Change-Id: I0b5e7181231bdd65d900e343f764b4d1d7c422cd
+    Reviewed-on: https://go-review.googlesource.com/11601
+    Run-TryBot: David Symonds <dsymonds@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go        |  7 ++++
+ src/net/http/transport.go      | 13 ++++++-
+ src/net/http/transport_test.go | 87 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 105 insertions(+), 2 deletions(-)

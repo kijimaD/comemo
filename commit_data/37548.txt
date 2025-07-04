@@ -1,0 +1,18 @@
+commit 8476fd7b2c5c048c2dd46fe63c5aff966506ab87
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 30 12:44:34 2018 -0800
+
+    go/internal/gccgoimporter: fix test when using gccgo before GCC 7
+    
+    In TestObjImporter skip tests that use type aliases when using a
+    version of gccgo before GCC 7, since that is when type aliases were
+    added.
+    
+    Fixes #29006
+    
+    Change-Id: I676bae9f023931cf95ac9b4d4de893fe8517af9b
+    Reviewed-on: https://go-review.googlesource.com/c/152078
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/go/internal/gccgoimporter/importer_test.go | 29 ++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

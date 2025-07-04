@@ -1,0 +1,31 @@
+commit 21a3c53c541ee6366db371e333cdb5376f507c65
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 11 15:45:09 2016 -0500
+
+    build: fix cross-compile on Plan 9
+    
+    In Plan 9's shell,
+    
+            GOBIN= \
+                    foo bar
+    
+    is the same as
+    
+            GOBIN=foo bar
+    
+    Write what was meant, which is
+    
+            GOBIN=() \
+                    foo bar
+    
+    Fixes #17737.
+    
+    Change-Id: Ie5a1b51a7cec950b5e78bbbe99cbc3cfe102f980
+    Reviewed-on: https://go-review.googlesource.com/33144
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/make.rc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

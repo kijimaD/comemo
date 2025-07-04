@@ -1,0 +1,13 @@
+commit bdf71e463badeec08d9cab7ae0cd0febae897bea
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 5 15:36:20 2012 -0500
+
+    A+C: Ugorji Nwoke (individual CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5746043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

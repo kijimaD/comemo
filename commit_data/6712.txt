@@ -1,0 +1,17 @@
+commit d73d1c5f324538a3186cf25d2e821901de2f0d55
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 4 13:48:32 2010 -0700
+
+    go spec: line comments may end in EOF
+    
+    Consistency argument: A valid Go program should
+    remain valid after stripping leading and trailing
+    whitespace. This was not true so far if the last
+    text in the source was a line comment.
+    
+    R=iant, ken2, r, rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/2906041
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

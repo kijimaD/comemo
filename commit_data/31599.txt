@@ -1,0 +1,16 @@
+commit 9a432552cb6dad659dd6ff7e3c9ab9defc5c73d2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Apr 20 11:13:55 2017 +0200
+
+    os: document that NewFile can return nil
+    
+    Fixes #20023
+    
+    Change-Id: I1bec3e69031ffcfd7ad71716be9597ec322528ff
+    Reviewed-on: https://go-review.googlesource.com/41211
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/os/file_plan9.go   | 4 +++-
+ src/os/file_unix.go    | 4 +++-
+ src/os/file_windows.go | 4 +++-
+ 3 files changed, 9 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit 1c4e20744a48ee0d7cdb74ed1cab5196345cf6a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 13 16:44:19 2012 -0400
+
+    syscall: fix windows copyFindData
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6301076
+
+ src/pkg/syscall/ztypes_windows.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

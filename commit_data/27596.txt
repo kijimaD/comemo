@@ -1,0 +1,19 @@
+commit 88ae6495d086ed5b0acb94d5adc49434ec47a675
+Author: Alexander Morozov <lk4d4math@gmail.com>
+Date:   Tue May 31 19:44:48 2016 -0700
+
+    syscall: rename SysProcAttr.Unshare to Unshareflags
+    
+    For symmetry with Cloneflags and it looks slightly weird because there
+    is syscall.Unshare method.
+    
+    Change-Id: I3d710177ca8f27c05b344407f212cbbe3435094b
+    Reviewed-on: https://go-review.googlesource.com/23612
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/syscall/exec_linux.go      | 34 +++++++++++++++++-----------------
+ src/syscall/exec_linux_test.go |  2 +-
+ 2 files changed, 18 insertions(+), 18 deletions(-)

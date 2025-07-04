@@ -1,0 +1,42 @@
+commit 9ddeac30b5c41f223564e1dedef3095a5a909cb9
+Author: David Chase <drchase@google.com>
+Date:   Tue Feb 18 17:34:24 2025 -0500
+
+    cmd/compile, runtime: use deferreturn as target PC for recover from deferrangefunc
+    
+    The existing code for recover from deferrangefunc was broken in
+    several ways.
+    
+    1. the code following a deferrangefunc call did not check the return
+    value for an out-of-band value indicating "return now" (i.e., recover
+    was called)
+    
+    2. the returned value was delivered using a bespoke ABI that happened
+    to match on register-ABI platforms, but not on older stack-based
+    ABI.
+    
+    3. the returned value was the wrong width (1 word versus 2) and
+    type/value(integer 1, not a pointer to anything) for deferrangefunc's
+    any-typed return value (in practice, the OOB value check could catch
+    this, but still, it's sketchy).
+    
+    This -- using the deferreturn lookup method already in place for
+    open-coded defers -- turned out to be a much-less-ugly way of
+    obtaining the desired transfer of control for recover().
+    
+    TODO: we also could do this for regular defer, and delete some code.
+    
+    Fixes #71675
+    
+    Change-Id: If7d7ea789ad4320821aab3b443759a7d71647ff0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650476
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ssa/func.go   | 11 ++--
+ src/cmd/compile/internal/ssagen/ssa.go |  8 ++-
+ src/runtime/panic.go                   |  9 +++-
+ test/fixedbugs/issue71675.go           | 99 ++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue71675.out          | 13 +++++
+ 5 files changed, 133 insertions(+), 7 deletions(-)

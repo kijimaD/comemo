@@ -1,0 +1,14 @@
+commit 974d2c98e02d6331b9ae441ec676c6901bafc238
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Mar 29 17:53:09 2011 -0400
+
+    crypto/tls: extend NPN support to the client.
+    
+    R=bradfitzgo, rsc1, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4277085
+
+ src/pkg/crypto/tls/common.go           |  8 ++++----
+ src/pkg/crypto/tls/conn.go             |  4 +++-
+ src/pkg/crypto/tls/handshake_client.go | 33 +++++++++++++++++++++++++++++++++
+ 3 files changed, 40 insertions(+), 5 deletions(-)

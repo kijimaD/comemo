@@ -1,0 +1,47 @@
+commit e083dc6307b6593bdd44b219ffd21699d6f17fd7
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun May 20 00:56:36 2018 +0200
+
+    runtime, sycall/js: add support for callbacks from JavaScript
+    
+    This commit adds support for JavaScript callbacks back into
+    WebAssembly. This is experimental API, just like the rest of the
+    syscall/js package. The time package now also uses this mechanism
+    to properly support timers without resorting to a busy loop.
+    
+    JavaScript code can call into the same entry point multiple times.
+    The new RUN register is used to keep track of the program's
+    run state. Possible values are: starting, running, paused and exited.
+    If no goroutine is ready any more, the scheduler can put the
+    program into the "paused" state and the WebAssembly code will
+    stop running. When a callback occurs, the JavaScript code puts
+    the callback data into a queue and then calls into WebAssembly
+    to allow the Go code to continue running.
+    
+    Updates #18892
+    Updates #25506
+    
+    Change-Id: Ib8701cfa0536d10d69bd541c85b0e2a754eb54fb
+    Reviewed-on: https://go-review.googlesource.com/114197
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/wasm/wasm_exec.js               |  53 ++++++++++++-
+ src/cmd/internal/obj/wasm/a.out.go   |   3 +
+ src/cmd/internal/obj/wasm/anames.go  |   1 +
+ src/cmd/internal/obj/wasm/wasmobj.go |  16 +++-
+ src/cmd/link/internal/wasm/asm.go    |   1 +
+ src/cmd/trace/annotations.go         |   4 +
+ src/cmd/trace/annotations_test.go    |   6 ++
+ src/cmd/trace/trace_test.go          |   2 +
+ src/go/build/deps_test.go            |   2 +-
+ src/runtime/lock_futex.go            |   6 ++
+ src/runtime/lock_js.go               | 125 ++++++++++++++++++++++++++----
+ src/runtime/lock_sema.go             |   6 ++
+ src/runtime/proc.go                  |  12 +++
+ src/runtime/rt0_js_wasm.s            |  78 ++++++++++++++-----
+ src/runtime/sys_wasm.s               |  15 ++--
+ src/syscall/js/callback.go           | 145 +++++++++++++++++++++++++++++++++++
+ src/syscall/js/js.go                 |   6 ++
+ src/syscall/js/js_test.go            |  50 ++++++++++++
+ 18 files changed, 482 insertions(+), 49 deletions(-)

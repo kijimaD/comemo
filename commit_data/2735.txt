@@ -1,0 +1,16 @@
+commit be2cf952a87366fc85f9c6f3e06d1e9126bb11c6
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 16 23:01:10 2009 -0700
+
+    clean up the code, flow errors out to decoder.
+    
+    R=rsc
+    DELTA=99  (32 added, 22 deleted, 45 changed)
+    OCL=31759
+    CL=31759
+
+ src/pkg/gob/decode.go       | 96 ++++++++++++++++++++++++++++-----------------
+ src/pkg/gob/decoder.go      | 24 +++---------
+ src/pkg/gob/encode.go       |  4 +-
+ src/pkg/gob/encoder_test.go |  8 ++--
+ 4 files changed, 71 insertions(+), 61 deletions(-)

@@ -1,0 +1,14 @@
+commit 04eda1a94da4dfec61e65f094583b85e556306f3
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Fri Dec 21 14:18:50 2018 +0530
+
+    net/url: clarify documentation about (*URL).String
+    
+    Fixes #23669
+    
+    Change-Id: Ib7f0aab0b066f778a3097583f432f8092310fb81
+    Reviewed-on: https://go-review.googlesource.com/c/155598
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/url.go | 1 +
+ 1 file changed, 1 insertion(+)

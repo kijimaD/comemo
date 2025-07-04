@@ -1,0 +1,24 @@
+commit 3b2f67a59702e4881625cb967f853ef56b0c4828
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 24 20:59:18 2020 -0700
+
+    cmd/compile: remove check that Zero's arg has the correct base type
+    
+    It doesn't have to. The type in the aux field is authoritative.
+    There are cases involving casting from interface{} where pointers
+    have a placeholder pointer type (because the type is not known when
+    the IData op is generated).
+    
+    The check was introduced in CL 13447.
+    
+    Fixes #39459
+    
+    Change-Id: Id77a57577806a271aeebd20bea5d92d08ee7aa6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239817
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/deadstore.go | 16 +++++++---------
+ test/fixedbugs/issue39459.go              | 22 ++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 9 deletions(-)

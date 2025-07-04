@@ -1,0 +1,23 @@
+commit cfccb5cb7cea77c5272115556e59dea374e4dbd1
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 13 15:14:54 2022 +0000
+
+    runtime/metrics: add the last GC cycle that had the limiter enabled
+    
+    This metric exports the the last GC cycle index that the GC limiter was
+    enabled. This metric is useful for debugging and identifying the root
+    cause of OOMs, especially when SetMemoryLimit is in use.
+    
+    For #48409.
+    
+    Change-Id: Ic6383b19e88058366a74f6ede1683b8ffb30a69c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403614
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/metrics.go             | 6 ++++++
+ src/runtime/metrics/description.go | 9 +++++++++
+ src/runtime/metrics/doc.go         | 7 +++++++
+ src/runtime/mgclimit.go            | 9 +++++++--
+ 4 files changed, 29 insertions(+), 2 deletions(-)

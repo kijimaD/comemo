@@ -1,0 +1,14 @@
+commit b3a130e81a0c3c2508f483af15e57d181c5cdc1e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 30 20:11:34 2016 -0700
+
+    net/http: document some errors more, mark ErrWriteAfterFlush as unused
+    
+    Fixes #15150
+    
+    Change-Id: I1a892d5b0516a37dac050d3bb448e0a2571db16e
+    Reviewed-on: https://go-review.googlesource.com/22658
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/server.go | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)

@@ -1,0 +1,60 @@
+commit f60fcca5f1e7b7a33e219ec45d4bd9dc58dd2552
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 16 14:17:40 2016 -0700
+
+    net: fix plan9 after context change, propagate contexts more
+    
+    My previous https://golang.org/cl/22101 to add context throughout the
+    net package broke Plan 9, which isn't currently tested (#15251).
+    
+    It also broke some old unsupported version of Windows (Windows 2000?)
+    which doesn't have the ConnectEx function, but that was only found
+    visually, since our minimum supported Windows version has ConnectEx.
+    This change simplifies the Windows and deletes the non-ConnectEx code
+    path.  Windows 2000 will work even less now, if it even worked
+    before. Windows XP remains our minimum supported version.
+    
+    Specifically, the previous CL stopped using the "dial" function, which
+    0intro noted:
+    https://github.com/golang/go/issues/15333#issuecomment-210842761
+    
+    This CL removes the dial function instead and makes plan9's net
+    implementation respect contexts, which likely fixes a number of
+    t.Skipped tests. I'm leaving that to 0intro to investigate.
+    
+    In the process of propagating and respecting contexts for plan9, I had
+    to change some signatures to add contexts to more places and ended up
+    pushing contexts down into the Go-based DNS resolution as well,
+    replacing the pure-Go DNS implementation's use of "timeout
+    time.Duration" with a context instead.
+    
+    Updates #11932
+    Updates #15328
+    
+    Fixes #15333
+    
+    Change-Id: I6ad1e62f38271cdd86b3f40921f2d0f23374936a
+    Reviewed-on: https://go-review.googlesource.com/22144
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/dial.go                |  9 +++---
+ src/net/dial_gen.go            | 40 -------------------------
+ src/net/dnsclient_unix.go      | 50 ++++++++++++++++++-------------
+ src/net/dnsclient_unix_test.go | 13 ++++----
+ src/net/fd_plan9.go            |  6 ----
+ src/net/fd_windows.go          | 25 ++++++----------
+ src/net/iprawsock.go           |  2 +-
+ src/net/iprawsock_posix.go     |  4 +--
+ src/net/ipsock_plan9.go        | 48 +++++++++++++++++++++++-------
+ src/net/lookup.go              | 14 ++++-----
+ src/net/lookup_plan9.go        | 51 ++++++++++++++++----------------
+ src/net/lookup_stub.go         | 16 +++++-----
+ src/net/lookup_unix.go         | 34 ++++++++++++---------
+ src/net/lookup_windows.go      | 67 +++++++++++++++++++++++++++---------------
+ src/net/tcpsock_plan9.go       |  8 ++---
+ src/net/udpsock_plan9.go       |  7 ++---
+ 16 files changed, 198 insertions(+), 196 deletions(-)

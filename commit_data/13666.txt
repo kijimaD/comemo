@@ -1,0 +1,19 @@
+commit 2eb6a16e16411a394527447b4f6ec0ba838b18e8
+Author: Dave Borowitz <dborowitz@google.com>
+Date:   Wed Aug 22 09:15:41 2012 -0700
+
+    net/http: Set TLSClientConfig.ServerName on every HTTP request.
+    
+    This makes SNI "just work" for callers using the standard http.Client.
+    
+    Since we now have a test that depends on the httptest.Server cert, change
+    the cert to be a CA (keeping all other fields the same).
+    
+    R=bradfitz
+    CC=agl, dsymonds, gobot, golang-dev
+    https://golang.org/cl/6448154
+
+ src/pkg/net/http/client_test.go     | 47 +++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/httptest/server.go | 14 +++++------
+ src/pkg/net/http/transport.go       | 13 +++++++++-
+ 3 files changed, 66 insertions(+), 8 deletions(-)

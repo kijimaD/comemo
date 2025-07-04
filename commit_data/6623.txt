@@ -1,0 +1,12 @@
+commit c77f09008529964b13c22a788fafcf60cd247cae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 25 17:44:54 2010 -0700
+
+    go/scanner: delete unnecessary type declarations
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/2735041
+
+ src/pkg/go/scanner/scanner_test.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

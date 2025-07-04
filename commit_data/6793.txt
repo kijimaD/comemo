@@ -1,0 +1,12 @@
+commit abb0c0967cb48a291d4a640b2eac684ec5951c7b
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Mon Nov 29 10:10:02 2010 +0900
+
+    doc: fix docs typos
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/3315041
+
+ doc/docs.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

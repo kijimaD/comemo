@@ -1,0 +1,22 @@
+commit 984753b665875cd62f6144a42f6df58cb5f159a8
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 10 12:18:00 2016 -0400
+
+    runtime: fix GC assist retry path
+    
+    GC assists retry if preempted or if they fail to park. However, on the
+    retry path they currently use stale statistics. In particular, the
+    retry can use "debtBytes", but debtBytes isn't updated when the debt
+    changes (since other than retries it is only used once). Also, though
+    less of a problem, the if the assist ratio has changed while the
+    assist was blocked, the retry will still use the old assist ratio.
+    
+    Fix all of this by simply making the retry jump back to where we
+    compute these statistics, rather than just after.
+    
+    Change-Id: I2ed8b4f0fc9f008ff060aa926f4334b662ac7d3f
+    Reviewed-on: https://go-review.googlesource.com/30701
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

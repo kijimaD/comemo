@@ -1,0 +1,19 @@
+commit c4d55ab91260ca2d538fcf3dadbccc1d1c111c96
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Sun Feb 18 12:23:20 2024 +0000
+
+    regexp/syntax: regenerate docs with mksyntaxgo
+    
+    This makes the docs up-to-date by running doc/mksyntaxgo from the google/re2 repo.
+    
+    Change-Id: I80358eed071e7566c85edaeb1cc5514a6d8c37a7
+    GitHub-Last-Rev: 0f8c8df4f213ce89fbea89e81f0ea3babd59d38f
+    GitHub-Pull-Request: golang/go#65249
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558136
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/regexp/syntax/doc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

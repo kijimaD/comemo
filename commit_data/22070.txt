@@ -1,0 +1,35 @@
+commit 1b49a86ecece3978ceba60c372327b9cbcc68501
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Mar 8 11:37:02 2015 -0400
+
+    runtime/cgo: catch EXC_BAD_ACCESS on darwin/arm
+    
+    The Go builders (and standard development cycle) for programs on iOS
+    require running the programs under lldb. Unfortunately lldb intercepts
+    SIGSEGV and will not give it back.
+    
+    https://llvm.org/bugs/show_bug.cgi?id=22868
+    
+    We get around this by never letting lldb see the SIGSEGV. On darwin,
+    Unix signals are emulated on top of mach exceptions. The debugger
+    registers a task-level mach exception handler. We register a
+    thread-level exception handler which acts as a faux signal handler.
+    The thread-level handler gets precedence over the task-level handler,
+    so we can turn the exception EXC_BAD_ACCESS into a panic before lldb
+    can see it.
+    
+    Fixes #10043
+    
+    Change-Id: I64d7c310dfa7ecf60eb1e59f094966520d473335
+    Reviewed-on: https://go-review.googlesource.com/7072
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/cgo/gcc_darwin_arm.c         |   4 +
+ src/runtime/cgo/gcc_signal_darwin_armx.c | 185 +++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_signal_darwin_lldb.c |  14 +++
+ src/runtime/cgo/libcgo.h                 |  10 ++
+ src/runtime/cgo/signal_darwin_arm.s      |  49 ++++++++
+ src/runtime/cgo/signal_darwin_armx.go    |  31 ++++++
+ src/runtime/sigpanic_unix.go             |  10 ++
+ 7 files changed, 303 insertions(+)

@@ -1,0 +1,16 @@
+commit 8071cdf724c285118772be0b3e10197581e77720
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 15 11:47:29 2009 -0700
+
+    handle errors better:
+            1) terminate outstanding calls on the client when we see EOF from server
+            2) allow data to drain on server before closing the connection
+    
+    R=rsc
+    DELTA=41  (23 added, 4 deleted, 14 changed)
+    OCL=31687
+    CL=31689
+
+ src/pkg/rpc/client.go | 30 ++++++++++++++++++++----------
+ src/pkg/rpc/server.go | 25 +++++++++++++++++--------
+ 2 files changed, 37 insertions(+), 18 deletions(-)

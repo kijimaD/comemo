@@ -1,0 +1,27 @@
+commit 041c5d83486fce4a1c8b549a3c6f9c1951b0aea8
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Mar 21 11:53:51 2018 +0100
+
+    cmd/trace: remove unused variable in tests
+    
+    Unused variables in closures are currently not diagnosed by the
+    compiler (this is Issue #3059), while go/types catches them.
+    
+    One unused variable in the cmd/trace tests is causing the go/types
+    test that typechecks the whole standard library to fail:
+    
+      FAIL: TestStdlib (8.05s)
+        stdlib_test.go:223: cmd/trace/annotations_test.go:241:6: gcTime
+        declared but not used
+      FAIL
+    
+    Remove it.
+    
+    Updates #24464
+    
+    Change-Id: I0f1b9db6ae1f0130616ee649bdbfdc91e38d2184
+    Reviewed-on: https://go-review.googlesource.com/101815
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/trace/annotations_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

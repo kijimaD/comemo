@@ -1,0 +1,23 @@
+commit dba9eb336930ccddafb4bec2ca67d6ea125b1f02
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 16 19:22:58 2015 -0500
+
+    build: implement GOEXPERIMENT again in runtime, and add to liblink
+    
+    For Austin's framepointer experiment.
+    
+    Change-Id: I81b6f414943b3578924f853300b9193684f79bf4
+    Reviewed-on: https://go-review.googlesource.com/2994
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ include/link.h               |  8 +++++
+ src/cmd/dist/build.go        |  6 ++--
+ src/cmd/dist/buildruntime.go | 17 ++---------
+ src/cmd/gc/go.h              |  2 --
+ src/cmd/gc/lex.c             | 69 +++-----------------------------------------
+ src/cmd/gc/plive.c           | 34 ++++++++++------------
+ src/cmd/gc/walk.c            |  4 +--
+ src/liblink/go.c             | 60 ++++++++++++++++++++++++++++++++++++++
+ src/liblink/sym.c            |  1 +
+ src/runtime/proc1.go         |  2 --
+ 10 files changed, 94 insertions(+), 109 deletions(-)

@@ -1,0 +1,43 @@
+commit 747e1961e95c2eb3df62e045b90b111c2ceea337
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Oct 3 16:07:48 2022 -0700
+
+    net/http: refactor tests to run most in HTTP/1 and HTTP/2 modes
+    
+    Replace the ad-hoc approach to running tests in HTTP/1 and HTTP/2
+    modes with a 'run' function that executes a test in various modes.
+    By default, these modes are HTTP/1 and HTTP/2, but tests can
+    opt-in to HTTPS/1 as well.
+    
+    The 'run' function also takes care of post-test cleanup (running the
+    afterTest function).
+    
+    The 'run' function runs tests in parallel by default. Tests which
+    can't run in parallel (generally because they use global test hooks)
+    pass a testNotParallel option to disable parallelism.
+    
+    Update clientServerTest to use t.Cleanup to clean up after itself,
+    rather than leaving this up to tests to handle.
+    
+    Drop an unnecessary mutex in SetReadLoopBeforeNextReadHook.
+    Test hooks can't be set in parallel, and we want the race detector
+    to notify us if two simultaneous tests try to set a hook.
+    
+    Fixes #56032
+    
+    Change-Id: I16be64913c426fc93d84abc6ad85dbd3bc191224
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438137
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/net/http/client_test.go       |  337 +++++------
+ src/net/http/clientserver_test.go |  441 +++++++-------
+ src/net/http/export_test.go       |    4 +-
+ src/net/http/fs_test.go           |  201 +++----
+ src/net/http/request_test.go      |   60 +-
+ src/net/http/serve_test.go        | 1180 ++++++++++++++++---------------------
+ src/net/http/sniff_test.go        |   39 +-
+ src/net/http/transport_test.go    | 1048 ++++++++++++++++----------------
+ 8 files changed, 1497 insertions(+), 1813 deletions(-)

@@ -1,0 +1,21 @@
+commit 44c0586931344c2c218b8074972b18fd5ff440bc
+Author: David Chase <drchase@google.com>
+Date:   Thu Jul 9 15:47:26 2020 -0400
+
+    cmd/compile: add code to expand calls just before late opt
+    
+    Still needs to generate the calls that will need lowering.
+    
+    Change-Id: Ifd4e510193441a5e27c462c1f1d704f07bf6dec3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242359
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/compile.go      |   1 +
+ src/cmd/compile/internal/ssa/expand_calls.go | 101 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/func.go         |  22 ++++++
+ src/cmd/compile/internal/ssa/op.go           |  35 ++++++++++
+ src/cmd/compile/internal/ssa/writebarrier.go |  18 +----
+ 5 files changed, 160 insertions(+), 17 deletions(-)

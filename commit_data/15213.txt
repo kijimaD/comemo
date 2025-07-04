@@ -1,0 +1,14 @@
+commit be5deb93fb1af69a01acef214274a0708d711221
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Feb 12 16:13:14 2013 -0500
+
+    exp/ssa: omit Function's package name when printing intra-package references.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/7307105
+
+ src/pkg/exp/ssa/func.go  | 24 +++++++++++++++++++-----
+ src/pkg/exp/ssa/print.go | 11 ++++-------
+ src/pkg/exp/ssa/ssa.go   |  2 +-
+ 3 files changed, 24 insertions(+), 13 deletions(-)

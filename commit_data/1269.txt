@@ -1,0 +1,18 @@
+commit f8797daa9fd783b0edda749cc668bcef9282d2fc
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Dec 3 13:17:26 2008 -0800
+
+    import/export of exact mp floating constants
+    new syntax for exact mp floating constants
+         decimal_int ( "p" | "P" ) [ "+" | "-" ] decimal_int
+         the value is decimal1 * 2^decimal2
+    
+    R=r
+    OCL=20357
+    CL=20357
+
+ src/cmd/gc/export.c   |  2 +-
+ src/cmd/gc/go.h       |  3 ++-
+ src/cmd/gc/lex.c      | 18 ++++++++++++++++++
+ src/cmd/gc/mparith1.c | 46 +++++++++++++++++++++++++++++++++++++++-------
+ 4 files changed, 60 insertions(+), 9 deletions(-)

@@ -1,0 +1,32 @@
+commit 801bebefa91205b0b69f2458701aac8169294884
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 21 21:56:38 2016 -0800
+
+    runtime: always install new signal stack on NetBSD and DragonFly
+    
+    On NetBSD and DragonFly a newly created thread inherits the signal stack
+    of the creating thread.  That means that in a cgo program a C thread
+    created using pthread_create will get the signal stack of the creating
+    thread, most likely a Go thread.  This will then lead to chaos if two
+    signals occur simultaneously.
+    
+    We can't fix the general case.  But we can fix the case of a C thread
+    that calls a Go function, by installing a new signal stack and then
+    dropping it when we return to C.  That will break the case of a C thread
+    that calls sigaltstack and then calls Go, because we will drop the C
+    thread's alternate signal stack as we return from Go.  Still, this is
+    the 1.5 behavior.  And what else can we do?
+    
+    Fixes #14051.
+    Fixes #14052.
+    Fixes #14067.
+    
+    Change-Id: Iee286ca50b50ec712a4d929c7121c35e2383a7b9
+    Reviewed-on: https://go-review.googlesource.com/18835
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/os1_dragonfly.go | 27 +++++++++++----------------
+ src/runtime/os1_netbsd.go    | 27 +++++++++++----------------
+ 2 files changed, 22 insertions(+), 32 deletions(-)

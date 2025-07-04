@@ -1,0 +1,15 @@
+commit 2f6783c098696790223eae6986700868e9da0472
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Aug 13 03:56:02 2022 +0800
+
+    runtime: fix a comment typo in runqget()
+    
+    Change-Id: I79695e1cfda3b4cd911673f6e14dc316c451e2ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423436
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

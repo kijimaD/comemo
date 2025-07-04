@@ -1,0 +1,31 @@
+commit b5f34aa4abc1ae49b9f97355deb5ab097d0c68a9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jan 29 17:17:04 2025 +0000
+
+    runtime: use internal/trace/tracev2 definitions
+    
+    This change deduplicates trace wire format definitions between the
+    runtime and the trace parser by making the internal/trace/tracev2
+    package the source of truth.
+    
+    Change-Id: Ia0721d3484a80417e40ac473ec32870bee73df09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644221
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/trace/tracev2/doc.go |  11 ++++
+ src/runtime/mgc.go                |   2 +-
+ src/runtime/proc.go               |   4 +-
+ src/runtime/traceallocfree.go     |  21 ++++----
+ src/runtime/tracebuf.go           |  36 ++++++++++---
+ src/runtime/tracecpu.go           |  10 ++--
+ src/runtime/traceevent.go         |  89 ++-----------------------------
+ src/runtime/traceexp.go           |  63 ----------------------
+ src/runtime/traceruntime.go       | 109 +++++++++++++++++++-------------------
+ src/runtime/tracestack.go         |  18 +++----
+ src/runtime/tracestatus.go        |  84 +++++++++--------------------
+ src/runtime/tracestring.go        |  14 ++---
+ src/runtime/tracetime.go          |   5 +-
+ src/runtime/tracetype.go          |   3 +-
+ 14 files changed, 163 insertions(+), 306 deletions(-)

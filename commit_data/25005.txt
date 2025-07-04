@@ -1,0 +1,19 @@
+commit 64cd86798b32e1259eee39fdf5535f48cb1a7c13
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 19 16:11:09 2015 -0800
+
+    cmd/compile: better syntax error recovery
+    
+    Use a combination of follow- and stop-token lists and nesting levels
+    to better synchronize parser after a syntax error.
+    
+    Fixes #13319.
+    
+    Change-Id: I9592e0b5b3ba782fb9f9315fea16163328e204f7
+    Reviewed-on: https://go-review.googlesource.com/17080
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 183 +++++++++++++++++++++-------------
+ test/fixedbugs/issue13319.go          |  18 ++++
+ test/syntax/composite.go              |   2 +-
+ 3 files changed, 135 insertions(+), 68 deletions(-)

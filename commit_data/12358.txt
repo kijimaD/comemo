@@ -1,0 +1,18 @@
+commit f5a1dd888def229b7ce2f522ab8ef4083715efa6
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 5 12:49:31 2012 +1100
+
+    doc/progs: update for go 1
+    Fixes #3076.
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/5727056
+
+ doc/go1.html        |  2 +-
+ doc/progs/error.go  |  5 ++++-
+ doc/progs/go1.go    |  7 ++++++-
+ doc/progs/run       | 58 ++++++++++++++++++++---------------------------------
+ doc/progs/slices.go |  4 ++++
+ src/run.bash        |  1 -
+ 6 files changed, 37 insertions(+), 40 deletions(-)

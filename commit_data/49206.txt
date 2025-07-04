@@ -1,0 +1,15 @@
+commit 9e9e2a82d8ee82330577d5241aa2ddefd90c76c7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Mar 24 09:03:37 2022 +0000
+
+    cmd/compile: tidy up noder's unified IR docs
+    
+    Hopefully made the wording clearer as I was reading it.
+    
+    Change-Id: I241ce3f2ac7ae77de00dbc969540c09ef0b77496
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395394
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/noder/unified.go | 44 +++++++++++++++----------------
+ 1 file changed, 22 insertions(+), 22 deletions(-)

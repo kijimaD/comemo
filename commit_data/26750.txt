@@ -1,0 +1,22 @@
+commit ec3c5b9d178ee373a41e46f6074c8729cfd11084
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 5 23:01:10 2016 -0700
+
+    cmd/link: eliminate a bunch of open coded elf64/rela switches
+    
+    We already have variables to track whether the target platform is
+    64-bit vs 32-bit or RELA vs REL, so no point in repeating the list of
+    obscure architecture characters everywhere.
+    
+    Passes toolstash/buildall.
+    
+    Change-Id: I6a07f74188ac592ef229a7c65848a9ba93013cdb
+    Reviewed-on: https://go-review.googlesource.com/21569
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go  | 21 ++++++---------------
+ src/cmd/link/internal/ld/elf.go    | 10 ++++------
+ src/cmd/link/internal/ld/symtab.go |  6 ++----
+ 3 files changed, 12 insertions(+), 25 deletions(-)

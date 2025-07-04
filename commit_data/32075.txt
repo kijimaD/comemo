@@ -1,0 +1,21 @@
+commit 5f7a03e148b9a37f2c61f7d428abc6b360897a0c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 21 17:32:32 2017 +0000
+
+    sync: delete a sentence from the Map docs
+    
+    From Josh's comments on https://golang.org/cl/50310
+    
+    Once I removed the "from the Go standard library" bit, the beginning
+    wasn't worth keeping. It also wasn't clear whether what it meant by
+    "cache contention". Processor caches, or user-level caches built with
+    sync.Map? It didn't seem worth clarifying and didn't convey any useful
+    information, so deleted.
+    
+    Change-Id: Id1d76105a3081d0855f6a64540700932bb83d98e
+    Reviewed-on: https://go-review.googlesource.com/50632
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/sync/map.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

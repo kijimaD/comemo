@@ -1,0 +1,15 @@
+commit a8787cd820fb39575efed14617dde2fb8131b354
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 10 05:45:18 2014 +1000
+
+    sync.Pool: better documentation
+    Explain what its purpose is and give examples of good and bad use.
+    Fixes #7167.
+    
+    LGTM=dvyukov, rsc
+    R=golang-codereviews, dvyukov, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/85880044
+
+ src/pkg/sync/pool.go | 42 +++++++++++++++++++++++++-----------------
+ 1 file changed, 25 insertions(+), 17 deletions(-)

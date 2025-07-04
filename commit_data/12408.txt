@@ -1,0 +1,19 @@
+commit 98c1baff6f51a2900f38b35e52f6519730c604c4
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 6 14:58:08 2012 +1100
+
+    unicode/utf16: delete dependence on package unicode
+    In the test, verify the copied constants are correct.
+    Also put the test into package utf16 rather than utf16_test;
+    the old location was probably due creating the test from
+    utf8, but the separation is not needed here.
+    
+    R=golang-dev, bradfitz, rsc, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5752047
+
+ src/pkg/unicode/utf16/export_test.go | 11 +++++++++++
+ src/pkg/unicode/utf16/utf16.go       | 21 ++++++++++++++-------
+ src/pkg/unicode/utf16/utf16_test.go  | 10 ++++++++++
+ src/pkg/unicode/utf8/utf8_test.go    | 10 ++++++++++
+ 4 files changed, 45 insertions(+), 7 deletions(-)

@@ -1,0 +1,15 @@
+commit 9f4d5c94b0cafc4d888b7f02e4ff12c2ff39eedc
+Author: Ayan George <ayan@ayan.net>
+Date:   Tue Mar 2 17:44:22 2021 -0500
+
+    cmd/go: emit error when listing with -f and -json
+    
+    Fixes #44738
+    Change-Id: Ie57ddcbe87408c9644313ec2a9ea347b4d6de76b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298029
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/list/list.go                |  4 ++++
+ src/cmd/go/testdata/script/list_json_with_f.txt | 20 ++++++++++++++++++++
+ 2 files changed, 24 insertions(+)

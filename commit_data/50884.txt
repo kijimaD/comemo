@@ -1,0 +1,19 @@
+commit 379a49c593ce3c2e8e57039e05e90aa466363092
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 12 11:15:45 2022 -0400
+
+    os/exec: set traceback to "system" in TestContextCancel
+    
+    This will dump more goroutines if the test happens to fail.
+    
+    For #50138.
+    
+    Change-Id: Ifae30b5ba8bddcdaa9250dd90be8d8ba7d5604d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442476
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/os/exec/exec_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

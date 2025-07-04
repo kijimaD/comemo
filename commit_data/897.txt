@@ -1,0 +1,13 @@
+commit d378321b6e5e33ed0d5cedf1e80f46c76f7c9185
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 17 17:28:09 2008 -0700
+
+    add atol and ltoa.  probably want unsigned at some point too.
+    
+    R=rsc
+    DELTA=14  (10 added, 0 deleted, 4 changed)
+    OCL=17387
+    CL=17390
+
+ src/lib/strings.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

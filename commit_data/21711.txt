@@ -1,0 +1,22 @@
+commit 5ce9fde8b64a07a7cbfbe43c9451e2d1d536c972
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 23 23:51:05 2015 -0800
+
+    go/ast, go/parser: correct End() position for *ast.EmptyStmt
+    
+    - added a new field ast.EmptyStmt.Implicit to indicate explicit
+      or implicit semicolon
+    - fix ast.EmptyStmt.End() accordingly
+    - adjusted parser and added test case
+    
+    Fixes #9979.
+    
+    Change-Id: I72b0983b3a0cabea085598e1bf6c8df629776b57
+    Reviewed-on: https://go-review.googlesource.com/5720
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.5.txt                |  1 +
+ src/go/ast/ast.go            |  8 ++++++--
+ src/go/parser/parser.go      |  7 +++++--
+ src/go/parser/parser_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 59 insertions(+), 4 deletions(-)

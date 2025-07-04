@@ -1,0 +1,13 @@
+commit 120d0b50c647d13e35f00fbb01de49d1dd0af2fe
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 2 20:35:52 2009 -0800
+
+    forgot to count newlines when scanning white space.
+    also fix a error-printing bug in godoc.
+    
+    R=gri
+    http://go/go-review/1016030
+
+ src/cmd/godoc/godoc.go       | 4 ++--
+ src/pkg/template/template.go | 3 ++-
+ 2 files changed, 4 insertions(+), 3 deletions(-)

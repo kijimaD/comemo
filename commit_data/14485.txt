@@ -1,0 +1,20 @@
+commit af375cde206ff131acf3e9afd126b36a8ff7b39e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Nov 27 03:05:46 2012 +0800
+
+    libmach, cmd/cc, cmd/cov, cmd/ld, cmd/prof: check malloc return value
+    
+    Update #4415.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6856080
+
+ src/cmd/cc/dcl.c         | 4 ++++
+ src/cmd/cov/main.c       | 4 ++++
+ src/cmd/cov/tree.c       | 2 ++
+ src/cmd/ld/dwarf.c       | 8 ++++++++
+ src/cmd/prof/main.c      | 8 ++++++++
+ src/libmach/executable.c | 9 +++++++++
+ src/libmach/obj.c        | 2 ++
+ 7 files changed, 37 insertions(+)

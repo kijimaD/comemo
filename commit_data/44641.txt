@@ -1,0 +1,16 @@
+commit 59e012991a31dcf65a0ec79f99b7f4234f46cf2d
+Author: Josh Deprez <DrJosh9000@users.noreply.github.com>
+Date:   Tue Nov 10 21:27:04 2020 +0000
+
+    net/http: note that "HTTP/2" is invalid for ParseHTTPVersion
+    
+    Change-Id: Ieba05dea892ec9855a63b80e456bcf9188eef855
+    GitHub-Last-Rev: 5f7663ac4aaecb01a27a04309277240fd15759c9
+    GitHub-Pull-Request: golang/go#41806
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259758
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Damien Neil <dneil@google.com>
+
+ src/net/http/request.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit a05a7d49a9b7975d89bc5851cff55b64f64242c3
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Aug 3 14:51:46 2021 -0700
+
+    cmd/go: address code review comments in test cgo_path_space_quote
+    
+    For CL 334732.
+    
+    Change-Id: I5cb88cd7d5e4edf6006bbaeb17723dac2cdf0fd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/339590
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341938
+
+ src/cmd/go/testdata/script/cgo_path_space_quote.txt | 2 ++
+ 1 file changed, 2 insertions(+)

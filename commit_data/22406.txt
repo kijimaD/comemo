@@ -1,0 +1,18 @@
+commit a2a8a0468a40e1c0be861c4d47bda8388bc3402e
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Apr 9 21:11:16 2015 -0700
+
+    cmd/internal/obj/x86: look for go cmd in GOBIN if present.
+    
+    If GOBIN is not empty the build moves the go executable
+    to a new path. When this test runs it fails to find the
+    go cmd in the GOROOT.
+    
+    Change-Id: I100def0fbcb9691b13776f795b1d1725e36d8102
+    Reviewed-on: https://go-review.googlesource.com/8735
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/x86/obj6_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 208e6e6dfc542bd3c9a8a1ac520c66683ab871aa
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jul 19 13:18:21 2011 +1000
+
+    exp/wingui: make sure it builds again
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4770041
+
+ src/pkg/exp/wingui/winapi.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

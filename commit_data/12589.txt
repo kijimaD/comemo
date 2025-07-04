@@ -1,0 +1,14 @@
+commit d2d7de974ceffbcfbcc2d7b9e15b3c2472d65ac4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 13 11:55:16 2012 +1100
+
+    doc/progs: skip cgo1 and cgo2 on freebsd
+    
+    FreeBSD's srandom has a different signature to darwin/linux.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5795067
+
+ doc/progs/run | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

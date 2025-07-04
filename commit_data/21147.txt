@@ -1,0 +1,27 @@
+commit 682922908f7e434261cbed8f0019e8415347166b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jan 5 13:14:04 2015 +1100
+
+    crypto/x509: split certFiles definition by GOOS
+    
+    This CL splits the (ever growing) list of ca cert locations by major unix
+    platforms (darwin, windows and plan9 are already handled seperately).
+    Although it is clear the unix variants cannot manage to agree on some standard
+    locations, we can avoid to some extent an artificial ranking of priority
+    amongst the supported GOOSs.
+    
+    * Split certFiles definition by GOOS
+    * Include NetBSD ca cert location
+    
+    Fixes #9285
+    
+    Change-Id: I6df2a3fddf3866e71033e01fce43c31e51b48a9e
+    Reviewed-on: https://go-review.googlesource.com/2208
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/crypto/x509/root_bsd.go     | 14 ++++++++++++++
+ src/crypto/x509/root_linux.go   | 13 +++++++++++++
+ src/crypto/x509/root_solaris.go | 10 ++++++++++
+ src/crypto/x509/root_unix.go    | 12 ------------
+ 4 files changed, 37 insertions(+), 12 deletions(-)

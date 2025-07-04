@@ -1,0 +1,12 @@
+commit ff795a8af0357eb7b8ae9aa98aad6f8be3894864
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Mon Jun 1 11:58:54 2020 +0200
+
+    doc: document new Android default linker
+    
+    Change-Id: I3557f6726afe325db79b2c972d107b3bcc103b8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235819
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.15.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

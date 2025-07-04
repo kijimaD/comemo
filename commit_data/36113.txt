@@ -1,0 +1,24 @@
+commit 08ab820437229f68fe5f7dad1c9b4940c674e206
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Jun 26 13:28:04 2018 +0200
+
+    net/rpc: clarify requirements for connections and codecs
+    
+    1. Connections and codecs need to be partially safe for concurrent use.
+       Namely, read side is serialized by one mutex,
+       and writing side is serialized by another.
+       Current comment says that they need to be fully thread-safe,
+       which makes the default implementations (gobClientCodec/gobServerCodec)
+       non-conforming.
+    
+    2. Say that ServerCodec.Close can be called multiple times
+       and must be idempotent. Server requires this and gobServerCodec
+       accounts for this,  but the requirement is not documented.
+    
+    Change-Id: Ie877e37891fed28056e3d9d1722edaed8e154067
+    Reviewed-on: https://go-review.googlesource.com/120818
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/net/rpc/client.go | 7 ++++++-
+ src/net/rpc/server.go | 5 ++++-
+ 2 files changed, 10 insertions(+), 2 deletions(-)

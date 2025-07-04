@@ -1,0 +1,16 @@
+commit ba6765c237ed4dece0056b774d81e160b3839db1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 4 12:20:14 2016 +1000
+
+    cmd/api: remove debug/pe replated changes from next.txt
+    
+    See CL 22720 for details.
+    
+    Updates #15345
+    
+    Change-Id: If93ddbb8137d57da9846b671160b4cebe1992570
+    Reviewed-on: https://go-review.googlesource.com/22752
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ api/next.txt | 8 --------
+ 1 file changed, 8 deletions(-)

@@ -1,0 +1,16 @@
+commit 367ae9a54190f0704d95b519ad25f6654b5818d3
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Wed Jan 6 15:45:43 2010 -0800
+
+    Use remove-text-properties instead of
+    remove-list-of-test-properties, since the latter is missing
+    from XEmacs.
+    
+    Fixes #462.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/181152
+
+ misc/emacs/go-mode.el | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,25 @@
+commit 8a984e8e3f2cf4101f448ea9b9d9880b9e83c11e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 27 14:47:47 2020 -0700
+
+    runtime: omit nil-channel cases from selectgo's orders
+    
+    Currently, selectgo does an initial pass over the cases array to look
+    for entries with nil channels, so they can be easily recognized and
+    skipped later on. But this still involves actually visiting the cases.
+    
+    This commit changes selectgo to omit cases with nil channels when
+    constructing pollorder, so that they'll be skipped over entirely later
+    on. It also checks for caseDefault up front, which will facilitate
+    changing it to use a "block bool" parameter instead.
+    
+    Updates #40410.
+    
+    Change-Id: Icaebcb8f08df03cc33b6d8087616fb5585f7fedd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245123
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/select.go | 66 +++++++++++++++++++++------------------------------
+ 1 file changed, 27 insertions(+), 39 deletions(-)

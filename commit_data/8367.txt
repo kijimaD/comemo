@@ -1,0 +1,22 @@
+commit 82d1a9dce7478abcd9cf5d3fdc94f231f2f7b614
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 12 09:01:50 2011 -0700
+
+    go/printer: more accurate comment for incomplete structs/interfaces
+    
+    A struct or interface type node is marked incomplete if fields or
+    methods have been removed through any kind of filtering, not just
+    because entries are not exported.
+    
+    The current message was misleading in some cases (for instance:
+    "godoc -src reflect Implements").
+    
+    This CL requires CL 4527050 .
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4529054
+
+ src/pkg/go/printer/nodes.go            |  4 ++--
+ src/pkg/go/printer/testdata/comments.x | 10 +++++-----
+ 2 files changed, 7 insertions(+), 7 deletions(-)

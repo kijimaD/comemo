@@ -1,0 +1,15 @@
+commit ff091b5fa0c08a1f91aa6bd6e2bc080a3eba2720
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 10 15:52:05 2020 -0500
+
+    doc: fill in 'Module-aware commands' section in module documentation
+    
+    Updates #33637
+    
+    Change-Id: I6332fcdbd4c35a11cd84504f28ee594f1831ccaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214378
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
+
+ doc/modules.md | 59 ++++++++++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 49 insertions(+), 10 deletions(-)

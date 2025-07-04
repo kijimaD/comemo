@@ -1,0 +1,19 @@
+commit 60074b0fd35e438b06ba8e42c0e90b1a8a2945b7
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 23 19:57:16 2016 -0700
+
+    runtime: remove TestCollisions from -short
+    
+    Takes a bit too long to run it all the time.
+    
+    Fixes #17217
+    Update #17104
+    
+    Change-Id: I4802190ea16ee0f436a7f95b093ea0f995f5b11d
+    Reviewed-on: https://go-review.googlesource.com/29751
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/hash_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

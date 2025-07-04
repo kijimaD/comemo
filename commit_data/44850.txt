@@ -1,0 +1,14 @@
+commit 164a6265e761335bb909ddfbd47d5f3fc3673582
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 29 13:31:14 2021 -0700
+
+    go/types: remove use of ioutil (cleanup)
+    
+    Change-Id: I0f9437953cb994c6802efee92167702daacf000a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305575
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/check_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

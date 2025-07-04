@@ -1,0 +1,15 @@
+commit 70db237169c35367d6e2b0a13e3b6892849b3c35
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 8 16:09:49 2012 +1100
+
+    doc: add go command notes to the Go 1 doc
+    
+    Fixes #2912.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5783048
+
+ doc/go1.html | 20 +++++++++++++++++++-
+ doc/go1.tmpl | 20 +++++++++++++++++++-
+ 2 files changed, 38 insertions(+), 2 deletions(-)

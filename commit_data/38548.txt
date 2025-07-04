@@ -1,0 +1,14 @@
+commit 270de1c110221c309c832b526012f3e21b35f581
+Author: Neven Sajko <nsajko@gmail.com>
+Date:   Mon Mar 25 22:40:27 2019 +0000
+
+    math: use Sincos instead of Sin and Cos in Jn and Yn
+    
+    Change-Id: I0da3857013f1d4e90820fb043314d78924113a27
+    GitHub-Last-Rev: 7c3d813c6e188a4afda54b736db14370e52b6f94
+    GitHub-Pull-Request: golang/go#31019
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169078
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/jn.go | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

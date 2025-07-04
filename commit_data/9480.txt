@@ -1,0 +1,15 @@
+commit 56f948470ee6512f48111922f832e4829e71d2ff
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 25 08:44:12 2011 +1000
+
+    bufio: handle a "\r\n" that straddles the buffer.
+    
+    Fixes #2164.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4927043
+
+ src/pkg/bufio/bufio.go      | 24 ++++++++++++----
+ src/pkg/bufio/bufio_test.go | 70 ++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 87 insertions(+), 7 deletions(-)

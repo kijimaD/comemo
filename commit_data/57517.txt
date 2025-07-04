@@ -1,0 +1,22 @@
+commit b92f3f29c14babc37a4e36ece914a196b837c193
+Author: khr@golang.org <khr@golang.org>
+Date:   Mon Aug 5 11:22:07 2024 -0700
+
+    cmd/compile: simplify naming for arm64 bitfield accessors
+    
+    They are already methods on an arm64-specific type, so they don't
+    need to have arm64-specific names.
+    
+    Change-Id: I2be29907f9892891d88d52cced043ca248aa4e08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615196
+    Auto-Submit: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules |  96 +++++++-------
+ src/cmd/compile/internal/ssa/rewrite.go       |   4 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 180 +++++++++++++-------------
+ src/cmd/compile/internal/ssa/value.go         |   4 +-
+ 4 files changed, 142 insertions(+), 142 deletions(-)

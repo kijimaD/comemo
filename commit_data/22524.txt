@@ -1,0 +1,15 @@
+commit 72f8102244e148535f879699cca7d66622e455aa
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 10 22:16:32 2015 -0400
+
+    cmd/internal/obj/arm64: add SVC to unary destination list
+    
+    To support "SVC $0x80", which is needed for darwin/arm64.
+    
+    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237f00
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8769
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/internal/obj/arm64/obj7.go | 1 +
+ 1 file changed, 1 insertion(+)

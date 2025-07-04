@@ -1,0 +1,12 @@
+commit 4bced5e9461429ae90245b0048c6fa5ff39a3947
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Apr 30 13:54:35 2018 -0400
+
+    doc: document Go 1.10.2
+    
+    Change-Id: I84334dfd02ad9a27b3fb6d46a6b1c015a3f03511
+    Reviewed-on: https://go-review.googlesource.com/110335
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

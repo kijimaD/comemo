@@ -1,0 +1,43 @@
+commit baec148767328b9af7442083108466486781e835
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Mar 7 11:59:16 2016 -0600
+
+    bytes: Equal perf improvements on ppc64le/ppc64
+    
+    The existing implementation for Equal and similar
+    functions in the bytes package operate on one byte at
+    at time.  This performs poorly on ppc64/ppc64le especially
+    when the byte buffers are large.  This change improves
+    those functions by loading and comparing double words where
+    possible.  The common code has been moved to a function
+    that can be shared by the other functions in this
+    file which perform the same type of comparison.
+    Further optimizations are done for the case where
+    >= 32 bytes are being compared.  The new function
+    memeqbody is used by memeq_varlen, Equal, and eqstring.
+    
+    When running the bytes test with -test.bench=Equal
+    
+    benchmark                     old MB/s     new MB/s     speedup
+    BenchmarkEqual1               164.83       129.49       0.79x
+    BenchmarkEqual6               563.51       445.47       0.79x
+    BenchmarkEqual9               656.15       1099.00      1.67x
+    BenchmarkEqual15              591.93       1024.30      1.73x
+    BenchmarkEqual16              613.25       1914.12      3.12x
+    BenchmarkEqual20              682.37       1687.04      2.47x
+    BenchmarkEqual32              807.96       3843.29      4.76x
+    BenchmarkEqual4K              1076.25      23280.51     21.63x
+    BenchmarkEqual4M              1079.30      13120.14     12.16x
+    BenchmarkEqual64M             1073.28      10876.92     10.13x
+    
+    It was determined that the degradation in the smaller byte tests
+    were due to unfavorable code alignment of the single byte loop.
+    
+    Fixes #14368
+    
+    Change-Id: I0dd87382c28887c70f4fbe80877a8ba03c31d7cd
+    Reviewed-on: https://go-review.googlesource.com/20249
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/asm_ppc64x.s | 178 ++++++++++++++++++++++++++++-------------------
+ 1 file changed, 106 insertions(+), 72 deletions(-)

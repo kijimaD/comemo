@@ -1,0 +1,15 @@
+commit a25486e4b16b5a97a9dff552359c0bf716114b32
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 6 13:16:43 2013 -0800
+
+    make.bash,bat: add -tags gotypes to the build
+    This installs type checking into go vet.
+    (To be removed before releasing Go 1.1)
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7528044
+
+ src/make.bash | 6 ++++--
+ src/make.bat  | 6 ++++--
+ 2 files changed, 8 insertions(+), 4 deletions(-)

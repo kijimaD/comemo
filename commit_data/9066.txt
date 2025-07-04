@@ -1,0 +1,13 @@
+commit 125e8277d57cb98d1342687fd0468d6aa50c05d2
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 14 10:38:15 2011 +1000
+
+    reflect: trivial addition: Value.NumMethod.
+    Just an oversight it was missing.
+    
+    R=rsc, dsymonds, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/4695059
+
+ src/pkg/reflect/value.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

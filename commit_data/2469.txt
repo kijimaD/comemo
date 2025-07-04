@@ -1,0 +1,30 @@
+commit 7343e03c433ebb0c302ed97bf832ad3bd3170de6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 17 15:12:16 2009 -0700
+
+    runtime: stack growth adjustments, cleanup
+            * keep coherent SP/PC in gobuf
+              (i.e., SP that would be in use at that PC)
+            * gogocall replaces setspgoto,
+              should work better in presence of link registers
+            * delete unused system calls
+    
+    only amd64; 386 is now broken
+    
+    R=r
+    DELTA=548  (183 added, 183 deleted, 182 changed)
+    OCL=30381
+    CL=30442
+
+ src/libmach_amd64/8db.c            | 133 +++++++++++++++++++++-----------
+ src/pkg/runtime/Makefile           |   1 +
+ src/pkg/runtime/amd64/asm.h        |  26 +++++++
+ src/pkg/runtime/amd64/asm.s        | 134 +++++++++++++++++++-------------
+ src/pkg/runtime/amd64/traceback.c  |  32 ++++----
+ src/pkg/runtime/darwin/amd64/sys.s |  62 ++++-----------
+ src/pkg/runtime/linux/amd64/sys.s  |  41 +++-------
+ src/pkg/runtime/mgc0.c             |   6 +-
+ src/pkg/runtime/print.c            |  32 ++++----
+ src/pkg/runtime/proc.c             | 154 ++++++++++++-------------------------
+ src/pkg/runtime/runtime.h          |  77 +++++++++++--------
+ 11 files changed, 349 insertions(+), 349 deletions(-)

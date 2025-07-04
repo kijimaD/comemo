@@ -1,0 +1,23 @@
+commit 8bfb2171233d5738fe592f001f318969f8228c97
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Oct 21 11:04:28 2011 -0400
+
+    exp/ssh: server cleanups
+    
+    server.go/channel.go:
+    * rename Server to ServerConfig to match Client.
+    * rename ServerConnection to ServeConn to match Client.
+    * add Listen/Listener.
+    * ServerConn.Handshake(), general cleanups.
+    
+    client.go:
+    * fix bug where fmt.Error was not assigned to err
+    
+    R=rsc, agl
+    CC=golang-dev
+    https://golang.org/cl/5265049
+
+ src/pkg/exp/ssh/channel.go |   2 +-
+ src/pkg/exp/ssh/client.go  |   2 +-
+ src/pkg/exp/ssh/server.go  | 147 ++++++++++++++++++++++++++++++---------------
+ 3 files changed, 102 insertions(+), 49 deletions(-)

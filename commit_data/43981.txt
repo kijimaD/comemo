@@ -1,0 +1,27 @@
+commit 56b783ad94f9a55163d494d5b34c783a9603d478
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Dec 10 08:44:44 2020 -0500
+
+    cmd/go, cmd/asm: pass -linkshared to assembler for shared linkage builds
+    
+    When the -linkshared build mode is in effect, the Go command passes
+    the "-linkshared" command line option to the compiler so as to insure
+    special handling for things like builtin functions (which may appear
+    in a shared library and not the main executable). This patch extends
+    this behavior to the assembler, since the assembler may also wind up
+    referencing builtins when emitting a stack-split prolog.
+    
+    Fixes #43107.
+    
+    Change-Id: I56eaded79789b083f3c3d800fb140353dee33ba9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276932
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/flags/flags.go | 1 +
+ src/cmd/asm/main.go                 | 1 +
+ src/cmd/go/internal/work/init.go    | 3 ++-
+ 3 files changed, 4 insertions(+), 1 deletion(-)

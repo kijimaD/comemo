@@ -1,0 +1,21 @@
+commit 3419a0aec1a664b32c7b9b741c69b90dcb89bb4b
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Aug 18 11:54:48 2023 +0800
+
+    encoding/json: use base64.Encoding.AppendEncode
+    
+    For #53693
+    
+    Change-Id: I6a428a4a10a2e2efa03296f539e190f0743c1f46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520755
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+
+ src/encoding/json/encode.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

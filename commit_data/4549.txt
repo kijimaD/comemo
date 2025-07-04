@@ -1,0 +1,13 @@
+commit 74a9fc18f62c690d53d59a5da32dea27c6abfd27
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 19:24:11 2010 -0800
+
+    runtime: close TODO now that 8c bug is fixed
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/183138
+
+ src/pkg/runtime/mgc0.c | 14 +++-----------
+ src/pkg/runtime/proc.c | 14 ++------------
+ 2 files changed, 5 insertions(+), 23 deletions(-)

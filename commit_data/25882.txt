@@ -1,0 +1,18 @@
+commit d2e1dae3fec6953a37702710a3a7d7998c41bb69
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 24 16:17:49 2016 -0800
+
+    cmd/compile: adjust starting token value
+    
+    The actual values assigned to tokens was inherited from the yacc-based
+    grammar. With the most recent cleanups, all single-char tokens such as
+    commas, semis, parens, etc., that get returned from lexer.next simply
+    as their Unicode values are below utf8.RuneSelf (i.e., 7bit ASCII).
+    Lower the initial starting value for named token constants accordingly.
+    
+    Change-Id: I7eb8e584dbb3bc7f9dab849d1b68a91320cffebd
+    Reviewed-on: https://go-review.googlesource.com/19913
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/lex.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

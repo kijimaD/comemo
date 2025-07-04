@@ -1,0 +1,12 @@
+commit da26e27c055d3fd38aec6cb6269240e1da890ffc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 25 18:00:42 2010 -0700
+
+    debug/gosym: do not run when cross-compiling
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2737041
+
+ src/pkg/debug/gosym/pclntab_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

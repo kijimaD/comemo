@@ -1,0 +1,24 @@
+commit 5b6cd3d0cbd3f3f0a645e37526fabe35a7e75319
+Author: Hiro <laciferin@gmail.com>
+Date:   Wed Jan 3 00:10:58 2024 +0000
+
+    sync: add Map.Clear
+    
+    Fixes #61696
+    
+    Change-Id: I0a31afd3bc433fc84280d56f2798bda10da61eba
+    GitHub-Last-Rev: 17bedc864f1685178a42b59f7083677a6124f831
+    GitHub-Pull-Request: golang/go#61702
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515015
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/61696.txt             |  1 +
+ src/sync/map.go                | 20 ++++++++++++++
+ src/sync/map_bench_test.go     | 12 ++++++++
+ src/sync/map_reference_test.go | 17 +++++++++++-
+ src/sync/map_test.go           | 63 ++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 112 insertions(+), 1 deletion(-)

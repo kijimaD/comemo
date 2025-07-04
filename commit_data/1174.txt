@@ -1,0 +1,12 @@
+commit 64718ec2626ea576d07e60a2294dcc1cc16b14fc
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Nov 18 19:27:15 2008 -0800
+
+    oops
+    
+    R=r
+    OCL=19566
+    CL=19566
+
+ src/cmd/6g/align.c | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,23 @@
+commit d99fe1f40dfacfdebee22c13ed4471fd50f2cc1a
+Author: PetarDambovaliev <petar.atanasov.1987@gmail.com>
+Date:   Sat Mar 28 08:00:17 2020 +0000
+
+    time: remove some unnecessary/duplicated global slices
+    
+    Removes two variables:
+    
+    - days which is unused, and similar usage provided by longDayNames
+    - months in favour of using longMonthNames
+    
+    Fixes #36359
+    
+    Change-Id: I51b6b7408db9359c658462ba73e59ed432f655a6
+    GitHub-Last-Rev: 778d3ea157d363fcb5bced6d318381b44a1cac50
+    GitHub-Pull-Request: golang/go#36372
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213177
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/time.go | 29 ++---------------------------
+ 1 file changed, 2 insertions(+), 27 deletions(-)

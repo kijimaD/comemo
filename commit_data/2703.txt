@@ -1,0 +1,15 @@
+commit 40f406afc477d55775f4bd4fdfd00d0c362929dd
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Jul 14 13:59:54 2009 -0700
+
+    Zero unused syscall arguments.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=12  (12 added, 0 deleted, 0 changed)
+    OCL=31619
+    CL=31621
+
+ src/pkg/syscall/asm_darwin_amd64.s | 6 ++++++
+ src/pkg/syscall/asm_linux_amd64.s  | 6 ++++++
+ 2 files changed, 12 insertions(+)

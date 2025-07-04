@@ -1,0 +1,25 @@
+commit 36036781d55c03e1120911e299ea6a48ed718524
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 12 11:48:25 2011 -0700
+
+    http: remove Request.RawURL
+    
+    Its purpose is not only undocumented, it's also unknown (to me
+    and Russ, at least) and leads to complexity, bugs and
+    confusion.
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/5213043
+
+ src/pkg/http/cgi/child.go         | 12 ++++++------
+ src/pkg/http/cgi/child_test.go    |  6 ------
+ src/pkg/http/cgi/host.go          |  1 -
+ src/pkg/http/readrequest_test.go  |  3 ---
+ src/pkg/http/request.go           | 37 ++++++++++++++++++------------------
+ src/pkg/http/requestwrite_test.go | 40 +++++++++++++++++++++------------------
+ src/pkg/http/transport.go         |  6 ++----
+ src/pkg/http/transport_test.go    | 32 +++----------------------------
+ src/pkg/websocket/hixie_test.go   |  6 +++---
+ src/pkg/websocket/hybi_test.go    | 12 ++++++------
+ 10 files changed, 61 insertions(+), 94 deletions(-)

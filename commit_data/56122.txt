@@ -1,0 +1,20 @@
+commit 885fdfc082b3d5314b495aa4e8cf297e5de20052
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Apr 3 17:47:52 2024 +0000
+
+    expvar: use slices to simplify the code
+    
+    No effect on benchmarks.
+    
+    Change-Id: I7454c21b25d5e44b9c4a39922ed470522f81872d
+    GitHub-Last-Rev: 5801b30dac33712c2e3d282b2d3a9fbe04779b2e
+    GitHub-Pull-Request: golang/go#66660
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575777
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/expvar/expvar.go | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

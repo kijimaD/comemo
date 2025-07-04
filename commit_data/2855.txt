@@ -1,0 +1,21 @@
+commit 458e23e151aa00e1c2a8529681e5656f0b8cc2ed
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Jul 31 17:11:34 2009 -0700
+
+    Implement type compatibility and fix places where I thought
+    types were supposed to be identical but only needed to be
+    compatible.  This gets rid of the Type.literal method.  I
+    renamed the Type.rep method to Type.lit because I believe it
+    corresponds to the term "literal" as used in the spec.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=228  (57 added, 35 deleted, 136 changed)
+    OCL=32606
+    CL=32608
+
+ usr/austin/eval/decls.go |  20 ++---
+ usr/austin/eval/expr.go  |  99 ++++++++++++-------------
+ usr/austin/eval/scope.go |   2 +-
+ usr/austin/eval/type.go  | 185 +++++++++++++++++++++++++++--------------------
+ 4 files changed, 164 insertions(+), 142 deletions(-)

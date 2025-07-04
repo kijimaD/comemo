@@ -1,0 +1,19 @@
+commit bcce5bdabd0c8fba61b700aab15813800b9e9c07
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 10 15:31:53 2015 -0700
+
+    cmd/compile: remove NodeList != NodeList comparisons
+    
+    Opt for replacements that avoid any assumptions
+    about the representations in use.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ia858a33abcae344e03fc1862fc9b0e192fde80c1
+    Reviewed-on: https://go-review.googlesource.com/20279
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

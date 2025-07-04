@@ -1,0 +1,29 @@
+commit fe91006a02b4892d95d1625889632aa4e0fe2b58
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 27 14:08:26 2014 -0400
+
+    runtime: give nosplit functions 32 more bytes of headroom
+    
+    The Go calling convention uses more stack space than C.
+    On 64-bit systems we've been right up against the limit
+    (128 bytes, so only 16 words) and doing awful things to
+    our source code to work around it. Instead of continuing
+    to do awful things, raise the limit to 160 bytes.
+    I am prepared to raise the limit to 192 bytes if necessary,
+    but I think this will be enough.
+    
+    Should fix current link-time stack overflow errors on
+            - nacl/arm
+            - netbsd/amd64
+            - openbsd/amd64
+            - solaris/amd64
+            - windows/amd64
+    
+    TBR=r
+    CC=golang-codereviews, iant
+    https://golang.org/cl/131450043
+
+ src/pkg/runtime/stack.h       |  2 +-
+ src/pkg/runtime/stack_test.go |  3 ++-
+ test/nosplit.go               | 10 +++++++++-
+ 3 files changed, 12 insertions(+), 3 deletions(-)

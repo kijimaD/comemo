@@ -1,0 +1,16 @@
+commit 8bc1bfb6bfeb27b64b3654af091227c89cd29300
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Wed May 7 05:58:36 2014 -0400
+
+    net/mail: propagate unsupported charset error
+    
+    Fixes #6807.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/95060043
+
+ src/pkg/net/mail/message.go      | 8 ++++----
+ src/pkg/net/mail/message_test.go | 9 +++++++++
+ 2 files changed, 13 insertions(+), 4 deletions(-)

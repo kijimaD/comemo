@@ -1,0 +1,12 @@
+commit 3ca72458ecd7d557ef732b06da4000be0a0ce520
+Author: Paolo Giarrusso <p.giarrusso@gmail.com>
+Date:   Wed Jun 9 21:37:11 2010 -0700
+
+    codereview: avoid exception in match
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1585041
+
+ lib/codereview/codereview.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

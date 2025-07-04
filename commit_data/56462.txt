@@ -1,0 +1,22 @@
+commit c7c578cdf31e66f635ff625d8c60781050fd7c66
+Author: Niklas Ott <ceriath12@gmail.com>
+Date:   Wed Apr 24 15:22:52 2024 +0200
+
+    encoding/base32: use correct length for unpadded buffer in Read
+    
+    If unpadded content was passed, in some occassions content was omitted,
+    because the division result was floored. Ceiling it makes sure all
+    content is always read.
+    
+    Fixes #65166
+    
+    Change-Id: I1d8ee7ef436080483ed8f0e615b70a1013455f92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581415
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/encoding/base32/base32.go      |  2 +-
+ src/encoding/base32/base32_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 1 deletion(-)

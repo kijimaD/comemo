@@ -1,0 +1,22 @@
+commit 2cfc5e2b2fb14cde51702cd124f0c9b324c8066e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 13 13:51:14 2020 -0500
+
+    cmd/go: convert TestGoBuildGOPATHOrder to the script framework
+    
+    It looks like TestGoBuildGOPATHOrderBroken has been fixed so I've converted
+    that too, without the skip.
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I7ee77f22fb888811c175bcdc5eb814c80fbec420
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214432
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                             | 53 -----------------------
+ src/cmd/go/testdata/script/build_gopath_order.txt | 35 +++++++++++++++
+ 2 files changed, 35 insertions(+), 53 deletions(-)

@@ -1,0 +1,12 @@
+commit daf61797330a340c1341bd5428df8f623135b81b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 16:07:49 2016 -0700
+
+    cmd/compile: use fmt.State in nodedump
+    
+    Change-Id: Icd83e88fc879b30b34f8697d540619efeb25c25b
+    Reviewed-on: https://go-review.googlesource.com/28338
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 65 +++++++++++++++++++-------------------
+ 1 file changed, 32 insertions(+), 33 deletions(-)

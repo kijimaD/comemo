@@ -1,0 +1,13 @@
+commit c0c824cd7be85fa46806050b880e3d03a2b4a7e8
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jun 10 14:07:29 2011 +1000
+
+    image: add Paletted.Set, and a basic test of the concrete image types.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4589045
+
+ src/pkg/image/image.go      | 23 +++++++++++----
+ src/pkg/image/image_test.go | 71 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 88 insertions(+), 6 deletions(-)

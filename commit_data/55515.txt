@@ -1,0 +1,20 @@
+commit 9819d8265f92e0797df646f9a7056bb979d0005b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jan 31 17:56:47 2024 -0500
+
+    cmd/compile: avoid reading entire PGO profile just to check the header
+    
+    isPreProfileFile reads the entire file into memory just to check the
+    first few bytes, and then throws it all away. We can avoid this by just
+    peeking at the beginning.
+    
+    For #58102.
+    
+    Change-Id: Id2c2844e5e44a2f3a9c7cdb9a027d94d26bdf71d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560035
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/pgo/irgraph.go | 71 +++++++++++++++------------------
+ 1 file changed, 33 insertions(+), 38 deletions(-)

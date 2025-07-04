@@ -1,0 +1,24 @@
+commit 6b742b2f84fc4ddea27076aa1e581197d17bd863
+Author: Quentin Smith <quentin@golang.org>
+Date:   Mon Feb 6 11:59:01 2017 -0500
+
+    testing: print extra labels on benchmarks
+    
+    When running benchmarks, print "goos", "goarch", and "pkg"
+    labels. This makes it easier to refer to benchmark logs and understand
+    how they were generated. "pkg" is printed only for benchmarks located
+    in GOPATH.
+    
+    Change-Id: I397cbdd57b9fe8cbabbb354ec7bfba59f5625c42
+    Reviewed-on: https://go-review.googlesource.com/36356
+    Run-TryBot: Quentin Smith <quentin@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go                   | 22 ++++++++++++++++++++++
+ src/cmd/go/internal/test/test.go        | 17 +++++++++++++++++
+ src/cmd/go/testdata/src/bench/x_test.go |  6 ++++++
+ src/testing/benchmark.go                | 22 +++++++++++++++++-----
+ src/testing/internal/testdeps/deps.go   |  7 +++++++
+ src/testing/testing.go                  |  4 +++-
+ 6 files changed, 72 insertions(+), 6 deletions(-)

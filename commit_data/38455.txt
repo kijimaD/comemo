@@ -1,0 +1,27 @@
+commit 7b916243d98e36a385da4086fd9dd57004f6e4ca
+Author: Keith Randall <khr@google.com>
+Date:   Mon Mar 18 13:17:35 2019 -0700
+
+    cmd/compile: rename init function from init.ializers back to init
+    
+    The name change init -> init.ializers was initially required for
+    initialization code.
+    
+    With CL 161337 there's no wrapper code any more, there's a data
+    structure instead (named .inittask). So we can go back to just
+    plain init appearing in tracebacks.
+    
+    RELNOTE=yes
+    
+    Update #29919. Followon to CL 161337.
+    
+    Change-Id: I5a4a49d286df24b53b2baa193dfda482f3ea82a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167780
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/init.go |  2 +-
+ src/fmt/errors_test.go              |  2 +-
+ test/fixedbugs/issue29919.dir/a.go  | 10 +++++-----
+ 3 files changed, 7 insertions(+), 7 deletions(-)

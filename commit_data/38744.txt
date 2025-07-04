@@ -1,0 +1,17 @@
+commit a01d108e30a00f9126253e061d679b07d9ff72b7
+Author: Максадбек Ахмедов <a.maksadbek@gmail.com>
+Date:   Sat Apr 13 17:38:36 2019 +0300
+
+    strings: remove "a copy of the string" from ToUpper/ToLower comments
+    
+    When string letters are all in lower/upper cases, both functions respectively
+    return original string.
+    
+    Fixes #30987
+    
+    Change-Id: Ie8d664f7af5e087f82c1bc156933e9a995645bf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171735
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strings/strings.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

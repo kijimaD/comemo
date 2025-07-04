@@ -1,0 +1,30 @@
+commit fa80a73bee6890f19f747104dd84040d1d6ef0f3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 16 21:37:10 2010 -0700
+
+    gofmt: do not modify multi-line string literals
+    
+    tabwriter: Introduce a new flag StripEscape to control
+    if tabwriter.Escape chars should be stripped or passed
+    through unchanged.
+    
+    go/printer: Don't modify tabwriter.Escape'd text. This
+    involved a new implementation of the internal trimmer
+    object.
+    
+    Does not affect formatting of any existing code under
+    $GOROOT/src and $GOROOT/misc.
+    
+    Fixes #1030.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1943045
+
+ src/pkg/go/printer/printer.go                  | 109 +++++++++++++------------
+ src/pkg/go/printer/testdata/expressions.golden |   2 +
+ src/pkg/go/printer/testdata/expressions.input  |   2 +
+ src/pkg/go/printer/testdata/expressions.raw    |   2 +
+ src/pkg/tabwriter/tabwriter.go                 |  42 ++++++----
+ src/pkg/tabwriter/tabwriter_test.go            |  59 +++++++++----
+ 6 files changed, 134 insertions(+), 82 deletions(-)

@@ -1,0 +1,17 @@
+commit bdaadeb3878eebf672e240f4d2a37318594bc45e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 24 13:31:40 2018 -0700
+
+    cmd/compile: make -W and -w headers and footers clearer
+    
+    -W and -w turn on printing of Nodes for both order and walk.
+    I have found their output mildly incomprehensible for years.
+    Improve it, at long last.
+    
+    Change-Id: Ia05d77e59aa741c2dfc9fcca07f45019420b655e
+    Reviewed-on: https://go-review.googlesource.com/114520
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

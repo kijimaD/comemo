@@ -1,0 +1,19 @@
+commit 709dbd28708eab97993ca06adea74be392c05c1c
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Dec 4 18:01:05 2019 -0500
+
+    cmd/go: fix list_constraints test on non-amd64 platforms
+    
+    Test set GOOS to linux and darwin without setting GOARCH. darwin is
+    not a valid GOOS for all architectures we test.
+    
+    Fixes #35976
+    
+    Change-Id: I4da2ebcbf9ad52e07bcc1632b48fcfdbc49b1289
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209900
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/list_constraints.txt | 1 +
+ 1 file changed, 1 insertion(+)

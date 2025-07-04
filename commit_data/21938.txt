@@ -1,0 +1,15 @@
+commit 5bf428ef80a1c3d07a586dd2b60590565b9c6dd4
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Mar 5 17:19:54 2015 +1100
+
+    cmd/internal/gc: make Node.Hasbreak a bool
+    
+    Node.Hasbreak was treated like a bool, so declare it as bool.
+    
+    Change-Id: Ied238356dce4da896834bd1412cc21ea56d35e1d
+    Reviewed-on: https://go-review.googlesource.com/6807
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/gc/syntax.go    | 2 +-
+ src/cmd/internal/gc/typecheck.go | 8 ++++----
+ 2 files changed, 5 insertions(+), 5 deletions(-)

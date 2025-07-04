@@ -1,0 +1,14 @@
+commit 5f029deb3950398609d4d3927310dc6ea95e2943
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 22 07:58:26 2014 -0800
+
+    doc: fix comment type typo
+    
+    Fixes #9418
+    
+    Change-Id: I044fa1d26d972f012f00388a84c4d0f143cf4f63
+    Reviewed-on: https://go-review.googlesource.com/1970
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

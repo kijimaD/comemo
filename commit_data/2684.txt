@@ -1,0 +1,18 @@
+commit 218c3930294784bdab10cb251dde620a3a8d8d8c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 17:28:39 2009 -0700
+
+    add LockOSThread and UnlockOSThread to
+    runtime package for use by debugger,
+    which needs to make sure that all ptrace calls
+    about a given pid come from the same thread.
+    
+    R=r
+    DELTA=175  (90 added, 63 deleted, 22 changed)
+    OCL=31546
+    CL=31558
+
+ src/pkg/runtime/extern.go |  14 ++++
+ src/pkg/runtime/proc.c    | 170 ++++++++++++++++++++++++----------------------
+ src/pkg/runtime/runtime.h |   3 +
+ 3 files changed, 107 insertions(+), 80 deletions(-)

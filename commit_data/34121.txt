@@ -1,0 +1,18 @@
+commit ef175731ffd2eee6b0da5c2eb8dc2590f2641f2f
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Jan 16 15:21:34 2018 -0500
+
+    runtime: remove hardcoded runtime consts from gdb script
+    
+    Instead evaluate and read the runtime internal constants
+    defined in runtime2.go
+    
+    R=go1.11
+    
+    Change-Id: If2f4b87e5b3f62f0c0ff1e86a90db8e37a78abb6
+    Reviewed-on: https://go-review.googlesource.com/87877
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/runtime-gdb.py | 53 ++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 47 insertions(+), 6 deletions(-)

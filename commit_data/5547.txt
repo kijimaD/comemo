@@ -1,0 +1,12 @@
+commit c7e03a32b32ba981dca5460d905be8da8972a0e2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 24 21:25:01 2010 -0700
+
+    go spec: minor fix, to match conversion rules 4 and 5
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1270042
+
+ doc/go_spec.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

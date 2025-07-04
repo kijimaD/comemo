@@ -1,0 +1,12 @@
+commit 2e15f4b8c49b2e240d4852d39610956a3473da3c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 23 10:57:18 2013 -0800
+
+    go/types: typechecking conversions, part 1 (non-constants)
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/7103058
+
+ src/pkg/go/types/conversions.go | 91 ++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 89 insertions(+), 2 deletions(-)

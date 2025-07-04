@@ -1,0 +1,18 @@
+commit 8d5ec52e6cf3a259b9054ee3c3621834f2491860
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Sep 17 13:43:27 2013 +1000
+
+    cmd/6c, cmd/6g, cmd/cc: fix undefined behavior warnings
+    
+    Update #5764
+    
+    Like Tribbles, the more you kill, the more spring up in their place.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/13324049
+
+ src/cmd/6c/sgen.c | 2 +-
+ src/cmd/6g/ggen.c | 2 +-
+ src/cmd/cc/scon.c | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

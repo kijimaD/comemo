@@ -1,0 +1,12 @@
+commit 4774a195307acf2660847fc5a819e625fc67b782
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 11 06:56:31 2011 +1100
+
+    encoding/binary: update package doc string to be more comprehensive
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4128060
+
+ src/pkg/encoding/binary/binary.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit 9e2c3f4c7e78b01d635e16287789913d02807569
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Jun 22 10:00:31 2016 -0700
+
+    sync: add example for Pool
+    
+    It was a little tricky to figure out how to go from the documentation
+    to figuring out the best way to implement a Pool, so I thought I'd
+    try to provide a simple example. The implementation is mostly taken
+    from the fmt package.
+    
+    I'm not happy with the verbosity of the calls to WriteString() etc,
+    but I wanted to provide a non-trivial example.
+    
+    Change-Id: Id33a8b6cbf8eb278f71e1f78e20205b436578606
+    Reviewed-on: https://go-review.googlesource.com/24371
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sync/example_pool_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

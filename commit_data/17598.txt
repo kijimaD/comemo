@@ -1,0 +1,14 @@
+commit 1385e394cf919e53a02ed4ecaef331a603128329
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 15 11:29:06 2013 -0400
+
+    encoding/xml: document behavior for undefined name space prefixes
+    
+    Fixes #5626.
+    
+    R=golang-dev, dominik.honnef
+    CC=golang-dev
+    https://golang.org/cl/13702043
+
+ src/pkg/encoding/xml/xml.go | 4 ++++
+ 1 file changed, 4 insertions(+)

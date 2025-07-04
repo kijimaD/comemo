@@ -1,0 +1,13 @@
+commit c81d09d92bee8f21a79d8bbef3efc6f9f0e36a7e
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 15 15:18:09 2009 -0700
+
+    implement %#o %#x %#X formats
+    
+    R=rsc
+    OCL=28936
+    CL=28936
+
+ src/lib/fmt/fmt_test.go |  7 ++++++-
+ src/lib/fmt/format.go   | 15 +++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

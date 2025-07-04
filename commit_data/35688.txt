@@ -1,0 +1,20 @@
+commit 16caec5892c67ae322be192841d9f15cb2f1c0bc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jun 13 10:51:17 2018 +0200
+
+    cmd/dist, go/types: add support for GOARCH=riscv64
+    
+    This is needed in addition to CL 110066 in order to be able to generate
+    Go type definitions for linux/riscv64 in the golang.org/x/sys/unix
+    package.
+    
+    Change-Id: I4a27e6424aaea63283b55bd4f73b958b41f29d72
+    Reviewed-on: https://go-review.googlesource.com/118618
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go   | 2 ++
+ src/cmd/vet/all/main.go | 5 +++++
+ src/go/types/sizes.go   | 3 ++-
+ 3 files changed, 9 insertions(+), 1 deletion(-)

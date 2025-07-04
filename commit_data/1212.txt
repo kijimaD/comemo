@@ -1,0 +1,13 @@
+commit 0444d697c14907b42b4369459f25785c1c946e97
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 20 18:10:46 2008 -0800
+
+    automatically add tabs after newlines
+    
+    R=gri
+    DELTA=12  (10 added, 0 deleted, 2 changed)
+    OCL=19758
+    CL=19758
+
+ src/lib/testing.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

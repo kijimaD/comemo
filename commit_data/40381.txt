@@ -1,0 +1,23 @@
+commit 0195a29399946210700bc5dca2d55c75d80ef9ff
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Tue Oct 22 22:39:30 2019 +0200
+
+    internal/syscall/windows/registry: fix strict assumptions in TestWalkFullRegistry
+    
+    It turns out that Windows has "legitimate" keys that have bogus type
+    values or bogus lengths that don't correspond with their type. On up to
+    date Windows 10 systems, this test always fails for this reason.
+    
+    So, this commit alters the test to simply log the discrepancy and move
+    on.
+    
+    Fixes #35084
+    
+    Change-Id: I56e12cc62aff49cfcc38ff01a19dfe53153976a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202678
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/syscall/windows/registry/registry_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

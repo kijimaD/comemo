@@ -1,0 +1,45 @@
+commit 99f7df0598238b03d78cc6c89e0bd6b6b9feb246
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 12 00:18:20 2014 -0400
+
+    cmd/gc: turn Go prototypes into ptr liveness maps for assembly functions
+    
+    The goal here is to allow assembly functions to appear in the middle
+    of a Go stack (having called other code) and still record enough information
+    about their pointers so that stack copying and garbage collection can handle
+    them precisely. Today, these frames are handled only conservatively.
+    
+    If you write
+    
+            func myfunc(x *float64) (y *int)
+    
+    (with no body, an 'extern' declaration), then the Go compiler now emits
+    a liveness bitmap for use from the assembly definition of myfunc.
+    The bitmap symbol is myfunc.args_stackmap and it contains two bitmaps.
+    The first bitmap, in effect at function entry, marks all inputs as live.
+    The second bitmap, not in effect at function entry, marks the outputs
+    live as well.
+    
+    In funcdata.h, define new assembly macros:
+    
+    GO_ARGS opts in to using the Go compiler-generated liveness bitmap
+    for the current function.
+    
+    GO_RESULTS_INITIALIZED indicates that the results have been initialized
+    and need to be kept live for the remainder of the function; it causes a
+    switch to the second generated bitmap for the assembly code that follows.
+    
+    NO_LOCAL_POINTERS indicates that there are no pointers in the
+    local variables being stored in the function's stack frame.
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/137520043
+
+ src/cmd/dist/build.c   |  2 ++
+ src/cmd/gc/pgen.c      | 49 +++++++++++++++++++++++++++++++++++++++++++++----
+ src/liblink/objfile.c  | 12 ++++++++++++
+ src/runtime/asm.s      | 14 ++++++++++++++
+ src/runtime/funcdata.h | 26 ++++++++++++++++++++++++++
+ 5 files changed, 99 insertions(+), 4 deletions(-)

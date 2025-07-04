@@ -1,0 +1,13 @@
+commit 939480033aa2c09f1b511a1928c0b465f41a45da
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 18 16:11:10 2021 -0800
+
+    spec: adjust assignability rules for type parameters
+    
+    Change-Id: I3c4d8bdb5e92ee7fdca9593fb043f94f467755e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365434
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 40 ++++++++++++++++++++++++++++++++--------
+ 1 file changed, 32 insertions(+), 8 deletions(-)

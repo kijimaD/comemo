@@ -1,0 +1,21 @@
+commit c804efb5de2f73a7ce12b4b09a2947b164c3aa43
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 00:41:24 2012 -0500
+
+    net: fix TestDialTimeout on windows builder
+    
+    I don't know what's out there, but something
+    is answering to 127.0.71.111:80 on our builder,
+    so use a different port.
+    
+    Also insert a check that the dial fails, which
+    would have diagnosed this problem.
+    
+    Fixes #3016.
+    
+    R=golang-dev, mikioh.mikioh, r
+    CC=golang-dev
+    https://golang.org/cl/5754062
+
+ src/pkg/net/dial_test.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

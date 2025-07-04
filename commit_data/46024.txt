@@ -1,0 +1,20 @@
+commit 5c7a460a1c108e5bf7a99817b86ebded7ce81812
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Wed Jul 21 16:03:34 2021 -0400
+
+    syscall: hoist Getsockname out of NetlinkRIB loops
+    
+    Calling Getsockname once to fetch the Pid field from the *SockaddrNetlink
+    is necessary, but this data will remain static for the rest of the netlink
+    socket's lifetime. Moving this call and type assertion outside of the inner
+    loops will remove a number of unnecessary system calls.
+    
+    Change-Id: I7e7e81866af1a31fccdaaf7531efd6cc4cbb8926
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336369
+    Run-TryBot: Matt Layher <mdlayher@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/netlink_linux.go | 25 ++++++++++++-------------
+ 1 file changed, 12 insertions(+), 13 deletions(-)

@@ -1,0 +1,29 @@
+commit 4427965ee4f3632b9ea9dedd4726ba26b86d4535
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 9 09:00:32 2010 -0700
+
+    test: Match gccgo error messages.
+    
+    tmp.go:4:20: error: invalid NUL byte
+    tmp.go:6:24: error: invalid NUL byte
+    tmp.go:8:15: error: invalid NUL byte
+    tmp.go:10:21: error: invalid NUL byte
+    tmp.go:12:22: error: invalid NUL byte
+    tmp.go:14:21: error: invalid UTF-8 encoding
+    tmp.go:14:22: error: invalid UTF-8 encoding
+    tmp.go:16:25: error: invalid UTF-8 encoding
+    tmp.go:18:15: error: invalid UTF-8 encoding
+    tmp.go:18:16: error: invalid UTF-8 encoding
+    tmp.go:20:21: error: invalid UTF-8 encoding
+    tmp.go:20:22: error: invalid NUL byte
+    tmp.go:20:23: error: invalid NUL byte
+    tmp.go:23:6: error: invalid UTF-8 encoding
+    tmp.go:23:7: error: invalid UTF-8 encoding
+    tmp.go:25:22: error: invalid UTF-8 encoding
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2151046
+
+ test/nul1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

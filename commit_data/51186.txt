@@ -1,0 +1,19 @@
+commit 42768b4c265065df9b7faeb9df0301ef64b271a2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 31 10:24:04 2022 -0700
+
+    unsafe: add docs for SliceData, String, and StringData
+    
+    Updates #53003.
+    
+    Change-Id: I076d1eb4bd0580002ad8008f3ca213c5edc951ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427095
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/unsafe/unsafe.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

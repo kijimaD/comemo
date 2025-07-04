@@ -1,0 +1,17 @@
+commit acf786f4fb08bd75e4f40b8e89e60878b1f47de3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Jan 22 21:27:43 2019 +0000
+
+    cmd/compile: remove unused func eqtypenoname
+    
+    Its only use was removed in golang.org/cl/114797, committed in October
+    2018.
+    
+    Change-Id: I6560ccfb10d7c763f6470b20c853716779c18cee
+    Reviewed-on: https://go-review.googlesource.com/c/158897
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/subr.go | 20 --------------------
+ 1 file changed, 20 deletions(-)

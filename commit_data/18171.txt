@@ -1,0 +1,12 @@
+commit 16134060dea378618b7fa4f2accd6cd4831541f0
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Mon Jan 6 10:32:07 2014 -0800
+
+    time: add tests for Tick, NewTicker with negative duration
+    
+    R=golang-codereviews, gobot, r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/37660044
+
+ src/pkg/time/tick_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

@@ -1,0 +1,21 @@
+commit 0602e2cdbc4b42e90c453e6ae365ad5f13f61c92
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Mon Feb 6 21:27:37 2023 +0800
+
+    runtime/internal/sys: remove Bswap{32|64} assembly for 386
+    
+    CL 465515 instrinsify these functions, so that we can remove them.
+    
+    Change-Id: I81c9eb62ecf56d5a292dc5aced542b36b53847dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465516
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/internal/sys/intrinsics.go        | 32 ---------------------------
+ src/runtime/internal/sys/intrinsics_386.s     | 15 -------------
+ src/runtime/internal/sys/intrinsics_common.go | 32 +++++++++++++++++++++++++++
+ src/runtime/internal/sys/intrinsics_stubs.go  |  2 --
+ 4 files changed, 32 insertions(+), 49 deletions(-)

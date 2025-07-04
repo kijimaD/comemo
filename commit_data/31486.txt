@@ -1,0 +1,12 @@
+commit e9635103307aef265c05df2a07c06c0229dcb0f6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 4 02:39:56 2017 +0000
+
+    spec: remove an unnecessary semicolon from code example
+    
+    Change-Id: Ie4c92da0e3cbb97d3d7e03c7d15196c34f58a2cd
+    Reviewed-on: https://go-review.googlesource.com/42613
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

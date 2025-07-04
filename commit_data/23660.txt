@@ -1,0 +1,17 @@
+commit e3c67dda0a2d0ab94ae984d4445ddd8973c6d160
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Jul 11 11:28:16 2015 -0400
+
+    cmd/go: do not create subdirs of $GOBIN
+    
+    Fixes #9769.
+    
+    Change-Id: I2959906c71d0ce62cdb750dab78eab631a26f229
+    Reviewed-on: https://go-review.googlesource.com/12080
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/build.go   |  9 ++++++---
+ src/cmd/go/go_test.go | 21 +++++++++++++++++++++
+ src/cmd/go/pkg.go     |  6 ++++++
+ 3 files changed, 33 insertions(+), 3 deletions(-)

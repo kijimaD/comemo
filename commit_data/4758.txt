@@ -1,0 +1,15 @@
+commit 5db5f68d960baf60be5a5c9c729948e26d500358
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 2 11:53:10 2010 +1100
+
+    allow any scalar type in xml.Unmarshal.
+    
+    Fixes #574.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/196056
+
+ src/pkg/xml/read.go     | 111 +++++++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/xml/xml_test.go |  70 ++++++++++++++++++++++++++++++
+ 2 files changed, 179 insertions(+), 2 deletions(-)

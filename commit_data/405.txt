@@ -1,0 +1,11 @@
+commit c1f5eda7a2465dae196d1fa10baf6bfa9253808a
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 21 18:06:39 2008 -0700
+
+    change date
+    
+    OCL=13331
+    CL=13331
+
+ doc/go_lang.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

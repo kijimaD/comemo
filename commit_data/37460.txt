@@ -1,0 +1,18 @@
+commit 4a8ce14af9941e3efbeb88b564bde76cc0b2e121
+Author: haormj <haormj@gmail.com>
+Date:   Wed Nov 21 12:18:56 2018 +0000
+
+    net/http: fix spelling mistake in a comment
+    
+    Fixes #28904
+    
+    Change-Id: I8d416c47479a266735a39c926fd2f0f2bb25d57b
+    GitHub-Last-Rev: 3a7865a5be27937833cf4f65c242c639e51665c4
+    GitHub-Pull-Request: golang/go#28907
+    Reviewed-on: https://go-review.googlesource.com/c/150737
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 58fb05a24a756a9a4386faff977e6495cdccb12f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Nov 2 10:19:24 2021 +0700
+
+    cmd/compile: explain special treatment when rewrite slice literal args
+    
+    Followup discussion in CL 360055.
+    
+    Change-Id: I36212c2a497b152d01ed86d244d5f57bd34a64a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360614
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/escape/call.go | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)

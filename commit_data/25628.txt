@@ -1,0 +1,12 @@
+commit 7d8c8c07aa925a4eb38c3a831dfc4ceeeb40aebf
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Sat Jan 23 04:57:21 2016 +0100
+
+    doc: missing words and letters in release notes
+    
+    Change-Id: Ica7f2a000eb1d89d5b02cb8c6f1596ddc04bfb26
+    Reviewed-on: https://go-review.googlesource.com/18890
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.6.html | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

@@ -1,0 +1,23 @@
+commit e769c9d6cfdc0e247f2498b10a6eb69054193e98
+Author: Hugues Bruant <hugues.bruant@gmail.com>
+Date:   Mon Aug 21 11:16:08 2017 -0700
+
+    runtime: more reliable mapdelete benchmark
+    
+    Increasing the map size with the benchmark iteration count
+    introduced non-linearities and made benchmark runs slow when
+    increasing benchtime.
+    
+    Rework the benchmark to use a map size independent of the
+    iteration count and instead re-fill it when it becomes empty.
+    
+    Fixes #21546
+    
+    Change-Id: Iafb6eb225e81830263f30b3aba0d449c361aec32
+    Reviewed-on: https://go-review.googlesource.com/57650
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/map_test.go | 58 ++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 36 insertions(+), 22 deletions(-)

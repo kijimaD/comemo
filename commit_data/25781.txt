@@ -1,0 +1,18 @@
+commit c8e7b34b599c9e3c6747b3e8182e65a2145fd06f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 18 11:04:05 2016 -0800
+
+    runtime: skip cgo check for non-pointer slice elements
+    
+    Fixes #14387.
+    
+    Change-Id: Icc98be80f549c5e1f55c5e693bfea97b456a6c41
+    Reviewed-on: https://go-review.googlesource.com/19621
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/cgocall.go                  |  3 +++
+ src/runtime/crash_cgo_test.go           | 31 +++++++++++++++++++++++++++++++
+ src/runtime/testdata/testprogcgo/cgo.go | 10 ++++++++++
+ 3 files changed, 44 insertions(+)

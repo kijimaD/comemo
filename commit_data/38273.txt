@@ -1,0 +1,24 @@
+commit 05b3db24c1a48e995ac1f3103a2be9463fac0f96
+Author: Keith Randall <khr@google.com>
+Date:   Wed Mar 6 10:39:08 2019 -0800
+
+    reflect: fix StructOf GC programs
+    
+    They are missing a stop byte at the end.
+    
+    Normally this doesn't matter, but when including a GC program
+    in another GC program, we strip the last byte. If that last byte
+    wasn't a stop byte, then we've thrown away part of the program
+    we actually need.
+    
+    Fixes #30606
+    
+    Change-Id: Ie9604beeb84f7f9442e77d31fe64c374ca132cce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165857
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/type.go          |  1 +
+ test/fixedbugs/issue30606.go | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+)

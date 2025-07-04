@@ -1,0 +1,12 @@
+commit e451fb8ffbca501b12611f97ec875e9544339aa0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 30 13:20:38 2012 -0500
+
+    fmt: add test of NaN map keys
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5564063
+
+ src/pkg/fmt/fmt_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

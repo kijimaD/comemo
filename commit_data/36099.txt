@@ -1,0 +1,27 @@
+commit 0b23c88d9f908aa09c7e35ec339b3678f9dcf5fc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 18 20:08:04 2018 -0400
+
+    cmd/go: fix module get -u to avoid spurious new deps
+    
+    If we have go get -u x1@v1 x2@v2 and x1 depends on x2,
+    use v2 as the "upgraded" x2 chosen by -u  instead of
+    letting -u pick something (say, v2.1) and then immediately
+    overriding it. This avoids chasing down the deps from v2.1
+    and also avoids them polluting the overall module graph.
+    
+    This fix also lets us delete some code in the preparation step,
+    reducing the overall latency of get -u.
+    
+    Suggested by Bryan Mills in
+    https://go-review.googlesource.com/c/vgo/+/122396/6#371.
+    
+    Fixes #26342.
+    
+    Change-Id: I50fa842304820d3f16f66a8e65dea695e2b0f88b
+    Reviewed-on: https://go-review.googlesource.com/124856
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modget/get.go                | 69 ++++++++++--------------
+ src/cmd/go/testdata/script/mod_get_downgrade.txt | 10 ++++
+ 2 files changed, 39 insertions(+), 40 deletions(-)

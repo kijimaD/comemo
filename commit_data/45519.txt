@@ -1,0 +1,29 @@
+commit 45600bcd614f5855060b18b189f7e126fedfe637
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun May 2 13:22:48 2021 +0200
+
+    os, syscall: use wait6 to avoid wait/kill race on netbsd
+    
+    Follow CL 23967 and CL 24021 which did the same on linux and freebsd,
+    respectively.
+    
+    Updates #13987
+    Updates #16028
+    
+    Change-Id: I95b13d8ddde4cea1ef4fb7d655f1ad1a219d13aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315281
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/wait_unimp.go                | 4 ++--
+ src/os/wait_wait6.go                | 4 ++--
+ src/syscall/zerrors_netbsd_386.go   | 1 +
+ src/syscall/zerrors_netbsd_amd64.go | 1 +
+ src/syscall/zerrors_netbsd_arm.go   | 1 +
+ src/syscall/zerrors_netbsd_arm64.go | 1 +
+ src/syscall/zsysnum_netbsd_386.go   | 1 +
+ src/syscall/zsysnum_netbsd_amd64.go | 1 +
+ src/syscall/zsysnum_netbsd_arm.go   | 1 +
+ src/syscall/zsysnum_netbsd_arm64.go | 1 +
+ 10 files changed, 12 insertions(+), 4 deletions(-)

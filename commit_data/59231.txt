@@ -1,0 +1,21 @@
+commit 5fc596ebe7c34b9f68c33da5ffc4f3645c38ef72
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Feb 11 18:58:13 2025 -0800
+
+    cmd/compile: aggregate scalar allocations for heap escapes
+    
+    If multiple small scalars escape to the heap, allocate them together
+    with a single allocation. They are going to be aggregated together
+    in the tiny allocator anyway, might as well do just one runtime call.
+    
+    Change-Id: I4317e29235af63de378a26436a18d7fb0c39e41f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648536
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/symtab.go        |  1 +
+ src/cmd/compile/internal/ssa/value.go        |  7 ++
+ src/cmd/compile/internal/ssagen/ssa.go       | 99 +++++++++++++++++++++++++++-
+ src/cmd/compile/internal/test/locals_test.go | 76 +++++++++++++++++++++
+ 4 files changed, 182 insertions(+), 1 deletion(-)

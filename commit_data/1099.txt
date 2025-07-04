@@ -1,0 +1,15 @@
+commit 600ee088b6234cc5a7037c280e8ad89f230e4a6e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 10 15:17:56 2008 -0800
+
+    * accept all NaNs, not just the one sys.NaN() returns.
+    * use union, not cast, to convert between uint64 and float64,
+      to avoid possible problems with gcc in future.
+    
+    R=r
+    DELTA=75  (39 added, 15 deleted, 21 changed)
+    OCL=18926
+    CL=18926
+
+ src/runtime/runtime.c | 96 ++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 60 insertions(+), 36 deletions(-)

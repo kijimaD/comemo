@@ -1,0 +1,17 @@
+commit 818f6b14b496d718c0f8e49c9ef4c06cc45cc0d4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Mar 8 15:19:47 2021 -0500
+
+    cmd/compile: remove ".fp" fake arg
+    
+    No longer needed with previous CLs.
+    
+    Change-Id: I9a1c11092a2736c190fa8e8ddfbb913b708957eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300155
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

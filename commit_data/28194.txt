@@ -1,0 +1,22 @@
+commit 41e1c420280b04431ae3a757ba9ec9e51963b64d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Sat Sep 3 18:48:30 2016 -0700
+
+    cmd/compile: refactor out KeepAlive
+    
+    Reduce the duplication in every arch by moving the code into package gc.
+    
+    Change-Id: Ia111add8316492571825431ecd4f0154c8792ae1
+    Reviewed-on: https://go-review.googlesource.com/28481
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/amd64/ssa.go  | 12 +-----------
+ src/cmd/compile/internal/arm/ssa.go    | 12 +-----------
+ src/cmd/compile/internal/arm64/ssa.go  | 12 +-----------
+ src/cmd/compile/internal/gc/ssa.go     | 19 +++++++++++++++++++
+ src/cmd/compile/internal/mips64/ssa.go | 12 +-----------
+ src/cmd/compile/internal/ppc64/ssa.go  | 13 +------------
+ src/cmd/compile/internal/x86/ssa.go    | 12 +-----------
+ 7 files changed, 25 insertions(+), 67 deletions(-)

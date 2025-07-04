@@ -1,0 +1,19 @@
+commit 6323a40f31adbb810f79bac557552f96240a5e1f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 14:04:07 2011 -0700
+
+    gofix: test import insertion, deletion
+    
+    Small change to go/ast, go/parser, go/printer so that
+    gofix can delete the blank line left from deleting an import.
+    
+    R=golang-dev, bradfitz, adg
+    CC=golang-dev
+    https://golang.org/cl/5321046
+
+ src/cmd/gofix/fix.go         |  41 +++++--
+ src/cmd/gofix/import_test.go | 269 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/ast/ast.go        |   9 +-
+ src/pkg/go/parser/parser.go  |   2 +-
+ src/pkg/go/printer/nodes.go  |   1 +
+ 5 files changed, 312 insertions(+), 10 deletions(-)

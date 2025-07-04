@@ -1,0 +1,10 @@
+commit 37b8eb4648d8c125c6644c8ddd938ac38f537c90
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 7 17:32:58 2008 -0700
+
+    fix double declaration of g
+    
+    SVN=118016
+
+ src/lib/fmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

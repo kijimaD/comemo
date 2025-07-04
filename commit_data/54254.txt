@@ -1,0 +1,23 @@
+commit 208f36180051c866ee8d1c0de2d92459252c5082
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Aug 27 15:31:33 2023 -0700
+
+    cmd/internal/obj: tweak implicit {ArgsPointerMaps,ArgInfo} behavior
+    
+    This CL changes cmd/internal/obj to also implicitly set
+    ArgsPointerMaps and ArgInfo for assembly functions that are explicitly
+    package qualified (e.g., "pkg·name", not just "·name"). This is a
+    prerequisite for changing cmd/asm to stop emitting `"".`-prefixed
+    symbol names.
+    
+    Change-Id: I4e14bc24c87cf4d7114a7aed9beaf0c8d1f9c07f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523335
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/internal/obj/plist.go    | 13 ++++++++++++-
+ src/cmd/link/internal/ld/pcln.go | 11 +++++++++++
+ src/runtime/funcdata.h           |  6 +++---
+ 3 files changed, 26 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit 8183ed19b9de8dbc40e40041e530d796246f0514
+Author: Mihai Borobocea <MihaiBorobocea@gmail.com>
+Date:   Mon Dec 30 13:29:56 2013 -0800
+
+    spec: example shows wrong value for complex constant
+    
+    Looks like a typo.
+    Fixes #7011.
+    
+    R=golang-codereviews, r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/45350043
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

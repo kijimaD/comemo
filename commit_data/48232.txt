@@ -1,0 +1,22 @@
+commit 510ad4561f859f66e5a2d22a73ce8253d19ede3e
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 7 09:22:33 2021 -0800
+
+    runtime: improve work stealing randomness
+    
+    For certain values of GOMAXPROCS, the current code is less random than
+    it looks. For example with GOMAXPROCS=12, there are 4 coprimes: 1 5 7 11.
+    That's bad, as 12 and 4 are not relatively prime. So if pos == 2, then we
+    always pick 7 as the inc. We want to pick pos and inc independently
+    at random.
+    
+    Change-Id: I5c7e4f01f9223cbc2db12a685dc0bced2cf39abf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369976
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Trust: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/proc.go              |  2 +-
+ src/runtime/proc_runtime_test.go | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

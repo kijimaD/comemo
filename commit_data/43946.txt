@@ -1,0 +1,30 @@
+commit 37588ffcb221c12c12882b591a16243ae2799fd1
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 2 15:09:12 2020 -0500
+
+    cmd/go, embed: exclude .* and _* from embedded directory trees
+    
+    Discussion on #42328 led to a decision to exclude files matching
+    .* and _* from embedded directory results when embedding an
+    entire directory tree.
+    
+    This CL implements that new behavior.
+    
+    Fixes #42328.
+    
+    Change-Id: I6188994e96348b3449c7d9d3d0d181cfbf2d4db1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275092
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/load/pkg.go                     | 17 +++++++++++++----
+ src/embed/embed.go                                  |  5 ++++-
+ src/embed/internal/embedtest/embed_test.go          | 21 +++++++++++++++++++++
+ .../embedtest/testdata/.hidden/.more/tip.txt        |  1 +
+ .../embedtest/testdata/.hidden/_more/tip.txt        |  1 +
+ .../internal/embedtest/testdata/.hidden/fortune.txt |  2 ++
+ .../embedtest/testdata/.hidden/more/tip.txt         |  1 +
+ .../internal/embedtest/testdata/_hidden/fortune.txt |  2 ++
+ 8 files changed, 45 insertions(+), 5 deletions(-)

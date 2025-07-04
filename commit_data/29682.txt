@@ -1,0 +1,14 @@
+commit feacaca7a0969db9a1e6f5022b80a6d9a7a7c5f3
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Nov 29 14:42:22 2016 -0800
+
+    net/http: document how headers are forwarded by Client
+    
+    Fixes #18096
+    
+    Change-Id: I22e1abb75dc19c4d1985b6857c79a81b9db5a76c
+    Reviewed-on: https://go-review.googlesource.com/33670
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client.go | 29 +++++++++++++++++++++++++++--
+ 1 file changed, 27 insertions(+), 2 deletions(-)

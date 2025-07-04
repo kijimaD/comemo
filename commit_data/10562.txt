@@ -1,0 +1,12 @@
+commit c0a53bbc4ac041e0f547c46bf244196eab3caef9
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Dec 1 16:37:30 2011 +1100
+
+    dashboard: don't choke on weird builder names.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5447060
+
+ misc/dashboard/godashboard/gobuild.py | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

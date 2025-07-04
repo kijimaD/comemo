@@ -1,0 +1,27 @@
+commit af558acc470dc1590788bbd695b0727e382cb74c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Feb 25 22:10:48 2016 -0800
+
+    cmd/compile: fix contrived line number errors
+    
+    If a general comment contains multiple newline characters, we can't
+    simply unread one and then re-lex it via the general whitespace lexing
+    phase, because then we'll reset lineno to the line before the "*/"
+    marker, rather than keeping it where we found the "/*" marker.
+    
+    Also, for processing imports, call importfile before advancing the
+    lexer with p.next(), so that lineno reflects the line where we found
+    the import path, and not the token afterwards.
+    
+    Fixes #14520.
+    
+    Change-Id: I785a2d83d632280113d4b757de0d57c88ba2caf4
+    Reviewed-on: https://go-review.googlesource.com/19934
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go    | 30 +++++++++++++++---------------
+ src/cmd/compile/internal/gc/parser.go | 16 +++++++++-------
+ test/fixedbugs/issue14520.go          | 14 ++++++++++++++
+ 3 files changed, 38 insertions(+), 22 deletions(-)

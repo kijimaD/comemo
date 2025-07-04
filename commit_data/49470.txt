@@ -1,0 +1,16 @@
+commit c22a6c3b906cd37616d76da5f504c4c3e5677d94
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 14 14:38:56 2022 -0700
+
+    reflect: when StructOf overflows computing size/offset, panic
+    
+    Fixes #52740
+    
+    Change-Id: I849e585deb77cfcfc1b517be4a171eb29b30c5f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412214
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/reflect/all_test.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/type.go     | 15 ++++++++-
+ 2 files changed, 95 insertions(+), 1 deletion(-)

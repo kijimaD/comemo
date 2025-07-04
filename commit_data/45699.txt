@@ -1,0 +1,19 @@
+commit 02beecb3974e9010d2deefaf09266286b0c6f408
+Author: Damien Neil <dneil@google.com>
+Date:   Wed May 26 13:43:15 2021 -0700
+
+    mime: document use of the Shared MIME-Info Database
+    
+    For #44513.
+    Fixes #46013.
+    
+    Change-Id: I382603208aa94b66d5220cf0f418b8528a4e4148
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322892
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.17.html  | 4 +++-
+ src/mime/type.go | 6 ++++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)

@@ -1,0 +1,12 @@
+commit 6572c7ee93a3e070699806c5fc3b852aba58f529
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Oct 11 09:24:15 2012 +1100
+
+    doc/godoc.js: assign tmp. id to nodes without id in generateTOC()
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/6604062
+
+ doc/godocs.js | 2 ++
+ 1 file changed, 2 insertions(+)

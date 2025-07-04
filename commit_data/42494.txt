@@ -1,0 +1,22 @@
+commit bdcf33f1c0597bf18924c17ab2644310d204bf23
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Jun 9 14:26:09 2020 +0000
+
+    doc/go1.15: remove TODO in minor library changes section
+    
+    The minor changes to the library section has been populated
+    with TODOs for individual packages using relnote in CL 235757,
+    and they've been resolved in the following CLs.
+    
+    We will look things over as part of finishing touches on
+    the release notes, but this TODO is resolved for beta 1.
+    
+    For #37419.
+    
+    Change-Id: I942f81a957fe8df8f630b4406ca29f73602d080a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237157
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ doc/go1.15.html | 4 ----
+ 1 file changed, 4 deletions(-)

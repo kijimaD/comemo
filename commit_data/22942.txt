@@ -1,0 +1,12 @@
+commit d9f69196dee8c95e4669d18619f3e3729599e90f
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Fri May 8 12:18:52 2015 -0700
+
+    build: correct quoting of args in run.bash
+    
+    Change-Id: I72df4d979212d8af74a4d2763423346eb6ba14f2
+    Reviewed-on: https://go-review.googlesource.com/9892
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/run.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

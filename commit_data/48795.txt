@@ -1,0 +1,19 @@
+commit df2421de60215cfc314fe6772ff6c2c6201f7abb
+Author: Ville Skyttä <ville.skytta@iki.fi>
+Date:   Wed Feb 16 21:00:04 2022 +0000
+
+    mime: ignore non-extension globs2 entries
+    
+    Change-Id: Ic2315b593dca5648c02f793b7650b5936a997bff
+    GitHub-Last-Rev: ee55edcf087416c6f0d50d5dd51cbddfd1d77620
+    GitHub-Pull-Request: golang/go#51226
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386334
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/mime/testdata/test.types.globs2 | 2 ++
+ src/mime/type_unix.go               | 6 +++---
+ src/mime/type_unix_test.go          | 2 ++
+ 3 files changed, 7 insertions(+), 3 deletions(-)

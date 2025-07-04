@@ -1,0 +1,12 @@
+commit b1a3b61f0d0870a3142e99715d315e6516b4d363
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jul 23 16:36:29 2014 +1000
+
+    doc/go1.4.txt: windows can do symlinks now
+    
+    R=golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/111560043
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

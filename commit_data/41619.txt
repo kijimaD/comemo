@@ -1,0 +1,17 @@
+commit 67d93cfd35417eb97e967c992e5e567207936222
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Mar 11 18:06:37 2020 -0400
+
+    cmd/internal/objabi: rerun stringer for sym kind
+    
+    Regenerate symkind_string.go, since it has become a bit out of date.
+    
+    Change-Id: I57abf67aab8fe4e4a94fb5e45b9bc4c4005cbae3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223079
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/objabi/symkind_string.go | 24 ++++++++++++++++++++++--
+ 1 file changed, 22 insertions(+), 2 deletions(-)

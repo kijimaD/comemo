@@ -1,0 +1,13 @@
+commit 4143491c4ad17021b062c9fbabdc2d9d6aed11ef
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Aug 4 22:10:17 2011 +1000
+
+    http: add more MPEG-4 MIME types to sniffer, and disable MP4 sniffing.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4808056
+
+ src/pkg/http/sniff.go      | 15 +++++++++++++--
+ src/pkg/http/sniff_test.go |  4 +++-
+ 2 files changed, 16 insertions(+), 3 deletions(-)

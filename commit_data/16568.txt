@@ -1,0 +1,13 @@
+commit bc0812486637abf68d66aca6535383b1bf5e5a33
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Thu Jun 13 17:04:47 2013 -0700
+
+    strconv: corrected several bad references to err.Error in doc comments.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/10253051
+
+ src/pkg/strconv/atof.go | 4 ++--
+ src/pkg/strconv/atoi.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

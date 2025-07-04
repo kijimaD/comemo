@@ -1,0 +1,16 @@
+commit f5bd3556f51ce607daa0996bacd1d22563d65ea4
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Mar 30 17:54:11 2016 +0300
+
+    hash/crc64: Add tests for ECMA polynomial
+    
+    Currently we test crc64 only with ISO polynomial.
+    
+    Change-Id: Ibc5e202db3b960369cbbb18e31eb0fea07b54dba
+    Reviewed-on: https://go-review.googlesource.com/21309
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/hash/crc64/crc64_test.go | 89 ++++++++++++++++++++++++--------------------
+ 1 file changed, 49 insertions(+), 40 deletions(-)

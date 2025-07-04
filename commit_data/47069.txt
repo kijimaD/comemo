@@ -1,0 +1,27 @@
+commit 4fefd439a4087ec4a4cb7a61cfe15801115321d2
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Fri Oct 22 12:36:00 2021 +1100
+
+    cmd/go: fix recognition of Fossil checkout directories
+    
+    Use ".fslckout" or "_FOSSIL_" files to correctly identify the root of
+    Fossil checkout directories.
+    
+    Previously, Go has assumed VCS checkouts are indicated by a dot-file
+    named after the VCS command (eg, .git, .hg, .fossil). This is not
+    normally true for Fossil, but has worked so far since Go downloads
+    repositories into a ".fossil" file before opening (checking out).
+    
+    Using the incorrect path prevents Go identifying Fossil checkouts and
+    correctly tagging with -buildvcs (to be added in a follow up CL).
+    
+    Change-Id: I3c030a0b600dfe7f4b3fcf1551b1d7cb84629b81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357954
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/vcs/vcs.go      | 53 +++++++++++++++++++++++++++----------
+ src/cmd/go/internal/vcs/vcs_test.go | 48 ++++++++++++++++++---------------
+ 2 files changed, 65 insertions(+), 36 deletions(-)

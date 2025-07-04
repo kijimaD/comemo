@@ -1,0 +1,14 @@
+commit 54bd5a71d37f1c69d070af5daa0949092ad59c8b
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Sat Nov 21 15:24:34 2015 +0530
+
+    misc/cgo/testshared: add format specifier in Errorf calls
+    
+    Found by cmd/vet
+    
+    Change-Id: I29dd207ecd40fe703054e8ad4e81b3267ca89da2
+    Reviewed-on: https://go-review.googlesource.com/17160
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/testshared/shared_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

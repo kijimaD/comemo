@@ -1,0 +1,20 @@
+commit d0099eff5e2e8dedd94eb1821408212c10231a47
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Tue Apr 4 13:02:02 2023 -0400
+
+    cmd/dist: mark openbsd-mips64 and openbsd-ppc64 broken
+    
+    The former was broken deliberately; see #58110. The latter is just an
+    in-progress port.
+    
+    Updates #58110, #56001.
+    
+    Change-Id: I7f1c5e2ac016fb7c65c081174d19239fc9b1ea32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482115
+    Auto-Submit: Heschi Kreinick <heschi@google.com>
+    TryBot-Bypass: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/dist/build.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

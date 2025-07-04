@@ -1,0 +1,15 @@
+commit d2b84dd941456751cd09363a1027746683818f09
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 24 19:09:43 2014 -0400
+
+    net: only "build" empty.s in non-cgo mode
+    
+    In cgo mode it gets passed to gcc, and on ARM
+    it appears that gcc does not support // comments.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/142640043
+
+ src/net/empty.s | 2 ++
+ 1 file changed, 2 insertions(+)

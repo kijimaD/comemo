@@ -1,0 +1,13 @@
+commit 39b12e2dcb47d25828e3272649294b0ad32d6e6e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 7 14:38:31 2009 -0700
+
+    bug185 - return b,a from func() (a,b int)
+    
+    R=ken
+    OCL=32900
+    CL=32900
+
+ src/cmd/gc/walk.c        | 38 ++++++++++++++++++++++++++++++++++----
+ test/fixedbugs/bug185.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+), 4 deletions(-)

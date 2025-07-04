@@ -1,0 +1,18 @@
+commit 0ce6c87004245fcbfe0747fa42b2a23d52890154
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 20 14:23:45 2012 +1100
+
+    html/template: don't indirect past a Stringer
+    
+    While we're here, get rid of the old names for the escaping functions.
+    
+    Fixes #3073.
+    
+    R=golang-dev, dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/5685049
+
+ src/pkg/html/template/content.go      | 18 ++++++-
+ src/pkg/html/template/content_test.go | 40 +++++++++++++++
+ src/pkg/html/template/escape.go       | 92 +++++++++++++++++------------------
+ 3 files changed, 103 insertions(+), 47 deletions(-)

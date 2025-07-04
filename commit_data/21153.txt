@@ -1,0 +1,15 @@
+commit ae266aaa9de102faae0fca044350593d84c4bce6
+Author: Christopher Guiney <chris@guiney.net>
+Date:   Sat Jan 3 10:46:45 2015 -0800
+
+    doc: Added link to 'go help gopath'
+    
+    The existing go code document did not link to the GOPATH documentation.
+    This will link to it, in hopes of making it more discoverable.
+    
+    Change-Id: Ie4ded2fdce08f412e4acbcc93acdd76f5791b84a
+    Reviewed-on: https://go-review.googlesource.com/2265
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/code.html | 5 +++++
+ 1 file changed, 5 insertions(+)

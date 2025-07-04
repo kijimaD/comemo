@@ -1,0 +1,13 @@
+commit 47647b9865c9d3dbcf95c650420b0aaeeb6a3aff
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Fri Jul 22 09:53:25 2011 +1000
+
+    exp/template: fix action variable declarations inside range
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4807043
+
+ src/pkg/exp/template/exec.go      | 4 ++++
+ src/pkg/exp/template/exec_test.go | 1 +
+ 2 files changed, 5 insertions(+)

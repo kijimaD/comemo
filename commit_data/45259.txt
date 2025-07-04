@@ -1,0 +1,18 @@
+commit 7735ec96c17f0aa8b27c64d82115755e29214164
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Apr 21 02:01:51 2021 +0700
+
+    cmd/compile: remove ir.OSTMTEXPR op
+    
+    It is not used anywhere.
+    
+    Change-Id: I2b8d64902e16893ab5e1b84943f6d865c6e9c7bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311950
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ir/node.go      |  1 -
+ src/cmd/compile/internal/ir/op_string.go | 87 ++++++++++++++++----------------
+ 2 files changed, 43 insertions(+), 45 deletions(-)

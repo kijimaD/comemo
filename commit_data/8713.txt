@@ -1,0 +1,22 @@
+commit 2ad42a82496afa45cc362a65e3e5c70d9578de78
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Tue Jun 14 17:03:37 2011 +0200
+
+    gc: frame compaction for arm.
+    
+    Required moving some parts of gc/pgen.c to ?g/ggen.c
+    
+    on linux tests pass for all 3 architectures, and
+    frames are actually compacted (diagnostic code for
+    that has been removed from the CL).
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4571071
+
+ src/cmd/5g/ggen.c | 26 ++++++++++++++++++++++++++
+ src/cmd/6g/ggen.c | 26 ++++++++++++++++++++++++++
+ src/cmd/8g/ggen.c | 26 ++++++++++++++++++++++++++
+ src/cmd/gc/go.h   |  4 +++-
+ src/cmd/gc/pgen.c | 26 +++++---------------------
+ 5 files changed, 86 insertions(+), 22 deletions(-)

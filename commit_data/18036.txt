@@ -1,0 +1,18 @@
+commit f439e07b1b43d7b4cdbd6db623cedac9735189c1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Dec 18 13:05:47 2013 +0900
+
+    net: make TestDNSThreadLimit execute at the end of tests
+    
+    Because TestDNSThreadLimit consumes tons of file descriptors and
+    makes other tests flaky when CGO_ENABLE=0 or being with netgo tag.
+    
+    Fixes #6580.
+    
+    R=golang-dev, bradfitz, adg, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/14639044
+
+ src/pkg/net/dialgoogle_test.go | 24 ------------------------
+ src/pkg/net/z_last_test.go     | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 24 deletions(-)

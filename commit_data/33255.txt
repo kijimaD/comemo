@@ -1,0 +1,14 @@
+commit 6222997047dda627e9b65c880e772ac5042d62d8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 26 13:39:41 2017 -0700
+
+    test: add type alias test that caused gccgo to crash
+    
+    Change-Id: I3b388e4ac05ace5b7768ade03df2bee5bcc26ba8
+    Reviewed-on: https://go-review.googlesource.com/73790
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ test/fixedbugs/bug505.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

@@ -1,0 +1,31 @@
+commit b62847000b3c9c3f7837b54dab0d1234944b0722
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Fri Jan 18 16:43:25 2013 -0500
+
+    syscall, os: fix a fork-exec/wait race in Plan 9.
+    
+    On Plan 9, only the parent of a given process can enter its wait
+    queue. When a Go program tries to fork-exec a child process
+    and subsequently waits for it to finish, the goroutines doing
+    these two tasks do not necessarily tie themselves to the same
+    (or any single) OS thread. In the case that the fork and the wait
+    system calls happen on different OS threads (say, due to a
+    goroutine being rescheduled somewhere along the way), the
+    wait() will either return an error or end up waiting for a
+    completely different child than was intended.
+    
+    This change forces the fork and wait syscalls to happen in the
+    same goroutine and ties that goroutine to its OS thread until
+    the child exits. The PID of the child is recorded upon fork and
+    exit, and de-queued once the child's wait message has been read.
+    The Wait API, then, is translated into a synthetic implementation
+    that simply waits for the requested PID to show up in the queue
+    and then reads the associated stats.
+    
+    R=rsc, rminnich, npe, mirtchovski, ality
+    CC=golang-dev
+    https://golang.org/cl/6545051
+
+ src/pkg/os/exec_plan9.go      | 16 ++------
+ src/pkg/syscall/exec_plan9.go | 94 ++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 97 insertions(+), 13 deletions(-)

@@ -1,0 +1,29 @@
+commit 452f24ae94f38afa3704d4361d91d51218405c0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 2 16:41:32 2022 -0500
+
+    regexp/syntax: reject very deeply nested regexps in Parse
+    
+    The regexp code assumes it can recurse over the structure of
+    a regexp safely. Go's growable stacks make that reasonable
+    for all plausible regexps, but implausible ones can reach the
+    “infinite recursion?” stack limit.
+    
+    This CL limits the depth of any parsed regexp to 1000.
+    That is, the depth of the parse tree is required to be ≤ 1000.
+    Regexps that require deeper parse trees will return ErrInternalError.
+    A future CL will change the error to ErrInvalidDepth,
+    but using ErrInternalError for now avoids introducing new API
+    in point releases when this is backported.
+    
+    Fixes #51112.
+    
+    Change-Id: I97d2cd82195946eb43a4ea8561f5b95f91fb14c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384616
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/regexp/syntax/parse.go      | 72 +++++++++++++++++++++++++++++++++++++++--
+ src/regexp/syntax/parse_test.go |  7 ++++
+ 2 files changed, 77 insertions(+), 2 deletions(-)

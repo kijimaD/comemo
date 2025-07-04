@@ -1,0 +1,27 @@
+commit 2cf3ebaf3db5b23a56e2ee62ecd76748dfbb5b8e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 17 17:47:34 2020 -0800
+
+    cmd/compile: add dedicated ARM64BitField aux type
+    
+    The goal here is improved AuxInt printing in ssa.html.
+    Instead of displaying an inscrutable encoded integer,
+    it displays something like
+    
+    v25 (28) = UBFX <int> [lsb=4,width=8] v52
+    
+    which is much nicer for debugging.
+    
+    Change-Id: I40713ff7f4a857c4557486cdf73c2dff137511ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221420
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/check.go        |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go | 12 +++++-----
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |  2 +-
+ src/cmd/compile/internal/ssa/op.go           | 35 ++++++++++++++--------------
+ src/cmd/compile/internal/ssa/opGen.go        | 12 +++++-----
+ src/cmd/compile/internal/ssa/value.go        |  4 ++++
+ 6 files changed, 36 insertions(+), 31 deletions(-)

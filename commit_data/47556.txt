@@ -1,0 +1,15 @@
+commit ba9f0f6665273ab5202d829ae4aa0c5fa2cebb32
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Nov 12 13:10:30 2021 -0500
+
+    doc/go1.18: mention register ABI on ARM64 and PPC64
+    
+    For #47694.
+    
+    Change-Id: Ide378f4a34587027c3d84fed2126c5b9bd8f7287
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363694
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ doc/go1.18.html | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)

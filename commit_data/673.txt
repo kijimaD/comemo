@@ -1,0 +1,13 @@
+commit aca4f19e206cfe4f9ac764e0eeead46cf49498a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 15:50:28 2008 -0700
+
+    clean blyacc
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=15489
+    CL=15493
+
+ src/cmd/clean.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

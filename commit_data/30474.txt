@@ -1,0 +1,20 @@
+commit 36f55a8b6125c9ae951487a0ad074b5c991f7b92
+Author: Michel Lespinasse <walken@google.com>
+Date:   Fri Jan 20 16:52:23 2017 -0800
+
+    net/http: add support for socks5 proxy
+    
+    See #18508
+    
+    This commit adds http Client support for socks5 proxies.
+    
+    Change-Id: Ib015f3819801da13781d5acdd780149ae1f5857b
+    Reviewed-on: https://go-review.googlesource.com/35488
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/deps_test.go      |   1 +
+ src/net/http/transport.go      |  64 +++++++++++++++++++-----
+ src/net/http/transport_test.go | 107 +++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 158 insertions(+), 14 deletions(-)

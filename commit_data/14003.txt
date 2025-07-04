@@ -1,0 +1,15 @@
+commit 05dc3bf572931723b8af89386af4488c5e775851
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 2 16:48:30 2012 -0700
+
+    go/parser: correctly parse <-chan T(x) as <-(chan T)(x)
+    
+    Fixes #4110.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/6597069
+
+ src/pkg/go/parser/parser.go     | 47 ++++++++++++++++++++++++++++++++++++-----
+ src/pkg/go/parser/short_test.go | 12 +++++++----
+ 2 files changed, 50 insertions(+), 9 deletions(-)

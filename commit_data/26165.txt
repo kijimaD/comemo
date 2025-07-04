@@ -1,0 +1,14 @@
+commit b594b8b0396647cabdda719d20888b1476d5d2c2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 9 01:15:23 2016 -0800
+
+    cmd/compile: switch Eqtype and (*Type).Compare to use recvParamsResults
+    
+    Change-Id: I5365b94b815bfb4795db643415c2df51fc815ea1
+    Reviewed-on: https://go-review.googlesource.com/20459
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/subr.go | 2 +-
+ src/cmd/compile/internal/gc/type.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

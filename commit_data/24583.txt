@@ -1,0 +1,20 @@
+commit 3c1712db0bd3aa360ad08d9a8e57f6f9b64df6a4
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Wed Oct 21 00:39:27 2015 +0800
+
+    cmd/vet: fix shadow assignment check with complex rhs
+    
+    This change fixes shadow assignment check in cases when RHS is not an identifier
+    or a type assertion.
+    
+    Fixes #12188
+    
+    Change-Id: I0940df8d9c237ab8b8d3272eb6895e676c75c115
+    Reviewed-on: https://go-review.googlesource.com/16038
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/shadow.go          | 2 ++
+ src/cmd/vet/testdata/shadow.go | 7 ++++++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit c0b3c17184735e1f4352aea6a9ecf5779f098cd5
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Mar 25 22:12:47 2013 +0100
+
+    cmd/gc: instrument logical && and ||.
+    
+    The right operand of a && and || is only executed conditionnally,
+    so the instrumentation must be more careful. In particular
+    it should not turn nodes assumed to be cheap after walk into
+    expensive ones.
+    
+    Update #4228
+    
+    R=dvyukov, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7986043
+
+ src/cmd/gc/racewalk.c                     | 41 +++++++++++++++++++++++++++----
+ src/cmd/gc/subr.c                         |  7 ++++++
+ src/pkg/runtime/race/testdata/mop_test.go |  6 ++---
+ 3 files changed, 45 insertions(+), 9 deletions(-)

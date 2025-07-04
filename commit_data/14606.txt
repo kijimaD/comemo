@@ -1,0 +1,28 @@
+commit a6701f2699d328ab2bbff0130a6a553451d68f0d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 11 12:07:27 2012 -0500
+
+    net/http, net/url: permit Request-URI "*"
+    
+    Also, implement a global OPTIONS * handler, like Apache.
+    
+    Permit sending "*" requests to handlers, but not path-based
+    (ServeMux) handlers.  That means people can go out of their
+    way to support SSDP or SIP or whatever, but most users will be
+    unaffected.
+    
+    See RFC 2616 Section 5.1.2 (Request-URI)
+    See RFC 2616 Section 9.2 (OPTIONS)
+    
+    Fixes #3692
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6868095
+
+ src/pkg/net/http/readrequest_test.go | 48 +++++++++++++++++++++++++++++++++
+ src/pkg/net/http/serve_test.go       | 52 ++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/server.go           | 24 +++++++++++++++++
+ src/pkg/net/url/url.go               |  5 ++++
+ src/pkg/net/url/url_test.go          |  5 ++--
+ 5 files changed, 132 insertions(+), 2 deletions(-)

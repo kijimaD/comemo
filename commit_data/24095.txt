@@ -1,0 +1,13 @@
+commit 34db31d5f5c64f8d232dc0f279ae7e7f621c2ad7
+Author: Tim Cooijmans <timcooijmans@gmail.com>
+Date:   Thu Aug 20 09:50:10 2015 +0200
+
+    src/runtime: Add missing defs for android/386.
+    
+    Change-Id: I63bf6d2fdf41b49ff8783052d5d6c53b20e2f050
+    Reviewed-on: https://go-review.googlesource.com/13760
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/defs_linux_386.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

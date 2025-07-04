@@ -1,0 +1,12 @@
+commit 4529c047b852772eb380499926c1c4e1c42da625
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 25 17:41:12 2013 -0700
+
+    doc/go1.1.html: introduction
+    
+    R=golang-dev, adg, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7696045
+
+ doc/go1.1.html | 50 +++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 41 insertions(+), 9 deletions(-)

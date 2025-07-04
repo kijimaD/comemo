@@ -1,0 +1,11 @@
+commit e6f85af2bbf4854e625435524a83a7d5fdc500e4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 2 09:42:53 2009 -0800
+
+    cleaning up bug132
+    
+    R=rsc
+    http://go/go-review/1017012
+
+ test/fixedbugs/bug132.go | 69 ------------------------------------------------
+ 1 file changed, 69 deletions(-)

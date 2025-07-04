@@ -1,0 +1,27 @@
+commit 9a9aad449fddb1d3f66e6200d2c6c63a0eed63a4
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 8 17:06:29 2021 -0700
+
+    text/template: compare reflect.Value instances differently
+    
+    To avoid false positives from the reflectvaluecompare checker #43993
+    
+    Use v.IsValid() instead of
+    
+    var zero reflect.Value
+    v != zero
+    
+    Also avoid comparing directly with the singleton reflect.Value
+    representing a missing value. Detect the missing value by type instead.
+    
+    Change-Id: I3a00d63cf61c077e7c7ae816474aa1f032be325b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308769
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/text/template/exec.go  | 14 ++++++++++----
+ src/text/template/funcs.go |  2 +-
+ 2 files changed, 11 insertions(+), 5 deletions(-)

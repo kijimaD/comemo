@@ -1,0 +1,20 @@
+commit e0a5e69be2fcebe02c4ff94da31d3445c0e3cd60
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 17 08:58:36 2017 -0700
+
+    cmd/compile: make Maxarg local
+    
+    Passes toolstash -cmp. No compiler performance impact.
+    
+    Updates #15756
+    
+    Change-Id: I1294058716d83dd1be495d399ed7ab2277754dc6
+    Reviewed-on: https://go-review.googlesource.com/38329
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/dcl.go  | 1 -
+ src/cmd/compile/internal/gc/go.go   | 2 --
+ src/cmd/compile/internal/gc/init.go | 2 --
+ src/cmd/compile/internal/gc/ssa.go  | 8 +++++---
+ 4 files changed, 5 insertions(+), 8 deletions(-)

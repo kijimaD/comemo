@@ -1,0 +1,15 @@
+commit 33a784e1f7fc56ecea696ab07558ca220e3bef0f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 18 15:40:47 2016 -0800
+
+    cmd/go: document PackageError in go list output
+    
+    Fixes #14007.
+    
+    Change-Id: I1f73dfccb466d8fd00efbd8c92a31ac538bf5988
+    Reviewed-on: https://go-review.googlesource.com/18731
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go | 8 ++++++++
+ src/cmd/go/list.go    | 8 ++++++++
+ 2 files changed, 16 insertions(+)

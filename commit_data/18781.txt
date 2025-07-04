@@ -1,0 +1,52 @@
+commit a1695d2ea321e9bed50d90732a8cef5e71cd7a89
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 6 23:48:30 2014 +0400
+
+    runtime: use custom thunks for race calls instead of cgo
+    Implement custom assembly thunks for hot race calls (memory accesses and function entry/exit).
+    The thunks extract caller pc, verify that the address is in heap or global and switch to g0 stack.
+    
+    Before:
+    ok      regexp  3.692s
+    ok      compress/bzip2  9.461s
+    ok      encoding/json   6.380s
+    After:
+    ok      regexp  2.229s (-40%)
+    ok      compress/bzip2  4.703s (-50%)
+    ok      encoding/json   3.629s (-43%)
+    
+    For comparison, normal non-race build:
+    ok      regexp  0.348s
+    ok      compress/bzip2  0.304s
+    ok      encoding/json   0.661s
+    Race build:
+    ok      regexp  2.229s (+540%)
+    ok      compress/bzip2  4.703s (+1447%)
+    ok      encoding/json   3.629s (+449%)
+    
+    Also removes some race-related special cases from cgocall and scheduler.
+    In long-term it will allow to remove cyclic runtime/race dependency on cmd/cgo.
+    
+    Fixes #4249.
+    Fixes #7460.
+    Update #6508
+    Update #6688
+    
+    R=iant, rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/55100044
+
+ src/pkg/runtime/cgocall.c                    |  27 +-
+ src/pkg/runtime/malloc.goc                   |   3 -
+ src/pkg/runtime/proc.c                       |   5 -
+ src/pkg/runtime/race.c                       | 390 ++++++++-------------------
+ src/pkg/runtime/race.h                       |   1 -
+ src/pkg/runtime/race/README                  |   2 +-
+ src/pkg/runtime/race/race.go                 | 118 +-------
+ src/pkg/runtime/race/race_darwin_amd64.syso  | Bin 192988 -> 222964 bytes
+ src/pkg/runtime/race/race_linux_amd64.syso   | Bin 195144 -> 243208 bytes
+ src/pkg/runtime/race/race_windows_amd64.syso | Bin 161295 -> 210859 bytes
+ src/pkg/runtime/race0.c                      |   6 -
+ src/pkg/runtime/race_amd64.s                 | 240 ++++++++++++++++-
+ src/pkg/runtime/runtime.h                    |   1 -
+ 13 files changed, 355 insertions(+), 438 deletions(-)

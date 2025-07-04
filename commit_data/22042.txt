@@ -1,0 +1,13 @@
+commit 1abd8185b25d849e57fb6958f17ac8142e51984f
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Sun Mar 8 14:26:40 2015 +0100
+
+    reflect: add support for GOARCH=arm64
+    
+    Change-Id: I033eecff5e5838ba677378ac884bf5f29267e880
+    Reviewed-on: https://go-review.googlesource.com/7146
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/reflect/asm_arm64.s | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

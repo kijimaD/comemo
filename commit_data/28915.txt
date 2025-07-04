@@ -1,0 +1,26 @@
+commit e65bce7144dbced232df8842ef6825d7e45f094e
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sun Oct 16 13:25:53 2016 +0900
+
+    os, syscall: fix incorrect offset calculation in Readlink on windows
+    
+    Current implementation of syscall.Readlink mistakenly calculates
+    the end offset of the PrintName field.
+    Also, there are some cases that the PrintName field is empty.
+    Instead, the CL uses SubstituteName with correct calculation.
+    
+    Fixes #15978
+    Fixes #16145
+    
+    Change-Id: If3257137141129ac1c552d003726d5b9c08bb754
+    Reviewed-on: https://go-review.googlesource.com/31118
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/syscall/windows/syscall_windows.go  | 16 ++++
+ src/internal/syscall/windows/zsyscall_windows.go | 19 +++++
+ src/os/os_windows_test.go                        | 97 +++++++++++++++++++++++-
+ src/syscall/syscall_windows.go                   | 24 +++++-
+ src/syscall/ztypes_windows.go                    |  1 +
+ 5 files changed, 153 insertions(+), 4 deletions(-)

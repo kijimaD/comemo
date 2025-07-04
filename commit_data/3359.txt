@@ -1,0 +1,13 @@
+commit a4d09c2aa3c963a53d3ce3d93f1ec61cedde98f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 24 11:43:38 2009 -0700
+
+    add Size method to dwarf.Type
+    
+    R=r
+    DELTA=30  (24 added, 3 deleted, 3 changed)
+    OCL=34950
+    CL=34974
+
+ src/pkg/debug/dwarf/type.go | 33 +++++++++++++++++++++++++++------
+ 1 file changed, 27 insertions(+), 6 deletions(-)

@@ -1,0 +1,21 @@
+commit c6da080b1a74b295ea3dba373234934af949e480
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 21 15:11:16 2019 -0500
+
+    misc/cgo/testgodefs: move source files into testdata
+    
+    These source files fail to build with 'go test ./...'.
+    Move them into testdata so that only test.bash will see them.
+    
+    Updates #30228
+    
+    Change-Id: I3673f3cb64b0c128a2bca5fee7679b672fe90770
+    Reviewed-on: https://go-review.googlesource.com/c/163212
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testgodefs/test.bash                      | 4 +++-
+ misc/cgo/testgodefs/{ => testdata}/anonunion.go    | 0
+ misc/cgo/testgodefs/{ => testdata}/fieldtypedef.go | 0
+ misc/cgo/testgodefs/{ => testdata}/issue8478.go    | 0
+ misc/cgo/testgodefs/{ => testdata}/main.go         | 0
+ 5 files changed, 3 insertions(+), 1 deletion(-)

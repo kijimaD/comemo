@@ -1,0 +1,16 @@
+commit e7d899cba5613948deee6dce91ab21f6eaa6404f
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 2 16:54:29 2013 -0800
+
+    reflect: fix Zero() implementation - not every type has a
+    zero object allocated, so we still need to allocate a new
+    zero area every time.
+    
+    Fixes #6876.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/36320043
+
+ src/pkg/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

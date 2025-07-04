@@ -1,0 +1,23 @@
+commit 7af2ce3f159760033c903b3730bfb5995b4edd40
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue May 10 21:28:30 2016 -0700
+
+    cmd/build: reject non-existant directories in ImportDir
+    
+    Re-apply @adg's CL https://golang.org/cl/7129048 that was
+    previously disabled in https://golang.org/cl/7235052 because
+    it broke `godoc net/http` for go1.1.
+    
+    Currently `godoc net/http` seems to work fine with this CL.
+    
+    Fixes #3428.
+    
+    Change-Id: I7df06df02fd62dededac6ec60bea62561be59cf1
+    Reviewed-on: https://go-review.googlesource.com/23013
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/go/build/build.go      |  6 +++++-
+ src/go/build/build_test.go | 11 +++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

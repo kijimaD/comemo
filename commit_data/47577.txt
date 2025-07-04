@@ -1,0 +1,17 @@
+commit 189b4a2f428be7264db76e5275c96d98b847383b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 22 14:01:26 2021 -0500
+
+    cmd/go: forward the MallocNanoZone variable to script tests
+    
+    For #49138
+    Fixes #49723
+    
+    Change-Id: Ia93130fdc042a1e2107be95cccd7e7eeaa909a87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366254
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/script_test.go | 1 +
+ 1 file changed, 1 insertion(+)

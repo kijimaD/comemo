@@ -1,0 +1,22 @@
+commit 7d0d1222477ce50736ee24adb38c1f487d0801d9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 12 18:00:04 2016 -0700
+
+    cmd/compile: move more compiler specifics into compiler specific export section
+    
+    Instead of indicating with each function signature if it has an inlineable
+    body, collect all functions in order and export function bodies with function
+    index in platform-specific section.
+    
+    Moves this compiler specific information out of the platform-independent
+    export data section, and removes an int value for all functions w/o body.
+    Also simplifies the code a bit.
+    
+    Change-Id: I8b2d7299dbe81f2706be49ecfb9d9f7da85fd854
+    Reviewed-on: https://go-review.googlesource.com/21939
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go |  63 +++++++++++---------
+ src/cmd/compile/internal/gc/bimport.go | 104 ++++++++++++++-------------------
+ src/go/internal/gcimporter/bimport.go  |   2 -
+ 3 files changed, 80 insertions(+), 89 deletions(-)

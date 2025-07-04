@@ -1,0 +1,22 @@
+commit 8f3f2ccac077c73249349e9cf975dcca7e803f6a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 3 17:15:30 2015 -0800
+
+    runtime: mark cgo callback results as written for msan
+    
+    This is a fix for the -msan option when using cgo callbacks.  A cgo
+    callback works by writing out C code that puts a struct on the stack and
+    passes the address of that struct into Go.  The result parameters are
+    fields of the struct.  The Go code will write to the result parameters,
+    but the Go code thinks it is just writing into the Go stack, and
+    therefore won't call msanwrite.  This CL adds a call to msanwrite in the
+    cgo callback code so that the C knows that results were written.
+    
+    Change-Id: I80438dbd4561502bdee97fad3f02893a06880ee1
+    Reviewed-on: https://go-review.googlesource.com/16611
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/testsanitizers/msan3.go  | 32 ++++++++++++++++++++++++++++++++
+ misc/cgo/testsanitizers/test.bash |  7 ++++++-
+ src/runtime/cgocall.go            |  7 +++++++
+ 3 files changed, 45 insertions(+), 1 deletion(-)

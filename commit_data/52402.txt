@@ -1,0 +1,47 @@
+commit 59d7c69342edbf8943699394513fb9b8fb175d7e
+Author: Matthieu Baerts <matthieu.baerts@tessares.net>
+Date:   Fri Feb 24 17:51:57 2023 +0100
+
+    net: add initial MPTCP support
+    
+    This currently defines an internal function supportsMultipathTCP which
+    reports whether MPTCP[1] is supported on the current platform.
+    
+    Only Linux is supported here.
+    
+    The check on Linux is performed once by attemting to create an MPTCP
+    socket and look at the returned error:
+    
+    - If the protocol is not supported, EINVAL (kernel < 5.6) or
+      EPROTONOSUPPORT (kernel >= 5.6) is returned and there is no point to
+      try again.
+    
+    - Other errors can be returned:
+      - ENOPROTOOPT: the sysctl knob net.mptcp.enabled is set to 0
+      - Unpredictable ones: if MPTCP is blocked using SELinux, eBPF, etc.
+    
+    These other errors are due to modifications that can be reverted during
+    the session: MPTCP can be available again later. In this case, it is
+    fine to always try to create an MPTCP socket and fallback to TCP in case
+    of error.
+    
+    This work has been co-developped by Gregory Detal
+    <gregory.detal@tessares.net>.
+    
+    [1] https://www.rfc-editor.org/rfc/rfc8684.html
+    
+    Updates #56539
+    
+    Change-Id: Ic84fe85aad887a2be4556a898e649bf6b6f12f03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471135
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/mptcpsock_linux.go | 43 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/mptcpsock_stub.go  |  7 +++++++
+ 2 files changed, 50 insertions(+)

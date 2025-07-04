@@ -1,0 +1,17 @@
+commit 8b6b3806059aa7d74322cd0f59c9a3fb4f9919dd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 14:06:24 2009 -0700
+
+    stricter rules for assignment.
+    when assigning a multifield object
+    (structs or arrays of structs) they
+    must not contain any fields that could
+    not be assigned individually.
+    
+    R=ken
+    OCL=29192
+    CL=29194
+
+ src/cmd/gc/walk.c | 47 ++++++++++++++++++++++++++++++++++++++++++++++-
+ test/assign.go    | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 79 insertions(+), 1 deletion(-)

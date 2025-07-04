@@ -1,0 +1,15 @@
+commit 3c182a12f772c51e93195f2efaf84e3aff69109e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Aug 18 21:15:44 2017 -0700
+
+    runtime: replace t.keysize with fixed key size in evacuate_fastX
+    
+    Change-Id: I89c3c3b21d7a4acbc49b14a52ac8d9a5861c0c39
+    Reviewed-on: https://go-review.googlesource.com/59131
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/runtime/hashmap_fast.go | 36 ++++++++++++++++++------------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)

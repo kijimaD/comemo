@@ -1,0 +1,12 @@
+commit bee3848f4e252578c7439890a92e534b39c1e690
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 25 14:17:00 2014 -0700
+
+    runtime: fix windows build (buggy commit in 19543:d68b79ccbfed)
+    
+    TBR=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/80090043
+
+ src/pkg/runtime/mem_windows.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

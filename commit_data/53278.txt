@@ -1,0 +1,19 @@
+commit c6f33ed11353620201fa2d4df40dd7304282539d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri May 19 23:20:43 2023 -0400
+
+    cmd/dist: make two related panic messages more consistent
+    
+    In contrast to the HasSuffix argument, there's no need or benefit in
+    having a ":" before the "racebench" variant mentioned in the message.
+    (The variant comes after the colon separator—it doesn't include it.)
+    
+    Change-Id: Ie9948104de9449422037bf39245944255b98f1b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497735
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

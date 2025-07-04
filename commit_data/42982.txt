@@ -1,0 +1,25 @@
+commit 3b64e6b010775839f2daef4ac3fb607bf1519e05
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 14 11:06:39 2020 +0200
+
+    internal/poll, internal/syscall/unix, net: enable writev on illumos
+    
+    Illumos supports iovec read/write. Add the writev wrapper to
+    internal/syscall/unix and use it to implement internal/poll.writev for
+    net.(*netFD).writeBuffers.
+    
+    Change-Id: Ie256c2f96aba8e61fb21991788789a049425f792
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254638
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/internal/poll/fd_writev_illumos.go      | 16 +++++++++++++++
+ src/internal/poll/iovec_illumos.go          | 16 +++++++++++++++
+ src/internal/poll/iovec_unix.go             | 13 +++++++++++++
+ src/internal/poll/writev.go                 |  4 ++--
+ src/internal/syscall/unix/writev_illumos.go | 30 +++++++++++++++++++++++++++++
+ src/net/writev_test.go                      |  2 +-
+ src/net/writev_unix.go                      |  2 +-
+ 7 files changed, 79 insertions(+), 4 deletions(-)

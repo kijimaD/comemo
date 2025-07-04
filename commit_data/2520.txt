@@ -1,0 +1,15 @@
+commit eaa92e027b005139e8c5c982d70b585a8940125c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 25 14:43:55 2009 -0700
+
+    Allow indexing of slice types, but not pointer to slice type.
+    Allow indexing of string type, but not pointer to string type.
+    Do not allow indexing of pointer to map type.
+    
+    R=r
+    DELTA=18  (14 added, 0 deleted, 4 changed)
+    OCL=30586
+    CL=30754
+
+ doc/go_spec.html | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)

@@ -1,0 +1,27 @@
+commit aa3880178850ab0525802a48fc4eeadcdbb2c26c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 13 10:45:30 2012 -0800
+
+    reflect: fix FieldByNameFunc
+    
+    The existing algorithm did not properly propagate the type
+    count from one level to the next, and as a consequence it
+    missed collisions.
+    
+    Properly propagate multiplicity (count) information to the
+    next level.
+    
+    benchmark                old ns/op    new ns/op    delta
+    BenchmarkFieldByName1          182          180   -1.10%
+    BenchmarkFieldByName2         6273         6183   -1.43%
+    BenchmarkFieldByName3        49267        46784   -5.04%
+    
+    Fixes #4355.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6821094
+
+ src/pkg/reflect/all_test.go | 15 +++++++++++++++
+ src/pkg/reflect/type.go     |  7 +++++--
+ 2 files changed, 20 insertions(+), 2 deletions(-)

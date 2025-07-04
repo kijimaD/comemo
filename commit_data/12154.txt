@@ -1,0 +1,18 @@
+commit e4b02bfdc09ce9e1307250382f3b985f35ca9723
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 22 21:45:01 2012 -0500
+
+    runtime: goroutine profile, stack dumps
+    
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/5687076
+
+ src/pkg/runtime/debug.go  |  33 +++++++++----
+ src/pkg/runtime/malloc.h  |  10 +---
+ src/pkg/runtime/mgc0.c    |  35 +++++++++-----
+ src/pkg/runtime/mprof.goc | 120 ++++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/runtime/print.c   |  56 +++++++++++++++-------
+ src/pkg/runtime/proc.c    |   6 +++
+ src/pkg/runtime/runtime.h |   6 ++-
+ 7 files changed, 207 insertions(+), 59 deletions(-)

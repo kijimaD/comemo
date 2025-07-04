@@ -1,0 +1,36 @@
+commit beeabbcb2501c89db48a60681183ad161763db79
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 25 12:15:23 2018 -0500
+
+    runtime: use NOFRAME on arm64
+    
+    This replaces frame size -8 with the NOFRAME flag in arm64 assembly.
+    
+    This was automated with:
+    
+    sed -i -e 's/\(^TEXT.*[A-Z]\),\( *\)\$-8/\1|NOFRAME,\2$0/' $(find -name '*_arm64.s')
+    
+    Plus a manual fix to mkduff.go.
+    
+    The go binary is identical before and after this change.
+    
+    Change-Id: I0310384d1a584118c41d1cd3a042bb8ea7227efa
+    Reviewed-on: https://go-review.googlesource.com/92043
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/cgo/test/issue9400/asm_arm64.s   |  2 +-
+ src/runtime/asm_arm64.s               | 40 +++++++++++++--------------
+ src/runtime/atomic_arm64.s            |  2 +-
+ src/runtime/cgo/asm_arm64.s           |  2 +-
+ src/runtime/cgo/signal_darwin_arm64.s |  2 +-
+ src/runtime/duff_arm64.s              |  2 +-
+ src/runtime/memmove_arm64.s           |  2 +-
+ src/runtime/mkduff.go                 |  2 +-
+ src/runtime/rt0_android_arm64.s       |  4 +--
+ src/runtime/rt0_darwin_arm64.s        |  4 +--
+ src/runtime/rt0_linux_arm64.s         |  4 +--
+ src/runtime/sys_darwin_arm64.s        |  2 +-
+ src/runtime/sys_linux_arm64.s         | 52 +++++++++++++++++------------------
+ 13 files changed, 60 insertions(+), 60 deletions(-)

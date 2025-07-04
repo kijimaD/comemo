@@ -1,0 +1,24 @@
+commit 8d64e73f9417f945419217b0723dfda3435a8e02
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jun 4 07:46:22 2011 +1000
+
+    unicode: add the first few property tests for printing.
+    
+    The long-term goal is that %q will use IsPrint to decide
+    what to show natively vs. as hexadecimal.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4526095
+
+ src/pkg/unicode/Makefile        |    1 +
+ src/pkg/unicode/digit.go        |    2 +-
+ src/pkg/unicode/digit_test.go   |    2 +-
+ src/pkg/unicode/graphic.go      |  132 ++++
+ src/pkg/unicode/graphic_test.go |  122 +++
+ src/pkg/unicode/letter.go       |   43 +-
+ src/pkg/unicode/letter_test.go  |    2 +-
+ src/pkg/unicode/maketables.go   |  105 ++-
+ src/pkg/unicode/script_test.go  |   17 +-
+ src/pkg/unicode/tables.go       | 1623 ++++++++++++++++++++++++++++++---------
+ 10 files changed, 1634 insertions(+), 415 deletions(-)

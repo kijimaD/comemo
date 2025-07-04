@@ -1,0 +1,12 @@
+commit acbf011d965f6b6f787f415a7e3e0dfe21f1e9f8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 17 14:32:46 2012 -0800
+
+    exp/gotype: disable failing tests and add a few more
+    
+    R=rsc, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/6948066
+
+ src/pkg/exp/gotype/gotype_test.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

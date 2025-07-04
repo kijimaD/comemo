@@ -1,0 +1,29 @@
+commit 0ba03b8f42dc09212dfa28baa374577168a2bce7
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Jul 19 10:41:54 2018 +0200
+
+    cmd/go: fix TestScript on Plan 9
+    
+    CL 123577 added TestScript. The install_rebuild_gopath
+    test was failing on Plan 9 because it defines a GOPATH
+    using the ':' separator, while Plan 9 expects the '\000'
+    separator in environment variables.
+    
+    This change fixes the script engine by defining a new
+    ":" environment variable set to OS-specific path list
+    separator.
+    
+    The install_rebuild_gopath test has been updated to use
+    "${:}" instead of ":".
+    
+    Fixes #26421.
+    
+    Change-Id: I58a97f882cdb48cc0836398b0d98a80ea58041ba
+    Reviewed-on: https://go-review.googlesource.com/124435
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/script_test.go                             | 1 +
+ src/cmd/go/testdata/script/README                     | 2 +-
+ src/cmd/go/testdata/script/install_rebuild_gopath.txt | 3 +--
+ 3 files changed, 3 insertions(+), 3 deletions(-)

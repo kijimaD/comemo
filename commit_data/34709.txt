@@ -1,0 +1,24 @@
+commit a934e34e875d6402da79d52a859434b60b6f6131
+Author: David Chase <drchase@google.com>
+Date:   Mon Mar 26 13:37:00 2018 -0400
+
+    cmd/compile: invoke gdb more carefully in ssa/debug_test.go
+    
+    Gdb can be sensitive to contents of .gdbinit, and to run
+    this test properly needs to have runtime/runtime-gdb.py
+    on the auto load safe path.  Therefore, turn off .gdbinit
+    loading and explicitly add $GOROOT/runtime to the safe
+    load path.
+    
+    This should make ssa/debug_test.go run more consistently.
+    
+    Updates #24464.
+    
+    Change-Id: I63ed17c032cb3773048713ce51fca3a3f86e79b6
+    Reviewed-on: https://go-review.googlesource.com/102598
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/ssa/debug_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

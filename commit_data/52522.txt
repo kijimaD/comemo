@@ -1,0 +1,26 @@
+commit 449e69f1597273f13db684f4a629f3e43beb2987
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 3 17:02:49 2023 -0400
+
+    cmd/go: suppress calls to collectDeps for test packages
+    
+    Instead, do the cycle checking in recompileForTest once the test
+    variant packages have been poked in the right places in the dependency
+    tree(graph?).
+    
+    (Pair programming with bcmills@.)
+    
+    For #59157.
+    
+    Change-Id: I0c644cb9f2c0dac3a5b0189e2aa0eef083c669f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482237
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/list/list.go               |  28 +++---
+ src/cmd/go/internal/load/test.go               | 120 +++++++++++++------------
+ src/cmd/go/testdata/script/list_test_cycle.txt |  33 +++++++
+ src/cmd/go/testdata/script/list_test_err.txt   |  27 +-----
+ 4 files changed, 112 insertions(+), 96 deletions(-)

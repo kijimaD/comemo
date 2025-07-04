@@ -1,0 +1,33 @@
+commit 0f0c89243044a5a5de142e51da3a98f082fd3771
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Mar 24 11:24:01 2022 -0500
+
+    crypto/aes: merge ppc64le crypt key expansion
+    
+    It is not necessary to expand the key twice for each direction,
+    the decrypt key can be stored in reverse simultaneously.
+    
+    Likewise, there is no need to store the key length alongside the
+    expanded keys, this is now inferred by the key length slice.
+    Noteably, the key expansion benchmark assumes the key array size
+    is the exact size of the expanded key.
+    
+    Now, the ppc64le aes asm interface is identical to the generic
+    asm interface. Callsites and usage is updated to reflect this.
+    
+    Performance uplift on POWER9 is substantial:
+    
+    name    old time/op  new time/op  delta
+    Expand   167ns ± 0%    49ns ± 0%  -70.55%
+    
+    Change-Id: I3fdaf9c27e8860e8150d4683eb4046d97a53293a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398894
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Trust: Paul Murphy <murp@ibm.com>
+
+ src/crypto/aes/asm_ppc64le.s     | 207 +++++++++++++++------------------------
+ src/crypto/aes/cbc_ppc64le.go    |   6 +-
+ src/crypto/aes/cipher_ppc64le.go |  43 ++++----
+ 3 files changed, 105 insertions(+), 151 deletions(-)

@@ -1,0 +1,26 @@
+commit 94dba61276f26c01b7d3d1a4abb195bdcc596bfd
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 1 15:39:41 2024 -0400
+
+    internal/abi: clean up type of Kind and Type.Kind_
+    
+    Currently, Type.Kind_ is a uint8, Kind is a uint, and some of the
+    abi.Kind consts are not of type Kind. Clean this all up by making Kind
+    a uint8, then making Type.Kind a Kind, and finally making all Kind
+    consts actually have type Kind. This has some ripple effect, but I
+    think all of the changes are improvements.
+    
+    Change-Id: If39be74699c2cdb52bf0ad7092d392bc8fb68d15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575579
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/ld/data.go      | 2 +-
+ src/cmd/link/internal/ld/deadcode.go  | 4 ++--
+ src/cmd/link/internal/ld/decodesym.go | 8 ++++----
+ src/cmd/link/internal/ld/dwarf.go     | 2 +-
+ src/internal/abi/type.go              | 8 ++++----
+ src/internal/reflectlite/type.go      | 2 +-
+ 6 files changed, 13 insertions(+), 13 deletions(-)

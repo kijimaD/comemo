@@ -1,0 +1,22 @@
+commit 128279e5034ca29bad4320eef81a8abd5b40ea7e
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat May 14 20:16:03 2022 +1000
+
+    cmd/compile: regenerate ssa
+    
+    This is the result of running `go run *.go` in src/cmd/compile/internal/ssa/gen,
+    which should be a no-op - it would seem that it may not have been regenerated
+    before CL 367039 landed.
+    
+    Updates #46229
+    
+    Change-Id: I4d6b6e8425948429ede509682c7e997edbb905e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406474
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+
+ src/cmd/compile/internal/ssa/opGen.go          | 26 +++----
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go | 93 ++++++++++++++++----------
+ 2 files changed, 66 insertions(+), 53 deletions(-)

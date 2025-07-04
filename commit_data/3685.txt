@@ -1,0 +1,12 @@
+commit aa0c81131775f93808aa05c321bf9a22fc78cb10
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 30 18:04:32 2009 -0700
+
+    add PDF for go talk on Oct 30 2009
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1018007
+
+ doc/go_talk-20091030.pdf | Bin 0 -> 1153663 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

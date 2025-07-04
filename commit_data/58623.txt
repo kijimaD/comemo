@@ -1,0 +1,32 @@
+commit 478ad013f90fe1dbb199d22f41b93c920ae0d5e9
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Jan 31 15:03:15 2025 -0800
+
+    runtime: don't duplicate reraised panic values in printpanics
+    
+    Change the output printed when crashing with a reraised panic value
+    to not duplicate that value.
+    
+    Changes output of panicking with "PANIC", recovering, and reraising
+    from:
+    
+      panic: PANIC [recovered]
+        panic: PANIC
+    
+    to:
+    
+      panic: PANIC [recovered, reraised]
+    
+    Fixes #71517
+    
+    Change-Id: Id59938c4ea0df555b851ffc650fe6f94c0845499
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645916
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/4-runtime.md                  | 17 +++++++++++
+ src/runtime/crash_test.go              | 31 ++++++++++++++++++++
+ src/runtime/panic.go                   | 14 ++++++++-
+ src/runtime/runtime2.go                |  1 +
+ src/runtime/testdata/testprog/crash.go | 52 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 114 insertions(+), 1 deletion(-)

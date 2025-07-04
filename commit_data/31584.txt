@@ -1,0 +1,18 @@
+commit 3b263e43a972fdc2877748035197ab42bc44b492
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue May 16 09:30:27 2017 -0400
+
+    runtime, syscall: in Plan 9 ARM asm, replace "SWI 0" with "SWI $0"
+    
+    On other systems we use "SWI $n". Change Plan 9 files to be
+    consistent. Generated binary is unchanged.
+    
+    Fixes #20378.
+    
+    Change-Id: Ia2a722061da2450c7b30cb707ed4f172fafecf74
+    Reviewed-on: https://go-review.googlesource.com/43533
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/sys_plan9_arm.s | 34 +++++++++++++++++-----------------
+ src/syscall/asm_plan9_arm.s | 10 +++++-----
+ 2 files changed, 22 insertions(+), 22 deletions(-)

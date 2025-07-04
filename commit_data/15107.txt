@@ -1,0 +1,15 @@
+commit 09a17ca1f113b7959391b0daf49ecfcd930cf30b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 3 11:19:22 2013 -0500
+
+    cmd/gc: make inlined labels distinct
+    
+    Fixes #4748.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7261044
+
+ src/cmd/gc/inl.c            | 14 ++++++++++++++
+ test/fixedbugs/issue4748.go | 20 ++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

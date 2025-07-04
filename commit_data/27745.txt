@@ -1,0 +1,16 @@
+commit 996ed3be9a10ace6cd7a8a6a8080c0c8db7ab1fe
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Tue Jun 28 17:47:27 2016 +0200
+
+    doc: update 1.7 release notes on Unicode upgrade
+    
+    Fixes #16201
+    
+    Change-Id: I38c17859db78c2868905da24217e0ad47739c320
+    Reviewed-on: https://go-review.googlesource.com/24541
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.7.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

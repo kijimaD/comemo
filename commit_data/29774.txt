@@ -1,0 +1,14 @@
+commit e12ce1e4005fcefd7a3537c433e6a60044160086
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Dec 8 13:07:35 2016 -0800
+
+    database/sql: document that drivers may not return right after cancel
+    
+    Fixes #18168
+    
+    Change-Id: Idbfe3d4daedd93c7caf6f1770ecd988e9af39949
+    Reviewed-on: https://go-review.googlesource.com/34144
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

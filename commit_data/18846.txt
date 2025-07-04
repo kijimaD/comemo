@@ -1,0 +1,28 @@
+commit 189397df5855a35cd23c76becf5cd16b10bb4dce
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Mar 12 18:12:56 2014 -0700
+
+    os: relax the way we kill processes on Plan 9
+    
+    Previously, we wrote "kill" to the process control file
+    to kill a program. This is problematic because it doesn't
+    let the program gracefully exit.
+    
+    This matters especially if the process we're killing is a
+    Go program. On Unix, sending SIGKILL to a Go program will
+    automatically kill all runtime threads. On Plan 9, there
+    are no threads so when the program wants to exit it has to
+    somehow signal all of the runtime processes. It can't do
+    this if we mercilessly kill it by writing to it's control
+    file.
+    
+    Instead, we now send it a note to invoke it's note handler
+    and let it perform any cleanup before exiting.
+    
+    LGTM=rsc
+    R=rsc, 0intro
+    CC=golang-codereviews
+    https://golang.org/cl/74440044
+
+ src/pkg/os/exec_plan9.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

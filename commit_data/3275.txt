@@ -1,0 +1,14 @@
+commit 9b5eb305e103d640a748f83a24f7631c0cdb5829
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 15 13:33:16 2009 -0700
+
+    fix build: added missing files
+    
+    TBR=rsc
+    DELTA=56  (56 added, 0 deleted, 0 changed)
+    OCL=34652
+    CL=34652
+
+ src/pkg/go/printer/testdata/declarations.go     | 28 +++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/declarations.golden | 28 +++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+)

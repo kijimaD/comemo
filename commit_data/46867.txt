@@ -1,0 +1,26 @@
+commit e8f99da8ed6180732ace00f8fc6b17f636515bc4
+Author: nicksherron <nsherron90@gmail.com>
+Date:   Wed Oct 13 01:39:13 2021 +0000
+
+    all: fix spelling mistakes
+    
+    Corrections were only made to comments and can be reproduced with the
+    following sed.
+    
+    sed -i 's/communciation/communication/g'  src/internal/fuzz/sys_windows.go
+    sed -i 's/communciation/communication/g'  src/internal/fuzz/sys_posix.go
+    sed -i 's/substitued/substituted/g'     src/cmd/compile/internal/noder/irgen.go
+    
+    Change-Id: I435aee2fdb41e73b694e6233d52742559d32cf7e
+    GitHub-Last-Rev: a471e3d123aa6c8bb9b091e65de5d16609fb8db1
+    GitHub-Pull-Request: golang/go#48932
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355494
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/irgen.go | 2 +-
+ src/internal/fuzz/sys_posix.go          | 2 +-
+ src/internal/fuzz/sys_windows.go        | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

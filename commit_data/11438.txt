@@ -1,0 +1,13 @@
+commit 68aff958ae7076ded8b4f051554106625c8dd56d
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Jan 27 10:12:27 2012 -0800
+
+    doc: update Go1 release notes in light of the crypto/hmac change.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5532108
+
+ doc/go1.html | 13 +++++++++++++
+ doc/go1.tmpl | 13 +++++++++++++
+ 2 files changed, 26 insertions(+)

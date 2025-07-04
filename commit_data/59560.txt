@@ -1,0 +1,24 @@
+commit 7b91ec07eb2938f964579e20bef09e418c5091aa
+Author: David Finkel <david.finkel@gmail.com>
+Date:   Tue May 13 20:54:15 2025 -0400
+
+    cmd/go: add 2 scripts test for git sha256 fetching
+    
+    Fast follow to golang.org/cl/636475 with a couple script tests that
+    build/runs a module that depends on a function inside a git repo using
+    sha256 hashes. (one with go get of a branch-name and the other
+    configuring go.mod directly)
+    
+    Change-Id: Ief6c7efaf6d5c066dc54a3e4a63aad109f625abe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672435
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/git_test.go  |  3 ++
+ .../script/build_git_sha256_go_get_branch.txt      | 28 +++++++++++++++++++
+ .../go/testdata/script/build_git_sha256_moddep.txt | 30 ++++++++++++++++++++
+ src/cmd/go/testdata/vcstest/git/gitrepo-sha256.txt | 32 ++++++++++++++++++----
+ 4 files changed, 88 insertions(+), 5 deletions(-)

@@ -1,0 +1,21 @@
+commit a8dd20d389a1364059c36202da6a2a655677f7d8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 25 14:30:23 2017 -0400
+
+    runtime/cgo: add TSAN annotations for C sigaction call
+    
+    This avoids false-positive TSAN reports when using the C sigaction
+    function to read handlers registered by the Go runtime.
+    
+    (Unfortunately, I can't seem to coax the runtime into reproducing the
+    failure in a small unit-test.)
+    
+    Change-Id: I744279a163708e24b1fbe296ca691935c394b5f3
+    Reviewed-on: https://go-review.googlesource.com/44270
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/cgo/gcc_sigaction.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

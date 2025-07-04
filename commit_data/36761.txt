@@ -1,0 +1,18 @@
+commit 141eacd27298c1d9f6019f0d1bde90ad8d07bebe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 26 20:19:14 2018 -0700
+
+    go/internal/gccgo: remove unused test file
+    
+    Follow-up on https://go-review.googlesource.com/c/go/+/137857/4
+    which didn't remove this test file after it was removed from the
+    list of importer tests in importer_test.go.
+    
+    Change-Id: Ib89cb3a6d976115da42c33443529ea27bd1ce838
+    Reviewed-on: https://go-review.googlesource.com/137975
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/internal/gccgoimporter/testdata/alias.gox | 4 ----
+ 1 file changed, 4 deletions(-)

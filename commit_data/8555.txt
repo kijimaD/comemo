@@ -1,0 +1,12 @@
+commit 6216307e25d00bfd5ca18b8dacbb6ac85f2b9d6a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 31 14:41:24 2011 -0400
+
+    misc/cgo: remove reference to 'destroy' function
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4558042
+
+ misc/cgo/gmp/gmp.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

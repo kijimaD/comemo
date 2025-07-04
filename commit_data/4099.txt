@@ -1,0 +1,12 @@
+commit 8a6da2f6a0fc33513040fe30e22fd2ec6bf4d30b
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Nov 17 13:59:38 2009 -0800
+
+    change a n^2 algorithm in
+    data initialization to n*log(n)
+    
+    R=rsc
+    https://golang.org/cl/158041
+
+ src/cmd/6l/asm.c | 1389 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 1386 insertions(+), 3 deletions(-)

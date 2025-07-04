@@ -1,0 +1,25 @@
+commit e54bc92a2ca9a3726dcf5a72cd7e993766e16dd8
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Feb 22 13:32:54 2017 -0500
+
+    runtime, cmd/go: roll back stale message, test detail
+    
+    Some debugging code was recently added to:
+    1) provide more detail for the stale reason when it is
+    determined that a package is stale
+    2) provide file and package time and date information when
+    it is determined that runtime.a is stale
+    
+    This backs out those those debugging messages.
+    
+    Fixes #19116
+    
+    Change-Id: I8dd0cbe29324820275b481d8bbb78ff2c5fbc362
+    Reviewed-on: https://go-review.googlesource.com/37382
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/load/pkg.go | 14 +++-----------
+ src/runtime/crash_test.go       |  3 ---
+ 2 files changed, 3 insertions(+), 14 deletions(-)

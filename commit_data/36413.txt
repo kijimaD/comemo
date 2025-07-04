@@ -1,0 +1,33 @@
+commit 7a178df0bcdfbb3a73ffa9ff2701577f3621a113
+Author: go101 <tapir.liu@gmail.com>
+Date:   Wed Aug 22 16:12:46 2018 +0000
+
+    strings: use Builder in Repeat to avoid an allocation
+    
+    name           old time/op    new time/op    delta
+    Repeat/5x1-4     95.9ns ± 2%    70.1ns ± 2%  -26.93%  (p=0.000 n=9+10)
+    Repeat/5x2-4      146ns ± 3%     100ns ± 2%  -31.99%  (p=0.000 n=10+10)
+    Repeat/5x6-4      203ns ± 3%     140ns ± 4%  -30.77%  (p=0.000 n=10+10)
+    Repeat/10x1-4     139ns ± 3%      92ns ± 4%  -34.08%  (p=0.000 n=10+10)
+    Repeat/10x2-4     188ns ± 4%     122ns ± 2%  -35.34%  (p=0.000 n=10+10)
+    Repeat/10x6-4     264ns ± 5%     179ns ± 4%  -32.15%  (p=0.000 n=10+10)
+    
+    name           old alloc/op   new alloc/op   delta
+    Repeat/5x1-4      10.0B ± 0%      5.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    Repeat/5x2-4      32.0B ± 0%     16.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    Repeat/5x6-4      64.0B ± 0%     32.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    Repeat/10x1-4     32.0B ± 0%     16.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    Repeat/10x2-4     64.0B ± 0%     32.0B ± 0%  -50.00%  (p=0.000 n=10+10)
+    Repeat/10x6-4      128B ± 0%       64B ± 0%  -50.00%  (p=0.000 n=10+10)
+    
+    Change-Id: I6619336da636df39c560f6cc481519f48c6e8176
+    GitHub-Last-Rev: 4b2c73f3bfa0b3789268b9ea6e1ecdb984e8087c
+    GitHub-Pull-Request: golang/go#25894
+    Reviewed-on: https://go-review.googlesource.com/118855
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strings/strings.go      | 24 +++++++++++++++++-------
+ src/strings/strings_test.go | 11 +++++++++--
+ 2 files changed, 26 insertions(+), 9 deletions(-)

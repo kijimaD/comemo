@@ -1,0 +1,19 @@
+commit 165e7523fb627cc7f6be56b7318fea34d73d7167
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 16 22:57:44 2018 +0000
+
+    sync: consistently use article "a" for RWMutex
+    
+    We used a mix of both before.
+    
+    I've never heard anybody say "an arr-double you mutex" when speaking.
+    
+    Fixes #23457
+    
+    Change-Id: I802b5eb2339f885ca9d24607eeda565763165298
+    Reviewed-on: https://go-review.googlesource.com/87896
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/runtime/rwmutex.go | 2 +-
+ src/sync/rwmutex.go    | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

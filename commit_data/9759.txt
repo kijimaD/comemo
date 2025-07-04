@@ -1,0 +1,37 @@
+commit 5ee7ef90cddf2d5b3fa7fd9092a86f47fc5d56ee
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 20 14:36:19 2011 -0700
+
+    suffixarray: improved serialization code
+    
+    Use gobs to serialize indexes instead of encoding/binary.
+    
+    Even with gobs, serialize data in slices instead of
+    applying gob to the entire data structure at once,
+    to reduce the amount of extra buffer memory needed
+    inside gob.
+    
+    7x faster Write/Read for new BenchmarkSaveRestore
+    compared to old code; possibly because encoding/binary
+    is more expensive for int32 slice elements (interface
+    call to get little/big endian encoding), while gob's
+    encoding is fixed (unconfirmed).
+    
+    new (using gobs):
+    suffixarray.BenchmarkSaveRestore               1        2153604000 ns/op
+    
+    old (using encoding/binary):
+    suffixarray.BenchmarkSaveRestore               1        15118322000 ns/op
+    
+    The actual serialized data is slightly larger then using
+    the old code for very large indices because full 32bit indices
+    require 5bytes using gobs instead of 4bytes (encoding/binary)
+    in serialized form.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5087041
+
+ src/pkg/index/suffixarray/suffixarray.go      | 64 +++++++++++++++++++--------
+ src/pkg/index/suffixarray/suffixarray_test.go | 19 ++++++++
+ 2 files changed, 65 insertions(+), 18 deletions(-)

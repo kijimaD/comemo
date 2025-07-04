@@ -1,0 +1,25 @@
+commit 444039e0546c3db1e8f73fb0a74ed21e45a09cb9
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Feb 28 09:10:36 2019 -0800
+
+    fmt: fix %d and other non-string verbs on errors
+    
+    When formatting an error with a non-string formatting verb such as %d,
+    use the default formatting behavior rather than treating this as a bad
+    verb.
+    
+    For example, this should print 42, not %!d(main.E=42):
+    
+      var E int
+      func (E) Error() string { return "error" }
+      fmt.Printf("%d", E(42))
+    
+    Fixes #30472
+    
+    Change-Id: I62fd309c8ee9839a69052b0ec7f1808449dcee8e
+    Reviewed-on: https://go-review.googlesource.com/c/164557
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/fmt/errors.go      |  3 +--
+ src/fmt/errors_test.go | 19 ++++++++++++++++++-
+ 2 files changed, 19 insertions(+), 3 deletions(-)

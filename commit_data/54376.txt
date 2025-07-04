@@ -1,0 +1,16 @@
+commit af3bf866b10e8b2db1c6ac625fc143685d0dbe0e
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Sep 8 16:12:44 2023 -0400
+
+    runtime: dump rdx on windows
+    
+    CL 177090043 accidentally dropped RDX when converting from C.
+    
+    Change-Id: I6bf9dc1b1d0c2850967005c048245d1185dcede4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526976
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/defs_windows_amd64.go | 1 +
+ 1 file changed, 1 insertion(+)

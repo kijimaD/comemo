@@ -1,0 +1,17 @@
+commit 0a0f8bae2747191cbc6cda61c1d5ef9512beded8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 00:52:33 2015 -0500
+
+    cmd/go: document that -p applies to test binary execution
+    
+    Fixes #11521.
+    
+    Change-Id: I73615b881df4a0d5e2f5bc5059359d150ca8c105
+    Reviewed-on: https://go-review.googlesource.com/17946
+    Reviewed-by: Joe Shaw <joe@joeshaw.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go | 7 ++++++-
+ src/cmd/go/build.go   | 3 ++-
+ src/cmd/go/test.go    | 4 ++++
+ 3 files changed, 12 insertions(+), 2 deletions(-)

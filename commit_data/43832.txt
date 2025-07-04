@@ -1,0 +1,23 @@
+commit ff2824d4b3391c644b264273f98a47302e2d4ab6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 17 22:13:35 2020 -0500
+
+    cmd/go/internal/modcmd: eliminate a call to modload.LoadedModules
+    
+    modload.LoadedModules reveals more information than necessary about
+    whether modules have been loaded lazily. The 'vendor' subcommand
+    doesn't actually need that much information: it has all of the
+    information that it needs from prior calls to LoadPackages and
+    ModFile.
+    
+    For #36460
+    
+    Change-Id: If08733cca930b2b80616b037b63985ecfd6a320b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270979
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modcmd/vendor.go | 48 ++++++++++++++++++++++--------------
+ 1 file changed, 29 insertions(+), 19 deletions(-)

@@ -1,0 +1,13 @@
+commit 1f0a1f4c8dd67ec1cb144bdca177dfed18eb3d6e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 28 13:27:36 2014 -0800
+
+    net/http: de-flake ConnState test
+    
+    LGTM=josharian
+    R=golang-codereviews, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/70270043
+
+ src/pkg/net/http/serve_test.go | 37 ++++++++++++-------------------------
+ 1 file changed, 12 insertions(+), 25 deletions(-)

@@ -1,0 +1,14 @@
+commit ecbcd816dcf01177c62377f71a6f9da15a1e164f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 20 12:50:50 2011 -0500
+
+    unsafe: add missing case to doc for Pointer
+    
+    Fixes #1433.
+    
+    R=r, gri
+    CC=golang-dev
+    https://golang.org/cl/3999047
+
+ src/pkg/unsafe/unsafe.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

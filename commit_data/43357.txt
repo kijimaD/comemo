@@ -1,0 +1,19 @@
+commit 9c017ff30dd21bbdcdb11f39458d3944db530d7e
+Author: Aofei Sheng <aofei@aofeisheng.com>
+Date:   Sat Sep 26 13:21:41 2020 +0800
+
+    net/http/httputil: copy response header back to http.ResponseWriter in ReverseProxy.handleUpgradeResponse
+    
+    Fixes: #41634
+    
+    Change-Id: Ib78cc37a4d2ca0753d567eafb616238e4103484e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257777
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 6 ++++--
+ src/net/http/httputil/reverseproxy_test.go | 3 +++
+ 2 files changed, 7 insertions(+), 2 deletions(-)

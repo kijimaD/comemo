@@ -1,0 +1,20 @@
+commit 060d1a57401180bc003c0d882033b35ca19374a2
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Wed Oct 25 12:42:14 2017 -0400
+
+    io: flatten MultiWriter writers
+    
+    Replace any nested Writer that is a MultiWriter with its associated
+    Writers.
+    
+    Fixes #22431
+    
+    Change-Id: Ida7c4c83926363c1780689e216cf0c5241a5b8eb
+    Reviewed-on: https://go-review.googlesource.com/73470
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/io/multi.go      | 12 +++++++++---
+ src/io/multi_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 3 deletions(-)

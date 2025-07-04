@@ -1,0 +1,18 @@
+commit 934e055f414839a9af59601aebacfeeef2b52740
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 5 14:06:58 2016 -0800
+
+    runtime: call msanwrite on object passed to runtime/cgo
+    
+    Avoids an msan error when runtime/cgo is explicitly rebuilt with
+    -fsanitize=memory.
+    
+    Fixes #13815.
+    
+    Change-Id: I70308034011fb308b63585bcd40b0d1e62ec93ef
+    Reviewed-on: https://go-review.googlesource.com/18263
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/testsanitizers/test.bash | 7 ++++++-
+ src/runtime/proc.go               | 3 +++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

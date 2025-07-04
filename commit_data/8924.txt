@@ -1,0 +1,12 @@
+commit 810a2dc07767587a8c161206c65c8de5704de0ce
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jul 1 10:42:25 2011 -0400
+
+    lib9: stop build if ../version.bash fails
+    
+    R=golang-dev, m, rsc
+    CC=golang-dev
+    https://golang.org/cl/4639091
+
+ src/lib9/Makefile | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

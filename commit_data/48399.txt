@@ -1,0 +1,31 @@
+commit c0158b6a00eaecbd28ded0f66e65b9985f6db078
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 10 22:56:00 2022 -0500
+
+    go/internal/srcimporter: use the 'go' command from the Importer's GOROOT
+    
+    We have no guarantee in general that there is any 'go' command in
+    $PATH at all, let alone the correct one. However, we can expect that
+    if a 'go' command is not in scope, the Importer should have a correct
+    GOROOT setting: otherwise, it would not be able to import anything
+    from 'std' at all.
+    
+    Given that information, when we run `go tool cgo` we should use
+    GOROOT/bin/go specifically, not whatever 'go' we find in $PATH.
+    
+    This fixes a failure in go/types.TestStdlib that manifests as a
+    timeout in when the 'go' command is not present in $PATH, due to
+    repeated retries for every package that transitively depends on
+    runtime/cgo.
+    
+    For #51461
+    
+    Change-Id: I30cc4613f6f02a04e83c8d55657ef01888c7770f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391807
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/internal/srcimporter/srcimporter.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

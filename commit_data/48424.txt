@@ -1,0 +1,18 @@
+commit 489102de18cff38d1b12d09eeb7e60af42492d63
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 17 11:41:24 2022 +0100
+
+    syscall: optimize UTF16{,Ptr}FromString
+    
+    Use bytealg.IndexByteString in UTF16FromString instead of an open-coded
+    loop.
+    
+    Change-Id: I366448382f2d0adeca6b254131e0087a1f489258
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393614
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_windows.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

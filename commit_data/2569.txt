@@ -1,0 +1,12 @@
+commit 519a70da540636e50b745accc147ef6312fd2940
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 2 09:47:25 2009 -0700
+
+    fix bug in $GOROOT handling: error calling Getenv.
+    
+    R=gri
+    OCL=31047
+    CL=31047
+
+ src/cmd/godoc/godoc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

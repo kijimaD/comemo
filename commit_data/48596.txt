@@ -1,0 +1,22 @@
+commit 0a5bbba366de5bf833a742e9001538ea10122d6c
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Feb 2 13:26:16 2022 -0500
+
+    cmd/link/internal/loadpe: refactor readpesym()
+    
+    Rewrite the helper "readpesym()" and the code that calls it to pass in
+    most of the values it needs via a state object (the signature was
+    getting a bit too busy/lengthy). No change in functionality, this is
+    just a refactor.
+    
+    Updates #35006.
+    
+    Change-Id: I6153ee3a9be3eb885694323ae8e07ec4c8eed646
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382836
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/loadpe/ldpe.go | 86 +++++++++++++++++++++---------------
+ 1 file changed, 51 insertions(+), 35 deletions(-)

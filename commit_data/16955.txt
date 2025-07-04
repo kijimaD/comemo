@@ -1,0 +1,15 @@
+commit fbcc24bb9d20caa7a73cfd12ed0ba9332f274368
+Author: Pieter Droogendijk <pieter@binky.org.uk>
+Date:   Wed Jul 31 14:11:25 2013 -0700
+
+    container/list: added MoveBefore and MoveAfter
+    
+    Fixes #4940.
+    
+    R=golang-dev, bradfitz, gri
+    CC=golang-dev
+    https://golang.org/cl/12021044
+
+ src/pkg/container/list/list.go      | 18 ++++++++++++++++++
+ src/pkg/container/list/list_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+)

@@ -1,0 +1,14 @@
+commit de1693f984d0ad720d72c58b2040d484357004ef
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 6 11:05:46 2015 -0500
+
+    debug/macho, debug/pe: load DWARF line section and pass to dwarf.New
+    
+    Change-Id: I1e6c6b3e2984528c0331e17755cc057e7199193e
+    Reviewed-on: https://go-review.googlesource.com/7071
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/debug/macho/file.go | 10 +++++-----
+ src/debug/pe/file.go    | 10 +++++-----
+ 2 files changed, 10 insertions(+), 10 deletions(-)

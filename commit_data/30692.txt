@@ -1,0 +1,20 @@
+commit faeda66c60dbc080720b30d42acbf67c4541e053
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 16 17:29:14 2017 -0700
+
+    go/types: better error for assignment count mismatches
+    
+    This matches the error message of cmd/compile (for assignments).
+    
+    Change-Id: I42a428f5d72f034e7b7e97b090a929e317e812af
+    Reviewed-on: https://go-review.googlesource.com/38315
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/assignments.go       |  4 ++--
+ src/go/types/testdata/decls1.src  |  2 +-
+ src/go/types/testdata/issues.src  |  4 ++--
+ src/go/types/testdata/stmt0.src   | 20 ++++++++++----------
+ src/go/types/testdata/vardecl.src | 18 +++++++++---------
+ 5 files changed, 24 insertions(+), 24 deletions(-)

@@ -1,0 +1,52 @@
+commit 1441f76938bf61a2c8c2ed1a65082ddde0319633
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 14 19:04:45 2016 -0700
+
+    cmd: remove unnecessary type conversions
+    
+    CL generated mechanically with github.com/mdempsky/unconvert.
+    
+    Change-Id: Ic590315cbc7026163a1b3f8ea306ba35f1a53256
+    Reviewed-on: https://go-review.googlesource.com/22103
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/cmd/asm/internal/asm/asm.go                        |  4 ++--
+ src/cmd/cgo/ast.go                                     | 10 +++++-----
+ src/cmd/compile/internal/s390x/peep.go                 |  4 ++--
+ src/cmd/go/http.go                                     |  2 +-
+ src/cmd/go/vcs.go                                      |  4 ++--
+ src/cmd/internal/obj/arm64/obj7.go                     |  4 ++--
+ src/cmd/internal/obj/data.go                           |  2 +-
+ src/cmd/internal/obj/mips/asm0.go                      |  2 +-
+ src/cmd/internal/obj/objfile.go                        |  6 +++---
+ src/cmd/internal/obj/pcln.go                           | 10 +++++-----
+ src/cmd/internal/obj/ppc64/asm9.go                     | 14 +++++++-------
+ src/cmd/internal/obj/util.go                           |  2 +-
+ src/cmd/internal/obj/x86/asm6.go                       | 16 ++++++++--------
+ src/cmd/internal/objfile/plan9obj.go                   |  2 +-
+ src/cmd/internal/pprof/profile/legacy_profile.go       | 10 +++++-----
+ .../unvendor/golang.org/x/arch/arm/armasm/decode.go    |  8 ++++----
+ .../unvendor/golang.org/x/arch/x86/x86asm/decode.go    |  2 +-
+ src/cmd/link/internal/amd64/asm.go                     |  2 +-
+ src/cmd/link/internal/arm/asm.go                       |  2 +-
+ src/cmd/link/internal/arm64/asm.go                     |  2 +-
+ src/cmd/link/internal/ld/data.go                       | 18 +++++++++---------
+ src/cmd/link/internal/ld/decodesym.go                  |  4 ++--
+ src/cmd/link/internal/ld/dwarf.go                      | 18 +++++++++---------
+ src/cmd/link/internal/ld/elf.go                        |  2 +-
+ src/cmd/link/internal/ld/ldelf.go                      |  6 +++---
+ src/cmd/link/internal/ld/ldmacho.go                    | 16 ++++++++--------
+ src/cmd/link/internal/ld/ldpe.go                       |  8 ++++----
+ src/cmd/link/internal/ld/lib.go                        |  4 ++--
+ src/cmd/link/internal/ld/macho.go                      |  4 ++--
+ src/cmd/link/internal/ld/objfile.go                    |  2 +-
+ src/cmd/link/internal/ld/pcln.go                       |  4 ++--
+ src/cmd/link/internal/ld/pe.go                         |  4 ++--
+ src/cmd/link/internal/ld/symtab.go                     |  8 ++++----
+ src/cmd/link/internal/mips64/asm.go                    |  4 ++--
+ src/cmd/link/internal/ppc64/asm.go                     |  2 +-
+ src/cmd/link/internal/x86/asm.go                       |  2 +-
+ src/cmd/vet/structtag.go                               |  2 +-
+ 37 files changed, 108 insertions(+), 108 deletions(-)

@@ -1,0 +1,21 @@
+commit f68878f0fc542708bbe1dc4f131d32b21fac0d3c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Dec 8 04:30:22 2020 +1100
+
+    cmd/dist,runtime: support cgo on openbsd/mips64
+    
+    Add support for cgo on openbsd/mips64.
+    
+    Fixes #43005
+    
+    Change-Id: I2386204f53fa984a01a9d89f0b6c96455768f326
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275896
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/dist/build.go                |  2 +-
+ src/cmd/link/internal/mips64/asm.go  | 15 +++++++-
+ src/cmd/nm/nm_cgo_test.go            |  2 +-
+ src/runtime/cgo/gcc_openbsd_mips64.c | 67 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 83 insertions(+), 3 deletions(-)

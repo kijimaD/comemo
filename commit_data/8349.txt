@@ -1,0 +1,19 @@
+commit 55d43f0ce8156bb9f9da24ce4b61502eb388041b
+Author: Adam Langley <agl@golang.org>
+Date:   Wed May 11 10:39:09 2011 -0400
+
+    crypto/x509/crl: add package
+    
+    crl parses CRLs and exposes their details. In the future, Verify
+    should be able to use this for revocation checking.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4485045
+
+ src/pkg/Makefile                    |  1 +
+ src/pkg/crypto/x509/crl/Makefile    | 11 +++++
+ src/pkg/crypto/x509/crl/crl.go      | 96 +++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/x509/crl/crl_test.go | 63 ++++++++++++++++++++++++
+ src/pkg/crypto/x509/x509.go         | 35 +++++++++++---
+ 5 files changed, 199 insertions(+), 7 deletions(-)

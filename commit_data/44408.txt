@@ -1,0 +1,17 @@
+commit 6c3f8a2f4730f005850be7fde3a3dac6dc5323a6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Feb 24 11:48:09 2021 -0800
+
+    cmd/link: use ctxt.Logf instead of package log
+    
+    Fixes #43601
+    
+    Change-Id: I28b745cb92932d875a66f64c63355650a092f096
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296029
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/config.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

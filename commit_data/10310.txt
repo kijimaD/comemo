@@ -1,0 +1,25 @@
+commit 1eadb89ee1d235d2e716cc7474976676db5f8bd4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 9 12:36:51 2011 -0500
+
+    undo CL 5375043 / ea8b178f9b73
+    
+    Never lasts long.
+    
+    ««« original CL description
+    gc: add GOEXPERIMENT=reorg
+    
+    This won't last long but may ease conversions.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5375043
+    »»»
+    
+    R=ken2, ken
+    CC=golang-dev
+    https://golang.org/cl/5370043
+
+ src/cmd/gc/go.h  |  1 -
+ src/cmd/gc/lex.c | 50 --------------------------------------------------
+ 2 files changed, 51 deletions(-)

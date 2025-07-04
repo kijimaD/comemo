@@ -1,0 +1,16 @@
+commit 22e0e1b049f57cc7d883239d1aefd33db1a1cc71
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 13 19:06:57 2008 -0800
+
+    - better comment classification
+    - related cleanups
+    
+    R=r
+    OCL=19227
+    CL=19227
+
+ usr/gri/pretty/ast.go     |  6 ++---
+ usr/gri/pretty/parser.go  | 11 ++++++--
+ usr/gri/pretty/printer.go | 41 +++++++++++-----------------
+ usr/gri/pretty/scanner.go | 68 ++++++++++++++++++++++++++++-------------------
+ 4 files changed, 68 insertions(+), 58 deletions(-)

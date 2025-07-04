@@ -1,0 +1,24 @@
+commit 03582b33086c60d09c28e20a6dcdc0dcdd9074c7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 23 22:39:25 2011 -0400
+
+    http: delete error kludge
+    
+    The kludge is targeted at broken web browsers
+    like Chrome and IE, but it gets in the way of
+    sending 400 or 500-series error results with
+    formatted bodies in response to AJAX requests
+    made by pages executing in those browsers.
+    
+    Now the AJAX cases will work and Chrome
+    and IE will be as broken with Go servers as
+    they are with all the other servers.
+    
+    Fixes #2169.
+    
+    R=bradfitz, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4930047
+
+ src/pkg/http/server.go | 50 --------------------------------------------------
+ 1 file changed, 50 deletions(-)

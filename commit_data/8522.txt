@@ -1,0 +1,14 @@
+commit 5a35757f3f68716e394a676eaa1d655b37cb55b2
+Author: Rob Pike <r@golang.org>
+Date:   Sat May 28 07:06:53 2011 +1000
+
+    time: midnight is 12AM.
+    This is the other half of the problem fixed at noon by the previous change.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4515150
+
+ src/pkg/time/format.go    | 36 +++++++++++++++++++++++-------------
+ src/pkg/time/time_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 13 deletions(-)

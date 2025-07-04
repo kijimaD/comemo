@@ -1,0 +1,14 @@
+commit 85f8d4501a74ba923b0f6d636dae6204c66c4db6
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 16 14:03:43 2008 -0700
+
+    fix some broken tests (tests themselves were wrong)
+    
+    R=gri,rsc
+    OCL=15310
+    CL=15402
+
+ test/235.go                        |  12 ++++-
+ test/{bugs => fixedbugs}/bug075.go |   0
+ test/golden.out                    | 106 +++++++++++++++++++++++++++----------
+ 3 files changed, 89 insertions(+), 29 deletions(-)

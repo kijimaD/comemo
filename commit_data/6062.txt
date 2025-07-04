@@ -1,0 +1,13 @@
+commit d125faeed0ec7383d2524e97d36b759492545df7
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Sun Aug 22 22:12:56 2010 +1000
+
+    net/ipsock.go: fix error checking bug
+    Check oserr, not err for non-nil (err is never changed)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/1965042
+
+ src/pkg/net/ipsock.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

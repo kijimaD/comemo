@@ -1,0 +1,16 @@
+commit 85d9ab61d21c98f246cd1fad4bc27ecbae38c0f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 16:49:49 2010 -0500
+
+    arm: more fixes
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/3523041
+
+ src/pkg/runtime/cgo/Makefile          | 10 ++++++++++
+ src/pkg/runtime/cgo/arm.S             |  1 +
+ src/pkg/runtime/cgo/linux_arm.c       | 19 +++++++++++++++++++
+ src/pkg/syscall/syscall_linux_arm.go  |  2 ++
+ src/pkg/syscall/zsyscall_linux_arm.go | 17 +++++++++++++++++
+ 5 files changed, 49 insertions(+)

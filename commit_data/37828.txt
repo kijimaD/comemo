@@ -1,0 +1,27 @@
+commit 95a6f112c6db064d3394f9f66aa569e9bbeb3617
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 3 14:48:30 2019 -0500
+
+    runtime: work around "P has cached GC work" failures
+    
+    We still don't understand what's causing there to be remaining GC work
+    when we enter mark termination, but in order to move forward on this
+    issue, this CL implements a work-around for the problem.
+    
+    If debugCachedWork is false, this CL does a second check for remaining
+    GC work as soon as it stops the world for mark termination. If it
+    finds any work, it starts the world again and re-enters concurrent
+    mark. This will increase STW time by a small amount proportional to
+    GOMAXPROCS, but fixes a serious correctness issue.
+    
+    This works-around #27993.
+    
+    Change-Id: Ia23b85dd6c792ee8d623428bd1a3115631e387b8
+    Reviewed-on: https://go-review.googlesource.com/c/156140
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 29 ++++++++++++++++++++++++++++-
+ 1 file changed, 28 insertions(+), 1 deletion(-)

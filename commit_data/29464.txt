@@ -1,0 +1,19 @@
+commit 7448eb4172bfc8f704b9ea39d77d0113a042b9dc
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue Nov 1 00:44:48 2016 -0700
+
+    net/http: don't wrap request cancellation errors in timeouts
+    
+    Based on Filippo Valsorda's https://golang.org/cl/24230
+    
+    Fixes #16094
+    
+    Change-Id: Ie39b0834e220f0a0f4fbfb3bbb271e70837718c3
+    Reviewed-on: https://go-review.googlesource.com/32478
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client.go      | 34 +++++++++++--------------
+ src/net/http/client_test.go | 61 ++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 63 insertions(+), 32 deletions(-)

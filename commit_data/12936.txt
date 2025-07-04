@@ -1,0 +1,41 @@
+commit c17d09a65774e03376fc1a7fd536646297f408cb
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Mon Apr 23 14:56:03 2012 -0700
+
+    misc/dist: require 10.6 or later for OS X .pkgs
+    
+    This changes the misc/dist program to generate OS X
+    packages using pkgbuild and productbuild.
+    
+    The productbuild utility makes it easy to generate
+    packages with a custom Distribution file.  This allows
+    us to add an installcheck script that presents a
+    friendly message to users who are running on an old
+    version of Mac OS X.
+    
+    The change also fixes a few issues with the
+    postinstall script:
+    
+     - In-repo version of the script has been made
+       executable. Installers generated using the new
+       tools couldn't execute it otherwise.
+    
+     - It now uses -d for checking for the existence
+       of the Xcode specs directory.
+    
+     - The call to sudo.bash has been dropped since cov
+       and prof aren't bundled with the binary
+       distributions.
+    
+    Fixes #3455.
+    
+    Tested on 10.5.8, 10.6.0, 10.6.8 and 10.7.3.
+    
+    R=adg, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5987044
+
+ misc/dist/bindist.go                 | 67 +++++++++++-------------------------
+ misc/dist/darwin/Distribution        | 25 ++++++++++++++
+ misc/dist/darwin/scripts/postinstall |  7 +---
+ 3 files changed, 46 insertions(+), 53 deletions(-)

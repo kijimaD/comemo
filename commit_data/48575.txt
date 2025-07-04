@@ -1,0 +1,19 @@
+commit f5a42cd4b482a595a710129a25ffb5facc655569
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Mar 30 09:10:06 2022 +0700
+
+    cmd/compile/internal/typecheck: simplify checkassign
+    
+    After CL 281543, checkassign do not have to check assignment in range
+    loop anymore, thus its first parameter is un-used.
+    
+    Change-Id: Idbc46fcb81c3dd5edc87308d228c1a15ca5faf7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396615
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/stmt.go      | 4 ++--
+ src/cmd/compile/internal/typecheck/typecheck.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

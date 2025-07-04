@@ -1,0 +1,17 @@
+commit eb864e92db76b3c4e638bf02dc39df5d01f9b3b9
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 15 21:30:07 2011 -0700
+
+    gob: keep free lists of encoder and decoder states.
+    Avoids 3 mallocs in a round trip encoding/decoding a struct.
+    
+    R=rsc, rsc1
+    CC=golang-dev
+    https://golang.org/cl/4278052
+
+ src/pkg/gob/codec_test.go | 51 +++++++++++++++++++++++++++--------------------
+ src/pkg/gob/decode.go     | 29 ++++++++++++++++++++-------
+ src/pkg/gob/decoder.go    |  2 +-
+ src/pkg/gob/encode.go     | 38 +++++++++++++++++++++++++++--------
+ src/pkg/gob/encoder.go    |  6 ++++--
+ 5 files changed, 86 insertions(+), 40 deletions(-)

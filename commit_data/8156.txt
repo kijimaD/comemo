@@ -1,0 +1,20 @@
+commit aaa6ce230191c53c6a91f06349aa128e0fff2c56
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Apr 20 12:02:29 2011 +1000
+
+    goinstall: support building executable commands
+    
+    This CL gives goinstall the ability to build commands,
+    not just packages.
+    
+    "goinstall foo.googlecode.com/hg/bar" will build the command named
+    "bar" and install it to GOBIN. "goinstall ." will use the name of the
+    local directory as the command name.
+    
+    R=rsc, niemeyer
+    CC=golang-dev
+    https://golang.org/cl/4426045
+
+ src/cmd/goinstall/main.go | 11 ++---------
+ src/cmd/goinstall/make.go | 39 ++++++++++++++++++++++++++++++---------
+ 2 files changed, 32 insertions(+), 18 deletions(-)

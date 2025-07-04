@@ -1,0 +1,19 @@
+commit a91b6b74e3ffb9b8ff1a4ad28c880d40266a7084
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 5 15:00:50 2009 -0700
+
+    XML lexing
+    
+    The lexer is the bottom level.
+    Most clients will use the Unmarshal method,
+    not yet implemented, which will behave like
+    json.Unmarshal.
+    
+    R=r
+    DELTA=1115  (766 added, 219 deleted, 130 changed)
+    OCL=35316
+    CL=35339
+
+ src/pkg/xml/xml.go      | 1014 +++++++++++++++++++++++++++++++++--------------
+ src/pkg/xml/xml_test.go |  149 +++++++
+ 2 files changed, 855 insertions(+), 308 deletions(-)

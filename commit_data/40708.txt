@@ -1,0 +1,21 @@
+commit 9e914f55dded9f779aae86cfb2e989bc9a1d3ea4
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Thu Oct 24 14:36:57 2019 +0300
+
+    cmd/go/internal/modload: fail if no package was found in local module
+    
+    Changing the Import function to return a PackageNotInModuleError if no
+    package was found in a local module. This replacing the vague message
+    "missing dot in first path element" you get today with much more friendly
+    one - "module was found, but does not contain package".
+    
+    Fixes #35273
+    
+    Change-Id: I6d726c17e6412258274b10f58f76621617d26e0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203118
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/import.go             | 11 +++++++++++
+ src/cmd/go/testdata/script/mod_replace_import.txt | 20 ++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

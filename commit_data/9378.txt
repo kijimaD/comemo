@@ -1,0 +1,21 @@
+commit 01dd57b3125892e0dc2054436f29cafb38b0a3ef
+Author: Julian Phillips <julian@quantumfyre.co.uk>
+Date:   Tue Aug 16 14:56:23 2011 -0400
+
+    cgo: omit duplicate symbols in writeDefs
+    
+    When the C API being used includes multiple names for the same
+    underlying symbol (e.g. multiple #define's for the same variable), then
+    cgo will generate the same placeholder variables for each name.  This
+    then prevents the code from compiling due to multiple declarations of
+    the same variable - so change cgo to only create one instance of the
+    variable for the underlying symbol.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4826055
+
+ misc/cgo/test/Makefile            |  1 +
+ misc/cgo/test/duplicate_symbol.go | 21 +++++++++++++++++++++
+ src/cmd/cgo/out.go                | 14 +++++++++-----
+ 3 files changed, 31 insertions(+), 5 deletions(-)

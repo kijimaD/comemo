@@ -1,0 +1,14 @@
+commit e0e28d2b9323e136be0ff28fbabcdd918d53a691
+Author: Pascal S. de Kloe <pascal@quies.net>
+Date:   Fri Jun 24 11:32:06 2011 -0700
+
+    mime: lower-case media type parameters
+            RFC 1521 section 4 states "The type, subtype, and parameter names are not case sensitive.".
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4648047
+
+ src/pkg/mime/mediatype.go      | 11 +++++++----
+ src/pkg/mime/mediatype_test.go |  3 ++-
+ 2 files changed, 9 insertions(+), 5 deletions(-)

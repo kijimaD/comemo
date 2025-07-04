@@ -1,0 +1,12 @@
+commit 49fe632c7d93dcf83d16cf7ee7fd09b165ce4b94
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Feb 5 05:45:35 2013 +0800
+
+    cmd/go: update doc.go
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7279047
+
+ src/cmd/go/doc.go | 87 ++++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 47 insertions(+), 40 deletions(-)

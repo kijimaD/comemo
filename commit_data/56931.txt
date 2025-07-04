@@ -1,0 +1,23 @@
+commit b8f83e22703ee23d49d95154449ce7066402d5c9
+Author: rhysd <lin90162@yahoo.co.jp>
+Date:   Wed Jul 17 11:44:35 2024 +0000
+
+    os: check relative paths in UserConfigDir and UserCacheDir
+    
+    Return errors by UserConfigDir and UserCacheDir when XDG environment
+    variables contain relative paths.
+    
+    Fixes #68470
+    
+    Change-Id: Ib36b56d73b066e002023be55ecfe74d5c0eedb15
+    GitHub-Last-Rev: c03f371a042c475a6f3f2259b06b140ade511404
+    GitHub-Pull-Request: golang/go#68471
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/598655
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/os/file.go    | 12 ++++++++----
+ src/os/os_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 62 insertions(+), 4 deletions(-)

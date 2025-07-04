@@ -1,0 +1,12 @@
+commit 49bff2da222e27e42f155529edceacb81f2f7f0d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 6 18:10:23 2010 -0400
+
+    codereview: disallow submit of *.[chys] files indented with spaces
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2383041
+
+ lib/codereview/codereview.py | 38 ++++++++++++++++++++++++++++++++++----
+ 1 file changed, 34 insertions(+), 4 deletions(-)

@@ -1,0 +1,40 @@
+commit 24a43e6a7542c2aefd1e2f16f0daae8100e4bdce
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 5 10:39:23 2015 -0800
+
+    cmd/internal/obj: delete all Pconv, replace with Prog.String
+    
+    Remove the per-achitecture formatter for Prog and replace it with
+    a global String method. Clean up and regularize the output. Update
+    tests affected by the format; some tests are made correct now when
+    they were broken before (and known to be).
+    
+    Also, related: Change the encoding of the (R1+R2) syntax on ppc64
+    to be equivalent to (R1)(R2*1), which means it needs no special
+    handling.
+    
+    Delete the now unused STRINGSZ constant.
+    
+    Change-Id: I7f6654d11f80065f3914a3f19353f2f12edfe310
+    Reviewed-on: https://go-review.googlesource.com/6931
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/asm/internal/arch/arch.go           |   4 -
+ src/cmd/asm/internal/asm/asm.go             |  15 --
+ src/cmd/asm/internal/asm/operand_test.go    |  14 +-
+ src/cmd/asm/internal/asm/parse.go           |   4 +-
+ src/cmd/asm/internal/asm/testdata/arm.out   | 106 +++++++-------
+ src/cmd/asm/internal/asm/testdata/ppc64.out | 220 ++++++++++++++--------------
+ src/cmd/internal/asm/asm.go                 |   1 -
+ src/cmd/internal/gc/go.go                   |  26 ++--
+ src/cmd/internal/obj/arm/5.out.go           |   3 -
+ src/cmd/internal/obj/arm/list5.go           |  61 --------
+ src/cmd/internal/obj/arm/obj5.go            |   1 -
+ src/cmd/internal/obj/link.go                |  12 +-
+ src/cmd/internal/obj/ppc64/asm9.go          |  41 ++----
+ src/cmd/internal/obj/ppc64/list9.go         |  79 ----------
+ src/cmd/internal/obj/ppc64/obj9.go          |   2 -
+ src/cmd/internal/obj/util.go                |  82 ++++++++++-
+ src/cmd/internal/obj/x86/list6.go           |  48 ------
+ src/cmd/internal/obj/x86/obj6.go            |   3 -
+ 18 files changed, 283 insertions(+), 439 deletions(-)

@@ -1,0 +1,14 @@
+commit 5f7b3fabe1baeb8d71c68af38604f067fe13287a
+Author: Dylan Waits <dylan@waits.io>
+Date:   Sat Jul 15 15:08:56 2017 -0600
+
+    math/bits: add examples for leading zero methods
+    
+    Change-Id: Ib491d144387a7675af370f7b925fe6e62440d153
+    Reviewed-on: https://go-review.googlesource.com/48966
+    Run-TryBot: Kevin Burke <kev@inburke.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Kevin Burke <kev@inburke.com>
+
+ src/math/bits/example_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)

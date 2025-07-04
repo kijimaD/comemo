@@ -1,0 +1,26 @@
+commit dbfd9085d61b4469ab8a4aba8e71e5905d45f495
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 14 11:27:20 2015 -0700
+
+    text/template: verify that names in FuncMap are valid identifiers
+    
+    There was no verification in Funcs that the map had valid names,
+    which meant that the error could only be caught when parsing
+    the template that tried to use them. Fix this by validating the names
+    in Funcs and panicking before parsing if there is a bad name.
+    
+    This is arguably an API change, since it didn't trigger a panic
+    before, but Funcs did already panic if the function itself was no
+    good, so I argue it's an acceptable change to add more sanity
+    checks.
+    
+    Fixes #9685.
+    
+    Change-Id: Iabf1d0602c49d830f3ed71ca1ccc7eb9a5521ff5
+    Reviewed-on: https://go-review.googlesource.com/14562
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/text/template/exec_test.go | 49 ++++++++++++++++++++++++++++++++++++++++++
+ src/text/template/funcs.go     | 22 ++++++++++++++++++-
+ src/text/template/template.go  |  5 +++--
+ 3 files changed, 73 insertions(+), 3 deletions(-)

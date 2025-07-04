@@ -1,0 +1,42 @@
+commit b3c6de9dcd9a7258615dea7ca0dcd00878f9027d
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:55:31 2021 -0600
+
+    cmd/internal/obj/ppc64: allow VR register arguments to VS registers
+    
+    Likewise, reorder register numbers such that extended mnemonics which
+    use FPR arguments can be transparently encoded as a VSR argument for
+    the move to/from VSR class of instructions. Specifically, ensure the
+    following holds for all FPx and VRx constants: FPRx & 63 == x, and
+    VRx & 63 == x + 32.
+    
+    This simplifies encoding machine instructions, and likewise helps
+    ppc64 assembly writers to avoid hokey workarounds when switching from
+    vector to vector-scalar register notation. Notably, many VSX
+    instructions are limited to vector operands due to encoding
+    restrictions.
+    
+    Secondly, this explicitly rejects dubious usages of the m[tf]vsr
+    family of instructions which had previously been accepted.
+    
+     * Reject two GPR arguments for non-MTVSRDD opcodes. These
+       have no defined behavior today, and may set RFU bits. e.g
+       MTVSRD R1, R2, VS1
+    
+     * Reject FPR destinations for MTVSRDD, and only accept with two GPR
+       arguments. This copies two GPR values into either half of a VSR. e.g
+       MTVSRDD R1, R2, F1
+       MTVSRDD R1, F1
+    
+    Change-Id: If13dd88c3791d1892dbd18ef0e34675a5285fff9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342929
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 15 ++++++
+ src/cmd/internal/obj/ppc64/a.out.go       | 10 ++--
+ src/cmd/internal/obj/ppc64/asm9.go        | 85 +++++++++----------------------
+ src/cmd/internal/obj/ppc64/asm_test.go    | 41 +++++++++++++++
+ 4 files changed, 87 insertions(+), 64 deletions(-)

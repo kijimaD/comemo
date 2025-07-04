@@ -1,0 +1,17 @@
+commit 6a6aa3278356e850f7530e75e857f539bf8cb51e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 4 16:37:29 2021 -0400
+
+    cmd/go: add a test that reproduces the internal error in #45952
+    
+    For #45952
+    
+    Change-Id: I90e895e2fd10bccd947f9ee5133f942fea218a07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316753
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/script/mod_tidy_newroot.txt | 66 +++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)

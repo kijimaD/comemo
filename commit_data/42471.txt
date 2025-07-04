@@ -1,0 +1,14 @@
+commit 890707f88b75e7bef51f57ba37afd709502c4e80
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Fri Jun 5 18:05:39 2020 +0200
+
+    doc/go1.15: add release notes for io/ioutil
+    
+    For #37419.
+    
+    Change-Id: I6c7a7e9c91f7691a6ba2a7ac4dad92c64b48962f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236658
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

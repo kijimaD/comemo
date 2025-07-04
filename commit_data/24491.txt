@@ -1,0 +1,12 @@
+commit 26074a642f44b1faedcd7c50672fbfb311c6f58d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Oct 10 22:35:13 2015 +1100
+
+    doc: go1.6.txt: *url.Error implements net.Error
+    
+    Change-Id: I34c8ada1f3c5d401944483df424011fa2ae9fc3d
+    Reviewed-on: https://go-review.googlesource.com/15673
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

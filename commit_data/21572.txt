@@ -1,0 +1,14 @@
+commit 4a2233cea14adba7905cd02061b62e7e3a986f68
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 12 14:25:59 2015 +1100
+
+    runtime: move all stdFunctions into os1_windows.go (no code changes)
+    
+    Change-Id: I40291561a18bed3ca6be9dca12a664bdf28cb2f1
+    Reviewed-on: https://go-review.googlesource.com/4660
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mem_windows.go     | 10 ----------
+ src/runtime/netpoll_windows.go | 10 ----------
+ src/runtime/os1_windows.go     | 12 ++++++++++++
+ 3 files changed, 12 insertions(+), 20 deletions(-)

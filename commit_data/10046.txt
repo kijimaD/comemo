@@ -1,0 +1,15 @@
+commit 4c56c30b78199c3313c1ee0042f0adcc685bae33
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 18 15:52:49 2011 -0700
+
+    rpc: don't panic on write error.
+    The mechanism to record the error in the call is already in place.
+    Fixes #2382.
+    
+    R=golang-dev, dsymonds, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/5307043
+
+ src/pkg/rpc/client.go      | 23 ++++++++++++-----------
+ src/pkg/rpc/server_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 11 deletions(-)

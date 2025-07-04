@@ -1,0 +1,178 @@
+commit 17eba6e6b72b9dbf24d73a84be22edd65c229631
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 13:28:10 2015 -0400
+
+    cmd/compile, cmd/link: create from 5g, 5l, etc
+    
+    Trivial merging of 5g, 6g, ... into go tool compile,
+    and similarlly 5l, 6l, ... into go tool link.
+    The files compile/main.go and link/main.go are new.
+    Everything else in those directories is a move followed by
+    change of imports and package name.
+    
+    This CL breaks the build. Manual fixups are in the next CL.
+    
+    See golang-dev thread titled "go tool compile, etc" for background.
+    
+    Change-Id: Id35ff5a5859ad9037c61275d637b1bd51df6828b
+    Reviewed-on: https://go-review.googlesource.com/10287
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/6l/z.go                                    |  1 -
+ src/cmd/{6g => compile/internal/amd64}/cgen.go     |  4 +--
+ src/cmd/{6g => compile/internal/amd64}/galign.go   |  6 ++--
+ src/cmd/{6g => compile/internal/amd64}/ggen.go     |  4 +--
+ src/cmd/{6g => compile/internal/amd64}/gsubr.go    |  6 ++--
+ src/cmd/{6g => compile/internal/amd64}/peep.go     |  4 +--
+ src/cmd/{6g => compile/internal/amd64}/prog.go     |  4 +--
+ src/cmd/{6g => compile/internal/amd64}/reg.go      |  4 +--
+ src/cmd/{5g => compile/internal/arm}/cgen.go       |  4 +--
+ src/cmd/{5g => compile/internal/arm}/cgen64.go     |  4 +--
+ src/cmd/{5g => compile/internal/arm}/galign.go     |  6 ++--
+ src/cmd/{5g => compile/internal/arm}/ggen.go       |  4 +--
+ src/cmd/{5g => compile/internal/arm}/gsubr.go      |  4 +--
+ src/cmd/{5g => compile/internal/arm}/peep.go       |  4 +--
+ src/cmd/{5g => compile/internal/arm}/prog.go       |  4 +--
+ src/cmd/{5g => compile/internal/arm}/reg.go        |  4 +--
+ src/cmd/{7g => compile/internal/arm64}/cgen.go     |  4 +--
+ src/cmd/{7g => compile/internal/arm64}/galign.go   |  6 ++--
+ src/cmd/{7g => compile/internal/arm64}/ggen.go     |  4 +--
+ src/cmd/{7g => compile/internal/arm64}/gsubr.go    |  4 +--
+ src/cmd/{7g => compile/internal/arm64}/peep.go     |  4 +--
+ src/cmd/{7g => compile/internal/arm64}/prog.go     |  4 +--
+ src/cmd/{7g => compile/internal/arm64}/reg.go      |  4 +--
+ .../gc => compile/internal}/big/accuracy_string.go |  0
+ .../{internal/gc => compile/internal}/big/arith.go |  0
+ .../gc => compile/internal}/big/arith_decl.go      |  0
+ .../gc => compile/internal}/big/arith_test.go      |  0
+ .../gc => compile/internal}/big/bits_test.go       |  0
+ .../gc => compile/internal}/big/calibrate_test.go  |  0
+ .../gc => compile/internal}/big/decimal.go         |  0
+ .../gc => compile/internal}/big/decimal_test.go    |  0
+ .../gc => compile/internal}/big/example_test.go    |  0
+ .../{internal/gc => compile/internal}/big/float.go |  0
+ .../gc => compile/internal}/big/float_test.go      |  0
+ .../gc => compile/internal}/big/floatconv.go       |  0
+ .../gc => compile/internal}/big/floatconv_test.go  |  0
+ .../internal}/big/floatexample_test.go             |  0
+ .../{internal/gc => compile/internal}/big/ftoa.go  |  0
+ .../gc => compile/internal}/big/gcd_test.go        |  0
+ .../gc => compile/internal}/big/hilbert_test.go    |  0
+ .../{internal/gc => compile/internal}/big/int.go   |  0
+ .../gc => compile/internal}/big/int_test.go        |  0
+ .../gc => compile/internal}/big/intconv.go         |  0
+ .../gc => compile/internal}/big/intconv_test.go    |  0
+ .../{internal/gc => compile/internal}/big/nat.go   |  0
+ .../gc => compile/internal}/big/nat_test.go        |  0
+ .../gc => compile/internal}/big/natconv.go         |  0
+ .../gc => compile/internal}/big/natconv_test.go    |  0
+ .../{internal/gc => compile/internal}/big/rat.go   |  0
+ .../gc => compile/internal}/big/rat_test.go        |  0
+ .../gc => compile/internal}/big/ratconv.go         |  0
+ .../gc => compile/internal}/big/ratconv_test.go    |  0
+ .../internal}/big/roundingmode_string.go           |  0
+ .../gc => compile/internal}/big/vendor.bash        |  0
+ src/cmd/{ => compile}/internal/gc/align.go         |  0
+ src/cmd/{ => compile}/internal/gc/builtin.go       |  0
+ .../{ => compile}/internal/gc/builtin/runtime.go   |  0
+ .../{ => compile}/internal/gc/builtin/unsafe.go    |  0
+ src/cmd/{ => compile}/internal/gc/bv.go            |  0
+ src/cmd/{ => compile}/internal/gc/cgen.go          |  0
+ src/cmd/{ => compile}/internal/gc/closure.go       |  0
+ src/cmd/{ => compile}/internal/gc/const.go         |  2 +-
+ src/cmd/{ => compile}/internal/gc/cplx.go          |  0
+ src/cmd/{ => compile}/internal/gc/dcl.go           |  0
+ src/cmd/{ => compile}/internal/gc/esc.go           |  0
+ src/cmd/{ => compile}/internal/gc/export.go        |  0
+ src/cmd/{ => compile}/internal/gc/fmt.go           |  0
+ src/cmd/{ => compile}/internal/gc/gen.go           |  0
+ src/cmd/{ => compile}/internal/gc/go.go            |  2 +-
+ src/cmd/{ => compile}/internal/gc/go.y             |  0
+ src/cmd/{ => compile}/internal/gc/gsubr.go         |  0
+ src/cmd/{ => compile}/internal/gc/init.go          |  0
+ src/cmd/{ => compile}/internal/gc/inl.go           |  0
+ src/cmd/{ => compile}/internal/gc/lex.go           |  0
+ src/cmd/{ => compile}/internal/gc/mkbuiltin.go     |  0
+ src/cmd/{ => compile}/internal/gc/mparith2.go      |  2 +-
+ src/cmd/{ => compile}/internal/gc/mparith3.go      |  2 +-
+ src/cmd/{ => compile}/internal/gc/obj.go           |  0
+ src/cmd/{ => compile}/internal/gc/opnames.go       |  0
+ src/cmd/{ => compile}/internal/gc/order.go         |  0
+ src/cmd/{ => compile}/internal/gc/pgen.go          |  0
+ src/cmd/{ => compile}/internal/gc/plive.go         |  0
+ src/cmd/{ => compile}/internal/gc/popt.go          |  0
+ src/cmd/{ => compile}/internal/gc/racewalk.go      |  0
+ src/cmd/{ => compile}/internal/gc/range.go         |  0
+ src/cmd/{ => compile}/internal/gc/reflect.go       |  0
+ src/cmd/{ => compile}/internal/gc/reg.go           |  0
+ src/cmd/{ => compile}/internal/gc/select.go        |  0
+ src/cmd/{ => compile}/internal/gc/sinit.go         |  0
+ src/cmd/{ => compile}/internal/gc/subr.go          |  0
+ src/cmd/{ => compile}/internal/gc/swt.go           |  0
+ src/cmd/{ => compile}/internal/gc/syntax.go        |  0
+ src/cmd/{ => compile}/internal/gc/typecheck.go     |  0
+ src/cmd/{ => compile}/internal/gc/unsafe.go        |  0
+ src/cmd/{ => compile}/internal/gc/util.go          |  0
+ src/cmd/{ => compile}/internal/gc/walk.go          |  0
+ src/cmd/{ => compile}/internal/gc/y.go             |  0
+ src/cmd/{ => compile}/internal/gc/y.output         |  0
+ src/cmd/{9g => compile/internal/ppc64}/cgen.go     |  4 +--
+ src/cmd/{9g => compile/internal/ppc64}/galign.go   |  6 ++--
+ src/cmd/{9g => compile/internal/ppc64}/ggen.go     |  4 +--
+ src/cmd/{9g => compile/internal/ppc64}/gsubr.go    |  6 ++--
+ src/cmd/{9g => compile/internal/ppc64}/opt.go      |  2 +-
+ src/cmd/{9g => compile/internal/ppc64}/peep.go     |  4 +--
+ src/cmd/{9g => compile/internal/ppc64}/prog.go     |  4 +--
+ src/cmd/{9g => compile/internal/ppc64}/reg.go      |  4 +--
+ src/cmd/{8g => compile/internal/x86}/cgen.go       |  4 +--
+ src/cmd/{8g => compile/internal/x86}/cgen64.go     |  4 +--
+ src/cmd/{8g => compile/internal/x86}/galign.go     |  6 ++--
+ src/cmd/{8g => compile/internal/x86}/ggen.go       |  4 +--
+ src/cmd/{8g => compile/internal/x86}/gsubr.go      |  6 ++--
+ src/cmd/{8g => compile/internal/x86}/peep.go       |  4 +--
+ src/cmd/{8g => compile/internal/x86}/prog.go       |  4 +--
+ src/cmd/{8g => compile/internal/x86}/reg.go        |  4 +--
+ src/cmd/compile/main.go                            | 34 ++++++++++++++++++++++
+ src/cmd/{6l => link/internal/amd64}/asm.go         |  4 +--
+ src/cmd/{6l => link/internal/amd64}/l.go           |  2 +-
+ src/cmd/{6l => link/internal/amd64}/obj.go         |  6 ++--
+ src/cmd/link/internal/amd64/z.go                   |  1 +
+ src/cmd/{5l => link/internal/arm}/asm.go           |  4 +--
+ src/cmd/{5l => link/internal/arm}/l.go             |  2 +-
+ src/cmd/{5l => link/internal/arm}/obj.go           |  6 ++--
+ src/cmd/{7l => link/internal/arm64}/asm.go         |  4 +--
+ src/cmd/{7l => link/internal/arm64}/l.go           |  2 +-
+ src/cmd/{7l => link/internal/arm64}/obj.go         |  6 ++--
+ src/cmd/{ => link}/internal/ld/ar.go               |  0
+ src/cmd/{ => link}/internal/ld/arch.go             |  0
+ src/cmd/{ => link}/internal/ld/data.go             |  0
+ src/cmd/{ => link}/internal/ld/decodesym.go        |  0
+ src/cmd/{ => link}/internal/ld/dwarf.go            |  0
+ src/cmd/{ => link}/internal/ld/dwarf_defs.go       |  0
+ src/cmd/{ => link}/internal/ld/elf.go              |  0
+ src/cmd/{ => link}/internal/ld/go.go               |  0
+ src/cmd/{ => link}/internal/ld/ld.go               |  0
+ src/cmd/{ => link}/internal/ld/ldelf.go            |  0
+ src/cmd/{ => link}/internal/ld/ldmacho.go          |  0
+ src/cmd/{ => link}/internal/ld/ldpe.go             |  0
+ src/cmd/{ => link}/internal/ld/lib.go              |  0
+ src/cmd/{ => link}/internal/ld/link.go             |  0
+ src/cmd/{ => link}/internal/ld/macho.go            |  0
+ .../{ => link}/internal/ld/macho_combine_dwarf.go  |  0
+ src/cmd/{ => link}/internal/ld/objfile.go          |  0
+ src/cmd/{ => link}/internal/ld/pcln.go             |  0
+ src/cmd/{ => link}/internal/ld/pe.go               |  0
+ src/cmd/{ => link}/internal/ld/pobj.go             |  0
+ src/cmd/{ => link}/internal/ld/sym.go              |  0
+ src/cmd/{ => link}/internal/ld/symtab.go           |  0
+ src/cmd/{ => link}/internal/ld/textflag.go         |  0
+ src/cmd/{ => link}/internal/ld/util.go             |  0
+ src/cmd/{9l => link/internal/ppc64}/asm.go         |  4 +--
+ src/cmd/{9l => link/internal/ppc64}/l.go           |  2 +-
+ src/cmd/{9l => link/internal/ppc64}/obj.go         |  6 ++--
+ src/cmd/{8l => link/internal/x86}/asm.go           |  4 +--
+ src/cmd/{8l => link/internal/x86}/l.go             |  2 +-
+ src/cmd/{8l => link/internal/x86}/obj.go           |  6 ++--
+ src/cmd/link/main.go                               | 34 ++++++++++++++++++++++
+ 156 files changed, 186 insertions(+), 118 deletions(-)

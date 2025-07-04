@@ -1,0 +1,13 @@
+commit 57f15a3d0302c6743150e105958b7f21fddc4058
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 10 11:13:27 2012 -0800
+
+    A+C: add Shenghou Ma (Individual CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5528065
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

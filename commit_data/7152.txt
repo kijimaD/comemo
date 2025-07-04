@@ -1,0 +1,14 @@
+commit 61a4e9812e11efe3ea41142fc49e331c333a333e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 19 13:35:45 2011 -0500
+
+    fmt: document %X of string, []byte
+    
+    suggested by Mark Summerfield
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4018042
+
+ src/pkg/fmt/doc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 78d037b0e016260819f2ff1dac745eda71070a18
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Mon Nov 20 23:08:53 2023 +0000
+
+    os: avoid TestFileChdir fail when GOROOT is a symbolic link
+    
+    If GOROOT is a symbolic link,
+    the paths obtained from the
+    first and second Getwd of TestFileChdir are different,
+    and this CL fixes the test failure in this situation.
+    
+    Fixes #64281
+    
+    Change-Id: I53026b6c54a54be08833396e2c7081ca3ab8c282
+    GitHub-Last-Rev: 5cc418e6255f6fa530e5a43e3b4d96759e604571
+    GitHub-Pull-Request: golang/go#64001
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540521
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/os_test.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

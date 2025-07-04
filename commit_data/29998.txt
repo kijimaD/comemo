@@ -1,0 +1,20 @@
+commit fd118b69fabda2f5def2f46606a0ec23f093cbb9
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Jan 22 12:12:22 2017 -0500
+
+    cmd/asm, cmd/internal/obj/s390x: fix encoding of VREPI{H,F,G}
+    
+    Also adds tests for all missing VRI-a instructions (which may be
+    affected by this change).
+    
+    Fixes #18749.
+    
+    Change-Id: I48249dda626f32555da9ab58659e2e140de6504a
+    Reviewed-on: https://go-review.googlesource.com/35561
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/asm/internal/asm/testdata/s390x.s | 6 ++++++
+ src/cmd/internal/obj/s390x/asmz.go        | 3 +--
+ 2 files changed, 7 insertions(+), 2 deletions(-)

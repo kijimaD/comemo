@@ -1,0 +1,16 @@
+commit 24f302a69d80f2e89db81fad600165b2f857c193
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Aug 19 11:11:27 2013 +1000
+
+    cmd/dist: join with TMPDIR more carefully to avoid // in path.
+    
+    This might fix the mkdtemp problem on the darwin builders if they
+    have TMPDIR set to a path ending in a slash; at worse this will
+    result in cleaner path names.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13097043
+
+ src/cmd/dist/unix.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

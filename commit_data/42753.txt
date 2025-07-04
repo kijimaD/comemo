@@ -1,0 +1,20 @@
+commit a40171857595db60e95a04b64aad8ba262cf64a7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Jul 27 16:45:48 2020 -0700
+
+    cmd/compile/internal/gc: cleanup walkselectcases slightly
+    
+    Remove some unnecessary code. Most significantly, we can skip testing
+    "if ch == nil { block() }", because this is already the semantics
+    implied by normal send/receive operations.
+    
+    Updates #40410.
+    
+    Change-Id: I4acd33383cc876719fc3b998d85244d4ac1ff9d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245126
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/gc/select.go | 20 ++------------------
+ 1 file changed, 2 insertions(+), 18 deletions(-)

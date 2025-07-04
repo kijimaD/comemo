@@ -1,0 +1,16 @@
+commit 4822e76ba547c158bb98419c6eb514c6ee198ee0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 29 20:41:29 2016 +0000
+
+    crypto/tls: update CBC Lucky13 warning a bit
+    
+    Some countermeasures were implemented in https://golang.org/cl/18130
+    
+    Updates #13385
+    
+    Change-Id: I723e1e3be0fa6d13767b65b145d90c89e92b2774
+    Reviewed-on: https://go-review.googlesource.com/33665
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/tls.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

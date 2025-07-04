@@ -1,0 +1,22 @@
+commit 2951f909eae0afc4bea4067c98fef1a4f760006c
+Author: Florian Uekermann <florian@uekermann.me>
+Date:   Fri Oct 6 17:16:43 2017 +0200
+
+    time: enable Location loading from user provided timezone data
+    
+    The return values of the LoadLocation are inherently dependent
+    on the runtime environment. Add LoadLocationFromTZData, whose
+    results depend only on the timezone data provided as arguments.
+    
+    Fixes #20629
+    
+    Change-Id: I43b181f4c05c219be3ec57327540263b7cb3b2aa
+    Reviewed-on: https://go-review.googlesource.com/68890
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/export_test.go   |  1 +
+ src/time/internal_test.go |  6 +++---
+ src/time/zoneinfo.go      |  2 +-
+ src/time/zoneinfo_read.go | 13 +++++++------
+ src/time/zoneinfo_test.go | 25 +++++++++++++++++++++++++
+ 5 files changed, 37 insertions(+), 10 deletions(-)

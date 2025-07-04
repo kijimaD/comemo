@@ -1,0 +1,23 @@
+commit 7d8da7dc4d6f7800aababcc054b71a1cda47cc93
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 24 07:03:44 2014 +0900
+
+    syscall: add source-specific multicast socket options for FreeBSD
+    
+    Update #8266
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/104290043
+
+ src/pkg/syscall/mkerrors.sh              |  2 +-
+ src/pkg/syscall/syscall_freebsd.go       | 34 ++++++++++++++++++++++++++------
+ src/pkg/syscall/types_freebsd.go         |  9 +++++++++
+ src/pkg/syscall/zerrors_freebsd_386.go   |  9 +++++++++
+ src/pkg/syscall/zerrors_freebsd_amd64.go |  9 +++++++++
+ src/pkg/syscall/zerrors_freebsd_arm.go   |  9 +++++++++
+ src/pkg/syscall/ztypes_freebsd_386.go    | 22 +++++++++++++++++++++
+ src/pkg/syscall/ztypes_freebsd_amd64.go  | 24 ++++++++++++++++++++++
+ src/pkg/syscall/ztypes_freebsd_arm.go    | 24 ++++++++++++++++++++++
+ 9 files changed, 135 insertions(+), 7 deletions(-)

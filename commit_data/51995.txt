@@ -1,0 +1,22 @@
+commit b146d7626f869901f9dd841b9253e89a227c6465
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Feb 13 14:35:34 2023 -0800
+
+    Revert "io: detect Writers that access io.Copy's buffer after returning"
+    
+    This reverts CL 466865.
+    
+    Reason for revert: Causing trybot flakiness due to net/http race,
+    roll back until net/http is fixed.
+    
+    For #58168
+    
+    Change-Id: I3129deb996abe6466eccf933fe93cbbaf72ae217
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467895
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/io/io.go | 9 ---------
+ 1 file changed, 9 deletions(-)

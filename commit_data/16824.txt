@@ -1,0 +1,16 @@
+commit 5d340de1f682d3b2cf10b2319c25ef3799e84078
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 19 15:40:32 2013 -0400
+
+    cmd/dist: generate offsets for P structure
+    
+    So far no checked-in assembly needs these,
+    but it matches having them for M and G.
+    I needed these for some manual testing.
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/11595043
+
+ src/cmd/dist/buildruntime.c | 2 ++
+ 1 file changed, 2 insertions(+)

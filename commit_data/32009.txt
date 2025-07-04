@@ -1,0 +1,13 @@
+commit dbcdb2d937d62e5892ce5ad7640e72b04b06145e
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 12 17:49:09 2017 -0600
+
+    doc/go1.9: pprof profiles are now self-contained
+    
+    Change-Id: If9f64fbb78009921e8773124e4e5eb8a871095a5
+    Reviewed-on: https://go-review.googlesource.com/48192
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ doc/go1.9.html | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

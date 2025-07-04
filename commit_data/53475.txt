@@ -1,0 +1,22 @@
+commit b7fc272ca95bce716ba1bab1bc2490b2f31edcb5
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 6 13:07:37 2023 -0400
+
+    runtime: skip TestCrashDumpsAllThreads with mayMoreStackPreempt
+    
+    This test is flaky with in mayMoreStackPreempt mode. This is probably
+    revealing a real bug in the scheduler, but since it seems to only
+    affect TestCrashDumpsAllThreads, which is itself testing a debug mode,
+    I don't think this is high priority.
+    
+    Updates #55160.
+    
+    Change-Id: Iac558c098930ad8d4392b1e82b34f55eaec77c48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501229
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+
+ src/runtime/crash_unix_test.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

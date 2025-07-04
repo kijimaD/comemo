@@ -1,0 +1,13 @@
+commit ff0198b72fd6753975671cb2d46cd93747d37d2d
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jun 6 16:46:14 2011 +1000
+
+    mail: address list parsing.
+    
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/4547084
+
+ src/pkg/mail/message.go      | 301 ++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/mail/message_test.go |  71 ++++++++++
+ 2 files changed, 371 insertions(+), 1 deletion(-)

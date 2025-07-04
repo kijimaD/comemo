@@ -1,0 +1,12 @@
+commit ac452349e4f40c30d50f9922bf2c4592e748ce5e
+Author: Ryan Seys <ryan@ryanseys.com>
+Date:   Wed Feb 18 21:34:44 2015 -0500
+
+    doc: fix broken link in README
+    
+    Change-Id: I73450aeb59571f3285ff59ae214739e1866c9aa0
+    Reviewed-on: https://go-review.googlesource.com/5270
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ README.md | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

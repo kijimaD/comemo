@@ -1,0 +1,17 @@
+commit ff9f7bc9da45b66689d8e61b6c674b555517de20
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sat Oct 19 23:50:15 2019 -0700
+
+    net/http: make Transport.RoundTrip close body on any invalid request
+    
+    Fixes #35015
+    
+    Change-Id: I7a1ed9cfa219ad88014aad033e3a01f9dffc3eb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202239
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go      |  2 +
+ src/net/http/transport_test.go | 92 ++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 81 insertions(+), 13 deletions(-)

@@ -1,0 +1,24 @@
+commit 70e022e4a83dc996ac4f108e811fbc399ad5565b
+Author: Christopher Hlubek <christopher.hlubek@networkteam.com>
+Date:   Mon Oct 26 13:44:44 2020 +0100
+
+    time: fix LoadLocationFromTZData with slim tzdata
+    
+    The extend information of a time zone file with last transition < now
+    could result in a wrong cached zone because it used the zone of the
+    last transition.
+    
+    This could lead to wrong zones in systems with slim zoneinfo.
+    
+    Fixes #42216
+    
+    Change-Id: I7c57c35b5cfa58482ac7925b5d86618c52f5444d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264939
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/zoneinfo_read.go | 13 +++++++++++--
+ src/time/zoneinfo_test.go | 19 +++++++++++++++++++
+ 2 files changed, 30 insertions(+), 2 deletions(-)

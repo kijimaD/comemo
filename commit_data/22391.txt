@@ -1,0 +1,21 @@
+commit 6e774faed773afa1ff7345e2c2d4367e9510388d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 9 15:13:48 2015 +1000
+
+    runtime: make windows exception handler code arch independent
+    
+    Mainly it is simple copy. But I had to change amd64
+    lastcontinuehandler return value from uint32 to int32.
+    I don't remember how it happened to be uint32, but new
+    int32 is matching better with Windows documentation (LONG).
+    I don't think it matters one way or the others.
+    
+    Change-Id: I6935224a2470ad6301e27590f2baa86c13bbe8d5
+    Reviewed-on: https://go-review.googlesource.com/8686
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os1_windows_386.go                     | 105 ---------------------
+ .../{os1_windows_amd64.go => signal_windows.go}    |   2 +-
+ 2 files changed, 1 insertion(+), 106 deletions(-)

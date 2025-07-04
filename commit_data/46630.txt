@@ -1,0 +1,18 @@
+commit 788731387932e70d4dd951770c046c7eec9f9d96
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Sep 27 14:37:13 2021 -0400
+
+    runtime/pprof: skip TestTimeVDSO on Android
+    
+    The test is flaky on Android. VDSO may not be enabled so it may
+    not have the original problem anyway.
+    
+    Change-Id: I73c2902c682a44d893e0d4e34f006c2377ef8816
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352509
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/runtime/pprof/pprof_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

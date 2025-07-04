@@ -1,0 +1,23 @@
+commit e2f8766c30881fbbd97e1e039f5ecc38104f907f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 3 22:10:58 2018 -0700
+
+    cmd/cgo: mark C result as written for msan
+    
+    Otherwise it is possible that msan will consider the C result to be
+    partially initialized, which may cause msan to think that the Go stack
+    is partially uninitialized. The compiler will never mark the stack as
+    initialized, so without this CL it is possible for stack addresses to
+    be passed to msanread, which will cause a false positive error from msan.
+    
+    Fixes #26209
+    
+    Change-Id: I43a502beefd626eb810ffd8753e269a55dff8248
+    Reviewed-on: https://go-review.googlesource.com/122196
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testsanitizers/msan_test.go |  1 +
+ misc/cgo/testsanitizers/src/msan6.go | 72 ++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/main.go                  |  3 ++
+ src/cmd/cgo/out.go                   | 32 ++++++++++++++++
+ 4 files changed, 108 insertions(+)

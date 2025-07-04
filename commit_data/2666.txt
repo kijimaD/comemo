@@ -1,0 +1,15 @@
+commit f0a9840d042f8edcd1637c705f498e25222f052e
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 10 13:44:37 2009 -0700
+
+    a better encoder test, with a couple of fixes for bugs it uncovered.
+    
+    R=rsc
+    DELTA=84  (65 added, 9 deleted, 10 changed)
+    OCL=31458
+    CL=31458
+
+ src/pkg/gob/encoder.go      | 35 +++++++++++++---------------
+ src/pkg/gob/encoder_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/gob/type.go         |  3 +++
+ 3 files changed, 75 insertions(+), 19 deletions(-)

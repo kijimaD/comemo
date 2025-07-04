@@ -1,0 +1,17 @@
+commit c56b366c283f47f1aedc1bb9f8873438980eb8f7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 3 14:05:18 2009 -0800
+
+    Note: This is an exact replica and replacement of CL 1018027
+    (which I uploaded at home and thus can't upload from here).
+    CL 1018027 was reviewed.
+    
+    - added comments to scope.go
+    - commented out some code that is not yet needed
+      (and which showed up prominently in the documentation)
+    
+    R=rsc
+    http://go/go-review/1017017
+
+ src/pkg/go/ast/scope.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

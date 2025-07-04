@@ -1,0 +1,20 @@
+commit d94c5aba12f33b793234438c55daa0c33768711d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 10 11:27:45 2009 -0800
+
+    Fix Readdirnames to behave properly if reading in little pieces. Requires storing some
+    state in the FD.
+    
+    This is Darwin only.  Next CL will make Readdir use Readdirnames to generate its files
+    and move Readdir into portable code, as well as fix Readdirnames for Linux.
+    
+    R=rsc
+    DELTA=116  (79 added, 12 deleted, 25 changed)
+    OCL=24756
+    CL=24768
+
+ src/lib/os/dir_amd64_darwin.go | 66 +++++++++++++++++++++++-------------------
+ src/lib/os/os_file.go          | 21 +++++++++++++-
+ src/lib/os/os_test.go          | 51 +++++++++++++++++++++++++++++---
+ src/lib/syscall/file_darwin.go |  3 --
+ 4 files changed, 104 insertions(+), 37 deletions(-)

@@ -1,0 +1,16 @@
+commit b07a214d39814545bbcd1d30f1850a95752dac65
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 21 10:47:24 2016 -0700
+
+    cmd/internal/obj: change linkgetline from C to Go func style
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I8725dee490778be9c1fd31990a6b27df9713c3c9
+    Reviewed-on: https://go-review.googlesource.com/20957
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/line_test.go | 4 +---
+ src/cmd/internal/obj/obj.go       | 9 +++------
+ src/cmd/internal/obj/pcln.go      | 4 +---
+ 3 files changed, 5 insertions(+), 12 deletions(-)

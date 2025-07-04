@@ -1,0 +1,17 @@
+commit 971a04f1dcbbb044b43fd74746d42e1539053b9b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 1 17:49:28 2010 -0700
+
+    implications of len spec change
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1712048
+
+ src/pkg/os/dir_darwin.go         | 2 +-
+ src/pkg/os/dir_freebsd.go        | 2 +-
+ src/pkg/os/dir_linux.go          | 2 +-
+ src/pkg/os/dir_nacl.go           | 2 +-
+ src/pkg/syscall/syscall_bsd.go   | 4 ++--
+ src/pkg/syscall/syscall_linux.go | 4 ++--
+ 6 files changed, 8 insertions(+), 8 deletions(-)

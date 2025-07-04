@@ -1,0 +1,18 @@
+commit bc2601a1df6efc089cbb2acd51bd181aeaba12c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 30 22:39:48 2014 -0500
+
+    runtime: allocate wbshadow at high address
+    
+    sysReserve doesn't actually reserve the full amount requested on
+    64-bit systems, because of problems with ulimit. Instead it checks
+    that it can get the first 64 kB and assumes it can grab the rest as
+    needed. This doesn't work well with the "let the kernel pick an address"
+    mode, so don't do that. Pick a high address instead.
+    
+    Change-Id: I4de143a0e6fdeb467fa6ecf63dcd0c1c1618a31c
+    Reviewed-on: https://go-review.googlesource.com/2345
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/malloc1.go | 27 +++++++++++++++++++++++++--
+ 1 file changed, 25 insertions(+), 2 deletions(-)

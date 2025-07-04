@@ -1,0 +1,12 @@
+commit 13c65723419a41a8b5339e11f40fe2ecf0bbc8ab
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Oct 19 11:06:36 2016 -0400
+
+    plugin: mention OS X support and concurrency
+    
+    Change-Id: I4270bf81511a5bf80ed146f5e66e4f8aeede2aa2
+    Reviewed-on: https://go-review.googlesource.com/31463
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/plugin/plugin.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

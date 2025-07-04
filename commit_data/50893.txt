@@ -1,0 +1,61 @@
+commit f2656f20ea420ada5f15ef06ddf18d2797e18841
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Sep 7 13:23:19 2022 -0400
+
+    cmd/compile,cmd/link,runtime: add start line numbers to func metadata
+    
+    This adds the function "start line number" to runtime._func and
+    runtime.inlinedCall objects. The "start line number" is the line number
+    of the func keyword or TEXT directive for assembly.
+    
+    Subtracting the start line number from PC line number provides the
+    relative line offset of a PC from the the start of the function. This
+    helps with source stability by allowing code above the function to move
+    without invalidating samples within the function.
+    
+    Encoding start line rather than relative lines directly is convenient
+    because the pprof format already contains a start line field.
+    
+    This CL uses a straightforward encoding of explictly including a start
+    line field in every _func and inlinedCall. It is possible that we could
+    compress this further in the future. e.g., functions with a prologue
+    usually have <line of PC 0> == <start line>. In runtime.test, 95% of
+    functions have <line of PC 0> == <start line>.
+    
+    According to bent, this is geomean +0.83% binary size vs master and
+    -0.31% binary size vs 1.19.
+    
+    Note that //line directives can change the file and line numbers
+    arbitrarily. The encoded start line is as adjusted by //line directives.
+    Since this can change in the middle of a function, `line - start line`
+    offset calculations may not be meaningful if //line directives are in
+    use.
+    
+    For #55022.
+    
+    Change-Id: Iaabbc6dd4f85ffdda294266ef982ae838cc692f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429638
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/asm.go                  |   2 +-
+ src/cmd/compile/internal/ir/abi.go               |   2 +-
+ src/cmd/internal/goobj/funcinfo.go               |  18 +--
+ src/cmd/internal/goobj/objfile.go                |   4 +-
+ src/cmd/internal/obj/link.go                     |  21 ++--
+ src/cmd/internal/obj/objfile.go                  |   9 +-
+ src/cmd/internal/obj/plist.go                    |   7 +-
+ src/cmd/link/internal/ld/pcln.go                 |  12 +-
+ src/cmd/link/internal/loader/loader.go           |   4 +
+ src/runtime/export_test.go                       |   4 +
+ src/runtime/internal/startlinetest/func_amd64.go |  10 ++
+ src/runtime/internal/startlinetest/func_amd64.s  |  25 ++++
+ src/runtime/runtime2.go                          |  12 +-
+ src/runtime/start_line_amd64_test.go             |  21 ++++
+ src/runtime/start_line_test.go                   | 138 +++++++++++++++++++++++
+ src/runtime/symtab.go                            |  61 +++++++---
+ src/runtime/traceback.go                         |   1 +
+ 17 files changed, 301 insertions(+), 50 deletions(-)

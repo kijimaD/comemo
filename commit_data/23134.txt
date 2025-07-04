@@ -1,0 +1,15 @@
+commit ac7ffdfa1006a40768d11ed7e2e20dab57799df0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 15 17:12:20 2015 -0700
+
+    cmd/go: permit C files if the package uses SWIG
+    
+    They will be compiled and added to the archive, just as though the
+    package used cgo.  In effect all SWIG packages now use cgo anyhow.
+    
+    Change-Id: I5d5a28ed0ec4295f24036b2834218bc980f080d0
+    Reviewed-on: https://go-review.googlesource.com/10146
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/go/pkg.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

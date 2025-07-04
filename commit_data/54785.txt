@@ -1,0 +1,18 @@
+commit 884c93a6df07eb62efeaa44265b58936d3084dd7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Oct 5 17:29:49 2023 +0200
+
+    cmd/compile/internal/typecheck: use strings.Contains
+    
+    Change-Id: I439268e91288f9a5a0946ac428731cdfa4d111cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533135
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/typecheck/expr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

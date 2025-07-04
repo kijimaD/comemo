@@ -1,0 +1,23 @@
+commit 58c1c011a694cc9a813b34c83eebab223edae1fd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 21 13:13:16 2015 -0700
+
+    net/http: fix rare Transport readLoop goroutine leak
+    
+    There used to be a small window where if a server declared it would do
+    a keep-alive connection but then actually closed the connection before
+    the roundTrip goroutine scheduled after being sent a response from the
+    readLoop goroutine, then the readLoop goroutine would loop around and
+    block forever reading from a channel because the numExpectedResponses
+    accounting was done too late.
+    
+    Fixes #10457
+    
+    Change-Id: Icbae937ffe83c792c295b7f4fb929c6a24a4f759
+    Reviewed-on: https://go-review.googlesource.com/9169
+    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go      |  8 ++++----
+ src/net/http/transport_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 4 deletions(-)

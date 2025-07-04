@@ -1,0 +1,12 @@
+commit 3aec2e46debc3f2c62b39c409e10283cc1d12a7b
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 25 17:00:22 2009 -0700
+
+    rewrite the section about imports
+    
+    DELTA=42  (10 added, 11 deleted, 21 changed)
+    OCL=35017
+    CL=35020
+
+ doc/go_spec.html | 57 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 28 insertions(+), 29 deletions(-)

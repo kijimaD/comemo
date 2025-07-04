@@ -1,0 +1,15 @@
+commit 34b887372264f23ec3526f804aeb09d162895ac8
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 22 16:48:17 2008 -0700
+
+    Reflection values.
+    
+    R=rsc
+    DELTA=206  (79 added, 25 deleted, 102 changed)
+    OCL=17652
+    CL=17669
+
+ usr/r/reflect/main.go     |  58 +++++++++++--
+ usr/r/reflect/tostring.go |  28 +++---
+ usr/r/reflect/value.go    | 214 ++++++++++++++++++++++++----------------------
+ 3 files changed, 177 insertions(+), 123 deletions(-)

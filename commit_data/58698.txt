@@ -1,0 +1,14 @@
+commit 8c6fec6d25e7c83780d8b020e3e4f81051645d65
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Feb 1 05:51:33 2025 +0000
+
+    runtime: update HACKING.md with execution traces and debuglog
+    
+    Change-Id: Iedd3c6f292ad76f57c6c04beafd655e2e4d83043
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646017
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/HACKING.md | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)

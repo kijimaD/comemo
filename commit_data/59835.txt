@@ -1,0 +1,27 @@
+commit acb914f2c2a3ec3dd227812ba6b119480d6400cd
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Jun 27 12:45:22 2025 +0200
+
+    cmd/doc: fix -http on Windows
+    
+    On Windows, GOMODCACHE almost never starts with a slash, and
+    "go doc -http" constructs a GOPROXY URL by doing "file://" + GOMODCACHE,
+    resulting in an invalid file URI.
+    
+    For example, if GOMODCACHE is "C:\foo", then the file URI should be
+    "file:///C:/foo", but it becomes "file://C:/foo" instead, where "C:" is
+    understood as a host name, not a drive letter.
+    
+    Fixes #74137.
+    
+    Change-Id: I23e776e0f649a0062e01d1a4a6ea8268ba467331
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684575
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+
+ src/cmd/go/alldocs.go          | 44 +++++++++++++++++++++++-------------------
+ src/cmd/go/internal/doc/doc.go |  4 ++++
+ src/cmd/internal/doc/main.go   | 12 ++++++++++--
+ 3 files changed, 38 insertions(+), 22 deletions(-)

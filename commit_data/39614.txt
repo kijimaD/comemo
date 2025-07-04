@@ -1,0 +1,14 @@
+commit 5498fa90e9921193be11c6e6a9e017a53c0e1588
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 22 15:50:06 2019 +1000
+
+    strconv: simplify the text for bases in ParseInt
+    
+    Followon from a review comment in https://golang.org/cl/191078
+    
+    Change-Id: If115b2ae0df5e5cb9babd60802947ddb687d56c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191219
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/strconv/atoi.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

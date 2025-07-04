@@ -1,0 +1,15 @@
+commit 31ccf19612f0392e9d2795e32c1957e48e349db7
+Author: Christopher Nielsen <m4dh4tt3r@gmail.com>
+Date:   Thu Feb 3 00:42:03 2011 -0500
+
+    build: fix spaces in GOROOT
+    
+    Fixes #1413.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4007041
+
+ src/Make.pkg             | 2 +-
+ src/pkg/runtime/Makefile | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

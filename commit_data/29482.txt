@@ -1,0 +1,14 @@
+commit 0631f292d370cd838e1fb57e193c6c09e74fe9e4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 11 00:02:45 2016 +0000
+
+    net/http: document relation and interaction with golang.org/x/net/http2
+    
+    Fixes #16412
+    
+    Change-Id: Idc65d2a62414a9b1573e6bd9f8601b52985b5dea
+    Reviewed-on: https://go-review.googlesource.com/33110
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/doc.go | 27 +++++++++++++++++++--------
+ 1 file changed, 19 insertions(+), 8 deletions(-)

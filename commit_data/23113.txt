@@ -1,0 +1,27 @@
+commit 9279684908673448aacb4eaea71990ef96fce645
+Author: Vlad Krasnov <vlad@cloudflare.com>
+Date:   Wed Apr 22 15:03:59 2015 -0700
+
+    math/big: Simple Montgomery Multiplication to accelerate Mod-Exp
+    
+    On Haswell I measure anywhere between 2X to 3.5X speedup for RSA.
+    I believe other architectures will also greatly improve.
+    In the future may be upgraded by dedicated assembly routine.
+    
+    Built-in benchmarks i5-4278U turbo off:
+    
+    benchmark                         old ns/op     new ns/op     delta
+    BenchmarkRSA2048Decrypt           6696649       3073769       -54.10%
+    Benchmark3PrimeRSA2048Decrypt     4472340       1669080       -62.68%
+    
+    Change-Id: I17df84f85e34208f990665f9f90ea671695b2add
+    Reviewed-on: https://go-review.googlesource.com/9253
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Vlad Krasnov <vlad@cloudflare.com>
+    Run-TryBot: Adam Langley <agl@golang.org>
+
+ src/math/big/arith_amd64.s |  28 +++++++++++
+ src/math/big/nat.go        | 114 ++++++++++++++++++++++++++++++++++++++++++++-
+ src/math/big/nat_test.go   |  61 ++++++++++++++++++++++++
+ 3 files changed, 202 insertions(+), 1 deletion(-)

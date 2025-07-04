@@ -1,0 +1,20 @@
+commit 363bcd0068bcc64ec09ab3d09921f559ca6d8070
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 12 13:03:18 2020 -0500
+
+    cmd/go: eliminate empty '()' when passing -mod=readonly explicitly to 'go list'
+    
+    Discovered while investigating #37197.
+    
+    Updates #33326
+    Updates #34822
+    
+    Change-Id: I38b136a4ee762a580a554125066b9778491295f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219237
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/import.go       | 3 ++-
+ src/cmd/go/testdata/script/mod_readonly.txt | 1 +
+ 2 files changed, 3 insertions(+), 1 deletion(-)

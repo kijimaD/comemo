@@ -1,0 +1,18 @@
+commit 4c4ca8312064cc47bc3b3cd5efc43ff5b89f4dff
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Aug 11 09:54:04 2016 -0400
+
+    cmd/compile: remove nil check in accessing PAUTOHEAP variable
+    
+    CL 23393 introduces PAUTOHEAP, and access of PAUTOHEAP variable is
+    rewritten to indirection of a PAUTO variable. Mark this variable
+    non-nil, so this indirection does not introduce extra nil checks.
+    
+    Change-Id: I31853eed5e60238b6c5bc0546e2e9ab340dcddd9
+    Reviewed-on: https://go-review.googlesource.com/26831
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

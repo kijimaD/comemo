@@ -1,0 +1,24 @@
+commit a55ef982397acf27e1c9e56b15299dd9d82e80c2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 13 20:01:56 2023 -0700
+
+    cmd/compile/internal/noder: drop unused *types.Pkg results
+    
+    Several methods return a (*types.Pkg, *types.Sym) pair instead of just
+    a *types.Sym, because we used to need to preserve the *types.Pkg for
+    certain types so that we could write out export data for go/types to
+    use (which exposes these through its APIs).
+    
+    But now that we write export data from the types2 representation
+    directly, there's no need for the rest of the compiler to be
+    concerned about that.
+    
+    Change-Id: I6ac81a6db71b8e0795ff2f33399b839871564eb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528416
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/noder/reader.go | 77 ++++++++++++--------------------
+ 1 file changed, 28 insertions(+), 49 deletions(-)

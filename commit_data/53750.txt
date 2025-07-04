@@ -1,0 +1,21 @@
+commit 3437ff0d7ad9b556b534871dec14bf4ac4e603fe
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jul 20 14:21:07 2023 -0400
+
+    cmd/cgo/internal/testshared: skip in short mode and not on builders
+    
+    We already skip testcarchive, testcshared, and testplugin in short
+    mode and not on builders. The shared build mode is not more
+    supported than the c-archive, c-shared, and plugin build modes. No
+    need to run it everywhere by default.
+    
+    Updates #61025.
+    
+    Change-Id: I6a06e04c1a1dc78f0f85456320d128bd67277915
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511696
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/cgo/internal/testshared/shared_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

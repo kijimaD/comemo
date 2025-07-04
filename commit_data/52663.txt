@@ -1,0 +1,18 @@
+commit ac9d777caf06364524ce9c67203a14a899f71a57
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 14 15:59:40 2023 +0000
+
+    path/filepath,cmd/go: skip tests involving double-symlinks on ios
+    
+    For #59586.
+    
+    Change-Id: I092f7a4abce1074b8eef64a3ecf9fc187914709b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484755
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/list_goroot_symlink.txt | 1 +
+ src/path/filepath/path_test.go                     | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

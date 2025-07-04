@@ -1,0 +1,22 @@
+commit 719b1ba27822e01cbef0d418d26a321a25948313
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 27 07:36:39 2020 -0800
+
+    net: report port number correctly in Plan 9 error
+    
+    The code was incorrectly using a string conversion of a numeric port
+    to display the port number.
+    
+    No test because as far as I can tell this code is only executed if
+    there is some error in a /net file.
+    
+    Updates #32479
+    
+    Change-Id: I0b8deebbf3c0b7cb1e1eee0fd059505f3f4c1623
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221377
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/ipsock_plan9.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit d14e9e63238deb10236672427d58c0da3d5b82a0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 15 13:19:39 2015 +1000
+
+    cmd/go: stop early in disallowInternal on erroneous packages
+    
+    Fixes #11201
+    
+    Change-Id: I80d8fcfcb5c856aaf9d0e73d756d86018e2bec3b
+    Reviewed-on: https://go-review.googlesource.com/11110
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go                  | 6 ++++++
+ src/cmd/go/pkg.go                      | 5 +++++
+ src/cmd/go/testdata/testinternal3/t.go | 3 +++
+ 3 files changed, 14 insertions(+)

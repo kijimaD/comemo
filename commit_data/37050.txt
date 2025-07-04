@@ -1,0 +1,98 @@
+commit 86ce1cb060446bcee2454080c7f55e754dbf7f82
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Fri Jun 22 12:08:47 2018 +0000
+
+    cmd/internal/obj/arm64: reclassify 32-bit/64-bit constants
+    
+    Current assembler saves constants in Offset which type is int64,
+    causing 32-bit constants have a incorrect class. This CL reclassifies
+    constants when opcodes are 32-bit variant, like MOVW, ANDW and
+    ADDW, etc. Besides, this CL encodes some constants of ADDCON class
+    as MOVs instructions.
+    
+    This CL changes the assembler behavior as follows.
+    
+    1. go assembler ADDW $MOVCON, Rn, Rd
+       previous version: MOVD $MOVCON, Rtmp; ADDW Rtmp, Rn, Rd
+       current version: MOVW $MOVCON, Rtmp; ADDW Rtmp, Rn, Rd
+    
+    2. go assembly MOVW $0xaaaaffff, R1
+       previous version: treats $0xaaaaffff as VCON, encodes it as MOVW 0x994, R1 (loads it from pool).
+       current version: treats $0xaaaaffff as MOVCON, and encodes it into MOVW instructions.
+    
+    3. go assembly MOVD $0x210000, R1
+       previous version: treats $0x210000 as ADDCON, loads it from pool
+       current version: treats $0x210000 as MOVCON, and encodes it into MOVD instructions.
+    
+    Add the test cases.
+    
+    1. Binary size before/after.
+    binary                          size change
+    pkg/linux_arm64                 -1.534KB
+    pkg/tool/linux_arm64            -0.718KB
+    go                              -0.32KB
+    gofmt                           no change
+    
+    2. go1 benchmark result.
+    name                     old time/op    new time/op    delta
+    BinaryTree17-8              6.26s ± 1%     6.28s ± 1%     ~     (p=0.105 n=10+10)
+    Fannkuch11-8                5.40s ± 0%     5.39s ± 0%   -0.29%  (p=0.028 n=9+10)
+    FmtFprintfEmpty-8          94.5ns ± 0%    95.0ns ± 0%   +0.51%  (p=0.000 n=10+9)
+    FmtFprintfString-8          163ns ± 1%     159ns ± 1%   -2.06%  (p=0.000 n=10+9)
+    FmtFprintfInt-8             200ns ± 1%     196ns ± 1%   -1.99%  (p=0.000 n=9+10)
+    FmtFprintfIntInt-8          292ns ± 3%     284ns ± 1%   -2.87%  (p=0.001 n=10+9)
+    FmtFprintfPrefixedInt-8     422ns ± 1%     420ns ± 1%   -0.59%  (p=0.015 n=10+10)
+    FmtFprintfFloat-8           458ns ± 0%     463ns ± 1%   +1.19%  (p=0.000 n=9+10)
+    FmtManyArgs-8              1.37µs ± 1%    1.35µs ± 1%   -1.85%  (p=0.000 n=10+10)
+    GobDecode-8                15.5ms ± 1%    15.3ms ± 1%   -1.82%  (p=0.000 n=10+10)
+    GobEncode-8                11.7ms ± 5%    11.7ms ± 2%     ~     (p=0.549 n=10+9)
+    Gzip-8                      622ms ± 0%     624ms ± 0%   +0.23%  (p=0.000 n=10+9)
+    Gunzip-8                   73.6ms ± 0%    73.8ms ± 1%     ~     (p=0.077 n=9+9)
+    HTTPClientServer-8          115µs ± 1%     115µs ± 1%     ~     (p=0.796 n=10+10)
+    JSONEncode-8               31.1ms ± 2%    28.7ms ± 1%   -7.98%  (p=0.000 n=10+9)
+    JSONDecode-8                145ms ± 0%     145ms ± 1%     ~     (p=0.447 n=9+10)
+    Mandelbrot200-8            9.67ms ± 0%    9.60ms ± 0%   -0.76%  (p=0.000 n=9+9)
+    GoParse-8                  7.56ms ± 1%    7.58ms ± 0%   +0.21%  (p=0.035 n=10+9)
+    RegexpMatchEasy0_32-8       208ns ±10%     222ns ± 0%     ~     (p=0.531 n=10+6)
+    RegexpMatchEasy0_1K-8       699ns ± 4%     694ns ± 4%     ~     (p=0.868 n=10+10)
+    RegexpMatchEasy1_32-8       186ns ± 8%     190ns ±12%     ~     (p=0.955 n=10+10)
+    RegexpMatchEasy1_1K-8      1.13µs ± 1%    1.05µs ± 2%   -6.64%  (p=0.000 n=10+10)
+    RegexpMatchMedium_32-8      316ns ± 7%     288ns ± 1%   -8.68%  (p=0.000 n=10+7)
+    RegexpMatchMedium_1K-8     90.2µs ± 0%    85.5µs ± 2%   -5.19%  (p=0.000 n=10+10)
+    RegexpMatchHard_32-8       5.53µs ± 0%    3.90µs ± 0%  -29.52%  (p=0.000 n=10+10)
+    RegexpMatchHard_1K-8        119µs ± 0%     124µs ± 0%   +4.29%  (p=0.000 n=9+10)
+    Revcomp-8                   1.07s ± 0%     1.07s ± 0%     ~     (p=0.094 n=9+9)
+    Template-8                  162ms ± 1%     160ms ± 2%     ~     (p=0.089 n=10+10)
+    TimeParse-8                 756ns ± 2%     763ns ± 1%     ~     (p=0.158 n=10+10)
+    TimeFormat-8                758ns ± 1%     746ns ± 1%   -1.52%  (p=0.000 n=10+10)
+    
+    name                     old speed      new speed      delta
+    GobDecode-8              49.4MB/s ± 1%  50.3MB/s ± 1%   +1.84%  (p=0.000 n=10+10)
+    GobEncode-8              65.6MB/s ± 5%  65.4MB/s ± 2%     ~     (p=0.549 n=10+9)
+    Gzip-8                   31.2MB/s ± 0%  31.1MB/s ± 0%   -0.24%  (p=0.000 n=9+9)
+    Gunzip-8                  264MB/s ± 0%   263MB/s ± 1%     ~     (p=0.073 n=9+9)
+    JSONEncode-8             62.3MB/s ± 2%  67.7MB/s ± 1%   +8.67%  (p=0.000 n=10+9)
+    JSONDecode-8             13.4MB/s ± 0%  13.4MB/s ± 1%     ~     (p=0.508 n=9+10)
+    GoParse-8                7.66MB/s ± 1%  7.64MB/s ± 0%   -0.23%  (p=0.049 n=10+9)
+    RegexpMatchEasy0_32-8     154MB/s ± 9%   143MB/s ± 3%     ~     (p=0.303 n=10+7)
+    RegexpMatchEasy0_1K-8    1.46GB/s ± 4%  1.47GB/s ± 4%     ~     (p=0.912 n=10+10)
+    RegexpMatchEasy1_32-8     172MB/s ± 9%   170MB/s ±12%     ~     (p=0.971 n=10+10)
+    RegexpMatchEasy1_1K-8     908MB/s ± 1%   972MB/s ± 2%   +7.12%  (p=0.000 n=10+10)
+    RegexpMatchMedium_32-8   3.17MB/s ± 7%  3.46MB/s ± 1%   +9.14%  (p=0.000 n=10+7)
+    RegexpMatchMedium_1K-8   11.3MB/s ± 0%  12.0MB/s ± 2%   +5.51%  (p=0.000 n=10+10)
+    RegexpMatchHard_32-8     5.78MB/s ± 0%  8.21MB/s ± 0%  +41.93%  (p=0.000 n=9+10)
+    RegexpMatchHard_1K-8     8.62MB/s ± 0%  8.27MB/s ± 0%   -4.11%  (p=0.000 n=9+10)
+    Revcomp-8                 237MB/s ± 0%   237MB/s ± 0%     ~     (p=0.081 n=9+9)
+    Template-8               12.0MB/s ± 1%  12.1MB/s ± 2%     ~     (p=0.072 n=10+10)
+    
+    Change-Id: I080801f520366b42d5f9699954bd33106976a81b
+    Reviewed-on: https://go-review.googlesource.com/c/120661
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s |  30 +++++-
+ src/cmd/internal/obj/arm64/a.out.go       |   1 +
+ src/cmd/internal/obj/arm64/anames7.go     |   1 +
+ src/cmd/internal/obj/arm64/asm7.go        | 169 ++++++++++++++++++++++++------
+ 4 files changed, 169 insertions(+), 32 deletions(-)

@@ -1,0 +1,12 @@
+commit 020d85152ec25fdf454e02d9a8d1b7a7fc5860ca
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Sep 27 14:48:33 2012 -0700
+
+    doc: fix OS X download links
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6566064
+
+ doc/install.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

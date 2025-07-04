@@ -1,0 +1,37 @@
+commit d2c039fb210429958bce6347a1e9d9a7b0ffd26d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Nov 3 10:32:37 2019 +1100
+
+    crypto/x509: make '-gcflags=all=-d=checkptr' flag work
+    
+    Replace
+    
+    buf := [HUGE_CONST]*T)(unsafe.Pointer(p))[:]
+    
+    with
+    
+    buf := [HUGE_CONST]*T)(unsafe.Pointer(p))[:n:n]
+    
+    Pointer p points to n of T elements. New unsafe pointer conversion
+    logic verifies that both first and last elements point into the
+    same Go variable. And this change adjusts all code to comply with
+    this rule.
+    
+    Verified by running
+    
+    go test -a -short -gcflags=all=-d=checkptr crypto/x509
+    
+    The test does not fail even with original version of this code. I
+    suspect it is because all variables I changed live outside of Go
+    memory. But I am just guessing, I don't really know how pointer
+    checker works.
+    
+    Updates golang/go#34972
+    
+    Change-Id: Ibc33fdc9e2023d9b14905c9badf2f0b683999ab8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204621
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/root_windows.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

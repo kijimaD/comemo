@@ -1,0 +1,13 @@
+commit 83445fdcc3639fc102c11aa1820d592a8615cc86
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 10 09:17:46 2013 +0400
+
+    runtime: use persistentalloc instead of mallocgc in symtab
+    Reduces heap size.
+    
+    R=golang-dev, khr
+    CC=golang-dev
+    https://golang.org/cl/10140043
+
+ src/pkg/runtime/symtab.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

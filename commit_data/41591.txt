@@ -1,0 +1,34 @@
+commit 98cb76799c3053e779c4e1b61bb50705d25dd77f
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 30 10:17:01 2020 -0800
+
+    cmd/compile: insert complicated x86 addressing modes as a separate pass
+    
+    Use a separate compiler pass to introduce complicated x86 addressing
+    modes.  Loads in the normal architecture rules (for x86 and all other
+    platforms) can have constant offsets (AuxInt values) and symbols (Aux
+    values), but no more.
+    
+    The complex addressing modes (x+y, x+2*y, etc.) are introduced in a
+    separate pass that combines loads with LEAQx ops.
+    
+    Organizing rewrites this way simplifies the number of rewrites
+    required, as there are lots of different rule orderings that have to
+    be specified to ensure these complex addressing modes are always found
+    if they are possible.
+    
+    Update #36468
+    
+    Change-Id: I5b4bf7b03a1e731d6dfeb9ef19b376175f3b4b44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217097
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/addressingmodes.go |   154 +
+ src/cmd/compile/internal/ssa/compile.go         |     1 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules    |   699 +-
+ src/cmd/compile/internal/ssa/rewrite.go         |    40 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    | 10427 ++++++----------------
+ test/codegen/memops.go                          |    88 +
+ 6 files changed, 3233 insertions(+), 8176 deletions(-)

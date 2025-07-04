@@ -1,0 +1,18 @@
+commit 7d65e3a8533c90e5a3ec3d73734891a18b057fed
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 5 14:51:57 2019 -0400
+
+    runtime: document, fix libc error checks on macOS
+    
+    It matters whether we are calling a function that would
+    return a 32-bit or 64-bit -1 on error. A few sites were wrong
+    and this key detail was omitted from syscall/syscallX docs.
+    
+    Change-Id: I48a421b6cc4d2d2b5e58f790cc947e3cb2f98940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180841
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/lookup_darwin_amd64.s |  4 ++--
+ src/runtime/sys_darwin_amd64.s    | 14 +++++++++++++-
+ 2 files changed, 15 insertions(+), 3 deletions(-)

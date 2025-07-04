@@ -1,0 +1,13 @@
+commit 5e37154077ceca58edd185306498d6fa0cc56a59
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jul 9 19:17:17 2013 +1000
+
+    image/color: add Plan9Palette and WebSafePalette.
+    
+    R=r, rsc, andybons
+    CC=andybons, golang-dev
+    https://golang.org/cl/10890045
+
+ src/pkg/image/color/gen.go     |  94 ++++++++
+ src/pkg/image/color/palette.go | 497 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 591 insertions(+)

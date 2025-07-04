@@ -1,0 +1,21 @@
+commit 7e144bcab0df7efa7255ecfa1ac425931902437f
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Oct 16 07:22:33 2012 +0200
+
+    cmd/5g, cmd/6g, cmd/8g: fix out of registers.
+    
+    This patch is enough to fix compilation of
+    exp/types tests but only passes a stripped down
+    version of the appripriate torture test.
+    
+    Update #4207.
+    
+    R=dave, nigeltao, rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6621061
+
+ src/cmd/5g/cgen.c | 91 ++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ src/cmd/6g/cgen.c | 56 +++++++++++++++++++++++-----------
+ src/cmd/8g/cgen.c | 18 +++++++++--
+ test/torture.go   | 76 +++++++++++++++++++++++++++++++++++++++++++---
+ 4 files changed, 212 insertions(+), 29 deletions(-)

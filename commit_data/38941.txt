@@ -1,0 +1,22 @@
+commit db1514cbf242fccbb9e17ecae280ec5e829b1ed6
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Apr 29 00:23:16 2019 -0400
+
+    net/http: remove "number:" from Response.Status string
+    
+    The behavior of Value.String method on non-string JavaScript types has
+    changed after CL 169757.
+    
+    Update the implementation of Transport.RoundTrip method to construct the
+    Response.Status string without relying on result.Get("status").String(),
+    since that now returns strings like "<number: 200>" instead of "200".
+    
+    Fixes #31736
+    
+    Change-Id: I27b3e6cc95aa65fd1918b1400e88478a154aad12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174218
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ src/net/http/roundtrip_js.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

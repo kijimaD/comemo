@@ -1,0 +1,26 @@
+commit ef2f3391da20e4aca689033045c0d00fddd0b190
+Author: khr@golang.org <khr@golang.org>
+Date:   Mon Apr 15 17:52:20 2024 -0700
+
+    runtime: make it harder to find collisions in the 64-bit fallback hash
+    
+    Currently the first argument to mix() can be set by an attacker, as it
+    is just the input bytes xored by some constants. That lets an attacker
+    set the value being multipled by to 0. That can lead to lots of
+    collisions. To fix, xor the first argument with the process-wide seed,
+    so the magic collision-generating value isn't a constant known to the
+    attacker.  (Maybe there's a timing attack that could figure out the
+    process-wide seed, but that's a much harder attack.)
+    
+    Fixes #66841
+    
+    Change-Id: I33e073c78355d1cee08660de52074e6ccc38b426
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579115
+    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/hash64.go    | 14 +++++++-------
+ src/runtime/hash_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 7 deletions(-)

@@ -1,0 +1,16 @@
+commit 6392b43a1583f5ccf5a3f7c38f096e8dd5403b0d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Feb 6 12:49:28 2012 -0500
+
+    8a, 8l: implement support for RDTSC instruction.
+            Also modify runtime/asm_386.s to use it.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5634043
+
+ src/cmd/8a/lex.c          | 1 +
+ src/cmd/8l/8.out.h        | 4 +++-
+ src/cmd/8l/optab.c        | 2 ++
+ src/pkg/runtime/asm_386.s | 2 +-
+ 4 files changed, 7 insertions(+), 2 deletions(-)

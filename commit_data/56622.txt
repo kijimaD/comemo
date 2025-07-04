@@ -1,0 +1,26 @@
+commit fb5d0cdd491017db1978001b5054cd19569aa8de
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Tue May 7 17:31:40 2024 +0000
+
+    cmd/go: add go mod tidy -diff
+    
+    The -diff flag causes tidy not to modify the files but instead print the
+    necessary changes as a unified diff. It exits with a non-zero code
+    if updates are needed.
+    
+    Fixes: #27005
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: Ie239367f2fc73ecb55ec2ce76442293635c1b47d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585401
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/alldocs.go                              |  6 +-
+ src/cmd/go/internal/modcmd/tidy.go                 |  9 ++-
+ src/cmd/go/internal/modfetch/fetch.go              | 86 +++++++++++++--------
+ src/cmd/go/internal/modload/init.go                | 78 +++++++++++--------
+ src/cmd/go/internal/modload/load.go                | 40 ++++++++++
+ src/cmd/go/testdata/script/mod_tidy_diff.txt       | 86 +++++++++++++++++++++
+ .../go/testdata/script/mod_tidy_diff_compat.txt    | 88 ++++++++++++++++++++++
+ 7 files changed, 328 insertions(+), 65 deletions(-)

@@ -1,0 +1,18 @@
+commit 909f31872a0e5e5b8ec5cc49b22ae661777a2fbc
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 12 01:23:58 2011 -0400
+
+    runtime: eliminate false sharing on random number generators
+    Use machine-local random number generator instead of
+    racy global ones.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4674049
+
+ src/pkg/runtime/chan.c     | 15 ++-------------
+ src/pkg/runtime/malloc.goc | 17 +----------------
+ src/pkg/runtime/proc.c     |  2 ++
+ src/pkg/runtime/runtime.c  | 13 +++++++++++++
+ src/pkg/runtime/runtime.h  |  2 ++
+ 5 files changed, 20 insertions(+), 29 deletions(-)

@@ -1,0 +1,16 @@
+commit 1d0977a1d552ad19a88c4ba9aeecd403699d82b6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 14 16:51:18 2016 -0700
+
+    cmd/cgo: add missing formatting directive in error message
+    
+    Fixes #15310.
+    
+    Change-Id: I588b3c630a20a6878f7cd00f9af29b1dd8a4abf6
+    Reviewed-on: https://go-review.googlesource.com/22100
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cgo/gcc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

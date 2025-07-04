@@ -1,0 +1,14 @@
+commit c69d6345daf277b947341ba958458b0a500effe1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 22 12:22:28 2011 -0500
+
+    os: make ReadAt comment clearer
+    
+    Fixes #2486.
+    
+    R=golang-dev, hanwen
+    CC=golang-dev
+    https://golang.org/cl/5417064
+
+ src/pkg/os/file.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

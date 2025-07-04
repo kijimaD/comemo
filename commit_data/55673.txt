@@ -1,0 +1,32 @@
+commit faf2a8416a1ab933918e3c5091c905194126b60c
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Oct 19 15:55:56 2023 +0800
+
+    internal/poll: revise the determination about [handled] and improve the code readability for SendFile
+    
+    There were a bit too many conditional branches in the old code,
+    resulting in a poor readability. It could be more concise by reducing
+    and consolidating some of the conditions.
+    
+    Furthermore, how we've determined whether or not the data transimission
+    was handled by sendfile(2) seems inappropriate, because it marked the
+    operation as unhandled whenever any non-retryable error occurs from
+    calling sendfile(2), it doesn't look like a right approach, at least
+    this is an inconsistent behavior with what we've done in Splice.
+    
+    Related to #64044
+    
+    Change-Id: Ieb65e0879a8841654d0e64a1263a4e43179df1ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537275
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/poll/sendfile_bsd.go     | 35 +++++++++++++--------------------
+ src/internal/poll/sendfile_linux.go   | 35 +++++++++++++--------------------
+ src/internal/poll/sendfile_solaris.go | 37 ++++++++++++++---------------------
+ 3 files changed, 43 insertions(+), 64 deletions(-)

@@ -1,0 +1,24 @@
+commit fe68ab3bcde97e3a325e4aa3c70f5f9172540453
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 16 14:39:40 2018 -0700
+
+    runtime: traceback from outermost libc call
+    
+    If we're in a libc call and get a trap, don't try to traceback the libc call.
+    Start from the state we had at entry to libc.
+    
+    If there are multiple libc calls outstanding, remember the outermost one.
+    
+    Fixes #26393
+    
+    Change-Id: Icfe8794b95bf3bfd1a0679b456dcde2481dcabf3
+    Reviewed-on: https://go-review.googlesource.com/124195
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_solaris.go | 28 +++++++++++++++++++++-------
+ src/runtime/os_windows.go |  9 ++++++---
+ src/runtime/sys_darwin.go | 20 +++++++++++++++++++-
+ src/runtime/traceback.go  |  7 +++++++
+ 4 files changed, 53 insertions(+), 11 deletions(-)

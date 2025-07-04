@@ -1,0 +1,18 @@
+commit 9f834a559c9ed6cdf883e29b36e21e5f956df74f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Feb 16 15:53:42 2023 -0800
+
+    test: add regress test for #58572
+    
+    Fixes #58572.
+    
+    Change-Id: I75fa432afefc3e036ed9a6a9002a29d7b23105ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468880
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ test/fixedbugs/issue58572.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

@@ -1,0 +1,59 @@
+commit 9eeb627f606e713854e117dd4e52af5bcad28b66
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Apr 11 08:50:36 2024 -0700
+
+    crypto/tls: add ech client support
+    
+    This CL adds a (very opinionated) client-side ECH implementation.
+    
+    In particular, if a user configures a ECHConfigList, by setting the
+    Config.EncryptedClientHelloConfigList, but we determine that none of
+    the configs are appropriate, we will not fallback to plaintext SNI, and
+    will instead return an error. It is then up to the user to decide if
+    they wish to fallback to plaintext themselves (by removing the config
+    list).
+    
+    Additionally if Config.EncryptedClientHelloConfigList is provided, we
+    will not offer TLS support lower than 1.3, since negotiating any other
+    version, while offering ECH, is a hard error anyway. Similarly, if a
+    user wishes to fallback to plaintext SNI by using 1.2, they may do so
+    by removing the config list.
+    
+    With regard to PSK GREASE, we match the boringssl  behavior, which does
+    not include PSK identities/binders in the outer hello when doing ECH.
+    
+    If the server rejects ECH, we will return a ECHRejectionError error,
+    which, if provided by the server, will contain a ECHConfigList in the
+    RetryConfigList field containing configs that should be used if the user
+    wishes to retry. It is up to the user to replace their existing
+    Config.EncryptedClientHelloConfigList with the retry config list.
+    
+    Fixes #63369
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: I9bc373c044064221a647a388ac61624efd6bbdbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578575
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/63369.txt                             |   6 +
+ doc/next/6-stdlib/99-minor/crypto/tls/63369.md |   3 +
+ src/crypto/tls/alert.go                        |   2 +
+ src/crypto/tls/bogo_config.json                |  61 +++++-
+ src/crypto/tls/bogo_shim_test.go               | 243 +++++++++++----------
+ src/crypto/tls/common.go                       | 107 +++++++---
+ src/crypto/tls/conn.go                         |   2 +
+ src/crypto/tls/ech.go                          | 283 +++++++++++++++++++++++++
+ src/crypto/tls/ech_test.go                     |  48 +++++
+ src/crypto/tls/handshake_client.go             | 166 ++++++++++++---
+ src/crypto/tls/handshake_client_test.go        | 125 +++++++++++
+ src/crypto/tls/handshake_client_tls13.go       | 148 +++++++++++--
+ src/crypto/tls/handshake_messages.go           | 252 ++++++++++++++++------
+ src/crypto/tls/handshake_messages_test.go      |   6 +
+ src/crypto/tls/handshake_test.go               |  11 +-
+ src/crypto/tls/tls_test.go                     |  11 +-
+ 16 files changed, 1223 insertions(+), 251 deletions(-)

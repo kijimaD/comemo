@@ -1,0 +1,19 @@
+commit 60e9cf0f93e58742b0aa491c6425d9c0ef970ed4
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Sun Jun 9 13:46:40 2024 -0700
+
+    os: rm reiserfs exception from TestSeek
+    
+    This exception was originally added by CL 152108 in November 2009. I'm
+    pretty sure no one uses reiserfs nowadays (and if someone does, this bug
+    must have been fixed by now).
+    
+    Change-Id: I274ebe2f7910cab81b70a44b2da3f6fe761073bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591417
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/os_test.go | 7 -------
+ 1 file changed, 7 deletions(-)

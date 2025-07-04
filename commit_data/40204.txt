@@ -1,0 +1,17 @@
+commit aa09e751ff8e1adeebbd4dcd562e998b33d1b4fa
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Oct 8 15:16:41 2019 -0400
+
+    cmd/doc: show original import error when package cannot be found
+    
+    Updates #34669
+    
+    Change-Id: I8d0ee68885e804e131f42a512080486f9b25e9dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199819
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/doc/main.go                    | 17 ++++++++++++++---
+ src/cmd/go/testdata/script/mod_doc.txt |  5 +++++
+ 2 files changed, 19 insertions(+), 3 deletions(-)

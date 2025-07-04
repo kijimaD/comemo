@@ -1,0 +1,15 @@
+commit efc806e92e9f7d591b31cdd0db4df4e626323d01
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 9 17:07:44 2015 +0000
+
+    net/http: clarify some RoundTripper behaviors
+    
+    Fixes #12796
+    Updates #13444
+    
+    Change-Id: I56840c0baf9b32a683086a80f5db1c5ea0a7aedf
+    Reviewed-on: https://go-review.googlesource.com/17680
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/client.go | 27 +++++++++++++++++----------
+ 1 file changed, 17 insertions(+), 10 deletions(-)

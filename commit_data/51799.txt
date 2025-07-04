@@ -1,0 +1,27 @@
+commit 178080740c1bc33f2c7f164504eedc24210bbf1e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 20 15:25:17 2022 -0800
+
+    cmd/compile/internal/noder: remove unused noding code
+    
+    This CL simplifies and removes some old noding code, which isn't
+    necessary any more.
+    
+    Most notably, we no longer need separate posMaps for each noder,
+    because noders are only used for parsing now. Before we started using
+    types2, noders were also responsible for constructed (untyped) IR, so
+    posMaps were necessary to translate syntax.Pos into src.XPos.
+    
+    Change-Id: Ic761abcd727f5ecefc71b611635a0f5b088c941f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463738
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/irgen.go   |  6 +--
+ src/cmd/compile/internal/noder/noder.go   | 81 +++----------------------------
+ src/cmd/compile/internal/noder/posmap.go  | 12 -----
+ src/cmd/compile/internal/noder/unified.go |  8 +--
+ 4 files changed, 13 insertions(+), 94 deletions(-)

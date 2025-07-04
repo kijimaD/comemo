@@ -1,0 +1,34 @@
+commit 43afcb5c969112332e46b4cb07bf2fd6497c3919
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 14 16:44:48 2017 -0700
+
+    cmd/compile: define roles for ssa.Func, ssa.Config, and ssa.Cache
+    
+    The line between ssa.Func and ssa.Config has blurred.
+    Concurrent compilation in the backend will require more precision.
+    This CL lays out an (aspirational) organization.
+    The implementation will come in follow-up CLs,
+    once the organization is settled.
+    
+    ssa.Config holds basic compiler configuration,
+    mostly arch-specific information.
+    It is configured once, early on, and is readonly,
+    so it is safe for concurrent use.
+    
+    ssa.Func is a single-shot object used for
+    compiling a single Func. It is not concurrency-safe
+    and not re-usable.
+    
+    ssa.Cache is a multi-use object used to avoid
+    expensive allocations during compilation.
+    Each ssa.Func is given an ssa.Cache to use.
+    ssa.Cache is not concurrency-safe.
+    
+    Change-Id: Id02809b6f3541541cac6c27bbb598834888ce1cc
+    Reviewed-on: https://go-review.googlesource.com/38160
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/cache.go  | 10 ++++++++++
+ src/cmd/compile/internal/ssa/config.go |  3 +++
+ src/cmd/compile/internal/ssa/func.go   |  5 +++--
+ 3 files changed, 16 insertions(+), 2 deletions(-)

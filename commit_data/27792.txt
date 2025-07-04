@@ -1,0 +1,22 @@
+commit 10316757cec3c2744ea61088e0fc905cfeb28fb2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 5 16:42:31 2016 +0000
+
+    net/http: update bundled http2 for flow control window adjustment fix
+    
+    Updates bundled http2 to x/net/http2 git rev 075e191 for:
+    
+       http2: adjust flow control on open streams when processing SETTINGS
+       https://golang.org/cl/25508
+    
+    Fixes #16612
+    
+    Change-Id: Ib0513201bff44ab747a574ae6894479325c105d2
+    Reviewed-on: https://go-review.googlesource.com/25543
+    Run-TryBot: Chris Broadfoot <cbro@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go | 112 ++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 78 insertions(+), 34 deletions(-)

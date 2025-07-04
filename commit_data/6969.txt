@@ -1,0 +1,38 @@
+commit eedf5c452974fc518bd6ec385730b61f016ddadf
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Dec 15 11:49:55 2010 -0500
+
+    crypto/tls: support CBC ciphers
+    
+    This is largely based on ality's CL 2747042.
+    
+    crypto/rc4: API break in order to conform to crypto/cipher's
+    Stream interface
+    
+    cipher/cipher: promote to the default build
+    
+    Since CBC differs between TLS 1.0 and 1.1, we downgrade and
+    support only 1.0 at the current time. 1.0 is what most of the
+    world uses.
+    
+    Given this CL, it would be trival to add support for AES 256,
+    SHA 256 etc, but I haven't in order to keep the change smaller.
+    
+    R=rsc
+    CC=ality, golang-dev
+    https://golang.org/cl/3659041
+
+ src/pkg/Makefile                            |   1 +
+ src/pkg/crypto/rc4/rc4.go                   |  10 +-
+ src/pkg/crypto/rc4/rc4_test.go              |   2 +-
+ src/pkg/crypto/tls/Makefile                 |   1 +
+ src/pkg/crypto/tls/cipher_suites.go         |  62 +++++
+ src/pkg/crypto/tls/common.go                |  47 +++-
+ src/pkg/crypto/tls/conn.go                  | 157 +++++++++--
+ src/pkg/crypto/tls/conn_test.go             |  52 ++++
+ src/pkg/crypto/tls/handshake_client.go      |  30 +-
+ src/pkg/crypto/tls/handshake_server.go      |  51 +---
+ src/pkg/crypto/tls/handshake_server_test.go | 416 +++++++++++++++++++++-------
+ src/pkg/crypto/tls/prf.go                   |  33 ++-
+ src/pkg/crypto/tls/prf_test.go              |   2 +-
+ 13 files changed, 659 insertions(+), 205 deletions(-)

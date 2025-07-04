@@ -1,0 +1,14 @@
+commit 9e7c22938cb3c7af9dc02447eebf4ab31bc40cc1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 8 17:01:40 2014 -0400
+
+    runtime: undo stray edit from CL 140380043
+    
+    Was having serious editor problems on Windows.
+    
+    TBR=brainman, iant
+    CC=golang-codereviews
+    https://golang.org/cl/137370043
+
+ src/runtime/sys_windows_386.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

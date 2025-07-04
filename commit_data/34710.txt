@@ -1,0 +1,20 @@
+commit a29e25b82c9d39c448df6dfcea01bfeb111da1bc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Mar 26 16:58:51 2018 +0200
+
+    cmd/cgo: add support for GOARCH=sparc64
+    
+    Even though GOARCH=sparc64 is not supported by gc (yet), it is easy to
+    make cgo already support it.
+    
+    This e.g. allows to generate Go type definitions for linux/sparc64 in
+    the golang.org/x/sys/unix package without using gccgo.
+    
+    Change-Id: I8886c81e7c895a0d93e350d81ed653fb59d95dd8
+    Reviewed-on: https://go-review.googlesource.com/102555
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cgo/main.go | 2 ++
+ 1 file changed, 2 insertions(+)

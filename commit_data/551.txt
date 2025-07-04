@@ -1,0 +1,15 @@
+commit 944ad62ecd6d6bc1470995df4386ad7b4ae61dc7
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Aug 29 13:24:53 2008 -0700
+
+    fix type of (1<<x)
+    
+    R=r
+    OCL=14656
+    CL=14656
+
+ src/cmd/gc/const.c |  14 ++++-
+ src/cmd/gc/walk.c  |   3 +-
+ test/ken/array.go  | 156 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/ken/shift.go  | 131 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 301 insertions(+), 3 deletions(-)

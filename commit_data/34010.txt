@@ -1,0 +1,26 @@
+commit 2d6f941e8c380a0a37ade918dd76e652542e28ef
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Jan 13 02:22:05 2018 +0100
+
+    runtime: fix time.Now on Sierra and older
+    
+    CL 67332 created the fast no-syscall path for time.Now in High Sierra
+    but managed to break Sierra and older by forcing them into the slow
+    syscall path: the version check based on commpage version was wrong.
+    
+    This CL uses the Darwin version number instead.
+    
+    The assembly diff is noisy because many variables had to be
+    renamed, but the only actual change is the version check.
+    
+    Fixes #23419.
+    
+    Change-Id: Ie31ef5fb88f66d1517a8693942a7fb6100c213b0
+    Reviewed-on: https://go-review.googlesource.com/87655
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/os_darwin.go       |  29 ++++++++++--
+ src/runtime/sys_darwin_amd64.s | 102 ++++++++++++++++++++---------------------
+ 2 files changed, 75 insertions(+), 56 deletions(-)

@@ -1,0 +1,20 @@
+commit 2bf0f54bbd6dfa57fc11444f9b8ba722689e6490
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 25 19:08:14 2023 +0000
+
+    Revert "cmd/compile: improve register overwrite decision for resultInArg0 ops"
+    
+    This reverts CL 460656
+    Reason for revert: This breaks s390x.
+    
+    Change-Id: I8fada14fabc90593b8033ed11188c04963d2da75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463475
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 14 --------------
+ 1 file changed, 14 deletions(-)

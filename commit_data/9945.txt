@@ -1,0 +1,13 @@
+commit 1204f740cfa6b77735877a87817a01fc4ac860a7
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 12 16:56:39 2011 -0700
+
+    gotest: correct the documentation of -parallel.
+    It said the default was zero, but it's actually $GOMAXPROCS.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5229059
+
+ src/cmd/gotest/doc.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

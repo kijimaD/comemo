@@ -1,0 +1,14 @@
+commit 4c91c0d07b7da552a57ec2b7a33b1d6b46d4889c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 30 15:57:38 2015 -0800
+
+    math/big: build Float.Format on top of Float.Append
+    
+    Change-Id: I444eec24467f827caa5c88a1c5ae5bce92508b98
+    Reviewed-on: https://go-review.googlesource.com/3750
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      |  2 +-
+ src/math/big/float_test.go |  8 +++---
+ src/math/big/floatconv.go  | 67 +++++++++++++++++++++++-----------------------
+ 3 files changed, 39 insertions(+), 38 deletions(-)

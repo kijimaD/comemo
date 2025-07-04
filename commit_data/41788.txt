@@ -1,0 +1,28 @@
+commit 5a312288799c0a433e2061550ff92689b627e080
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Mar 25 13:47:43 2020 -0400
+
+    cmd/objdump: add support for -gnu option on Go objdump
+    
+    This adds support for the -gnu option on Go objdump. When
+    this option is used, then output will include gnu
+    assembly in comments alongside the Go assembly.
+    
+    The objdump test was updated to test this new option.
+    
+    This option is supported for the arches found in
+    golang.org/x that provide the GNUsyntax function.
+    
+    Updates #34372
+    
+    Change-Id: I9e60e1691526607dda3c857c4564dcef408b8391
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225459
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/objfile/disasm.go | 42 +++++++++++++++++----------
+ src/cmd/objdump/main.go            |  9 +++---
+ src/cmd/objdump/objdump_test.go    | 59 ++++++++++++++++++++++++++++++++++----
+ src/cmd/pprof/pprof.go             |  2 +-
+ 4 files changed, 87 insertions(+), 25 deletions(-)

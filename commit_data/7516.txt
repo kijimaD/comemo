@@ -1,0 +1,12 @@
+commit db22e236fd1dea780aefbbd90a705bd631934d91
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Sun Feb 20 18:53:23 2011 +0100
+
+    runtime-gdb.py: gdb pretty printer for go strings properly handles length.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/4183060
+
+ src/pkg/runtime/runtime-gdb.py | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

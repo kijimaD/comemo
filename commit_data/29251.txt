@@ -1,0 +1,17 @@
+commit 4b90b7a28a0c1a849eed765cc511eacbae4d2651
+Author: INADA Naoki <songofacandy@gmail.com>
+Date:   Wed Oct 26 17:11:13 2016 +0900
+
+    database/sql: add Pinger interface to driver Conn
+    
+    Change-Id: If6eb3a7c9ad48a517e584567b1003479c1df6cca
+    Reviewed-on: https://go-review.googlesource.com/32136
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/driver/driver.go | 11 ++++++++++
+ src/database/sql/sql.go           | 24 +++++++++++++++------
+ src/database/sql/sql_test.go      | 44 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 73 insertions(+), 6 deletions(-)

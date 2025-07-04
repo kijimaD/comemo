@@ -1,0 +1,20 @@
+commit 8044b77a57f9d22e0815ed1476ffa8156b622862
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 19 16:00:07 2016 -0400
+
+    runtime: eliminate write barriers from dropg
+    
+    Currently this contains no write barriers because it's writing nil
+    pointers, but with the hybrid barrier, even these will produce write
+    barriers. However, since these are *gs and *ms, they don't need write
+    barriers, so we can simply eliminate them.
+    
+    Updates #17503.
+    
+    Change-Id: Ib188a60492c5cfb352814bf9b2bcb2941fb7d6c0
+    Reviewed-on: https://go-review.googlesource.com/31570
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/proc.go     |  4 ++--
+ src/runtime/runtime2.go | 16 ++++++++++++++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)

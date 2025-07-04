@@ -1,0 +1,19 @@
+commit 1df6db8e4fe0c8adf72e8533a09b46cad176eb42
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:57:03 2024 -0500
+
+    runtime: use timer.lock in adjusttimers
+    
+    Continue using timer.lock to simplify timer operations.
+    
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: I2298cede902cbf0aea268c54d741190007a733c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564128
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/time.go | 31 +++++++++----------------------
+ 1 file changed, 9 insertions(+), 22 deletions(-)

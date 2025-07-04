@@ -1,0 +1,16 @@
+commit 0b8bc7cee9cc8c2bedc030e9a59a687201210212
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Sep 26 14:36:49 2014 -0400
+
+    cmd/go: handle paths like \x.go on windows
+    
+    Fixes #8130.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/143200043
+
+ src/cmd/go/build.go           |  9 +++++--
+ src/cmd/go/go_windows_test.go | 55 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 62 insertions(+), 2 deletions(-)

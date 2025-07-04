@@ -1,0 +1,40 @@
+commit 8028731648eb8c5f7693a69f748d990a3228a6e0
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jan 24 20:17:20 2025 +0000
+
+    internal/trace: rename "oldtrace" to trace v1
+    
+    This is part of a refactoring to better distinguish trace wire format
+    versions. Even though details may change between Go versions and they
+    might be backwards-incompatible, the trace format still broadly has two
+    wire formats: v1 and v2.
+    
+    A follow-up change will rename go122 to v2 to make this more consistent.
+    
+    Change-Id: If4fe1c82d8aeabc8baa05f525e08a9e7d469a5c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644217
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/go/build/deps_test.go                          |   4 +-
+ src/internal/trace/event/go122/event.go            | 116 +++++++++---------
+ .../trace/internal/{oldtrace => tracev1}/order.go  |   2 +-
+ .../trace/internal/{oldtrace => tracev1}/parser.go |   4 +-
+ .../internal/{oldtrace => tracev1}/parser_test.go  |   2 +-
+ .../testdata/fmt_1_21_pprof_good                   | Bin
+ .../{oldtrace => tracev1}/testdata/http_1_19_good  | Bin
+ .../{oldtrace => tracev1}/testdata/http_1_21_good  | Bin
+ .../testdata/stress_1_11_good                      | Bin
+ .../testdata/stress_1_19_good                      | Bin
+ .../testdata/stress_1_21_good                      | Bin
+ .../testdata/stress_start_stop_1_11_good           | Bin
+ .../testdata/stress_start_stop_1_19_good           | Bin
+ .../testdata/stress_start_stop_1_21_good           | Bin
+ .../testdata/user_task_region_1_11_good            | Bin
+ .../testdata/user_task_region_1_19_good            | Bin
+ .../testdata/user_task_region_1_21_good            | Bin
+ src/internal/trace/reader.go                       |  22 ++--
+ src/internal/trace/{oldtrace.go => tracev1.go}     | 132 ++++++++++-----------
+ .../trace/{oldtrace_test.go => tracev1_test.go}    |   6 +-
+ 20 files changed, 144 insertions(+), 144 deletions(-)

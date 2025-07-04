@@ -1,0 +1,14 @@
+commit 63c572c6b081dedcfdc59c21348f9cb2c700c0d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 8 00:16:25 2009 -0800
+
+    scaled bumpers
+    
+    R=r
+    http://go/go-review/1026023
+
+ doc/gordon/bumper192x108.png | Bin 0 -> 10781 bytes
+ doc/gordon/bumper320x180.png | Bin 0 -> 20193 bytes
+ doc/gordon/bumper480x270.png | Bin 0 -> 36347 bytes
+ doc/gordon/bumper640x360.png | Bin 0 -> 57726 bytes
+ 4 files changed, 0 insertions(+), 0 deletions(-)

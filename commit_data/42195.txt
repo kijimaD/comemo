@@ -1,0 +1,18 @@
+commit b13ce66d1b3ce01064fd1912055d71447ab62384
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Apr 29 11:20:28 2020 +0100
+
+    cmd/go/internal/modload: use lockedfile to read path-replacement go.mod files
+    
+    When parsing go.mod files found via file-path replacements, it's safer to
+    use lockedfile.Read instead of ioutil.ReadFile, in case of overwriting by
+    other concurrent go commands.
+    
+    Change-Id: I7dcac3bb5ada84bee1eb634b39f813c461ef103a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230838
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/mvs.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

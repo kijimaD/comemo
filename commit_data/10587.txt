@@ -1,0 +1,12 @@
+commit 8bc641083709c33a8173e719d8bcdd6b35ac5925
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 2 16:24:12 2011 +1100
+
+    build: update .hgignore
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/5451073
+
+ .hgignore | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

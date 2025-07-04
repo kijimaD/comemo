@@ -1,0 +1,16 @@
+commit 3a5f746766efb3e89c78eabc81176960e394ec61
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jun 6 13:45:22 2017 +0900
+
+    net: update documentation on methods of UnixConn
+    
+    This change simplifies the documentation on methods of UnixConn.
+    
+    Change-Id: Ibd89f9172b28adfcf7fdd43b3bc196ae7f8302cf
+    Reviewed-on: https://go-review.googlesource.com/44913
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/unixsock.go | 25 +++++++------------------
+ 1 file changed, 7 insertions(+), 18 deletions(-)

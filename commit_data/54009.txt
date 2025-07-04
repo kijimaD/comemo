@@ -1,0 +1,20 @@
+commit 0ab0d4e33ff6982880e6140ec560729412192080
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 11 22:46:32 2023 +1000
+
+    runtime/cgo: consolidate netbsd cgo code
+    
+    All netbsd architectures now use the same code, deduplicate accordingly.
+    
+    Change-Id: Ieb179fd76885b7af6d388d7f2aee0f9fac6f1264
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518621
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+
+ src/runtime/cgo/{gcc_netbsd_386.c => gcc_netbsd.c} |  2 +
+ src/runtime/cgo/gcc_netbsd_amd64.c                 | 72 ---------------------
+ src/runtime/cgo/gcc_netbsd_arm.c                   | 72 ---------------------
+ src/runtime/cgo/gcc_netbsd_arm64.c                 | 73 ----------------------
+ 4 files changed, 2 insertions(+), 217 deletions(-)

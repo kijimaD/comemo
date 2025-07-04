@@ -1,0 +1,26 @@
+commit 81a32eff7161ad6c15ace141b8e9dba8f81feac2
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Mon Mar 18 23:05:12 2024 -0700
+
+    net/http: validate outgoing/client request trailers
+    
+    This change validates outbound client request trailers
+    just like we do for headers. This helps prevent header
+    injection or other sorts of smuggling from easily being
+    performed using the standard HTTP client.
+    
+    Fixes #64766
+    
+    Change-Id: Idb34df876a0c308b1f57e9ae2695b118ac6bcc2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572615
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/net/http/transport.go      | 38 ++++++++++++++++++++++++++------------
+ src/net/http/transport_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 65 insertions(+), 12 deletions(-)

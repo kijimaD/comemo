@@ -1,0 +1,17 @@
+commit 3f7a35d91c7079269dec5cefef7599148f0279e0
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Tue Dec 13 17:57:06 2016 -0500
+
+    encoding/json: add Valid for checking validity of input bytes
+    
+    Fixes #18086
+    
+    Change-Id: Idc501dd37893e04a01c6ed9920147d24c0c1fa18
+    Reviewed-on: https://go-review.googlesource.com/34202
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/scanner.go      |  5 +++++
+ src/encoding/json/scanner_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 25 insertions(+)

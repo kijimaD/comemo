@@ -1,0 +1,14 @@
+commit c707d8385639dfda22dc06b112f5f7af78006a1f
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 18 18:28:36 2016 -0400
+
+    runtime: fix typos in comment about gcscanvalid
+    
+    Change-Id: Id4ad7ebf88a21eba2bc5714b96570ed5cfaed757
+    Reviewed-on: https://go-review.googlesource.com/22210
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

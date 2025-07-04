@@ -1,0 +1,66 @@
+commit 7a09a88274f054fd522443f97e2f11b568be3b85
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 8 14:14:28 2011 -0500
+
+    5l, 6l, 8l: omit symbols for type, string, go.string
+    
+    Much of the bulk of Go binaries is the symbol tables,
+    which give a name to every C string, Go string,
+    and reflection type symbol.  These names are not worth
+    much other than seeing what's where in a binary.
+    
+    This CL deletes all those names from the symbol table,
+    instead aggregating the symbols into contiguous blocks
+    and giving them the names "string.*", "go.string.*", and "type.*".
+    
+    Before:
+    $ 6nm $(which godoc.old) | sort | grep ' string\.' | tail -10
+      59eda4 D string."aa87ca22be8b05378eb1c71...
+      59ee08 D string."b3312fa7e23ee7e4988e056...
+      59ee6c D string."func(*token.FileSet, st...
+      59eed0 D string."func(io.Writer, []uint8...
+      59ef34 D string."func(*tls.Config, *tls....
+      59ef98 D string."func(*bool, **template....
+      59effc D string."method(p *printer.print...
+      59f060 D string."method(S *scanner.Scann...
+      59f12c D string."func(*struct { begin in...
+      59f194 D string."method(ka *tls.ecdheRSA...
+    $
+    
+    After:
+    $ 6nm $(which godoc) | sort | grep ' string\.' | tail -10
+      5e6a30 D string.*
+    $
+    
+    Those names in the "Before" are truncated for the CL.
+    In the real binary they are the complete string, up to
+    a certain length, or else a unique identifier.
+    The same applies to the type and go.string symbols.
+    
+    Removing the names cuts godoc by more than half:
+    
+    -rwxr-xr-x 1 rsc rsc 9153405 2011-03-07 23:19 godoc.old
+    -rwxr-xr-x 1 rsc rsc 4290071 2011-03-07 23:19 godoc
+    
+    For what it's worth, only 80% of what's left gets loaded
+    into memory; the other 20% is dwarf debugging information
+    only ever accessed by gdb:
+    
+    -rwxr-xr-x 1 rsc rsc 3397787 2011-03-07 23:19 godoc.nodwarf
+    
+    R=r, cw
+    CC=golang-dev
+    https://golang.org/cl/4245072
+
+ src/cmd/5l/asm.c    |  2 ++
+ src/cmd/5l/l.h      | 17 +----------------
+ src/cmd/6l/asm.c    |  5 +++++
+ src/cmd/6l/l.h      | 23 +----------------------
+ src/cmd/8l/asm.c    |  2 ++
+ src/cmd/8l/l.h      | 25 +------------------------
+ src/cmd/ld/data.c   |  3 ++-
+ src/cmd/ld/dwarf.c  |  2 +-
+ src/cmd/ld/go.c     |  1 +
+ src/cmd/ld/lib.h    | 31 +++++++++++++++++++++++++++++--
+ src/cmd/ld/symtab.c | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 11 files changed, 87 insertions(+), 66 deletions(-)

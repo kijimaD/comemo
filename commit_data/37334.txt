@@ -1,0 +1,16 @@
+commit e4c1feef74d7415ba134aa0950f7f285a3e1902a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Nov 10 07:45:19 2018 -0800
+
+    cmd/compile: re-run stringer
+    
+    Some of the Ops got re-ordered with OSLICEHEADER. Re-generate.
+    
+    Change-Id: I8ec3f5056537dd0b18cac2d4267453451ade2b00
+    Reviewed-on: https://go-review.googlesource.com/c/148824
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <martisch@uos.de>
+
+ src/cmd/compile/internal/gc/op_string.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

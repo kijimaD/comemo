@@ -1,0 +1,44 @@
+commit 0a90ecad071b3d1d5c6c789f6a6f1417b72862b2
+Author: Jean de Klerk <deklerk@google.com>
+Date:   Mon May 4 14:06:34 2020 -0600
+
+    testing: reformat test chatty output
+    
+    In #24929, we decided to stream chatty test output. It looks like,
+    
+    foo_test.go:138: TestFoo/sub-1: hello from subtest 1
+    foo_test.go:138: TestFoo/sub-2: hello from subtest 2
+    
+    In this CL, we refactor the output to be grouped by === CONT lines, preserving
+    the old test-file-before-log-line behavior:
+    
+    === CONT TestFoo/sub-1
+        foo_test.go:138 hello from subtest 1
+    === CONT TestFoo/sub-2
+        foo_test.go:138 hello from subtest 2
+    
+    This should remove a layer of verbosity from tests, and make it easier to group
+    together related lines. It also returns to a more familiar format (the
+    pre-streaming format), whilst still preserving the streaming feature.
+    
+    Fixes #38458
+    
+    Change-Id: Iaef94c580d69cdd541b2ef055aa004f50d72d078
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229085
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ .../testdata/script/test_benchmark_chatty_fail.txt |  32 ++++++
+ .../script/test_benchmark_chatty_success.txt       |  29 +++++
+ src/cmd/go/testdata/script/test_chatty_fail.txt    |  32 ++++++
+ .../testdata/script/test_chatty_parallel_fail.txt  |  58 ++++++++++
+ .../script/test_chatty_parallel_success.txt        |  52 +++++++++
+ src/cmd/go/testdata/script/test_chatty_success.txt |  27 +++++
+ src/cmd/go/testdata/script/test_flags.txt          |   8 +-
+ src/cmd/go/testdata/script/test_regexps.txt        |  14 +--
+ src/testing/benchmark.go                           |   3 +
+ src/testing/sub_test.go                            | 126 +++++++++++----------
+ src/testing/testing.go                             |  81 ++++++++++---
+ 11 files changed, 374 insertions(+), 88 deletions(-)

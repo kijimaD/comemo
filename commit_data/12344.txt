@@ -1,0 +1,64 @@
+commit 604f3751104e655f76e5368a3a4177d58fe1509c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 2 22:16:02 2012 -0500
+
+    cmd/go: fix relative imports again
+    
+    I tried before to make relative imports work by simply
+    invoking the compiler in the right directory, so that
+    an import of ./foo could be resolved by ./foo.a.
+    This required creating a separate tree of package binaries
+    that included the full path to the source directory, so that
+    /home/gopher/bar.go would be compiled in
+    tmpdir/work/local/home/gopher and perhaps find
+    a ./foo.a in that directory.
+    
+    This model breaks on Windows because : appears in path
+    names but cannot be used in subdirectory names, and I
+    missed one or two places where it needed to be removed.
+    
+    The model breaks more fundamentally when compiling
+    a test of a package that lives outside the Go path, because
+    we effectively use a ./ import in the generated testmain,
+    but there we want to be able to resolve the ./ import
+    of the test package to one directory and all the other ./
+    imports to a different directory.  Piggybacking on the compiler's
+    current working directory is then no longer possible.
+    
+    Instead, introduce a new compiler option -D prefix that
+    makes the compiler turn a ./ import into prefix+that,
+    so that import "./foo" with -D a/b/c turns into import
+    "a/b/c/foo".  Then we can invent a package hierarchy
+    "_/" with subdirectories named for file system paths:
+    import "./foo" in the directory /home/gopher becomes
+    import "_/home/gopher/foo", and since that final path
+    is just an ordinary import now, all the ordinary processing
+    works, without special cases.
+    
+    We will have to change the name of the hierarchy if we
+    ever decide to introduce a standard package with import
+    path "_", but that seems unlikely, and the detail is known
+    only in temporary packages that get thrown away at the
+    end of a build.
+    
+    Fixes #3169.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5732045
+
+ src/cmd/gc/doc.go                         |  2 +
+ src/cmd/gc/go.h                           |  1 +
+ src/cmd/gc/lex.c                          | 26 +++++++---
+ src/cmd/go/build.go                       | 84 +++++++++++--------------------
+ src/cmd/go/pkg.go                         | 64 ++++++++++++++---------
+ src/cmd/go/run.go                         |  6 +++
+ src/cmd/go/test.bash                      | 21 ++++++++
+ src/cmd/go/test.go                        | 13 ++---
+ src/cmd/go/testdata/local/easysub/main.go |  9 ++++
+ src/cmd/go/testdata/testimport/p.go       |  3 ++
+ src/cmd/go/testdata/testimport/p1/p1.go   |  3 ++
+ src/cmd/go/testdata/testimport/p2/p2.go   |  3 ++
+ src/cmd/go/testdata/testimport/p_test.go  | 13 +++++
+ src/cmd/go/testdata/testimport/x_test.go  | 15 ++++++
+ 14 files changed, 171 insertions(+), 92 deletions(-)

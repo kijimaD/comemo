@@ -1,0 +1,15 @@
+commit aabbcda8163d4a2bceaf8e25156968cb0e88de75
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 6 09:07:00 2012 -0800
+
+    runtime: remove unused runtime·signame and runtime·newError
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5756044
+
+ src/pkg/runtime/runtime.h          |  2 --
+ src/pkg/runtime/signal_plan9_386.c |  6 ------
+ src/pkg/runtime/signal_unix.c      |  8 --------
+ src/pkg/runtime/thread_windows.c   | 15 ---------------
+ 4 files changed, 31 deletions(-)

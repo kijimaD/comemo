@@ -1,0 +1,18 @@
+commit c69ff3a7d0c8bd2878662034c1cbce8613fa6f13
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Mar 15 18:16:57 2023 -0700
+
+    internal/fuzz: fix debug statement
+    
+    Meant to check if the slice was empty, accidentally dumped the entire
+    slice to stdout...
+    
+    Change-Id: I968cb2f20ffb006e4dcfea65a1bad794aac05d17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476795
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+
+ src/internal/fuzz/fuzz.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit b63d40a53eca416c29ac22278eaf699a5cbc64c7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 17 16:34:58 2009 -0700
+
+    count SHdrs and PHdrs and write them out as a unit
+    
+    R=rsc
+    DELTA=181  (93 added, 63 deleted, 25 changed)
+    OCL=31802
+    CL=31812
+
+ src/cmd/6l/asm.c   | 92 ++++++++++++++++++++++++------------------------------
+ src/cmd/ld/elf64.c | 85 +++++++++++++++++++++++++++++++++++--------------
+ src/cmd/ld/elf64.h | 13 +++++---
+ 3 files changed, 110 insertions(+), 80 deletions(-)

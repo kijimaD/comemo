@@ -1,0 +1,18 @@
+commit 6be7fd3f9b5a7f319e362c41c53d9773022377e0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 21 17:44:29 2023 +0100
+
+    runtime: let (*sigctxt).r9 return the correct register value on netbsd
+    
+    Fixes #59152
+    
+    Change-Id: I7f89e2b48db9ff120d7cd094b72ded865874e961
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478135
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ src/runtime/signal_netbsd_amd64.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

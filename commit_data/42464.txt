@@ -1,0 +1,16 @@
+commit 07ced37013b6b3bdb9cd02def52821a09a4e9c58
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 4 11:17:49 2020 -0400
+
+    syscall: document float arguments and results on windows/amd64
+    
+    Updates #6510.
+    Updates #37273.
+    
+    Change-Id: Id2732fcff0a0c5e4a324cd33ef995c7e528f5e1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236562
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.15.html            |  6 +++---
+ src/syscall/dll_windows.go | 10 +++++++++-
+ 2 files changed, 12 insertions(+), 4 deletions(-)

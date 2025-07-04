@@ -1,0 +1,19 @@
+commit a5b5e2b79e1669dcc711842a7c895a412edfe351
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Jun 20 11:54:07 2011 +1000
+
+    godefs: rudimentary tests
+    
+    currently only defined for darwin
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4528123
+
+ src/cmd/godefs/Makefile                     |  3 ++
+ src/cmd/godefs/test.sh                      | 45 +++++++++++++++++++++++++++++
+ src/cmd/godefs/testdata.c                   | 41 ++++++++++++++++++++++++++
+ src/cmd/godefs/testdata_darwin_386.golden   | 31 ++++++++++++++++++++
+ src/cmd/godefs/testdata_darwin_amd64.golden | 31 ++++++++++++++++++++
+ src/run.bash                                |  4 +++
+ 6 files changed, 155 insertions(+)

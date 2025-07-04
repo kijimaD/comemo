@@ -1,0 +1,15 @@
+commit af403c08fcb848205466d1e4589f98df1984d0dd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 7 15:42:06 2014 +1000
+
+    doc: document new ParseMultipartForm behavior
+    
+    Fixes #8403.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/123860043
+
+ doc/go1.3.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

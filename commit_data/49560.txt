@@ -1,0 +1,27 @@
+commit 3562977b6fe944b2c3da0455bdd6e9294c47c931
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jun 22 16:28:41 2022 -0400
+
+    cmd/internal/obj/mips,s390x,riscv: save LR after decrementing SP
+    
+    Following CL 412474, for the rest of the LR architectures. On
+    MIPS(32/64), S390X, and RISCV, there is no single instruction that
+    saves the LR and decrements the SP, so we need to insert an
+    instruction to save the LR after decrementing the SP.
+    
+    On ARM(32) and PPC64 we already use a single instruction to save
+    the LR and decrement the SP.
+    
+    Updates #53374.
+    
+    Change-Id: I5a2e211026d95edb0e0f7d084ddb784f8077b86d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413428
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/mips64.s |  8 ++++----
+ src/cmd/internal/obj/mips/obj0.go          | 14 ++++++++++++++
+ src/cmd/internal/obj/riscv/obj.go          | 10 ++++++++++
+ src/cmd/internal/obj/s390x/objz.go         | 13 +++++++++++++
+ 4 files changed, 41 insertions(+), 4 deletions(-)

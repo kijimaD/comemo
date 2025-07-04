@@ -1,0 +1,15 @@
+commit dc9ad5861d2ba0b57fea0998f2a85985096a5728
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Nov 4 10:41:05 2015 -0500
+
+    cmd/vet: use testenv
+    
+    Fix for iOS builder.
+    
+    Change-Id: I5b6c977b187446c848182a9294d5bed6b5f9f6e4
+    Reviewed-on: https://go-review.googlesource.com/16633
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/vet/vet_test.go | 19 ++++++-------------
+ 1 file changed, 6 insertions(+), 13 deletions(-)

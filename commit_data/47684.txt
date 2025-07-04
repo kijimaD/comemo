@@ -1,0 +1,17 @@
+commit a174638a5cc88eb4fccaaa699990f5626fbb0e30
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 30 16:33:51 2021 -0500
+
+    os: test that LookupEnv reports all keys found in Environ
+    
+    For #49886
+    
+    Change-Id: Ie3a7f12a0d30ec719caf375e7be30cc4a5796c3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367850
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/env_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

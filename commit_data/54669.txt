@@ -1,0 +1,22 @@
+commit 1493dd3cfc34dbf18d30ff551bfaf3996430c38a
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 10 12:18:43 2023 -0400
+
+    cmd/compile: get rid of zero-sized values in call expansion
+    
+    Do this by removing all stores of zero-sized anything.
+    
+    Fixes #63433.
+    
+    Change-Id: I5d8271edab992d15d02005fa3fe31835f2eff8fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534296
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/dec.rules |  2 ++
+ src/cmd/compile/internal/ssa/rewritedec.go  | 12 ++++++++++
+ test/fixedbugs/issue63490.go                | 36 +++++++++++++++++++++++++++++
+ 3 files changed, 50 insertions(+)

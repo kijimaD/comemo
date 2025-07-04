@@ -1,0 +1,37 @@
+commit 20803b845f26111eb9281f8ece98383d48ea1b3f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 25 10:29:50 2016 -0400
+
+    cmd/compile: eliminate PPARAMREF
+    
+    As in the elimination of PHEAP|PPARAM in CL 23393,
+    this is something the front end can trivially take care of
+    and then not bother the back ends with.
+    It also eliminates some suspect (and only lightly exercised)
+    code paths in the back ends.
+    
+    I don't have a smoking gun for this one but it seems
+    more clearly correct.
+    
+    Change-Id: I3b3f5e669b3b81d091ff1e2fb13226a6f14c69d5
+    Reviewed-on: https://go-review.googlesource.com/23431
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/arm/gsubr.go   | 11 +----------
+ src/cmd/compile/internal/gc/cgen.go     | 35 +++++++++------------------------
+ src/cmd/compile/internal/gc/closure.go  |  2 +-
+ src/cmd/compile/internal/gc/cplx.go     |  1 -
+ src/cmd/compile/internal/gc/dcl.go      |  3 ++-
+ src/cmd/compile/internal/gc/esc.go      |  4 ++--
+ src/cmd/compile/internal/gc/fmt.go      |  1 -
+ src/cmd/compile/internal/gc/gen.go      |  7 +++----
+ src/cmd/compile/internal/gc/go.go       |  1 -
+ src/cmd/compile/internal/gc/racewalk.go |  2 +-
+ src/cmd/compile/internal/gc/sinit.go    |  2 +-
+ src/cmd/compile/internal/gc/ssa.go      |  5 +----
+ src/cmd/compile/internal/gc/subr.go     |  2 +-
+ src/cmd/compile/internal/gc/syntax.go   | 17 +++++++++++++---
+ src/cmd/compile/internal/gc/walk.go     |  6 ++----
+ src/cmd/compile/internal/x86/gsubr.go   | 11 +----------
+ 16 files changed, 39 insertions(+), 71 deletions(-)

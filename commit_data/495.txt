@@ -1,0 +1,16 @@
+commit 69353f0a506f3e6227f0efe5a390c7839422e94b
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 7 13:27:58 2008 -0700
+
+    fix erroneous code in bugs; reported by iant.
+    also rob1.go runs, so fix its status.
+    
+    R=gri,iant
+    OCL=13957
+    CL=13957
+
+ test/fixedbugs/bug056.go |  2 +-
+ test/golden.out          |  1 +
+ test/ken/rob1.go         | 13 +++++++------
+ test/ken/robfunc.go      |  2 +-
+ 4 files changed, 10 insertions(+), 8 deletions(-)

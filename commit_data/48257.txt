@@ -1,0 +1,42 @@
+commit 986b04c0f12efa1c57293f147a9e734ec71f0363
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Feb 15 16:59:59 2022 -0800
+
+    encoding/binary: add AppendByteOrder
+    
+    AppendByteOrder specifies new methods for LittleEndian and BigEndian
+    for appending an unsigned integer to a byte slice.
+    
+    The performance of AppendXXX methods are slower than PutXXX methods
+    since the former needs to do a few slice operations,
+    while the latter is essentially a single integer store.
+    In practice, existing usages of PutXXX performed slicing operations
+    around the call such that this cost was present, regardless.
+    
+    name                           time/op
+    PutUint16-24                   0.48ns ± 2%
+    AppendUint16-24                1.54ns ± 1%
+    PutUint32-24                   0.46ns ± 2%
+    AppendUint32-24                0.89ns ± 1%
+    PutUint64-24                   0.46ns ± 2%
+    AppendUint64-24                0.89ns ± 1%
+    LittleEndianPutUint16-24       0.47ns ± 2%
+    LittleEndianAppendUint16-24    1.54ns ± 1%
+    LittleEndianPutUint32-24       0.45ns ± 3%
+    LittleEndianAppendUint32-24    0.92ns ± 2%
+    LittleEndianPutUint64-24       0.46ns ± 3%
+    LittleEndianAppendUint64-24    0.95ns ± 4%
+    
+    Fixes #50601
+    
+    Change-Id: I33d2bbc93a3ce01a9269feac33a2432bc1166ead
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386017
+    Trust: Joseph Tsai <joetsai@digital-static.net>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/encoding/binary/binary.go      |  73 +++++++++++++++++++++++-
+ src/encoding/binary/binary_test.go | 114 +++++++++++++++++++++++++++++++++++--
+ 2 files changed, 178 insertions(+), 9 deletions(-)

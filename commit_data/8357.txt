@@ -1,0 +1,16 @@
+commit fbb4be32786055b7698c6793efb390c5b21fc812
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed May 11 22:53:42 2011 -0400
+
+    make: add nuke target for C commands and libs
+    
+    Also, clean *.out files for commands written in Go.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4535051
+
+ src/Make.ccmd | 3 +++
+ src/Make.clib | 2 ++
+ src/Make.cmd  | 2 +-
+ 3 files changed, 6 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 90ec203318a167505ae1038bdcdc7d2ce664a1eb
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Nov 13 12:13:46 2011 -0500
+
+    exp/ssh: ensure initial window advertisement is not lost
+    
+    Some remote servers send a 0 window size in the channel
+    open confirm msg, others send a non zero window size. Make
+    sure this initial advertisement is not lost.
+    
+    R=agl, rsc, cw
+    CC=golang-dev
+    https://golang.org/cl/5372083
+
+ src/pkg/exp/ssh/client.go | 1 +
+ 1 file changed, 1 insertion(+)

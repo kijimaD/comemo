@@ -1,0 +1,25 @@
+commit d2b03111c44db5808ef5248470bf95fe7ea35ebc
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu May 6 20:36:10 2021 -0400
+
+    go/types,cmd/compile/internal/types2: unskip std and cmd in TestStdlib
+    
+    CL 276272 accidentally skipped everything in TestStdlib while trying to
+    skip nested submodules of std and cmd.
+    
+    For now, narrow the skip to just the problematic submodule rather than
+    trying to generalize. We can re-evaluate if it becomes a pattern to
+    vendor submodules in this way.
+    
+    Fixes #46027
+    
+    Change-Id: Ib355ff80dfbf17c3cf37d128a2f48d4216305267
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317869
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/stdlib_test.go | 10 +++-------
+ src/go/types/stdlib_test.go                    | 10 +++-------
+ 2 files changed, 6 insertions(+), 14 deletions(-)

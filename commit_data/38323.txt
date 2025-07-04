@@ -1,0 +1,25 @@
+commit 91c9ed084096b105858ab13a3c26925d82592d56
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Mar 8 15:25:11 2019 -0500
+
+    cmd/go: improve wording of 'go mod init' error
+    
+    When 'go mod init' is run without a module path, it tries to infer a
+    module path, based on the current directory (if in GOPATH), import
+    comments, and vendor configuration files.
+    
+    It's common for this command to fail the first time a user tries to
+    create a module in a new project outside GOPATH. This change improves
+    the wording of the error message to hint that the user should specify
+    a module path.
+    
+    Fixes #30678
+    
+    Change-Id: Iec0352e919dbc8b426ab71eed236fad3929ec671
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166319
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/init.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

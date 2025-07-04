@@ -1,0 +1,24 @@
+commit 50fc0f1af626c57acaae2eb63781a6d76d7de9f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 7 23:40:27 2014 -0400
+
+    net/http/httptest: delete TestIssue7264
+    
+    Now it's failing on Windows:
+    
+    panic: httptest: failed to listen on a port: listen tcp 127.0.0.1:0:
+    listen: An operation on a socket could not be performed because the
+    system lacked sufficient buffer space or because a queue was full.
+    
+    Since we can't seem to understand what the test is trying to test,
+    and because it is causing problems on multiple systems,
+    delete it.
+    
+    Fixes #7264.
+    
+    TBR=bradfitz
+    CC=brainman, golang-codereviews
+    https://golang.org/cl/141210043
+
+ src/pkg/net/http/httptest/server_test.go | 23 -----------------------
+ 1 file changed, 23 deletions(-)

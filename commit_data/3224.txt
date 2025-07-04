@@ -1,0 +1,15 @@
+commit eabcb10a326bee8337af9ce7429bb46dd97ba2c0
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Sep 4 16:12:50 2009 -0700
+
+    Don't crash in Sym.ReceiverName for symbols like "x.x"
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=34404
+    CL=34406
+
+ src/pkg/debug/gosym/symtab.go | 2 +-
+ usr/austin/sym/gosymtab.go    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

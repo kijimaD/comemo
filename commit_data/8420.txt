@@ -1,0 +1,12 @@
+commit b96fc594ba3b61755e784d84ce45bb9a78094bc8
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue May 17 14:24:32 2011 +1000
+
+    doc: add Korean Go site
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4515092
+
+ doc/docs.html | 5 +++++
+ 1 file changed, 5 insertions(+)

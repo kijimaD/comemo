@@ -1,0 +1,21 @@
+commit 87e984ab2988afccdb75a4c235b318ec6be46e6a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 22 11:11:51 2021 -0800
+
+    test: add test for issue 38698
+    
+    It was fixed by CL 294289, for #44378.
+    This is a different style of test that uses
+    line directives instead of extremely long lines.
+    
+    Fixes #38698.
+    
+    Change-Id: I50a1585030978b35fffa9981d6ed96b99216dc3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/295129
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ test/fixedbugs/issue38698.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

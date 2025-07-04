@@ -1,0 +1,13 @@
+commit 4addd946873acbe75d4c1cd891f9a8f56db17687
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 7 17:56:12 2008 -0700
+
+    bug: cannot take len() of a constant string
+    
+    R=r
+    OCL=13989
+    CL=13989
+
+ test/bugs/bug087.go | 19 +++++++++++++++++++
+ test/golden.out     |  5 +++++
+ 2 files changed, 24 insertions(+)

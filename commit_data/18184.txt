@@ -1,0 +1,12 @@
+commit 39a396d2ba470e24316be700db76aafbec963156
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Tue Jan 7 09:32:15 2014 -0800
+
+    encoding/csv: test that carriage return is handled in Write
+    
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/46310043
+
+ src/pkg/encoding/csv/writer_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

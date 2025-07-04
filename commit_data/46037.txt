@@ -1,0 +1,21 @@
+commit ec271687129dc8b263699b0b9d3abed71d8bd39d
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Aug 16 10:46:06 2021 -0700
+
+    net/http: drop headers with invalid keys in Header.Write
+    
+    Don't let handlers inject unexpected headers by setting keys like:
+            w.Header().Set("Evil: x\r\nSmuggle", y)
+    
+    Fixes #47711.
+    
+    Change-Id: I459ce1c79bc273a84230a0f5b665f81c46dbc672
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342530
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/http/header.go      |  9 +++++++++
+ src/net/http/header_test.go | 13 +++++++++++++
+ 2 files changed, 22 insertions(+)

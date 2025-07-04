@@ -1,0 +1,26 @@
+commit 9e6ba37b86d0390ac1c5eb80731ca131b6801b7a
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Aug 11 12:29:00 2015 +1200
+
+    cmd/internal/obj: some platform independent bits of proper toolchain support for thread local storage
+    
+    Also simplifies some silliness around making the .tbss section wrt internal
+    vs external linking. The "make TLS make sense" project has quite a few more
+    steps to go.
+    
+    Issue #11270
+    
+    Change-Id: Ia4fa135cb22d916728ead95bdbc0ebc1ae06f05c
+    Reviewed-on: https://go-review.googlesource.com/13990
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/data.go     |  3 +++
+ src/cmd/internal/obj/objfile.go  |  2 ++
+ src/cmd/internal/obj/textflag.go |  4 ++++
+ src/cmd/link/internal/ld/data.go | 30 ++++++++++++++++--------------
+ src/cmd/link/internal/ld/elf.go  | 34 +++++++++++++++++-----------------
+ src/runtime/textflag.h           |  3 +++
+ 6 files changed, 45 insertions(+), 31 deletions(-)

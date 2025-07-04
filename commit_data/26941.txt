@@ -1,0 +1,27 @@
+commit 8f6c35de2f7c972a4f34efddd21281b7060c4457
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 13 15:06:01 2016 -0400
+
+    runtime: make sync_atomic_SwapPointer signature match sync/atomic
+    
+    SwapPointer is declared as
+    
+      func SwapPointer(addr *unsafe.Pointer, new unsafe.Pointer) (old unsafe.Pointer)
+    
+    in sync/atomic, but defined in the runtime (where it's actually
+    implemented) as
+    
+      func sync_atomic_SwapPointer(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
+    
+    Make ptr a *unsafe.Pointer in the runtime definition to match the type
+    in sync/atomic.
+    
+    Change-Id: I99bab651b995001bbe54f9e790fdef2417ef0e9e
+    Reviewed-on: https://go-review.googlesource.com/21998
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/runtime/atomic_pointer.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

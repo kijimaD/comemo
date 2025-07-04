@@ -1,0 +1,14 @@
+commit 6a13897bc6b92cf5c80ae6d4e58fadf55fa10e82
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 30 22:58:38 2013 -0400
+
+    runtime: ARM _sfloat has no arguments
+    
+    Fixes one build failure.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/12139043
+
+ src/pkg/runtime/vlop_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

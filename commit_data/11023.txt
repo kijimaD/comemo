@@ -1,0 +1,24 @@
+commit 424f53fa0c60fd62cb77186ffb9643dae5429a5c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jan 4 10:36:21 2012 -0500
+
+    exp/ssh: fix two flow control bugs in chanWriter
+    
+    This CL fixes two issues sending data to the remote peer.
+    The first bug occurs when the size of the buffer passed to
+    Write is larger than the current window, in this case, w.rwin
+    can become negative.
+    
+    The second issue is more problematic than the first as the
+    amount of data passed to writePacket was not limited to w.rwin.
+    In this case the remote peer could silently drop the additional
+    data, or drop the connection.
+    
+    Credit to Jacek Masiulaniec for the bug report.
+    
+    R=agl, jacek.masiulaniec
+    CC=golang-dev
+    https://golang.org/cl/5511043
+
+ src/pkg/exp/ssh/client.go | 34 ++++++++++++++++++++++------------
+ 1 file changed, 22 insertions(+), 12 deletions(-)

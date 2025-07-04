@@ -1,0 +1,29 @@
+commit 67f131485541f362c8e932cd254982a8ad2cfc09
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Oct 29 21:13:41 2024 +0000
+
+    runtime: skip TestMemmoveOverflow with asan
+    
+    On a whim I decided to investigate the possibility of whether the
+    flakiness on the asan builder was due to a concurrently executing test.
+    Of the most recent failures there were a few candidates, and this test
+    was one of them. After disabling each candidate one by one, we had a
+    winner: this test causes other concurrently executing tests, running
+    pure Go code, to spuriously fail.
+    
+    I do not know why yet, but this test doesn't seem like it would have
+    incredibly high value for ASAN, and does funky things like MAP_FIXED in
+    recently unmapped regions, so I think it's fine.
+    
+    For #70054.
+    For #64257.
+    
+    Change-Id: Ib9a84d9b69812e76c390d99b00698710ee1ece1a
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-asan-clang15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623336
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/memmove_linux_amd64_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

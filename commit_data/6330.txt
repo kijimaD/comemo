@@ -1,0 +1,12 @@
+commit 0e73fffe36a917ff2e8e41c4a91b6824a6446f2b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Sep 22 11:42:40 2010 +1000
+
+    misc/dashboard/builder: fix bug that caused old revisions to be rebuilt
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/2213044
+
+ misc/dashboard/builder/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

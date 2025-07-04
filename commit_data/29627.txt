@@ -1,0 +1,19 @@
+commit 46323795130e92f26cbbb6bc744298edc8c443e9
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Nov 22 16:19:25 2016 +0100
+
+    cmd/go: print CC environment variables on Plan 9
+    
+    This changes makes the output of `go env` the same
+    as on other operating systems.
+    
+    Fixes #18013.
+    
+    Change-Id: I3079e14dcf7b30c75ec3fde6c78cb95721111320
+    Reviewed-on: https://go-review.googlesource.com/33396
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/env.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

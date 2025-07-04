@@ -1,0 +1,16 @@
+commit ed575dc2b98e2cba415f0c07736ff7cff53a5280
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Oct 8 16:46:05 2010 -0700
+
+    bug in stack size in arm.
+    stack is off by one if calling
+    through reflect.Call
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2400041
+
+ src/pkg/runtime/arm/asm.s | 24 +++++++++++++-----------
+ src/pkg/runtime/proc.c    |  4 ++--
+ src/pkg/runtime/runtime.h |  2 +-
+ 3 files changed, 16 insertions(+), 14 deletions(-)

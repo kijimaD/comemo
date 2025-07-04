@@ -1,0 +1,54 @@
+commit 72301a9863fb43ff26e9779a086e02cf02031ceb
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:55:22 2021 -0600
+
+    cmd/internal/obj: use prefix insn in MOV* opcodes for GOPPC64=power10
+    
+    As background, Power10 adds prefixed load, store, and add immediate
+    instructions which encode 34b signed displacements. Likewise, they
+    also give the option to compute addresses against the PC. This enables
+    using simpler PC relative (PC-rel) relocations instead of maintaining a
+    dedicated pointer (the TOC) to the code/data blob on PPC64/linux.
+    
+    Similary, there are several Go opcodes where it can be advantageous to
+    use prefixed instructions instead of composite sequences like oris/ori/add
+    to implement "MOVD <big const>, Rx" or "ADD <big const>, Rx, Ry", or
+    large offset load/stores like "MOVD <big constant>(Rx), Ry" using the same
+    framework which dynamically configures optab.
+    
+    When selecting prefixed instruction forms, the assembler must also use
+    new relocations. These new relocations are always PC-rel by design, thus
+    code assembled as such has no implicit requirement to maintain a TOC
+    pointer when assembling shared objects. Thus, we can safely avoid
+    situations where some Go objects use a TOC pointer, and some do not. This
+    greatly simplifies linking Go objects. For more details about the
+    challenges of linking TOC and PC-rel compiled code, see the PPC64 ELFv2
+    ABI.
+    
+    The TOC pointer in R2 is still maintained in those build configurations
+    which previously required it (e.x buildmode=pie). However, Go code built
+    with PC-rel relocations does not require the TOC pointer. A future
+    change could remove the overhead of maintaining a TOC pointer in those
+    build configurations.
+    
+    This is enabled only for power10/ppc64le/linux.
+    
+    A final noteworthy difference between the prefixed and regular load/store
+    instruction forms is the removal of the DS/DQ form restrictions. That
+    is, the immediate operand does not need to be aligned.
+    
+    Updates #44549
+    
+    Change-Id: If59c216d203c3eed963bfa08855e21771e6ed669
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355150
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+
+ src/cmd/asm/internal/asm/endtoend_test.go |  12 +-
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  27 +--
+ src/cmd/internal/obj/ppc64/asm9.go        | 296 ++++++++++++++++++++++++------
+ src/cmd/internal/obj/ppc64/doc.go         |  29 +++
+ 4 files changed, 293 insertions(+), 71 deletions(-)

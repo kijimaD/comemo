@@ -1,0 +1,18 @@
+commit 0bef88aa5fa5d8f92e2821d9df7c37caaac432dd
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 6 08:35:55 2015 -0800
+
+    cmd/compile: mark duffzero as using X0, not AX
+    
+    duffzero was changed to use X0 instead of AX in
+    CL 14408.  This was missed as part of that change.
+    
+    Change-Id: I72fb0114cfbc035b83bfaa8631d27e6740da2652
+    Reviewed-on: https://go-review.googlesource.com/16717
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/compile/internal/amd64/prog.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

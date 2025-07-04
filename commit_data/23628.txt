@@ -1,0 +1,16 @@
+commit 1082e2390e55519a576f21c0424f41246d232808
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jul 10 14:38:35 2015 -0700
+
+    cmd/link/internal/ld: stricter object file decoding
+    
+    Instead of silently truncating integers to their expected range, check
+    that they're within range and emit errors if not.  Intended to help
+    narrow down the cause of issue #11617.
+    
+    Change-Id: Ia7b577270f8438ca7479262702371e26277f1ea7
+    Reviewed-on: https://go-review.googlesource.com/12050
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/objfile.go | 86 +++++++++++++++++++++++++------------
+ 1 file changed, 59 insertions(+), 27 deletions(-)

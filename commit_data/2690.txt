@@ -1,0 +1,14 @@
+commit 60d223a418a342cd7de5fea90243003765b8dde6
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Jul 13 22:06:28 2009 -0700
+
+    added missing pieces required by reflection
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=61  (40 added, 18 deleted, 3 changed)
+    OCL=31502
+    CL=31580
+
+ src/cmd/5g/gobj.c | 58 ++++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 40 insertions(+), 18 deletions(-)

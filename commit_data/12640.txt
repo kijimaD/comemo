@@ -1,0 +1,12 @@
+commit 181dc14cd63dd364efaa4d6f7a6af7f3892cc83a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 15 11:31:16 2012 +1100
+
+    cmd/godoc: use *goroot as base path in zip file
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5781069
+
+ src/cmd/godoc/appinit.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

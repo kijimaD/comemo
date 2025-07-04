@@ -1,0 +1,16 @@
+commit 4f989323a5571e29c27f5ef86154676bd889fe15
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 2 13:57:17 2020 -0800
+
+    cmd/compile: regenerate rules
+    
+    CL 210897 went in concurrently with some rulegen.go changes.
+    Regenerate.
+    
+    Change-Id: I39ffa8bdffdfcc7f60cc8158d188fb1a3e70fcb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221787
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

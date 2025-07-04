@@ -1,0 +1,16 @@
+commit dd8f29e3feb91f3c7ec0681ef23694578e4d9228
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 21:19:18 2014 -0400
+
+    reflect: adjust Value.String to give correct answer for methods
+    
+    Fixes #7859.
+    
+    LGTM=r
+    R=adonovan, r
+    CC=golang-codereviews
+    https://golang.org/cl/136710043
+
+ src/reflect/all_test.go | 16 ++++++++++++++++
+ src/reflect/value.go    |  2 +-
+ 2 files changed, 17 insertions(+), 1 deletion(-)

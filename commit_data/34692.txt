@@ -1,0 +1,24 @@
+commit 8da180f6cac51f6cb8a316b962f797dbaf7ee96f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 24 15:49:43 2018 +0000
+
+    all: remove some unused return parameters
+    
+    As found by unparam. Picked the low-hanging fruit, consisting only of
+    errors that were always nil and results that were never used. Left out
+    those that were useful for consistency with other func signatures.
+    
+    Change-Id: I06b52bbd3541f8a5d66659c909bd93cb3e172018
+    Reviewed-on: https://go-review.googlesource.com/102418
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/gob/decode.go   |  8 ++++----
+ src/internal/trace/parser.go |  9 +++------
+ src/regexp/syntax/prog.go    | 14 ++++++--------
+ src/runtime/pprof/proto.go   |  3 +--
+ src/time/format.go           |  2 +-
+ src/time/time.go             | 14 +++++++-------
+ src/time/zoneinfo.go         |  8 ++------
+ 7 files changed, 24 insertions(+), 34 deletions(-)

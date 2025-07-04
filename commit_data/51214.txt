@@ -1,0 +1,21 @@
+commit e87e7997677b66b4afd2d4f23d35f561127dac02
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Mar 10 11:51:00 2022 -0600
+
+    cmd/dist: define GOPPC64_{cpu} for PPC64 targets
+    
+    This can be used to provide better instruction selection for assembly
+    implementations without having to implement two variants and dynamic
+    runtime selections when a newer GOPPC64 value is used.
+    
+    Change-Id: I4331037d57b128137280aa7904d08d362391f81e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449115
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/dist/build.go          | 13 +++++++++++++
+ src/cmd/go/internal/work/gc.go | 15 +++++++++++++++
+ 2 files changed, 28 insertions(+)

@@ -1,0 +1,16 @@
+commit 2058511e4e5966a7d482beb6033c68e324aa09ac
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Nov 1 04:16:52 2015 -0500
+
+    runtime: os.Executable runtime support for Darwin
+    
+    Change-Id: Ie21df37016c90cd0479c23ec4845f8195dd90fda
+    Reviewed-on: https://go-review.googlesource.com/16518
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_darwin.go | 18 ++++++++++++++++++
+ src/runtime/vdso_none.go |  1 +
+ 2 files changed, 19 insertions(+)

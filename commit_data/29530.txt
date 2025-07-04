@@ -1,0 +1,14 @@
+commit 2442b49c47aa818bbc55e4c064e9ea0ca058735f
+Author: Marcel Edmund Franke <marcel.edmund.franke@gmail.com>
+Date:   Mon Nov 14 21:46:25 2016 +0100
+
+    html/template: typo fix
+    
+    comment on unexported function starts with wrong functionname
+    
+    Change-Id: Ib16c2fe42b5a8d4606ed719f620923c17839d091
+    Reviewed-on: https://go-review.googlesource.com/33203
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/html/template/url.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

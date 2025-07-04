@@ -1,0 +1,21 @@
+commit 15a31bd9c8e4c7b2de092266ae34e1588dc35270
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 4 00:30:25 2019 -0400
+
+    cmd/link: apply R_DWARFFILEREF later
+    
+    Apply R_DWARFFILEREF relocations later, along with other
+    relocations, so that we don't modify symbols' contents before
+    they are written to the output buffer.
+    
+    This is in preparation for mmap'ing input files read-only.
+    
+    Change-Id: I8e9ffb2f05acf8f198589b8770f277beb3847541
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170740
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/link/internal/ld/data.go  | 10 ++++------
+ src/cmd/link/internal/ld/dwarf.go | 10 ++++++----
+ 2 files changed, 10 insertions(+), 10 deletions(-)

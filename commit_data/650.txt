@@ -1,0 +1,15 @@
+commit 1841f3114e650874a53688479c921d806b87157e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 16 12:33:00 2008 -0700
+
+    acid fixes etc.  still not perfect.
+    
+    R=r
+    DELTA=764  (694 added, 38 deleted, 32 changed)
+    OCL=15285
+    CL=15395
+
+ include/mach_amd64.h       |   1 +
+ src/libmach_amd64/darwin.c | 720 ++++++++++++++++++++++++++++++++++++++++++++-
+ src/libmach_amd64/linux.c  |  34 +--
+ 3 files changed, 716 insertions(+), 39 deletions(-)

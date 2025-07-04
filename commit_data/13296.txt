@@ -1,0 +1,13 @@
+commit c53450a0722ad34437dbfffdd41a6dbe9e18aff9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 6 16:52:38 2012 -0400
+
+    A+C: Daniel Morsing (individual CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6307048
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,16 @@
+commit ff6e310b007a9a2addbef70607dfb662c9673d2d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 18 17:30:15 2010 -0800
+
+    gc: bug245
+    
+    Fixes #529.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/186215
+
+ src/cmd/gc/sinit.c       |  2 ++
+ src/cmd/gc/typecheck.c   |  2 +-
+ test/fixedbugs/bug245.go | 16 ++++++++++++++++
+ 3 files changed, 19 insertions(+), 1 deletion(-)

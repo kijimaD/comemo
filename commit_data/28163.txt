@@ -1,0 +1,29 @@
+commit cd0ba4c169b591cc22f51cb61463eb45af7b930d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 29 16:10:32 2016 -0700
+
+    archive/tar: make Reader error handling consistent
+    
+    The tar.Reader guarantees stickiness of errors. Ensuring this property means
+    that the methods of Reader need to be consistent about whose responsibility it
+    is to actually ensure that errors are sticky.
+    
+    In this CL, we make it only the responsibility of the exported methods
+    (Next and Read) to store tr.err. All other methods just return the error as is.
+    
+    As part of this change, we also check the error value of mergePAX (and test
+    that it properly detects invalid PAX files). Since the value of mergePAX was
+    never used before, we change it such that it always returns ErrHeader instead
+    of strconv.SyntaxError. This keeps it consistent with other usages of strconv
+    in the same tar package.
+    
+    Change-Id: Ia1c31da71f1de4c175da89a385dec665d3edd167
+    Reviewed-on: https://go-review.googlesource.com/28215
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/tar/reader.go                       | 176 ++++++++++--------------
+ src/archive/tar/reader_test.go                  |   8 ++
+ src/archive/tar/testdata/pax-bad-hdr-file.tar   | Bin 0 -> 2560 bytes
+ src/archive/tar/testdata/pax-bad-mtime-file.tar | Bin 0 -> 2560 bytes
+ 4 files changed, 80 insertions(+), 104 deletions(-)

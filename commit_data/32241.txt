@@ -1,0 +1,15 @@
+commit 733567a1860956e87daa1a2fa46d58fc44b896cc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Jul 16 17:37:27 2017 -1000
+
+    runtime: use integer math for hashmap overLoadFactor
+    
+    Change-Id: I92cf39a05e738a03d956779d7a1ab1ef8074b2ab
+    Reviewed-on: https://go-review.googlesource.com/54655
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go | 9 +++++----
+ src/runtime/stubs.go   | 2 +-
+ 2 files changed, 6 insertions(+), 5 deletions(-)

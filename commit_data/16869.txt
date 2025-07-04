@@ -1,0 +1,63 @@
+commit 085159da267376309ff8cf718390e58276ba49a7
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Thu Jul 25 13:28:27 2013 +1000
+
+    crypto/md5: native arm assembler version
+    
+    An ARM version of md5block.go with a big improvement in
+    throughput (up to 2.5x) and a reduction in object size (21%).
+    
+    Code size
+    
+      Before 3100 bytes
+      After 2424 bytes
+      21% smaller
+    
+    Benchmarks on Rasperry Pi
+    
+    benchmark                       old ns/op    new ns/op    delta
+    BenchmarkHash8Bytes                 11703         6636  -43.30%
+    BenchmarkHash1K                     38057        21881  -42.50%
+    BenchmarkHash8K                    208131       142735  -31.42%
+    BenchmarkHash8BytesUnaligned        11457         6570  -42.66%
+    BenchmarkHash1KUnaligned            69334        26841  -61.29%
+    BenchmarkHash8KUnaligned           455120       182223  -59.96%
+    
+    benchmark                        old MB/s     new MB/s  speedup
+    BenchmarkHash8Bytes                  0.68         1.21    1.78x
+    BenchmarkHash1K                     26.91        46.80    1.74x
+    BenchmarkHash8K                     39.36        57.39    1.46x
+    BenchmarkHash8BytesUnaligned         0.70         1.22    1.74x
+    BenchmarkHash1KUnaligned            14.77        38.15    2.58x
+    BenchmarkHash8KUnaligned            18.00        44.96    2.50x
+    
+    benchmark                      old allocs   new allocs    delta
+    BenchmarkHash8Bytes                     1            0  -100.00%
+    BenchmarkHash1K                         2            0  -100.00%
+    BenchmarkHash8K                         2            0  -100.00%
+    BenchmarkHash8BytesUnaligned            1            0  -100.00%
+    BenchmarkHash1KUnaligned                2            0  -100.00%
+    BenchmarkHash8KUnaligned                2            0  -100.00%
+    
+    benchmark                       old bytes    new bytes    delta
+    BenchmarkHash8Bytes                    64            0  -100.00%
+    BenchmarkHash1K                       128            0  -100.00%
+    BenchmarkHash8K                       128            0  -100.00%
+    BenchmarkHash8BytesUnaligned           64            0  -100.00%
+    BenchmarkHash1KUnaligned              128            0  -100.00%
+    BenchmarkHash8KUnaligned              128            0  -100.00%
+    
+    This also adds another test which makes sure that the sums
+    over larger blocks work properly. I wrote this test when I was
+    worried about memory corruption.
+    
+    R=golang-dev, dave, bradfitz, rsc, ajstarks
+    CC=golang-dev, minux.ma, remyoudompheng
+    https://golang.org/cl/11648043
+
+ src/pkg/crypto/md5/gen.go           |   2 +-
+ src/pkg/crypto/md5/md5_test.go      |  24 +++
+ src/pkg/crypto/md5/md5block.go      |   2 +-
+ src/pkg/crypto/md5/md5block_arm.s   | 297 ++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/md5/md5block_decl.go |   2 +-
+ 5 files changed, 324 insertions(+), 3 deletions(-)

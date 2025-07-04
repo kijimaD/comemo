@@ -1,0 +1,12 @@
+commit 87915b6565acb722d18abfd103cdd5f0133c0f93
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 7 01:20:44 2010 -0800
+
+    runtime: introduce MemStatsType
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/204061
+
+ src/pkg/runtime/extern.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit e41fbc79ccfedc5bf4d07356c20de0731bd9cfd9
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 22 16:02:43 2018 -0400
+
+    runtime: use unsigned load for iscgo variable in ppc64x runtime asm
+    
+    This changes the runtime asm code that loads iscgo to use MOVBZ
+    instead of MOVB, avoiding an unnecessary sign extension. This is most
+    significant in runtime.save_g, reducing the size from 8 to 7
+    instructions.
+    
+    Change-Id: Iaa2121464b5309e1f27fd91b19b5603c7aaf619d
+    Reviewed-on: https://go-review.googlesource.com/c/144217
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/asm_ppc64x.s       | 2 +-
+ src/runtime/sys_linux_ppc64x.s | 2 +-
+ src/runtime/tls_ppc64x.s       | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

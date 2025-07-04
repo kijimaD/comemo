@@ -1,0 +1,14 @@
+commit 01ca4da0efc6036bf22a99593a583c1efc2750c5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 11:02:45 2016 -0500
+
+    doc: mention ServeFile change in go1.6.html
+    
+    Also fix a few bad links.
+    
+    Change-Id: If04cdd312db24a827a3c958a9974c50ab148656c
+    Reviewed-on: https://go-review.googlesource.com/18979
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.6.html | 30 +++++++++++++++++++-----------
+ 1 file changed, 19 insertions(+), 11 deletions(-)

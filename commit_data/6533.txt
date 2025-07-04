@@ -1,0 +1,32 @@
+commit 9c204852682037091e40d5a326707180237451b4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 15 15:18:47 2010 -0400
+
+    6l: function at a time code layout
+    
+    Also change the span-dependent jump algorithm
+    to use fewer iterations:
+    
+    * resolve forward jumps at their targets (comefrom list)
+    * mark jumps as small or big and only do small->big
+    * record whether a jump failed to be encodable
+    
+    These changes mean that a function with only small
+    jumps can be laid out in a single iteration, and the
+    vast majority of functions take just two iterations.
+    I was seeing a maximum of 5 iterations before; the
+    max now is 3 and there are fewer that get even that far.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2537041
+
+ src/cmd/5l/5.out.h |   1 +
+ src/cmd/6l/6.out.h |   1 +
+ src/cmd/6l/asm.c   |  33 +--
+ src/cmd/6l/l.h     |   2 +-
+ src/cmd/6l/span.c  | 578 ++++++++++++++++++++++++++++++++++++-----------------
+ src/cmd/8l/8.out.h |   1 +
+ src/cmd/ld/data.c  |  89 +++++++--
+ src/cmd/ld/lib.h   |   1 +
+ 8 files changed, 473 insertions(+), 233 deletions(-)

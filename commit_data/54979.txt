@@ -1,0 +1,24 @@
+commit 362bf4fc6d3b456429e998582b15a2765e640741
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Nov 10 10:12:48 2023 -0800
+
+    crypto/tls: change default minimum version to 1.2
+    
+    Updates the default from 1.0 -> 1.2 for servers, bringing it in line
+    with clients. Add a GODEBUG setting, tls10server, which lets users
+    revert this change.
+    
+    Fixes #62459
+    
+    Change-Id: I2b82f85b1c2d527df1f9afefae4ab30a8f0ceb41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541516
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ doc/godebug.md                          |  4 ++++
+ src/crypto/tls/common.go                | 23 +++++++++++++----------
+ src/crypto/tls/handshake_server_test.go | 22 ++++++++++++----------
+ src/crypto/tls/tls_test.go              |  2 ++
+ src/internal/godebugs/table.go          |  1 +
+ src/runtime/metrics/doc.go              |  4 ++++
+ 6 files changed, 36 insertions(+), 20 deletions(-)

@@ -1,0 +1,15 @@
+commit 08ce3c313376b6d600c08b977103d6c51350b3f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 18 10:12:28 2013 -0400
+
+    libmach: update for Go 1.2 pcln table
+    
+    The change to addr2line makes it easy to test by hand.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/11485044
+
+ src/cmd/addr2line/main.c |  13 +-
+ src/libmach/sym.c        | 357 +++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 357 insertions(+), 13 deletions(-)

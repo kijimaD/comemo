@@ -1,0 +1,32 @@
+commit e1b305af028544e00a22c905e68049c98c10a1cc
+Author: Ben Hoyt <benhoyt@gmail.com>
+Date:   Wed Nov 4 10:13:42 2020 +1300
+
+    strconv: revert ParseFloat/ParseComplex error on incorrect bitSize
+    
+    This is a partial revert of https://go-review.googlesource.com/c/go/+/248219
+    because we found that a non-trivial amount of code erroneously calls
+    ParseFloat(s, 10) or even ParseFloat(s, 0) and expects it to work --
+    before that change was merged, ParseFloat accepted a bitSize of
+    anything other than 32 or 64 to mean 64 (and ParseComplex was similar).
+    
+    So revert that behavior to avoid breaking people's code, and add tests
+    for this.
+    
+    I may add a vet check to flag ParseFloat(s, not_32_or_64) in a later
+    change.
+    
+    See #42297 for more details.
+    
+    Change-Id: I4bc0156bd74f67a39d5561b6e5fde3f2d20bd622
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267319
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/strconv/atoc.go      |  6 +++---
+ src/strconv/atoc_test.go | 21 +++++++++++++--------
+ src/strconv/atof.go      |  3 ---
+ src/strconv/atof_test.go | 22 ++++++++++++++--------
+ 4 files changed, 30 insertions(+), 22 deletions(-)

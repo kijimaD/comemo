@@ -1,0 +1,23 @@
+commit 1bd974eeb7238f1f8c09e037a86988d1d2b1e33a
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed Nov 6 13:41:56 2019 +0100
+
+    cmd/link/internal/ld: omit bitcode-incompatible flags on iOS simulator
+    
+    The -Wl,-headerpad, -Wl,-no_pie, -Wl,-pagezero_size flags are
+    incompatible with the bitcode-related flags used for iOS.
+    
+    We already omitted the flags on darwin/arm and darwin/arm64; this change
+    omits the flags on all platforms != macOS so that building for the iOS
+    simulator works.
+    
+    Updates #32963
+    
+    Change-Id: Ic9af0daf01608f5ae0f70858e3045e399de7e95b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205340
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

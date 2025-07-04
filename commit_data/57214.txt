@@ -1,0 +1,19 @@
+commit a5d61d75e3d314323d07914ae36daf69c96f0bf8
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Feb 14 19:08:02 2024 -0500
+
+    runtime: deprecate GOROOT
+    
+    Fixes #51473.
+    
+    Change-Id: Ic868790f480b21b472c98b39be797bcffb1fa892
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564142
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/51473.txt                          | 1 +
+ doc/next/6-stdlib/99-minor/runtime/51473.md | 3 +++
+ src/runtime/extern.go                       | 5 +++++
+ 3 files changed, 9 insertions(+)

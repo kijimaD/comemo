@@ -1,0 +1,16 @@
+commit d2d650bdc97e33704bd675a3c495951b1aedc6ed
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 4 08:45:25 2010 -0700
+
+    Use future official DWARF language code for Go.
+    
+    http://dwarfstd.org/ShowIssue.php?issue=101014.1&type=open
+    
+    Informally accepted for future DWARF 5.
+    
+    R=lvd
+    CC=golang-dev, rsc
+    https://golang.org/cl/2881042
+
+ src/cmd/ld/dwarf_defs.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

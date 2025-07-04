@@ -1,0 +1,29 @@
+commit 13cf2473b8b617a3e800a22b810a5a13030d4cb6
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Aug 31 10:00:12 2012 +1000
+
+    exp/html: change a node's children from a slice to a linked list.
+    
+    Also rename Node.{Add,Remove} to Node.{AppendChild,RemoveChild} to
+    be consistent with the DOM.
+    
+    benchmark                      old ns/op    new ns/op    delta
+    BenchmarkParser                  4042040      3749618   -7.23%
+    
+    benchmark                       old MB/s     new MB/s  speedup
+    BenchmarkParser                    19.34        20.85    1.08x
+    
+    BenchmarkParser mallocs per iteration is also:
+    10495 before / 7992 after
+    
+    R=andybalholm, r, adg
+    CC=golang-dev
+    https://golang.org/cl/6495061
+
+ src/pkg/exp/html/node.go        | 107 ++++++++++++++------
+ src/pkg/exp/html/node_test.go   | 146 +++++++++++++++++++++++++++
+ src/pkg/exp/html/parse.go       |  73 +++++++-------
+ src/pkg/exp/html/parse_test.go  |  14 ++-
+ src/pkg/exp/html/render.go      |  10 +-
+ src/pkg/exp/html/render_test.go | 213 ++++++++++++++++++++++++----------------
+ 6 files changed, 398 insertions(+), 165 deletions(-)

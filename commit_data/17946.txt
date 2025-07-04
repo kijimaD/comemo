@@ -1,0 +1,63 @@
+commit c8869e9caf17c0b993b515924b163a6c8286be77
+Author: Alberto García Hierro <alberto@garciahierro.com>
+Date:   Tue Dec 10 16:10:09 2013 +0400
+
+    database/sql: Remove redundant condition in if
+    
+    The final condition (db.maxIdleConnsLocked() > db.freeConn.Len()) can
+    only be true iff db.maxIdleConnsLocked() is greater than 0, so previously
+    checking if it's greater than 0 is a waste, specially when that involves
+    a method call which (ATM) can't be inlined and includes a switch.
+    
+    Dissasembly follows (test for err == nil has been omitted for clarity):
+    
+    Before:
+    43c357: cmp    $0x0,%bl
+    43c35a: jne    43c3ce <database/sql.(*DB).putConnDBLocked+0x1ce>
+    43c35c: mov    %rax,(%rsp)
+    43c360: callq  43aec0 <database/sql.(*DB).maxIdleConnsLocked>
+    43c365: mov    0x8(%rsp),%rbx
+    43c36a: cmp    $0x0,%rbx
+    43c36e: jle    43c3ce <database/sql.(*DB).putConnDBLocked+0x1ce>
+    43c370: mov    0x30(%rsp),%rbx
+    43c375: mov    %rbx,(%rsp)
+    43c379: callq  43aec0 <database/sql.(*DB).maxIdleConnsLocked>
+    43c37e: mov    0x30(%rsp),%rdx
+    43c383: mov    0x8(%rsp),%rcx
+    43c388: mov    0x28(%rdx),%rbp
+    43c38c: mov    0x28(%rbp),%rbx
+    43c390: cmp    %rcx,%rbx
+    43c393: jge    43c3ce <database/sql.(*DB).putConnDBLocked+0x1ce>
+    43c395: mov    0x28(%rdx),%rbp
+    43c399: mov    %rbp,(%rsp)
+    43c39d: mov    0x38(%rsp),%rcx
+    43c3a2: mov    $0x556c60,%eax
+    43c3a7: mov    %rax,0x8(%rsp)
+    43c3ac: mov    %rcx,0x10(%rsp)
+    43c3b1: callq  4db5b0 <container/list.(*List).PushFront>
+    
+    After:
+    43c357: cmp    $0x0,%bl
+    43c35a: jne    43c3b5 <database/sql.(*DB).putConnDBLocked+0x1b5>
+    43c35c: mov    %rax,(%rsp)
+    43c360: callq  43aec0 <database/sql.(*DB).maxIdleConnsLocked>
+    43c365: mov    0x30(%rsp),%rdx
+    43c36a: mov    0x8(%rsp),%rcx
+    43c36f: mov    0x28(%rdx),%rbp
+    43c373: mov    0x28(%rbp),%rbx
+    43c377: cmp    %rcx,%rbx
+    43c37a: jge    43c3b5 <database/sql.(*DB).putConnDBLocked+0x1b5>
+    43c37c: mov    0x28(%rdx),%rbp
+    43c380: mov    %rbp,(%rsp)
+    43c384: mov    0x38(%rsp),%rcx
+    43c389: mov    $0x556c60,%eax
+    43c38e: mov    %rax,0x8(%rsp)
+    43c393: mov    %rcx,0x10(%rsp)
+    43c398: callq  4db590 <container/list.(*List).PushFront>
+    
+    R=golang-dev, bradfitz, iant
+    CC=golang-dev
+    https://golang.org/cl/14656044
+
+ src/pkg/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

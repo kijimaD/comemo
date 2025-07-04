@@ -1,0 +1,15 @@
+commit 2f3ff1fcdfd93ef596760532a3b47f1c6fb292f0
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Apr 8 12:49:22 2024 -0400
+
+    go/types: update package doc
+    
+    It wasn't DocLink compatible in a number of ways.
+    
+    Change-Id: Ib7ab9a908ef47561ac70cdc0c157d49dcfd03a02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577375
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go/types/api.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

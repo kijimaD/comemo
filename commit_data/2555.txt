@@ -1,0 +1,15 @@
+commit 79b2cf92d98d46abeb0fbf223addc30d914056dc
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 30 16:20:31 2009 -0700
+
+    pass the state to the encoders and decoders so error handling can be centralized.
+    
+    R=rsc
+    DELTA=172  (40 added, 6 deleted, 126 changed)
+    OCL=30941
+    CL=30944
+
+ src/pkg/gob/codec_test.go |  42 +++++++++------
+ src/pkg/gob/decode.go     |  42 ++++++++++-----
+ src/pkg/gob/encode.go     | 130 +++++++++++++++++++++++++---------------------
+ 3 files changed, 124 insertions(+), 90 deletions(-)

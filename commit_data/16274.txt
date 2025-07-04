@@ -1,0 +1,16 @@
+commit 9e93d5014e6a2e0ef9daf89489c7b12531fc95f3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 6 17:25:09 2013 -0700
+
+    api: add go1.1.txt; update cmd/api to use it
+    
+    R=golang-dev, adg, r
+    CC=golang-dev
+    https://golang.org/cl/9250043
+
+ api/go1.1.txt        | 1773 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt         | 1767 -------------------------------------------------
+ src/cmd/api/goapi.go |    9 +-
+ src/run.bash         |    2 +-
+ src/run.bat          |    2 +-
+ 5 files changed, 1780 insertions(+), 1773 deletions(-)

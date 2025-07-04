@@ -1,0 +1,15 @@
+commit 9554e67188f222c8cf45b7521c8e5830881e4aff
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 11 09:54:31 2011 -0800
+
+    http: fix transport crash when request URL is nil
+    
+    Fixes #1602
+    
+    R=rsc, petar-m
+    CC=golang-dev
+    https://golang.org/cl/4284043
+
+ src/pkg/http/transport.go      |  5 +++++
+ src/pkg/http/transport_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+)

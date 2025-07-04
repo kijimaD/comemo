@@ -1,0 +1,15 @@
+commit c6e8993e79653402b2aa1c3546920d0020b6d032
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 11 10:32:32 2013 -0700
+
+    net/http/httputil: remove hop-by-hop headers in ReverseProxy
+    
+    Fixes #2735
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7470048
+
+ src/pkg/net/http/httputil/reverseproxy.go      | 36 ++++++++++++++++++++------
+ src/pkg/net/http/httputil/reverseproxy_test.go |  4 +++
+ 2 files changed, 32 insertions(+), 8 deletions(-)

@@ -1,0 +1,21 @@
+commit 7cb98c1da1d38447a272c50b2a33634ebb845aa4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jan 19 19:25:04 2024 +0000
+
+    cmd/trace/v2: emit user log annotations in all views
+    
+    This was an oversight in porting over cmd/trace to the new trace format
+    and API.
+    
+    Fixes #65153.
+    
+    Change-Id: I883d302f95956fcc9abb60aa53165acb6d099d67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557175
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/trace/v2/gen.go          | 35 +++++++++++++++++++++++++++++++++++
+ src/cmd/trace/v2/goroutinegen.go |  5 ++++-
+ src/cmd/trace/v2/procgen.go      |  5 ++++-
+ src/cmd/trace/v2/threadgen.go    |  5 ++++-
+ 4 files changed, 47 insertions(+), 3 deletions(-)

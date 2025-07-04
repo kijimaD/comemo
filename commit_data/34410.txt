@@ -1,0 +1,34 @@
+commit c9438cb198c420648743108b6495aa4c7775f453
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Tue Feb 27 01:59:58 2018 +0100
+
+    test: add support for code generation tests (asmcheck)
+    
+    The top-level test harness is modified to support a new kind
+    of test: "asmcheck". This is meant to replace asm_test.go
+    as an easier and more readable way to test code generation.
+    
+    I've added a couple of codegen tests to get initial feedback
+    on the syntax. I've created them under a common "codegen"
+    subdirectory, so that it's easier to run them all with
+    "go run run.go -v codegen".
+    
+    The asmcheck syntax allows to insert line comments that
+    can specify a regular expression to match in the assembly code,
+    for multiple architectures (the testsuite will automatically
+    build each testfile multiple times, one per mentioned architecture).
+    
+    Negative matches are unsupported for now, so this cannot fully
+    replace asm_test yet.
+    
+    Change-Id: Ifdbba389f01d55e63e73c99e5f5449e642101d55
+    Reviewed-on: https://go-review.googlesource.com/97355
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ test/codegen/bits.go   |  10 ++++
+ test/codegen/rotate.go |  25 ++++++++++
+ test/run.go            | 126 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 160 insertions(+), 1 deletion(-)

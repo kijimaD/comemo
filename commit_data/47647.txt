@@ -1,0 +1,51 @@
+commit 931d80ec17374e52dbc5f9f63120f8deb80b355d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 25 16:02:07 2021 -0400
+
+    cmd/go: adjust BuildInfo.Settings
+    
+    Make Settings more closely align with command-line flags
+    and environment variables.
+    
+    - Change command-line flags to begin with -
+    
+    - Change syntax of build lines to use Key=Value instead of Key<tab>Value.
+    
+    - Change CGO_ENABLED to 0/1, matching environment variable,
+      instead of false/true.
+    
+    - Add GOOS and GOARCH.
+      These are technically redundant, in that they can be extracted
+      from the binary in other ways most of the time, but not always:
+      GOOS=ios and GOOS=darwin may produce binaries that are
+      difficult to tell apart. In any case, it's a lot easier to have them
+      directly in the settings list than derive them from other parts
+      of the binary.
+    
+    - Add GOEXPERIMENT.
+      These could be inferred from the tags list, but the experiments
+      are being removed from the tags list.
+    
+    - Change the tags list to match the -tags command-line argument.
+    
+    - Add msan and race, echoing the -msan and -race arguments
+      (always 'true' when present, omitted when false).
+    
+    - Add GO$GOARCH when set.
+    
+    Change-Id: Icb59ef4faa5c22407eadd94147b7e53cf4344ce6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358539
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/cfg/cfg.go                     |  4 +-
+ src/cmd/go/internal/load/pkg.go                    | 53 ++++++++++++++++------
+ src/cmd/go/internal/work/init.go                   |  2 +-
+ .../go/testdata/script/version_build_settings.txt  | 28 +++++++-----
+ .../go/testdata/script/version_buildvcs_git.txt    | 27 +++++------
+ src/cmd/go/testdata/script/version_buildvcs_hg.txt | 16 +++----
+ src/debug/buildinfo/buildinfo_test.go              |  4 +-
+ src/runtime/debug/mod.go                           | 24 ++++++----
+ 8 files changed, 97 insertions(+), 61 deletions(-)

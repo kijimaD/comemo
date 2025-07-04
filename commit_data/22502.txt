@@ -1,0 +1,17 @@
+commit 130e3f9a324a51b62c63a772fd0a73e79693c8ab
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 8 20:13:36 2015 +0900
+
+    net/internal/socktest: add hook for Listen, failed system call counters
+    
+    Change-Id: Icaac9a48a3b9a3c5542235162e21ab8303592965
+    Reviewed-on: https://go-review.googlesource.com/8641
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/internal/socktest/switch.go       | 27 +++++++++++---
+ src/net/internal/socktest/switch_posix.go | 58 +++++++++++++++++++++++++++++++
+ src/net/internal/socktest/switch_stub.go  |  6 ++++
+ src/net/internal/socktest/sys_cloexec.go  |  5 +--
+ src/net/internal/socktest/sys_unix.go     | 56 +++++++++++++++++++++++------
+ src/net/internal/socktest/sys_windows.go  | 49 +++++++++++++++++++++-----
+ 6 files changed, 176 insertions(+), 25 deletions(-)

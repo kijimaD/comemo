@@ -1,0 +1,27 @@
+commit e49e8764553bf510b5d9f6fb38aeec0850ec6672
+Author: Keith Randall <khr@golang.org>
+Date:   Fri May 6 18:40:17 2022 -0700
+
+    runtime: process ptr bitmaps one word at a time
+    
+    [This is a retry of CL 407036 + its revert CL 422394. The only
+    content change is the 1-line change in cmd/internal/obj/objfile.go.]
+    
+    Read the bitmaps one uintptr at a time instead of one byte at a time.
+    
+    Performance so far:
+     Allocation heavy, no retention: ~30% faster in heapBitsSetType
+     Scan heavy, ~no allocation: ~even in scanobject
+    
+    Change-Id: I04d899e1dbd23e989e9f552cdc1880318779c14c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422635
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go |  6 +-
+ src/cmd/internal/obj/objfile.go                 |  1 -
+ src/reflect/type.go                             | 19 ++++--
+ src/runtime/mbitmap.go                          | 83 +++++++++++++++++++++----
+ 4 files changed, 91 insertions(+), 18 deletions(-)

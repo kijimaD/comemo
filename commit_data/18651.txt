@@ -1,0 +1,20 @@
+commit d97d37188a7e58250b2a655dc86dbf644637d034
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 25 14:43:53 2014 -0800
+
+    5g, 8g: remove dead code
+    
+    maxstksize is superfluous and appears to be vestigial. 6g does not use it.
+    
+    c >= 4 cannot occur; c = w % 4.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/68750043
+
+ src/cmd/5g/gg.h   |  1 -
+ src/cmd/5g/ggen.c |  5 +----
+ src/cmd/8g/gg.h   |  1 -
+ src/cmd/8g/ggen.c | 10 +---------
+ 4 files changed, 2 insertions(+), 15 deletions(-)

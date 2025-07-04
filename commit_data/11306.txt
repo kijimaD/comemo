@@ -1,0 +1,14 @@
+commit c4b16a3864102b45cc50188cee416133c165a460
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Fri Jan 20 23:35:18 2012 -0500
+
+    compress/flate: make lazy matching work.
+    
+    R=rsc, imkrasin
+    CC=golang-dev
+    https://golang.org/cl/5554066
+
+ src/pkg/compress/flate/deflate.go                  |   38 +-
+ src/pkg/compress/flate/deflate_test.go             |   44 +-
+ .../compress/testdata/Mark.Twain-Tom.Sawyer.txt    | 8858 ++++++++++++++++++++
+ 3 files changed, 8916 insertions(+), 24 deletions(-)

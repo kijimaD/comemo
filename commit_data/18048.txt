@@ -1,0 +1,17 @@
+commit 33580e8305da21fced5d86c16cb64c71e33d09ef
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Wed Dec 18 10:17:38 2013 -0800
+
+    misc/notepadplus: Fix Function List in Notepad++ 6.5
+    
+    Since version 6.5, npp change the Function List syntax for User Defined Languages.
+    We need use userDefinedLangName syntax in association tag in Notepad++ 6.5.
+    
+    Fix issue 6735.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/22770043
+
+ misc/notepadplus/functionList.xml | 7 +++++++
+ 1 file changed, 7 insertions(+)

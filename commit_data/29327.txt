@@ -1,0 +1,20 @@
+commit 827f2accc1a25b77003303d3c35db5fc054bf8f1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 3 00:44:16 2016 +0000
+
+    net/http: update bundled http2 to fix test flake
+    
+    Updates http2 to x/net/http2 git rev 569280fa for:
+    
+       http2: fix over-aggressive ignoring of frames while in "go away" mode
+       https://golang.org/cl/32583
+    
+    Fixes #17733
+    
+    Change-Id: I4008d2e14ce89782ce7e18b441b1181f98623b9d
+    Reviewed-on: https://go-review.googlesource.com/32584
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/net/http/h2_bundle.go | 13 ++-----------
+ 1 file changed, 2 insertions(+), 11 deletions(-)

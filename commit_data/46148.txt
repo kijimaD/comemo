@@ -1,0 +1,19 @@
+commit c2f96e686fe9383711d23aea95a34a280fdd0e49
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 24 10:21:16 2021 -0700
+
+    cmd/compile: mark ODYNAMICDOTTYPE as an expression that can panic
+    
+    Fixes #47924
+    
+    Change-Id: I4325b3c4ed9d369d9ea778478285436e1b2ab08a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344571
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/walk/walk.go |  2 +-
+ test/typeparam/issue47924.go          | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

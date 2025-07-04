@@ -1,0 +1,19 @@
+commit 481fe5901232583340159415f3f5c83af28c1fa4
+Author: Todd Neal <todd@tneal.org>
+Date:   Mon Mar 7 18:43:05 2016 -0600
+
+    cmd/compile: fix load combining from a non-zero pointer offset
+    
+    When the pointer offset is non-zero in the small loads, we need to add the offset
+    when converting to the larger load.
+    
+    Fixes #14694
+    
+    Change-Id: I5ba8bcb3b9ce26c7fae0c4951500b9ef0fed54cd
+    Reviewed-on: https://go-review.googlesource.com/20333
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go | 35 +++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules      |  6 ++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go      | 21 ++++++++++----
+ 3 files changed, 53 insertions(+), 9 deletions(-)

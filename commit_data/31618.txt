@@ -1,0 +1,26 @@
+commit 4dcba023c62d7f7968abc54fa5d38d2bf11412ba
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 18 16:56:48 2017 -0400
+
+    runtime: use pselect6 for usleep on linux/amd64 and linux/arm
+    
+    Android O black-lists the select system call because its libc, Bionic,
+    does not use this system call. Replace our use of select with pselect6
+    (which is allowed) on the platforms that support targeting Android.
+    linux/arm64 already uses pselect6 because there is no select on arm64,
+    so only linux/amd64 and linux/arm need changing. pselect6 has been
+    available since Linux 2.6.16, which is before Go's minimum
+    requirement.
+    
+    Fixes #20409.
+    
+    Change-Id: Ic526b5b259a9e01d2f145a1f4d2e76e8c49ce809
+    Reviewed-on: https://go-review.googlesource.com/43641
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_linux_amd64.s | 9 ++++++---
+ src/runtime/sys_linux_arm.s   | 7 +++++--
+ 2 files changed, 11 insertions(+), 5 deletions(-)

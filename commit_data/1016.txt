@@ -1,0 +1,13 @@
+commit 00dc6e9678fe300c966ac360beb0f7f4e756584e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 31 10:52:59 2008 -0700
+
+    - fixed another test (arithmetic vs. logic shift bug)
+    
+    R=r
+    OCL=18235
+    CL=18237
+
+ usr/gri/bignum/bignum.go      | 35 ++++++++++++++++++++++++++---------
+ usr/gri/bignum/bignum_test.go |  8 ++++----
+ 2 files changed, 30 insertions(+), 13 deletions(-)

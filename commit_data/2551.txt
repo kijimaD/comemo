@@ -1,0 +1,15 @@
+commit df36629d760ed339e96489b1fe6dcbd9667e9a56
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 17:21:33 2009 -0700
+
+    bug041 not a bug.
+    can now forward declare across files
+    
+    R=r
+    DELTA=15  (0 added, 15 deleted, 0 changed)
+    OCL=30873
+    CL=30880
+
+ test/fixedbugs/bug041.go | 16 ----------------
+ test/golden.out          |  3 ---
+ 2 files changed, 19 deletions(-)

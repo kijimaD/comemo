@@ -1,0 +1,20 @@
+commit e4a50ce97af2d9bb41d5f5af8561a17486274e1e
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Jun 20 11:35:20 2018 +0530
+
+    cmd/go: remove inadvertent comment for vgo
+    
+    This change was introduced while adding the dark copy
+    of golang.org/x/vgo in CL 118095.
+    
+    While the comment made sense in a separate vgo repo, when it is
+    merged with the main repo, this should not remain.
+    
+    Found while running mkalldocs.sh in CL 119695.
+    
+    Change-Id: I112a4629c415032bd29e165ac1c27a0f3cabeede
+    Reviewed-on: https://go-review.googlesource.com/119938
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/help/help.go | 4 ----
+ 1 file changed, 4 deletions(-)

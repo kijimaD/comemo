@@ -1,0 +1,18 @@
+commit 536b1f2e982218bef3175a0e4d3816fe4408f31c
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 23 17:13:34 2008 -0700
+
+    add reflect to build, clean up test
+    
+    R=rsc
+    DELTA=341  (188 added, 151 deleted, 2 changed)
+    OCL=17678
+    CL=17750
+
+ src/lib/clean.bash        |   2 +-
+ src/lib/make.bash         |   2 +-
+ src/lib/reflect/main.go   | 155 ----------------------------------------
+ src/lib/reflect/test.bash |  12 ++++
+ src/lib/reflect/test.go   | 177 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/run.bash              |   6 ++
+ 6 files changed, 197 insertions(+), 157 deletions(-)

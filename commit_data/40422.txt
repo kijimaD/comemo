@@ -1,0 +1,18 @@
+commit 8bb47a5eecf57b88c1b9cc088a21ae869c6a6764
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 25 14:07:10 2019 -0400
+
+    net/http: skip failing test on windows-amd64-longtest builder
+    
+    bradfitz is actively thinking about a proper fix.
+    In the meantime, skip the test to suss out any other failures in the builder.
+    
+    Updates #35122
+    
+    Change-Id: I9bf0640222e3d385c1a3e2be5ab52b80d3e8c21a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203500
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

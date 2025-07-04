@@ -1,0 +1,16 @@
+commit 94979c31771afb33c29e3fa85c0f7ab32d77c36d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 11 16:17:25 2008 -0700
+
+    - added 2 bugs
+    - moved bug 060 back into bugs
+    
+    R=r
+    OCL=15175
+    CL=15175
+
+ test/{fixedbugs => bugs}/bug060.go |  0
+ test/bugs/bug094.go                | 31 +++++++++++++++++++++++++++
+ test/bugs/bug095.go                | 43 ++++++++++++++++++++++++++++++++++++++
+ test/golden.out                    | 23 ++++++++++++++++----
+ 4 files changed, 93 insertions(+), 4 deletions(-)

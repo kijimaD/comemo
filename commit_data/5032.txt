@@ -1,0 +1,22 @@
+commit 35aec6c7f7740f5544dfff31744b74a38dd459f2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 10 15:22:22 2010 -0800
+
+    godoc: provide mode which shows exported interface in "source form"
+    - on the commandline: godoc -x big
+    - in a webpage: provide form parameter ?m=src
+    
+    Known issues:
+    - Positioning of comments incorrect in several cases. Separate CL.
+    - Need a link/menu to switch between different modes of presentation
+      in the web view.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/376041
+
+ lib/godoc/package.html |  5 +++++
+ lib/godoc/package.txt  |  3 +++
+ src/cmd/godoc/godoc.go | 36 ++++++++++++++++++++++++------------
+ src/cmd/godoc/main.go  |  9 +++++----
+ 4 files changed, 37 insertions(+), 16 deletions(-)

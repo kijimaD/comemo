@@ -1,0 +1,12 @@
+commit 8c8ab0552c2f211cee79d6df89e38ff59cdc1649
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 30 01:52:50 2012 +0900
+
+    net: fix comment on FileListener
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6242067
+
+ src/pkg/net/file.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

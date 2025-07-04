@@ -1,0 +1,18 @@
+commit ec8ed5bd026a79d661cc9f9c42dc044fd1c440ad
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 17 16:19:55 2022 +0700
+
+    runtime: convert solaris netpollWakeSig to atomic type
+    
+    Updates #53821
+    
+    Change-Id: Ic2799c125267dc5b13b265db41fbe8bf7c08b8a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423878
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/netpoll_solaris.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

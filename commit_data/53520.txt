@@ -1,0 +1,27 @@
+commit fafa4091abb4ed6de6ff4daef67ef1cf9db40923
+Author: chenguoqi <chenguoqi@loongson.cn>
+Date:   Thu Jun 8 14:04:26 2023 +0800
+
+    syscall: implement Ptrace{Set,Get}Regs using PTRACE_{GET,SET}REGSET on all linux platforms
+    
+    In the ptrace system call, most of the newer architectures (e.g. arm64,riscv64,loong64)
+    do not provide support for the command PTRACE_{GET, SET}REGS.
+    
+    The Linux kernel 2.6.33-rc7[1] introduces support for the command PTRACE_{GET,SET}REGSET,
+    which exports different types of register sets depending on the NT_* types, completely
+    overriding the functionality provided by PTRACE_{GET,SET}REGS.
+    
+    [1] https://lore.kernel.org/all/20100211195614.886724710@sbs-t61.sc.intel.com/
+    
+    Fixes #60679.
+    
+    Change-Id: I8c2671d64a7ecd654834740f4f1e1e50c00edcae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501756
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/syscall_linux.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

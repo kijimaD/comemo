@@ -1,0 +1,14 @@
+commit 2924638d2631bf30f490e30ed120c4089c716b71
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Fri Mar 15 09:02:36 2013 +0100
+
+    runtime: replace lock() with casp() in the GC
+    
+    Note: BitTarget will be removed by a forthcoming changeset.
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev, rsc
+    https://golang.org/cl/7837044
+
+ src/pkg/runtime/mgc0.c | 60 ++++++++++++++++++++++++--------------------------
+ 1 file changed, 29 insertions(+), 31 deletions(-)

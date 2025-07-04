@@ -1,0 +1,28 @@
+commit 2beb173e9858c966a1db351883cfdccc8cdca583
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 30 15:28:11 2017 -0400
+
+    all: respect $GO_GCFLAGS during run.bash
+    
+    If the go install doesn't use the same flags as the main build
+    it can overwrite the installed standard library, leading to
+    flakiness and slow future tests.
+    
+    Force uses of 'go install' etc to propagate $GO_GCFLAGS
+    or disable them entirely, to avoid problems.
+    
+    As I understand it, the main place this happens is the ssacheck builder.
+    If there are other uses that need to run some of the now-disabled
+    tests we can reenable fixed tests in followup CLs.
+    
+    Change-Id: Ib860a253539f402f8a96a3c00ec34f0bbf137c9a
+    Reviewed-on: https://go-review.googlesource.com/74470
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/test.go                 |  7 ++++++-
+ src/cmd/go/go_test.go                |  7 +++++++
+ src/cmd/internal/goobj/goobj_test.go |  2 +-
+ src/internal/testenv/testenv.go      | 10 ++++++++++
+ src/runtime/crash_test.go            |  4 ++--
+ test/run.go                          | 20 ++++++++++++++------
+ 6 files changed, 40 insertions(+), 10 deletions(-)

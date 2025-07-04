@@ -1,0 +1,12 @@
+commit b7949035d67e7d9a016ccb8744c36f19c63e34f3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jan 26 09:50:15 2011 +1100
+
+    runtime: fix windows build
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/4052046
+
+ src/pkg/runtime/windows/thread.c | 2 --
+ 1 file changed, 2 deletions(-)

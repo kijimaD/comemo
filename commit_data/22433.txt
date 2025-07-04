@@ -1,0 +1,16 @@
+commit d765e41c62e41f27c4e7408abed197cfaeac0a9c
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sat Apr 11 14:04:17 2015 +1200
+
+    cmd/internal/ld: make a few more symbols local
+    
+    The symbols for the actual data in a constant string or bytes literal should
+    be local.
+    
+    Change-Id: Idafcfba9a638eaa4e460e5103d96843960559b35
+    Reviewed-on: https://go-review.googlesource.com/8772
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/symtab.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

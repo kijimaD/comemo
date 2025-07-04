@@ -1,0 +1,30 @@
+commit 6378c0e753b75089611c8ca973b6e1777cf5aff8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 8 16:29:00 2022 -0500
+
+    go/build: avoid setting Default.GOROOT when runtime.GOROOT() is empty
+    
+    Previously, we called path.Clean on the value of runtime.GOROOT() even
+    if it was empty, which would set it explicitly to ".".
+    That would cause (*Context).importGo to assume that errors resolving
+    paths in GOROOT are fatal and return early:
+    https://cs.opensource.google/go/go/+/master:src/go/build/build.go;l=1121-1127;drc=38174b3a3514629b84dcd76878b2f536b189dd7b
+    
+    If we instead leave it empty (and are in module mode), then importGo
+    will fall back to letting the 'go' command resolve the path, which may
+    succeed if the 'go' command can infer the correct GOROOT (from its own
+    stamped-in default GOROOT or executable path).
+    
+    Fixes #51483
+    
+    Change-Id: I44dce7cec6c3d1c86670e629ddfbca8be461130c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391805
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ .../go/testdata/script/build_trimpath_goroot.txt   |  4 +--
+ src/go/build/build.go                              | 37 +++++++++++++---------
+ src/go/build/build_test.go                         | 10 ++----
+ 3 files changed, 27 insertions(+), 24 deletions(-)

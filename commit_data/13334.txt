@@ -1,0 +1,15 @@
+commit 9115a8bca4d10be0aa4b7ae754dc24988867c4a9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 13 10:33:02 2012 +1000
+
+    doc/install: mention GOPATH and point to code.html
+    
+    Fixes #3469.
+    
+    R=golang-dev, kevlar, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/6304049
+
+ doc/install-source.html |  6 ++++++
+ doc/install.html        | 10 ++++++----
+ 2 files changed, 12 insertions(+), 4 deletions(-)

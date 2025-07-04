@@ -1,0 +1,15 @@
+commit 997a94294f1fb90148785c27b6270ac7a31e4394
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 4 13:27:05 2008 -0700
+
+    - import/export cleanup: added comments, removed dead code, re-org structure
+    
+    R=r
+    OCL=13816
+    CL=13816
+
+ usr/gri/gosrc/export.go  | 151 ++++++++++++++++++++++----------------------
+ usr/gri/gosrc/globals.go |  14 +----
+ usr/gri/gosrc/import.go  | 158 +++++++++++++++++++++++------------------------
+ usr/gri/gosrc/parser.go  |  12 ++--
+ 4 files changed, 163 insertions(+), 172 deletions(-)

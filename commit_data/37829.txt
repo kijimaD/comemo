@@ -1,0 +1,19 @@
+commit 0d6a2d5f9a0cd3c7111f38abd12a2255363bbd51
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 21 16:06:54 2018 -0800
+
+    runtime: skip writes to persistent memory in cgo checker
+    
+    Fixes #23899
+    Fixes #28458
+    
+    Change-Id: Ie177f2d4c399445d8d5e1a327f2419c7866cb45e
+    Reviewed-on: https://go-review.googlesource.com/c/155697
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ misc/cgo/errors/ptr_test.go | 33 ++++++++++++++++++++-------------
+ src/runtime/cgocheck.go     |  7 +++++++
+ src/runtime/malloc.go       | 40 ++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 63 insertions(+), 17 deletions(-)

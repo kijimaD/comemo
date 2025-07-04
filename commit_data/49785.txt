@@ -1,0 +1,24 @@
+commit dcf354512a25c1aea3d20efb7c8e3977e70479b6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Aug 9 10:18:51 2022 +0200
+
+    syscall: wrap fstatat only once on linux/{arm64,riscv64}
+    
+    Currently the linux/arm64 and linux/riscv64 ports wrap the fstatat
+    syscall twice, once in func fstatat and once in func Fstatat. Change the
+    latter to be a simple wrapper around the former to deduplicate some
+    code.
+    
+    Change-Id: I82ec9374e2bcfe116eabf01f021eed1ee810ec15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412934
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/syscall/syscall_linux_arm64.go    | 10 +++++++---
+ src/syscall/syscall_linux_riscv64.go  | 10 +++++++---
+ src/syscall/zsyscall_linux_arm64.go   | 15 ---------------
+ src/syscall/zsyscall_linux_riscv64.go | 15 ---------------
+ 4 files changed, 14 insertions(+), 36 deletions(-)

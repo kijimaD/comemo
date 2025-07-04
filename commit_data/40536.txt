@@ -1,0 +1,27 @@
+commit dc39be8b858ab0ef49ff7d87f3d4c5cb93403f1a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 31 22:46:27 2019 -0700
+
+    runtime: use atomic.Cas to change timerRemoved to timerWaiting
+    
+    If multiple goroutines call time.(*Timer).Reset then the timer will go
+    from timerWaiting to timerDeleted to timerModifying to timerModifiedLater.
+    The timer can be on a different P, meaning that simultaneously cleantimers
+    could change it from timerDeleted to timerRemoving to timerRemoved.
+    If Reset sees timerRemoved, it was doing an atomic.Store of timerWaiting,
+    meaning that it did not necessarily see the other values set in the timer,
+    so the timer could appear to be in an inconsistent state. Use atomic.Cas
+    to avoid that possibility.
+    
+    Updates #6239
+    Updates #27707
+    Fixes #35272
+    
+    Change-Id: I1d59a13dc4f2ff4af110fc6e032c8c9d59cfc270
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204717
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/time.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

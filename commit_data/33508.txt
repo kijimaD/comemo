@@ -1,0 +1,17 @@
+commit 2f62fe60d666465e030a6ef222ff79d52a4a0844
+Author: Aman Gupta <aman@tmm1.net>
+Date:   Thu Nov 9 22:19:49 2017 -0800
+
+    net: mark condFatalf as a test helper
+    
+    Fixes unintended consequence of CL 76393
+    
+    Change-Id: I7e4644a0bc6a8b37eb41196687d9661f902ba183
+    Reviewed-on: https://go-review.googlesource.com/76890
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/net/platform_test.go  |  5 +++--
+ src/net/protoconn_test.go | 10 +++++-----
+ 2 files changed, 8 insertions(+), 7 deletions(-)

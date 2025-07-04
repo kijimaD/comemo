@@ -1,0 +1,18 @@
+commit 466547014769bbdf7d5a62ca1019bf52d809dfcd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 21:38:16 2019 -0700
+
+    runtime: add new cleantimers function
+    
+    Also add a skeleton of the runOneTimer function.
+    
+    Updates #27707
+    
+    Change-Id: Ic6a0279354a57295f823093704b7e152ce5d769d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171835
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/time.go | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 52 insertions(+), 3 deletions(-)

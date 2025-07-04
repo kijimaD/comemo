@@ -1,0 +1,13 @@
+commit 8c9e838f7bb06d7c3e8f411b43e5c9e4b73222ee
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 26 10:24:57 2014 +1100
+
+    doc/gopher: add README
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/79890046
+
+ doc/gopher/README | 4 ++++
+ 1 file changed, 4 insertions(+)

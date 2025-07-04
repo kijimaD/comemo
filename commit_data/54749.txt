@@ -1,0 +1,38 @@
+commit d57303e65f00b84b528ee682747dbe1fd3316d30
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sat Oct 14 21:09:16 2023 +0800
+
+    math: add available godoc link
+    
+    Change-Id: I4a6c2ef6fd21355952ab7d8eaad883646a95d364
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535087
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/math/big/doc.go        | 18 ++++-----
+ src/math/big/float.go      | 98 +++++++++++++++++++++++-----------------------
+ src/math/big/floatconv.go  |  6 +--
+ src/math/big/floatmarsh.go | 12 +++---
+ src/math/big/ftoa.go       |  4 +-
+ src/math/big/int.go        | 30 +++++++-------
+ src/math/big/intconv.go    |  4 +-
+ src/math/big/intmarsh.go   | 12 +++---
+ src/math/big/rat.go        |  8 ++--
+ src/math/big/ratmarsh.go   |  8 ++--
+ src/math/bits/bits.go      | 10 ++---
+ src/math/cmplx/pow.go      |  2 +-
+ src/math/erfinv.go         |  2 +-
+ src/math/exp.go            |  2 +-
+ src/math/expm1.go          |  2 +-
+ src/math/hypot.go          |  2 +-
+ src/math/ldexp.go          |  2 +-
+ src/math/lgamma.go         |  2 +-
+ src/math/log10.go          |  4 +-
+ src/math/log1p.go          |  2 +-
+ src/math/rand/exp.go       |  2 +-
+ src/math/rand/normal.go    |  2 +-
+ src/math/rand/rand.go      | 54 ++++++++++++-------------
+ src/math/rand/zipf.go      |  6 +--
+ 24 files changed, 147 insertions(+), 147 deletions(-)

@@ -1,0 +1,24 @@
+commit d97b8a817bbc0c4a40ca9f567e5e0d7c227f1fd6
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Wed May 4 20:52:55 2011 -0700
+
+    image/tiff: implement a decoder.
+    
+    The current iteration can decode 8-bit images in
+    grayscale, paletted, RGB, RGBA and NRGBA mode. LZW compression
+    is implemented but does not work on my test images.
+    Deflate (i.e. zlib) compression with or without a horizontal
+    predictor is supported.
+    
+    R=nigeltao, nigeltao_gnome
+    CC=golang-dev, mpl
+    https://golang.org/cl/4240051
+
+ src/pkg/Makefile                  |   1 +
+ src/pkg/image/decode_test.go      |   5 +-
+ src/pkg/image/tiff/Makefile       |  13 ++
+ src/pkg/image/tiff/buffer.go      |  57 ++++++
+ src/pkg/image/tiff/buffer_test.go |  36 ++++
+ src/pkg/image/tiff/consts.go      | 102 ++++++++++
+ src/pkg/image/tiff/reader.go      | 385 ++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 597 insertions(+), 2 deletions(-)

@@ -1,0 +1,24 @@
+commit ab5d2bf92f04ea56c560536e03787a9a111eac25
+Author: David Chase <drchase@google.com>
+Date:   Wed Dec 30 19:47:36 2015 -0500
+
+    cmd/compile: suppress export of Note field within exported bodies
+    
+    Added a format option to inhibit output of .Note field in
+    printing, and enabled that option during export.
+    Added test.
+    
+    Fixes #13777.
+    
+    Change-Id: I739f9785eb040f2fecbeb96d5a9ceb8c1ca0f772
+    Reviewed-on: https://go-review.googlesource.com/18217
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/export.go   |  2 +-
+ src/cmd/compile/internal/gc/fmt.go      | 29 ++++++++++++++++++++---------
+ src/cmd/internal/obj/fmt.go             |  1 +
+ test/fixedbugs/issue13777.dir/burnin.go | 19 +++++++++++++++++++
+ test/fixedbugs/issue13777.dir/main.go   | 11 +++++++++++
+ test/fixedbugs/issue13777.go            |  7 +++++++
+ 6 files changed, 59 insertions(+), 10 deletions(-)

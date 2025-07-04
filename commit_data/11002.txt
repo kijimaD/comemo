@@ -1,0 +1,24 @@
+commit cadbd3ea4986a43eebb1be3cacdce346513d537f
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Dec 23 18:21:26 2011 +0100
+
+    exp/norm: fixed two unrelated bugs in normalization library.
+    1) incorrect length given for out buffer in String.
+    2) patchTail bug that could cause characters to be lost
+       when crossing into the out-buffer boundary.
+    
+    Added tests to expose these bugs.  Also slightly improved
+    performance of Bytes() and String() by sharing the reorderBuffer
+    across operations.
+    
+    Fixes #2567.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5502069
+
+ src/pkg/exp/norm/input.go          |  8 +++---
+ src/pkg/exp/norm/normalize.go      | 53 ++++++++++++++++++++++----------------
+ src/pkg/exp/norm/normalize_test.go | 17 +++++++++++-
+ src/pkg/exp/norm/readwriter.go     |  4 +--
+ 4 files changed, 52 insertions(+), 30 deletions(-)

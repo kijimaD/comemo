@@ -1,0 +1,23 @@
+commit 978ce7e252b0d6ff0a19f66206ed5f3eca281059
+Author: Changkun Ou <hi@changkun.de>
+Date:   Mon Sep 27 11:37:56 2021 +0200
+
+    testing: reject calls to Run within Cleanup callbacks
+    
+    Calling t.Run inside t.Cleanup can mess up the execution order of
+    registered Cleanup callbacks. Reject calls to Run within Cleanup
+    callbacks.
+    
+    Fixes #48515
+    
+    Change-Id: I61e4cb35253db1a8bbe3351d59055433030aa289
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352349
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Run-TryBot: Changkun Ou <mail@changkun.de>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/testing/panic_test.go | 17 +++++++++++++++++
+ src/testing/testing.go    | 20 ++++++++++++++------
+ 2 files changed, 31 insertions(+), 6 deletions(-)

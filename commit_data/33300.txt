@@ -1,0 +1,21 @@
+commit 84e91e1d6b2fed3e19d69194067cc2797f503b95
+Author: Mark Theunissen <mark.theunissen@gmail.com>
+Date:   Tue Jul 25 12:47:39 2017 +0200
+
+    net/url: preserve leading slashes when resolving path
+    
+    When doing resolvePath, if there are multiple leading slashes in the
+    target, preserve them. This prevents an issue where the Go http.Client
+    cleans up multiple leading slashes in the Location header in a
+    redirect, resulting in a redirection to the incorrect target.
+    
+    Fixes #21158.
+    
+    Change-Id: I6a21ea61ca3bc7033f3c8a6ccc21ecaa3e996fa8
+    Reviewed-on: https://go-review.googlesource.com/51050
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/net/url/url.go      | 2 +-
+ src/net/url/url_test.go | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

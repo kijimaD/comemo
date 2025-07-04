@@ -1,0 +1,32 @@
+commit 5dde69fd404cb6d0de89b0109a7f7b03e44c26f7
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 17 17:56:27 2023 +0000
+
+    internal/trace/v2: redefine NoTask and add BackgroundTask
+    
+    The v2 trace parser currently handles task inheritance and region task
+    association incorrectly. It assumes that a TaskID of 0 means that there
+    is no task. However, this is only true for task events. A TaskID of 0
+    means that a region gets assigned to the "background task." The parser
+    currently has no concept of a "background task."
+    
+    Fix this by defining the background task as task ID 0 and redefining
+    NoTask to ^uint64(0). This aligns the TaskID values more closely with
+    other IDs in the parser and also enables disambiguating these two cases.
+    
+    For #60773.
+    For #63960.
+    
+    Change-Id: I09c8217b33b87c8f8f8ea3b0203ed83fd3b61e11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543019
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/trace/goroutinesv2.go                             |  4 +---
+ src/internal/trace/v2/event.go                                 | 10 ++++++++--
+ src/internal/trace/v2/order.go                                 |  7 +++++++
+ .../v2/testdata/generators/go122-task-across-generations.go    |  2 +-
+ src/internal/trace/v2/testtrace/validation.go                  |  7 ++++++-
+ src/internal/trace/v2/trace_test.go                            |  2 +-
+ 6 files changed, 24 insertions(+), 8 deletions(-)

@@ -1,0 +1,17 @@
+commit c526cf8c1ea535de6a30fc8c553c377bda4d6781
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 21 15:56:08 2021 -0700
+
+    cmd/compile/internal/types2: range clause to accept type sets with single underlying types
+    
+    This generalizes range clauses. Removed some dead code and cleaned
+    up the surrounding bits.
+    
+    Change-Id: Icd8384205afa3f52b7e7df9abed5de2bb556861d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357778
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/stmt.go            | 70 +++++++++-------------
+ .../internal/types2/testdata/check/typeparams.go2  | 12 ++--
+ 2 files changed, 35 insertions(+), 47 deletions(-)

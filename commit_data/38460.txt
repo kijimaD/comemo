@@ -1,0 +1,19 @@
+commit b3cfb0b3228ada12eaea404784739f51e1671652
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 27 15:45:18 2019 +0100
+
+    os/user: allow build on aix/ppc64 with cgo
+    
+    This commit adds C support for os/user package for aix/ppc64.
+    
+    Updates #30563
+    
+    Change-Id: Id07646998a7243b1335b85b5d4fe5bc4114e2a88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164039
+    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/user/listgroups_aix.go | 13 +++++++++++++
+ src/os/user/user_test.go      |  3 +++
+ 2 files changed, 16 insertions(+)

@@ -1,0 +1,17 @@
+commit de10a23db14106588b608d724510849c4e5f278a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Nov 1 22:56:04 2012 +0400
+
+    cmd/gc: racewalk: fix a bunch of minor issues
+    1. Prepend racefuncenter() to fn->enter -- fn->enter can contain new() calls,
+    and we want them to be in the scope of the function.
+    2. Dump fn->enter and fn->exit.
+    3. Add TODO that OTYPESW expression can contain interesting memory accesses.
+    4. Ignore only _ names instead of all names starting with _.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6822048
+
+ src/cmd/gc/racewalk.c | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

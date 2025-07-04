@@ -1,0 +1,15 @@
+commit f3d3328988a547cd21bcd398b7155ec390b642d3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 4 14:19:08 2015 -0800
+
+    math/big: move "bits" operations used for Float tests into separate file
+    
+    This is a pure code move without any semantic change.
+    
+    Change-Id: I2c18efc858955d07949b1241e793232f2cf1deb9
+    Reviewed-on: https://go-review.googlesource.com/6821
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/bits_test.go  | 207 +++++++++++++++++++++++++++++++++++++++++++++
+ src/math/big/float_test.go | 197 ------------------------------------------
+ 2 files changed, 207 insertions(+), 197 deletions(-)

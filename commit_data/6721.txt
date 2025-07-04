@@ -1,0 +1,13 @@
+commit 5df5d3276d11e01b07d092609f1d8c5f1dfed598
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 5 14:01:52 2010 -0400
+
+    A+C: Keith Rarick (individual CLA)
+    
+    R=r, r2
+    CC=golang-dev, kr
+    https://golang.org/cl/2894042
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

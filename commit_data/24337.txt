@@ -1,0 +1,20 @@
+commit 980cb0caf258b468eca903df85c44224f3e7e5c5
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 21 14:18:13 2015 -0700
+
+    cmd/asm: fix crash triggered by nested #define
+    
+    A panic was in place for an impossible condition that turned
+    out to be possible if one used a macro to define a macro.
+    
+    Another go-fuzz "win".
+    
+    Fixes #12654.
+    
+    Change-Id: I0a7bb0f0eabb260c986bf7a2288860c78d8db1af
+    Reviewed-on: https://go-review.googlesource.com/14777
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/asm/internal/lex/lex_test.go | 29 +++++++++++++++++++++++++++++
+ src/cmd/asm/internal/lex/slice.go    | 12 ++++++++++--
+ 2 files changed, 39 insertions(+), 2 deletions(-)

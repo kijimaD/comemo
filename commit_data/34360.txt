@@ -1,0 +1,15 @@
+commit 85caeafb8c0d4c6926d67ce2939470780fab1a04
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 25 15:24:08 2018 -0800
+
+    unsafe: fix reference to string header
+    
+    Fixes #24115
+    
+    Change-Id: I89d3d5a9c0916fd2e21fe5930549c4129de8ab48
+    Reviewed-on: https://go-review.googlesource.com/96983
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/unsafe/unsafe.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

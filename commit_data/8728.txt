@@ -1,0 +1,12 @@
+commit 414da2e4a3806a33c1a245ce7a4b6403461e5c30
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Jun 15 11:50:21 2011 +1000
+
+    syscall: mksyscall_windows.pl should output unix newline.
+    
+    R=golang-dev, bradfitz, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/4601058
+
+ src/pkg/syscall/mksyscall_windows.pl | 2 ++
+ 1 file changed, 2 insertions(+)

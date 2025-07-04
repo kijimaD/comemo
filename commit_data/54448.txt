@@ -1,0 +1,23 @@
+commit bfa8a8586f6ba62265c31d4edc2027f5b15f7ed3
+Author: doujiang24 <doujiang24@gmail.com>
+Date:   Wed Sep 13 09:44:19 2023 +0000
+
+    runtime: silently allow pinning of non-Go pointers in runtime.Pinner.Pin
+    
+    People may not know the details of a pointer, this makes the
+    runtime.Pinner.Pin API easier to use.
+    
+    Fixes #62356
+    
+    Change-Id: I071df44e01320648a6df5e2a1e65afd6ea52e274
+    GitHub-Last-Rev: 560a581b63c6e7fe6c8829437e7ab3acd3b31514
+    GitHub-Pull-Request: golang/go#62549
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527156
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/runtime/pinner.go      | 29 ++++++++++++++++-------------
+ src/runtime/pinner_test.go | 16 ++++++++++++++++
+ 2 files changed, 32 insertions(+), 13 deletions(-)

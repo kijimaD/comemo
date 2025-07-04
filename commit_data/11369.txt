@@ -1,0 +1,13 @@
+commit 03ea8b1c811007bb0c33effb782628e290f914a4
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 24 16:36:40 2012 -0800
+
+    doc/go1: add more info about hash and net changes, delete reference to html
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5570060
+
+ doc/go1.html | 39 ++++++++++++++++++++++++++++-----------
+ doc/go1.tmpl | 39 ++++++++++++++++++++++++++++-----------
+ 2 files changed, 56 insertions(+), 22 deletions(-)

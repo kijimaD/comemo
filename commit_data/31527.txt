@@ -1,0 +1,24 @@
+commit 9fda4df9a0d3ef2dd0dc649e174992bc2d2f8db2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 9 08:22:43 2017 -0700
+
+    cmd/compile: make "imported and not used" errors deterministic
+    
+    If there were more unused imports than
+    the maximum default number of errors to report,
+    the set of reported imports was non-deterministic.
+    
+    Fix by accumulating and sorting them prior to output.
+    
+    Fixes #20298
+    
+    Change-Id: Ib3d5a15fd7dc40009523fcdc1b93ddc62a1b05f2
+    Reviewed-on: https://go-review.googlesource.com/42954
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 31 +++++++++++++++++++++----------
+ src/go/types/stdlib_test.go         | 15 +++++++++++++--
+ test/fixedbugs/issue20298.go        | 32 ++++++++++++++++++++++++++++++++
+ 3 files changed, 66 insertions(+), 12 deletions(-)

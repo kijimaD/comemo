@@ -1,0 +1,16 @@
+commit 61049394326c9c7424747801c136312ab72d0e07
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 19 10:56:59 2018 -0800
+
+    runtime: pass dummy argc/argv correctly in r0_386_android_lib
+    
+    Fix breakage introduced in CL 70530.
+    
+    Change-Id: I87f3da6b20554d4f405a1143b0d894c5953b63aa
+    Reviewed-on: https://go-review.googlesource.com/88516
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/rt0_android_386.s | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

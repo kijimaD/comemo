@@ -1,0 +1,17 @@
+commit 25a609556aff7700c864f2dc69be01652fd801ab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 28 17:23:01 2016 -0700
+
+    runtime: correct printing of blocked field in scheduler trace
+    
+    When the blocked field was first introduced back in
+    https://golang.org/cl/61250043 the scheduler trace code incorrectly used
+    m->blocked instead of mp->blocked.  That has carried through the
+    conversion to Go.  This CL fixes it.
+    
+    Change-Id: Id81907b625221895aa5c85b9853f7c185efd8f4b
+    Reviewed-on: https://go-review.googlesource.com/24571
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

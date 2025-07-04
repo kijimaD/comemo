@@ -1,0 +1,28 @@
+commit 96eeb4512bd045a2c247f6ebcce46b7e443206e7
+Author: Michał Matczuk <mmatczuk@gmail.com>
+Date:   Thu Nov 9 09:43:26 2023 +0000
+
+    net/http: use copyBufPool in transferWriter.doBodyCopy()
+    
+    This is a followup to CL 14177. It applies copyBufPool optimization to
+    transferWriter.doBodyCopy(). The function is used every time Request or
+    Response is written.
+    
+    Without this patch for every Request and Response processed, if there is
+    a body, we need to allocate and GC a 32k buffer. This is quickly causing
+    GC pressure.
+    
+    Fixes #57202
+    
+    Change-Id: I4c30e1737726ac8d9937846106efd02effbae300
+    GitHub-Last-Rev: 908573cdbe2e8b6f91ce026cf8632ff5f2c41110
+    GitHub-Pull-Request: golang/go#57205
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456435
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+
+ src/net/http/transfer.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

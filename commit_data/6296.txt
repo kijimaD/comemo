@@ -1,0 +1,12 @@
+commit d19fcd078496c3824295a73a911dd868737a9ff6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 16 15:50:46 2010 -0400
+
+    gc: spell debug['u'] correctly
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2214042
+
+ src/cmd/gc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

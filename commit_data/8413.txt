@@ -1,0 +1,14 @@
+commit ff1093852faa2515751880bb98763858f613df97
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 16 15:17:17 2011 -0700
+
+    GIF: support decoding of interlaced images.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4535073
+
+ src/pkg/image/decode_test.go                    |   1 +
+ src/pkg/image/gif/reader.go                     |  47 +++++++++++++++++++++---
+ src/pkg/image/testdata/video-001.interlaced.gif | Bin 0 -> 14142 bytes
+ 3 files changed, 43 insertions(+), 5 deletions(-)

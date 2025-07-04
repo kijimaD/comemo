@@ -1,0 +1,17 @@
+commit 2a0e15d36cf3aaf2c549a6da212319f537dcf89d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 21:46:41 2011 -0400
+
+    gc: add error type
+    
+    R=ken
+    CC=golang-dev
+    https://golang.org/cl/5331043
+
+ src/cmd/gc/export.c  |  3 +--
+ src/cmd/gc/fmt.c     |  3 +++
+ src/cmd/gc/go.h      |  1 +
+ src/cmd/gc/lex.c     | 38 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/reflect.c | 14 +++++++++++++-
+ src/cmd/gc/subr.c    |  2 +-
+ 6 files changed, 57 insertions(+), 4 deletions(-)

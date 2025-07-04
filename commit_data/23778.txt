@@ -1,0 +1,15 @@
+commit 1c890076699a6c63eaf1c19985dbe891ce7314a7
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Tue Jun 23 23:18:35 2015 +0200
+
+    strconv: add examples to package
+    
+    Change-Id: I69a2b6a99a53c875162be8a7d86455559cd74504
+    Reviewed-on: https://go-review.googlesource.com/11371
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/strconv/atof.go               |   2 -
+ src/strconv/doc.go                |  57 +++++++
+ src/strconv/example_test.go       | 338 ++++++++++++++++++++++++++++++++++++++
+ src/strconv/quote_example_test.go |  35 ----
+ 4 files changed, 395 insertions(+), 37 deletions(-)

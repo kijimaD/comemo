@@ -1,0 +1,14 @@
+commit 29f18d7983d9ae3752a36cf22f4c83601f6da9ea
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 8 14:50:24 2016 -0700
+
+    cmd/compile: fix bug in oconv
+    
+    Introduced by https://go-review.googlesource.com/#/c/28331/ .
+    
+    Change-Id: Id75aed6410f06b302d5347f6ca6a2e19c61f6fb6
+    Reviewed-on: https://go-review.googlesource.com/28779
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 5ccee1199e11b830ae32772d5ebc7b35e356b7f3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:14:16 2022 -0500
+
+    cmd/internal/obj: use testenv.Command instead of exec.Command in tests
+    
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
+    
+    Change-Id: Ica1a9985f9abb1935434367c9c8ba28fc50f331d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450699
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/internal/obj/arm64/asm_arm64_test.go |  9 ++++-----
+ src/cmd/internal/obj/objfile_test.go         |  5 ++---
+ src/cmd/internal/obj/ppc64/asm_test.go       |  9 ++++-----
+ src/cmd/internal/obj/riscv/asm_test.go       | 13 ++++++-------
+ src/cmd/internal/obj/x86/obj6_test.go        |  3 +--
+ src/cmd/internal/obj/x86/pcrelative_test.go  |  5 ++---
+ 6 files changed, 19 insertions(+), 25 deletions(-)

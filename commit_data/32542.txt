@@ -1,0 +1,12 @@
+commit ec04f107adb14b2095b827deae160a5f36e362a2
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Aug 29 17:28:15 2017 +0900
+
+    cmd/cgo: update documentation on implementation details
+    
+    Change-Id: Iec771d5bbdf510b6c5ec17a614da90e7974a6348
+    Reviewed-on: https://go-review.googlesource.com/59870
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/doc.go | 99 ++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 66 insertions(+), 33 deletions(-)

@@ -1,0 +1,21 @@
+commit 596bb76248dd7844ba3bebcdeab9a7c42ef5855a
+Author: David Chase <drchase@google.com>
+Date:   Wed May 27 17:33:46 2015 -0400
+
+    cmd/compile: reject p-notation floats in Go source files
+    
+    Use pkgimport == nil (or not) to distinguish between
+    parsing .go source files where "p" exponent specifier
+    is not allowed and parsing .a or .o export data where
+    it is.  Use that to control error when p-exponent is
+    seen.
+    
+    Fixes #9036
+    
+    Change-Id: I8924f09c91d4945ef3f20e80a6e544008a94a7e4
+    Reviewed-on: https://go-review.googlesource.com/10450
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go |  7 ++++++-
+ test/fixedbugs/issue9036.go        | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)

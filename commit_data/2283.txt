@@ -1,0 +1,13 @@
+commit 54b0065777996589c210a1e99e81f354aa29b599
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 22 09:53:37 2009 -0700
+
+    another interface conversion test
+    
+    R=r
+    DELTA=21  (21 added, 0 deleted, 0 changed)
+    OCL=29212
+    CL=29249
+
+ test/interface/convert2.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

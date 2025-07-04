@@ -1,0 +1,16 @@
+commit 7fbd8c75c6c57e713069a3a405e5cde26cfae090
+Author: lihaowei <haoweili35@gmail.com>
+Date:   Fri Aug 14 10:35:46 2020 +0000
+
+    all: fix spelling mistakes
+    
+    Change-Id: I7d512281d8442d306594b57b5deaecd132b5ea9e
+    GitHub-Last-Rev: 251e1d6857516b21fd71f654133f81f23ffec654
+    GitHub-Pull-Request: golang/go#40793
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248441
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/bufio/bufio.go     | 2 +-
+ src/net/http/client.go | 2 +-
+ src/runtime/mheap.go   | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,53 @@
+commit 69972aea74de6a0397a05281475d1ca006da7bb0
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Apr 3 22:38:09 2017 +0200
+
+    internal/cpu: new package to detect cpu features
+    
+    Implements detection of x86 cpu features that
+    are used in the go standard library.
+    
+    Changes all standard library packages to use the new cpu package
+    instead of using runtime internal variables to check x86 cpu features.
+    
+    Updates: #15403
+    
+    Change-Id: I2999a10cb4d9ec4863ffbed72f4e021a1dbc4bb9
+    Reviewed-on: https://go-review.googlesource.com/41476
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/bytes_amd64.go               |  12 ++--
+ src/cmd/dist/deps.go                   | 123 +++++++++++++++++----------------
+ src/cmd/vet/all/whitelist/amd64.txt    |   4 --
+ src/crypto/sha1/sha1block_amd64.go     |   8 +--
+ src/crypto/sha1/sha1block_amd64.s      |  17 -----
+ src/crypto/sha256/sha256block_amd64.go |   9 +++
+ src/crypto/sha256/sha256block_amd64.s  |   5 +-
+ src/crypto/sha512/sha512block_amd64.go |   9 ++-
+ src/crypto/sha512/sha512block_amd64.s  |  13 ----
+ src/go/build/deps_test.go              |   4 +-
+ src/hash/crc32/crc32_amd64.go          |  30 ++++----
+ src/hash/crc32/crc32_amd64.s           |  30 --------
+ src/hash/crc32/crc32_amd64p32.go       |  14 ++--
+ src/hash/crc32/crc32_amd64p32.s        |  11 ---
+ src/internal/cpu/cpu.go                |  32 +++++++++
+ src/internal/cpu/cpu_arm.go            |   7 ++
+ src/internal/cpu/cpu_arm64.go          |   7 ++
+ src/internal/cpu/cpu_mips.go           |   7 ++
+ src/internal/cpu/cpu_mips64.go         |   7 ++
+ src/internal/cpu/cpu_mips64le.go       |   7 ++
+ src/internal/cpu/cpu_mipsle.go         |   7 ++
+ src/internal/cpu/cpu_ppc64.go          |   7 ++
+ src/internal/cpu/cpu_ppc64le.go        |   7 ++
+ src/internal/cpu/cpu_s390x.go          |   7 ++
+ src/internal/cpu/cpu_test.go           |  27 ++++++++
+ src/internal/cpu/cpu_x86.go            |  59 ++++++++++++++++
+ src/internal/cpu/cpu_x86.s             |  32 +++++++++
+ src/math/floor_amd64.s                 |  15 +---
+ src/math/floor_asm.go                  |   5 +-
+ src/runtime/asm_amd64.s                |  21 ------
+ src/strings/strings_amd64.go           |  12 ++--
+ 31 files changed, 329 insertions(+), 226 deletions(-)

@@ -1,0 +1,28 @@
+commit 9701d078c62393bfb424de7171895f85b01da4e3
+Author: Maya Rashish <maya@NetBSD.org>
+Date:   Wed Aug 2 08:32:07 2023 +0000
+
+    crypto/rand, internal/syscall/unix: use simpler random seed on NetBSD
+    
+    sysctl kern.arandom has been supported since NetBSD 4.0, works inside a
+    chroot, has no confusing bells and whistles like Linux getrandom,
+    requires no complicated querying to avoid SIGSYS traps, and is what
+    NetBSD 10 will usee for the getentropy(3) library routine soon to
+    appear in POSIX.
+    
+    Change-Id: I23bd84ecd5ff3e33e8958c60896db842c44667ba
+    GitHub-Last-Rev: 5db094c85ae14bbd9f80247d46d90e00061187cc
+    GitHub-Pull-Request: golang/go#61441
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511036
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/crypto/rand/rand_getentropy.go             |  2 +-
+ src/crypto/rand/rand_getrandom.go              |  4 +-
+ src/internal/syscall/unix/getentropy_netbsd.go | 38 +++++++++++++++++
+ src/internal/syscall/unix/getrandom_netbsd.go  | 56 --------------------------
+ 4 files changed, 41 insertions(+), 59 deletions(-)

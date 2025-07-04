@@ -1,0 +1,41 @@
+commit 9eb383e8f0be692df68ac6cbc3c9f1ccf991d342
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Dec 8 16:45:29 2018 +0100
+
+    runtime,os,syscall,internal/poll: replace getdirentries on iOS
+    
+    The getdirentries syscall is considered private API on iOS and is
+    rejected by the App Store submission checks. Replace it with the
+    fdopendir/readdir_r/closedir syscalls.
+    
+    Fixes #28984
+    
+    Change-Id: I73341b124310e9cb34834a95f946769f337ec5b7
+    Reviewed-on: https://go-review.googlesource.com/c/153338
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/internal/poll/fd_opendir_ios.go  | 35 +++++++++++++++
+ src/os/dir_ios.go                    | 87 ++++++++++++++++++++++++++++++++++++
+ src/os/dir_unix.go                   | 36 ++++-----------
+ src/os/file_unix.go                  | 38 +++++++++++++---
+ src/runtime/sys_darwin_32.go         | 11 +++++
+ src/runtime/sys_darwin_386.s         |  5 +++
+ src/runtime/sys_darwin_64.go         | 11 +++++
+ src/runtime/sys_darwin_amd64.s       |  5 +++
+ src/runtime/sys_darwin_arm.s         | 23 ++++++++++
+ src/runtime/sys_darwin_arm64.s       | 28 ++++++++++++
+ src/syscall/dirent_bsd_test.go       |  2 +-
+ src/syscall/syscall_darwin.go        |  1 -
+ src/syscall/syscall_darwin_386.go    |  1 +
+ src/syscall/syscall_darwin_amd64.go  |  1 +
+ src/syscall/syscall_darwin_arm.go    | 21 +++++++++
+ src/syscall/syscall_darwin_arm64.go  | 21 +++++++++
+ src/syscall/zsyscall_darwin_386.go   | 42 ++++++++---------
+ src/syscall/zsyscall_darwin_386.s    |  4 +-
+ src/syscall/zsyscall_darwin_amd64.go | 42 ++++++++---------
+ src/syscall/zsyscall_darwin_amd64.s  |  4 +-
+ src/syscall/zsyscall_darwin_arm.go   | 47 ++++++++++---------
+ src/syscall/zsyscall_darwin_arm.s    |  8 +++-
+ src/syscall/zsyscall_darwin_arm64.go | 47 ++++++++++---------
+ src/syscall/zsyscall_darwin_arm64.s  |  8 +++-
+ 24 files changed, 400 insertions(+), 128 deletions(-)

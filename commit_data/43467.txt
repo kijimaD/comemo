@@ -1,0 +1,35 @@
+commit d05e89a8fd35bb543df6a29faea81a85565db92f
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Oct 22 18:20:00 2020 -0400
+
+    cmd/go: refactor modload.InitMod
+    
+    InitMod is split into two functions. LoadModFile parses an existing
+    go.mod file and loads the build list (or checks vendor/modules.txt for
+    consistency in vendor mode). CreateModFile creates a new go.mod file,
+    possibly inferring the module path and importing a vendor
+    configuration file.
+    
+    Some logic is moved from runInit to CreateModFile. init-specific logic
+    is removed from other functions.
+    
+    This CL shouldn't cause substantial differences in behavior, though
+    some error messages are slightly different.
+    
+    For #41712
+    
+    Change-Id: Ia684945cfcf5beca30bbb81e7144fc246c4f27ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264621
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/list/list.go             |   2 +-
+ src/cmd/go/internal/modcmd/download.go       |   2 +-
+ src/cmd/go/internal/modcmd/init.go           |  17 +---
+ src/cmd/go/internal/modload/buildlist.go     |   2 +-
+ src/cmd/go/internal/modload/init.go          | 116 +++++++++++++++------------
+ src/cmd/go/internal/modload/load.go          |   4 +-
+ src/cmd/go/testdata/script/mod_init_path.txt |   2 +-
+ 7 files changed, 73 insertions(+), 72 deletions(-)

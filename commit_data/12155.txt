@@ -1,0 +1,18 @@
+commit ebae73bb24c7d4473055353ece1a82b0370f069f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 22 21:46:12 2012 -0500
+
+    pprof: add Profile type
+    
+    Makes it possible for client code to maintain its own profiles,
+    and also reduces the API surface by giving us a type that
+    models built-in profiles.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5684056
+
+ src/pkg/net/http/pprof/pprof.go          |  81 +++--
+ src/pkg/runtime/pprof/pprof.go           | 504 +++++++++++++++++++++++++++----
+ src/pkg/text/tabwriter/tabwriter_test.go |   3 +-
+ 3 files changed, 508 insertions(+), 80 deletions(-)

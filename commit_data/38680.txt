@@ -1,0 +1,17 @@
+commit ef38e21eb58abe9c37b52bf5cabc115bb3dd3ebc
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Apr 7 20:29:24 2019 +0200
+
+    net: pass TMPDIR to test client process
+    
+    Fixes the TestSplice test on Android where the default
+    TMPDIR (/data/local/tmp) might not be available.
+    
+    Change-Id: I4f104d11254ba855b1bd2dfa0547d69b7bce4878
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170947
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/splice_test.go | 1 +
+ 1 file changed, 1 insertion(+)

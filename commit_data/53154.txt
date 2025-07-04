@@ -1,0 +1,33 @@
+commit 94a948d1b114982ddfa3f38a40442c166f52fa32
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu May 18 14:21:05 2023 +0000
+
+    runtime: make trace.lock not reentrant
+    
+    Currently trace.lock is reentrant in a few cases. AFAICT, this was
+    necessary a long time ago when the trace reader would goparkunlock, and
+    might flush a trace buffer while parking the goroutine. Today, that's no
+    longer true, since that always happens without the trace.lock held.
+    
+    However, traceReadCPU does still rely on this behavior, since it could
+    get called either with trace.lock held, or without it held. The silver
+    lining here is that it doesn't *need* trace.lock to be held, so the
+    trace reader can just drop the lock to call traceReadCPU (this is
+    probably also nice for letting other goroutines flush while the trace
+    reader is reading from the CPU log).
+    
+    Stress-tested with
+    
+    $ stress ./trace.test -test.run="TestTraceCPUProfile|TestTraceStress|TestTraceStressStartStop"
+    ...
+    
+    42m0s: 24520 runs so far, 0 failures
+    
+    Change-Id: I2016292c17fe7384050fcc0c446f5797c4e46437
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496296
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/trace.go | 43 ++++++++++++-------------------------------
+ 1 file changed, 12 insertions(+), 31 deletions(-)

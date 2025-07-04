@@ -1,0 +1,25 @@
+commit 2ade8ae325e6410f9696f431e6c50479216e63ae
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 9 10:20:50 2021 -0500
+
+    go/types: rename is_X predicates back to isX (step 2 of 2)
+    
+    This is a port of CL 361134 to go/types.
+    
+    Change-Id: Ibac4365a85561b32a90b0118d48aa9302f227b2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362554
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/builtins.go    | 12 ++++++------
+ src/go/types/check.go       |  2 +-
+ src/go/types/conversions.go | 12 ++++++------
+ src/go/types/expr.go        | 36 ++++++++++++++++++------------------
+ src/go/types/index.go       |  6 +++---
+ src/go/types/predicates.go  | 24 ++++++++++++------------
+ src/go/types/sizes.go       |  2 +-
+ src/go/types/stmt.go        |  2 +-
+ src/go/types/typexpr.go     |  2 +-
+ 9 files changed, 49 insertions(+), 49 deletions(-)

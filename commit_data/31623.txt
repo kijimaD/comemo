@@ -1,0 +1,19 @@
+commit 2d20ded584cc840bf35054b2a5f840fdefb12767
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 19 19:03:35 2017 +0900
+
+    net: add test for RawConn.Control on Windows
+    
+    This is a followup to https://go-review.googlesource.com/37039.
+    
+    Updates #19435.
+    
+    Change-Id: Ia795bd5158d26effa56e897698208ccf73f9e0d2
+    Reviewed-on: https://go-review.googlesource.com/43693
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/rawconn.go                                |  7 +++--
+ src/net/{rawconn_test.go => rawconn_unix_test.go} |  0
+ src/net/rawconn_windows_test.go                   | 36 +++++++++++++++++++++++
+ 3 files changed, 41 insertions(+), 2 deletions(-)

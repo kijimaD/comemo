@@ -1,0 +1,16 @@
+commit 862fde81fc015720741fcb4ba9593bcc511f9aaf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Feb 14 10:28:40 2017 -0800
+
+    cmd/compile/internal/gc: document (*state).checkgoto
+    
+    No behavior change.
+    
+    Change-Id: I595c15ee976adf21bdbabdf24edf203c9e446185
+    Reviewed-on: https://go-review.googlesource.com/36958
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 105 +++++++++++++++++++++++--------------
+ 1 file changed, 66 insertions(+), 39 deletions(-)

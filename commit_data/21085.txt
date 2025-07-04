@@ -1,0 +1,23 @@
+commit 131758183f7dc2610af489da3a7fcc4d30c6bc48
+Author: Carlos Castillo <cookieo9@gmail.com>
+Date:   Mon Dec 8 07:28:40 2014 -0800
+
+    go/build: add variable expansion to cgo lines
+    
+    When go parses #cgo lines, expand ${SRCDIR} into the path to the
+    source directory. This allows options to be passed to the
+    compiler and linker that involve file paths relative to the
+    source code directory. Without the expansion the paths would be
+    invalid when the current working directory changes.
+    
+    Fixes #7891
+    Fixes #5428
+    
+    Change-Id: I343a145a9771a5ccbaa958e4a1ecd1716fcae52d
+    Reviewed-on: https://go-review.googlesource.com/1756
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/doc.go         | 12 ++++++++++++
+ src/go/build/build.go      | 12 +++++++++++-
+ src/go/build/build_test.go | 30 ++++++++++++++++++++++++++++++
+ 3 files changed, 53 insertions(+), 1 deletion(-)

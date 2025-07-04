@@ -1,0 +1,14 @@
+commit 2917ab204933d345c3fd5ed7ce5a1c4fb46ce043
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 24 12:34:06 2015 +0200
+
+    net/http: document that FormValue returns the empty string
+    
+    Fixes #8137
+    
+    Change-Id: Icd94bbe430a3ef333248425449b5fc678edb0343
+    Reviewed-on: https://go-review.googlesource.com/11410
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/request.go | 2 ++
+ 1 file changed, 2 insertions(+)

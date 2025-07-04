@@ -1,0 +1,20 @@
+commit 83df4a590bbd259b82db37e0c6e721ddc267614b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Feb 1 03:51:02 2021 +1100
+
+    runtime: switch openbsd/arm locking to libc
+    
+    Switch openbsd/arm to locking via libc, rather than performing direct
+    system calls.
+    
+    Update #36435
+    
+    Change-Id: I190abb1aa544d2cb406fe412960ec106c9716f87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315791
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/os_openbsd_syscall1.go |  4 +--
+ src/runtime/sys_openbsd1.go        |  4 +--
+ src/runtime/sys_openbsd_arm.s      | 67 ++++++++++++++++++++------------------
+ 3 files changed, 39 insertions(+), 36 deletions(-)

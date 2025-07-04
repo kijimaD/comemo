@@ -1,0 +1,23 @@
+commit 199ec4235000a51518802ce822447df5901c7df5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 4 14:08:05 2021 -0700
+
+    debug/gosym: use sort.Search in findFunc
+    
+    Use sort.Search instead of open-coding the binary search.
+    This makes the code a lot easier to work on.
+    
+    As a bonus, it speeds it up.
+    
+    name            old time/op    new time/op    delta
+    115/LineToPC-8    57.4µs ± 5%    59.2µs ± 8%   +3.19%  (p=0.003 n=15+13)
+    115/PCToLine-8     255ns ± 1%     192ns ± 3%  -24.63%  (p=0.000 n=15+15)
+    
+    Change-Id: I41da18bfb0e745c40d24e5b96e50dfdd0c3b79f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353879
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/debug/gosym/pclntab.go | 23 ++++++-----------------
+ 1 file changed, 6 insertions(+), 17 deletions(-)

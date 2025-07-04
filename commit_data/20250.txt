@@ -1,0 +1,16 @@
+commit 60447c2d951fbaf5fcd16a773d11905abae9478f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Sep 2 20:03:48 2014 +0400
+
+    runtime: convert clearpools/registerPoolCleanup to Go
+    
+    LGTM=bradfitz, rsc
+    R=golang-codereviews, bradfitz, rsc
+    CC=golang-codereviews, khr
+    https://golang.org/cl/133240043
+
+ src/pkg/runtime/mgc0.c   | 33 ---------------------------------
+ src/pkg/runtime/mgc0.go  | 29 +++++++++++++++++++++++++++++
+ src/pkg/runtime/stubs.go |  1 -
+ src/pkg/runtime/thunk.s  |  3 +++
+ 4 files changed, 32 insertions(+), 34 deletions(-)

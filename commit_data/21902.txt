@@ -1,0 +1,14 @@
+commit 5e49bfec92e04ca9eda715c8d61690ba5b47b9bf
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Mar 4 17:29:44 2015 -0500
+
+    net: fix darwin/amd64 build
+    
+    Accidental semantics change in 4c6364a87d4a.
+    
+    Change-Id: I0bbfc441662d79af4dbac6f9fc4e3a485adfb924
+    Reviewed-on: https://go-review.googlesource.com/6831
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/net/server_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

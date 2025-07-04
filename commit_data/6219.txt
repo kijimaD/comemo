@@ -1,0 +1,14 @@
+commit f5089ffff41fe374f46fa0cbe058b4a9db91257c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Sep 10 15:39:45 2010 +1000
+
+    syscall: fix windows Gettimeofday
+    
+    Fixes #1092.
+    
+    R=golang-dev, r2
+    CC=golang-dev
+    https://golang.org/cl/2121048
+
+ src/pkg/syscall/syscall_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

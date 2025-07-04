@@ -1,0 +1,19 @@
+commit e8636a64a2dd0f7c2821d97d5331d7a34e959ad5
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 13 11:00:11 2012 +1100
+
+    godoc: change link styles, add 'pop out' button
+    
+    Remove underlines from all links, show underline on link hover.
+    Change all non-link headings to h4, a slight visual cue.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5783088
+
+ doc/docs.html      |  13 +++++--------
+ doc/reference.html |   2 +-
+ doc/root.html      |  17 +++++++++--------
+ doc/share.png      | Bin 0 -> 2993 bytes
+ doc/style.css      |  20 +++++++++-----------
+ 5 files changed, 24 insertions(+), 28 deletions(-)

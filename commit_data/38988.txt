@@ -1,0 +1,19 @@
+commit 43b9fcf6fe9feb0ec67a7ddb01e5b542542b47c8
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Sat Oct 6 13:32:19 2018 -0400
+
+    net/http: make Transport.MaxConnsPerHost work for HTTP/2
+    
+    Treat HTTP/2 connections as an ongoing persistent connection. When we
+    are told there is no cached connections, cleanup the associated
+    connection and host connection count.
+    
+    Fixes #27753
+    
+    Change-Id: I6b7bd915fc7819617cb5d3b35e46e225c75eda29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/140357
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go      |  19 ++++----
+ src/net/http/transport_test.go | 101 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 112 insertions(+), 8 deletions(-)

@@ -1,0 +1,12 @@
+commit a8b56a73a4cef61bf5a87db07bfda1f1705dd873
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Nov 5 14:27:07 2008 -0800
+
+    T,ok = I.(T)
+    
+    R=r
+    OCL=18580
+    CL=18582
+
+ src/cmd/gc/walk.c | 71 ++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 47 insertions(+), 24 deletions(-)

@@ -1,0 +1,37 @@
+commit 2f1ead709548873463b93de549839d3acbd27633
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jul 12 04:39:39 2013 +0800
+
+    runtime: correctly handle signals received on foreign threads
+    Fixes #3250.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/10757044
+
+ misc/cgo/test/cgo_test.go           |  1 +
+ misc/cgo/test/issue3250.go          | 94 +++++++++++++++++++++++++++++++++++++
+ misc/cgo/test/issue3250w.go         | 11 +++++
+ src/pkg/runtime/os_darwin.c         | 24 ----------
+ src/pkg/runtime/os_freebsd.c        | 24 ----------
+ src/pkg/runtime/os_linux.c          | 24 ----------
+ src/pkg/runtime/os_netbsd.c         | 24 ----------
+ src/pkg/runtime/os_openbsd.c        | 24 ----------
+ src/pkg/runtime/os_plan9.c          |  2 +-
+ src/pkg/runtime/sigqueue.goc        |  9 ++++
+ src/pkg/runtime/sys_darwin_386.s    |  8 ++--
+ src/pkg/runtime/sys_darwin_amd64.s  | 13 +++--
+ src/pkg/runtime/sys_freebsd_386.s   | 10 ++--
+ src/pkg/runtime/sys_freebsd_amd64.s |  9 ++--
+ src/pkg/runtime/sys_freebsd_arm.s   |  5 +-
+ src/pkg/runtime/sys_linux_386.s     |  5 +-
+ src/pkg/runtime/sys_linux_amd64.s   |  5 +-
+ src/pkg/runtime/sys_linux_arm.s     |  5 +-
+ src/pkg/runtime/sys_netbsd_386.s    |  5 +-
+ src/pkg/runtime/sys_netbsd_amd64.s  |  5 +-
+ src/pkg/runtime/sys_netbsd_arm.s    |  5 +-
+ src/pkg/runtime/sys_openbsd_386.s   | 10 ++--
+ src/pkg/runtime/sys_openbsd_amd64.s |  5 +-
+ src/pkg/runtime/sys_plan9_386.s     |  2 +-
+ src/pkg/runtime/sys_plan9_amd64.s   |  2 +-
+ 25 files changed, 172 insertions(+), 159 deletions(-)

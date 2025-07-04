@@ -1,0 +1,26 @@
+commit 03eb137aa311e6a5fe43f75c9f0178d042b560d9
+Author: yuuji.yaginuma <yuuji.yaginuma@gmail.com>
+Date:   Thu Nov 15 23:24:51 2018 +0000
+
+    cmd/go: correctly suggest tidy instead of nonexistent fix for -fix
+    
+    CL 129682 removed go mod fix but unfortunately
+    we hadn't updated the source code hence running
+       go mod -fix
+    would suggest
+       go mod fix
+    which is a nonexistent command.
+    
+    This change fixes that to instead suggest
+       go mod tidy
+    
+    Change-Id: Ie0d7c90805034e9fe6df24afaa15340c44d4f426
+    GitHub-Last-Rev: 5ae1340954c5f6b8535f837755a7bd79ebc7109d
+    GitHub-Pull-Request: golang/go#28402
+    Reviewed-on: https://go-review.googlesource.com/c/144838
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/main.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

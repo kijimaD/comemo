@@ -1,0 +1,12 @@
+commit a3c0730435a36fb5b22df35569ba6ad491a52886
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Wed Jun 17 23:51:54 2015 +0200
+
+    html: add examples to the functions
+    
+    Change-Id: I129d70304ae4e4694d9217826b18b341e3834d3c
+    Reviewed-on: https://go-review.googlesource.com/11201
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/html/example_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

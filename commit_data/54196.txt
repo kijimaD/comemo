@@ -1,0 +1,21 @@
+commit f0b05092fd9bbfc698cb3bd24c6ae042e9c54616
+Author: mstmdev <mstmdev@gmail.com>
+Date:   Mon Aug 21 09:04:07 2023 +0000
+
+    cmd/internal/goobj: fix the size of Header
+    
+    Missed the length of the Fingerprint field.
+    
+    Change-Id: I690955466895e73821dc1e30f8400efc30338ae6
+    GitHub-Last-Rev: 87bd06d8053c003a412a6ea11b3eafcc280b94d1
+    GitHub-Pull-Request: golang/go#62174
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521495
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/internal/goobj/objfile.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

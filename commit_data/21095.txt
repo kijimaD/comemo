@@ -1,0 +1,14 @@
+commit c0abdd9f29aa584804ab98ff964cd7d590f81260
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 26 02:50:33 2014 -0500
+
+    doc/go_spec: fix typo
+    
+    Fixes #9445
+    
+    Change-Id: If7abd4d4d41cdfd5cf677f03533c930c8b965a01
+    Reviewed-on: https://go-review.googlesource.com/2128
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

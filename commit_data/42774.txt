@@ -1,0 +1,23 @@
+commit 822dca4b383611335385ef05c2882d23f6f89d88
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Jul 15 17:38:36 2020 -0400
+
+    cmd/go: add tracing for querying and downloading from the proxy
+    
+    This CL adds tracing spans for modload.queryPattern, modload.queryProxy,
+    modload.QueryPattern, modload.QueryPattern.queryModule,
+    modload.queryPrefixModules and modfetch.Download.
+    
+    Updates #38714
+    
+    Change-Id: I91af3f022a6e18ab8d9c1d9b0ccf4928b6c236bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249022
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modcmd/download.go             |  2 +-
+ src/cmd/go/internal/modfetch/fetch.go              | 21 +++++++++++++++------
+ .../internal/modfetch/zip_sum_test/zip_sum_test.go |  3 ++-
+ src/cmd/go/internal/modload/query.go               | 22 ++++++++++++++++++----
+ 4 files changed, 36 insertions(+), 12 deletions(-)

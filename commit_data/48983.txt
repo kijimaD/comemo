@@ -1,0 +1,70 @@
+commit 7e4bc74119a431f3f0dd3dadd05bbb045969190d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Mar 21 21:27:06 2022 +0000
+
+    runtime: set the heap goal from the memory limit
+    
+    This change makes the memory limit functional by including it in the
+    heap goal calculation. Specifically, we derive a heap goal from the
+    memory limit, and compare that to the GOGC-based goal. If the goal based
+    on the memory limit is lower, we prefer that.
+    
+    To derive the memory limit goal, the heap goal calculation now takes
+    a few additional parameters as input. As a result, the heap goal, in the
+    presence of a memory limit, may change dynamically. The consequences of
+    this are that different parts of the runtime can have different views of
+    the heap goal; this is OK. What's important is that all of the runtime
+    is able to observe the correct heap goal for the moment it's doing
+    something that affects it, like anything that should trigger a GC cycle.
+    
+    On the topic of triggering a GC cycle, this change also allows any
+    manually managed memory allocation from the page heap to trigger a GC.
+    So, specifically workbufs, unrolled GC scan programs, and goroutine
+    stacks. The reason for this is that now non-heap memory can effect the
+    trigger or the heap goal.
+    
+    Most sources of non-heap memory only change slowly, like GC pointer
+    bitmaps, or change in response to explicit function calls like
+    GOMAXPROCS. Note also that unrolled GC scan programs and workbufs are
+    really only relevant during a GC cycle anyway, so they won't actually
+    ever trigger a GC. Our primary target here is goroutine stacks.
+    
+    Goroutine stacks can increase quickly, and this is currently totally
+    independent of the GC cycle. Thus, if for example a goroutine begins to
+    recurse suddenly and deeply, then even though the heap goal and trigger
+    react, we might not notice until its too late. As a result, we need to
+    trigger a GC cycle.
+    
+    We do this trigger in allocManual instead of in stackalloc because it's
+    far more general. We ultimately care about memory that's mapped
+    read/write and not returned to the OS, which is much more the domain of
+    the page heap than the stack allocator. Furthermore, there may be new
+    sources of memory manual allocation in the future (e.g. arenas) that
+    need to trigger a GC if necessary. As such, I'm inclined to leave the
+    trigger in allocManual as an extra defensive measure.
+    
+    It's worth noting that because goroutine stacks do not behave quite as
+    predictably as other non-heap memory, there is the potential for the
+    heap goal to swing wildly. Fortunately, goroutine stacks that haven't
+    been set up to shrink by the last GC cycle will not shrink until after
+    the next one. This reduces the amount of possible churn in the heap goal
+    because it means that shrinkage only happens once per goroutine, per GC
+    cycle. After all the goroutines that should shrink did, then goroutine
+    stacks will only grow. The shrink mechanism is analagous to sweeping,
+    which is incremental and thus tends toward a steady amount of heap
+    memory used. As a result, in practice, I expect this to be a non-issue.
+    
+    Note that if the memory limit is not set, this change should be a no-op.
+    
+    For #48409.
+    
+    Change-Id: Ie06d10175e5e36f9fb6450e26ed8acd3d30c681c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394221
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/export_test.go   |  14 ++-
+ src/runtime/mgcpacer.go      | 229 +++++++++++++++++++++++++++++++++----------
+ src/runtime/mgcpacer_test.go | 216 +++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 400 insertions(+), 59 deletions(-)

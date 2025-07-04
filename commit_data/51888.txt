@@ -1,0 +1,27 @@
+commit 54bdb8ee70892dd77651c0a092e4a2e3edbb3ab6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 1 12:15:08 2023 -0500
+
+    cmd/link: keep go.buildinfo even with --gc-sections
+    
+    If you use an external linker with --gc-sections, nothing refers
+    to .go.buildinfo, so the section is deleted, which in turns makes
+    'go version' fail on the binary. It is important for vulnerability
+    scanning and the like to be able to run 'go version' on any binary.
+    
+    Fix this by inserting a reference to .go.buildinfo from the rodata
+    section, which will not be GC'ed.
+    
+    Fixes #58222.
+    
+    Change-Id: I1e13e9464acaf2f5cc5e0b70476fa52b43651123
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464435
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/version_gc_sections.txt | 24 ++++++++++++++++++++++
+ src/cmd/link/internal/ld/data.go                   | 13 +++++++++++-
+ 2 files changed, 36 insertions(+), 1 deletion(-)

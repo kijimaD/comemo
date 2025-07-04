@@ -1,0 +1,51 @@
+commit 28074d5baad961f931df9895c57a82d164641f06
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 26 08:02:16 2015 -0700
+
+    syscall: change Dup,Dup2,Dup3 to use Syscall, not RawSyscall
+    
+    This avoids hanging when a Go program uses a FUSE filesystem and the
+    dup system call has to close a file descriptor.  When dup uses
+    RawSyscall then the goroutine calling dup will occupy a scheduler slot
+    (a p structure) during the call, and may block waiting for some other
+    goroutine to respond to the close call on the FUSE filesystem.
+    Changing to Syscall avoids the problem.  This makes Dup a tiny bit
+    slower but is quite unlikely to make a difference for any real
+    programs.
+    
+    Fixes #10202.
+    
+    Change-Id: If6490a8f9b3c9cfed6acbfb4bfd1eaeac62ced17
+    Reviewed-on: https://go-review.googlesource.com/8095
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/syscall/syscall_darwin.go           | 4 ++--
+ src/syscall/syscall_dragonfly.go        | 4 ++--
+ src/syscall/syscall_freebsd.go          | 4 ++--
+ src/syscall/syscall_linux.go            | 4 ++--
+ src/syscall/syscall_linux_386.go        | 2 +-
+ src/syscall/syscall_linux_amd64.go      | 2 +-
+ src/syscall/syscall_linux_arm.go        | 2 +-
+ src/syscall/syscall_linux_ppc64x.go     | 2 +-
+ src/syscall/syscall_netbsd.go           | 4 ++--
+ src/syscall/syscall_openbsd.go          | 4 ++--
+ src/syscall/zsyscall_darwin_386.go      | 4 ++--
+ src/syscall/zsyscall_darwin_amd64.go    | 4 ++--
+ src/syscall/zsyscall_darwin_arm.go      | 4 ++--
+ src/syscall/zsyscall_dragonfly_amd64.go | 4 ++--
+ src/syscall/zsyscall_freebsd_386.go     | 4 ++--
+ src/syscall/zsyscall_freebsd_amd64.go   | 4 ++--
+ src/syscall/zsyscall_freebsd_arm.go     | 4 ++--
+ src/syscall/zsyscall_linux_386.go       | 6 +++---
+ src/syscall/zsyscall_linux_amd64.go     | 6 +++---
+ src/syscall/zsyscall_linux_arm.go       | 6 +++---
+ src/syscall/zsyscall_linux_arm64.go     | 4 ++--
+ src/syscall/zsyscall_linux_ppc64.go     | 6 +++---
+ src/syscall/zsyscall_linux_ppc64le.go   | 6 +++---
+ src/syscall/zsyscall_netbsd_386.go      | 4 ++--
+ src/syscall/zsyscall_netbsd_amd64.go    | 4 ++--
+ src/syscall/zsyscall_netbsd_arm.go      | 4 ++--
+ src/syscall/zsyscall_openbsd_386.go     | 4 ++--
+ src/syscall/zsyscall_openbsd_amd64.go   | 4 ++--
+ src/syscall/zsyscall_openbsd_arm.go     | 4 ++--
+ 29 files changed, 59 insertions(+), 59 deletions(-)

@@ -1,0 +1,15 @@
+commit e80385781397dc68894d4e8f2ae6741059eb9d9c
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Feb 16 13:53:05 2024 +0800
+
+    path/filepath: delete the deprecated joinNonEmpty and isUNC
+    
+    Change-Id: I4ce88b2e8e8d24afb63ca7246ce0c418fcb02c9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564715
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/path/filepath/path_windows.go | 40 ---------------------------------------
+ 1 file changed, 40 deletions(-)

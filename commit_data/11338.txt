@@ -1,0 +1,12 @@
+commit c1b4be6a4dbbdce9c69d028a8652731652d7babc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 23 11:50:39 2012 -0500
+
+    dashboard: fix -commit for new xml package
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5571046
+
+ misc/dashboard/builder/main.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

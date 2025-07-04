@@ -1,0 +1,13 @@
+commit e3609ca6723be951b6b106622fdb42569631291e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Mar 15 11:18:11 2014 -0700
+
+    cmd/gc: fix comment about how GOEXPERIMENT works
+    
+    LGTM=minux.ma
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/76270043
+
+ src/cmd/gc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

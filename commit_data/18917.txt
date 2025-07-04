@@ -1,0 +1,19 @@
+commit dc008af94df00e90be9a22bb7e321f9677f12639
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Mar 21 19:26:47 2014 +0100
+
+    cmd/ld: fix warnings on Plan 9
+    
+    warning: src/cmd/ld/macho.c:595 sign-extended character constant
+    warning: src/cmd/ld/macho.c:595 sign-extended character constant
+    warning: src/cmd/ld/symtab.c:63 sign-extended character constant
+    warning: src/cmd/ld/symtab.c:63 sign-extended character constant
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/76580046
+
+ src/cmd/ld/macho.c  | 2 +-
+ src/cmd/ld/symtab.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

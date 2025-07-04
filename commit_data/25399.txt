@@ -1,0 +1,21 @@
+commit ca471573958c12093b1e3b29bc17926105d80143
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Dec 30 12:13:21 2015 +1100
+
+    os: change Open(`C:`) to open current directory on C:
+    
+    Open(`C:`) currently opens root directory on C:. Change that to open
+    current directory on C:. Just like cmd.exe's "dir C:" command does.
+    Just like FindFirstFile("C:*") Windows API does. It is also consistent
+    with what filepath.Join("C:", "a") currently does.
+    
+    Fixes #13763
+    
+    Change-Id: I60b6e7d80215d110bbbb6265c9f32717401638c6
+    Reviewed-on: https://go-review.googlesource.com/18184
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+
+ src/os/file_windows.go    |  8 +++++++-
+ src/os/os_windows_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 1 deletion(-)

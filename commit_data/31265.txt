@@ -1,0 +1,19 @@
+commit 9d36163c0b35ddd384534f850fb04170e0d0c7c4
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 21 11:45:44 2017 -0400
+
+    runtime: consistently use atomic loads for heap_live
+    
+    heap_live is updated atomically without locking, so we should also use
+    atomic loads to read it. Fix the reads of heap_live that happen
+    outside of STW to be atomic.
+    
+    Change-Id: Idca9451c348168c2a792a9499af349833a3c333f
+    Reviewed-on: https://go-review.googlesource.com/41371
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go    | 10 +++++++---
+ src/runtime/mstats.go |  2 ++
+ 2 files changed, 9 insertions(+), 3 deletions(-)

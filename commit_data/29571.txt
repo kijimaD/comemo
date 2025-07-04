@@ -1,0 +1,16 @@
+commit a1235f3179c4dbd6b16963d6b8f932586fa9bc1c
+Author: Joonas Kuorilehto <joneskoo@derbian.fi>
+Date:   Sun Sep 11 22:31:19 2016 +0300
+
+    crypto/tls: add example for Config KeyLogWriter
+    
+    For #13057.
+    
+    Change-Id: Idbc50d5b08e055a23ab7cc9eb62dbc47b65b1815
+    Reviewed-on: https://go-review.googlesource.com/29050
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/example_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 58 insertions(+)

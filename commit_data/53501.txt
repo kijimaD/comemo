@@ -1,0 +1,21 @@
+commit b9baf4452fe949a5a159eec4d4a437ad2833ead1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 15 11:34:46 2023 -0400
+
+    go/printer: error out of Fprint when it would write a '//line' directive with a multiline file path
+    
+    Line directives do not provide a way to escape newline characters, so
+    source file paths containing newlines must not be written in them.
+    
+    Updates #60167.
+    
+    Change-Id: I30f8b381cc7d1df6914c27591544edf424a4b634
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501578
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/printer/printer.go      | 18 +++++++++++++-----
+ src/go/printer/printer_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 5 deletions(-)

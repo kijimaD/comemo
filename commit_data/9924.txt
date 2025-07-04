@@ -1,0 +1,18 @@
+commit 9691312e5318ca2e0ffc6bb0bd1b37afe69e721e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Oct 11 15:47:00 2011 -0400
+
+    syscall: add #ifdefs to fix the manual corrections in ztypes_linux_arm.go
+    
+    Fixes #1998.
+    
+    ztypes_linux_arm.go has been regenerated on an arm5 debian sid host and
+    includes a few new constants.
+    
+    R=golang-dev, mikioh.mikioh, rsc
+    CC=golang-dev
+    https://golang.org/cl/5240047
+
+ src/pkg/syscall/types_linux.c       | 24 ++++++++++++++++++++++--
+ src/pkg/syscall/ztypes_linux_arm.go | 14 ++++++--------
+ 2 files changed, 28 insertions(+), 10 deletions(-)

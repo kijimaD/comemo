@@ -1,0 +1,13 @@
+commit b69238bfbec9c94b804c17fdfaf2e93ae9175cfc
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 9 12:47:35 2014 +1000
+
+    doc/go1.3.html: gc precision, nacl, solaris
+    
+    LGTM=rsc
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/85740043
+
+ doc/go1.3.html | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

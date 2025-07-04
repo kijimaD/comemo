@@ -1,0 +1,14 @@
+commit f459660cb85abd504845f93fdb65b1932bd6ac37
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 2 22:22:25 2016 +0000
+
+    net/http: keep idle conns sorted by usage
+    
+    Addressing feedback from Alan Su in https://golang.org/cl/22655
+    
+    Change-Id: Ie0724efea2b4da67503c074e265ec7f8d7de7791
+    Reviewed-on: https://go-review.googlesource.com/22709
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

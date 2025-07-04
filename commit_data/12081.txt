@@ -1,0 +1,12 @@
+commit 2557466ff9459bb3ddc5a7b1dab9060359778ff7
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Mon Feb 20 01:00:00 2012 -0600
+
+    misc/dist/windows: app engine gopher replaced with standard bw version
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5688048
+
+ misc/dist/windows/images/Banner.jpg | Bin 11219 -> 6643 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

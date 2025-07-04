@@ -1,0 +1,27 @@
+commit e360f7c4dbb5695fc4cadb3d400e36ec09327732
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Feb 23 10:54:36 2016 -0800
+
+    cmd/compile: keep JMPs around with -N
+    
+    When -N, make sure we don't drop every instruction from
+    a block, even ones which would otherwise be empty.
+    Helps keep line numbers around for debugging, particularly
+    for break and continue statements (which often compile
+    down to nothing).
+    
+    Fixes #14379
+    
+    Change-Id: I33722c4f0dcd502f146fa48af262ba3a477c959a
+    Reviewed-on: https://go-review.googlesource.com/19854
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go  |  1 +
+ src/cmd/compile/internal/gc/popt.go | 11 ++++++-----
+ src/cmd/internal/obj/link.go        |  1 +
+ src/cmd/internal/obj/objfile.go     |  4 +++-
+ src/cmd/internal/obj/pass.go        | 14 ++++++++------
+ src/cmd/internal/obj/sym.go         |  1 +
+ 6 files changed, 20 insertions(+), 12 deletions(-)

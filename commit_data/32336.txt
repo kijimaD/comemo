@@ -1,0 +1,17 @@
+commit 6711fa70cecce261662c20613cc63eec0c21a16a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 1 15:06:36 2017 -0700
+
+    test: add test that caused gccgo compiler crash
+    
+    Updates #21253
+    
+    Change-Id: Iece71a27207b578618cafb378dac2362517363d0
+    Reviewed-on: https://go-review.googlesource.com/52531
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue21253.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

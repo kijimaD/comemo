@@ -1,0 +1,24 @@
+commit 8d7ee2b9987d2c7bb91a858d4dfa61f669cc3e8e
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Mon Feb 20 00:29:57 2012 -0600
+
+    misc/dist/windows: ongoing dev
+    
+    Embedded Go images in the installer dialog and
+    banner boxes, Go tree cloning uses version info
+    from the Go tool (readme updated), the installer
+    allows up/down-grading and reparing of the version
+    that's installed, added two registry values.
+    
+    R=golang-dev, bradfitz, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5683048
+
+ misc/dist/windows/README                |  15 ++++++---
+ misc/dist/windows/dist.bat              |   8 +++--
+ misc/dist/windows/images/Banner.jpg     | Bin 0 -> 11219 bytes
+ misc/dist/windows/images/Dialog.jpg     | Bin 0 -> 16428 bytes
+ misc/dist/windows/images/DialogLeft.jpg | Bin 0 -> 12961 bytes
+ misc/dist/windows/images/gopher.ico     | Bin 0 -> 42929 bytes
+ misc/dist/windows/installer.wxs         |  58 +++++++++++++++++++++-----------
+ 7 files changed, 56 insertions(+), 25 deletions(-)

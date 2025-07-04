@@ -1,0 +1,22 @@
+commit 38a61ff41ff4b5a802d134ed9c35fc2459735504
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Mar 5 07:11:40 2015 +1100
+
+    cmd/internal/gc: make Node.Needzero a bool
+    
+    Node.Needzero only has two values and acts as a bool, so make it a bool.
+    
+    Change-Id: Ica46e5ebafbe478017ea52ce6bb335f404059677
+    Reviewed-on: https://go-review.googlesource.com/6800
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/5g/ggen.go           | 2 +-
+ src/cmd/6g/ggen.go           | 2 +-
+ src/cmd/8g/ggen.go           | 2 +-
+ src/cmd/9g/ggen.go           | 2 +-
+ src/cmd/internal/gc/go.go    | 2 +-
+ src/cmd/internal/gc/pgen.go  | 4 ++--
+ src/cmd/internal/gc/plive.go | 4 ++--
+ 7 files changed, 9 insertions(+), 9 deletions(-)

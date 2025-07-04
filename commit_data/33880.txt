@@ -1,0 +1,19 @@
+commit 0f3ab149ec41cd35a9f61f49ce17bbc5af02537e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 13 06:32:06 2017 -0800
+
+    net, os: don't wait for Close in blocking mode
+    
+    Updates #7970
+    Updates #21856
+    Updates #23111
+    
+    Change-Id: I0cd0151fcca740c40c3c976f941b04e98e67b0bf
+    Reviewed-on: https://go-review.googlesource.com/83715
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/internal/poll/fd_unix.go | 25 ++++++++++++++--
+ src/net/fd_unix.go           |  2 +-
+ src/os/file_unix.go          |  2 +-
+ src/os/pipe_test.go          | 68 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 93 insertions(+), 4 deletions(-)

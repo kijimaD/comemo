@@ -1,0 +1,17 @@
+commit 7ea4cd3fa9f081532eba1b3ac0587e65b47319c6
+Author: Mikio Hara <mikioh.public.networking@gmail.com>
+Date:   Tue Apr 9 10:00:38 2019 +0900
+
+    cmd/cover: rename temporary directory prefix for consistency
+    
+    This change renames the temporary directory prefix for testing to
+    go-testcover from gotestcover. It looks like other packages have the
+    "go-" prefix for temporary directories, such as go-build, go-tool-dist
+    and go-nettest.
+    
+    Change-Id: I91ab570d33c4c1bb48e6e01451a811272f6f8b77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171100
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cover/cover_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 850e55b8c028440f2fe282858b332cb810a06864
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 20 14:29:58 2016 -0400
+
+    crypto/*: document use or non-use of constant-time algorithms
+    
+    Fixes #16821.
+    
+    Change-Id: I63d5f3d7cfba1c76259912d754025c5f3cbe4a56
+    Reviewed-on: https://go-review.googlesource.com/31573
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/aes/const.go         | 7 +++++++
+ src/crypto/cipher/gcm.go        | 4 ++++
+ src/crypto/dsa/dsa.go           | 2 ++
+ src/crypto/elliptic/elliptic.go | 6 ++++++
+ src/crypto/elliptic/p224.go     | 4 +++-
+ src/crypto/rsa/rsa.go           | 2 ++
+ src/math/big/int.go             | 5 ++++-
+ 7 files changed, 28 insertions(+), 2 deletions(-)

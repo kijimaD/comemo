@@ -1,0 +1,13 @@
+commit 58b97a29fd5d8ad219a34b3c859842cc29d46666
+Author: Vadim Vygonets <unixdj@gmail.com>
+Date:   Wed Dec 14 17:17:25 2011 -0500
+
+    net/smtp: add CRAM-MD5 authentication
+    
+    R=golang-dev, edsrzf, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/5451087
+
+ src/pkg/net/smtp/auth.go      | 32 +++++++++++++++++++++++++++++++-
+ src/pkg/net/smtp/smtp_test.go |  1 +
+ 2 files changed, 32 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 4b8a7eafef039af1834ef9bfa879257c4a72b7b5
+Author: Ryuma Yoshida <ryuma.y1117@gmail.com>
+Date:   Sun Feb 11 16:50:48 2018 +0900
+
+    net/http: add StatusMisdirectedRequest (421)
+    
+    Fixes #23776
+    
+    Change-Id: Iff03d8b295afc1fd9435694b10246c723d323eda
+    Reviewed-on: https://go-review.googlesource.com/93296
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Kunpei Sakai <namusyaka@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/status.go | 2 ++
+ 1 file changed, 2 insertions(+)

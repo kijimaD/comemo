@@ -1,0 +1,16 @@
+commit ad95b7d23cf776022b0fafebb707d2948cdb80f4
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Mar 30 19:05:00 2013 +0800
+
+    include/plan9/libc.h: fix Plan 9 build
+    
+    Add missing getgoextlinkenabled(void) declaration
+    in Plan 9 libc.h. This function was added as part
+    of CL #8183043.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/8191043
+
+ include/plan9/libc.h | 1 +
+ 1 file changed, 1 insertion(+)

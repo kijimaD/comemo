@@ -1,0 +1,18 @@
+commit 4b21702fdcd17aee6a52a74cc68c7c9b0ed1b7e3
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 16 17:20:02 2019 -0500
+
+    src/go/doc: in Examples, check for len of params.List, not nilness
+    
+    This makes the check the same as the one in the tests vet check.
+    It's safer to check the number of arguments rather than for a nil
+    slice.
+    
+    Change-Id: I8e04e9c612573f334770c1c4245238649656c6e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211598
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/go/doc/example.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

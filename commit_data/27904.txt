@@ -1,0 +1,15 @@
+commit 021f2432131d9bdaa4e89592129a540324f9f22d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 17 17:05:31 2016 -0700
+
+    go/types: set Info.Types.Type for array composite literals of the form [...]T
+    
+    Fixes #14092.
+    
+    Change-Id: I00692f60a416348e38cab256b94fda07e334d258
+    Reviewed-on: https://go-review.googlesource.com/27316
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/types/api_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/go/types/expr.go     |  5 ++++-
+ 2 files changed, 57 insertions(+), 1 deletion(-)

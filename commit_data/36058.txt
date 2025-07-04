@@ -1,0 +1,12 @@
+commit e954bdb021e075696b93a229863cbbcbade11b0a
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Jul 18 16:44:07 2018 -0400
+
+    doc: update go1.11 release notes
+    
+    Change-Id: Ib488a78802ad730e7c6b3618eab24c259f4bebd1
+    Reviewed-on: https://go-review.googlesource.com/124798
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.11.html | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit 26dc17ce78f331852fb52c9a1f15aebe4e1155ad
+Author: Johan Euphrosine <proppy@google.com>
+Date:   Wed Mar 7 11:24:00 2012 +1100
+
+    doc: fix typos in laws_of_reflection article, add copyright notice.
+    
+    Update #2547.
+    
+    R=golang-dev, minux.ma, r, r, adg
+    CC=golang-dev
+    https://golang.org/cl/5755051
+
+ doc/articles/laws_of_reflection.html | 19 ++++++++-----------
+ doc/articles/laws_of_reflection.tmpl | 14 +++++++-------
+ doc/progs/interface.go               |  6 ++++++
+ doc/progs/interface2.go              | 13 +++++++++++++
+ 4 files changed, 34 insertions(+), 18 deletions(-)

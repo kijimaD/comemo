@@ -1,0 +1,11 @@
+commit c14e265c59c0bce32c3586e49c13df8a15db763b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 24 10:55:50 2009 -0800
+
+    print error's string when panicking.
+    
+    R=rsc
+    https://golang.org/cl/157156
+
+ src/pkg/rpc/client.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

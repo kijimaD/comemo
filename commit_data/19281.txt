@@ -1,0 +1,17 @@
+commit b211d0601420dbd26ef98f2c7de8167e3fdea865
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 7 10:16:55 2014 +1000
+
+    cmd/addr2line: works with windows pe executables now
+    
+    Update #7406
+    Fixes #7899
+    
+    LGTM=bradfitz
+    R=golang-codereviews, rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/96960043
+
+ src/cmd/addr2line/addr2line_test.go | 104 ++++++++++++++++++++++++++++++++++++
+ src/cmd/addr2line/main.go           |  48 ++++++++++++++---
+ 2 files changed, 144 insertions(+), 8 deletions(-)

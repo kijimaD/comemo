@@ -1,0 +1,19 @@
+commit a65078204c3c170514af58d325b3197c91be281c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Feb 23 00:22:23 2025 +1100
+
+    cmd/compile: remove carriage returns from AMD64latelower.rules
+    
+    AMD64latelower.rules currently has Windows style line endings,
+    rather than Unix style line endings. Correct this.
+    
+    Change-Id: Ie068dc6c64bd51cf2aa5bd192839fca4f28f40b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651818
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ .../compile/internal/ssa/_gen/AMD64latelower.rules | 26 +++++++++++-----------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

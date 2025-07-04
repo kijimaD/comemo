@@ -1,0 +1,21 @@
+commit b6296426a065b85d4c1abbc7012dd633c33bb3c2
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Aug 16 23:52:16 2017 +0200
+
+    runtime: avoid zeroing hmap fields in makemap twice
+    
+    Stack allocated hmap structs are explicitly zeroed before being
+    passed by pointer to makemap.
+    
+    Heap allocated hmap structs are created with newobject
+    which also zeroes on allocation.
+    
+    Therefore, setting the hmap fields to 0 or nil is redundant
+    since they will have been zeroed when hmap was allocated.
+    
+    Change-Id: I5fc55b75e9dc5ba69f5e3588d6c746f53b45ba66
+    Reviewed-on: https://go-review.googlesource.com/56291
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go | 5 -----
+ 1 file changed, 5 deletions(-)

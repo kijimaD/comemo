@@ -1,0 +1,42 @@
+commit 5bc8fa74f5186dc7898126487c31283d0766a5b4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Aug 31 14:25:11 2022 +0100
+
+    cmd/go: support long commands in asm and cgo
+    
+    We have supported passing lists of arguments to the compiler and linker
+    for some time, since https://go.dev/issue/18468 was fixed.
+    The reason behind it is that some systems like Windows have relatively
+    small limits for commands, and some Go packages contain many source files.
+    
+    This wasn't done for other Go toolchain programs like cgo and asm,
+    as there wasn't an initial need for it. A TODO was left for them.
+    The need has now arisen in the form of a bug report for a build of a
+    large Go package involving cgo.
+    
+    Do asm as well, which could be triggered by lots of asm files.
+    
+    I rebuilt Go itself with some basic logging to tell if any other
+    commands were being run with moderately large command lengths.
+    I only found one other: gcc being invoked with 300-500 bytes.
+    
+    I didn't spot any length close to 1KiB, and we can't safely assume that
+    a user's CC compiler supports these "response files", so leave that as
+    another TODO for the future. Just like cgo and asm, we can revisit this
+    if any user reports a bug on the issue tracker.
+    
+    Fixes #47235.
+    
+    Change-Id: Ifcc099d7c0dfac3ed2c4e9e7a2d6e3d69b0ccb63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427015
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/asm/internal/flags/flags.go | 3 +--
+ src/cmd/cgo/main.go                 | 3 +--
+ src/cmd/go/internal/work/exec.go    | 4 ++--
+ 3 files changed, 4 insertions(+), 6 deletions(-)

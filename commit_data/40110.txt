@@ -1,0 +1,17 @@
+commit 64e598f7837566802085ba9bb684e82ccbcf7ca6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 2 15:41:13 2019 -0700
+
+    runtime: use efaceOf where applicable
+    
+    Prepared with gofmt -r.
+    
+    Change-Id: Ifea325c209d800b5692d318955930b10debb548b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198494
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgocall.go |  6 +++---
+ src/runtime/iface.go   | 10 +++++-----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

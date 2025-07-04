@@ -1,0 +1,20 @@
+commit 65deb9c3cea2a57b2cba892bc3dc4344ff0783c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 22 20:56:38 2022 -0400
+
+    text/template/parse: fix confusion about markers near right delims
+    
+    Fixes #52527.
+    Fixes #55336.
+    
+    Change-Id: I8f5c521c693e74451a558788909e7e4ad1cc797a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433036
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/text/template/parse/lex.go      |  2 +-
+ src/text/template/parse/lex_test.go | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

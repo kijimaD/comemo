@@ -1,0 +1,14 @@
+commit 8782fd04319e16b372852ae8572b8c90f56e01ae
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Sat Mar 2 09:51:44 2019 +0300
+
+    crypto/cipher: fix duplicated arguments to bytes.Equal in test
+    
+    Args were duplicated by a mistake. Found using static analysis tools.
+    
+    Change-Id: I2f61e09844bc409b1f687d654767332d93dd39a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164937
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/crypto/cipher/cfb_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

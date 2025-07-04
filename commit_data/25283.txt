@@ -1,0 +1,16 @@
+commit 68c6aad58b5062e3dd2bc97a124871dd767168cc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 15 15:46:48 2015 -0800
+
+    runtime: change SIGEMT on linux/mips64 to throw
+    
+    This matches SIGEMT on other systems that use it (SIGEMT is not used
+    for most linux systems).
+    
+    Change-Id: If394c06c9ed1cb3ea2564385a8edfbed8b5566d1
+    Reviewed-on: https://go-review.googlesource.com/17874
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/sigtab_linux_mips64x.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

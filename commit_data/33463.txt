@@ -1,0 +1,22 @@
+commit 83a1a2ba63cd79ed65a97bead2c31ef0753f4cd2
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Nov 6 15:33:31 2017 -0500
+
+    runtime/pprof: harden CPU profile test against smart backend
+    
+    A couple of the CPU profiling testpoints make calls to helper
+    functions (cpuHog1, for example) where the computed value is always
+    thrown away by the caller without being used. A smart compiler back
+    end (in this case LLVM) can detect this fact and delete the contents
+    of the called function, which can cause tests to fail. Harden the test
+    slighly by passing in a value read from a global and insuring that the
+    caller stores the value back to a global; this prevents any optimizer
+    mischief.
+    
+    Change-Id: Icbd6e3e32ff299c68a6397dc1404a52b21eaeaab
+    Reviewed-on: https://go-review.googlesource.com/76230
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/pprof/pprof_test.go | 43 ++++++++++++++++++++++-------------------
+ 1 file changed, 23 insertions(+), 20 deletions(-)

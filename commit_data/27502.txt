@@ -1,0 +1,19 @@
+commit 3474610fbc81f7e9f3f2cb23dc1554b3f5cec657
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Tue May 24 23:00:06 2016 +0600
+
+    math/rand: Doc fix for how many bits Seed uses
+    
+    Document the fact that the default Source uses only
+    the bottom 31 bits of the given seed.
+    
+    Fixes #15788
+    
+    Change-Id: If20d1ec44a55c793a4a0a388f84b9392c2102bd1
+    Reviewed-on: https://go-review.googlesource.com/23352
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/rand/rand.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

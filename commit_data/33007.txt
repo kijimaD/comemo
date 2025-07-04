@@ -1,0 +1,39 @@
+commit 244c98fe01b2af844f6f41b7123a17b7b56f1c2a
+Author: Josselin Costanzi <josselin@costanzi.fr>
+Date:   Wed Mar 22 21:19:15 2017 +0100
+
+    encoding/base64: optimize DecodeString
+    
+    Optimize base64 decoding speed by adding 32-bits and 64-bits specialized
+    methods that don't perform any error checking and fall back to the more
+    complex decodeQuantum method when a non-base64 character is present.
+    
+    On a 64-bits cpu:
+    
+    name                 old time/op    new time/op     delta
+    DecodeString/2-4       70.0ns ± 6%     69.2ns ± 0%     ~     (p=0.169 n=5+8)
+    DecodeString/4-4       91.3ns ± 2%     80.4ns ± 0%  -11.89%  (p=0.001 n=5+10)
+    DecodeString/8-4        126ns ± 5%      106ns ± 0%  -16.14%  (p=0.000 n=5+7)
+    DecodeString/64-4       652ns ±21%      361ns ± 0%  -44.57%  (p=0.000 n=5+7)
+    DecodeString/8192-4    61.0µs ±13%     31.5µs ± 1%  -48.38%  (p=0.001 n=5+9)
+    
+    name                 old speed      new speed       delta
+    DecodeString/2-4     57.2MB/s ± 6%   57.7MB/s ± 2%     ~     (p=0.419 n=5+9)
+    DecodeString/4-4     87.7MB/s ± 2%   99.5MB/s ± 0%  +13.45%  (p=0.001 n=5+10)
+    DecodeString/8-4     94.8MB/s ± 5%  112.6MB/s ± 1%  +18.82%  (p=0.001 n=5+9)
+    DecodeString/64-4     136MB/s ±19%    243MB/s ± 0%  +78.17%  (p=0.003 n=5+7)
+    DecodeString/8192-4   180MB/s ±11%    347MB/s ± 1%  +92.94%  (p=0.001 n=5+9)
+    
+    Improves #19636
+    
+    Change-Id: Ic10a454851093a7e1d46ca0c140deed73535d990
+    Reviewed-on: https://go-review.googlesource.com/38632
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/deps.go               |   5 +-
+ src/encoding/base64/base64.go      | 314 +++++++++++++++++++++++++------------
+ src/encoding/base64/base64_test.go |   5 +-
+ src/go/build/deps_test.go          |   2 +-
+ 4 files changed, 216 insertions(+), 110 deletions(-)

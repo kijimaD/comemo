@@ -1,0 +1,21 @@
+commit 0669261af107eddb13d71293d654b595417f8053
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Mon Apr 9 15:39:59 2012 -0400
+
+    cmd/dist: don't fail when Mercurial is a batch file on Windows
+    
+    On windows Mercurial installed with easy_install typically creates
+    an hg.bat batch file in Python Scripts directory, which cannot be used
+    with CreateProcess unless full path is specified. Work around by
+    launching hg via cmd.exe /c.
+    
+    Additionally, fix a rare FormatMessageW crash.
+    
+    Fixes #3093.
+    
+    R=golang-dev, rsc, alex.brainman, aram, jdpoirier, mattn.jp
+    CC=golang-dev
+    https://golang.org/cl/5937043
+
+ src/cmd/dist/windows.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

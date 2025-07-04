@@ -1,0 +1,20 @@
+commit d7c04517a031547ec0e66d3b4e619cbd26d77fcf
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 31 18:38:33 2012 -0500
+
+    fmt: fix caching bug in Scan
+    
+    Black box test is too time-consuming, as the bug
+    does not appear until Scan has processed 2 GB of
+    input in total across multiple calls, so no test.
+    
+    Thanks to Frederick Mayle for the diagnosis and fix.
+    
+    Fixes #2809.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5611043
+
+ src/pkg/fmt/scan.go | 1 +
+ 1 file changed, 1 insertion(+)

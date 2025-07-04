@@ -1,0 +1,16 @@
+commit 518df525d85eb9248f5dd19511c0250b80666dda
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 28 13:11:22 2010 -0700
+
+    fmt: move comment into doc.go.
+    Fix the documentation of newline handling in *f routines
+    to match the implementation.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1899042
+
+ src/pkg/fmt/Makefile |   1 +
+ src/pkg/fmt/doc.go   | 132 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/fmt/print.go | 126 ------------------------------------------------
+ 3 files changed, 133 insertions(+), 126 deletions(-)

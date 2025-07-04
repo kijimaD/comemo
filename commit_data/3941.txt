@@ -1,0 +1,134 @@
+commit 3bb0032cd6187ca1f42b68599b94036cb6b7e054
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 9 21:23:52 2009 -0800
+
+    - replaced gofmt expression formatting algorithm with
+      rsc's algorithm
+    - applied gofmt -w misc src
+    - partial CL (last chunk)
+    
+    R=rsc, r
+    http://go/go-review/1024041
+
+ src/pkg/hash/adler32/adler32.go         |  8 ++--
+ src/pkg/hash/crc32/crc32.go             | 10 ++---
+ src/pkg/http/client.go                  |  2 +-
+ src/pkg/http/fs.go                      |  8 ++--
+ src/pkg/http/request.go                 | 12 +++---
+ src/pkg/http/server.go                  |  8 ++--
+ src/pkg/http/url.go                     | 10 ++---
+ src/pkg/image/color.go                  | 70 +++++++++++++++----------------
+ src/pkg/image/image.go                  |  6 +--
+ src/pkg/image/png/reader.go             | 36 ++++++++--------
+ src/pkg/image/png/reader_test.go        |  4 +-
+ src/pkg/image/png/writer.go             | 44 ++++++++++----------
+ src/pkg/io/io.go                        |  8 ++--
+ src/pkg/io/pipe_test.go                 |  2 +-
+ src/pkg/io/utils.go                     |  2 +-
+ src/pkg/json/parse.go                   |  8 ++--
+ src/pkg/json/struct.go                  |  2 +-
+ src/pkg/log/log.go                      | 22 +++++-----
+ src/pkg/log/log_test.go                 |  4 +-
+ src/pkg/math/all_test.go                |  8 ++--
+ src/pkg/math/asin.go                    |  2 +-
+ src/pkg/math/atan.go                    |  8 ++--
+ src/pkg/math/atan2.go                   |  8 ++--
+ src/pkg/math/bits.go                    | 16 +++----
+ src/pkg/math/const.go                   |  4 +-
+ src/pkg/math/exp.go                     | 12 +++---
+ src/pkg/math/floor.go                   |  2 +-
+ src/pkg/math/fmod.go                    |  2 +-
+ src/pkg/math/hypot.go                   | 14 +++----
+ src/pkg/math/log.go                     | 20 ++++-----
+ src/pkg/math/pow.go                     |  8 ++--
+ src/pkg/math/pow10.go                   | 10 ++---
+ src/pkg/math/sin.go                     | 22 +++++-----
+ src/pkg/math/sinh.go                    | 14 +++----
+ src/pkg/math/sqrt.go                    | 28 ++++++-------
+ src/pkg/math/tan.go                     | 16 +++----
+ src/pkg/math/tanh.go                    |  2 +-
+ src/pkg/net/dnsmsg.go                   | 34 +++++++--------
+ src/pkg/net/fd.go                       |  6 +--
+ src/pkg/net/fd_darwin.go                |  4 +-
+ src/pkg/net/fd_linux.go                 | 12 +++---
+ src/pkg/net/ip.go                       | 16 +++----
+ src/pkg/net/ipsock.go                   |  6 +--
+ src/pkg/net/net.go                      |  2 +-
+ src/pkg/net/parse.go                    | 12 +++---
+ src/pkg/net/parse_test.go               |  2 +-
+ src/pkg/net/port.go                     |  2 +-
+ src/pkg/net/server_test.go              |  6 +--
+ src/pkg/os/dir_darwin.go                |  2 +-
+ src/pkg/os/env.go                       |  2 +-
+ src/pkg/os/exec.go                      |  4 +-
+ src/pkg/os/file.go                      |  6 +--
+ src/pkg/os/getwd.go                     |  6 +--
+ src/pkg/os/os_test.go                   | 10 ++---
+ src/pkg/os/path.go                      |  4 +-
+ src/pkg/os/path_test.go                 | 10 ++---
+ src/pkg/os/stat_darwin.go               |  4 +-
+ src/pkg/os/stat_linux.go                |  4 +-
+ src/pkg/os/stat_nacl.go                 | 10 ++---
+ src/pkg/os/time.go                      |  2 +-
+ src/pkg/patch/git.go                    |  8 ++--
+ src/pkg/patch/textdiff.go               |  4 +-
+ src/pkg/path/path.go                    |  6 +--
+ src/pkg/rand/exp.go                     |  6 +--
+ src/pkg/rand/normal.go                  | 10 ++---
+ src/pkg/rand/rand.go                    | 10 ++---
+ src/pkg/rand/rand_test.go               | 58 +++++++++++++-------------
+ src/pkg/rand/rng.go                     | 22 +++++-----
+ src/pkg/reflect/all_test.go             |  2 +-
+ src/pkg/reflect/type.go                 |  6 +--
+ src/pkg/reflect/value.go                | 38 ++++++++---------
+ src/pkg/regexp/all_test.go              |  6 +--
+ src/pkg/regexp/regexp.go                | 44 ++++++++++----------
+ src/pkg/rpc/client.go                   |  4 +-
+ src/pkg/rpc/server.go                   |  4 +-
+ src/pkg/rpc/server_test.go              | 20 ++++-----
+ src/pkg/runtime/type.go                 |  4 +-
+ src/pkg/sort/sort.go                    | 14 +++----
+ src/pkg/sort/sort_test.go               | 14 +++----
+ src/pkg/strconv/atof.go                 | 30 ++++++-------
+ src/pkg/strconv/atoi.go                 | 12 +++---
+ src/pkg/strconv/atoi_test.go            |  8 ++--
+ src/pkg/strconv/decimal.go              | 58 +++++++++++++-------------
+ src/pkg/strconv/fp_test.go              |  8 ++--
+ src/pkg/strconv/ftoa.go                 | 44 ++++++++++----------
+ src/pkg/strconv/ftoa_test.go            |  2 +-
+ src/pkg/strconv/itoa_test.go            | 26 ++++++------
+ src/pkg/strconv/quote.go                | 16 +++----
+ src/pkg/strings/strings.go              | 20 ++++-----
+ src/pkg/strings/strings_test.go         |  8 ++--
+ src/pkg/sync/mutex.go                   |  2 +-
+ src/pkg/syscall/errstr.go               |  8 ++--
+ src/pkg/syscall/syscall_darwin.go       | 12 +++---
+ src/pkg/syscall/syscall_darwin_386.go   |  8 ++--
+ src/pkg/syscall/syscall_darwin_amd64.go |  8 ++--
+ src/pkg/syscall/syscall_linux.go        | 26 ++++++------
+ src/pkg/syscall/syscall_linux_386.go    |  8 ++--
+ src/pkg/syscall/syscall_linux_amd64.go  |  8 ++--
+ src/pkg/syscall/syscall_linux_arm.go    |  8 ++--
+ src/pkg/syscall/syscall_nacl.go         |  2 +-
+ src/pkg/syscall/syscall_nacl_386.go     |  8 ++--
+ src/pkg/tabwriter/tabwriter.go          | 34 +++++++--------
+ src/pkg/tabwriter/tabwriter_test.go     |  6 +--
+ src/pkg/template/format.go              |  2 +-
+ src/pkg/template/template.go            | 14 +++----
+ src/pkg/template/template_test.go       |  6 +--
+ src/pkg/testing/quick/quick.go          | 10 ++---
+ src/pkg/testing/regexp.go               | 10 ++---
+ src/pkg/testing/regexp_test.go          |  6 +--
+ src/pkg/testing/testing.go              |  6 +--
+ src/pkg/time/tick.go                    |  4 +-
+ src/pkg/time/tick_test.go               | 10 ++---
+ src/pkg/time/time.go                    | 74 ++++++++++++++++-----------------
+ src/pkg/time/zoneinfo.go                | 10 ++---
+ src/pkg/unicode/letter.go               | 22 +++++-----
+ src/pkg/unicode/letter_test.go          |  2 +-
+ src/pkg/unicode/maketables.go           | 20 ++++-----
+ src/pkg/utf8/utf8.go                    |  6 +--
+ src/pkg/utf8/utf8_test.go               |  2 +-
+ src/pkg/xml/read.go                     |  6 +--
+ src/pkg/xml/xml.go                      | 12 +++---
+ 121 files changed, 750 insertions(+), 750 deletions(-)

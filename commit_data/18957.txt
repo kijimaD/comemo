@@ -1,0 +1,15 @@
+commit 61f2fabd3824e32d4ca23c6f08c200c21de4bd10
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 26 17:18:59 2014 +1100
+
+    cmd/go: fix typo in help doc
+    Fixes #7519.
+    
+    LGTM=adg, mikioh.mikioh
+    R=golang-codereviews, adg, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/80370043
+
+ src/cmd/go/doc.go  | 2 +-
+ src/cmd/go/help.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

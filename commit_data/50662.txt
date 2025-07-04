@@ -1,0 +1,21 @@
+commit 06e8022ed43ea83d0d7d76366f4930903220bc25
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 25 10:09:47 2022 -0400
+
+    cmd/go: add hook to check for GOEXPERIMENT in script tests
+    
+    Add a new hook to allow script tests to check whether a specific
+    GOEXPERIMENT is enabled.
+    
+    Updates #51430.
+    
+    Change-Id: Icdf39f845ff2c8b10c634d49e9c27bc90e7984f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402174
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/script_test.go                         | 28 +++++++++++++++++++++++
+ src/cmd/go/testdata/script/README                 |  1 +
+ src/cmd/go/testdata/script/check_goexperiment.txt | 10 ++++++++
+ 3 files changed, 39 insertions(+)

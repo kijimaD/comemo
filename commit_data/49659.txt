@@ -1,0 +1,22 @@
+commit 2d655fb15a50036547a6bf8f77608aab9fb31368
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jul 16 15:51:25 2022 -0700
+
+    unsafe: document when Sizeof/Offsetof/Alignof are not constant
+    
+    They are not constant if their arguments have types that are variable size.
+    
+    Fixes #53921
+    
+    Change-Id: I2d46754c27f55a281331c099a11ea3cd85ec4e89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417917
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/unsafe/unsafe.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

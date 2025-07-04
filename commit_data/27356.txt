@@ -1,0 +1,35 @@
+commit b6712946c1b46eb629fb010e65e5b3735f94d171
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 7 15:12:32 2016 +1000
+
+    runtime: make mksyscall_windows.go flags do what they say they do
+    
+    The -systemdll and -xsys flags generate broken code in some situations
+    (see issue for details). Fix all that.
+    
+    This CL only fixes bugs in existing code, but I have more changes comming:
+    
+    golang.org/x/sys/windows is not the only package that uses mksyscall_windows.go.
+    golang.org/x/exp/shiny and github.com/derekparker/delve do too. I also have
+    few personal packages that use mksyscall_windows.go. None of those packages
+    are aware of new -xsys flag. I would like to change mksyscall_windows.go, so
+    external packages do not need to use -xsys flag. I would love to get rid of
+    -xsys flag altogether, but I don't see how it is possible. So I will, probably,
+    replace -xsys with a flag that means opposite to -xsys, and use new flag
+    everywhere in standard libraries. Flag name suggestions are welcome.
+    
+    -systemdll flag makes users code more "secure". I would like to make -systemdll
+    behaviour a default for all mksyscall_windows.go users. We use that already in
+    standard library. If we think "secure" is important, we should encourage it in
+    all users code. If mksyscall_windows.go user insist on using old code, provide
+    -use_old_loaddll (need good name here) flag for that. So -systemdll flag will
+    be replaced with -use_old_loaddll.
+    
+    Fixes #15167
+    
+    Change-Id: I516369507867358ba1b66aabe00a17a7b477016e
+    Reviewed-on: https://go-review.googlesource.com/21645
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/mksyscall_windows.go | 47 +++++++++++++++++++++++++++-------------
+ 1 file changed, 32 insertions(+), 15 deletions(-)

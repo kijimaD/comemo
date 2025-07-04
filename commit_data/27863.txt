@@ -1,0 +1,25 @@
+commit b4e9f70412671c7ac06b4852c38a0ab82d94ddf5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 16 12:55:17 2016 -0700
+
+    cmd/compile: remove support for textual export format
+    
+    Fixes #15323.
+    
+    Change-Id: I50e996e6fde6b24327cb45dd84da31deef4dcc56
+    Reviewed-on: https://go-review.googlesource.com/27171
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go        |   4 +-
+ src/cmd/compile/internal/gc/bimport.go        |   1 -
+ src/cmd/compile/internal/gc/export.go         | 242 +------
+ src/cmd/compile/internal/gc/fmt.go            | 132 +---
+ src/cmd/compile/internal/gc/lex.go            |  22 +-
+ src/cmd/compile/internal/gc/main.go           |  31 +-
+ src/cmd/compile/internal/gc/mkbuiltin.go      |  35 +-
+ src/cmd/compile/internal/gc/parser.go         | 826 +-----------------------
+ src/go/internal/gcimporter/gcimporter.go      | 875 +-------------------------
+ src/go/internal/gcimporter/gcimporter_test.go |  41 +-
+ 10 files changed, 85 insertions(+), 2124 deletions(-)

@@ -1,0 +1,23 @@
+commit 8e2370bf7f0c992ce1ea5dc54b43551cea71a485
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Aug 6 19:04:46 2020 +0000
+
+    runtime,runtime/metrics: add object size distribution metrics
+    
+    This change adds metrics for the distribution of objects allocated and
+    freed by size, mirroring MemStats' BySize field.
+    
+    For #37112.
+    
+    Change-Id: Ibaf1812da93598b37265ec97abc6669c1a5efcbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247045
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/metrics.go             | 52 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/metrics/description.go | 10 ++++++++
+ src/runtime/metrics/doc.go         |  6 +++++
+ src/runtime/metrics_test.go        | 36 ++++++++++++++++++++++++++
+ 4 files changed, 104 insertions(+)

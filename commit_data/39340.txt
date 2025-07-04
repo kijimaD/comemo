@@ -1,0 +1,31 @@
+commit 9eb403159da9debbb4881140995e62bec0c943f3
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Fri Jun 7 13:22:53 2019 -0400
+
+    cmd/link: fix deferreturn detector
+    
+    The logic for detecting deferreturn calls is wrong.
+    
+    We used to look for a relocation whose symbol is runtime.deferreturn
+    and has an offset of 0. But on some architectures, the relocation
+    offset is not zero. These include arm (the offset is 0xebfffffe) and
+    s390x (the offset is 6).
+    
+    This ends up setting the deferreturn offset at 0, so we end up using
+    the entry point live map instead of the deferreturn live map in a
+    frame which defers and then segfaults.
+    
+    Instead, use the IsDirectCall helper to find calls.
+    
+    Fixes #32477
+    Update #6980
+    
+    Change-Id: Iecb530a7cf6eabd7233be7d0731ffa78873f3a54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181258
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/pcln.go |  2 +-
+ test/fixedbugs/issue32477.go     | 71 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 72 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit f11271b82e123239e9263749b18b3ea9ad5c0610
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu Sep 23 20:33:52 2010 +1000
+
+    utf8: add DecodeLastRune and DecodeLastRuneInString to
+    enable traversing rune-by-rune backwards in strings
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/2192050
+
+ src/pkg/utf8/utf8.go      | 67 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/utf8/utf8_test.go | 79 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 146 insertions(+)

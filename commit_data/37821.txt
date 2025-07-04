@@ -1,0 +1,16 @@
+commit 30c0a0d33faee0355db2cb91e8599d6fd85fae76
+Author: Stepan Shabalin <neverliberty@gmail.com>
+Date:   Thu Jan 3 17:55:15 2019 +0700
+
+    runtime: remove redundant slicing
+    
+    In the twoNonZero function in hash_test, the buffer is sliced as [:] three times. This change deletes them.
+    
+    Change-Id: I0701d0c810b4f3e267f80133a0dcdb4ed81fe356
+    Reviewed-on: https://go-review.googlesource.com/c/156138
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/hash_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

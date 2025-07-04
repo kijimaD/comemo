@@ -1,0 +1,12 @@
+commit 4ba177ae36c9039d8110f08daaaccc18c5702864
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 20 17:39:31 2010 -0700
+
+    gc: print x[y:] correctly
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/955041
+
+ src/cmd/gc/print.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

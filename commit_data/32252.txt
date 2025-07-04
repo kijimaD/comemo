@@ -1,0 +1,23 @@
+commit 1ee701e857e16869d40d60a09451058e8913528f
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Aug 12 22:52:17 2017 +0900
+
+    cmd/link: improve error message
+    
+    ld.SymKind and objabi.RelocType have string representations,
+    which is human friendly. Prefer to use it.
+    
+    Change-Id: I458ee0ca5866be0db8462c36cd053561a8206c95
+    Reviewed-on: https://go-review.googlesource.com/55253
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go | 6 +++---
+ src/cmd/link/internal/arm/asm.go   | 4 ++--
+ src/cmd/link/internal/arm64/asm.go | 4 ++--
+ src/cmd/link/internal/ld/data.go   | 4 ++--
+ src/cmd/link/internal/ld/elf.go    | 4 ++--
+ src/cmd/link/internal/ld/pe.go     | 4 ++--
+ src/cmd/link/internal/x86/asm.go   | 6 +++---
+ 7 files changed, 16 insertions(+), 16 deletions(-)

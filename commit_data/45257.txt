@@ -1,0 +1,27 @@
+commit f53c2fac46e2e193493045eef08591ded1496b74
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 16 00:47:35 2021 -0400
+
+    cmd/go/internal/modload: in newRequirements, verify that rootModules is sorted
+    
+    The comment for the Requirements.rootModules field requires that it be
+    "sorted and capped to length". I noticed that we were not capping it
+    correctly — we were capping the local variable (the rorotModules
+    argument itself) but not the struct field. That prompted me to
+    question whether we were also at some point failing to sort it
+    correctly, so I decided to add an explicit check.
+    
+    With the explicit check, all tests continue to pass.
+    
+    For #36460
+    
+    Change-Id: I6687de8ef8ecc5129fa8810d678e5673752fd27b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310790
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/buildlist.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

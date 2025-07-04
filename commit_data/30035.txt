@@ -1,0 +1,18 @@
+commit dbd51ce99c140766808c17b334b8795b8040c0b3
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Nov 2 17:20:22 2016 +0100
+
+    cmd/compile: intrinsify math.Sqrt by using only the ssa backend
+    
+    Change-Id: If3cb64f52fe0fd7331b6f1acf3d15dd705dfd633
+    Reviewed-on: https://go-review.googlesource.com/32591
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/opnames.go  |  1 -
+ src/cmd/compile/internal/gc/racewalk.go |  3 +--
+ src/cmd/compile/internal/gc/ssa.go      | 12 ++++++------
+ src/cmd/compile/internal/gc/syntax.go   |  1 -
+ src/cmd/compile/internal/gc/walk.go     | 10 ----------
+ 5 files changed, 7 insertions(+), 20 deletions(-)

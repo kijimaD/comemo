@@ -1,0 +1,32 @@
+commit 0e7a7a68cd2a29895eae345ce56145b780d4a06c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 5 11:22:58 2021 -0400
+
+    text/template/parse: rename DeferFuncCheck to SkipFuncCheck
+    
+    The proposal as accepted in #34652 named the bit SkipFuncCheck.
+    It was renamed to DeferFuncCheck during the code review on a suggestion by Rob,
+    along with a comment to “defer type checking functions until template is executed,”
+    but this description is not accurate: the package has never type-checked functions,
+    only verified their existence. And the effect of the bit in this package is to eliminate
+    this check entirely, not to defer it to some later time.
+    
+    I was writing code using this new bit and was very confused about when the
+    "type checking" was being deferred to and how to stop that entirely,
+    since in my use case I wanted no checks at all. What I wanted is what the bit does,
+    it just wasn't named accurately.
+    
+    Rename back to SkipFuncCheck.
+    
+    Change-Id: I8e62099c8a904ed04521eb5b86155290f6d5b12f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317269
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ api/next.txt                          | 4 ++--
+ src/text/template/parse/parse.go      | 6 +++---
+ src/text/template/parse/parse_test.go | 6 +++---
+ 3 files changed, 8 insertions(+), 8 deletions(-)

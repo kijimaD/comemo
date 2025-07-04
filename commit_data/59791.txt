@@ -1,0 +1,21 @@
+commit 934d5f2cf703c6aad9f0ce6a73a3922d1af83049
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jun 11 21:20:05 2025 +0000
+
+    internal/trace: end test programs with SIGQUIT
+    
+    This change switches from using testenv.Command to
+    testenv.CommandContext which is a little bit friendlier. It also
+    switches away from using 'go run' to 'go build' and running the
+    resulting binary explicitly. This helps eliminate any questions about
+    signal handling and propagation.
+    
+    For #72740.
+    
+    Change-Id: Ife8010da89a7bc439e061fe0c9c6b1f5620d90f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/680977
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/trace/trace_test.go | 27 ++++++++++++++++++++++-----
+ 1 file changed, 22 insertions(+), 5 deletions(-)

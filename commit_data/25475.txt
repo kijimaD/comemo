@@ -1,0 +1,23 @@
+commit 2586af47f6680ac55c31b7f976234e68d7df1758
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 6 16:43:21 2016 -0800
+
+    misc/cgo/testcarchive,testcshared: deflake tests
+    
+    After a failure on the build dashboard I tested testcarchive test 2 and
+    found that it failed an average of 1 in 475 runs on my laptop.  With
+    this change it ran over 50,000 times without failing.  I bumped up the
+    other iteration limits to correspond.
+    
+    Change-Id: I0155c68161a2c2a09ae25c91e9269f1e8702628d
+    Reviewed-on: https://go-review.googlesource.com/18309
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcarchive/main2.c | 2 +-
+ misc/cgo/testcarchive/main3.c | 4 ++--
+ misc/cgo/testcarchive/main4.c | 4 ++--
+ misc/cgo/testcshared/main4.c  | 2 +-
+ misc/cgo/testcshared/main5.c  | 4 ++--
+ 5 files changed, 8 insertions(+), 8 deletions(-)

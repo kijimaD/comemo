@@ -1,0 +1,27 @@
+commit 11b5f98bf0d5eb8854f735cc332c912725070214
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 16 11:26:44 2015 +0900
+
+    net: fix inconsistent error values on Write
+    
+    This change fixes inconsistent error values on Write,
+    WriteTo{,UDP,IP,Unix} and WriteMsg{UDP,IP,Unix}.
+    
+    Updates #4856.
+    
+    Change-Id: I4208ab6a0650455ad7d70a80a2d6169351d6055f
+    Reviewed-on: https://go-review.googlesource.com/8993
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/error_test.go      | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/net/fd_unix.go         | 13 +++----------
+ src/net/fd_windows.go      | 12 +++---------
+ src/net/iprawsock_plan9.go |  6 +++---
+ src/net/iprawsock_posix.go | 21 +++++++++++++++------
+ src/net/net.go             | 11 ++++++++++-
+ src/net/timeout_test.go    | 18 +++++++++---------
+ src/net/udpsock_plan9.go   | 10 +++++++---
+ src/net/udpsock_posix.go   | 25 +++++++++++++++++--------
+ src/net/unixsock_plan9.go  |  6 +++---
+ src/net/unixsock_posix.go  | 24 ++++++++++++++++--------
+ 11 files changed, 126 insertions(+), 60 deletions(-)

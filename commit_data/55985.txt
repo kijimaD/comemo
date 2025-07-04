@@ -1,0 +1,29 @@
+commit d14cf8f91b1b9ab5009737b03e6e23cc201cbc22
+Author: Nuno Gonçalves <nunomrgoncalves@tecnico.ulisboa.pt>
+Date:   Mon Mar 18 20:06:17 2024 +0000
+
+    net/mail: enhance address parser to include support for domain literals
+    
+    The existing implementation of the mail package conforms to RFC 5322
+    for parsing mail messages, but it lacks support for domain literals. This
+    patch addresses this limitation by adding support for domain literals in
+    the address parser.
+    
+    The Addr-Spec Specification, defined in RFC 5322 Section 3.4.1,
+    outlines the format for email addresses:
+    https://datatracker.ietf.org/doc/html/rfc5322\#section-3.4.1
+    
+    Fixes #60206
+    
+    Change-Id: Ic901418325bd1da69e70800d70b87d658b953738
+    GitHub-Last-Rev: bdda66f3fe098df3a62d803b1f69e63fef6281e3
+    GitHub-Pull-Request: golang/go#66075
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567777
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/net/mail/message.go      | 69 +++++++++++++++++++++++++++++++++++++++++---
+ src/net/mail/message_test.go | 42 +++++++++++++++++++++++++++
+ 2 files changed, 107 insertions(+), 4 deletions(-)

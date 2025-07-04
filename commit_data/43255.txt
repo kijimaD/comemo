@@ -1,0 +1,22 @@
+commit 5acec489a1987bd2f3d342f63d02e08d546f0fc3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 10:31:03 2020 -0400
+
+    go/build: add Package.IgnoredOtherFiles
+    
+    Just like it is useful to report ignored .go files,
+    it is also useful to report ignored non-.go files.
+    
+    Also, remove _* and .* files from IgnoredGoFiles.
+    The fact that they were there at all was a mistake.
+    This list is for files being ignored due to build constraints.
+    
+    Change-Id: Ie08252dde9f56bda08647e7ebeab7906e9271c54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240551
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/go/build/build.go | 111 +++++++++++++++++++++++++++-----------------------
+ 1 file changed, 61 insertions(+), 50 deletions(-)

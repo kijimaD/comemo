@@ -1,0 +1,33 @@
+commit 67f8a8131648346f6bf9b525cd989bd2f7293b3f
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Dec 22 22:31:55 2014 +0300
+
+    reflect: cache call frames
+    
+    Call frame allocations can account for significant portion
+    of all allocations in a program, if call is executed
+    in an inner loop (e.g. to process every line in a log).
+    On the other hand, the allocation is easy to remove
+    using sync.Pool since the allocation is strictly scoped.
+    
+    benchmark           old ns/op     new ns/op     delta
+    BenchmarkCall       634           338           -46.69%
+    BenchmarkCall-4     496           167           -66.33%
+    
+    benchmark           old allocs     new allocs     delta
+    BenchmarkCall       1              0              -100.00%
+    BenchmarkCall-4     1              0              -100.00%
+    
+    Update #7818
+    
+    Change-Id: Icf60cce0a9be82e6171f0c0bd80dee2393db54a7
+    Reviewed-on: https://go-review.googlesource.com/1954
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/all_test.go    | 11 ++++++++++
+ src/reflect/export_test.go |  4 ++--
+ src/reflect/makefunc.go    |  4 ++--
+ src/reflect/type.go        | 13 +++++++----
+ src/reflect/value.go       | 55 +++++++++++++++++++++++++++++++++-------------
+ src/runtime/stubs.go       |  5 +++++
+ 6 files changed, 69 insertions(+), 23 deletions(-)

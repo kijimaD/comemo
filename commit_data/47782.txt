@@ -1,0 +1,27 @@
+commit 3e8aa5dd495d30ff29cd4fb78aabe8fc0ebb1eda
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Dec 13 12:03:13 2021 -0500
+
+    cmd/compile/internal/amd64: fix for coverage testing
+    
+    Fix up a unit test to make it more friendly for coverage runs.
+    Currently on tip if you do
+    
+       cd ${GOROOT}/src ; go test -cover cmd/compile/...
+    
+    it will cause a failure in the TestGoAMD64v1 testpoint of
+    cmd/compile/internal/amd64, the reason being that this testpoint
+    copies and reruns the test executable, expecting the rerun to produce
+    only the output "PASS", whereas if "-cover" is used, the output will
+    include percentage of statements covered as well. To fix, rework the
+    test to tolerate additional output if coverage is enabled.
+    
+    Change-Id: I2512e06ca06e5f38108f2891ff84276d148c4f9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371234
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/amd64/versions_test.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

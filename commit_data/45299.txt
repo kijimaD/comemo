@@ -1,0 +1,20 @@
+commit 74059685fda0b60d539450ad6b7331ade838e90c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 22 12:42:33 2021 -0700
+
+    go/types: suppress index-out-of-bounds error on Unknown constants
+    
+    Follow up to CL 312591, which was stumping rfindley and I for a
+    while. Credit to him for figuring out a repro and explaining the
+    correct solution.
+    
+    Change-Id: Ib8578bba05f60fc41d382c34c5266d815441e7a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312790
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/expr.go            | 11 ++++++++---
+ src/go/types/testdata/expr3.src |  1 +
+ 2 files changed, 9 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit c8029041277c52f6a8c97dffa0a799ffbe217336
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Dec 12 13:35:19 2018 -0500
+
+    doc: document Go 1.11.3 and Go 1.10.6
+    
+    Change-Id: I3fe44887a84586d73be01df78a9cbb002c1fc9c5
+    Reviewed-on: https://team-review.git.corp.google.com/c/376465
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/154106
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/devel/release.html | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

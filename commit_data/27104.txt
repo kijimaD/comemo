@@ -1,0 +1,20 @@
+commit fca0f331c8b99d476c871d8718e296b32ad24073
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 22 08:39:56 2016 -0700
+
+    cmd/compile: use gc.Etype's String method
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I42c962cc5a3ffec2969f223cf238c2fdadbf5857
+    Reviewed-on: https://go-review.googlesource.com/22381
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go  |  8 ++++----
+ src/cmd/compile/internal/gc/reg.go  |  8 ++++----
+ src/cmd/compile/internal/gc/ssa.go  | 10 +++++-----
+ src/cmd/compile/internal/gc/subr.go |  2 +-
+ src/cmd/compile/internal/gc/type.go |  2 +-
+ 5 files changed, 15 insertions(+), 15 deletions(-)

@@ -1,0 +1,14 @@
+commit 79b106ec62542d589fcbc9a079e1bada7e7db46c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 15 01:38:05 2014 +0000
+
+    cmd/ld: generate correct upper bound value for array types.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/115820043
+
+ src/cmd/ld/decodesym.c | 3 ++-
+ src/cmd/ld/dwarf.c     | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

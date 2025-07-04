@@ -1,0 +1,17 @@
+commit fd483b6f62d3d7af915d71df6e654e5edcbc188c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 1 14:27:06 2016 -0800
+
+    cmd/go: check MustHaveExternalNetwork before `go get` tests
+    
+    Also change a couple of `go get` tests to use MustHaveExternalNetwork
+    rather than checking testing.Short.
+    
+    Change-Id: I98ccc05b8b0354f1b7486e28dac5f8341c342a07
+    Reviewed-on: https://go-review.googlesource.com/33802
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

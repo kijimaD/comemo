@@ -1,0 +1,19 @@
+commit 8484f2fe0250f16304f3112b1caee5a32e685823
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 12 15:57:00 2023 -0700
+
+    cmd/go: add comment for intentional misspelling
+    
+    Try to avoid fixes from automatic spell checkers.
+    
+    Change-Id: I1d134fb2721decffa865a3f4d78bca4fce8e8fee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502658
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/testdata/script/build_unsupported_goos.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

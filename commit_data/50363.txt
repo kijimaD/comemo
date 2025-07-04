@@ -1,0 +1,68 @@
+commit 2b8f21409480931b45c983853a78dc7984ed634e
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Jun 28 15:40:29 2022 -0700
+
+    os/exec: LookPath: use eaccess for exec check on linux
+    
+    Having an executable bit set for a binary is not enough for it to be
+    executable -- there might be more checks in the kernel. For example,
+    binaries on a filesystem mounted with "noexec" flag couldn't be
+    executed. There might be other scenarios involving ACLs, SELinux,
+    file capabilities, and so on.
+    
+    As a result, LookPath might either find a non-executable (while going
+    over $PATH elements), or return a false positive that the argument
+    provided is an executable.
+    
+    One possible fix would be to perform the check by using access(2)
+    syscall with X_OK flag.
+    
+    Now, since access(2) uses real (rather than effective) uid and gid,
+    when used by a setuid or setgid binary, it checks permissions of the
+    (real) user who started the binary, rather than the actual effective
+    permissions. Therefore, using access with X_OK won't work as expected
+    for setuid/setgid binaries.
+    
+    To fix this, modern platforms added ways to check against effective uid
+    and gid, with the most common being the faccessat(2) call with the
+    AT_EACCESS flag, as described by POSIX.1-2008 (in Linux, only
+    faccessat2(2) supports flags such as AT_EACCESS). Let's use it, and fall
+    back to checking permission bits if faccessat is not available.
+    
+    Wrap the logic into unix.Eaccess, which is currently only implemented on
+    Linux. While many other OSes (Free/Net/OpenBSD, AIX, Solaris/Illumos, and
+    Darwin) do implement faccessat(2) with AT_EACCESS, it is not wired in
+    syscall package (except for AIX), so these platforms are left out for now.
+    In the future, eaccess can be implemented for these OSes, too.
+    
+    Alas, a call to unix.Eaccess is not enough since we have to filter out
+    directories, so use both stat and Eaccess.
+    
+    One minor change introduced by this commit is that LookPath and Command
+    now returns "is a directory" error when the argument contains a slash
+    and is a directory.  This is similar to what e.g. bash does on Linux:
+    
+            $ bash -c /etc
+            bash: line 1: /etc: Is a directory
+    
+    Add a test case, which, unfortunately, requires root, is specific to
+    Linux, and needs a relatively new kernel (supporting faccessat2).  Other
+    platforms either have different semantics for tmpfs with noexec, or have
+    different ways to set up a binary which has x bit set but nevertheless
+    could not be executed.
+    
+    Change-Id: If49b6ef6bf4dd23b2c32bebec8832d83e511a4bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414824
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/internal/syscall/unix/at_sysnum_linux.go |  8 +++-
+ src/internal/syscall/unix/constants.go       | 13 ++++++
+ src/internal/syscall/unix/eaccess_linux.go   | 11 +++++
+ src/internal/syscall/unix/eaccess_other.go   | 13 ++++++
+ src/os/exec/lp_linux_test.go                 | 69 ++++++++++++++++++++++++++++
+ src/os/exec/lp_unix.go                       | 15 +++++-
+ 6 files changed, 126 insertions(+), 3 deletions(-)

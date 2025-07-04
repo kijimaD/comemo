@@ -1,0 +1,25 @@
+commit 9b568ef2b86ad383e5db9bc57723d4ce554a319e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Jan 20 20:14:24 2013 +1100
+
+    cmd/5l: reduce the size of Prog and Sym
+    
+    Prog
+    * Remove the unused Prog* dlink
+    * note that align is also unused, but removing it does not help due to alignment issues.
+    
+    Saves 4 bytes, sizeof(Prog): 84 => 80.
+    
+    Sym
+    * Align {u,}char fields on word boundaries
+    
+    Saves 4 bytes, sizeof(Sym): 136 => 132.
+    
+    Tested on linux/arm and freebsd/arm.
+    
+    R=minux.ma, remyoudompheng, rsc
+    CC=golang-dev
+    https://golang.org/cl/7106050
+
+ src/cmd/5l/l.h | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

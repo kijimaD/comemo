@@ -1,0 +1,19 @@
+commit 8838a3b53fccc7b3aa83312326bfd38bcb8f2281
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Oct 8 20:28:58 2021 +1100
+
+    cmd/internal/obj/riscv: fix and enable test in short mode
+    
+    The branch test only takes a few seconds so enable it in short mode. Also fix a
+    typo that currently prevents the code from compiling.
+    
+    Change-Id: I25fc646b002a66c042c61fb1f56d5efa8e47903c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356249
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/internal/obj/riscv/asm_test.go                        | 3 ---
+ src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go | 2 +-
+ 2 files changed, 1 insertion(+), 4 deletions(-)

@@ -1,0 +1,20 @@
+commit c2ccc48165255454e27d0fccbb7b3cb84aee638f
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Mon Feb 26 14:45:58 2018 -0600
+
+    cmd/compile/internal/ssa: refactor zeroUpper32Bits
+    
+    Explicitly whitelist args of OpSelect{1|2} that zero upper 32 bits.
+    Use better values in corresponding test.
+    This should have been a part of  CL 96815, but it was submitted, before
+    relevant comments.
+    
+    Change-Id: Ic85d90a4471a17f6d64f8f5c405f21378bf3a30d
+    Reviewed-on: https://go-review.googlesource.com/97295
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/rewrite.go            |  4 ++--
+ src/cmd/compile/internal/ssa/zeroextension_test.go | 10 +++++-----
+ 2 files changed, 7 insertions(+), 7 deletions(-)

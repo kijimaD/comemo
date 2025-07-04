@@ -1,0 +1,17 @@
+commit 03fbf29927a2e47939c5b1a8b879f049a01a7cdc
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 21 13:16:47 2011 +1100
+
+    dashboard: send mail on build failure
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/5490081
+
+ misc/dashboard/app/app.yaml         |   6 +-
+ misc/dashboard/app/build/build.go   |  41 ++++++++--
+ misc/dashboard/app/build/notify.go  | 149 ++++++++++++++++++++++++++++++++++++
+ misc/dashboard/app/build/notify.txt |   9 +++
+ misc/dashboard/app/build/test.go    |   4 +
+ misc/dashboard/app/build/ui.go      |  28 ++++---
+ 6 files changed, 217 insertions(+), 20 deletions(-)

@@ -1,0 +1,12 @@
+commit ce85868a0020b2873fa82a048ab6fe99d18d0bf4
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Feb 5 15:18:32 2010 -0800
+
+    bug in const float divide
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/204042
+
+ src/cmd/gc/mparith2.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

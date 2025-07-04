@@ -1,0 +1,18 @@
+commit 89c5d178785bd7884dbb14d73f85f600196d6cb6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 8 12:36:31 2014 -0800
+
+    runtime: handle gdb breakpoint in x86 traceback
+    
+    This lets stack splits work correctly when running under gdb
+    when gdb has inserted a breakpoint somewhere on the call
+    stack.
+    
+    Fixes #6834.
+    
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/48650043
+
+ src/pkg/runtime/sys_x86.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

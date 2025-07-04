@@ -1,0 +1,14 @@
+commit c715b58dadfce3647dc33c60c276f1b557f08612
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 15 16:44:28 2009 -0800
+
+    gc: fix import name resolution
+    
+    Fixes #403.
+    
+    R=ken2
+    https://golang.org/cl/180052
+
+ src/cmd/gc/go.y          |  2 +-
+ test/fixedbugs/bug233.go | 10 ++++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit d8e86caa3f1b6d4454ac2590272522acb0a6c234
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jun 14 09:12:32 2018 +0200
+
+    os: skip TestFifoEOF on android
+    
+    TestFifoEOF fails on android because the mkfifo syscall is not allowed:
+    
+    --- FAIL: TestFifoEOF (0.00s)
+        fifo_test.go:39: permission denied
+    
+    Change-Id: I007ff359831525add39cec34de4b3d3cd3adb047
+    Reviewed-on: https://go-review.googlesource.com/118815
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/fifo_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit af5e16cfd9898e53beb1a8d74bcdf00ad9e6b8ba
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 20 16:30:44 2008 -0800
+
+    fix new(T) if type T []int.
+    make sure type of expr is T not just []int
+    
+    R=ken
+    OCL=21688
+    CL=21688
+
+ src/cmd/gc/walk.c | 1 +
+ 1 file changed, 1 insertion(+)

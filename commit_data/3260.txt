@@ -1,0 +1,15 @@
+commit 8a0cb9302f7e05fb6db884dc285406d0f0fc491a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Sep 13 21:47:54 2009 -0700
+
+    When decoding a paletted PNG, require that a PLTE chunk is seen before
+    the first IDAT chunk.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=7  (2 added, 0 deleted, 5 changed)
+    OCL=34583
+    CL=34585
+
+ src/pkg/image/png/reader.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

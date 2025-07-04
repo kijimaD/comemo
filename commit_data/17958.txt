@@ -1,0 +1,20 @@
+commit 426b48a77522c0e411cf328372bcfaae3dc7bcc9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 11 12:11:37 2013 -0500
+
+    cmd/5a, cmd/6a, cmd/8a: fix .y files to match y.tab.[ch]
+    
+    When I renamed LAddr back to Addr (before sending the
+    original linker CLs), I missed the .y files in my global substitute.
+    Since the .y files are only processed when running make in
+    one of those directories (not during all.bash), they were
+    behind the generated files.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/40770044
+
+ src/cmd/5a/a.y | 8 ++++----
+ src/cmd/6a/a.y | 2 +-
+ src/cmd/8a/a.y | 2 +-
+ 3 files changed, 6 insertions(+), 6 deletions(-)

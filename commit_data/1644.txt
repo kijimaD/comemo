@@ -1,0 +1,13 @@
+commit 9526f3b841275529cb5c5b9c1889b9bc359634b2
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 8 10:16:32 2009 -0800
+
+    use unsafe.Sizeof
+    
+    R=rsc
+    DELTA=9  (3 added, 3 deleted, 3 changed)
+    OCL=24640
+    CL=24653
+
+ src/lib/reflect/type.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,17 @@
+commit 4ad5dd63a7b5bc57312a95bd7dcdb6c209456a6f
+Author: David Chase <drchase@google.com>
+Date:   Tue Aug 11 08:39:17 2020 -0400
+
+    cmd/compile: late call expansion for go func and simple defer func
+    
+    Passes run.bash and race.bash on darwin/amd64.
+    
+    Change-Id: Icbccaa2f2e7c3eac7c328c5253f331e598e11542
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247898
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 37 +++++++++++++++++++++++--------------
+ 1 file changed, 23 insertions(+), 14 deletions(-)

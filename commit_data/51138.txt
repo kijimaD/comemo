@@ -1,0 +1,21 @@
+commit 42105eb8a5b59e715573f5299218e12be2dbb050
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 7 10:24:23 2022 -0500
+
+    misc/cgo/test: skip Test9400 on Alpine
+    
+    Alpine has a known issue where setgid clobbers the Go stack (#39857).
+    misc/cgo/test skips other tests that use setgid on Alpine, but not
+    this one. It's not clear to me why this test *used to* pass, but when
+    I refactored misc/cgo/test in CL 447355 it started failing.
+    
+    Disable this test on Alpine, like the other setgid tests.
+    
+    Change-Id: I2e646ef55e2201a4f0b377319d719a011ec847f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448355
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ misc/cgo/test/cgo_linux_test.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

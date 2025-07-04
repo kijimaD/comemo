@@ -1,0 +1,19 @@
+commit a12c1f26e4cc602dae62ec065a237172a5b8f926
+Author: David Chase <drchase@google.com>
+Date:   Tue Jun 26 12:00:25 2018 -0400
+
+    cmd/compile: improve escape analysis explanation
+    
+    No code changes, only revised comments in an attempt to make
+    escape analysis slightly less confusing.
+    
+    Updates #23109.
+    
+    Change-Id: I5ee6cea0946ced63f6210ac4484a088bcdd862fb
+    Reviewed-on: https://go-review.googlesource.com/121001
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/esc.go | 91 +++++++++++++++++++++++---------------
+ 1 file changed, 56 insertions(+), 35 deletions(-)

@@ -1,0 +1,10 @@
+commit 32aa0d9198a1b147eb2c756c0d5628b3399f9898
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 11 14:03:52 2008 -0700
+
+    generated file; needs updating
+    
+    SVN=122179
+
+ src/cmd/gc/sysimport.c | 94 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 47 insertions(+), 47 deletions(-)

@@ -1,0 +1,16 @@
+commit e9782bdebd7b55d8c40961dca10f5e91b06e9016
+Author: Derek Phan <derekphan94@gmail.com>
+Date:   Wed Aug 7 23:42:03 2019 +0000
+
+    path: fix mismatch between error message and corresponding test function
+    
+    Change-Id: Ib0ae6e3e678dc7ace21b891e946ffc6bc2a78835
+    GitHub-Last-Rev: 8c6704ea8c032072ac339dc9d1c6ec78aec15b2a
+    GitHub-Pull-Request: golang/go#33534
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189378
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/path/path_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 17436af8413071a50515c90af69c23f77cb201e3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 3 09:45:48 2019 -0400
+
+    cmd/go/internal/modload: fix aliasing bug in (*mvsReqs).Required with -mod=vendor
+    
+    (*mvsReqs).Required assumes that it is safe to mutate the slice
+    returned by (*mvsReqs).required. In most cases, that was true, but in
+    the case of -mod=vendor it resulted in unsynchronized (and
+    potentially interfering) writes to the global vendorList.
+    
+    Fixes #30550
+    
+    Change-Id: I99bcc2037e0182418b7dfda1002f8b540dbf3a1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170598
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/modload/load.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

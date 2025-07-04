@@ -1,0 +1,17 @@
+commit 123ff2ebb845be18fc38ae7fd058633f78621538
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 28 17:01:46 2009 -0700
+
+    bug177: anonymous struct fields in reflect
+    (reported by iant)
+    
+    R=r
+    DELTA=50  (32 added, 12 deleted, 6 changed)
+    OCL=32263
+    CL=32385
+
+ src/cmd/gc/reflect.c     |  2 +-
+ src/pkg/gob/decode.go    |  2 +-
+ src/pkg/reflect/type.go  | 28 ++++++++++++----------------
+ test/fixedbugs/bug177.go | 28 ++++++++++++++++++++++++++++
+ 4 files changed, 42 insertions(+), 18 deletions(-)

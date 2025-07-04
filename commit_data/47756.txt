@@ -1,0 +1,18 @@
+commit 61ba0bcf8eebd1515d1af7a0e918bf912db6eb46
+Author: Julie Qiu <julie@golang.org>
+Date:   Mon Dec 6 12:31:27 2021 -0500
+
+    cmd/go: use -count=1 in test_fuzz_chatty.txt
+    
+    Fuzz tests in test_fuzz_chatty.txt now use -count=1 where applicable.
+    
+    Fixes #48984
+    
+    Change-Id: If1673924af990fe12d5dfba95082ccb573806fde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369674
+    Trust: Julie Qiu <julie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/cmd/go/testdata/script/test_fuzz_chatty.txt | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

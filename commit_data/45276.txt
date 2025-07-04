@@ -1,0 +1,26 @@
+commit 7bedd477980175aecda5feb782e88041e86c2756
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Apr 20 22:59:59 2021 -0400
+
+    go/types: combine all type inference in a single function
+    
+    This is a port of CL 306170 to go/types, adjusted for the different
+    positioning API.
+    
+    Some of the error positions in tests had to be adjusted, but I think the
+    new locations are better.
+    
+    Change-Id: Ib157fbb47d7483e3c6302bd57f5070bd74602a36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312191
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ .../internal/types2/fixedbugs/issue40056.go2       |   2 +-
+ src/go/types/call.go                               |  85 +++-------
+ src/go/types/fixedbugs/issue39634.go2              |   2 +-
+ src/go/types/fixedbugs/issue40056.go2              |   4 +-
+ src/go/types/infer.go                              | 172 +++++++++++++++++----
+ src/go/types/testdata/typeparams.go2               |  10 +-
+ 6 files changed, 176 insertions(+), 99 deletions(-)

@@ -1,0 +1,16 @@
+commit 03babfc6266c16103de0aacc38a74edceacb23af
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Oct 1 14:14:18 2010 +1000
+
+    Use Errorf where appropriate.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2308043
+
+ misc/dashboard/builder/hg.go     |  3 ++-
+ misc/dashboard/builder/main.go   | 20 ++++++++------------
+ src/pkg/go/printer/printer.go    |  2 +-
+ src/pkg/image/png/writer_test.go |  4 ++--
+ src/pkg/rpc/jsonrpc/client.go    |  2 +-
+ 5 files changed, 14 insertions(+), 17 deletions(-)

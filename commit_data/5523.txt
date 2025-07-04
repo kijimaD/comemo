@@ -1,0 +1,14 @@
+commit 2d8aee45b8bb63ef5d31589a57c341f55987a2d2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon May 24 11:44:09 2010 -0700
+
+    Make draw/x11 treat $DISPLAY the same way x-go-bindings does.
+    This ought to make draw/x11 work on a Mac.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1265042
+
+ src/pkg/exp/draw/x11/auth.go |  27 +++-------
+ src/pkg/exp/draw/x11/conn.go | 114 ++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 97 insertions(+), 44 deletions(-)

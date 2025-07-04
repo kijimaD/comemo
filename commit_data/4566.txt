@@ -1,0 +1,15 @@
+commit 752b1702d03fbc4377fe856a378c7fa4abbb006f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 9 09:47:14 2010 -0800
+
+    codereview: do not send mail when submitting for others
+    
+    rename original_author to copied_from so that it reads
+    better when used as a condition.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/185045
+
+ lib/codereview/codereview.py | 40 ++++++++++++++++++++--------------------
+ 1 file changed, 20 insertions(+), 20 deletions(-)

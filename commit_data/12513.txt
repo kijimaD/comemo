@@ -1,0 +1,15 @@
+commit 8a146e707cc54a8e71758521085c6a2853ff8081
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 8 21:54:46 2012 +1100
+
+    misc/dashboard: remove obsolete package builder code
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5790045
+
+ misc/dashboard/builder/http.go      |  35 -----
+ misc/dashboard/builder/main.go      | 121 +-----------------
+ misc/dashboard/builder/package.go   | 121 ------------------
+ misc/dashboard/googlecode_upload.py | 248 ------------------------------------
+ 4 files changed, 2 insertions(+), 523 deletions(-)

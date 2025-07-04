@@ -1,0 +1,16 @@
+commit 6910356ea899e0c7b19da5f59c6058a737ed5e93
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Sep 12 10:40:39 2012 +1000
+
+    strings: fix NewReplacer(old0, new0, old1, new1, ...) to be consistent
+    when oldi == oldj.
+    
+    Benchmark numbers show no substantial change.
+    
+    R=eric.d.eisner, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/6496104
+
+ src/pkg/strings/replace.go      | 70 ++++++++++++++++++++++-------------------
+ src/pkg/strings/replace_test.go | 15 +++++++--
+ 2 files changed, 49 insertions(+), 36 deletions(-)

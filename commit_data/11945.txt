@@ -1,0 +1,15 @@
+commit 79db6ada48d09dbbf47c4fb0f49ebbd2a044a35b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Feb 16 00:19:42 2012 +0100
+
+    cmd/gc: error on constant shift overflows.
+    
+    Fixes #3019.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5674044
+
+ src/cmd/gc/mparith2.c | 26 +++++++++++++++++---------
+ test/const2.go        |  4 +++-
+ 2 files changed, 20 insertions(+), 10 deletions(-)

@@ -1,0 +1,13 @@
+commit 834fda37c5f4572250e76d8254ce80cdd81a06db
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Mon Dec 27 10:12:10 2010 -0800
+
+    atof: added 'E' as valid token for exponent
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/3827042
+
+ src/pkg/strconv/atof.go      | 2 +-
+ src/pkg/strconv/atof_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

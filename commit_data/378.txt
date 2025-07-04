@@ -1,0 +1,11 @@
+commit 7eb7ff2b369fc75980913768405ab2a910550491
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 17 10:47:32 2008 -0700
+
+    new channel syntax
+    select cleans up too
+    
+    SVN=127816
+
+ doc/go_lang.txt | 161 ++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 115 insertions(+), 46 deletions(-)

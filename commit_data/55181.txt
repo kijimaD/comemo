@@ -1,0 +1,21 @@
+commit 67c86037af2bd46ff847cfa4e33b7148f58c1f93
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 30 12:52:01 2023 -0800
+
+    go/types, types2: add testcase for alias issue
+    
+    Using the new type Alias node, this issue is now fixed.
+    Add a test case.
+    
+    Fixes #50729.
+    
+    Change-Id: I22a4cf31b83de497e052989ca2054227e65e9937
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546455
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/internal/types/testdata/fixedbugs/issue50729b.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

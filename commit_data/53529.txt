@@ -1,0 +1,18 @@
+commit eaa4b1a6e4d9f9bec10257a548d25b2425a83ee5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 6 16:25:26 2023 -0700
+
+    cmd/compile/internal/types2: add missing tests from go/types
+    
+    Add 3 tests that exist in go/types but that were not ported to types2.
+    
+    Change-Id: I34d219f605f9ae66e8b4439c3dfe93cfa0ec9524
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501304
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/check_test.go | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)

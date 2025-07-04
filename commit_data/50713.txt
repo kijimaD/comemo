@@ -1,0 +1,21 @@
+commit a14ac8635f673218c91e13c103cb2f3e29ff4b74
+Author: Nobuki Fujii <scofni@gmail.com>
+Date:   Fri Sep 23 22:53:31 2022 +0900
+
+    testing: update description of Setenv
+    
+    Add the description of Setenv that it cannot use if the test have
+    parallel ancestors.
+    
+    Fixes #55128
+    
+    Change-Id: Ia5a1deaa1a3116d1ebb439600a7d316c7d155412
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/434115
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/testing/testing.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

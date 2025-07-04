@@ -1,0 +1,24 @@
+commit cf370a620689682a51c8d51bbbb32b459405cffc
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 25 20:13:56 2009 -0700
+
+    add ./ to imports where necessary
+    
+    R=r
+    DELTA=51  (4 added, 4 deleted, 43 changed)
+    OCL=30759
+    CL=30778
+
+ doc/progs/cat.go                  | 2 +-
+ doc/progs/cat_rot13.go            | 2 +-
+ doc/progs/helloworld3.go          | 2 +-
+ src/cmd/gobuild/gobuild.go        | 3 ++-
+ src/cmd/gobuild/main.go           | 4 +---
+ src/cmd/gobuild/makefile.go       | 3 ++-
+ test/fixedbugs/bug083.dir/bug1.go | 2 +-
+ test/fixedbugs/bug088.dir/bug1.go | 2 +-
+ test/fixedbugs/bug106.dir/bug1.go | 2 +-
+ test/fixedbugs/bug133.dir/bug1.go | 2 +-
+ test/fixedbugs/bug133.dir/bug2.go | 4 ++--
+ test/fixedbugs/bug160.dir/y.go    | 2 +-
+ 12 files changed, 15 insertions(+), 15 deletions(-)

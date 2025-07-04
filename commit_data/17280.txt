@@ -1,0 +1,26 @@
+commit 757e0de89f80e89626cc8b7d6e670c0e5ea7f192
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 15 22:34:06 2013 -0400
+
+    runtime: impose stack size limit
+    
+    The goal is to stop only those programs that would keep
+    going and run the machine out of memory, but before they do that.
+    1 GB on 64-bit, 250 MB on 32-bit.
+    That seems implausibly large, and it can be adjusted.
+    
+    Fixes #2556.
+    Fixes #4494.
+    Fixes #5173.
+    
+    R=khr, r, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/12541052
+
+ src/pkg/runtime/crash_test.go    | 42 +++++++++++++++++++++++++++++++---------
+ src/pkg/runtime/debug/garbage.go | 15 ++++++++++++++
+ src/pkg/runtime/panic.c          |  4 +++-
+ src/pkg/runtime/proc.c           |  9 +++++++++
+ src/pkg/runtime/runtime.h        |  2 ++
+ src/pkg/runtime/stack.c          | 19 +++++++++++++++++-
+ 6 files changed, 80 insertions(+), 11 deletions(-)

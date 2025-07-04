@@ -1,0 +1,29 @@
+commit ab7905540bf83b85cdbd6574e54319126df9dae8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 29 14:26:44 2021 -0500
+
+    cmd/go/internal/modload: fix up main-module checks from CL 334932
+    
+    Some critical Version == "" checks were missing in mvs.go, causing
+    mvs.Req to fail to retain requirements provided by older versions of
+    main modules.
+    
+    A few checks also ought to be rotated to put the less expensive
+    string-equality checks before the more expensive map lookups.
+    
+    Fixes #48511
+    
+    Change-Id: Ib8de9d49a6413660792c003866bfcf9ab7f82ee2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368136
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modget/get.go                 |  2 +-
+ src/cmd/go/internal/modload/buildlist.go          |  2 +-
+ src/cmd/go/internal/modload/edit.go               |  4 +-
+ src/cmd/go/internal/modload/load.go               |  2 +-
+ src/cmd/go/internal/modload/mvs.go                |  6 +-
+ src/cmd/go/testdata/script/mod_get_issue48511.txt | 68 +++++++++++++++++++++++
+ 6 files changed, 76 insertions(+), 8 deletions(-)

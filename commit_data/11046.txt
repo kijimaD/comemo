@@ -1,0 +1,18 @@
+commit 9569c67a6ba61501f5c8ce58f20139e64100585e
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Mon Jan 9 11:23:07 2012 +1100
+
+    windows: use ArbitraryUserPointer as TLS slot
+    
+    R=hectorchu, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5519054
+
+ src/cmd/6l/pass.c                       |  8 ++++----
+ src/cmd/8l/pass.c                       |  6 +++---
+ src/pkg/runtime/cgo/gcc_windows_386.c   |  4 ++--
+ src/pkg/runtime/cgo/gcc_windows_amd64.c |  4 ++--
+ src/pkg/runtime/mkasmh.sh               |  4 ++--
+ src/pkg/runtime/sys_windows_386.s       | 10 +++++-----
+ src/pkg/runtime/sys_windows_amd64.s     | 10 +++++-----
+ 7 files changed, 23 insertions(+), 23 deletions(-)

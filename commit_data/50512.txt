@@ -1,0 +1,34 @@
+commit b7c28f484ddbc8267273c997e1bcc83a1391b5f7
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 6 20:11:28 2022 +0000
+
+    runtime/metrics: add CPU stats
+    
+    This changes adds a breakdown for estimated CPU usage by time. These
+    estimates are not based on real on-CPU counters, so each metric has a
+    disclaimer explaining so. They can, however, be more reasonably
+    compared to a total CPU time metric that this change also adds.
+    
+    Fixes #47216.
+    
+    Change-Id: I125006526be9f8e0d609200e193da5a78d9935be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404307
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Josh MacDonald <jmacd@lightstep.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/metrics.go             |  98 +++++++++++++++++++++++++++++++
+ src/runtime/metrics/description.go | 116 +++++++++++++++++++++++++++++++++++++
+ src/runtime/metrics/doc.go         |  84 +++++++++++++++++++++++++++
+ src/runtime/metrics_test.go        |  75 ++++++++++++++++++++++++
+ src/runtime/mgc.go                 |  56 ++++++++++++++----
+ src/runtime/mgclimit.go            |   3 +-
+ src/runtime/mgcscavenge.go         |  11 ++++
+ src/runtime/mheap.go               |   2 +-
+ src/runtime/mpagealloc.go          |   8 +--
+ src/runtime/mstats.go              |  22 +++++++
+ src/runtime/runtime2.go            |   5 ++
+ 11 files changed, 459 insertions(+), 21 deletions(-)

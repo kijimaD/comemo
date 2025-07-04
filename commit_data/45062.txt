@@ -1,0 +1,18 @@
+commit 0da9eff5034521ccc51c32ebaad5fae20d8345fe
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Sun Apr 11 14:18:24 2021 +0930
+
+    runtime: simplify syntax for pointer arithmetic in mapaccess functions
+    
+    This harmonizes the syntax between mapaccess1 and mapaccess2, and
+    simplifies the code.
+    
+    Change-Id: I6db25ffdc871018d399f9030259894b3994c5793
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308951
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/map.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,20 @@
+commit f02bc56d299e9cd7c264333488695fa70ddc937b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 9 10:45:50 2022 -0500
+
+    doc/go1.20: add release notes for cmd/go changes
+    
+    Updates #41696.
+    Updates #50332.
+    Updates #41583.
+    
+    Change-Id: I99e96a2996f14da262570a5cb5273dcdce45df2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449075
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ doc/go1.20.html | 27 +++++++++++++++++++--------
+ 1 file changed, 19 insertions(+), 8 deletions(-)

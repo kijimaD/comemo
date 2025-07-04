@@ -1,0 +1,23 @@
+commit c7b7c433637ba7bf14328e0fbccdd4bdbc5f65b3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 13 21:11:47 2017 -0500
+
+    cmd/go: do not let test vet failures stop reporting of later test results
+    
+    (This only manifested in test vet failures for packages without tests,
+    or else we'd probably have seen this sooner.)
+    
+    Fixes #23047.
+    
+    Change-Id: I41d09a7780999bbe1951377ffcc811ba86ea5000
+    Reviewed-on: https://go-review.googlesource.com/83955
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go                         |  4 ++++
+ src/cmd/go/internal/test/test.go              | 22 ++++++++++++----------
+ src/cmd/go/testdata/src/vetfail/p1/p1.go      |  7 +++++++
+ src/cmd/go/testdata/src/vetfail/p2/p2.go      |  6 ++++++
+ src/cmd/go/testdata/src/vetfail/p2/p2_test.go |  7 +++++++
+ 5 files changed, 36 insertions(+), 10 deletions(-)

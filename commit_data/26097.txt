@@ -1,0 +1,19 @@
+commit 5a966cf2da1f054d92c36b0f7f407d3ee467ef34
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sun Mar 6 15:51:57 2016 -0800
+
+    compress/zlib: make errors persistent
+    
+    Ensure that all errors (including io.EOF) are persistent across method
+    calls on zlib.Reader. Furthermore, ensure that these persistent errors
+    are properly cleared when Reset is called.
+    
+    Fixes #14675
+    
+    Change-Id: I15a20c7e25dc38219e7e0ff255d1ba775a86bb47
+    Reviewed-on: https://go-review.googlesource.com/20292
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/compress/zlib/reader.go      | 52 +++++++++++++++++++++-------------------
+ src/compress/zlib/reader_test.go | 16 ++++++++++---
+ 2 files changed, 41 insertions(+), 27 deletions(-)

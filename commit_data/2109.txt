@@ -1,0 +1,19 @@
+commit 2cf5c809d01b9965ffb68f94426e2afc977552ed
+Author: Brendan O'Dea <bod@golang.org>
+Date:   Wed Apr 29 17:36:58 2009 -0700
+
+    Ignore SIGPIPE such that write returns EPIPE.
+    
+    Currently a http server will be killed on receipt of SIGPIPE
+    if a client closes a socket which the server is trying to
+    write to.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=27959
+    CL=28055
+
+ src/runtime/darwin/signals.h | 2 +-
+ src/runtime/linux/signals.h  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

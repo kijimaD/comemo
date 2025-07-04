@@ -1,0 +1,34 @@
+commit 1f2930cb5cf78cab648e39b9a0cee2f7a1e98d99
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 15 16:33:11 2016 -0700
+
+    cmd/compile: remove traces of old register allocator
+    
+    Only added lines are moving amd64 and x86's ginsnop functions from
+    gsubr.go to ggen.go to match other architectures, so all of the
+    gsubr.go files can go away.
+    
+    Change-Id: Ib2292460c155ae6d9dcf5c9801f178031d8eea7a
+    Reviewed-on: https://go-review.googlesource.com/29240
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/amd64/galign.go  | 14 --------
+ src/cmd/compile/internal/amd64/ggen.go    | 11 ++++++
+ src/cmd/compile/internal/amd64/gsubr.go   | 58 -------------------------------
+ src/cmd/compile/internal/arm/galign.go    |  8 -----
+ src/cmd/compile/internal/arm/gsubr.go     | 38 --------------------
+ src/cmd/compile/internal/arm64/galign.go  |  9 -----
+ src/cmd/compile/internal/arm64/gsubr.go   | 41 ----------------------
+ src/cmd/compile/internal/gc/go.go         | 15 ++------
+ src/cmd/compile/internal/mips64/galign.go |  8 -----
+ src/cmd/compile/internal/mips64/gsubr.go  | 44 -----------------------
+ src/cmd/compile/internal/ppc64/galign.go  | 12 -------
+ src/cmd/compile/internal/ppc64/gsubr.go   | 48 -------------------------
+ src/cmd/compile/internal/s390x/galign.go  |  8 -----
+ src/cmd/compile/internal/s390x/gsubr.go   | 43 -----------------------
+ src/cmd/compile/internal/x86/galign.go    | 10 ------
+ src/cmd/compile/internal/x86/ggen.go      |  8 +++++
+ src/cmd/compile/internal/x86/gsubr.go     | 55 -----------------------------
+ 17 files changed, 22 insertions(+), 408 deletions(-)

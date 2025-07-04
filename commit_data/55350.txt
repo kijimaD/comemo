@@ -1,0 +1,18 @@
+commit 881869dde0ddddf37151137421cd53d0c537671e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Jan 2 22:28:49 2024 +0700
+
+    cmd/compile: handle defined iter func type correctly
+    
+    Fixed #64930
+    
+    Change-Id: I916de7f97116fb20cb2f3f0b425ac34409afd494
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553436
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/rangefunc/rewrite.go |  2 +-
+ test/range4.go                                | 25 +++++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

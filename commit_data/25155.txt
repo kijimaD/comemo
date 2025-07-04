@@ -1,0 +1,19 @@
+commit e71d64012c9d9dc744bc9a780b4afccd8f5b029d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 20:03:20 2015 +0000
+
+    sort: improve average quicksort performance
+    
+    Revert "Revert "sort: improve average quicksort performance""
+    This reverts commit 30b87bb9aa0c6658830f3d111920e2f366476644.
+    
+    See https://golang.org/cl/15688 for the CL being replayed.
+    
+    Change-Id: I2ba36334003f4971f95a10536adfdd86be9a50de
+    Reviewed-on: https://go-review.googlesource.com/17389
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/sort/example_multi_test.go |   4 +-
+ src/sort/sort.go               | 112 ++++++++++++++++++++++++++---------------
+ 2 files changed, 73 insertions(+), 43 deletions(-)

@@ -1,0 +1,19 @@
+commit 1067ab080863f9e9557889d501ac0a75fbb3e19a
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Apr 13 08:37:03 2020 -0700
+
+    runtime: added several new lock-rank partial order edges
+    
+    Several new ones came from my testing (long, repeated runs) and one (assistQueue ->
+    spine) came from the staticlockranking builder (filed as issue 38441).
+    
+    Fixes #38441
+    
+    Change-Id: I4268da0d8b8cc51251eba6bd936110c8ab4c4e61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229480
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/lockrank.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

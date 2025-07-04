@@ -1,0 +1,40 @@
+commit 321a220d506fe1445302706f1725017a42fc1510
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Sep 1 19:31:04 2022 -0400
+
+    cmd/link: only add dummy XCOFF reference if the symbol exists
+    
+    On AIX when external linking, for some symbols we need to add
+    dummy references to prevent the external linker from discarding
+    them. Currently we add the reference unconditionally. But if the
+    symbol doesn't exist, the linking fails in a later stage for
+    generating external relocation of a nonexistent symbol. The
+    symbols are special symbols that almost always exist, except that
+    go:buildid may not exist if the linker is invoked without the
+    -buildid flag. The go command invokes the linker with the flag, so
+    this can only happen with manual linker invocation. Specifically,
+    test/run.go does this in some cases.
+    
+    Fix this by checking the symbol existence before adding the
+    reference. Re-enable tests on AIX.
+    
+    Perhaps the linker should always emit a dummy buildid even if the
+    flag is not set...
+    
+    Fixes #54814.
+    
+    Change-Id: I43d81587151595309e189e38960cbda9a1c5ca32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427620
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/symtab.go | 6 +++++-
+ test/fixedbugs/bug514.go           | 2 +-
+ test/fixedbugs/issue40954.go       | 2 +-
+ test/fixedbugs/issue42032.go       | 2 +-
+ test/fixedbugs/issue42076.go       | 2 +-
+ test/fixedbugs/issue46903.go       | 2 +-
+ test/fixedbugs/issue51733.go       | 2 +-
+ 7 files changed, 11 insertions(+), 7 deletions(-)

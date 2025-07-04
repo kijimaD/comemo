@@ -1,0 +1,19 @@
+commit e3c80f5778fd3fbdd61f521fd29a02ad091513d5
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Aug 19 00:21:00 2023 +0000
+
+    os/exec: don't convert byte slice to string when using verb %s
+    
+    Change-Id: I4d755e401acf670fb5a154ff59e4e4335ed2138e
+    GitHub-Last-Rev: a91d74ae55f84a0e572d2ace335ec42038d7a76f
+    GitHub-Pull-Request: golang/go#62150
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520918
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/os/exec/lp_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit c61c29fe563134f752ea14e794d08031982145e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 21 10:43:49 2019 -0400
+
+    cmd/go: accept GOSUMDB=sum.golang.google.cn
+    
+    This CL makes the go command understand that
+    GOSUMDB=sum.golang.google.cn should connect
+    to that domain but expect to find a checksum database
+    signed by sum.golang.org there.
+    
+    The host sum.golang.google.cn is not yet completely
+    configured; we hope it will be available in a few weeks.
+    
+    Change-Id: Ie0fc4323f0c7084dda59bd3b45fc406717fa16d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191137
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/cmd/go/alldocs.go                 |  8 +++++---
+ src/cmd/go/internal/modfetch/fetch.go |  8 +++++---
+ src/cmd/go/internal/modfetch/sumdb.go | 12 +++++++++++-
+ 3 files changed, 21 insertions(+), 7 deletions(-)

@@ -1,0 +1,23 @@
+commit f7e6986d6b9f230a6807383fc0e37d9042baa5bf
+Author: xiongwy12 <107687876+xiongwy12@users.noreply.github.com>
+Date:   Mon Aug 15 15:52:40 2022 +0000
+
+    cmd/internal/obj: remove redundant code in genFuncInfoSyms
+    
+    The length of slice hashedsyms is always 0, because it's not used after defined
+    
+    Change-Id: Iba8e263aedfa403d5688678a1b37c2be3119eb7f
+    GitHub-Last-Rev: c236c4a48268ef1cdd9daa1e62c7004a7bde1d27
+    GitHub-Pull-Request: golang/go#53450
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413234
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: guangyuan zhou <zhouguangyuan@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/internal/obj/objfile.go | 2 --
+ 1 file changed, 2 deletions(-)

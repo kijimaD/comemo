@@ -1,0 +1,12 @@
+commit 73ff7cb1ed56921c82bf6bdfc173ce8e49ea437c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Oct 27 19:47:54 2015 -0400
+
+    runtime: c-shared entrypoint for linux/arm64
+    
+    Change-Id: I7dab124842f5209097a8d5a802fcbdde650654fa
+    Reviewed-on: https://go-review.googlesource.com/16395
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/rt0_linux_arm64.s | 44 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

@@ -1,0 +1,16 @@
+commit 5bebadf23fdfe3f9af7a2fbd98e5eaa9bc1846cf
+Author: Conrad Meyer <cemeyer@cs.washington.edu>
+Date:   Mon Mar 8 17:00:04 2010 -0800
+
+    crypto/sha512: new package
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/240043
+
+ src/pkg/Makefile                     |   1 +
+ src/pkg/crypto/sha512/Makefile       |  12 +++
+ src/pkg/crypto/sha512/sha512.go      | 127 ++++++++++++++++++++++++++++++
+ src/pkg/crypto/sha512/sha512_test.go |  73 ++++++++++++++++++
+ src/pkg/crypto/sha512/sha512block.go | 144 +++++++++++++++++++++++++++++++++++
+ 5 files changed, 357 insertions(+)

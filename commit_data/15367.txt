@@ -1,0 +1,14 @@
+commit 2482ef723304ccfd95cf6838663e4627b175d16a
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Fri Feb 22 12:23:19 2013 +1100
+
+    testing: document that example output must use line comments
+    
+    Fixes #4812.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7396051
+
+ src/pkg/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

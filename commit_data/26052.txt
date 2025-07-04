@@ -1,0 +1,18 @@
+commit 08c2cd84699e0aa0e9dbcfbd5f4ca89df40484f5
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Feb 18 11:08:25 2016 -0500
+
+    cmd/compile: remove NUL-terminator from string data
+    
+    Makes godoc 37KB smaller.
+    For #6853.
+    
+    Change-Id: I0bd6e40f2b4da193768a9fc2ce494cacf7e83c32
+    Reviewed-on: https://go-review.googlesource.com/19697
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/obj.go    | 1 -
+ src/cmd/link/internal/ld/decodesym.go | 3 ++-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

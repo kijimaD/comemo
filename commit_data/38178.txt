@@ -1,0 +1,18 @@
+commit 1cd6d8b974517e6c0506d3959a9ad08f98e89902
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 1 13:08:30 2019 -0800
+
+    cmd/vet: let TestMain run deferred functions
+    
+    Split TestMain into two functions so that we can defer cleanups.
+    
+    Updates #30500
+    
+    Change-Id: I1fa7957be0779c079ec4d221a8321b45ddb973e2
+    Reviewed-on: https://go-review.googlesource.com/c/164860
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/vet/vet_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

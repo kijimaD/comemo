@@ -1,0 +1,20 @@
+commit 1cf67709beb2d7e317cb6e6b983f3fc6304ebc1a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Mar 9 17:08:37 2022 -0500
+
+    runtime: fix SegvInCgo skip check
+    
+    CL 390034 changed this throw message to add the goid, breaking the
+    match.
+    
+    For #50979.
+    
+    Change-Id: I52d97695484938701e5b7c269e2caf0c87d44d7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391139
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/crash_cgo_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

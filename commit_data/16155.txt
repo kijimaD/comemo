@@ -1,0 +1,14 @@
+commit bb195f67938c9f32985d3b2c231f3d43c4ef83f8
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 10 14:05:34 2013 -0700
+
+    fmt: tweak the explanation of Stringer to be more correct and less specific
+    The String method is called whenever the printing operation wants a string,
+    not just for %s and %v.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8638043
+
+ src/pkg/fmt/print.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

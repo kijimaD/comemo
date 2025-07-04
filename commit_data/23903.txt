@@ -1,0 +1,22 @@
+commit c4092ac3981413959eb62f7515c263531fd832da
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 00:46:42 2015 -0400
+
+    cmd/compile: fix uninitialized memory during type switch assertE2I2
+    
+    Fixes arm64 builder crash.
+    
+    The bug is possible on all architectures; you just have to get lucky
+    and hit a preemption or a stack growth on entry to assertE2I2.
+    The test stacks the deck.
+    
+    Change-Id: I8419da909b06249b1ad15830cbb64e386b6aa5f6
+    Reviewed-on: https://go-review.googlesource.com/12890
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/compile/internal/gc/swt.go |  3 ++
+ src/runtime/export_test.go         |  2 ++
+ src/runtime/gc_test.go             | 57 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/iface.go               |  9 ++++--
+ 4 files changed, 68 insertions(+), 3 deletions(-)

@@ -1,0 +1,18 @@
+commit 1eea5caa30b33c4222f24f3cce995e2bae42659a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 6 15:49:33 2014 -0400
+
+    os: recomment MkdirAll
+    
+    The internal comments are not completely precise about
+    what is going on, and they are causing confusion.
+    
+    Fixes #8283.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/151460043
+
+ src/os/path.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

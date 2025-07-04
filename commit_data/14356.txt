@@ -1,0 +1,12 @@
+commit 3f7f030c5965bbf62ae2cb54f10ea01d2f49e212
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Nov 8 20:37:05 2012 +0400
+
+    runtime: fix instrumentation of slice append for race detection
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6819107
+
+ src/pkg/runtime/slice.c | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,24 @@
+commit 6208b10d1e843e49a8cff42ed17f548530fc7452
+Author: Austin Clements <austin@google.com>
+Date:   Sun Apr 11 16:30:36 2021 -0400
+
+    cmd/link: refactor setCgoAttr
+    
+    setCgoAttr takes a lookup function, but there's only a single call and
+    setCgoAttr already has access to the lookup function passed at that
+    call. Simplify setCgoAttr by eliminating the lookup parameter and
+    calling the lookup function directly.
+    
+    For #40724.
+    
+    Change-Id: Ib27c0fa2b88c387e30423365f7757e3ba02cf7d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309338
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/go.go  | 10 +++++-----
+ src/cmd/link/internal/ld/lib.go |  2 +-
+ 2 files changed, 6 insertions(+), 6 deletions(-)

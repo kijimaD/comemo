@@ -1,0 +1,31 @@
+commit 2d3cd51dbe5b5266b9baf68fb42ea19fedf4d23e
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Oct 27 16:23:53 2016 -0700
+
+    archive/tar: disable prefix field in Writer
+    
+    The proper fix for the Writer is too involved to be done in time
+    for Go 1.8. Instead, we do a localized fix that simply disables the
+    prefix encoding logic. While this will prevent some legitimate uses
+    of prefix, it will ensure that we don't keep outputting invalid
+    GNU format files that have the prefix field populated.
+    
+    For headers with long filenames that could have used the prefix field,
+    they will be promoted to use the PAX format, which ensures that we
+    will still be able to encode all headers that we were able to do before.
+    
+    Updates #12594
+    Fixes #17630
+    Fixes #9683
+    
+    Change-Id: Ia97b524ac69865390e2ae8bb0dfb664d40a05add
+    Reviewed-on: https://go-review.googlesource.com/32234
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/testdata/ustar.issue12594.tar | Bin 0 -> 3072 bytes
+ src/archive/tar/testdata/writer-big-long.tar  | Bin 4096 -> 4096 bytes
+ src/archive/tar/writer.go                     |  34 +++++++++++-
+ src/archive/tar/writer_test.go                |  71 +++++++++++++++++++++++---
+ 4 files changed, 98 insertions(+), 7 deletions(-)

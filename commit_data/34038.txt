@@ -1,0 +1,35 @@
+commit f27a1ff2c8ba1dce874e76d0b82c059b38a731d3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 18 17:45:58 2018 -0800
+
+    go/types: more robust behavior in the presence errors (due to import "C")
+    
+    - Don't complain about invalid constant type if the type is
+      invalid already (we do this in other places as well). This
+      is useful to do in general, and even more so if we have
+      invalid types due to import "C".
+    
+    - Type-check the lhs of an assignment even if we bail out early
+      due to an error on the rhs. This was simply an oversight. We
+      already have machinery in place to "use" expressions; in this
+      case we just have to also make sure we don't overcount "uses"
+      of variables on the lhs.
+    
+    - Fix overcount uses correction in assignments: Only do it if
+      the variable in question is declared inside the same package
+      to avoid possible race conditions when type-checking exported
+      variables concurrently.
+    
+    Fixes #22090.
+    
+    Change-Id: I4c1b59f9ce38970e7129fedc5f6023908386e4f1
+    Reviewed-on: https://go-review.googlesource.com/88375
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/assignments.go       |  8 ++++++--
+ src/go/types/call.go              | 39 ++++++++++++++++++++++++++++++++++++++-
+ src/go/types/decl.go              |  6 +++++-
+ src/go/types/stmt.go              |  3 +++
+ src/go/types/testdata/importC.src | 25 +++++++++++++++++++++++++
+ src/go/types/typexpr.go           |  3 +++
+ 6 files changed, 80 insertions(+), 4 deletions(-)

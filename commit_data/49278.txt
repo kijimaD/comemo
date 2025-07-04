@@ -1,0 +1,21 @@
+commit a6c75aa5c3009e6c4179ef9429b3efbd708499bf
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 18 22:07:46 2022 +0000
+
+    runtime: use correct heap goal in GC traces
+    
+    Currently gctrace and gcpacertrace recompute the heap goal for
+    end-of-cycle information but this is incorrect.
+    
+    Because both of these traces are printing stats from the previous cycle
+    in this case, they should print the heap goal at the end of the previous
+    cycle.
+    
+    Change-Id: I967621cbaff9f331cd3e361de8850ddfe0cfc099
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407138
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/mgc.go      | 2 +-
+ src/runtime/mgcpacer.go | 3 +--
+ 2 files changed, 2 insertions(+), 3 deletions(-)

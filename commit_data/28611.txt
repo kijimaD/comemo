@@ -1,0 +1,25 @@
+commit 7b40b0c3a332cbfaa1eb17bdafd2ddf12119ec45
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Wed Sep 28 01:54:38 2016 -0700
+
+    strings, bytes: panic if Repeat overflows or if given a negative count
+    
+    Panic if Repeat is given a negative count or
+    if the value of (len(*) * count) is detected
+    to overflow.
+    We panic because we cannot change the
+    signature of Repeat to return an error.
+    
+    Fixes #16237
+    
+    Change-Id: I9f5ba031a5b8533db0582d7a672ffb715143f3fb
+    Reviewed-on: https://go-review.googlesource.com/29954
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/bytes.go          | 13 ++++++++++++
+ src/bytes/bytes_test.go     | 48 ++++++++++++++++++++++++++++++++++++++++++++
+ src/strings/strings.go      | 13 ++++++++++++
+ src/strings/strings_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 123 insertions(+)

@@ -1,0 +1,15 @@
+commit 7859ae8a2f5f5b48d5961df7c6e84ce7d7c3c46b
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Jan 26 11:34:38 2009 -0800
+
+    removed a:b in range syntax
+    added another channel test
+    
+    R=r
+    OCL=23488
+    CL=23488
+
+ src/cmd/gc/go.y   | 12 ------------
+ test/ken/chan1.go | 56 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/ken/range.go |  8 ++++----
+ 3 files changed, 60 insertions(+), 16 deletions(-)

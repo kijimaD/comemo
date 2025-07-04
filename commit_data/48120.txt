@@ -1,0 +1,28 @@
+commit 846c06d33b55493caa7b49738cb7c85218fa0fd0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 8 17:09:40 2022 -0500
+
+    net: fix a race in TestLookupContextCancel
+    
+    If the actual DNS lookup in LookupIPAddr completes quickly enough,
+    it may succeed even if the passed-in Context is already canceled.
+    That would (rarely) cause TestLookupContextCancel to fail due to an
+    unexpectedly-nil error.
+    
+    This change uses the existing testHookLookupIP hook to delay the
+    cancellation until the lookup has started (to try to provoke the code
+    path for which the test was added), and then block the lookup result
+    until LookupIPAddr has noticed it.
+    
+    Fixes #51084
+    Updates #22724
+    
+    Change-Id: I331ac61a652ac88f6d4c85bf62466237b76d53ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384237
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/lookup_test.go | 69 +++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 57 insertions(+), 12 deletions(-)

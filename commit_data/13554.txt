@@ -1,0 +1,12 @@
+commit 1916db786fe8a9ff2aa775eb6f68c3a7ff00f2c6
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Aug 3 09:29:16 2012 +1000
+
+    html: make the low-level tokenizer also skip end-tag attributes.
+    
+    R=andybalholm
+    CC=golang-dev
+    https://golang.org/cl/6453071
+
+ src/pkg/exp/html/token.go | 29 +++++++++++++----------------
+ 1 file changed, 13 insertions(+), 16 deletions(-)

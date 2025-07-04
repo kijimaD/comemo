@@ -1,0 +1,12 @@
+commit 21752bc130e6afb7eb3eb688e2c9e33a47df953b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 1 12:09:53 2011 -0400
+
+    CONTRIBUTORS: add Paul Borman (Google CLA)
+    
+    R=borman, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4654079
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

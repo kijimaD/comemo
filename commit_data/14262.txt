@@ -1,0 +1,14 @@
+commit 5176481f16d2e7f32df41924582a0a36073f7063
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 31 16:37:26 2012 -0400
+
+    crypto/cipher: add examples
+    
+    Fixes #1390.
+    
+    R=golang-dev, minux.ma, adg, agl
+    CC=golang-dev
+    https://golang.org/cl/6631044
+
+ src/pkg/crypto/cipher/example_test.go | 283 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 283 insertions(+)

@@ -1,0 +1,18 @@
+commit 723a27994ddc926a2078bcc23ccbc33857577b4c
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Jun 15 17:50:04 2022 -0700
+
+    strings: rely on utf8.AppendRune
+    
+    This is both simpler and more performant.
+    
+    Change-Id: I66ef8e49c059a722932392ee3ecfb951d9b8e121
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412339
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/strings/builder.go | 15 +++------------
+ 1 file changed, 3 insertions(+), 12 deletions(-)

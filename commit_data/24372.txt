@@ -1,0 +1,12 @@
+commit 81fada52a6abe385c7e996f9908d8733fb5f0f28
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 25 14:56:30 2015 -0700
+
+    doc: go1.6.txt: bufio.ErrFinalToken
+    
+    Change-Id: I2714faa6e8aa7b81a05f0e015b045a57407d808d
+    Reviewed-on: https://go-review.googlesource.com/14996
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

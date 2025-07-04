@@ -1,0 +1,12 @@
+commit 438ed18202bfe812963a72a5fd8b8251b4985518
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 25 11:05:42 2012 +1100
+
+    doc: remove misplaced articles from references page
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6743059
+
+ doc/reference.html | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)

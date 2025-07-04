@@ -1,0 +1,19 @@
+commit 1fadbc1a76b2d9a11453ef4e21b77c353493ac2c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 1 22:22:44 2018 +0000
+
+    Revert "runtime: use bytes.IndexByte in findnull"
+    
+    This reverts commit 7365fac2dbd01960268ee051ed03d961258d4ef4.
+    
+    Reason for revert: breaks the build on some architectures, reading unmapped pages?
+    
+    Change-Id: I3a8c02dc0b649269faacea79ecd8213defa97c54
+    Reviewed-on: https://go-review.googlesource.com/97995
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/test/basic.go    | 14 --------------
+ misc/cgo/test/cgo_test.go |  3 +--
+ src/runtime/error.go      |  1 -
+ src/runtime/string.go     |  9 ++++++---
+ 4 files changed, 7 insertions(+), 20 deletions(-)

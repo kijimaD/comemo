@@ -1,0 +1,49 @@
+commit 99d5d8ab6b6819f84bb62aeb3b1eaefaab01989f
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Sep 29 09:35:02 2021 -0400
+
+    go/types, types2: rename Environment to Context
+    
+    Replace the name Environment with Context, as discussed in #47916. Along
+    the way, fix some stale or inaccurate comments.
+    
+    The Environment type remains temporarily as an alias for Context, to
+    allow the x/tools Trybot to pass until dependency on types.Environment
+    can be removed.
+    
+    Updates #47916
+    
+    Change-Id: Iffd069ab0e8adebf4207c8f8891468a64d32b7cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353089
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/import.go           |  6 +--
+ src/cmd/compile/internal/noder/irgen.go            |  4 +-
+ src/cmd/compile/internal/noder/reader2.go          |  4 +-
+ src/cmd/compile/internal/noder/unified.go          |  2 +-
+ src/cmd/compile/internal/types2/api.go             |  7 ++--
+ src/cmd/compile/internal/types2/check.go           |  6 +--
+ .../internal/types2/{environment.go => context.go} | 42 ++++++++++----------
+ src/cmd/compile/internal/types2/decl.go            |  4 +-
+ src/cmd/compile/internal/types2/instantiate.go     | 35 ++++++++--------
+ .../compile/internal/types2/instantiate_test.go    | 14 +++----
+ src/cmd/compile/internal/types2/named.go           | 46 +++++++++++-----------
+ src/cmd/compile/internal/types2/object.go          |  2 +-
+ src/cmd/compile/internal/types2/signature.go       |  2 +-
+ src/cmd/compile/internal/types2/subst.go           | 18 ++++-----
+ src/cmd/compile/internal/types2/typestring.go      | 28 ++++++-------
+ src/go/types/api.go                                |  7 ++--
+ src/go/types/check.go                              |  6 +--
+ src/go/types/{environment.go => context.go}        | 46 ++++++++++++----------
+ src/go/types/decl.go                               |  4 +-
+ src/go/types/instantiate.go                        | 35 ++++++++--------
+ src/go/types/instantiate_test.go                   | 14 +++----
+ src/go/types/named.go                              | 46 +++++++++++-----------
+ src/go/types/object.go                             |  2 +-
+ src/go/types/signature.go                          |  2 +-
+ src/go/types/subst.go                              | 18 ++++-----
+ src/go/types/typestring.go                         | 28 ++++++-------
+ 26 files changed, 214 insertions(+), 214 deletions(-)

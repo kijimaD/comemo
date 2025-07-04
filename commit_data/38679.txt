@@ -1,0 +1,20 @@
+commit 7331edcef567bb9fdc848f3b8e18dd0da0987372
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Apr 7 19:53:30 2019 +0200
+
+    os/exec: skip unsupported test on Android
+    
+    The underlying system call tested by TestCredentialNoSetGroups
+    is blocked on Android.
+    
+    Discovered while running all.bash from an Android device; the syscall
+    is only blocked in an app context.
+    
+    Change-Id: I16fd2e64636a0958b0ec86820723c0577b8f8f24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170945
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/exec/exec_posix_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

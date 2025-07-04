@@ -1,0 +1,24 @@
+commit 8d075beeef137455b9dc40f1c724b495f3ceda26
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 26 10:55:32 2016 -0700
+
+    cmd/compile: lazily initialize litbuf
+    
+    Instead of eagerly creating strings like "literal 2.01" for every
+    lexed number in case we need to mention it in an error message, defer
+    this work to (*parser).syntax_error.
+    
+    name      old allocs/op  new allocs/op  delta
+    Template      482k ± 0%      482k ± 0%  -0.12%   (p=0.000 n=9+10)
+    GoTypes      1.35M ± 0%     1.35M ± 0%  -0.04%  (p=0.015 n=10+10)
+    Compiler     5.45M ± 0%     5.44M ± 0%  -0.12%    (p=0.000 n=9+8)
+    
+    Change-Id: I333b3c80e583864914412fb38f8c0b7f1d8c8821
+    Reviewed-on: https://go-review.googlesource.com/22480
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go    | 2 +-
+ src/cmd/compile/internal/gc/parser.go | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

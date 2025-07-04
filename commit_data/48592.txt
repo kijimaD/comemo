@@ -1,0 +1,20 @@
+commit cc46cac3bc59c35e22e17471d70e28fd3705d4da
+Author: Philippe Antoine <contact@catenacyber.fr>
+Date:   Sun Mar 20 21:34:42 2022 +0000
+
+    strings: limits allocation size for SplitN
+    
+    So that `strings.SplitN("", "T", int(144115188075855872))` does not panic.
+    
+    Change-Id: Iea00417e61780bcaf0fee02fa2b18026d89bc545
+    GitHub-Last-Rev: d1f45b44a8011ddb27c71e1bc9983b62b5d3d771
+    GitHub-Pull-Request: golang/go#51755
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393654
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/strings/strings.go      | 3 +++
+ src/strings/strings_test.go | 2 ++
+ 2 files changed, 5 insertions(+)

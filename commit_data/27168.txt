@@ -1,0 +1,14 @@
+commit f08f1cd2e97835dbaa7c509b837265774ae39dac
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 27 16:32:37 2016 -0500
+
+    net: clarify DialContext's use of its provided context
+    
+    Fixes #15325
+    
+    Change-Id: I60137ecf27e236e97734b1730ce29ab23e9fe07f
+    Reviewed-on: https://go-review.googlesource.com/22509
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,24 @@
+commit 7b554575e46d1df9b68f71e051c8133aaf953fb7
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Oct 24 13:46:54 2021 +0700
+
+    cmd/compile: factor out code to remove phi argument
+    
+    CL 358117 fixed a bug that Phi's argument wasn't updated correctly after
+    removing a predecessor of Block. This CL factor out the code that
+    updates phi argument into a Block's method, so it's easier to use,
+    maintain and hopefully prevent that kind of bug in the future.
+    
+    Change-Id: Ie9741e19ea28f56860425089b6093a381aa10f5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357964
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/block.go              | 25 +++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/critical.go           | 11 +++++-----
+ src/cmd/compile/internal/ssa/deadcode.go           |  6 +-----
+ .../compile/internal/ssa/fuse_branchredirect.go    |  6 +-----
+ src/cmd/compile/internal/ssa/shortcircuit.go       |  6 +-----
+ 5 files changed, 32 insertions(+), 22 deletions(-)

@@ -1,0 +1,16 @@
+commit 3b27343c14fdfeaa19b20b26ce660aafa814d01d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 24 20:34:17 2014 -0400
+
+    time: add comment explaining rejection of years outside [0000,9999]
+    
+    This has come up twice now. Redirect future questions
+    to the explanation in the issue tracker.
+    
+    LGTM=iant, r
+    R=r, iant
+    CC=golang-codereviews
+    https://golang.org/cl/79550043
+
+ src/pkg/time/time.go | 2 ++
+ 1 file changed, 2 insertions(+)

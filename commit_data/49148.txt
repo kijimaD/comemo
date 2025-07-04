@@ -1,0 +1,45 @@
+commit c1105cfd435c84f3454822fdccfe0c8ab7d8f621
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Sun Aug 15 16:01:31 2021 +0800
+
+    cmd/internal/obj{,/loong64}: instructions and registers for loong64
+    
+    Implemented an assembler for LoongArch64(loong64 is short name) -
+    this provides register definitions and instruction encoding as
+    defined in the LoongArch Instruction Set Manual.
+    
+    LoongArch Instruction Set Manual:
+      https://github.com/loongson/LoongArch-Documentation/releases
+    
+    Contributors to the linux/loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
+    
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I930d2a19246496e3ca36d55539183c0f9f650ad9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342309
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/internal/obj/link.go           |    1 +
+ src/cmd/internal/obj/loong64/a.out.go  |  414 +++++++
+ src/cmd/internal/obj/loong64/anames.go |  130 +++
+ src/cmd/internal/obj/loong64/asm.go    | 1960 ++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/loong64/cnames.go |   43 +
+ src/cmd/internal/obj/loong64/list.go   |   46 +
+ src/cmd/internal/obj/loong64/obj.go    |  701 ++++++++++++
+ src/cmd/internal/obj/util.go           |   19 +-
+ 8 files changed, 3305 insertions(+), 9 deletions(-)

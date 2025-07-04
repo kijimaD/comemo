@@ -1,0 +1,25 @@
+commit a25688d406f2a4296d39b22a2b10aea7178eddc6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 11 14:01:02 2023 -0700
+
+    runtime: remove crash_cgo_test CgoRaceSignal timeout
+    
+    The test had a 5 second timeout. Running the test on a Darwin system
+    sometimes took less than 5 seconds but often took up to 8 seconds.
+    We don't need a timeout anyhow. Instead, use testenv.Command to
+    run the program, which uses the test timeout.
+    
+    Fixes #59807
+    
+    Change-Id: Ibf3eda9702731bf98601782f4abd11c3caa0bf40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494456
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/crash_cgo_test.go               |  5 +----
+ src/runtime/testdata/testprogcgo/racesig.go | 10 ----------
+ 2 files changed, 1 insertion(+), 14 deletions(-)

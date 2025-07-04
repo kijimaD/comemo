@@ -1,0 +1,17 @@
+commit 6e189afd3e7a3722c72b320ef604bf2910aee9e7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 28 17:28:12 2021 -0700
+
+    doc/go1.17: mention SYS_WAIT6/WEXITED on NetBSD
+    
+    For #13987
+    For #16028
+    For #44513
+    
+    Change-Id: I7a73446fcc80a01fa6de24eec1e5b993e543be37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323489
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ doc/go1.17.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

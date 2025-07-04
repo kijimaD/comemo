@@ -1,0 +1,19 @@
+commit a690a5d75fee3b23e9ab80bd7b48cafb52ce4615
+Author: David Chase <drchase@google.com>
+Date:   Wed Apr 7 09:58:02 2021 -0400
+
+    cmd/compile: ensure spills of int/float reg args land in abi slots
+    
+    We noticed a while ago that register argument spills were not always
+    landing where they should.
+    
+    Updates #40724.
+    
+    Change-Id: I0b7c3279a2f6270577481c252bae4568cbb6e796
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308510
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/stackalloc.go | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)

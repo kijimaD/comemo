@@ -1,0 +1,25 @@
+commit d93ff73ae207763871bee38590242be968b2e743
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jan 18 18:36:00 2022 -0500
+
+    cmd/compile: don't elide extension for LoadReg to FP register on MIPS64
+    
+    For an extension operation like MOWWreg, if the operand is already
+    extended, we optimize the second extension out. Usually a LoadReg
+    of a proper type would come already extended, as a MOVW/MOVWU etc.
+    instruction does. But for a LoadReg to a floating point register,
+    the instruction does not do the extension. So we cannot elide the
+    extension.
+    
+    Fixes #50671.
+    
+    Change-Id: Id8991df78d5acdecd3fd6138c558428cbd5f6ba3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379236
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/mips64/ssa.go |  5 ++++-
+ test/fixedbugs/issue50671.go           | 35 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

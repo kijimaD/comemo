@@ -1,0 +1,16 @@
+commit 7e19e533911af8de9f5a858a0f23ccaa24375460
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Mar 2 02:45:01 2012 -0300
+
+    build: add GO_ prefix to LDFLAGS and GCFLAGS
+    
+    Build environments will often define stock LDFLAGS
+    that are not compatible with the gc ld, causing
+    non-obvious failures midway through the build.
+    
+    R=golang-dev, rsc, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/5724044
+
+ src/make.bash | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

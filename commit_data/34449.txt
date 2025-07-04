@@ -1,0 +1,16 @@
+commit c69f60d0715a836b739b34a92a56c1f7d29485a6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Mar 2 17:19:46 2018 +0100
+
+    runtime: remove unused __vdso_time_sym
+    
+    It's unused since https://golang.org/cl/99320043
+    
+    Change-Id: I74d69ff894aa2fb556f1c2083406c118c559d91b
+    Reviewed-on: https://go-review.googlesource.com/98195
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/vdso_linux_amd64.go | 2 --
+ 1 file changed, 2 deletions(-)

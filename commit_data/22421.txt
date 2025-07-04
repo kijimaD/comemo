@@ -1,0 +1,12 @@
+commit 49a5a97eead27517b98c2c8c5bb40e9b69ccee7b
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 10 13:19:20 2015 -0700
+
+    doc/go1.5.txt: time.AppendFormat
+    
+    Change-Id: I9e8a0dc152ef9403ff5ece0c161bda3a2f4448a8
+    Reviewed-on: https://go-review.googlesource.com/8760
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

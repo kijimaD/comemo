@@ -1,0 +1,14 @@
+commit a84e3baf9a4008aea78babca18048c96ec46d598
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 20 14:16:34 2012 -0700
+
+    doc: general update of gccgo_install
+    
+    Fixes #3325.
+    
+    R=golang-dev, bradfitz, minux.ma, r
+    CC=golang-dev
+    https://golang.org/cl/5858043
+
+ doc/gccgo_install.html | 327 ++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 213 insertions(+), 114 deletions(-)

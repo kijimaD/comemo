@@ -1,0 +1,14 @@
+commit ffb4b0d7b7002faf03ddca0afa8527fd37a7f055
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Mon Jul 13 19:28:00 2009 -0700
+
+    Avoid clash between os.WRUSAGE and Linux's WALL flag.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=5  (4 added, 0 deleted, 1 changed)
+    OCL=31564
+    CL=31567
+
+ src/pkg/os/exec.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

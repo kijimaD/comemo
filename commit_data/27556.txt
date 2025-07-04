@@ -1,0 +1,30 @@
+commit 6a86dbe75f6d5a135eefbae807d98e856136514f
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 27 12:21:14 2016 -0400
+
+    runtime: always call stackfree on the system stack
+    
+    Currently when the garbage collector frees stacks of dead goroutines
+    in markrootFreeGStacks, it calls stackfree on a regular user stack.
+    This is a problem, since stackfree manipulates the stack cache in the
+    per-P mcache, so if it grows the stack or gets preempted in the middle
+    of manipulating the stack cache (which are both possible since it's on
+    a user stack), it can easily corrupt the stack cache.
+    
+    Fix this by calling markrootFreeGStacks on the system stack, so that
+    all calls to stackfree happen on the system stack. To prevent this bug
+    in the future, mark stack functions that manipulate the mcache as
+    go:systemstack.
+    
+    Fixes #15853.
+    
+    Change-Id: Ic0d1c181efb342f134285a152560c3a074f14a3d
+    Reviewed-on: https://go-review.googlesource.com/23511
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgcmark.go |  4 +++-
+ src/runtime/stack.go   | 16 ++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

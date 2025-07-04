@@ -1,0 +1,16 @@
+commit bafa0275db7cc3adf8b819eaf6fabbda2d783371
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 23 09:14:58 2016 +0900
+
+    cmd/dist: disable misc/cgo/fortran test on dragonfly
+    
+    Updates #14544.
+    
+    Change-Id: I24ab8e6f9ad9d290a672216fc2f50f78c3ed8812
+    Reviewed-on: https://go-review.googlesource.com/21014
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

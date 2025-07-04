@@ -1,0 +1,14 @@
+commit 83ae9b07b8a99e21a1a2d7a19b253ae01cb84f06
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 23 07:48:04 2017 -0700
+
+    runtime: convert more unsafe.Pointer arithmetic to add
+    
+    Change-Id: Icfe24d5660666093f3e645f82d30b7687c8077be
+    Reviewed-on: https://go-review.googlesource.com/58370
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/runtime/hashmap_fast.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

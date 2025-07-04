@@ -1,0 +1,30 @@
+commit 706b54bb85df2eb9a21da9e049fd1dff77342d25
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Dec 20 11:10:06 2018 -0800
+
+    cmd/compile: fix ICE due to bad rune width
+    
+    It was possible that
+    
+        var X interface{} = 'x'
+    
+    could cause a compilation failure due to having not calculated rune's
+    width yet. typecheck.go normally calculates the width of things, but
+    it doesn't for implicit conversions to default type. We already
+    compute the width of all of the standard numeric types in universe.go,
+    but we failed to calculate it for the rune alias type. So we could
+    later crash if the code never otherwise explicitly mentioned 'rune'.
+    
+    While here, explicitly compute widths for 'byte' and 'error' for
+    consistency.
+    
+    Fixes #29350.
+    
+    Change-Id: Ifedd4899527c983ee5258dcf75aaf635b6f812f8
+    Reviewed-on: https://go-review.googlesource.com/c/155380
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/universe.go | 3 +++
+ test/fixedbugs/issue29350.go            | 9 +++++++++
+ 2 files changed, 12 insertions(+)

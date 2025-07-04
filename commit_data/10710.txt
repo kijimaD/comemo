@@ -1,0 +1,16 @@
+commit ecda0fa5d4a448806bdea15e506b11bb71798d8a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 12 15:41:54 2011 -0500
+
+    gc: allow colon in //line file name
+    
+    Assume last colon introduces line number.
+    
+    Fixes #2543.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5485047
+
+ src/cmd/gc/lex.c | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

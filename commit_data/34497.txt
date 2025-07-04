@@ -1,0 +1,24 @@
+commit 083f3957b8266d591db4147bd03dd16874635189
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Wed Mar 7 15:07:31 2018 +0200
+
+    runtime: add missing build constraints to os_linux_{be64,noauxv,novdso,ppc64x}.go files
+    
+    They do not match the file name patterns of
+      *_GOOS
+      *_GOARCH
+      *_GOOS_GOARCH
+    therefore the implicit linux constraint was not being added.
+    
+    Change-Id: Ie506c51cee6818db445516f96fffaa351df62cf5
+    Reviewed-on: https://go-review.googlesource.com/99116
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_linux_be64.go   | 1 +
+ src/runtime/os_linux_noauxv.go | 1 +
+ src/runtime/os_linux_novdso.go | 1 +
+ src/runtime/os_linux_ppc64x.go | 1 +
+ 4 files changed, 4 insertions(+)

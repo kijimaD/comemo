@@ -1,0 +1,20 @@
+commit 154d013155978ba9c714d931f0e91c9c964dd82c
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Oct 21 09:00:07 2016 +0900
+
+    encoding/asn1: return error for unexported fields in Marshal, Unmarshal
+    
+    The old code cannot handle unexported fields, it panics.
+    The new code returns error instead.
+    
+    Fixes #17462
+    
+    Change-Id: I927fc46b21d60e86cb52e84c65f2122f9159b21d
+    Reviewed-on: https://go-review.googlesource.com/31540
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/asn1/asn1.go      |  7 +++++++
+ src/encoding/asn1/asn1_test.go | 31 ++++++++++++++++++++++++++++++-
+ src/encoding/asn1/marshal.go   |  6 ++++++
+ 3 files changed, 43 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 15442178c801476f873b0678a99b27f06c8e38d6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 28 15:01:38 2017 -0800
+
+    os: don't use waitid on Darwin
+    
+    According to issue #19314 waitid on Darwin returns if the process is
+    stopped, even though we specify WEXITED.
+    
+    Fixes #19314.
+    
+    Change-Id: I95faf196c11e43b7741efff79351bab45c811bc2
+    Reviewed-on: https://go-review.googlesource.com/37610
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/exec/exec_posix_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ src/os/exec/exec_test.go       |  3 +++
+ src/os/wait_unimp.go           |  2 +-
+ src/os/wait_waitid.go          |  5 ++++-
+ 4 files changed, 46 insertions(+), 2 deletions(-)

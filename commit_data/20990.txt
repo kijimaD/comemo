@@ -1,0 +1,14 @@
+commit 8655f04d8e21884ab69c89eb760df2e31245af91
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Dec 16 12:16:25 2014 +1100
+
+    doc: propose $GOPATH as $HOME/work, not $HOME/go
+    
+    Related to issue #9228
+    
+    Change-Id: I0819e657f6393788754d1412f9c2126a170d4cf1
+    Reviewed-on: https://go-review.googlesource.com/1577
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/code.html | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

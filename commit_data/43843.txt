@@ -1,0 +1,18 @@
+commit c72a44888174947dfb010a636d89dc8bdd61183c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 19 16:38:11 2020 -0800
+
+    go/types: fix error message for consistency
+    
+    Follow-up on https://golang.org/cl/271706 .
+    (Missed a review comment.)
+    
+    Change-Id: Ibff542f43d721600a2452907c0a20941961e793f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271766
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/expr.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

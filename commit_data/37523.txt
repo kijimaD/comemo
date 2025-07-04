@@ -1,0 +1,12 @@
+commit a30f8d1e69238984fcb43fbd9d1c64d46602f6dd
+Author: Keith Randall <khr@google.com>
+Date:   Thu Nov 29 09:47:11 2018 -0800
+
+    doc: add relnotes for stack objects and mid-stack inlining
+    
+    Change-Id: Ief11612b67def93311707165910124d3ce28fb89
+    Reviewed-on: https://go-review.googlesource.com/c/151777
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

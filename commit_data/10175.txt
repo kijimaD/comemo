@@ -1,0 +1,12 @@
+commit d9877e22fe205800029ef3d39b015b2def5a79b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 21:45:02 2011 -0400
+
+    spec: add error
+    
+    R=golang-dev, dsymonds, r, r
+    CC=golang-dev
+    https://golang.org/cl/5308072
+
+ doc/go_spec.html | 48 ++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 34 insertions(+), 14 deletions(-)

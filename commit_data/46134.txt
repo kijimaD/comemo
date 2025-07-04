@@ -1,0 +1,61 @@
+commit 22540abf76a693bc9e4c550203d8ccbaa60c12e2
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Mon Aug 23 13:53:22 2021 +0200
+
+    runtime: use RDTSCP for instruction stream serialized read of TSC
+    
+    To measure all instructions having been completed before reading
+    the time stamp counter with RDTSC an instruction sequence that
+    has instruction stream serializing properties which guarantee
+    waiting until all previous instructions have been executed is
+    needed. This does not necessary mean to wait for all stores to
+    be globally visible.
+    
+    This CL aims to remove vendor specific logic for determining the
+    instruction sequence with CPU feature flag checks that are
+    CPU vendor independent.
+    
+    For intel LFENCE has the wanted properties at least
+    since it was introduced together with SSE2 support.
+    
+    On AMD instruction stream serializing LFENCE is supported by setting
+    an MSR C001_1029[1]=1 on AMD family 10h/12h/14h/15h/16h/17h processors.
+    AMD family 0Fh/11h processors support LFENCE as serializing always.
+    AMD plans support for this MSR and access to this bit for all future processors.
+    Source: https://developer.amd.com/wp-content/resources/Managing-Speculation-on-AMD-Processors.pdf
+    
+    Reading the MSR to determine LFENCE properties is not always possible
+    or reliable (hypervisors). The Linux kernel is relying on serializing
+    LFENCE on AMD CPUs since a commit in July 2019: https://lkml.org/lkml/2019/7/22/295
+    and the MSR C001_1029 to enable serialization has been set by default
+    with the Spectre v1 mitigations.
+    
+    Using an MFENCE on AMD is waiting on previous instructions having been executed
+    but in addition also flushes store buffers.
+    
+    To align the serialization properties without runtime detection
+    of CPU manufacturers we can use the newer RDTSCP instruction which
+    waits until all previous instructions have been executed.
+    
+    RDTSCP is available on Intel since around 2008 and on AMD CPUs since
+    around 2006. Support for RDTSCP can be checked independently
+    of manufacturer by checking CPUID bits.
+    
+    Using RDTSCP is the default in Linux to read TSC in program order
+    when the instruction is available.
+    https://github.com/torvalds/linux/blob/e22ce8eb631bdc47a4a4ea7ecf4e4ba499db4f93/arch/x86/include/asm/msr.h#L231
+    
+    Change-Id: Ifa841843b9abb2816f8f0754a163ebf01385306d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344429
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Martin Möhrmann <martin@golang.org>
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/internal/cpu/cpu.go     |  1 +
+ src/internal/cpu/cpu_x86.go | 14 ++++++++++++++
+ src/runtime/asm_386.s       | 37 +++++++++++++++++++++++++------------
+ src/runtime/asm_amd64.s     | 30 +++++++++++++++++++-----------
+ src/runtime/cpuflags.go     |  9 +++++----
+ src/runtime/runtime2.go     |  1 -
+ 6 files changed, 64 insertions(+), 28 deletions(-)

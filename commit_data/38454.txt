@@ -1,0 +1,17 @@
+commit 27e444d5e6cce9f3f4c132ad964627bdb31a3651
+Author: bakape <bakape@gmail.com>
+Date:   Mon Mar 18 19:53:41 2019 +0000
+
+    net/http: Detect MIME type of v5 RAR archives
+    
+    Change-Id: Id9dedc861523e2dafe0e67f70862973124fa07b3
+    GitHub-Last-Rev: b662561f1980dff9861dd8a738c75a03baa72681
+    GitHub-Pull-Request: golang/go#30909
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168039
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/sniff.go      | 3 ++-
+ src/net/http/sniff_test.go | 4 ++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

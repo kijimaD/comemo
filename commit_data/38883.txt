@@ -1,0 +1,15 @@
+commit f84d28b7755f256efda7830a3b78b46464497527
+Author: Fangming.Fang <fangming.fang@arm.com>
+Date:   Sat Feb 2 10:27:37 2019 +0000
+
+    cmd/dist: skip race detector test failure for unsupported VMA
+    
+    Fixes #29948
+    
+    Change-Id: I01d041655d34a5de32701dec8b360e347593a45d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160919
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/test.go              | 20 ++++++++++++++++++++
+ src/cmd/internal/sys/supported.go |  3 +++
+ 2 files changed, 23 insertions(+)

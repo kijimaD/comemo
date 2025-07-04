@@ -1,0 +1,28 @@
+commit dfb1b696656bd56e10c3085e145fe5f40dc2ba42
+Author: Adam Azarchs <adam.azarchs@10xgenomics.com>
+Date:   Thu Apr 19 19:59:39 2018 -0700
+
+    os/signal: add func Ignored(sig Signal) bool
+    
+    Ignored reports whether sig is currently ignored.
+    
+    This implementation only works applies on Unix systems for now.  However, at
+    the moment that is also the case for Ignore() and several other signal
+    interaction methods, so that seems fair.
+    
+    Fixes #22497
+    
+    Change-Id: I7c1b1a5e12373ca5da44709500ff5acedc6f1316
+    Reviewed-on: https://go-review.googlesource.com/108376
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/signal/signal.go       |  9 +++++++
+ src/os/signal/signal_plan9.go |  5 ++++
+ src/os/signal/signal_test.go  | 59 +++++++++++++++++++++++++++++++++++++++++++
+ src/os/signal/signal_unix.go  |  5 ++++
+ src/runtime/signal_unix.go    |  2 ++
+ src/runtime/sigqueue.go       |  9 +++++++
+ src/runtime/sigqueue_plan9.go |  5 ++++
+ 7 files changed, 94 insertions(+)

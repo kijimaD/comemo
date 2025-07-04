@@ -1,0 +1,16 @@
+commit 7a36fa400286ca51192a7661a7ffbf9a39c396b3
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Feb 5 14:18:20 2020 -0500
+
+    crypto/x509: fix godoc for MarshalPKCS8PrivateKey
+    
+    Fixes #36735
+    
+    Change-Id: I93f005d78f4bfac773272995b165172461bae92f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217917
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/pkcs8.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

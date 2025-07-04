@@ -1,0 +1,12 @@
+commit 19b8fc788ce836730d47727d87e5b2ec49870624
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 25 17:45:26 2010 -0700
+
+    tabwriter: delete unnecessary type declaration
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/2733041
+
+ src/pkg/tabwriter/tabwriter_test.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

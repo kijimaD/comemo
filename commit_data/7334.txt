@@ -1,0 +1,16 @@
+commit 827e98d4fdbb470adf4dd5caafe88ea14e902047
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 2 13:42:15 2011 -0800
+
+    io: rename interfaces
+    
+    ReadByter -> ByteReader
+    ReadRuner -> RuneReader
+    
+    R=r, r2, rsc
+    CC=golang-dev
+    https://golang.org/cl/4023062
+
+ src/pkg/io/io.go   | 8 ++++----
+ src/pkg/xml/xml.go | 4 ++--
+ 2 files changed, 6 insertions(+), 6 deletions(-)

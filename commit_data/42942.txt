@@ -1,0 +1,24 @@
+commit aa476ba6f43ebc4e7ddb6599a7ad35d9fbf1ec6d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 1 00:34:03 2020 -0400
+
+    cmd/go/internal/modload: refactor pathInModuleCache
+    
+    I found the control flow of this function a bit tricky to reason about
+    due to nesting and interaction between conditions and iteration. This
+    change factors out a helper function that can return early instead of
+    mixing conditionals and 'continue' statements.
+    
+    Also remove the (unused) ModuleUsedDirectly function.
+    
+    For #36460
+    
+    Change-Id: I60a2a5a1b32989e5a17a14e1a8c858b280cda8f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251998
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/load.go | 33 ++++++++++++++++++++-------------
+ 1 file changed, 20 insertions(+), 13 deletions(-)

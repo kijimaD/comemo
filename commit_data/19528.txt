@@ -1,0 +1,23 @@
+commit 597f87c997dcaa86227725e227f5eb59721a0129
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 12 16:34:54 2014 -0400
+
+    runtime: do not trace past jmpdefer during pprof traceback on arm
+    
+    jmpdefer modifies PC, SP, and LR, and not atomically,
+    so walking past jmpdefer will often end up in a state
+    where the three are not a consistent execution snapshot.
+    This was causing warning messages a few frames later
+    when the traceback realized it was confused, but given
+    the right memory it could easily crash instead.
+    
+    Update #8153
+    
+    LGTM=minux, iant
+    R=golang-codereviews, minux, iant
+    CC=golang-codereviews, r
+    https://golang.org/cl/107970043
+
+ src/pkg/runtime/asm_arm.s       |  4 ++++
+ src/pkg/runtime/traceback_arm.c | 13 +++++++++++++
+ 2 files changed, 17 insertions(+)

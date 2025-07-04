@@ -1,0 +1,10 @@
+commit 181ad4743cdf29a4ef71f97ad1ea0d2840696714
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jun 6 21:21:54 2008 -0700
+
+    more div/mod
+    
+    SVN=121577
+
+ src/cmd/6g/gen.c | 68 +++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 52 insertions(+), 16 deletions(-)

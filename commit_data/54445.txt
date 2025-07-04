@@ -1,0 +1,18 @@
+commit 2c74018d7b2566513bf05b984a720769f95a922d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 12 23:09:48 2023 +0200
+
+    path: use bytealg.LastIndexByteString
+    
+    While strings.LastIndex{,Byte} cannot be used in package path, the
+    respective internal/bytealg function can be used.
+    
+    Change-Id: If0ecc36484308221f50875c8609913f6f2887fba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527855
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/path/path.go | 15 ++++-----------
+ 1 file changed, 4 insertions(+), 11 deletions(-)

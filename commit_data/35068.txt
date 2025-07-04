@@ -1,0 +1,16 @@
+commit d75836365e88e0ea58f1b663b95709ab117b0947
+Author: shogo-ma <Choroma194@gmail.com>
+Date:   Fri Apr 20 17:51:57 2018 +0000
+
+    os: fix typo in comment
+    
+    fix misspell on code comment.
+    
+    Change-Id: I8280488f71f55616da5543eac0f58cc008354af9
+    GitHub-Last-Rev: ea144718ee5f6dccb3b694100e9edda923e576fc
+    GitHub-Pull-Request: golang/go#24975
+    Reviewed-on: https://go-review.googlesource.com/108458
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/os/os_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

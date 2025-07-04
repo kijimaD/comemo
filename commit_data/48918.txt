@@ -1,0 +1,21 @@
+commit 24b570354caee33d4fb3934ce7ef1cc97fb403fd
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Tue Apr 26 23:55:11 2022 +0000
+
+    time: document hhmmss formats
+    
+    Fixes #52516
+    
+    Change-Id: I173fdb09c245563e09be4e1aacfd374c3a764d74
+    GitHub-Last-Rev: 14a81e50616e0f268fee9323d0621de861885475
+    GitHub-Pull-Request: golang/go#52538
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402058
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/time/example_test.go | 11 +++++++++++
+ src/time/format.go       | 16 ++++++++++------
+ 2 files changed, 21 insertions(+), 6 deletions(-)

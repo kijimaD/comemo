@@ -1,0 +1,19 @@
+commit 1e0c32cccbe73be45414967612800be76d933870
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Feb 27 08:53:34 2023 -0800
+
+    cmd/asm: preserve 3rd arg when GOT-rewriting assembly instructions
+    
+    Fixes #58735
+    
+    Change-Id: I7cc1c34ed8454553328d44b2ea72e4c0255b6ec1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471675
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/amd64dynlinkerror.s | 6 ++++++
+ src/cmd/internal/obj/x86/obj6.go                      | 3 +++
+ 2 files changed, 9 insertions(+)

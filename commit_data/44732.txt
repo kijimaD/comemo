@@ -1,0 +1,15 @@
+commit b95e4b7850a504748655ad4f025379701afc206c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 17 22:44:16 2021 -0700
+
+    go/types: minor simplification in assignableTo (cleanup)
+    
+    Also, clarify doc string.
+    
+    Change-Id: If1c5f8e29e2c2080dd899ef76196e97b7b992389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302758
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/operand.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

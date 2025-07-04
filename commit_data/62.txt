@@ -1,0 +1,12 @@
+commit 50cea7038bef95408d06648259f8bd497222a4d9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 29 16:27:11 2008 -0700
+
+    - Added section on type equivalence
+    - Changed signature syntax: parameter names are always mandatory
+    - Minor white-space cosmetic changes
+    
+    SVN=117240
+
+ doc/go_lang.txt | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 51 insertions(+), 2 deletions(-)

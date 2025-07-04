@@ -1,0 +1,12 @@
+commit 28ac033b2ec29a86cd6b7b0f804272abee6d5f94
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Mon Apr 2 16:34:11 2012 +1000
+
+    dist: make sure OS X packages follow symlinks when installing
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5970061
+
+ misc/dist/bindist.go | 37 ++++++++++++++++++++++++++++++++++---
+ 1 file changed, 34 insertions(+), 3 deletions(-)

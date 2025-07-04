@@ -1,0 +1,23 @@
+commit dcbdc1a2f7368ad8a9193e969cc76c7ffd2f7685
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun Feb 9 13:32:27 2025 +0000
+
+    cmd/go/internal/modload: don't set GIT_SSH_COMMAND
+    
+    Allows git core.sshcommand to take effect when set by the user.
+    This was originally added to work around an issue in
+    OpenSSH < 7.3 (2016), see https://go.dev/issue/13453 .
+    A fixed version of OpenSSH should be widely available enough
+    that it is no longer necessary
+    
+    Fixes #71482
+    
+    Change-Id: I6f44cc354e8a4063e226cac78ec27117fcc40e93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647995
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Auto-Submit: Daniel Martí <mvdan@mvdan.cc>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/init.go | 17 -----------------
+ 1 file changed, 17 deletions(-)

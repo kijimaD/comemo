@@ -1,0 +1,17 @@
+commit 267f56e10bedaf86eff9ef5bfe3886b2fec6435a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 12 10:23:24 2012 -0800
+
+    ld: parse but do not implement -X flag
+    
+    This will let programs invoking ld prepare for it.
+    See issue 2676.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/5535044
+
+ src/cmd/5l/obj.c | 5 +++++
+ src/cmd/6l/obj.c | 5 +++++
+ src/cmd/8l/obj.c | 5 +++++
+ 3 files changed, 15 insertions(+)

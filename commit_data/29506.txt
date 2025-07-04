@@ -1,0 +1,20 @@
+commit 02d79e95581e53edca21f0c105675b3f459ee736
+Author: Quentin Smith <quentin@golang.org>
+Date:   Thu Nov 10 11:45:56 2016 -0500
+
+    cmd/go: skip TestCgoPkgConfig if pkg-config is too old
+    
+    pkg-config 0.24 adds support for quoting and escaping whitespace;
+    distros like CentOS 6 are still shipping pkg-config 0.23. Skip the test
+    there since there's no way to get whitespace into the pkg-config output.
+    
+    Fixes #17846.
+    
+    Change-Id: Ie4ea17e9b709372a20178b539498929754bcd51f
+    Reviewed-on: https://go-review.googlesource.com/33027
+    Run-TryBot: Quentin Smith <quentin@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

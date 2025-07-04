@@ -1,0 +1,23 @@
+commit 27b844f767d4930e6a0f3bf6f793eb89cf43e817
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 2 18:17:05 2022 -0700
+
+    cmd/compile: remove ir.CompLitExpr.Ntype field
+    
+    It's no longer needed, since type expressions are all evaluated by
+    types2. We can just use Node.Type instead.
+    
+    Change-Id: If523bd96f96fc4f2337a26f563f84e4f194e654a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403841
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ir/expr.go             |  3 +-
+ src/cmd/compile/internal/ir/fmt.go              |  7 +----
+ src/cmd/compile/internal/ir/node_gen.go         |  6 ----
+ src/cmd/compile/internal/typecheck/expr.go      | 23 ++-------------
+ src/cmd/compile/internal/typecheck/iimport.go   |  9 ++----
+ src/cmd/compile/internal/typecheck/typecheck.go | 38 -------------------------
+ 6 files changed, 7 insertions(+), 79 deletions(-)

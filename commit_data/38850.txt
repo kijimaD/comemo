@@ -1,0 +1,19 @@
+commit 1f0c102a57f62de6f66381c75732ba486da7b904
+Author: Tyler Bui-Palsulich <tbp@google.com>
+Date:   Mon Apr 22 15:09:10 2019 -0400
+
+    cmd/go: expand cannot determine module path error
+    
+    See suggestion 2 of #31543 by thepudds.
+    
+    We may want to expand 'go help mod init' in the future to document what
+    the module path should look like.
+    
+    Change-Id: Ia559fa96fda871e011d53f42a803175abc512202
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173318
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/init.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

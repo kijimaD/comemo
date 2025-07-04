@@ -1,0 +1,19 @@
+commit 38db2df02dbe1edbdb586118d16ebdbf20180a95
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Mon Aug 28 20:40:51 2023 +0800
+
+    cmd/go: allow -buildmode=pie with -race on darwin
+    
+    Fixes #62318
+    
+    Change-Id: I6f1b22c9a4523461aa4c7fcd12e72dbc4430812d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523475
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/work/init.go              |  4 ++--
+ src/cmd/go/testdata/script/build_pie_race.txt | 30 +++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 2 deletions(-)

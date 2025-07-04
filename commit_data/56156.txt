@@ -1,0 +1,38 @@
+commit 017478a96364b474944715b175dc14b4ed34c079
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 8 23:06:41 2024 +0000
+
+    runtime: move GC pause time CPU metrics update into the STW
+    
+    This change fixes a possible race with updating metrics and reading
+    them. The update is intended to be protected by the world being stopped,
+    but here, it clearly isn't.
+    
+    Fixing this lets us lower the thresholds in the metrics tests by an
+    order of magnitude, because the only thing we have to worry about now is
+    floating point error (the tests were previously written assuming the
+    floating point error was much higher than it actually was; that turns
+    out not to be the case, and this bug was the problem instead). However,
+    this still isn't that tight of a bound; we still want to catch any and
+    all problems of exactness. For this purpose, this CL adds a test to
+    check the source-of-truth (in uint64 nanoseconds) that ensures the
+    totals exactly match.
+    
+    This means we unfortunately have to take another time measurement, but
+    for now let's prioritize correctness. A few additional nanoseconds of
+    STW time won't be terribly noticable.
+    
+    Fixes #66212.
+    
+    Change-Id: Id02c66e8a43c13b1f70e9b268b8a84cc72293bfd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570257
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/export_test.go  |  6 ++++++
+ src/runtime/metrics.go      | 22 ++++++++++-----------
+ src/runtime/metrics_test.go | 48 +++++++++++++++++++++++++++++++++++++++------
+ src/runtime/mgc.go          | 21 +++++++++++---------
+ src/runtime/mstats.go       | 46 +++++++++++++++++++++----------------------
+ 5 files changed, 94 insertions(+), 49 deletions(-)

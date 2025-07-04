@@ -1,0 +1,18 @@
+commit b426e9797ffffff54103db85d8cd29fe882f2262
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sun Oct 15 17:58:43 2023 +0200
+
+    encoding/xml: display closing space in error message
+    
+    Fixes #48890
+    
+    Change-Id: I7644d091ad92663bda52ef4905239ec499ef9207
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535535
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/encoding/xml/xml.go      | 6 +++++-
+ src/encoding/xml/xml_test.go | 4 +++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 8262a8fbef54c67d63ec80317ea9a64b8fd0c7d1
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Wed Apr 8 15:39:25 2015 +0200
+
+    cmd/7g: change CHECKNIL sequence
+    
+    We can use CBNZ instruction and make it one instruction shorter.
+    
+    Saves 66kB in godoc.
+    
+    Change-Id: Ie71fe7cf31e7f73644ee926f4f9624c009c3eb1a
+    Reviewed-on: https://go-review.googlesource.com/8634
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/7g/ggen.go | 35 +++++++++++------------------------
+ src/cmd/7g/prog.go |  2 ++
+ 2 files changed, 13 insertions(+), 24 deletions(-)

@@ -1,0 +1,13 @@
+commit eda703ac799906135869e9890f325c5ffdf49502
+Author: Matthijs Kooijman <matthijs@stdin.nl>
+Date:   Wed Dec 13 16:45:09 2017 +0100
+
+    os: mention the influence of umask in docs
+    
+    Change-Id: Ia05fac3298334d6b44267ce02bffcd7bf8a54c72
+    Reviewed-on: https://go-review.googlesource.com/83775
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/file.go | 5 +++--
+ src/os/path.go | 2 +-
+ 2 files changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit ba0dd1f139c4344008a1cb184f0c5e02ad879ef5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 22 17:50:29 2013 -0400
+
+    cmd/gc: fix line number for 'missing return' in closure
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7838048
+
+ src/cmd/gc/closure.c |    2 +
+ src/cmd/gc/fmt.c     |    2 +-
+ test/return.go       | 1436 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 1439 insertions(+), 1 deletion(-)

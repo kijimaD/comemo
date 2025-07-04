@@ -1,0 +1,31 @@
+commit 76d427449106d0eb2842d31934e2cea9f049a562
+Author: Mura Li <mura_li@castech.com.tw>
+Date:   Mon Aug 29 10:22:20 2016 +0800
+
+    crypto/des: improve the throughput of DES and 3DES
+    
+    For detailed explanation of the adopted (Eric Young's) algorithm,
+    see http://ftp.nluug.nl/security/coast/libs/libdes/ALGORITHM
+    
+    benchmark                   old ns/op     new ns/op     delta
+    BenchmarkEncrypt-16         649           164           -74.73%
+    BenchmarkDecrypt-16         546           156           -71.43%
+    BenchmarkTDESEncrypt-16     1651          385           -76.68%
+    BenchmarkTDESDecrypt-16     1645          378           -77.02%
+    
+    benchmark                   old MB/s     new MB/s     speedup
+    BenchmarkEncrypt-16         12.31        48.76        3.96x
+    BenchmarkDecrypt-16         14.64        51.03        3.49x
+    BenchmarkTDESEncrypt-16     4.84         20.74        4.29x
+    BenchmarkTDESDecrypt-16     4.86         21.16        4.35x
+    
+    Change-Id: Ic3e1fe3340419ec5a0e6379434911eb41e0246f6
+    Reviewed-on: https://go-review.googlesource.com/36490
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/des/block.go    | 114 +++++++++++++++++++++++++++++----------------
+ src/crypto/des/cipher.go   |  51 +++++++++++++++++---
+ src/crypto/des/des_test.go |  39 +++++++++++-----
+ 3 files changed, 146 insertions(+), 58 deletions(-)

@@ -1,0 +1,18 @@
+commit 617a83ec68b7657b0185a6b190f04460de30f31e
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Apr 20 23:25:12 2021 -0400
+
+    go/types: re-enable a commented out test
+    
+    This test was unnecessarily commented out in CL 312190: re-enable it and
+    update its assertions.
+    
+    Change-Id: Ic08563e25c9b05a8e35d67690f5d27a761133266
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312097
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/fixedbugs/issue39634.go2 | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

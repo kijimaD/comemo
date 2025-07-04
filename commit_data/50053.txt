@@ -1,0 +1,23 @@
+commit a74e5f584e96cc89a8f6a1bb1a8cd9fc6ed6e72d
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Jul 24 13:24:21 2022 -0700
+
+    cmd/compile: issue VarDef only for pointer-ful types
+    
+    Use OpVarDef only when the variable being defined has pointers in it.
+    VarDef markers are only used for liveness analysis, and that only
+    runs on pointer-ful variables.
+    
+    Fixes #53810
+    
+    Change-Id: I09b0ef7ed31e72528916fe79325f80bbe69ff9b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419320
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/check.go       |  5 +++++
+ src/cmd/compile/internal/ssa/cse_test.go    |  4 ++--
+ src/cmd/compile/internal/ssa/export_test.go |  1 +
+ src/cmd/compile/internal/ssagen/ssa.go      | 28 ++++++++++++++++++++--------
+ 4 files changed, 28 insertions(+), 10 deletions(-)

@@ -1,0 +1,18 @@
+commit d185cc3b643abbd88efcc1d9b92c87422a25d955
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Sep 12 13:27:31 2016 -0400
+
+    cmd/link: disable internal PIE for now
+    
+    There's more work to do.
+    
+    Updates #17068
+    
+    Change-Id: I4e16c0e8e9ac739e1fe266224c3769f6c5b2e070
+    Reviewed-on: https://go-review.googlesource.com/29076
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

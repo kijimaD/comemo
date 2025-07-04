@@ -1,0 +1,16 @@
+commit 2a031e6a2a4f7d83b80f9333bbd4f5d80a4873cf
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Nov 12 21:23:21 2015 -0500
+
+    cmd/internal/obj/arm64: rewrite branches that are too far
+    
+    Fixes #12540.
+    
+    Change-Id: I7893fdc023145b0aca4b4c7df7e08e47edcf5bba
+    Reviewed-on: https://go-review.googlesource.com/16902
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/arm64/asm7.go | 62 +++++++++++++++++++-------------------
+ 1 file changed, 31 insertions(+), 31 deletions(-)

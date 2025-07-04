@@ -1,0 +1,18 @@
+commit dbe004efe48fbdb4c911eaf1771664e0457c3288
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 4 16:53:06 2009 -0700
+
+    delayed evaluation of var blocks
+    
+    R=ken
+    OCL=32750
+    CL=32753
+
+ src/cmd/gc/dcl.c    | 95 ++++++++++++++++++++++++++++++++---------------------
+ src/cmd/gc/export.c |  2 ++
+ src/cmd/gc/gen.c    |  9 ++---
+ src/cmd/gc/go.h     |  1 +
+ src/cmd/gc/go.y     |  4 +--
+ src/cmd/gc/walk.c   | 34 ++++++++++++++++---
+ test/declbad.go     |  4 +--
+ 7 files changed, 99 insertions(+), 50 deletions(-)

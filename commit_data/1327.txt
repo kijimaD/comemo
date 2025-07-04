@@ -1,0 +1,15 @@
+commit 546f269c3bb52b6971c0e2178bb2ab7051a28137
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 11 13:24:04 2008 -0800
+
+    if the typestring gives a field name of "?", drop it.
+    
+    R=rsc
+    DELTA=11  (7 added, 0 deleted, 4 changed)
+    OCL=20988
+    CL=20988
+
+ src/lib/reflect/all_test.go | 4 ++--
+ src/lib/reflect/tostring.go | 5 ++++-
+ src/lib/reflect/type.go     | 6 +++++-
+ 3 files changed, 11 insertions(+), 4 deletions(-)

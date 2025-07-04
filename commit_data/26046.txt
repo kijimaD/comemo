@@ -1,0 +1,20 @@
+commit 14bf9c8c07f82c4eac22a3e0f15da5cfbc30fe61
+Author: djherbis <djherbis@gmail.com>
+Date:   Fri Jan 29 00:32:00 2016 -0800
+
+    bufio: Reader.Peek returns partial results on ErrBufferFull
+    
+    The existing implementation returns nil, ErrBufferFull when n > len(b.buf),
+    now it will return any data in the buffer and ErrBufferFull.
+    
+    Fixes #14121
+    
+    Change-Id: Ie52d32ccd80e4078ebfae6e75393c89675959ead
+    Reviewed-on: https://go-review.googlesource.com/19091
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/bufio/bufio.go      | 12 +++++++-----
+ src/bufio/bufio_test.go |  4 ++--
+ 2 files changed, 9 insertions(+), 7 deletions(-)

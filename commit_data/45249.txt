@@ -1,0 +1,20 @@
+commit 1c268431f49ee2fc843eac52a0854aea3d02a6e0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jan 25 11:07:33 2020 -0800
+
+    spec: allow conversion from slice to array ptr
+    
+    Implementation follows in subsequent changes.
+    
+    Updates #395
+    
+    Change-Id: Ic97ee822805e4c236fdd9d224e776cb2ae62c817
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216424
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit da5e962e49bcbf85bdb444b46fb167884b30b0c2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 17 15:16:06 2009 -0700
+
+    shuffle some Linux system calls around for 386
+    
+    R=r
+    DELTA=37  (17 added, 15 deleted, 5 changed)
+    OCL=30428
+    CL=30444
+
+ src/pkg/syscall/syscall_linux.go        |  1 -
+ src/pkg/syscall/syscall_linux_386.go    |  4 +++-
+ src/pkg/syscall/syscall_linux_amd64.go  |  1 +
+ src/pkg/syscall/zsyscall_linux_386.go   | 14 +++++++-------
+ src/pkg/syscall/zsyscall_linux_amd64.go | 14 +++++++-------
+ src/pkg/syscall/ztypes_linux_amd64.go   |  4 ++--
+ 6 files changed, 20 insertions(+), 18 deletions(-)

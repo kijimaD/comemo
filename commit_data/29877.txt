@@ -1,0 +1,22 @@
+commit 8887be4654a49d8644d35661f2d71c970ba6dc02
+Author: Raul Silvera <rsilvera@google.com>
+Date:   Wed Dec 21 10:16:15 2016 -0800
+
+    cmd/pprof: Re-enable weblist and disasm
+    
+    Previous changes started using the full filename for object files
+    on graph nodes, instead of just the file basename. The basename
+    was still being used when selecting mappings to disassemble for
+    weblist and disasm commands, causing a mismatch.
+    
+    This fixes #18385. It was already fixed on the upstream pprof.
+    
+    Change-Id: I1664503634f2c8cd31743561301631f12c4949c9
+    Reviewed-on: https://go-review.googlesource.com/34665
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/pprof/internal/report/report.go | 2 +-
+ src/cmd/pprof/internal/report/source.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

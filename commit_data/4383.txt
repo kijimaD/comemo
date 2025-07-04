@@ -1,0 +1,22 @@
+commit bda2074193d54407dc3a141ecc05975e068d7f8e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 10 19:03:28 2009 -0800
+
+    New flags for gofmt:
+    - oldparser            parse old syntax (required semicolons)
+    - oldprinter           print old syntax (required semicolons)
+    
+    By default, these flags are enabled for now.
+    Setting -oldparser=false has no effect until go/parser is changed
+    to accept the new syntax.
+    
+    Enabled exp/parser in Makefile; update dependent exp/eval.
+    
+    R=rsc
+    https://golang.org/cl/174051
+
+ src/cmd/gofmt/doc.go      |  8 ++++++++
+ src/cmd/gofmt/gofmt.go    | 33 +++++++++++++++++++++++----------
+ src/pkg/Makefile          |  1 +
+ src/pkg/exp/eval/world.go |  2 +-
+ 4 files changed, 33 insertions(+), 11 deletions(-)

@@ -1,0 +1,34 @@
+commit c2483a5c034152fcdfbb2e6dbcf48b0103d8db6a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Oct 1 16:25:32 2021 -0700
+
+    cmd, runtime: eliminate runtime.no_pointers_stackmap
+    
+    runtime.no_pointers_stackmap is an odd beast.
+    It is defined in a Go file, populated by assembly,
+    used by the GC, and its address is magic used
+    by async pre-emption to ascertain whether a
+    routine was implemented in assembly.
+    
+    A subsequent change will force all GC data into the go.func.* linker symbol.
+    runtime.no_pointers_stackmap is GC data, so it must go there.
+    Yet it also needs to go into rodata, for the runtime address trick.
+    
+    This change eliminates it entirely.
+    
+    Replace the runtime address check with the newly introduced asm funcflag.
+    
+    Handle the assembly macro as magic, similarly to our handling of go_args_stackmap.
+    This allows the no_pointers_stackmap to be identical in all ways
+    to other gclocals stackmaps, including content-addressability.
+    
+    Change-Id: Id2f20a262cfab0719beb88e6342984ec4b196268
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353672
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/plist.go | 19 ++++++++++++++++++-
+ src/runtime/asm.s             |  8 --------
+ src/runtime/funcdata.h        |  2 +-
+ src/runtime/preempt.go        | 12 +++---------
+ 4 files changed, 22 insertions(+), 19 deletions(-)

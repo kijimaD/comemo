@@ -1,0 +1,14 @@
+commit 8e96b45fd6bd7b614ed5d946d7c1ed27e920812b
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Aug 19 13:57:11 2009 -0700
+
+    genembedtramp for arm
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=104  (0 added, 33 deleted, 71 changed)
+    OCL=33531
+    CL=33535
+
+ src/cmd/5g/gobj.c | 175 ++++++++++++++++++++++--------------------------------
+ 1 file changed, 71 insertions(+), 104 deletions(-)

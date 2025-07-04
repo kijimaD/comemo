@@ -1,0 +1,24 @@
+commit 1d92e0e3fa6bb79d0679f3dbb47877f4a693deb9
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 21 13:40:58 2023 -0400
+
+    reflect: change rtype so that it (not *rtype) implements Type
+    
+    The abi.Type field was changed to *abi.Type, thus the
+    bitwise representation is the same, many casts are now
+    avoided and replace by either rtype{afoo} or rfoo.Type.
+    
+    Change-Id: Ie7643edc714a0e56027c2875498a4dfe989cf7dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487558
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/reflect/all_test.go       |   6 +-
+ src/reflect/benchmark_test.go |   5 +-
+ src/reflect/export_test.go    |  12 +--
+ src/reflect/makefunc.go       |   2 +-
+ src/reflect/type.go           | 233 ++++++++++++++++++++++--------------------
+ src/reflect/value.go          |  24 ++---
+ 6 files changed, 145 insertions(+), 137 deletions(-)

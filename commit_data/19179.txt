@@ -1,0 +1,20 @@
+commit fb91559fbd9fe9efb96e8fa7cbf617964d203516
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Wed Apr 16 16:57:25 2014 -0700
+
+    all: fix typos
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/88670043
+
+ src/pkg/archive/tar/reader.go                  | 2 +-
+ src/pkg/container/list/example_test.go         | 2 +-
+ src/pkg/crypto/cipher/benchmark_test.go        | 2 +-
+ src/pkg/debug/goobj/read.go                    | 2 +-
+ src/pkg/encoding/base32/base32.go              | 2 +-
+ src/pkg/mime/multipart/quotedprintable_test.go | 2 +-
+ src/pkg/net/http/client_test.go                | 2 +-
+ src/pkg/time/format.go                         | 2 +-
+ 8 files changed, 8 insertions(+), 8 deletions(-)

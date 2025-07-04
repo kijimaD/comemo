@@ -1,0 +1,15 @@
+commit 9c8f11ff96dbef5ad6020f1c47d9e55b3284ec21
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 1 20:24:53 2014 -0400
+
+    cmd/5g, cmd/8g: fix build
+    
+    Botched during CL 83090046.
+    
+    TBR=khr
+    CC=golang-codereviews
+    https://golang.org/cl/83070046
+
+ src/cmd/5g/ggen.c | 12 ++++++------
+ src/cmd/8g/ggen.c | 12 ++++++------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

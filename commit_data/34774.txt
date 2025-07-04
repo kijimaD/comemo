@@ -1,0 +1,16 @@
+commit 598950ca7f69ad70adc99c7cca6c570aaaf3afad
+Author: adrienpetel <peteladrien@gmail.com>
+Date:   Fri Mar 30 14:15:24 2018 +0400
+
+    net: deflake TestLookupCNAME
+    
+    Apply the same approach as in CL 102397.
+    
+    Updates #24580
+    
+    Change-Id: I65955f62a70807c87216519d03f3643a8f214dee
+    Reviewed-on: https://go-review.googlesource.com/103655
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/lookup_test.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 06a488fa97445414b727c5a7f1825e81e6c671ea
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Feb 20 12:15:02 2013 +0400
+
+    runtime: fix deadlock detector false negative
+    Fixes #4819.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7322086
+
+ src/pkg/runtime/crash_cgo_test.go |   2 +-
+ src/pkg/runtime/crash_test.go     | 113 +++++++++++++++++++++++++++++++++-----
+ src/pkg/runtime/proc.c            |   7 +--
+ 3 files changed, 103 insertions(+), 19 deletions(-)

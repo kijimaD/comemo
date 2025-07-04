@@ -1,0 +1,38 @@
+commit 16f0f9c8e1e767d10d483939981e3b2242554c33
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Mon Oct 21 16:12:22 2019 +0200
+
+    syscall: respect permission bits on file opening on Windows
+    
+    On Windows, os.Chmod and syscall.Chmod toggle the FILE_ATTRIBUTES_
+    READONLY flag depending on the permission bits. That's a bit odd but I
+    guess some compromises were made at some point and this is what was
+    chosen to map to a Unix concept that Windows doesn't really have in the
+    same way. That's fine. However, the logic used in Chmod was forgotten
+    from os.Open and syscall.Open, which then manifested itself in various
+    places, most recently, go modules' read-only behavior.
+    
+    This makes syscall.Open consistent with syscall.Chmod and adds a test
+    for the permission _behavior_ using ioutil. By testing the behavior
+    instead of explicitly testing for the attribute bits we care about, we
+    make sure this doesn't regress in unforeseen ways in the future, as well
+    as ensuring the test works on platforms other than Windows.
+    
+    In the process, we fix some tests that never worked and relied on broken
+    behavior, as well as tests that were disabled on Windows due to the
+    broken behavior and had TODO notes.
+    
+    Fixes #35033
+    
+    Change-Id: I6f7cf54517cbe5f6b1678d1c24f2ab337edcc7f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202439
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cover/cover_test.go                 |  4 ++--
+ src/cmd/go/testdata/script/mod_cache_rw.txt |  9 +++++----
+ src/io/ioutil/ioutil_test.go                | 31 +++++++++++++++++++++++++++++
+ src/syscall/syscall_windows.go              |  6 +++++-
+ 4 files changed, 43 insertions(+), 7 deletions(-)

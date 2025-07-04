@@ -1,0 +1,30 @@
+commit 435450bf3c6efcc65111e96a42fc1c8acd3081e3
+Author: Thomas Bonfort <thomas.bonfort@gmail.com>
+Date:   Sun Jan 1 17:02:44 2017 +0100
+
+    image/jpeg: improve performance when encoding *image.YCbCr
+    
+    The existing implementation falls back to using image.At()
+    for each pixel when encoding an *image.YCbCr which is
+    inefficient and causes many memory allocations.
+    
+    This change makes the jpeg encoder directly read Y, Cb, and Cr
+    pixel values.
+    
+    benchmark                  old ns/op     new ns/op     delta
+    BenchmarkEncodeYCbCr-4     43990846      24201148      -44.99%
+    
+    benchmark                  old MB/s     new MB/s     speedup
+    BenchmarkEncodeYCbCr-4     20.95        38.08        1.82x
+    
+    Fixes #18487
+    
+    Change-Id: Iaf2ebc646997e3e1fffa5335f1b0d642e15bd453
+    Reviewed-on: https://go-review.googlesource.com/34773
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/image/jpeg/writer.go      | 27 ++++++++++++++++++++
+ src/image/jpeg/writer_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 84 insertions(+), 1 deletion(-)

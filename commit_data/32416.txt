@@ -1,0 +1,14 @@
+commit 6cbe5c8ac342ad3d8f907caf105feaa55cb0404b
+Author: Michael Brandenburg <mbrandenburg@bolste.com>
+Date:   Wed Jul 26 20:25:37 2017 -0700
+
+    bytes: add examples for TrimLeft and TrimRight
+    
+    Change-Id: Ib6d94f185dd43568cf97ef267dd51a09f43a402f
+    Reviewed-on: https://go-review.googlesource.com/51391
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/example_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

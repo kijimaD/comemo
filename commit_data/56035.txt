@@ -1,0 +1,18 @@
+commit 27fdef6168d2802dcf9ef382407fb6b16db3e150
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Mar 22 23:07:57 2024 +0800
+
+    test: put type declaration back inside the function
+    
+    Because issue #47631 has been fixed, remove TODO.
+    
+    Change-Id: Ic476616729f47485a18a5145bd28c87dd18b4492
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573775
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ test/typeparam/builtins.go | 8 ++++----
+ test/typeparam/typelist.go | 4 +---
+ 2 files changed, 5 insertions(+), 7 deletions(-)

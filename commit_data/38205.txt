@@ -1,0 +1,25 @@
+commit 3de2fb21b7b4d472637f83031ec48e9bf539a4ee
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sat Mar 2 13:07:54 2019 +0100
+
+    misc/android: use adb exec-out instead of adb shell to avoid buffering
+    
+    According to
+    
+    https://stackoverflow.com/questions/46233200/stop-buffering-of-adb-shell-output
+    
+    the adb exec-out commands avoids the buffering inherent to adb shell.
+    
+    Let's see if using exec-out will fix the android builder flakyness where
+    exitcodes or output were sometimes missing.
+    
+    Updates #30512 (perhaps fixes it).
+    
+    Change-Id: Ib953ef0262b20730e0d4c332058d29c5066bfeb2
+    Reviewed-on: https://go-review.googlesource.com/c/164661
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/android/go_android_exec.go | 25 +++++++++++--------------
+ 1 file changed, 11 insertions(+), 14 deletions(-)

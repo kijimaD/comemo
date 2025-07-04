@@ -1,0 +1,18 @@
+commit a61a3c378d9ce71d9b97a1b4fb3320b8b3d6a599
+Author: Heisenberg <lziqiang1@gmail.com>
+Date:   Thu Jun 11 11:17:20 2020 +0800
+
+    runtime: use the CBZ instruction in the assembler
+    
+    Use CBZ to replace the comparison and branch of arm64 and the zero instruction in the assembly file.
+    
+    Change-Id: Id6c03e9af13aadafc3ad3953f82d2ffa29c12926
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237497
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/rt0_freebsd_arm64.s | 3 +--
+ src/runtime/rt0_netbsd_arm64.s  | 3 +--
+ src/runtime/rt0_openbsd_arm64.s | 3 +--
+ 3 files changed, 3 insertions(+), 6 deletions(-)

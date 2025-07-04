@@ -1,0 +1,29 @@
+commit bedf2c488630bd8253598b78088bc27fc36fbd29
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Feb 5 04:22:18 2021 +1100
+
+    runtime,syscall: convert syscall on openbsd/arm to libc
+    
+    Convert the syscall package on openbsd/arm to use libc rather than performing
+    direct system calls.
+    
+    Updates #36435
+    
+    Change-Id: Iff3a91c959292cbf4e0a09c7fd34efc8e88ff83f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315793
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/sys_openbsd3.go         |   4 +-
+ src/runtime/sys_openbsd_arm.s       | 339 ++++++++++++++
+ src/syscall/asm_openbsd_arm.s       | 135 +-----
+ src/syscall/exec_bsd.go             |   4 +-
+ src/syscall/exec_libc2.go           |   4 +-
+ src/syscall/exec_unix.go            |   2 +-
+ src/syscall/mkall.sh                |   5 +-
+ src/syscall/mksyscall.pl            |   4 +
+ src/syscall/syscall_openbsd1.go     |   4 +-
+ src/syscall/syscall_openbsd_libc.go |   4 +-
+ src/syscall/zsyscall_openbsd_arm.go | 867 ++++++++++++++++++++++++++++++------
+ src/syscall/zsyscall_openbsd_arm.s  | 233 ++++++++++
+ 12 files changed, 1336 insertions(+), 269 deletions(-)

@@ -1,0 +1,19 @@
+commit 1ab9176e54bedd37cbb0c6941160a0cfc2e24eac
+Author: Rick Hudson <rlh@golang.org>
+Date:   Mon Jun 22 14:05:00 2015 -0400
+
+    runtime: remove race and increase precision in pointer validation.
+    
+    This CL removes the single and racy use of mheap.arena_end outside
+    of the bookkeeping done in mHeap_init and mHeap_Alloc.
+    There should be no way for heapBitsForSpan to see a pointer to
+    an invalid span. This CL makes the check for this more precise by
+    checking that the pointer is between mheap_.arena_start and
+    mheap_.arena_used instead of mheap_.arena_end.
+    
+    Change-Id: I1200b54353ee1eda002d92645fd8d26048600ceb
+    Reviewed-on: https://go-review.googlesource.com/11342
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mbitmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

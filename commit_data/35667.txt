@@ -1,0 +1,12 @@
+commit 43a3cdf8c7ce08b5351cd4e8823c00f1fb125188
+Author: Suriyaa Sundararuban <suriyaasundararuban@gmail.com>
+Date:   Tue Jun 12 12:11:58 2018 +0000
+
+    doc: use HTTPS for man.openbsd.org link in go1.7.html
+    
+    Change-Id: I88855dfa3166e90386c90bf6220be0596dab3c0d
+    Reviewed-on: https://go-review.googlesource.com/118175
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.7.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

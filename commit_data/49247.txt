@@ -1,0 +1,24 @@
+commit b2ae2f5358e87fabd519bc2de20b3ab81d733820
+Author: Kévin Dunglas <kevin@dunglas.fr>
+Date:   Tue May 17 19:33:28 2022 +0000
+
+    net/http: unskip TestEarlyHintsRequest_h2
+    
+    golang/net#134 and golang/net#96 have been merged.
+    This patch updates h2_bundle.go and enables TestEarlyHintsRequest_h2.
+    
+    Change-Id: Ia53fee6b3c4892a7cde10e7b62cbe7b64fa9f155
+    GitHub-Last-Rev: ea521b02ae1e873f9b8be6a2a3e81699d8eb5584
+    GitHub-Pull-Request: golang/go#52947
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406914
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/go.mod                        | 2 +-
+ src/go.sum                        | 2 ++
+ src/net/http/clientserver_test.go | 3 ---
+ src/net/http/h2_bundle.go         | 8 ++++++++
+ src/vendor/modules.txt            | 2 +-
+ 5 files changed, 12 insertions(+), 5 deletions(-)

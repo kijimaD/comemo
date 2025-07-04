@@ -1,0 +1,18 @@
+commit 0bbb74b5ac8c01def959ef2e32ac3295d4f2707e
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Dec 2 13:22:46 2021 -0500
+
+    doc/go1.18: add changes to regexp to release notes
+    
+    CL 354569
+    
+    Updates #47694
+    
+    Change-Id: I78536c110215b3c9f247c1420bcaa5fc3d8fb930
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368795
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 27a3dcd0d2320e171203294724def784a1ddead6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 20 11:11:57 2011 -0400
+
+    net/textproto: avoid 1 copy in ReadLine, ReadContinuedLine
+    
+    Fixes #2083.
+    
+    R=msolo, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4812042
+
+ src/pkg/net/textproto/reader.go | 44 ++++++++++++++++++++++++++++-------------
+ 1 file changed, 30 insertions(+), 14 deletions(-)

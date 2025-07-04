@@ -1,0 +1,29 @@
+commit 4edefe95689c31846a73e36b3e0723c924def45d
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Oct 31 19:45:21 2021 -0700
+
+    cmd/compile: delay all call transforms if in a generic function
+    
+    We changed to delaying all transforms of generic functions, since there
+    are so many complicated situations where type params can be used. We
+    missed changing so that all Call expressions(not just some) are delayed
+    if in a generic function. This changes to delaying all transforms on
+    calls in generic functions. Had to convert Call() to g.callExpr() (so we
+    can access g.delayTransform()). By always delaying transforms on calls
+    in generic functions, we actually simplify the code a bit both in
+    g.CallExpr() and stencil.go.
+    
+    Fixes #51236
+    
+    Change-Id: I0342c7995254082c4baf709b0b92a06ec14425e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386220
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/expr.go    | 49 ++++++++++++++++-
+ src/cmd/compile/internal/noder/helpers.go | 89 -------------------------------
+ src/cmd/compile/internal/noder/stencil.go | 11 +---
+ test/typeparam/issue51236.go              | 22 ++++++++
+ 4 files changed, 71 insertions(+), 100 deletions(-)

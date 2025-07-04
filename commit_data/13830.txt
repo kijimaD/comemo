@@ -1,0 +1,13 @@
+commit ecb2a0a9e521a0dd76ca70e00727fce9afbda687
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Sep 17 01:08:41 2012 +0800
+
+    runtime: fix SI_USER for FreeBSD
+    Ref: http://svnweb.freebsd.org/base/head/sys/sys/signal.h?revision=HEAD&view=markup
+    
+    R=golang-dev, devon.odell, r
+    CC=golang-dev
+    https://golang.org/cl/6490118
+
+ src/pkg/runtime/os_freebsd.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

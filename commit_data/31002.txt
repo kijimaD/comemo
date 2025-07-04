@@ -1,0 +1,14 @@
+commit 92cffa13917023ca8a894160c71b73670f4e74f2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 4 12:48:38 2017 -0700
+
+    cmd/internal/obj: remove dead func Copyp
+    
+    Change-Id: Iaeb7bcbcdbc46c0e0e40b0aa070c706e0ca53013
+    Reviewed-on: https://go-review.googlesource.com/39555
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/ld.go | 6 ------
+ 1 file changed, 6 deletions(-)

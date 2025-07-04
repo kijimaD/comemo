@@ -1,0 +1,19 @@
+commit 042f051c03d35fb0adcb0b6a7e2d78a35342ae98
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 29 17:27:22 2022 -0700
+
+    go/types, types2: consolidate a test file with different syntax errors
+    
+    For #54511.
+    
+    Change-Id: I317c5f9beed7f1de4979ec12c6ec8d5de71bac1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426554
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ .../compile/internal/types2/testdata/fixedbugs/issue51658.go | 12 ++++++++----
+ src/go/types/testdata/fixedbugs/issue51658.go                | 12 ++++++++----
+ 2 files changed, 16 insertions(+), 8 deletions(-)

@@ -1,0 +1,12 @@
+commit 8010a430a238659a567c8b6f6492feb625651562
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 29 17:54:22 2012 +0100
+
+    CONTRIBUTORS: add Pawel Szczur (Google CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6820049
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

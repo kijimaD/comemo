@@ -1,0 +1,12 @@
+commit 445652f45361d4935a828f394d7f0322faa6d9ad
+Author: Martin Garton <garton@gmail.com>
+Date:   Fri Jun 30 20:03:27 2017 +0100
+
+    database/sql: fix outdated package name in doc.txt
+    
+    Change-Id: I4417c5a8537095a6464ce919b2e5cb250e179939
+    Reviewed-on: https://go-review.googlesource.com/47332
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/doc.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,50 @@
+commit 8a2db409c4e08ec9a8d87bdcaea928083f6293fc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 27 23:59:27 2014 -0400
+
+    cmd/gc: fix race compilation failure 'non-orig name'
+    
+    CL 51010045 fixed the first one of these:
+    
+            cmd/gc: return canonical Node* from temp
+    
+            For historical reasons, temp was returning a copy
+            of the created Node*, not the original Node*.
+            This meant that if analysis recorded information in the
+            returned node (for example, n->addrtaken = 1), the
+            analysis would not show up on the original Node*, the
+            one kept in fn->dcl and consulted during liveness
+            bitmap creation.
+    
+            Correct this, and watch for it when setting addrtaken.
+    
+            Fixes #7083.
+    
+            R=khr, dave, minux.ma
+            CC=golang-codereviews
+            https://golang.org/cl/51010045
+    
+    CL 53200043 fixed the second:
+    
+            cmd/gc: fix race build
+    
+            Missed this case in CL 51010045.
+    
+            TBR=khr
+            CC=golang-codereviews
+            https://golang.org/cl/53200043
+    
+    This CL fixes the third. There are only three nod(OXXX, ...)
+    calls in sinit.c, so maybe we're done. Embarassing that it
+    took three CLs to find all three.
+    
+    Fixes #8028.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, iant
+    https://golang.org/cl/100800046
+
+ src/cmd/gc/sinit.c          |  1 +
+ test/fixedbugs/issue8028.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

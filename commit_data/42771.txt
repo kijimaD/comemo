@@ -1,0 +1,20 @@
+commit 8ec5a052ec8d4e628353fb5099b29341fae9b3a4
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Aug 17 19:10:12 2020 +0200
+
+    unicode: upgrade to Unicode 13.0.0
+    
+    Fixes #40755
+    
+    Change-Id: I14b3977317994095db8ae1bd873c174641209356
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248765
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ api/except.txt         |   1 +
+ api/next.txt           |   5 +
+ doc/go1.16.html        |  11 +
+ src/strconv/isprint.go |  98 +++++----
+ src/unicode/tables.go  | 544 +++++++++++++++++++++++++++++++------------------
+ 5 files changed, 416 insertions(+), 243 deletions(-)

@@ -1,0 +1,14 @@
+commit e3f11b3f3c5f5aea874b44296cab2c66632d1965
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 13 19:48:27 2012 -0800
+
+    go/parser: better error messages for missing commas
+    
+    Fixes #3008.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5660046
+
+ src/pkg/go/parser/parser.go | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

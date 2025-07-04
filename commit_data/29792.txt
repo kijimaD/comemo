@@ -1,0 +1,23 @@
+commit b9ffcf961e54419dc46f8338d86398665e719623
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 12 14:37:40 2016 -0800
+
+    cmd/go: don't assemble all .s files in a single cmd/asm run
+    
+    For the 1.8 release, go back to invoking the assembler once per .s
+    file, to avoid the problem in #18225. When the assembler is fixed, the
+    change to cmd/go/build.go can be rolled back, but the test in
+    cmd/go/go_test.go should remain.
+    
+    Fixes #18225.
+    Update #15680.
+    
+    Change-Id: Ibff8d0c638536efb50a2b2c280b41399332f4fe4
+    Reviewed-on: https://go-review.googlesource.com/34284
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/build.go   | 16 +++++++++-------
+ src/cmd/go/go_test.go | 16 ++++++++++++++++
+ 2 files changed, 25 insertions(+), 7 deletions(-)

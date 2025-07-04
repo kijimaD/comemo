@@ -1,0 +1,17 @@
+commit 2e67dd861d339ea2b8e59ebc479f37cc1840814a
+Author: Patrick Smith <pat42smith@gmail.com>
+Date:   Sun Oct 21 20:33:24 2012 -0400
+
+    encoding/xml: expand allowed entity names
+    
+    Previously, multi-byte characters were not allowed. Also certain single-byte
+    characters, such as '-', were disallowed.
+    Fixes #3813.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6641052
+
+ src/pkg/encoding/xml/xml.go      | 208 ++++++++++++++++++++++-----------------
+ src/pkg/encoding/xml/xml_test.go |  35 +++++++
+ 2 files changed, 154 insertions(+), 89 deletions(-)

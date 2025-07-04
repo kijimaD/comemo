@@ -1,0 +1,23 @@
+commit e38be310a4f725ce9167b3444eedcd3b15a6e683
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 7 13:51:04 2024 -0500
+
+    time: gracefully handle ts.zombies underflow
+    
+    The current implementation sets t.ts before adding t to ts;
+    that can cause inconsistencies with temporarily negative
+    ts.zombies values. Handle them gracefully, since we only
+    care about detecting very positive values.
+    
+    Pending CL 564977 removes the race that sets t.ts early,
+    and then CL 569996 builds on top of that to make the count precise.
+    This CL just gets examples like the new test working sooner.
+    
+    Change-Id: Ibe1aecc2554f83436f761f48e4050bd962982e4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569995
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/time.go   |  2 +-
+ src/time/tick_test.go | 78 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 79 insertions(+), 1 deletion(-)

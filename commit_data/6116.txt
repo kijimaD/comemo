@@ -1,0 +1,12 @@
+commit 099243497a74b0dbbac4dba2c9af43cbb4b0f2be
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Aug 27 13:46:59 2010 +1000
+
+    doc: remove console.log line from root.html
+    
+    R=r, rsc1
+    CC=golang-dev
+    https://golang.org/cl/2040041
+
+ doc/root.html | 1 -
+ 1 file changed, 1 deletion(-)

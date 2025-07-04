@@ -1,0 +1,13 @@
+commit d12c1b99c7575a93f650e0a761cca3fee72f7606
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 18 15:58:43 2008 -0800
+
+    Add ERROR comment for errmsg to look for.
+    
+    R=gri
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=19460
+    CL=19500
+
+ test/bugs/bug125.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

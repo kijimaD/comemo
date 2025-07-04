@@ -1,0 +1,12 @@
+commit 8cd0689a6311a0608748505d0d8e7a1bfcca1ec8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 26 22:02:32 2013 -0700
+
+    runtime: remove unused typedef
+    
+    R=golang-dev, dave, r
+    CC=golang-dev
+    https://golang.org/cl/10660044
+
+ src/pkg/runtime/runtime.h | 1 -
+ 1 file changed, 1 deletion(-)

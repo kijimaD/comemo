@@ -1,0 +1,14 @@
+commit df5cfe7c1f86865cbda41dc7b1c4dbd732e0e8fb
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 23 15:48:09 2015 -0800
+
+    cmd/asm: add end to end test for 386
+    
+    Change-Id: I6514f69b979d064b6a3c4b5d0828cc94f485cac2
+    Reviewed-on: https://go-review.googlesource.com/5694
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/asm/internal/asm/endtoend_test.go |  4 ++
+ src/cmd/asm/internal/asm/testdata/386.out | 48 ++++++++++++++++++
+ src/cmd/asm/internal/asm/testdata/386.s   | 82 +++++++++++++++++++++++++++++++
+ 3 files changed, 134 insertions(+)

@@ -1,0 +1,15 @@
+commit 481e5c6ad05fa6e43f4df10a372a775486ec14c2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Sep 6 10:47:25 2012 +1000
+
+    cmd/gc: re-order some OFOO constants. Rename ORRC to ORROTC to be
+    consistent with OLROT. Delete unused OBAD, OLRC.
+    
+    R=rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/6489082
+
+ src/cmd/6g/ggen.c  |  2 +-
+ src/cmd/6g/gsubr.c | 16 ++++++++--------
+ src/cmd/gc/go.h    | 25 +++++++++++--------------
+ 3 files changed, 20 insertions(+), 23 deletions(-)

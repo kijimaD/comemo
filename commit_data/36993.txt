@@ -1,0 +1,41 @@
+commit 5eff6bfdbc837f8099503566ffe52e5174e804a7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Oct 16 12:04:55 2018 +0100
+
+    encoding/json: fix "data changed underfoot?" panic
+    
+    Given a program as follows:
+    
+            data := []byte(`{"F": {
+                    "a": 2,
+                    "3": 4
+            }}`)
+            json.Unmarshal(data, &map[string]map[int]int{})
+    
+    The JSON package should error, as "a" is not a valid integer. However,
+    we'd encounter a panic:
+    
+            panic: JSON decoder out of sync - data changing underfoot?
+    
+    The reason was that decodeState.object would return a nil error on
+    encountering the invalid map key string, while saving the key type error
+    for later. This broke if we were inside another object, as we would
+    abruptly end parsing the nested object, leaving the decoder in an
+    unexpected state.
+    
+    To fix this, simply avoid storing the map element and continue decoding
+    the object, to leave the decoder state exactly as if we hadn't seen an
+    invalid key type.
+    
+    This affected both signed and unsigned integer keys, so fix both and add
+    two test cases.
+    
+    Updates #28189.
+    
+    Change-Id: I8a6204cc3ff9fb04ed769df7a20a824c8b94faff
+    Reviewed-on: https://go-review.googlesource.com/c/142518
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/json/decode.go      |  8 +++++---
+ src/encoding/json/decode_test.go | 10 ++++++++++
+ 2 files changed, 15 insertions(+), 3 deletions(-)

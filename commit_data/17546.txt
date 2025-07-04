@@ -1,0 +1,14 @@
+commit b34ec90e1945af8ed22bf96254deb4c637c0bfbc
+Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Wed Sep 11 10:50:56 2013 +1000
+
+    cmd/api: make api check directory per-user
+    
+    Fixes #6353.
+    
+    R=golang-dev, bradfitz, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/13652043
+
+ src/cmd/api/run.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

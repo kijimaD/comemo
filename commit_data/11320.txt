@@ -1,0 +1,12 @@
+commit 9d47526585d7f15f7a3f22ef85ddc4a31c737e4f
+Author: Olivier Duperray <duperray.olivier@gmail.com>
+Date:   Mon Jan 23 11:19:48 2012 +1100
+
+    doc/progs: Add the usual Copyright notice.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5568043
+
+ doc/progs/slices.go | 4 ++++
+ 1 file changed, 4 insertions(+)

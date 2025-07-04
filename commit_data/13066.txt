@@ -1,0 +1,17 @@
+commit b554fb912ffc25f88f19bc7985c83496faa98cc8
+Author: Joel Sing <jsing@google.com>
+Date:   Tue May 15 12:00:13 2012 +1000
+
+    os/syscall: correct netbsd types/names
+    
+    Fix types/names so that these functions work with the generated
+    syscall/z* files.
+    
+    R=golang-dev, m4dh4tt3r
+    CC=golang-dev
+    https://golang.org/cl/6201078
+
+ src/pkg/os/stat_netbsd.go               |  4 ++--
+ src/pkg/syscall/syscall_netbsd_386.go   |  8 ++++----
+ src/pkg/syscall/syscall_netbsd_amd64.go | 10 +++++-----
+ 3 files changed, 11 insertions(+), 11 deletions(-)

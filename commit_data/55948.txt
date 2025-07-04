@@ -1,0 +1,23 @@
+commit d98b444839320302d35ddc9e0b56595f7e7da3d9
+Author: Quentin McGaw <quentin.mcgaw@gmail.com>
+Date:   Wed Nov 29 21:44:34 2023 +0000
+
+    net: fixes to dnsReadConfig in dnsconfig_windows.go
+    
+    - Only search DNS servers for network interfaces with at least one gateway
+    - Clarify comment on deprecated site local anycast fec0/10 DNS IPv6 addresses
+    - Minor maintenance: skip not "up" interfaces earlier in outer loop
+    
+    Change-Id: I98ca7b81d3d51e6aa6bfa4a10dcd651305a843df
+    GitHub-Last-Rev: 3b358c7e3f89971d069286f997dc19e092ec8f08
+    GitHub-Pull-Request: golang/go#64441
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/545775
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/internal/syscall/windows/syscall_windows.go | 63 ++++++++++++++++---------
+ src/net/dnsconfig_windows.go                    | 27 ++++++-----
+ src/net/interface_windows.go                    |  3 +-
+ 3 files changed, 60 insertions(+), 33 deletions(-)

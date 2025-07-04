@@ -1,0 +1,25 @@
+commit 7bb6fed9b53494e9846689520b41b8e679bd121d
+Author: Changkun Ou <hi@changkun.us>
+Date:   Thu Sep 24 08:57:00 2020 +0200
+
+    os: document and emphasize a potential misuse of File.Fd
+    
+    This CL revises the document of File.Fd that explicitly points
+    its user to runtime.SetFinalizer where contains the information
+    that a file descriptor could be closed in a finalizer and therefore
+    causes a failure in syscall.Write if runtime.KeepAlive is not invoked.
+    
+    The CL also suggests an alternative of File.Fd towards File.SyscallConn.
+    
+    Fixes #41505
+    
+    Change-Id: I6816f0157add48b649bf1fb793cf19dcea6894b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256899
+    Reviewed-by: Rob Pike <r@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/os/file_plan9.go   |  9 +++++++--
+ src/os/file_unix.go    |  9 +++++++--
+ src/os/file_windows.go |  7 +++++--
+ src/runtime/mfinal.go  | 18 +++++++++---------
+ 4 files changed, 28 insertions(+), 15 deletions(-)

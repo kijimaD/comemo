@@ -1,0 +1,18 @@
+commit a29437101c5c49841d22c0ee6bf8bcd4c7a5c925
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 4 15:18:32 2014 -0700
+
+    go/parser: fix "zero day" parse error
+    
+    (a b string, ok bool) is not a valid signature
+    
+    Fixes #8656.
+    
+    LGTM=adonovan
+    R=adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/137140043
+
+ src/pkg/go/parser/parser.go     | 19 ++++++++++---------
+ src/pkg/go/parser/short_test.go |  1 +
+ 2 files changed, 11 insertions(+), 9 deletions(-)

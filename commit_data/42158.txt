@@ -1,0 +1,29 @@
+commit 08bf64a81e4c3e2199d0e879089880f538fafbb9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Apr 24 20:06:57 2020 +0000
+
+    runtime: bound small object sweeping to 100 spans when allocating
+    
+    Currently, the small object sweeper will sweep until it finds a free
+    slot or there are no more spans of that size class to sweep. In dense
+    heaps, this can cause sweeping for a given size class to take
+    unbounded time, and gets worse with larger heaps.
+    
+    This CL limits the small object sweeper to try at most 100 spans
+    before giving up and allocating a fresh span. Since it's already shown
+    that 100 spans are completely full at that point, the space overhead
+    of this fresh span is at most 1%.
+    
+    This CL is based on an experimental CL by Austin Clements (CL 187817)
+    and is updated to be part of the mcentral implementation, gated by
+    go115NewMCentralImpl.
+    
+    Updates #18155.
+    
+    Change-Id: I37a72c2dcc61dd6f802d1d0eac3683e6642b6ef8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229998
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mcentral.go | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)

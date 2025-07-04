@@ -1,0 +1,17 @@
+commit 64c02460d703f718a44326646d19c417eeb1999a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 2 18:37:59 2017 +1100
+
+    debug/pe: add test to check dwarf info
+    
+    For #10776.
+    
+    Change-Id: I7931558257c1f6b895e4d44b46d320a54de0d677
+    Reviewed-on: https://go-review.googlesource.com/36973
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/pe/file_cgo_test.go | 33 +++++++++++++++++
+ src/debug/pe/file_test.go     | 85 +++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 106 insertions(+), 12 deletions(-)

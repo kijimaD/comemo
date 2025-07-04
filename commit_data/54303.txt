@@ -1,0 +1,30 @@
+commit 53739590571e66cbace8a6b388a79901cfb8fc3a
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Sep 2 20:38:49 2023 -0700
+
+    encoding: show the alphabet for base32 and base64
+    
+    There is not a great reason to hide the alphabet used
+    for StdEncoding, HexEncoding, and URLEncoding.
+    
+    Although this is specified in RFC 4748,
+    showing it in GoDoc saves an extra click from going
+    to the RFC itself to see the alphabet being used.
+    
+    Also, split exported and unexported constants apart
+    so that GoDoc renders more cleanly.
+    
+    Fixes #55126
+    
+    Change-Id: I03bfa607fb6c3df7f757e33fc0f4ec2b233de1a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525296
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+
+ src/encoding/base32/base32.go      | 19 +++++++++----------
+ src/encoding/base64/base64.go      | 19 +++++++++----------
+ src/encoding/base64/base64_test.go |  2 ++
+ 3 files changed, 20 insertions(+), 20 deletions(-)

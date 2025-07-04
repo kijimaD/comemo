@@ -1,0 +1,16 @@
+commit c1bbf0a2eac5a6ad71debb050cd46384649fcb04
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Feb 3 12:48:35 2015 +0300
+
+    cmd/gc: remove several copies of outervalue
+    
+    Walk calls it outervalue, racewalk calls it basenod,
+    isstack does it manually and slightly differently.
+    
+    Change-Id: Id5b5d32b8faf143fe9d34bd08457bfab6fb33daa
+    Reviewed-on: https://go-review.googlesource.com/3745
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/racewalk.c | 34 +++++++---------------------------
+ src/cmd/gc/walk.c     | 10 +++++-----
+ 2 files changed, 12 insertions(+), 32 deletions(-)

@@ -1,0 +1,15 @@
+commit 0635706849e5fb32741df02ff998db9cb4445da1
+Author: Rick Hudson <rlh@golang.org>
+Date:   Tue Jan 13 15:36:42 2015 -0500
+
+    runtime: Add some diagnostic messages printing source of unmarked object
+    
+    Print out the object holding the reference to the object
+    that checkmark detects as not being properly marked.
+    
+    Change-Id: Ieedbb6fddfaa65714504af9e7230bd9424cd0ae0
+    Reviewed-on: https://go-review.googlesource.com/2744
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgc.go | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)

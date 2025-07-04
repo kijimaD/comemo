@@ -1,0 +1,15 @@
+commit 4e8c11379345f08ccf47239f7e0ea192917f602a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 17 14:32:49 2016 +0000
+
+    log/syslog: document that Dial uses net.Dial parameters, add example
+    
+    Fixes #16761
+    
+    Change-Id: I709daa87926a31e5f8fd46a4c5ef69718ae349b1
+    Reviewed-on: https://go-review.googlesource.com/27209
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ src/log/syslog/example_test.go | 23 +++++++++++++++++++++++
+ src/log/syslog/syslog.go       |  2 ++
+ 2 files changed, 25 insertions(+)

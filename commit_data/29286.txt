@@ -1,0 +1,16 @@
+commit b82ae33b903e309140fd471eee2de4c8ac7c0b46
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 1 09:39:01 2016 -0700
+
+    cmd/compile: add debug print to identify unexpected objects
+    
+    This should never be called but should help identify causes of
+    unexpected panics such as in issue #17716.
+    
+    Change-Id: Id6ad0cef1088a41bfcc69110a93484a7e39c4128
+    Reviewed-on: https://go-review.googlesource.com/32480
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/call.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,16 @@
+commit f0eca373beb94763b71dadcf6504a95a3797dcbb
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Mar 15 11:28:07 2018 -0400
+
+    cmd/trace: add /userspans, /userspan pages
+    
+    Change-Id: Ifbefb659a8df3b079d69679871af444b179deaeb
+    Reviewed-on: https://go-review.googlesource.com/102599
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/trace/annotations.go | 243 +++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/trace/main.go        |   1 +
+ src/cmd/trace/trace.go       |   8 +-
+ 3 files changed, 240 insertions(+), 12 deletions(-)

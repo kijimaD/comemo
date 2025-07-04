@@ -1,0 +1,16 @@
+commit bcecae2af6ee43abebf84411385d538ec4e7d0ea
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 8 12:42:02 2021 -0700
+
+    doc/go1.17: mention new possibility of type conversion panicking
+    
+    For #44513
+    For #46020
+    
+    Change-Id: I07c7a4268465c536d1866cc6bb1fad76b2b88b15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/326149
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go1.17.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

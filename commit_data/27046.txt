@@ -1,0 +1,20 @@
+commit 45522a6a93efe0fd487f6875f2b104d772a26469
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 21 11:44:05 2016 +1000
+
+    debug/pe: introduce Section.Relocs
+    
+    cmd/link reads PE object files when building programs with cgo.
+    cmd/link accesses object relocations. Add new Section.Relocs that
+    provides similar functionality in debug/pe.
+    
+    Updates #15345
+    
+    Change-Id: I34de91b7f18cf1c9e4cdb3aedd685486a625ac92
+    Reviewed-on: https://go-review.googlesource.com/22332
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/debug/pe/file.go    |  8 ++++++++
+ src/debug/pe/section.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)

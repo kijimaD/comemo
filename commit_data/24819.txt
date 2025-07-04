@@ -1,0 +1,25 @@
+commit 15b51d6ae693fa5898bdeae587482a2dac59a1d0
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Wed Sep 23 15:30:40 2015 -0400
+
+    runtime: updated automatically generated zgoarch_*.go
+    
+    files for unsupported architectures are deleted, as it would require
+    changing cmd/dist to recognize their names as build tags (probably
+    need a separated CL).
+    
+    Change-Id: Ifd164b014867d39b4924d1b859fb84317dce4ab0
+    Reviewed-on: https://go-review.googlesource.com/14928
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/zgoarch_386.go      | 13 +++++++++++++
+ src/runtime/zgoarch_amd64.go    | 13 +++++++++++++
+ src/runtime/zgoarch_amd64p32.go | 13 +++++++++++++
+ src/runtime/zgoarch_arm.go      | 13 +++++++++++++
+ src/runtime/zgoarch_arm64.go    | 13 +++++++++++++
+ src/runtime/zgoarch_mips64.go   | 26 ++++++++++++++++++++++++++
+ src/runtime/zgoarch_mips64le.go | 26 ++++++++++++++++++++++++++
+ src/runtime/zgoarch_ppc64.go    | 13 +++++++++++++
+ src/runtime/zgoarch_ppc64le.go  | 13 +++++++++++++
+ 9 files changed, 143 insertions(+)

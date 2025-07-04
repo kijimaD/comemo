@@ -1,0 +1,30 @@
+commit ad7eae21d5e75a0b1fe89db5f299490d6273c4cf
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Jan 11 09:14:38 2022 -0800
+
+    cmd/compile: resolve dictionaries/shape methods in markInlBody, if needed
+    
+    Issue #50552 is due to a problem with my recent improvement in the
+    interaction between generics and inlining. In markInlBody(), we now mark
+    dictionaries and shape methods for export, so they will be available for
+    any package that inlines the current inlineable function. But we need to
+    make sure that the dictionary and method symbols have actually been
+    resolved into Nodes (looked up in the import data), if they are not
+    already defined, so we can then mark them for export.
+    
+    Improved header comment on Resolve().
+    
+    Fixes #50552
+    
+    Change-Id: I89e52d39d3b9894591d2ad6eb3a8ed3bb5f1e0a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377714
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/crawler.go   | 20 +++++++++++++++-----
+ src/cmd/compile/internal/typecheck/typecheck.go |  6 +++++-
+ test/run.go                                     |  1 +
+ test/typeparam/issue50552.dir/a.go              | 16 ++++++++++++++++
+ test/typeparam/issue50552.dir/main.go           | 20 ++++++++++++++++++++
+ test/typeparam/issue50552.go                    |  7 +++++++
+ 6 files changed, 64 insertions(+), 6 deletions(-)

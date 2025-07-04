@@ -1,0 +1,36 @@
+commit 4d903504b326bfc0ed23094b6c6af08d1bf112eb
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Thu Aug 26 13:32:40 2010 -0400
+
+    runtime: special case copy, equal for one-word interface values
+    
+    Based on the observation that a great number of the types that
+    are copied or compared in interfaces, maps, and channels are
+    word-sized, this uses specialized copy and equality functions
+    for them that use a word instead of 4 or 8 bytes. Seems to yield
+    0-6% improvements in performance in the benchmarks I've run.
+    For example, with the regexp benchmarks:
+    
+    Before:
+    regexp.BenchmarkLiteral   500000       3.26 µs/op
+    regexp.BenchmarkNotLiteral    100000      13.67 µs/op
+    regexp.BenchmarkMatchClass    100000      18.72 µs/op
+    regexp.BenchmarkMatchClass_InRange    100000      20.04 µs/op
+    regexp.BenchmarkReplaceAll    100000      27.85 µs/op
+    
+    After:
+    regexp.BenchmarkLiteral   500000       3.11 µs/op
+    regexp.BenchmarkNotLiteral    200000      13.29 µs/op
+    regexp.BenchmarkMatchClass    100000      17.65 µs/op
+    regexp.BenchmarkMatchClass_InRange    100000      18.49 µs/op
+    regexp.BenchmarkReplaceAll    100000      26.34 µs/op
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1967047
+
+ src/cmd/gc/go.h           |  1 +
+ src/cmd/gc/subr.c         | 10 +++++++---
+ src/pkg/runtime/runtime.c | 19 +++++++++++++++++++
+ src/pkg/runtime/runtime.h |  1 +
+ 4 files changed, 28 insertions(+), 3 deletions(-)

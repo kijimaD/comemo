@@ -1,0 +1,15 @@
+commit e5d9a5c9f0861bc981c2e2677e35840650d262ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 3 17:34:37 2008 -0800
+
+    runtime support for interface ok,
+    whatever the final syntax ends up being.
+    
+    R=ken
+    OCL=18414
+    CL=18414
+
+ src/cmd/gc/sys.go      |  2 ++
+ src/cmd/gc/sysimport.c |  2 ++
+ src/runtime/iface.c    | 79 +++++++++++++++++++++++++++++++++++++++++++++-----
+ 3 files changed, 75 insertions(+), 8 deletions(-)

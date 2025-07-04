@@ -1,0 +1,18 @@
+commit 9633195ae1e1a545c24eb71202c5c5f8965d2c4a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 3 02:00:01 2021 +0700
+
+    src: do not emit warning when GOROOT_BOOTSTRAP is unset
+    
+    Fixes #48155
+    
+    Change-Id: I610a20d3af55035bb0b1047509361b204253801e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347273
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/make.bash |  7 +++++--
+ src/make.rc   | 11 ++++++++---
+ 2 files changed, 13 insertions(+), 5 deletions(-)

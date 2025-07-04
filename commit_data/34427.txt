@@ -1,0 +1,19 @@
+commit 87736fc450c943ca3792406d7a47790091404255
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Mon Feb 19 17:11:22 2018 +0100
+
+    cmd/compile: fix dwarf ranges of inlined subroutine entries
+    
+    DWARF ranges are half-open.
+    
+    Fixes #23928
+    
+    Change-Id: I71b3384d1bc2c65bd37ca8a02a0b7ff48fec3688
+    Reviewed-on: https://go-review.googlesource.com/94816
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/dwinl.go      |  6 ++--
+ src/cmd/compile/internal/gc/scope_test.go | 57 +++++++++++++++++++++++++++++--
+ 2 files changed, 57 insertions(+), 6 deletions(-)

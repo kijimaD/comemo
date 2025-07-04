@@ -1,0 +1,14 @@
+commit 94a4485f702c9681a12b25b6db2ef1be68cffc01
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 6 22:15:12 2016 +0000
+
+    doc: mention more binary download architectures
+    
+    Fixes #18207
+    
+    Change-Id: Ibe85ab0acba7553b93603a31140b31bd9e4802cf
+    Reviewed-on: https://go-review.googlesource.com/34015
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/install.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

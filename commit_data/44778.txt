@@ -1,0 +1,27 @@
+commit c59b17e5a2244f7a99c440a07a1c174344da0ad8
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Jan 30 11:41:29 2021 +0000
+
+    cmd/go: make -coverpkg=all skip test-only packages
+    
+    Otherwise, the added test would fail in an unnecessary way:
+    
+            go build example.com/cov/onlytest: no non-test Go files ...
+    
+    The test script is mimicking other cover_pkgall_*.txt scripts, so it
+    similarly tests both GOPATH and module modes.
+    
+    Fixes #27333.
+    
+    Change-Id: Ie60be569b31d49b173a78556c0669a87ada6799e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288292
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/load/test.go                   |  8 ++--
+ src/cmd/go/internal/test/test.go                   |  6 +++
+ .../go/testdata/script/cover_pkgall_imports.txt    | 48 ++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 3 deletions(-)

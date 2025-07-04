@@ -1,0 +1,14 @@
+commit 57cefa657d6e7ca0b1a286d6b0b0eb68037a2ec8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 23 15:24:49 2015 +0900
+
+    runtime: remove unneeded C header files
+    
+    Change-Id: I239ae86cfebfece607dce39a96d9123cbacbee7d
+    Reviewed-on: https://go-review.googlesource.com/5562
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/cgocall.h     | 13 -------------
+ src/runtime/signal_unix.h | 14 --------------
+ 2 files changed, 27 deletions(-)

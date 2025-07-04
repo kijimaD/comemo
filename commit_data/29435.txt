@@ -1,0 +1,20 @@
+commit 27a3d30dd09cdd869b1b67f0154fa698bdf8ead2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 8 17:44:53 2016 +0000
+
+    net/http: deflake TestClientRedirects
+    
+    Fix another case of a parallel test relying on a global variable
+    (DefaultTransport) implicitly.
+    
+    Use the private Transport already in scope instead. It's closed at the
+    end, instead of randomly via another test.
+    
+    Change-Id: I95e51926177ad19a766cabbb306782ded1bbb59b
+    Reviewed-on: https://go-review.googlesource.com/32913
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/client_test.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

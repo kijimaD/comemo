@@ -1,0 +1,20 @@
+commit 2e9facbdd44883221fc90b8057d0443d1a8109e9
+Author: eric fang <eric.fang@arm.com>
+Date:   Wed Jan 19 04:02:25 2022 +0000
+
+    runtime: use stp/ldp to save and restore all registers on arm64
+    
+    Async preemption needs to save and restore almost all of the registers,
+    currently this is done by ldr and str on arm64. We can do it with ldp
+    and stp as they are more efficient.
+    
+    Change-Id: Ida5a6f0a8d825a56af607ba2c2cd91fdc2e8f67f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379715
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Eric Fang <eric.fang@arm.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/mkpreempt.go    |  41 +++++-----
+ src/runtime/preempt_arm64.s | 178 +++++++++++++++-----------------------------
+ 2 files changed, 80 insertions(+), 139 deletions(-)

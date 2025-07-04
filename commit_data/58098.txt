@@ -1,0 +1,21 @@
+commit 69c3cb8d1b882743c4de7118ddfb2d1a62c57be4
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 9 18:25:19 2024 +0100
+
+    crypto/internal/fips/ssh: implement SSH KDF
+    
+    For #69536
+    
+    Change-Id: I0788469400de6a39cb22a6936a74d71066c476b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626875
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/internal/fips/ssh/kdf.go      | 52 +++++++++++++++++++++++++++
+ src/crypto/internal/fips/ssh/kdf_test.go | 60 ++++++++++++++++++++++++++++++++
+ src/go/build/deps_test.go                |  1 +
+ 3 files changed, 113 insertions(+)

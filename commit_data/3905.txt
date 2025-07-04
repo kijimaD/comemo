@@ -1,0 +1,16 @@
+commit 40a7db3ee936509880754e79df791170d40827ea
+Author: Rob Pike <r@golang.org>
+Date:   Sun Nov 8 15:57:25 2009 -0800
+
+    add top-level package comments for net, reflect, malloc.
+    reflect is a little more detailed than some because it affords an opportunity
+    to explain how to approach the library.
+    
+    R=gri, rsc
+    CC=go-dev
+    http://go/go-review/1026026
+
+ src/pkg/malloc/malloc.go |  3 +++
+ src/pkg/net/net.go       |  3 +++
+ src/pkg/reflect/type.go  | 11 +++++++++++
+ 3 files changed, 17 insertions(+)

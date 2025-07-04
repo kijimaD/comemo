@@ -1,0 +1,52 @@
+commit c1807989563e0bafc14c56dba3eb405a099f4495
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Aug 21 10:26:45 2018 +0100
+
+    cmd/compile: fix racy setting of gc's Config.Race
+    
+    ssaConfig.Race was being set by many goroutines concurrently, resulting
+    in a data race seen below. This was very likely introduced by CL 121235.
+    
+            WARNING: DATA RACE
+            Write at 0x00c000344408 by goroutine 12:
+              cmd/compile/internal/gc.buildssa()
+                  /workdir/go/src/cmd/compile/internal/gc/ssa.go:134 +0x7a8
+              cmd/compile/internal/gc.compileSSA()
+                  /workdir/go/src/cmd/compile/internal/gc/pgen.go:259 +0x5d
+              cmd/compile/internal/gc.compileFunctions.func2()
+                  /workdir/go/src/cmd/compile/internal/gc/pgen.go:323 +0x5a
+    
+            Previous write at 0x00c000344408 by goroutine 11:
+              cmd/compile/internal/gc.buildssa()
+                  /workdir/go/src/cmd/compile/internal/gc/ssa.go:134 +0x7a8
+              cmd/compile/internal/gc.compileSSA()
+                  /workdir/go/src/cmd/compile/internal/gc/pgen.go:259 +0x5d
+              cmd/compile/internal/gc.compileFunctions.func2()
+                  /workdir/go/src/cmd/compile/internal/gc/pgen.go:323 +0x5a
+    
+            Goroutine 12 (running) created at:
+              cmd/compile/internal/gc.compileFunctions()
+                  /workdir/go/src/cmd/compile/internal/gc/pgen.go:321 +0x39b
+              cmd/compile/internal/gc.Main()
+                  /workdir/go/src/cmd/compile/internal/gc/main.go:651 +0x437d
+              main.main()
+                  /workdir/go/src/cmd/compile/main.go:51 +0x100
+    
+            Goroutine 11 (running) created at:
+              cmd/compile/internal/gc.compileFunctions()
+                  /workdir/go/src/cmd/compile/internal/gc/pgen.go:321 +0x39b
+              cmd/compile/internal/gc.Main()
+                  /workdir/go/src/cmd/compile/internal/gc/main.go:651 +0x437d
+              main.main()
+                  /workdir/go/src/cmd/compile/main.go:51 +0x100
+    
+    Instead, set up the field exactly once as part of initssaconfig.
+    
+    Change-Id: I2c30c6b1cf92b8fd98e7cb5c2e10c526467d0b0a
+    Reviewed-on: https://go-review.googlesource.com/130375
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

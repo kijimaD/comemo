@@ -1,0 +1,17 @@
+commit 5b456c74889e0316feda328bf3be1ed11f549519
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Mar 2 08:30:45 2014 +1100
+
+    sync/atomic: skip broken tests on freebsd/arm and netbsd/arm
+    
+    Update #7338
+    
+    The nil deref tests are currently failing on the *bsd/arm platforms. In an effort to avoid the build deteriorating further I would like to skip these tests on freebsd/arm and netbsd/arm.
+    
+    LGTM=bradfitz, minux.ma
+    R=golang-codereviews, bradfitz, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/69870045
+
+ src/pkg/sync/atomic/atomic_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

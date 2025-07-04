@@ -1,0 +1,15 @@
+commit efa608e6fe456a9df254445f90dff4a24de77612
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sun Mar 10 23:12:56 2024 +0800
+
+    net/http: do not set a deadline when Server.IdleTimeout is negative
+    
+    Change-Id: I0d6336e6a21aef14e7229594a335899083fa98b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570396
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/net/http/server.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

@@ -1,0 +1,16 @@
+commit 30fde1b2795c2db5672b86a45ec32fdb8942573e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 24 16:34:50 2013 -0400
+
+    doc: start go 1.2 notes
+    
+    This is a file of hints, not a file of polished text.
+    Let's not try to do polished text until we start the
+    release process.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/9750043
+
+ doc/go1.2.txt | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

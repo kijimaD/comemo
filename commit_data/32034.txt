@@ -1,0 +1,14 @@
+commit f062955ea78a4a57fbfe54fdc11b7aee7a1086d2
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sat Jul 15 14:53:44 2017 -0600
+
+    runtime: fix duplicate "the"s
+    
+    kicking off contributing again with a classic
+    
+    Change-Id: Ifb0aed8f1dc854f85751ce0495967a3c4315128d
+    Reviewed-on: https://go-review.googlesource.com/49016
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/symtab.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

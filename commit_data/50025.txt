@@ -1,0 +1,25 @@
+commit 4a530b8837222dc926f72684f63fa4b5f476e31b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 18 12:54:28 2022 -0700
+
+    go/parser: remove (internal) ability to disable generic code
+    
+    Generics are part of the language now; there's no need anymore
+    to switch back to a syntax without generics. Remove the associated
+    machinery and adjust short tests accordingly.
+    
+    Change-Id: I6b16c5c75fd9354ee87e3b9bee110f49f514565a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424857
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/internal/typeparams/common.go  |  15 ---
+ src/go/parser/error_test.go           |   4 -
+ src/go/parser/parser.go               |  56 +++--------
+ src/go/parser/resolver_test.go        |   4 -
+ src/go/parser/short_test.go           | 172 ++++++++++++----------------------
+ src/go/parser/testdata/typeparams.src |  17 ----
+ src/go/types/api_test.go              |   9 +-
+ 7 files changed, 73 insertions(+), 204 deletions(-)

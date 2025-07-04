@@ -1,0 +1,31 @@
+commit 85a482fc244f6f118b1d063063a51eb8b0feadd8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jul 14 21:19:37 2022 +0000
+
+    runtime: revert to using the precomputed trigger for pacer calculations
+    
+    Issue #53738 describes in detail how switching to using the actual
+    trigger point over the precomputed trigger causes a memory regression,
+    that arises from the fact that the PI controller in front of the
+    cons/mark ratio has a long time constant (for overdamping), so it
+    retains a long history of inputs.
+    
+    This change, for the Go 1.19 cycle, just reverts to using the
+    precomputed trigger because it's safer, but in the future we should
+    consider moving away from such a history-sensitive smoothing function.
+    
+    See the big comment in the diff and #53738 for more details.
+    
+    Performance difference vs. 1.18 after this change:
+    https://perf.golang.org/search?q=upload:20220714.15
+    
+    Fixes #53738.
+    
+    Change-Id: I636993a730a3eaed25da2a2719860431b296c6f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417557
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgcpacer.go | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)

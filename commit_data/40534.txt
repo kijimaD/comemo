@@ -1,0 +1,19 @@
+commit 9bde9b4d1561ed915904a4f64764076dcfe58419
+Author: Domas Tamašauskas <puerdomus@gmail.com>
+Date:   Thu Oct 10 21:54:18 2019 +0300
+
+    time: document an alternative way of setting the system's time zone
+    
+    User's program was mutating time.Local variable and crashing
+    itself as a consequence. Instead of documenting that time.Local
+    variable should not be mutated, recommended way of setting the
+    system's time zone has been documented.
+    
+    Fixes #34814
+    
+    Change-Id: I7781189855c3bf2ea979dfa07f86c283eed27091
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200457
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/zoneinfo.go | 5 +++++
+ 1 file changed, 5 insertions(+)

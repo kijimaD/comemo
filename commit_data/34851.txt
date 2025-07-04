@@ -1,0 +1,19 @@
+commit 47427d67d6be53b01177040480433308821d47d3
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Thu Apr 5 00:26:38 2018 +0300
+
+    cmd/internal/obj/x86: cleanup comments and consts
+    
+    - Unexport MaxLoopPad and LoopAlign; associated comments updated
+    - Remove commented-out C code
+    - Replace C-style /**/ code comments with single-line comments
+    
+    Change-Id: I51bd92a05b4d3823757b12efd798951c9f252bd4
+    Reviewed-on: https://go-review.googlesource.com/104795
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/x86/a.out.go |  18 +-
+ src/cmd/internal/obj/x86/asm6.go  | 337 +++++++++++++++++---------------------
+ src/cmd/internal/obj/x86/list6.go |  28 ++--
+ 3 files changed, 176 insertions(+), 207 deletions(-)

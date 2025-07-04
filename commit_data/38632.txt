@@ -1,0 +1,22 @@
+commit e014184c438699b1637b1d623492f33669105002
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Apr 3 13:58:57 2019 +0200
+
+    syscall: on AIX use nsendmsg and nrecvmsg, define SockaddrDatalink
+    
+    This commit changes sendmsg, recvmsg to use nsendmsg, nrecvmsg on AIX.
+    These syscalls support the new msghdr structure (with Control
+    and Controllen) which is needed for golang.org/x/net.
+    Also define SockaddrDataLink.
+    
+    Change-Id: I233fbd24f9eb86648e0d4d50c2b56da3626292d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170537
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/syscall_aix.go        | 19 +++++++++++++++++--
+ src/syscall/types_aix.go          | 24 ++++++++++++++----------
+ src/syscall/zsyscall_aix_ppc64.go | 16 ++++++++--------
+ src/syscall/ztypes_aix_ppc64.go   | 32 ++++++++++++++++++++++----------
+ 4 files changed, 61 insertions(+), 30 deletions(-)

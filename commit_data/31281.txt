@@ -1,0 +1,25 @@
+commit bea8ffdbb1ea4147c3f815243554afac90b6bb52
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:06:42 2017 -0700
+
+    cmd/compile: remove most uses of duintxx
+    
+    The only remaining uses of duintxx
+    are in the implementation of duintNN.
+    I hope to inline those once I figure out why
+    CL 40864 is broken.
+    
+    Note that some uses of duintxx with width Widthint
+    were converted into duintptr.
+    I did that, since #19954 is officially going to move forward.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Id25253b711ea589d0199b51be9a3c18ca1af59ce
+    Reviewed-on: https://go-review.googlesource.com/41398
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/obj.go     |  4 ++--
+ src/cmd/compile/internal/gc/reflect.go | 18 +++++++++---------
+ 2 files changed, 11 insertions(+), 11 deletions(-)

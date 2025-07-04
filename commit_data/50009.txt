@@ -1,0 +1,35 @@
+commit f15761b50bb3a2d1bae9b97f147b2d660e2e4853
+Author: Ludi Rehak <ludi317@gmail.com>
+Date:   Sat Jun 25 13:27:11 2022 -0700
+
+    runtime: fix formula for computing number of padding bytes
+    
+    In order to prevent false sharing of cache lines, structs are
+    padded with some number of bytes. These bytes are unused, serving
+    only to make the size of the struct a multiple of the size of the
+    cache line.
+    
+    The current calculation of how much to pad is an overestimation,
+    when the struct size is already a multiple of the cache line size
+    without padding. For these cases, no padding is necessary, and
+    the size of the inner pad field should be 0. The bug is that the
+    pad field is sized to a whole 'nother cache line, wasting space.
+    
+    Here is the current formula that can never return 0:
+    cpu.CacheLinePadSize - unsafe.Sizeof(myStruct{})%cpu.CacheLinePadSize
+    
+    This change simply mods that calculation by cpu.CacheLinePadSize,
+    so that 0 will be returned instead of cpu.CacheLinePadSize.
+    
+    Change-Id: I26a2b287171bf47a3b9121873b2722f728381b5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414214
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/mheap.go | 2 +-
+ src/runtime/stack.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

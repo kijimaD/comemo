@@ -1,0 +1,20 @@
+commit dec1ec34bf5f8c8c84915ce37adf8399c7678e6b
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Oct 23 11:00:59 2009 -0700
+
+    all of pkg now compiles, fixes a few more tests
+    
+    go/test: passes 90% (313/345)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=90  (83 added, 3 deleted, 4 changed)
+    OCL=36011
+    CL=36023
+
+ src/cmd/gc/walk.c                    |  4 +--
+ src/make-arm.bash                    |  7 ++---
+ src/pkg/big/arith_arm.s              | 21 ++++++++++++++
+ src/pkg/debug/proc/regs_linux_arm.go | 56 ++++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_linux_arm.go |  6 ++++
+ 5 files changed, 87 insertions(+), 7 deletions(-)

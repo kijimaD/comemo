@@ -1,0 +1,21 @@
+commit b6ec56bc26a89e9733390dd41fade5baace5a641
+Author: Romain Baugue <romain.baugue@gmail.com>
+Date:   Wed May 1 14:52:57 2019 +0200
+
+    encoding/json: don't indirect pointers when decoding null
+    
+    The indirect method checked the type of the child when indirecting a
+    pointer. If the current value is a pointer and we are decoding null, we
+    can skip this entirely and return early, avoiding the whole descent.
+    
+    Fixes #31776
+    
+    Change-Id: Ib8b2a2357572c41f56fceac59b5a858980f3f65e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174699
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/encoding/json/decode.go      |  7 ++++---
+ src/encoding/json/decode_test.go | 10 ++++++++++
+ 2 files changed, 14 insertions(+), 3 deletions(-)

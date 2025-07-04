@@ -1,0 +1,22 @@
+commit 4e65f18cae1b4ee6074e3e544c322af030d04288
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 2 12:55:43 2014 -0700
+
+    cmd/cgo: use same Go type for typedef to anonymous struct
+    
+    If we see a typedef to an anonymous struct more than once,
+    presumably in two different Go files that import "C", use the
+    same Go type name.
+    
+    Fixes #8133.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/102080043
+
+ misc/cgo/test/issue8331.h   |  7 +++++++
+ misc/cgo/test/issue8331a.go | 15 +++++++++++++++
+ misc/cgo/test/issue8331b.go | 13 +++++++++++++
+ src/cmd/cgo/gcc.go          | 12 +++++++++++-
+ 4 files changed, 46 insertions(+), 1 deletion(-)

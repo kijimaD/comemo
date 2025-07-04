@@ -1,0 +1,23 @@
+commit cd0e79d9f136088929f3c7aab53998793bf273ba
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Jul 28 09:08:09 2018 +0200
+
+    all: use internal/cpu feature variables directly
+    
+    Avoid using package specific variables when there is a one to one
+    correspondance to cpu feature support exported by internal/cpu.
+    
+    This makes it clearer which cpu feature is referenced.
+    Another advantage is that internal/cpu variables are padded to avoid
+    false sharing and memory and cache usage is shared by multiple packages.
+    
+    Change-Id: If18fb448a95207cfa6a3376f3b2ddc4b230dd138
+    Reviewed-on: https://go-review.googlesource.com/126596
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/sha1/sha1block_arm64.go     |  4 +---
+ src/crypto/sha256/sha256block_arm64.go |  4 +---
+ src/hash/crc32/crc32_arm64.go          | 14 ++++++--------
+ 3 files changed, 8 insertions(+), 14 deletions(-)

@@ -1,0 +1,34 @@
+commit 34507e879d31d082eeb5f5722c6c2aceaeb7e052
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu May 19 20:01:10 2022 +0800
+
+    runtime/cgo: add cgo function call support for loong64
+    
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
+    
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I8ef0e7f17d6ada3d2f07c81524136b78457e7795
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342319
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/cgo/asm_loong64.s       | 67 +++++++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_linux_loong64.c | 69 +++++++++++++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_loong64.S       | 65 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 201 insertions(+)

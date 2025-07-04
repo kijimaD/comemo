@@ -1,0 +1,13 @@
+commit b9055629c191deab9c4dffc0d0b5f8fb31687e1d
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 14 12:27:22 2010 -0700
+
+    tutorial: update discussion of variadic functions
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1677042
+
+ doc/go_tutorial.html | 21 +++++++++++++--------
+ doc/go_tutorial.txt  | 19 ++++++++++++-------
+ 2 files changed, 25 insertions(+), 15 deletions(-)

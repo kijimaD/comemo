@@ -1,0 +1,12 @@
+commit 4f35ad608869a70377951426ad4641bb2d433d18
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Mar 17 22:55:40 2015 +1100
+
+    runtime: fix return values for open/read/write/close on openbsd/arm
+    
+    Change-Id: I5b057d16eed1b364e608ff0fd74de323da6492bc
+    Reviewed-on: https://go-review.googlesource.com/7679
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/sys_openbsd_arm.s | 4 ++++
+ 1 file changed, 4 insertions(+)

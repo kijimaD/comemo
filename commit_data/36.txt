@@ -1,0 +1,17 @@
+commit 2f5b4d9893051be6bb946954a50c34b694957612
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 26 09:28:57 2008 -0700
+
+    - new directory structure
+    
+    SVN=113851
+
+ {tests => test}/char_lit.go   | 0
+ {tests => test}/float_lit.go  | 0
+ {tests => test}/hashmap.go    | 0
+ {tests => test}/int_lit.go    | 0
+ {tests => test}/runtests.sh   | 0
+ {tests => test}/sieve.go      | 0
+ {tests => test}/string_lit.go | 0
+ {tests => test}/test0.go      | 0
+ 8 files changed, 0 insertions(+), 0 deletions(-)

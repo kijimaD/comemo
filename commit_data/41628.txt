@@ -1,0 +1,22 @@
+commit 5d70cb066756369f99be6ffa69b639626d95e647
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 11 22:03:50 2020 -0700
+
+    runtime: leave cleantimers early if G is being preempted
+    
+    The cleantimers can run for a while in some unlikely cases.
+    If the GC is trying to preempt the G, it is forced to wait as the
+    G is holding timersLock. To avoid introducing a GC delay,
+    return from cleantimers if the G has a preemption request.
+    
+    Fixes #37779
+    
+    Change-Id: Id9a567f991e26668e2292eefc39e2edc56efa4e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223122
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/time.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

@@ -1,0 +1,23 @@
+commit 6f7b4e893871775b74e57d5d048ff0565d32ef79
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 15 13:30:42 2015 -0700
+
+    cmd/doc: put blank lines around comment for types, etc.
+    
+    Better layout.
+    
+    Fixes #10859.
+    
+    The issue suggests rearranging so the comment comes out
+    after the methods. I tried this and it looks good but it is less
+    useful, since the stuff you're probably looking for - the methods
+    - are scrolled away by the comment. The most important
+    information should be last because that leaves it on your
+    screen after the print if the output is long.
+    
+    Change-Id: I560f992601ccbe2293c347fa1b1018a3f5346c82
+    Reviewed-on: https://go-review.googlesource.com/10160
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/doc/pkg.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

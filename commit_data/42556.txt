@@ -1,0 +1,23 @@
+commit 72019cf3128af1b8f48f7ec5f04bc04a98c23131
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jun 24 12:59:10 2020 -0400
+
+    crypto/x509: restore support for ios tag on darwin/amd64
+    
+    Fixes #38710
+    
+    Change-Id: I9b210e95fd997ff53ec704c5f61110045aaa94bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239559
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/test.go                                         | 12 ++++++++++++
+ src/crypto/x509/root.go                                      |  2 +-
+ src/crypto/x509/root_cgo_darwin_amd64.go                     |  2 ++
+ src/crypto/x509/root_darwin_amd64.go                         |  2 ++
+ src/crypto/x509/{root_darwin_arm64.go => root_darwin_ios.go} |  3 ++-
+ .../{root_darwin_arm64_gen.go => root_darwin_ios_gen.go}     |  7 ++++---
+ src/crypto/x509/root_omit.go                                 |  3 ++-
+ src/crypto/x509/root_omit_test.go                            |  3 ++-
+ 8 files changed, 27 insertions(+), 7 deletions(-)

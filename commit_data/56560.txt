@@ -1,0 +1,20 @@
+commit 8b990f259255e9faf1ee5acee0dabf8de9ba9165
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 16 21:17:23 2024 -0700
+
+    cmd/compile/internal/syntax: implement Pos.FileBase method (cleanup)
+    
+    Factor out file base computation into a method.
+    
+    Change-Id: Ia6de100459b6df2919f2320872890320aa88866d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586156
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/noder/irgen.go    | 21 ++++++---------------
+ src/cmd/compile/internal/syntax/pos.go     | 12 ++++++++++++
+ src/cmd/compile/internal/types2/check.go   |  2 +-
+ src/cmd/compile/internal/types2/version.go | 19 +------------------
+ 4 files changed, 20 insertions(+), 34 deletions(-)

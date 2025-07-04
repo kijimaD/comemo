@@ -1,0 +1,20 @@
+commit b9596aea50a0703f89c6f11c206cfd2c7dd189fa
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Feb 8 17:52:08 2019 +0100
+
+    encoding/json: remove use of DeepEqual for testing errors
+    
+    Comparing errors using DeepEqual breaks if frame information
+    is added as proposed in Issue #29934.
+    
+    Updates #29934.
+    
+    Change-Id: Ib430c9ddbe588dd1dd51314c408c74c07285e1ff
+    Reviewed-on: https://go-review.googlesource.com/c/162179
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/encoding/json/decode_test.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

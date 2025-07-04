@@ -1,0 +1,23 @@
+commit a93849b9e2326cffe4c9aef656b507e2cead8e5f
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 19 15:21:14 2021 -0400
+
+    cmd/compile: remove now-redundant AuxCall.args
+    
+    Cleanup, ABI information subsumes this.
+    
+    Updates #40724
+    
+    Change-Id: I6c69da44380f7b0d159b22acacbd68dc000e4725
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303432
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/loopreschedchecks.go |  2 +-
+ src/cmd/compile/internal/ssa/op.go                | 22 +++++-----------------
+ src/cmd/compile/internal/ssa/rewrite.go           |  2 +-
+ src/cmd/compile/internal/ssa/writebarrier.go      |  2 +-
+ src/cmd/compile/internal/ssagen/ssa.go            | 16 ++++++----------
+ 5 files changed, 14 insertions(+), 30 deletions(-)

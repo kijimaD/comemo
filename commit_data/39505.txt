@@ -1,0 +1,19 @@
+commit 80cca23b59fe75ba588f7ddee7adb48a6afe2eb7
+Author: Francesco Renzi <rentziass@gmail.com>
+Date:   Tue Jul 9 14:43:10 2019 +0100
+
+    strings: document that order of pairs matters in NewReplacer
+    
+    Update NewReplacer documentation to specify that in the case of
+    multiple matches at the same position, the matching old/new
+    pair that appears first in NewReplacer arguments takes precedence.
+    
+    Fixes #32699
+    
+    Change-Id: I9d0616d28e5cd8c9bfa301be201f2b0ebf361dff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185099
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/strings/replace.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

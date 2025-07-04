@@ -1,0 +1,17 @@
+commit 98031d8cd0b8cfc731a9aaca058b1dd590e4ad86
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Aug 11 14:00:08 2017 +0200
+
+    test: reenable ... test
+    
+    The gofmt bug in question seems to be fixed (at least gofmt doesn't
+    complain), so reenable the commented-out ... test.
+    
+    Change-Id: Icbfe0511160210557894ec8eb9b206aa6133d486
+    Reviewed-on: https://go-review.googlesource.com/55030
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/ddd1.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

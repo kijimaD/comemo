@@ -1,0 +1,13 @@
+commit c38173bcbd2f51d7801d834d3a8a34f75fc1605c
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 19 12:31:42 2013 -0700
+
+    debug/gosym: put pclinetest file in temporary directory
+    where it belongs.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/11596043
+
+ src/pkg/debug/gosym/pclntab_test.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 88b98ff79196aa4f05bc7f4095db5b08035fa3fe
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Mar 22 00:38:23 2013 +0100
+
+    cmd/gc: accept ideal float as indices.
+    
+    Fixes #4813.
+    
+    R=golang-dev, daniel.morsing, rsc
+    CC=golang-dev
+    https://golang.org/cl/7625050
+
+ src/cmd/gc/typecheck.c      | 33 ++++++++++++++++++----
+ test/fixedbugs/issue4813.go | 52 ++++++++++++++++++++++++++++++++++
+ test/index.go               | 69 ++++++++++++++++++++++++++++++++-------------
+ 3 files changed, 130 insertions(+), 24 deletions(-)

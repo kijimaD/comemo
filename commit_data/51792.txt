@@ -1,0 +1,21 @@
+commit 8e0781e5ff0320d8a0cb04dded9aa0ff8f3849cd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 22 13:45:12 2022 -0500
+
+    cmd/dist: require absolute path to executable in flattenCommandLine
+    
+    This should help to prevent bugs from unintended use of system tools,
+    especially the system or bootstrap "go" command.
+    (Suggested by Austin on CL 452678.)
+    
+    Updates #31567.
+    
+    Change-Id: I71809ee30d06eda4b5ff8f90656d4f1a462d35dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452776
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/dist/test.go | 25 ++++++++++++++++++-------
+ 1 file changed, 18 insertions(+), 7 deletions(-)

@@ -1,0 +1,14 @@
+commit a1c85ed83ef0c9e11374caf14ec7aff6b716329d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 17 09:51:56 2008 -0800
+
+    Package-export proposal:
+    - syntax change
+    - missing: corresponding language
+    
+    DELTA=5  (2 added, 0 deleted, 3 changed)
+    OCL=19221
+    CL=19352
+
+ doc/go_spec.txt | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

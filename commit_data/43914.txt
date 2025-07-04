@@ -1,0 +1,21 @@
+commit 73e796cb007989449da95fb4adf936ee76b766ca
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 1 18:14:40 2020 -0800
+
+    test: match gofrontend error messages
+    
+    The gofrontend code doesn't distinguish semicolon and newline,
+    and it doesn't have special treatment for EOF.
+    
+    syntax/semi6.go:9:47: error: unexpected semicolon or newline in type declaration
+    syntax/semi6.go:11:62: error: unexpected semicolon or newline in type declaration
+    
+    Change-Id: I9996b59a4fc78ad1935e779f354ddf75c0fb44e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274692
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ test/syntax/semi6.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

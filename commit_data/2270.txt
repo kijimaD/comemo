@@ -1,0 +1,13 @@
+commit f2dfc55f3493d126dd497a4c722adf84fd47292d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 11:52:20 2009 -0700
+
+    I guess I forgot there was a unary ^ operator.
+    
+    R=r
+    DELTA=3  (0 added, 1 deleted, 2 changed)
+    OCL=29151
+    CL=29176
+
+ src/lib/hash/crc32/crc32.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

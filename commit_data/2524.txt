@@ -1,0 +1,16 @@
+commit 30f2799f88f6ec028c63cf06a7035fa406bb7af0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 25 16:22:46 2009 -0700
+
+    disable "any" except during canned imports.
+    new flag -A enables it during mkbuiltin.
+    avoids mysterious errors in programs
+    that refer to any accidentally.
+    
+    R=ken
+    OCL=30763
+    CL=30763
+
+ src/cmd/gc/lex.c     | 13 +++++++++++++
+ src/cmd/gc/mkbuiltin |  2 +-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

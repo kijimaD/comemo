@@ -1,0 +1,19 @@
+commit 8d36a78440f4a489d961ecb034dfc2b0fdb6ab51
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 24 17:11:20 2011 -0500
+
+    reflect: add pointer word to CommonType
+    
+    The pointer will eventually let us find *T given T.
+    This CL just makes room for it, always storing a zero.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4221046
+
+ src/cmd/gc/reflect.c    |  5 +++--
+ src/cmd/ld/dwarf.c      | 40 +++++++++++++++++++++++-----------------
+ src/pkg/reflect/type.go |  1 +
+ src/pkg/runtime/type.go |  3 ++-
+ src/pkg/runtime/type.h  |  1 +
+ 5 files changed, 30 insertions(+), 20 deletions(-)

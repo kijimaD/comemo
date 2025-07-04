@@ -1,0 +1,44 @@
+commit 5bba5b256ce287736da60372c5cf634395d7b1a3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 15 22:18:06 2024 +0000
+
+    runtime: rewrite traceMap to scale better
+    
+    The existing implementation of traceMap is a hash map with a fixed
+    bucket table size which scales poorly with the number of elements added
+    to the map. After a few thousands elements are in the map, it tends to
+    fall over.
+    
+    Furthermore, cleaning up the trace map is currently non-preemptible,
+    without very good reason.
+    
+    This change replaces the traceMap implementation with a simple
+    append-only concurrent hash-trie. The data structure is incredibly
+    simple and does not suffer at all from the same scaling issues.
+    
+    Because the traceMap no longer has a lock, and the traceRegionAlloc it
+    embeds is not thread-safe, we have to push that lock down. While we're
+    here, this change also makes the fast path for the traceRegionAlloc
+    lock-free. This may not be inherently faster due to contention on the
+    atomic add, but it creates an easy path to sharding the main allocation
+    buffer to reduce contention in the future. (We might want to also
+    consider a fully thread-local allocator that covers both string and
+    stack tables. The only reason a thread-local allocator isn't feasible
+    right now is because each of these has their own region, but we could
+    certainly group all them together.)
+    
+    Change-Id: I8c06d42825c326061a1b8569e322afc4bc2a513a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570035
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/export_test.go    |  12 ++++
+ src/runtime/trace2map.go      | 153 ++++++++++++++++++++----------------------
+ src/runtime/trace2map_test.go |  89 ++++++++++++++++++++++++
+ src/runtime/trace2region.go   |  96 +++++++++++++++++++-------
+ src/runtime/trace2runtime.go  |   8 +--
+ src/runtime/trace2stack.go    |  91 ++++++++++++-------------
+ src/runtime/trace2string.go   |   6 +-
+ 7 files changed, 293 insertions(+), 162 deletions(-)

@@ -1,0 +1,28 @@
+commit 890a62bf1b8022833d3cb616d3d7911b7f1d289a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 24 15:10:39 2023 +0200
+
+    internal/bytealg: add generic LastIndexByte{,String}
+    
+    To avoid duplicating them in net/netip and os and to allow these
+    packages automatically benefiting from future performance improvements
+    when optimized native LastIndexByte{,String} implementations are added.
+    
+    For #36891
+    
+    Change-Id: I4905a4742273570c2c36b867df57762c5bfbe1e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522475
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/bytes/bytes.go                            |  9 ++-------
+ src/internal/bytealg/lastindexbyte_generic.go | 23 +++++++++++++++++++++++
+ src/net/netip/leaf_alts.go                    |  9 ---------
+ src/net/netip/netip.go                        |  4 ++--
+ src/os/file_plan9.go                          |  5 +++--
+ src/os/tempfile.go                            | 13 ++-----------
+ src/strings/strings.go                        |  9 ++-------
+ 7 files changed, 34 insertions(+), 38 deletions(-)

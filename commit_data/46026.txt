@@ -1,0 +1,22 @@
+commit fda8ee8b077dd8a5819cac7c52c3af1499a0674e
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Aug 15 21:50:42 2021 -0400
+
+    go/types: make Interface.Complete a no-op
+    
+    This is a partial port of CL 340255 to go/types. Of course we can't
+    delete Interface.Complete, but make it a no-op.
+    
+    Completing interfaces is no longer necessary.
+    
+    Change-Id: Ida3c84cc94713f14a646c7682f5d4ae5339a0faa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342489
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/internal/gcimporter/iimport.go |  4 ----
+ src/go/types/interface.go             | 18 ++++--------------
+ src/go/types/issues_test.go           |  3 ++-
+ 3 files changed, 6 insertions(+), 19 deletions(-)

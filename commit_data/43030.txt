@@ -1,0 +1,21 @@
+commit 234e23d76351c31b191e25b688aa43248d9b3d5b
+Author: root <2863768433@qq.com>
+Date:   Mon Aug 17 10:03:06 2020 +0800
+
+    cmd/compile: make expanded/hidden columns in GOSSAFUNC persist across
+    
+    reloads
+    
+    use pushState with updated state and read it on page load,so that state
+    can survive across reloads.
+    
+    Change-Id: I6c5e80e9747576245b979a62cb96d231d8f27d57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248687
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bradford Lamson-Scribner <brad.lamson@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/html.go | 48 ++++++++++++++++++++++++------------
+ 1 file changed, 32 insertions(+), 16 deletions(-)

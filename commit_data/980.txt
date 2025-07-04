@@ -1,0 +1,12 @@
+commit 9d20756dde123b8351fe1322cdc46e55d8577f09
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 13:17:04 2008 -0700
+
+    fix strings bug from CL 18024
+    
+    R=r
+    OCL=18026
+    CL=18026
+
+ src/lib/strings.go | 1 -
+ 1 file changed, 1 deletion(-)

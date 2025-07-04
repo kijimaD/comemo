@@ -1,0 +1,24 @@
+commit 11af3535310ed1f92cb75f523082702988bbd7f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 29 21:21:38 2019 -0500
+
+    strconv: add 0b, 0o integer prefixes in ParseInt, ParseUint
+    
+    This CL modifies ParseInt and ParseUint to recognize
+    0b and 0o as binary and octal base prefixes when base == 0.
+    
+    See golang.org/design/19308-number-literals for background.
+    
+    For #19308.
+    For #12711.
+    
+    Change-Id: I8efe067f415aa517bdefbff7e230d3fa1694d530
+    Reviewed-on: https://go-review.googlesource.com/c/160244
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/strconv/atoi.go      | 33 +++++++++++++++++++--------------
+ src/strconv/atoi_test.go | 39 +++++++++++++++++++++++++++++++++------
+ 2 files changed, 52 insertions(+), 20 deletions(-)

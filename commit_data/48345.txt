@@ -1,0 +1,28 @@
+commit 6fb07317e5e7997a1e44ccb6984229c77dc186a3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 8 13:11:04 2022 -0800
+
+    spec: more adjustments/corrections
+    
+    - Change section title from "Type parameters lists" to
+      "Type parameter declarations" as the enclosing section
+      is about declarations.
+    
+    - Correct section on parsing ambiguity in type parameter
+      lists.
+    
+    - Rephrase paragraphs on type parameters for method receivers
+      and adjust examples.
+    
+    - Remove duplicate prose in section on function argument type
+      inference.
+    
+    - Clarified "after substitution" column in Instantiations section.
+    
+    Change-Id: Id76be9804ad96a3f1221e5c4942552dde015dfcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390994
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 92 +++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 47 insertions(+), 45 deletions(-)

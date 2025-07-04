@@ -1,0 +1,22 @@
+commit ccc42b0f91a7fc44b0353dea3f302f79fb28b300
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 26 14:04:37 2023 -0700
+
+    doc/go1.21: document clear builtin and init order changes
+    
+    Also move all the language changes to the same part of the release notes.
+    
+    For #56351
+    For #57411
+    
+    Change-Id: Id1c51b5eb8f7d85e61a2ae44ee7d73bb13036631
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498755
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.21.html | 68 ++++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 46 insertions(+), 22 deletions(-)

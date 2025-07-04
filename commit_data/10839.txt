@@ -1,0 +1,12 @@
+commit ecc317647b831c44af46af5ecee29f62ff815e7c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Dec 16 19:50:55 2011 +0900
+
+    net: sort Makefile entries
+    
+    R=golang-dev, jsing
+    CC=golang-dev
+    https://golang.org/cl/5493058
+
+ src/pkg/net/Makefile | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

@@ -1,0 +1,17 @@
+commit 8b6ef69e239ac9abbb187915dbd345c0406435ec
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 15 20:00:57 2014 -0500
+
+    cmd/gc: avoid pointer beyond array in range loop
+    
+    This problem was discovered by reading the code.
+    I have not seen it in practice, nor do I have any ideas
+    on how to trigger it reliably in a test. But it's still worth
+    fixing.
+    
+    TBR=ken2
+    CC=golang-codereviews
+    https://golang.org/cl/64370046
+
+ src/cmd/gc/range.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

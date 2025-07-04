@@ -1,0 +1,18 @@
+commit 48dc42b6afe7ad13102c55b8200c9f4577a88c84
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 4 16:49:53 2018 -0700
+
+    cmd/compile/internal/gc: major evconst cleanup
+    
+    Major cleanup to structure the code more similarly to go/constant.
+    
+    Passes "toolstash -cmp" on std cmd.
+    
+    Change-Id: I3ec7a7a24e313f119b0da4095001aad02e317894
+    Reviewed-on: https://go-review.googlesource.com/c/139901
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/const.go | 851 +++++++++++++----------------------
+ 1 file changed, 302 insertions(+), 549 deletions(-)

@@ -1,0 +1,21 @@
+commit b5135b34c921d74e812b96828bbb59dc24a400b7
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 3 10:39:15 2010 -0400
+
+    crypto: add cast5
+    
+    CAST5 is the default OpenPGP cipher.
+    
+    (This won't make Rob any happier about the size of crypto/, of course.)
+    
+    It already has dst, src in that order but it doesn't have any users yet so I figure it's better than changing it later.
+    
+    R=rsc, gri, r
+    CC=golang-dev
+    https://golang.org/cl/2762042
+
+ src/pkg/Makefile                   |   1 +
+ src/pkg/crypto/cast5/Makefile      |  11 +
+ src/pkg/crypto/cast5/cast5.go      | 536 +++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/cast5/cast5_test.go | 104 +++++++
+ 4 files changed, 652 insertions(+)

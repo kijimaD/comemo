@@ -1,0 +1,18 @@
+commit 3db4888a05fb15035d332a360cb610f2c05370ab
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 2 10:42:43 2021 +0700
+
+    cmd/compile: use types2.Unsafe to represent package unsafe in gcimports
+    
+    Followup todo in CL 346769.
+    
+    Change-Id: I6c870014523426d65d135da999f97a818a997237
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347270
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/irgen.go   | 2 +-
+ src/cmd/compile/internal/noder/reader2.go | 4 ----
+ 2 files changed, 1 insertion(+), 5 deletions(-)

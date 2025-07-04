@@ -1,0 +1,25 @@
+commit 1401151ab2c4abf47e61391972731c3bf38564fe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 17 09:12:14 2009 -0700
+
+    - don't add "..." anonymous field to structs/interfaces if entries are stripped
+    - don't print any optional semicolons after declarations inside functions
+    - indicate non-exported fields/methods in exported types with a comment
+      so that the "exported source" is legal Go code
+    - more tests
+    
+    R=rsc
+    DELTA=300  (227 added, 25 deleted, 48 changed)
+    OCL=34697
+    CL=34730
+
+ src/pkg/go/ast/ast.go                           | 10 +++--
+ src/pkg/go/ast/filter.go                        | 39 +++++------------
+ src/pkg/go/parser/parser.go                     |  4 +-
+ src/pkg/go/printer/printer.go                   | 56 +++++++++++++++----------
+ src/pkg/go/printer/testdata/comments.go         | 44 +++++++++++++++++--
+ src/pkg/go/printer/testdata/comments.golden     | 44 +++++++++++++++++--
+ src/pkg/go/printer/testdata/comments.x          | 45 +++++++++++++++++++-
+ src/pkg/go/printer/testdata/declarations.go     | 50 +++++++++++++++++++++-
+ src/pkg/go/printer/testdata/declarations.golden | 46 +++++++++++++++++++-
+ 9 files changed, 270 insertions(+), 68 deletions(-)

@@ -1,0 +1,13 @@
+commit 44122ed06997f1355c6660efb302d867f13877c4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 3 12:22:40 2012 +0900
+
+    syscall: update bootstrap scripts to sync with new go command
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5615054
+
+ src/pkg/syscall/mkall.sh    | 22 +++++++++++-----------
+ src/pkg/syscall/mkerrors.sh |  4 ++--
+ 2 files changed, 13 insertions(+), 13 deletions(-)

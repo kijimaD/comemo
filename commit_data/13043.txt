@@ -1,0 +1,14 @@
+commit 36675daa0f417622ce94b14ccb8de169fa51f295
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 7 16:45:34 2012 -0400
+
+    crypto/aes: fix comment
+    
+    Fixes #3589.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6190044
+
+ src/pkg/crypto/aes/const.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,23 @@
+commit 66c25fa9beda429a1e32b6dc65e48f071569d841
+Author: Nathan Otterness <otternes@cs.unc.edu>
+Date:   Fri Sep 18 20:08:47 2015 -0400
+
+    image/png: integer underflow when decoding
+    
+    This change addresses an integer underflow appearing only on systems
+    using a 32-bit int type. The patch addresses the problem by limiting the
+    length of unknown chunks to 0x7fffffff. This value appears to already be
+    checked for when parsing other chunk types, so the bug shouldn't appear
+    elsewhere in the package. The PNG spec recommends the maximum size for
+    any chunk to remain under 2^31, so this shouldn't cause errors with
+    valid images.
+    
+    Fixes #12687
+    
+    Change-Id: I17f0e1683515532c661cf2b0b2bc65309d1b7bb7
+    Reviewed-on: https://go-review.googlesource.com/14766
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/image/png/reader.go      |  3 +++
+ src/image/png/reader_test.go | 12 ++++++++++++
+ 2 files changed, 15 insertions(+)

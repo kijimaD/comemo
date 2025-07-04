@@ -1,0 +1,13 @@
+commit 20430f03bc621a42750ea6df14e56e4ed5632e89
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 27 12:39:55 2010 -0700
+
+    go/scanner: treat EOF like a newline for purposes of semicolon insertion
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2216054
+
+ src/pkg/go/scanner/scanner.go      | 28 +++++++++++++++++-----------
+ src/pkg/go/scanner/scanner_test.go | 12 ++++++++----
+ 2 files changed, 25 insertions(+), 15 deletions(-)

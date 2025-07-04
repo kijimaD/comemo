@@ -1,0 +1,27 @@
+commit fe0eb17fadd0d637eb5bd44dc65120a7f9af280a
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Mon Dec 14 11:35:02 2009 -0800
+
+    archive/tar: bug fixes.
+    1. If all data is exhausted using Read then a following Next will
+       fail as if it saw EOF.  (Test case added.)
+    2. Seeking isn't always possible (i.e. sockets and pipes).  Fallback
+       to read.  (Test case added.)
+    3. Fix to readHeader (cleaner fix pointed out by rsc).
+       (TestReader modified.)
+    4. When Read has consumed all the data, don't try to read 0 bytes from reader.
+       In cases where tr.nb is zero we attempt to read zero bytes and thus
+       never see an EOF (this is most easily seen when the 'tar source' is
+       something like bytes.Buffer{} as opposed to os.File).
+    5. If write is used to the point of ErrWriteTooLong, allow additional file entries.
+    6. Make close work as expected.  That is any further Write or
+       WriteHeader attempts will result in ErrWriteAfterClose.
+    Fixes #419.
+    
+    R=rsc, dsymonds1
+    https://golang.org/cl/162062
+
+ src/pkg/archive/tar/reader.go      |  27 +++++--
+ src/pkg/archive/tar/reader_test.go | 159 +++++++++++++++++++++++++++++++------
+ src/pkg/archive/tar/writer.go      |  18 ++++-
+ 3 files changed, 167 insertions(+), 37 deletions(-)

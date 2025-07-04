@@ -1,0 +1,13 @@
+commit c0e0f82e49f5afbc89db1092fe56d31c16d73523
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 11 18:07:47 2009 -0700
+
+    better code for allocation through indirection
+    
+    R=rsc
+    DELTA=11  (3 added, 5 deleted, 3 changed)
+    OCL=35583
+    CL=35583
+
+ src/pkg/gob/decode.go | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)

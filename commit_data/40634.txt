@@ -1,0 +1,28 @@
+commit 7a2baa9c48601e65bc8c8ed99d57a0d214b779ef
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 7 13:57:19 2019 +1100
+
+    cmd/doc: don't bother checking validity of symbols at top level
+    
+    No need to check as pieces further down do so anyway:
+    
+            %  go doc '&&.%$^'
+            doc: symbol && is not a type in package fmt installed in "fmt"
+            exit status 1
+            %
+    
+    Removing this check allows 'go doc sort.interface' or 'go doc
+    types.type' to discover sort.Interface and go/types.Type.
+    
+    Easily
+    
+    Fixes #34656.
+    
+    Change-Id: I84352e83dd7f91a232f45a44d1a52f019a1a9a06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205778
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/doc/main.go | 6 ------
+ 1 file changed, 6 deletions(-)

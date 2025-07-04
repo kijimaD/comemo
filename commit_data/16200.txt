@@ -1,0 +1,14 @@
+commit 591d4a47aefc74d96ec283abada57868a37d1f19
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 18 17:37:21 2013 -0700
+
+    bufio.Scan: don't stop after Read returns 0, nil
+    But stop eventually if the reader misbehaves.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8757045
+
+ src/pkg/bufio/scan.go      | 29 +++++++++++++++++++----------
+ src/pkg/bufio/scan_test.go | 18 ++++++++++++++++++
+ 2 files changed, 37 insertions(+), 10 deletions(-)

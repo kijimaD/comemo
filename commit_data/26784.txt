@@ -1,0 +1,24 @@
+commit e6f36f0cd5b45b9ce7809a34c45aeb66a5ca64a4
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Mar 18 19:09:39 2016 -0400
+
+    runtime: add s390x support (new files and lfstack_64bit.go modifications)
+    
+    Change-Id: I51c0a332e3cbdab348564e5dcd27583e75e4b881
+    Reviewed-on: https://go-review.googlesource.com/20946
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/asm_s390x.s           | 1130 +++++++++++++++++++++++++++++++++++++
+ src/runtime/defs_linux_s390x.go   |  167 ++++++
+ src/runtime/lfstack_64bit.go      |   32 +-
+ src/runtime/memclr_s390x.s        |  122 ++++
+ src/runtime/memmove_s390x.s       |  189 +++++++
+ src/runtime/os_linux_s390x.go     |   46 ++
+ src/runtime/rt0_linux_s390x.s     |   20 +
+ src/runtime/signal_linux_s390x.go |  208 +++++++
+ src/runtime/sys_linux_s390x.s     |  440 +++++++++++++++
+ src/runtime/sys_s390x.go          |   45 ++
+ src/runtime/tls_s390x.s           |   51 ++
+ 11 files changed, 2437 insertions(+), 13 deletions(-)

@@ -1,0 +1,16 @@
+commit 2c6949ec89817caecbb441422fe1d6729ee16462
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Nov 4 17:11:51 2016 -0400
+
+    go/types: avoid redundant call to recordUse for anonymous fields
+    
+    Anonymous fields are type expressions, and Checker.typexpr already
+    correctly records uses within them.  There's no need for a second
+    call, and the second call caused a bug when we implemented aliases.
+    
+    Change-Id: I1bf2429cd4948d68b085e75dfb1bdc03ad8caffd
+    Reviewed-on: https://go-review.googlesource.com/32837
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/typexpr.go | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)

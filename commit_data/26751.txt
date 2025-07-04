@@ -1,0 +1,26 @@
+commit d7ddee78ddca805e6609149ff4320b1547698259
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Tue Apr 5 18:42:07 2016 +0300
+
+    icmd/vet: improved checking for variadic Println-like functions
+    
+    - Automatically determine the first argument to check.
+    - Skip checking matching non-variadic functions.
+    - Skip checking matching functions accepting non-interface{}
+      variadic arguments.
+    - Removed fragile 'magic' code for special cases such as math.Log
+      and error interface.
+    
+    Fixes #15067
+    Fixes #15099
+    
+    Change-Id: Ib313557f18b12b36daa493f4b02c598b9503b55b
+    Reviewed-on: https://go-review.googlesource.com/21513
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/doc.go            |   9 +---
+ src/cmd/vet/print.go          | 104 ++++++++++++++++++++----------------------
+ src/cmd/vet/testdata/print.go |  38 +++++++++++++--
+ src/cmd/vet/types.go          |  66 ---------------------------
+ 4 files changed, 86 insertions(+), 131 deletions(-)

@@ -1,0 +1,24 @@
+commit 1341a3decd00d1106efaa73c5ff4ffcabc4e6afd
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Dec 1 21:45:49 2020 -0500
+
+    cmd/go: add documentation for the -overlay flag
+    
+    Also add -overlay to the Go 1.16 release notes.
+    
+    For #40700
+    Fixes #39958
+    Fixes #42893
+    
+    Change-Id: Ifd397549e368b255e7b8800986cfa0563a942af5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274714
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.16.html                   | 14 ++++++++++++++
+ src/cmd/go/alldocs.go             | 11 +++++++++++
+ src/cmd/go/internal/work/build.go | 11 +++++++++++
+ 3 files changed, 36 insertions(+)

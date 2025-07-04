@@ -1,0 +1,15 @@
+commit b3062f176d3b03aeed22508885c5b9053def3467
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Aug 18 17:47:03 2009 -0700
+
+    Add a standard Seeker interface.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=35  (30 added, 4 deleted, 1 changed)
+    OCL=33491
+    CL=33498
+
+ src/pkg/archive/tar/reader.go |  6 +-----
+ src/pkg/io/io.go              | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 5 deletions(-)

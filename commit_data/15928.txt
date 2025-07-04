@@ -1,0 +1,15 @@
+commit 60a1f54d6b45e71022af91c84eb39916928e46e1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 25 17:01:40 2013 -0400
+
+    math: make Hypot special cases look like others
+    
+    The edit makes Hypot's description match the form
+    used in the other routines in this package.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/8003046
+
+ src/pkg/math/hypot.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

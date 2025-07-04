@@ -1,0 +1,13 @@
+commit a3372bd6558e7f78ae460eb73dcfaa65a5d4419b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Feb 2 18:38:04 2010 +1100
+
+    New image.A type, to represent anti-aliased font glyphs.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/199052
+
+ src/pkg/image/color.go | 23 +++++++++++++++++++++++
+ src/pkg/image/image.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

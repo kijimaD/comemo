@@ -1,0 +1,25 @@
+commit 912c4e29d3cdabe11db70ed168ddaa4bcc515772
+Author: David Chase <drchase@google.com>
+Date:   Wed Apr 7 17:03:46 2021 -0400
+
+    reflect: fix typo in result-in-registers case
+    
+    t is the type of the function that was called
+    tv is the type of the result
+    
+    This fixes the failures for
+    GOEXPERIMENT=regabi,regabiargs go test go test text/template
+    GOEXPERIMENT=regabi,regabiargs go test go test html/template
+    
+    Updates #40724.
+    
+    Change-Id: Ic9b02d72d18ff48c9de1209987cc39da619c2241
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308189
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

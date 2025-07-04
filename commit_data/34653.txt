@@ -1,0 +1,21 @@
+commit ae10914e67e6e99fec94b3d190558131a24ecd8e
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Mar 19 13:11:16 2018 -0400
+
+    cmd/compile: mark LAA and LAAG as clobbering flags on s390x
+    
+    The atomic add instructions modify the condition code and so need to
+    be marked as clobbering flags.
+    
+    Fixes #24449.
+    
+    Change-Id: Ic69c8d775fbdbfb2a56c5e0cfca7a49c0d7f6897
+    Reviewed-on: https://go-review.googlesource.com/101455
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  4 +-
+ src/cmd/compile/internal/ssa/opGen.go        |  2 +
+ test/fixedbugs/issue24449.go                 | 62 ++++++++++++++++++++++++++++
+ 3 files changed, 66 insertions(+), 2 deletions(-)

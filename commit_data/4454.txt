@@ -1,0 +1,13 @@
+commit 95c776cca437e8f3aa914557264f2cbb10f42aa1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 13:38:28 2009 -0800
+
+    A+C: Ben Olive (individual CLA)
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/180081
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

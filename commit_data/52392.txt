@@ -1,0 +1,18 @@
+commit d633f4b996dadb6b72c2c43d35092738b7c19e7f
+Author: Michał Matczuk <mmatczuk@gmail.com>
+Date:   Thu Mar 23 13:52:59 2023 +0000
+
+    net/http: fix typo
+    
+    Change-Id: I6e39f14df65685451d3d98c6def1e0665da20590
+    GitHub-Last-Rev: d9de237bd24ab3deebdbdf1f75a1835169670c1d
+    GitHub-Pull-Request: golang/go#59200
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478855
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

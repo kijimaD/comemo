@@ -1,0 +1,17 @@
+commit dc51ed218070fcd074e67404e5a658b1c400e777
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Jan 31 14:48:14 2015 +1100
+
+    os: don't silently skip test
+    
+    This is a followup to CL 3676.
+    
+    Rather than silently returning from the test, a pass,
+    use the Skip facility to mark the test as skipped.
+    
+    Change-Id: I90d237e770150bf8d69f14fb09874e70894a7f86
+    Reviewed-on: https://go-review.googlesource.com/3682
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/path_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

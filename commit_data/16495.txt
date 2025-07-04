@@ -1,0 +1,15 @@
+commit 427bec62b5a24aa42b0dc97a6040fd84d7f4366d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Jun 5 10:18:06 2013 +1000
+
+    image/jpeg: avoid documentation argument over whether it's luma
+    subsampling or chroma subsampling.
+    
+    Fixes #5569.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/9900044
+
+ src/pkg/image/jpeg/reader.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

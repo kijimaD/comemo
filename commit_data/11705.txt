@@ -1,0 +1,12 @@
+commit 136f12f51fde69d5b0c89ec7a9cd9436c7b7535d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 8 11:12:14 2012 -0500
+
+    cmd/dist: pass -m32 or -m64 to link too, not just compile
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5646053
+
+ src/cmd/dist/build.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

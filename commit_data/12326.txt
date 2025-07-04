@@ -1,0 +1,12 @@
+commit 718de6f4c64a439a867dd0b8aad05f7da630bf76
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Mar 2 15:35:36 2012 +1100
+
+    doc: expand code.html to discuss the go tool in more depth
+    
+    R=golang-dev, balasanjay, r
+    CC=golang-dev
+    https://golang.org/cl/5640045
+
+ doc/code.html | 549 +++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 354 insertions(+), 195 deletions(-)

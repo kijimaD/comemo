@@ -1,0 +1,17 @@
+commit e617141b0b35f14f5fe9113febcc84a2b0ecb642
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Sep 30 21:41:01 2019 -0400
+
+    cmd/go/internal/modfetch: update TestCodeRepo for gopkg.in/yaml.v2
+    
+    The new yaml.v2 release broke the longtest builder. Update the expected
+    data.
+    
+    Updates #28856
+    
+    Change-Id: I98ec9e32e55bdb6b26b67e46dc16f34f77c2d40f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198117
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go/internal/modfetch/coderepo_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,18 @@
+commit 71b0264a3877134e75d2fde3a7359b5664edec4e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 16 14:56:12 2017 -0500
+
+    cmd/go: simplify compiler import config preparation
+    
+    I realized this simplification was possible when writing the vet loop
+    (just above the code being modified here) but never circled back
+    to make the compiler loop match.
+    
+    Change-Id: Ic2277d2a4b6d94ea4897cc3615fc1a29f2fb243c
+    Reviewed-on: https://go-review.googlesource.com/78395
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/internal/load/pkg.go  |  3 ---
+ src/cmd/go/internal/work/exec.go | 21 ++++-----------------
+ 2 files changed, 4 insertions(+), 20 deletions(-)

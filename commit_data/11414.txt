@@ -1,0 +1,13 @@
+commit 290921bbb58514212f3d32a13e2de37cf4213b96
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jan 26 20:06:27 2012 +0400
+
+    net/rpc: fix data race in benchmark
+    Fixes #2781.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, mpimenov
+    https://golang.org/cl/5577053
+
+ src/pkg/net/rpc/server_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 7b0b6c2f7e9d925763a2e1d2ba10682019827a9b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 2 13:51:20 2020 -0800
+
+    cmd/compile: simplify converted SSA form for 'if false'
+    
+    The goal here is to make it easier for a human to
+    examine the SSA when a function contains lots of dead code.
+    
+    No significant compiler metric or generated code differences.
+    
+    Change-Id: I81915fa4639bc8820cc9a5e45e526687d0d1f57a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221791
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

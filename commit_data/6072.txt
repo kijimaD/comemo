@@ -1,0 +1,12 @@
+commit 58a25c6de7aa8c47a6753f72aa7dab48c04d02f4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 24 13:08:05 2010 -0700
+
+    test: Add testcase which crashes gccgo.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1995050
+
+ test/fixedbugs/bug304.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

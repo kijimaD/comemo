@@ -1,0 +1,18 @@
+commit 19adf8aeaae7c898e8efeab18e3162c3807a8756
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 20 20:05:41 2016 -0400
+
+    reflect: fix DeepEqual for some cyclic corner cases
+    
+    Fixes #15610.
+    
+    Change-Id: Idbc8a9b328b92034d53b8009471678a166d5cf3f
+    Reviewed-on: https://go-review.googlesource.com/31588
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/reflect/all_test.go  | 20 ++++++++++++++++++++
+ src/reflect/deepequal.go |  6 +++++-
+ 2 files changed, 25 insertions(+), 1 deletion(-)

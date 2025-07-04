@@ -1,0 +1,11 @@
+commit 1d0b65d33f9a8c3916a64a869b89bae800fc150f
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Oct 30 09:38:30 2009 -0700
+
+    added missing sgen reverse character copy code.
+    
+    R=rsc
+    http://go/go-review/1018006
+
+ src/cmd/5g/cgen.c | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)

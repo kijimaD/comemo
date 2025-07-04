@@ -1,0 +1,13 @@
+commit 7ce3406c8fe1d71d0d595bcd0842bf27f6d1bf32
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Aug 7 10:25:50 2014 +1000
+
+    doc/go1.4.txt: implement monotonic clocks on windows
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/126760043
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

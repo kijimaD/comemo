@@ -1,0 +1,17 @@
+commit 26727b84d92db09843175a945b93ad46ff7d0a53
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Jun 11 09:34:57 2018 +0100
+
+    cmd/vet: simplify side effects func call logic
+    
+    Instead of first looking for values of unnamed signature type, first
+    treat the types and builtins. All the remaining cases will be what we're
+    after.
+    
+    Change-Id: I328e22ae0be1cccaeb45ed4ddaa360233d447e7e
+    Reviewed-on: https://go-review.googlesource.com/117835
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/vet/bool.go | 25 +++++++++----------------
+ 1 file changed, 9 insertions(+), 16 deletions(-)

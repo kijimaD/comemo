@@ -1,0 +1,14 @@
+commit fd0f69c6802b92fed953659efe5f2e0e2e8aed14
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Nov 17 15:41:18 2016 +0900
+
+    net: use testenv.SkipFlaky instead of testing.Skip
+    
+    Change-Id: Ic219fedbe6bbb846f31111fa21df6f2b8620e269
+    Reviewed-on: https://go-review.googlesource.com/33263
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/timeout_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

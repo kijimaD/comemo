@@ -1,0 +1,19 @@
+commit eaf593869ac42d0200146d1e666070cf97cf1dd6
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Tue Mar 7 19:34:17 2023 +0800
+
+    net: document the Close blocking with SO_LINGER on some OS's
+    
+    Fixes #58882
+    
+    Change-Id: I65842a4aa3f808533e28128078e7e94a9b121404
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473915
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/net/tcpsock.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

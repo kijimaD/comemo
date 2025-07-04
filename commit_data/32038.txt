@@ -1,0 +1,13 @@
+commit aad7f7bfb7b088fdcdb51c9e384a5d9a2ea37838
+Author: Ross Light <light@google.com>
+Date:   Sat Jul 15 14:53:42 2017 -0600
+
+    encoding/binary: add examples for ByteOrder functions
+    
+    Change-Id: Iec9a7bf61566ee08c4d15adb39d43c7a29c79122
+    Reviewed-on: https://go-review.googlesource.com/48962
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/binary/example_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

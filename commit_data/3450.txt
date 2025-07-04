@@ -1,0 +1,16 @@
+commit d58b5fca45bc57d50ad7572a71bf647acfbc8841
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Oct 5 21:52:10 2009 -0700
+
+    move cas out, add dummy runcgo.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=73  (45 added, 28 deleted, 0 changed)
+    OCL=35363
+    CL=35366
+
+ src/pkg/runtime/Makefile  |  1 +
+ src/pkg/runtime/arm/asm.s | 62 +++++++++++++++++++----------------------------
+ src/pkg/runtime/arm/cas.s | 14 +++++++++++
+ 3 files changed, 40 insertions(+), 37 deletions(-)

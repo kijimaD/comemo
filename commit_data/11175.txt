@@ -1,0 +1,12 @@
+commit 026f8dfb94b1d4c85ddde081fd10956909918589
+Author: Adam Langley <agl@golang.org>
+Date:   Sun Jan 15 10:22:15 2012 -0500
+
+    exp/terminal: add to level Makefile for the (non-Linux?) systems that need it.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5528102
+
+ src/pkg/Makefile | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit bf670bd83c849b56426c63b49f28121210a627ca
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Feb 13 08:49:52 2019 +0530
+
+    go/ast: fix SortImports to handle block comments (take 2)
+    
+    This is a 2nd attempt at fixing CL 162337 which had an off-by-one error.
+    We were unconditionally getting the position of the start of the next line
+    from the last import without checking whether it is the end of the file or not.
+    
+    Fix the code to check for that and move the testcase added in CL 190523
+    to the end of the file for it to trigger the issue properly.
+    
+    Fixes #18929
+    
+    Change-Id: I59e77256e256570b160fea6a17bce9ef49e810df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190480
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/gofmt/testdata/import.golden | 73 ++++++++++++++++++++++++++++--
+ src/cmd/gofmt/testdata/import.input  | 71 +++++++++++++++++++++++++++--
+ src/go/ast/import.go                 | 88 ++++++++++++++++++++++++++----------
+ 3 files changed, 201 insertions(+), 31 deletions(-)

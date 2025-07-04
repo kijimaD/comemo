@@ -1,0 +1,29 @@
+commit 8d77e45064fc808460843e741c46e3b6b737ae03
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Apr 6 07:23:38 2021 +0000
+
+    cmd/compile: fix bug of conditional instructions on arm64
+    
+    CL 302231 added some optimization rules with instructions CSETM, CSINC,
+    CSINV, and CSNEG, but did not deal with the situation where flag is
+    constant, resulting in some cases that could be more optimized cannot
+    be optimized, and the FlagConstant value is passed to codegen pass. This
+    CL adds these missing rules.
+    
+    Fixes #45359
+    
+    Change-Id: I700608cfb9a6a768a18d1fd5d374d7e92aa6f838
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307650
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: eric fang <eric.fang@arm.com>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |   8 ++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 108 +++++++++++++++++++++++++++
+ test/fixedbugs/issue45359.go                 |  20 +++++
+ 3 files changed, 136 insertions(+)

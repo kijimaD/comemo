@@ -1,0 +1,14 @@
+commit 04b4dbe1f0ec58efe8a1bf8e05a1042b17176c3b
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 6 08:05:19 2016 -0400
+
+    cmd/link: mark PIE binaries as ET_DYN
+    
+    Part of adding PIE internal linking on linux/amd64.
+    
+    Change-Id: I586e7c2afba349281168df5e20d2fdcb697f6e37
+    Reviewed-on: https://go-review.googlesource.com/28542
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/elf.go | 2 ++
+ 1 file changed, 2 insertions(+)

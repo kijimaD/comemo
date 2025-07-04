@@ -1,0 +1,16 @@
+commit f91c850be62416d0aaa70e77831c8ba3e1ee2b1e
+Author: Pantelis Sampaziotis <psampaz@gmail.com>
+Date:   Mon Sep 30 21:37:40 2019 +0000
+
+    text/template/parse: specify slice capacity in Pipenode.CopyPipe()
+    
+    The required vars slice capacity is known so it can be specified before appending.
+    
+    Change-Id: Ifa2fe97602e84198c4d01e5a1b0529f3f65f2df1
+    GitHub-Last-Rev: a0580df208a1d498968138d63508ae4e30df2ec5
+    GitHub-Pull-Request: golang/go#34613
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197997
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/text/template/parse/node.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

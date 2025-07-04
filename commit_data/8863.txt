@@ -1,0 +1,25 @@
+commit 19f795042a24a931dc8a0fea49b01967f0ed9859
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 27 15:26:36 2011 -0700
+
+    http: add FileSystem interface, make FileServer use it
+    
+    Permits serving from virtual filesystems, such as files linked
+    into a binary, or from a zip file.
+    
+    Also adds a gofix for:
+    
+    http.FileServer(root, prefix) -> http.StripPrefix(prefix, http.FileServer(http.Dir(root)))
+    
+    R=r, rsc, gri, adg, dsymonds, r, gri
+    CC=golang-dev
+    https://golang.org/cl/4629047
+
+ src/cmd/godoc/godoc.go           |  2 +-
+ src/cmd/gofix/Makefile           |  1 +
+ src/cmd/gofix/httpfs.go          | 63 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/httpfs_test.go     | 47 ++++++++++++++++++++++++++++
+ src/pkg/http/fs.go               | 60 ++++++++++++++++++++++++++++--------
+ src/pkg/http/fs_test.go          | 66 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/readrequest_test.go | 48 +++++++++++++++++++++++------
+ 7 files changed, 264 insertions(+), 23 deletions(-)

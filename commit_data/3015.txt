@@ -1,0 +1,24 @@
+commit 382a19c3dedb1f46a2066510243d30c8ba55eebc
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Aug 18 19:20:33 2009 -0700
+
+    pkg/sort compiling and some progress on syscall. mostly
+    re-enabling and massaging code.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=2496  (1880 added, 330 deleted, 286 changed)
+    OCL=33487
+    CL=33504
+
+ src/cmd/5g/cgen.c                     |  33 +-
+ src/cmd/5g/gg.h                       |   2 +-
+ src/cmd/5g/ggen.c                     | 220 +++++------
+ src/cmd/5g/gsubr.c                    | 618 ++++++++---------------------
+ src/make-arm.bash                     |   4 +-
+ src/pkg/syscall/syscall_linux_arm.go  | 138 +++++++
+ src/pkg/syscall/zerrors_linux_arm.go  | 316 +++++++++++++++
+ src/pkg/syscall/zsyscall_linux_arm.go | 714 ++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsysnum_linux_arm.go  | 319 +++++++++++++++
+ src/pkg/syscall/ztypes_linux_arm.go   | 368 ++++++++++++++++++
+ 10 files changed, 2141 insertions(+), 591 deletions(-)

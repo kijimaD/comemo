@@ -1,0 +1,16 @@
+commit 9364c13d09fb0df5a2f8cb4c86af9d37af857f20
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 29 07:38:14 2018 +0000
+
+    runtime: parse auxv for page size on dragonfly
+    
+    Decode AT_PAGESZ to determine physPageSize on dragonfly.
+    
+    Change-Id: I7236d7cbe43433f16dffddad19c1655bc0c7f31d
+    Reviewed-on: https://go-review.googlesource.com/103257
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/auxv_none.go    |  1 +
+ src/runtime/os_dragonfly.go | 39 +++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 38 insertions(+), 2 deletions(-)

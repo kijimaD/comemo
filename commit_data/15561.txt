@@ -1,0 +1,16 @@
+commit ed01f4be591e6b8e1791164f5b1abb1a237a51ad
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Mar 3 15:59:53 2013 +0900
+
+    net: add unixgram dial test
+    
+    Also replaces testing.Errof with testing.Fatalf, make use of ICMP mock.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7308058
+
+ src/pkg/net/conn_test.go       |  34 ++++---
+ src/pkg/net/packetconn_test.go |  84 +++++++++++-----
+ src/pkg/net/protoconn_test.go  | 217 +++++++++++++++--------------------------
+ 3 files changed, 151 insertions(+), 184 deletions(-)

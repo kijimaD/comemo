@@ -1,0 +1,16 @@
+commit 5a529b61aa2174b4c44809a02c9735e0c725f2f3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 25 15:37:54 2013 -0700
+
+    cmd/ld: permit sym to be both cgo_export_static and cgo_export_dynamic
+    
+    Fixes SWIG callbacks.  Previously crosscall2 was only
+    cgo_export_static, despite the use of two #pragma declarations
+    in runtime/cgo/callbacks.c.
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/7817048
+
+ src/cmd/ld/go.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,18 @@
+commit 54efdc596f7b6c711e5d65d99f1c25a0ca3628f1
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Mar 2 16:01:20 2015 -0500
+
+    time: zoneinfo support on darwin/arm
+    
+    A future change will include an NSTimeZone hook so we can determine
+    the device's current time zone.
+    
+    Change-Id: Ia4bd6b955e4cb720c518055541b66ff57a4dd303
+    Reviewed-on: https://go-review.googlesource.com/6511
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+
+ src/time/sleep_test.go           |  4 ++++
+ src/time/zoneinfo_darwin_armx.go | 51 ++++++++++++++++++++++++++++++++++++++++
+ src/time/zoneinfo_unix.go        |  2 +-
+ 3 files changed, 56 insertions(+), 1 deletion(-)

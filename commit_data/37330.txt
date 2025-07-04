@@ -1,0 +1,23 @@
+commit c5aea7a4941aa9c37ed07e3a252bc81c9c90802f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 2 17:08:24 2018 -0700
+
+    cmd/go: add go mod edit -go flag
+    
+    It can be used to set the Go language version used by the module.
+    
+    RELNOTES=yes
+    
+    Updates #28221
+    
+    Change-Id: Ief0dd185c01195a17be20dff8627c80943c436e7
+    Reviewed-on: https://go-review.googlesource.com/c/147282
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                      |  5 ++++-
+ src/cmd/go/internal/modcmd/edit.go         | 26 ++++++++++++++++++++++----
+ src/cmd/go/testdata/script/mod_edit.txt    |  3 ++-
+ src/cmd/go/testdata/script/mod_edit_go.txt | 16 ++++++++++++++++
+ 4 files changed, 44 insertions(+), 6 deletions(-)

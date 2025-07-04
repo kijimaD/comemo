@@ -1,0 +1,29 @@
+commit c226f6432d465ad9e2d21962353ba86834a2afcb
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 18 13:28:55 2019 +1000
+
+    strconv: pre-allocate in appendQuotedWith
+    
+    The byte-at-a-time allocation done quoting strings in appendQuotedWith
+    grows the output incrementally, which is poor behavior for very large
+    strings. An easy fix is to make sure the buffer has enough room at
+    least for an unquoted string.
+    
+    Add a benchmark with a megabyte of non-ASCII data.
+            Before: 39 allocations.
+            After: 7 allocations.
+    
+    We could do better by doing a lot more work but this seems like a big
+    result for little effort.
+    
+    Fixes #31472.
+    
+    Change-Id: I852139e0a2bd13722c4dd329ded8ae1759abad5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172677
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/strconv/quote.go        |  7 +++++++
+ src/strconv/strconv_test.go | 10 ++++++++++
+ 2 files changed, 17 insertions(+)

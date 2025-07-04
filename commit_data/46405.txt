@@ -1,0 +1,27 @@
+commit da1aa650536b188c4dce287003a6f46b0dc4bdd5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 9 15:43:19 2021 -0700
+
+    cmd/compile/internal/syntax: correct follow token for type parameter lists
+    
+    When parsing a type parameter declaration, parts of the code still
+    expected a ) as closing token. Use the correct follow token ) or ]
+    depending on parameter list kind.
+    
+    Also, consistently use tokstring (not tok.String()) for user-facing
+    (error) messages.
+    
+    Follow-up on comment in CL 348730.
+    
+    For #43527.
+    
+    Change-Id: Ib1d4feb526771a1668a54c3bb7a671f6c8a65940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348742
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go            | 14 ++++++++------
+ src/cmd/compile/internal/syntax/testdata/tparams.go2 |  2 ++
+ 2 files changed, 10 insertions(+), 6 deletions(-)

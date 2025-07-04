@@ -1,0 +1,21 @@
+commit cdd59205c48a4504925b1d65fdb68ff1f1250870
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Sep 26 09:53:37 2019 -0400
+
+    cmd/compile: don't emit autom's into object file
+    
+    Don't write Autom records when writing a function to the object file;
+    we no longer need them in the linker for DWARF processing. So as to
+    keep the object file format unchanged, write out a zero-length list of
+    automs to the object, as opposed to removing all references.
+    
+    Updates #34554.
+    
+    Change-Id: I42a1d67207ea7114ae4f3a315cf37effba57f190
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197499
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go | 43 +++++++++++--------------------------
+ src/cmd/internal/obj/link.go        |  4 ----
+ src/cmd/internal/obj/objfile.go     | 24 ++-------------------
+ 3 files changed, 14 insertions(+), 57 deletions(-)

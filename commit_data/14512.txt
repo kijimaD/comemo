@@ -1,0 +1,24 @@
+commit 4f74bbd24ca2cecdd24dada8d1d6af0f24ebb211
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Nov 28 06:36:05 2012 +0900
+
+    net: consoldate literal target address into IP address functions
+    
+    This CL continues with introducing IPv6 scoped addressing capability
+    into the net package.
+    
+    Update #4234.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6842053
+
+ src/pkg/net/dial.go       | 13 +++----
+ src/pkg/net/ipraw_test.go | 32 ++++++++++++++++
+ src/pkg/net/iprawsock.go  | 47 ++++--------------------
+ src/pkg/net/ipsock.go     | 94 +++++++++++++++++++++++++++++------------------
+ src/pkg/net/tcp_test.go   | 28 ++++++++++++++
+ src/pkg/net/tcpsock.go    | 15 ++++----
+ src/pkg/net/udp_test.go   | 28 ++++++++++++++
+ src/pkg/net/udpsock.go    | 18 ++++-----
+ 8 files changed, 174 insertions(+), 101 deletions(-)

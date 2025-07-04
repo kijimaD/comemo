@@ -1,0 +1,15 @@
+commit b64e5e38ab66320bbd7886836d192772d21c4d9a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu May 2 20:29:29 2024 +0200
+
+    net: use stringslite.HasPrefix
+    
+    Change-Id: Ib14c70f580d0891b3fbedf9e4cde93077409d4e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582915
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/dnsconfig_unix.go | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

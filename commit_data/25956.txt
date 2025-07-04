@@ -1,0 +1,29 @@
+commit 47379929f1cf38665066cb2b6ade76e865643dd3
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sun Feb 28 01:47:59 2016 -0800
+
+    compress/bzip2: use correct block size
+    
+    The bzip2 block size is a multiple of 100*1000 not 100*1024.
+    Thus, the bzip2 decoder would incorrectly decode files with larger
+    block sizes when it should have otherwise failed.
+    Fortunately, we can correct this in a backwards compatible way since
+    Go has no implementation of a bzip2 encoder to produce bad blocks :)
+    
+    To confirm that the C bzip2 utlity chokes on this data:
+            $ echo "425a683131415926535936dc55330063ffc0006000200020a40830008b00
+            08b8bb9229c28481b6e2a998" | xxd -r -p | bzip2 -d
+    
+            bzip2: Data integrity error when decompressing.
+    
+    Fixes #13941
+    
+    Change-Id: I2402e8829a8027ef94dd4fac050b200440a3d4e4
+    Reviewed-on: https://go-review.googlesource.com/20011
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/compress/bzip2/bzip2.go      |  4 ++--
+ src/compress/bzip2/bzip2_test.go | 10 ++++++++++
+ 2 files changed, 12 insertions(+), 2 deletions(-)

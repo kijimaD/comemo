@@ -1,0 +1,10 @@
+commit 0908af75cd38563c16a904b70a555b787d0642d5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 12 15:10:10 2008 -0700
+
+    - added another test case
+    
+    SVN=112273
+
+ tests/hashmap.go | 186 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 186 insertions(+)

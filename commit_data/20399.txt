@@ -1,0 +1,46 @@
+commit 4179439de8166ded9bf097c216e6596ead2ee433
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 12 00:23:03 2014 -0400
+
+    syscall: make func Syscall use pointer maps from Go prototypes
+    
+    Before, Syscall and friends were having their arguments
+    treated conservatively. Now they will use the Go prototype,
+    which will mean the arguments are not considered pointers
+    at all.
+    
+    This is safe because of CL 139360044.
+    
+    The fact that all these non-Solaris systems were using
+    conservative scanning of the Syscall arguments is why
+    the failure that prompted CL 139360044 was only
+    observed on Solaris, which does something completely different.
+    If we'd done this earlier, we'd have seen the Solaris
+    failure in more places.
+    
+    LGTM=khr
+    R=khr
+    CC=golang-codereviews
+    https://golang.org/cl/144730043
+
+ src/syscall/asm_darwin_386.s      | 5 +++++
+ src/syscall/asm_darwin_amd64.s    | 5 +++++
+ src/syscall/asm_dragonfly_386.s   | 5 +++++
+ src/syscall/asm_dragonfly_amd64.s | 5 +++++
+ src/syscall/asm_freebsd_386.s     | 5 +++++
+ src/syscall/asm_freebsd_amd64.s   | 5 +++++
+ src/syscall/asm_freebsd_arm.s     | 5 +++++
+ src/syscall/asm_linux_386.s       | 4 ++++
+ src/syscall/asm_linux_amd64.s     | 4 ++++
+ src/syscall/asm_linux_arm.s       | 4 ++++
+ src/syscall/asm_nacl_386.s        | 1 +
+ src/syscall/asm_nacl_amd64p32.s   | 1 +
+ src/syscall/asm_nacl_arm.s        | 1 +
+ src/syscall/asm_netbsd_386.s      | 5 +++++
+ src/syscall/asm_netbsd_amd64.s    | 5 +++++
+ src/syscall/asm_netbsd_arm.s      | 5 +++++
+ src/syscall/asm_openbsd_386.s     | 5 +++++
+ src/syscall/asm_openbsd_amd64.s   | 5 +++++
+ src/syscall/asm_plan9_386.s       | 4 ++++
+ src/syscall/asm_plan9_amd64.s     | 4 ++++
+ 20 files changed, 83 insertions(+)

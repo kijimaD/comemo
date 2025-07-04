@@ -1,0 +1,32 @@
+commit 2eb4d68833e28fce2701a9c39755413630921371
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 11 15:34:29 2021 -0700
+
+    runtime: don't use systemstack for BeforeFork/AfterFork
+    
+    In https://golang.org/cl/140930043 syscall.BeforeFork was changed to
+    call beforefork via onM. This was done because at the time BeforeFork
+    was written in C but was called from Go. While the runtime was being
+    converted to Go, calls to complex C functions used onM to ensure that
+    enough stack space was available.
+    
+    In https://golang.org/cl/172260043 the syscall.BeforeFork and
+    beforefork functions were rewritten into Go. In this rewrite
+    syscall.BeforeFork continue to call beforefork via onM, although
+    because both functions were now in Go that was no longer necessary.
+    
+    In https://golang.org/cl/174950043 onM was renamed to systemstack,
+    producing essentially the code we have today.
+    
+    Therefore, the use of systemstack in syscall.BeforeFork (and
+    syscall.AfterFork) is a historical relic.  Remove it.
+    
+    Change-Id: Ia570f556b20e8405afa6c5e707bd6f4ad18fd7ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341335
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/proc.go | 22 +++++++---------------
+ 1 file changed, 7 insertions(+), 15 deletions(-)

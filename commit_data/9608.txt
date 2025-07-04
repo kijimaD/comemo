@@ -1,0 +1,14 @@
+commit e85fb2137b6e824e47a6791502900e0174a5a79e
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Sep 7 14:10:14 2011 +1000
+
+    weekly.html: remove note about exp/template -> template move.
+    
+    It actually occurred with the previous weekly snapshot.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4961066
+
+ doc/devel/weekly.html | 1 -
+ 1 file changed, 1 deletion(-)

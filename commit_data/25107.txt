@@ -1,0 +1,17 @@
+commit a4f057bcc3d305218e1fe4291f8c86cff55e19ca
+Author: Ingo Oeser <nightlyone@googlemail.com>
+Date:   Fri Sep 4 18:22:56 2015 +0200
+
+    net/mail: better errors on non-ascii characters
+    
+    Fixes #12492
+    
+    Change-Id: I8bb512027639301e2f2c41aab84e6d06ae88b137
+    Reviewed-on: https://go-review.googlesource.com/14312
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/mail/message.go      | 10 +++++++++-
+ src/net/mail/message_test.go |  8 ++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

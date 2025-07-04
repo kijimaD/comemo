@@ -1,0 +1,13 @@
+commit 1f0e6a4c999edd8b0b3706b4640da07b843386c4
+Author: Rob Pike <r@golang.org>
+Date:   Sat Dec 19 08:42:31 2009 +1100
+
+    new comments for bytes.NewBuffer and NewBufferString.
+    corrects a common misunderstanding about NewBuffer.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/179106
+
+ src/pkg/bytes/buffer.go | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

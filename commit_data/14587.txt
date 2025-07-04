@@ -1,0 +1,17 @@
+commit 033e91548150e6e813b8af74873d2c067fbd7383
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Dec 10 07:05:17 2012 +1100
+
+    cmd/go: add GOOS/GOARCH to go version output
+    
+    Fixes #4492.
+    
+    % go version
+    go version devel +6b602ab487d6 Sat Dec 08 14:43:00 2012 +0100 linux/amd64
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6906058
+
+ src/cmd/go/version.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

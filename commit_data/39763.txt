@@ -1,0 +1,20 @@
+commit c51909e3a59b8222e9de05be4d1aec75c6d40b4a
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Sep 1 12:29:41 2019 +0200
+
+    cmd/compile: remove a few unused bits of code
+    
+    Just the low-hanging fruit; code that was either never used, or its last
+    use was removed a while ago.
+    
+    Change-Id: Ic7f90aeee3e6daf7edc16cde3c0a767d67e617ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192618
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/init.go      |  6 ------
+ src/cmd/compile/internal/gc/universe.go  |  4 ----
+ src/cmd/compile/internal/ssa/lca_test.go | 15 ---------------
+ src/cmd/compile/internal/ssa/rewrite.go  |  5 -----
+ 4 files changed, 30 deletions(-)

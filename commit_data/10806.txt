@@ -1,0 +1,15 @@
+commit 17264df11223436a3b05f47f58a233961b43c3f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 15 10:47:09 2011 -0500
+
+    gc: implement and test \r in raw strings
+    
+    For issue 680.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5492046
+
+ src/cmd/gc/lex.c |  2 ++
+ test/crlf.go     | 52 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+)

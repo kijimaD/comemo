@@ -1,0 +1,12 @@
+commit 8d19d6bb3905816c20a2939c5c52b91e5b73d5c2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Aug 12 22:42:42 2011 +1000
+
+    lib/godoc: fix typo
+    
+    R=gri, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4881042
+
+ lib/godoc/package.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

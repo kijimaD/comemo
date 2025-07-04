@@ -1,0 +1,17 @@
+commit 5ac88f4a8b5663da5097913763ec7d117b984a1f
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Fri May 21 16:14:55 2010 -0700
+
+    big: Add Rat type
+    
+    Implementations are pretty rough and simple at this point, but it's a start.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1250043
+
+ src/pkg/big/Makefile    |   3 +-
+ src/pkg/big/nat.go      |   2 +
+ src/pkg/big/rat.go      | 270 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/big/rat_test.go | 185 +++++++++++++++++++++++++++++++++
+ 4 files changed, 459 insertions(+), 1 deletion(-)

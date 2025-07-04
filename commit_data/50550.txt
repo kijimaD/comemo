@@ -1,0 +1,28 @@
+commit cf53990b18750e77963e5cf075c5a921d384b33b
+Author: eric fang <eric.fang@arm.com>
+Date:   Wed Sep 7 08:34:52 2022 +0000
+
+    cmd/compile: Add some CMP and CMN optimization rules on arm64
+    
+    This CL adds some optimizaion rules:
+    1, Converts CMP to CMN, or vice versa, when comparing with a negative
+    number.
+    2, For equal and not equal comparisons, CMP can be converted to CMN in
+    some cases. In theory we could do the same optimization for LT, LE, GT
+    and GE, but need to account for overflow, this CL doesn't handle them.
+    
+    There are no noticeable performance changes.
+    
+    Change-Id: Ia49266c019ab7908ebc9510c2f02e121b1607869
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429795
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  37 ++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 528 +++++++++++++++++++++++++++
+ src/cmd/internal/obj/arm64/obj7.go           |   8 +-
+ test/codegen/comparisons.go                  |  49 +++
+ 4 files changed, 616 insertions(+), 6 deletions(-)

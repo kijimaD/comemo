@@ -1,0 +1,12 @@
+commit 9f19392f1ab275ad97454477a64ed1a016edc30f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 8 15:13:35 2010 -0800
+
+    os.Expand: don't call append for each non-variable char
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2993041
+
+ src/pkg/os/env.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

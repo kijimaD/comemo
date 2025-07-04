@@ -1,0 +1,12 @@
+commit 3d6316623205c48935aec18bedb0c70c703600a7
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Tue Apr 23 14:16:05 2019 +0200
+
+    A: Add Maya Rashish (individual CLA)
+    
+    Change-Id: I1380229c250a6100dc7e0bcf59be8df425a3efac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173399
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ AUTHORS | 1 +
+ 1 file changed, 1 insertion(+)

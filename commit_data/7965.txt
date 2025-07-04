@@ -1,0 +1,15 @@
+commit 492039ae7fd4ac034b4d47b26b438762d59b53b9
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Mon Apr 4 15:45:03 2011 -0400
+
+    os: Fix MkdirAll("/thisdoesnotexist").
+    
+    Fixes #1637.
+    
+    R=rsc, rh, msolo
+    CC=golang-dev
+    https://golang.org/cl/4317049
+
+ src/pkg/os/path.go      |  2 +-
+ src/pkg/os/path_test.go | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit a473a0dbc48e9c2f08408e1736d40b6f660eb34b
+Author: Damien Neil <dneil@google.com>
+Date:   Wed May 21 13:24:49 2025 -0700
+
+    net/http: use synctest.Test rather than Run
+    
+    Use the non-experimental Test function.
+    As a bonus, this lets us drop the hacks we were doing to support
+    t.Cleanup inside bubbles.
+    
+    Change-Id: I070624e1384494e9d5fcfee594cfbb7680c1beda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675315
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/net/http/clientserver_test.go | 32 ++++++--------------------------
+ src/net/http/serve_test.go        |  2 +-
+ src/net/http/transport_test.go    |  6 +++---
+ 3 files changed, 10 insertions(+), 30 deletions(-)

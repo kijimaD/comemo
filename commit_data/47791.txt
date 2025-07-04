@@ -1,0 +1,17 @@
+commit becaeea1199b875bc24800fa88f2f4fea119bf78
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Dec 14 12:24:08 2021 -0500
+
+    api: promote next to go1.18
+    
+    Change-Id: Ifc61e67413e5e56afbd0d4954f0150303d1a3a27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371755
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/go1.18.txt | 238 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt   |  47 ------------
+ 2 files changed, 238 insertions(+), 47 deletions(-)

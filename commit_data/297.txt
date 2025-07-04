@@ -1,0 +1,14 @@
+commit 0d079a5362e1517ab178c8cd792eeb1394f8cccb
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Jul 7 12:29:26 2008 -0700
+
+    start of coroutine
+    
+    SVN=126152
+
+ src/cmd/gc/go.h        |   1 +
+ src/cmd/gc/go.y        |   3 +-
+ src/cmd/gc/sys.go      |  13 ++--
+ src/cmd/gc/sysimport.c | 183 +++++++++++++++++++++++++------------------------
+ src/cmd/gc/walk.c      |  27 ++++++++
+ 5 files changed, 133 insertions(+), 94 deletions(-)

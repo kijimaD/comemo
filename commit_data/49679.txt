@@ -1,0 +1,25 @@
+commit 417be37048d07532397a7db89eeee9d249564560
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Sat Jul 16 20:15:49 2022 +0800
+
+    doc/go1.19: improve the loong64 release notes
+    
+    Link to the LoongArch documentations site, mention the ABI variant
+    supported, and add a note about the unfortunate old-world/new-world split
+    situation that users must be aware of.
+    
+    Updates #46229
+    For #51400
+    
+    Change-Id: I6789f509263a0dbf113481148665e7951aa6a989
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417715
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+
+ doc/go1.19.html | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

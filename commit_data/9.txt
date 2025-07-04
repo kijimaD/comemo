@@ -1,0 +1,11 @@
+commit 719a06fd97f69ebea8f17cbae8a6dcfbe33fe26b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 4 22:23:23 2008 -0800
+
+    - renamed todo -> todo.txt
+    - deleted obsolote go_spec
+    
+    SVN=111358
+
+ doc/go_spec | 1291 -----------------------------------------------------------
+ 1 file changed, 1291 deletions(-)

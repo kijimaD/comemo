@@ -1,0 +1,12 @@
+commit baf0747dd33aa1405106b6496c2bcf9033d16c49
+Author: Rob Pike <r@golang.org>
+Date:   Sat Aug 9 14:50:29 2008 -0700
+
+    fix minor bug uncovered by new constant evaluator
+    
+    R=gri
+    OCL=14025
+    CL=14025
+
+ src/lib/fmt.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

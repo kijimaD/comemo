@@ -1,0 +1,14 @@
+commit e54dfc2ec4a057aa1bf06f9bef5cdb2e769a669d
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Thu May 12 15:03:22 2016 +0300
+
+    testing: fix vet warning
+    
+    Updates #11041
+    
+    Change-Id: I32a381854e6a4fd791db380150efab57e6dfc38c
+    Reviewed-on: https://go-review.googlesource.com/23081
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/match_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

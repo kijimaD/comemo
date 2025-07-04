@@ -1,0 +1,27 @@
+commit 15405317460b57ff9ef605d0ca63795477c79b05
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Jan 24 11:38:29 2023 -0600
+
+    test/codegen: merge identical ppc64 and ppc64le tests
+    
+    Manually consolidate the remaining ppc64/ppc64le test which
+    are not so trivial to automatically merge.
+    
+    The remaining ppc64le tests are limited to cases where load/stores are
+    merged (this only happens on ppc64le) and the race detector (only
+    supported on ppc64le).
+    
+    Change-Id: I1f9c0f3d3ddbb7fbbd8c81fbbd6537394fba63ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463217
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ test/codegen/arithmetic.go |  4 ++--
+ test/codegen/bool.go       | 18 ++++++++----------
+ test/codegen/copy.go       | 20 ++++++++++----------
+ test/codegen/mathbits.go   |  4 ++--
+ test/codegen/shift.go      | 21 ++++++++++-----------
+ 5 files changed, 32 insertions(+), 35 deletions(-)

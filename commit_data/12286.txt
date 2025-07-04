@@ -1,0 +1,26 @@
+commit fc268acf05adf5d0437ef1bf80c6e919818fe6ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 29 16:37:40 2012 -0500
+
+    path/filepath: steer people away from HasPrefix
+    
+    The strikes against it are:
+    
+    1. It does not take path boundaries into account.
+    2. It assumes that Windows==case-insensitive file system
+    and non-Windows==case-sensitive file system, neither of
+    which is always true.
+    3. Comparing ToLower against ToLower is not a correct
+    implementation of a case-insensitive string comparison.
+    4. If it returns true on Windows you still don't know how long
+    the matching prefix is in bytes, so you can't compute what
+    the suffix is.
+    
+    R=golang-dev, r, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/5712045
+
+ src/pkg/path/filepath/path_plan9.go   | 2 +-
+ src/pkg/path/filepath/path_unix.go    | 2 +-
+ src/pkg/path/filepath/path_windows.go | 3 +--
+ 3 files changed, 3 insertions(+), 4 deletions(-)

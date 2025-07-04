@@ -1,0 +1,25 @@
+commit 1642cd78b540a9e489d076c819fe0220eb859183
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 9 21:27:35 2020 -0500
+
+    cmd/go: update test_race_install expected output for CL 266368
+    
+    test_race_install checks that 'go test -i -race …' does not rebuild
+    already installed packages, by also passing '-v' and verifying that no
+    package names are printed to stderr.
+    
+    CL 266368 added a deprecation message for the '-i' flag that caused
+    the stderr output to be non-empty, although it still does not print
+    any package names.
+    
+    Updates #41696
+    
+    Change-Id: I13e10e49b7c33139be9b13f24cb393c9f58fd85d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268581
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go/testdata/script/test_race_install.txt | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

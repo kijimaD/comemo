@@ -1,0 +1,23 @@
+commit c2021c3004708d07165c39981e1edb43867d6476
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 15 12:56:05 2024 -0400
+
+    net/http: revert header changes in Error
+    
+    This reverts CL 544019 and CL 569815, because they break a variety
+    of tests inside Google that do not expect the Cache-Control header
+    to be set to no-cache.
+    
+    A followup CL will add this functionality back after a proposal.
+    
+    For #50905.
+    
+    Change-Id: Ie377bfb72ce2c77d11bf31f9617ab6db342a408a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571975
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/net/http/fs_test.go | 62 -------------------------------------------------
+ src/net/http/server.go  | 19 +++------------
+ 2 files changed, 3 insertions(+), 78 deletions(-)

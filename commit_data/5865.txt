@@ -1,0 +1,22 @@
+commit 916f896a3bb2d7f0fc00bc8a56554ddd98d45855
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 21 13:44:49 2010 -0700
+
+    ld: various bug fixes
+    
+    Fixes #937.
+    Fixes #938.
+    Fixes #939.
+    Fixes #940.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1886043
+
+ src/cmd/6l/obj.c  | 60 +++++++++++++++++++++----------------------------------
+ src/cmd/6l/pass.c |  7 +++++--
+ src/cmd/8l/obj.c  | 51 +++++++++++++++-------------------------------
+ src/cmd/8l/pass.c | 12 ++++++-----
+ src/cmd/ld/lib.c  |  6 ++++++
+ src/cmd/ld/lib.h  |  1 +
+ 6 files changed, 58 insertions(+), 79 deletions(-)

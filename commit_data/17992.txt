@@ -1,0 +1,12 @@
+commit a6ebc88bace75ea1eb978ed2d1267e4ac3e9a99a
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Mon Dec 16 09:43:03 2013 -0800
+
+    strings: Add FieldsFunc example.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/42360043
+
+ src/pkg/strings/example_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

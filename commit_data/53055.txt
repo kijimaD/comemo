@@ -1,0 +1,36 @@
+commit b3d1cce3eb26a08420d803df872721bfd370e3ed
+Author: David Chase <drchase@google.com>
+Date:   Wed May 10 19:29:18 2023 -0400
+
+    cmd/compile: add more information to the bisect-verbose report
+    
+    running on cmd/compile/internal/testdata/inlines now shows:
+    ```
+    --- change set #1 (enabling changes causes failure)
+    b/b.go:16:6: loop variable i now per-iteration (loop inlined into b/b.go:10)
+    b/b.go:16:6: loop variable i now per-iteration
+    ./b/b.go:16:6: loop variable b.i now per-iteration (loop inlined into a/a.go:18)
+    ./b/b.go:16:6: loop variable b.i now per-iteration (loop inlined into ./main.go:37)
+    ./b/b.go:16:6: loop variable b.i now per-iteration (loop inlined into ./main.go:38)
+    ---
+    ```
+    and
+    ```
+    --- change set #2 (enabling changes causes failure)
+    ./main.go:27:6: loop variable i now per-iteration
+    ./main.go:27:6: loop variable i now per-iteration (loop inlined into ./main.go:35)
+    ---
+    ```
+    
+    Still unsure about the utility of mentioning the inlined occurrence, but better
+    than mysteriously repeating the line over and over again.
+    
+    Change-Id: I357f5d419ab4928fa316f4612eec3b75e7f8ac34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494296
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/loopvar/loopvar.go      | 20 ++++++++++++++++++--
+ src/cmd/compile/internal/loopvar/loopvar_test.go | 11 ++++++++---
+ 2 files changed, 26 insertions(+), 5 deletions(-)

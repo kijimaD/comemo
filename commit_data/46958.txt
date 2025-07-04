@@ -1,0 +1,32 @@
+commit 9fa85518ff84420af644b1dd82ff311a39cd99c1
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 18 12:19:07 2021 -0700
+
+    cmd/compile: substitute "". prefix with package in more import locations
+    
+    The "" stand-in for the current package needs to be substituted
+    in more places when importing, because of generics.
+    
+    ""..dict.conv4["".MyString]
+    
+    when imported in main and then exported, this becomes
+    
+    a..dict.conv4["".MyString]
+    
+    and then the linker makes that into
+    
+    a..dict.conv4[main.MyString]
+    
+    Which isn't correct. We need to replace on import not just
+    function names, but also globals, which this CL does.
+    
+    Change-Id: Ia04a23b5ffd60aeeaba72c807f69261105670f8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356570
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/iimport.go | 32 +++++++++++++++++----------
+ 1 file changed, 20 insertions(+), 12 deletions(-)

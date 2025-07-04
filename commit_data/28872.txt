@@ -1,0 +1,13 @@
+commit bb4c40b21a30c02c069270327c5b34acab19b3f2
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Oct 17 13:34:40 2016 -0700
+
+    doc: document go1.7.2
+    
+    Change-Id: I34b3650ee9512879ff7528336813a7850c46ea90
+    Reviewed-on: https://go-review.googlesource.com/31311
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/devel/release.html  | 8 ++++++++
+ doc/install-source.html | 4 ++--
+ 2 files changed, 10 insertions(+), 2 deletions(-)

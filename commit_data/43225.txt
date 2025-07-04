@@ -1,0 +1,24 @@
+commit 542693e00529fbb4248fac614ece68b127a5ec4d
+Author: Roberto Clapis <roberto@golang.org>
+Date:   Tue Sep 22 17:57:06 2020 +0200
+
+    net/http: make SameSiteDefaultMode behavior match the specification
+    
+    The current specification does not foresee a SameSite attribute without
+    a value. While the existing implementation would serialize SameSite in a
+    way that would likely be ignored by well-impelemented clients, it is
+    better to not rely on this kind of quirks.
+    
+    Specification: https://tools.ietf.org/html/draft-ietf-httpbis-rfc6265bis-05#section-4.1.1
+    
+    Fixes #36990
+    
+    Change-Id: Ie51152741d7e84bab64d3e4e4f780286932acbde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256498
+    Trust: Roberto Clapis <roberto@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ doc/go1.16.html             |  5 +++++
+ src/net/http/cookie.go      |  2 +-
+ src/net/http/cookie_test.go | 11 ++++++++++-
+ 3 files changed, 16 insertions(+), 2 deletions(-)

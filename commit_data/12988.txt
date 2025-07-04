@@ -1,0 +1,17 @@
+commit a0f7c6c658327e1b306d7328c28c99d15f9d3216
+Author: Brian Dellisanti <briandellisanti@gmail.com>
+Date:   Fri Apr 27 15:46:49 2012 -0700
+
+    os/exec: close all internal descriptors when Cmd.Start() fails.
+    
+    This closes any internal descriptors (pipes, etc) that Cmd.Start() had
+    opened before it failed.
+    
+    Fixes #3468.
+    
+    R=golang-dev, iant, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5986044
+
+ src/pkg/os/exec/exec.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

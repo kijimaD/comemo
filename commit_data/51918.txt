@@ -1,0 +1,42 @@
+commit 2da8a55584aa65ce1b67431bb8ecebf66229d462
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Feb 1 18:18:57 2023 -0800
+
+    log: make use of fmt.Append functionality
+    
+    Since log is already responsible for managing its own buffers
+    it is unfortunate that it calls fmt.Sprintf, which allocates,
+    only to append that intermediate string to another buffer.
+    Instead, use the new fmt.Append variants and avoid the allocation.
+    
+    We modify Logger.Output to wrap an internal Logger.output,
+    which can be configured to use a particular append function.
+    Logger.output is called from all the other functionality instead.
+    
+    This has the further advantage of simplifying the isDiscard check,
+    which occurs to avoid the costly fmt.Print call.
+    We coalesce all 6 checks as just 1 check in Logger.output.
+    
+    Also, swap the declaration order of Logger.Print and Logger.Printf
+    to match the ordering elsewhere in the file.
+    
+    Performance:
+            name               old time/op    new time/op    delta
+            Println            188ns ± 2%     172ns ± 4%    -8.39%  (p=0.000 n=10+10)
+            PrintlnNoFlags     139ns ± 1%     116ns ± 1%   -16.71%  (p=0.000 n=9+9)
+    
+            name               old allocs/op  new allocs/op  delta
+            Println             1.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
+            PrintlnNoFlags      1.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
+    
+    Change-Id: I79d0ee404df848beb3626fe863ccc73a3e2eb325
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/464345
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/log/log.go      | 67 +++++++++++++++++++++++++++++------------------------
+ src/log/log_test.go | 10 ++++++++
+ 2 files changed, 47 insertions(+), 30 deletions(-)

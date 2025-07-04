@@ -1,0 +1,33 @@
+commit 2be7b1a4ace278a76ea9d34f8caa9290a249f28a
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Sat Sep 9 04:14:42 2023 -0700
+
+    os: fix TestRenameCaseDifference
+    
+    Saw this failing on windows like this:
+    
+            --- FAIL: TestRenameCaseDifference (2.96s)
+            --- FAIL: TestRenameCaseDifference/dir (1.64s)
+                testing.go:1226: TempDir RemoveAll cleanup: remove C:\Users\gopher\AppData\Local\Temp\1\TestRenameCaseDifferencedir1375918868\001: The process cannot access the file because it is being used by another process.
+            --- FAIL: TestRenameCaseDifference/file (1.32s)
+                testing.go:1226: TempDir RemoveAll cleanup: remove C:\Users\gopher\AppData\Local\Temp\1\TestRenameCaseDifferencefile3272269402\001: The process cannot access the file because it is being used by another process.
+            FAIL
+    
+    The reason might be the directory fd is not closed. This may be
+    mitigated by retries in removeAll function from testing package,
+    but apparently it does not succeed all the time.
+    
+    A link to the failed run which made me look into this: https://ci.chromium.org/ui/p/golang/builders/try/gotip-windows-386/b8770439049015378129/overview
+    
+    Change-Id: Ibebe94958d1aef8d1d0eca8a969675708cd27a7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527175
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/os_test.go | 1 +
+ 1 file changed, 1 insertion(+)

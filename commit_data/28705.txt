@@ -1,0 +1,25 @@
+commit 4c79ed5f4483f1de065ba2b409de58ae2b6907d2
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Jan 6 21:36:31 2016 +0900
+
+    archive/zip: handle mtime in NTFS/UNIX/ExtendedTS extra fields
+    
+    Handle NTFS timestamp, UNIX timestamp, Extended extra timestamp.
+    Writer supports only Extended extra timestamp field, matching most
+    zip creators.
+    
+    Fixes #10242.
+    
+    Change-Id: Id665db274e63def98659231391fb77392267ac1e
+    Reviewed-on: https://go-review.googlesource.com/18274
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/archive/zip/reader.go                    |  49 +++++++++++++++++++++++++--
+ src/archive/zip/reader_test.go               |  31 +++++++++++------
+ src/archive/zip/struct.go                    |   3 ++
+ src/archive/zip/testdata/extra-timestamp.zip | Bin 0 -> 152 bytes
+ src/archive/zip/writer.go                    |  15 ++++++++
+ src/archive/zip/writer_test.go               |  27 +++++++++++++++
+ 6 files changed, 113 insertions(+), 12 deletions(-)

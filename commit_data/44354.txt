@@ -1,0 +1,17 @@
+commit 08543f071520074854f280ad789cf79c5a00af7d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Feb 16 10:36:10 2021 +0100
+
+    ios/fs: mention f.dir in (*subFS).fixErr godoc
+    
+    There is no dir parameter to (f *subFS).fixErr.
+    
+    Change-Id: I49e42bac5e102cfab0d289658d9871429cfec515
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292389
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/io/fs/sub.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

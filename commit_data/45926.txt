@@ -1,0 +1,17 @@
+commit a66190eceeea63aab0b5410ae3222454e5e0cd96
+Author: nimelehin <nimelehin@gmail.com>
+Date:   Fri Jul 16 20:41:21 2021 +0000
+
+    test/bench/go1: fix size for RegexpMatchMedium_32
+    
+    Change-Id: Idc67abb95248bc010820a89dd6096a2da334e723
+    GitHub-Last-Rev: ae9014b011efb2692f853888c1860920d1acc3cb
+    GitHub-Pull-Request: golang/go#47254
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/335189
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ test/bench/go1/regexp_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

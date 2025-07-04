@@ -1,0 +1,23 @@
+commit 3860478b421d8be0ced439b4a307ccb60f71738f
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 30 10:36:15 2017 -0400
+
+    math: implement asm modf for ppc64x
+    
+    This change adds an asm implementations modf for ppc64x.
+    
+    Improvements:
+    
+    BenchmarkModf-16               7.48          6.26          -16.31%
+    
+    Updates: #21390
+    
+    Change-Id: I9c4f3213688e3e8842d050840dc04fc9c0bf6ce4
+    Reviewed-on: https://go-review.googlesource.com/74411
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/math/modf_ppc64x.s  | 17 +++++++++++++++++
+ src/math/stubs_ppc64x.s |  3 ---
+ 2 files changed, 17 insertions(+), 3 deletions(-)

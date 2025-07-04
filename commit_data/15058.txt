@@ -1,0 +1,12 @@
+commit 30985c1203d52cc03282dea32779ba060f77ed23
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 31 07:53:18 2013 -0800
+
+    os: use signal strings where possible in ProcessState.String
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7228067
+
+ src/pkg/os/exec_posix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

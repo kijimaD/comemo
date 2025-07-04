@@ -1,0 +1,20 @@
+commit 69d34e2c6965f70fe1ead3e7e8ab45ada3267ebc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 14 21:30:04 2020 -0700
+
+    test: bump array size in fixedbugs/issue39292.go
+    
+    The previous array length was large enough to exceed
+    maxImplicitStackSize on 64-bit architectures, but not on 32-bit
+    architectures.
+    
+    Fixes #40808.
+    
+    Change-Id: I69e9abb447454b2e7875ba503a0cb772e965ae31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248680
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue39292.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

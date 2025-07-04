@@ -1,0 +1,17 @@
+commit 012917afba1dfe62b37acf8f5087b98c11f64f25
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 8 15:53:47 2015 +1000
+
+    doc: document the machine-independent changes to the assembler
+    
+    The architecture-specific details will be updated and expanded in
+    a subsequent CL (or series thereof).
+    
+    Update #10096
+    
+    Change-Id: I59c6be1fcc123fe8626ce2130e6ffe71152c87af
+    Reviewed-on: https://go-review.googlesource.com/11954
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/asm.html | 161 ++++++++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 137 insertions(+), 24 deletions(-)

@@ -1,0 +1,17 @@
+commit ee8ec42929541055a9e063b50f9ffd5ee9404517
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Sat Sep 10 17:04:41 2016 +0300
+
+    cmd/vet: skip printf check for non-constant format string during failed import
+    
+    Fixes #17006
+    
+    Change-Id: I3c2060ca5384a4b9782a7d804305d2cf4388dd5a
+    Reviewed-on: https://go-review.googlesource.com/29014
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/print.go          | 24 +++++++++++++++---------
+ src/cmd/vet/testdata/print.go |  3 +++
+ 2 files changed, 18 insertions(+), 9 deletions(-)

@@ -1,0 +1,24 @@
+commit 918922cf850b13fd8bfe9aacb4e595bcd067c656
+Author: David Presotto <presotto@gmail.com>
+Date:   Mon Jul 15 18:40:55 2013 -0400
+
+    net: add SetKeepAlivePeriod
+    
+    Sets both the duration from the last data packet to the first
+    keep alive packet and the duration between keep alive packets to be
+    the passed duration.
+    
+    I've tested the function on both Darwin (10.8.4) and 4.2 Linux.
+    I've compiled (make.bash) for all the OS's and tested (all.bash)
+    on Darwin and Linux.
+    
+    R=golang-dev, dave, rsc, dvyukov, presotto+facebook, nick
+    CC=golang-dev, veyron-team
+    https://golang.org/cl/11130044
+
+ src/pkg/net/tcpsock_posix.go      |  8 ++++++++
+ src/pkg/net/tcpsockopt_darwin.go  | 27 +++++++++++++++++++++++++++
+ src/pkg/net/tcpsockopt_openbsd.go | 27 +++++++++++++++++++++++++++
+ src/pkg/net/tcpsockopt_posix.go   | 31 +++++++++++++++++++++++++++++++
+ src/pkg/net/tcpsockopt_windows.go | 21 +++++++++++++++++++++
+ 5 files changed, 114 insertions(+)

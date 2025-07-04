@@ -1,0 +1,20 @@
+commit d9be60974b694a17e5c6c3e71fb7767e6bfe17e9
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Jan 27 12:52:56 2024 +0800
+
+    os: implement CopyFS
+    
+    Fixes #62484
+    
+    Change-Id: I5d8950dedf86af48f42a641940b34e62aa2cddcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558995
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/62484.txt                     |   1 +
+ doc/next/6-stdlib/99-minor/os/62484.md |   2 +
+ src/os/dir.go                          |  60 +++++++
+ src/os/os_test.go                      | 276 ++++++++++++++++++++++++++++++---
+ 4 files changed, 316 insertions(+), 23 deletions(-)

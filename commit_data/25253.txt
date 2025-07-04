@@ -1,0 +1,19 @@
+commit 2190750ce1f52cbbe2d7e3052e85c775d8259b0f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 10 23:51:36 2015 -0500
+
+    net: add test for CL 17458
+    
+    I thought that we avoided creating on-disk Unix sockets,
+    but I was mistaken. Use one to test CL 17458.
+    
+    Fixes #11826.
+    
+    Change-Id: Iaa1fb007b95fa6be48200586522a6d4789ecd346
+    Reviewed-on: https://go-review.googlesource.com/17725
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/unix_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

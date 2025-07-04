@@ -1,0 +1,15 @@
+commit a594f7ddd719eaf5b610bd8ed34662ed43585761
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Mar 8 07:34:40 2014 +0900
+
+    runtime: fix futexsleep test on freebsd/386
+    
+    Fixes #7194.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/72310043
+
+ src/pkg/runtime/futex_test.go | 69 +++++++++++++++++++++++++++++++++----------
+ 1 file changed, 53 insertions(+), 16 deletions(-)

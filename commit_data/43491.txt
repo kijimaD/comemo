@@ -1,0 +1,29 @@
+commit c80022204e8fc36ec487888d471de27a5ea47e17
+Author: Natanael Copa <ncopa@mirantis.com>
+Date:   Fri Oct 16 16:23:54 2020 +0000
+
+    net: prefer /etc/hosts over DNS when no /etc/nsswitch.conf is present
+    
+    Do not mimic glibc behavior if /etc/nsswitch.conf is missing. This will
+    will likely be missing on musl libc systems and glibc systems will likely
+    always have it, resulting in localhost lookup being done over DNS rather
+    than from /etc/hosts.
+    
+    Do what makes most sense rather than making any assumption about the
+    libc.
+    
+    Fixes #35305
+    
+    Change-Id: I20bd7e24131bba8eaa39a20c8950fe552364784d
+    GitHub-Last-Rev: 119409839d37c8c7268f5f6db19c1789d9d96074
+    GitHub-Pull-Request: golang/go#39685
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238629
+    Run-TryBot: Dan Peterson <dpiddy@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Peterson <dpiddy@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/net/conf.go      |  5 -----
+ src/net/conf_test.go | 13 ++++++++++---
+ 2 files changed, 10 insertions(+), 8 deletions(-)

@@ -1,0 +1,20 @@
+commit b358987666de3f2ec1d7c6ad65eeb0c7874c7f2a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 16 16:28:49 2018 +0000
+
+    cmd/vet/all: remove skip when x/tools isn't in $GOPATH
+    
+    Now that the build system has been updated to install x/tools in
+    $GOPATH (CL 149658), depend on it being there and don't ignore
+    failures to build the tool.
+    
+    Update to CL 149097.
+    
+    Change-Id: I72fde347217533697068b6a6773696cc2b83e9ed
+    Reviewed-on: https://go-review.googlesource.com/c/150017
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/vet/all/main.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,0 +1,13 @@
+commit 54001652d400a5ddb56c7b7a4787ef662083bf45
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 7 22:04:06 2019 +0700
+
+    internal/reflectlite: add missing copyright header
+    
+    Change-Id: Id43870de6608ef2e8c0ebef82fd710b2c3061e66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199599
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/internal/reflectlite/reflect_mirror_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

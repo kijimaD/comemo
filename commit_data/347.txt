@@ -1,0 +1,10 @@
+commit af58f17af936f8d88ccfed96b7a0e9953b4e6010
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Jul 14 14:34:27 2008 -0700
+
+    synch chan
+    
+    SVN=127057
+
+ src/runtime/proc.c | 264 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 264 insertions(+)

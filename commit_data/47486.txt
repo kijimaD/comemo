@@ -1,0 +1,22 @@
+commit a52e4b9c7e8f5aae678596e0c198e67b3b2b1087
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 15 14:56:33 2021 -0800
+
+    cmd/compile/internal/types2: use Identical to verify type identity in the Context map
+    
+    This is a clean port of CL 362798 from go/types to types2,
+    with an additional comment adjustment in types2 and go/types.
+    
+    Change-Id: Ifa3d11f512f794f8ae2b6aca50b625a4a44672de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364135
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/context.go     | 52 ++++++++++++++++++++------
+ src/cmd/compile/internal/types2/instantiate.go |  4 +-
+ src/cmd/compile/internal/types2/named.go       |  2 +-
+ src/cmd/compile/internal/types2/predicates.go  | 17 +++++++++
+ src/cmd/compile/internal/types2/subst.go       |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go     | 18 ++++-----
+ src/go/types/typexpr.go                        |  2 +-
+ 7 files changed, 72 insertions(+), 25 deletions(-)

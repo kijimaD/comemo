@@ -1,0 +1,13 @@
+commit 3fc7f776d3ac6c92185f33809711cd186e7364f3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 25 12:51:36 2010 -0400
+
+    A+C: Jukka-Pekka Kekkonen (individual CLA)
+    
+    R=adg, madari
+    CC=golang-dev
+    https://golang.org/cl/2025042
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

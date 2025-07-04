@@ -1,0 +1,20 @@
+commit 550864e5d20d6d3507aae7d2797f84140963d555
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Sep 26 20:52:09 2022 -0400
+
+    runtime: add cgo guard for exit hooks test
+    
+    Add an additional guard to ensure that we don't try to run the "-race"
+    variant of the exit hooks test when CGO is explicitly turned off via
+    CGO_ENABLED=0 (this fixes a failure on the no-cgo builder caused
+    by CL 354790).
+    
+    Change-Id: I9dc7fbd71962e9a098916da69d9119a753f27116
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/434935
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/ehooks_test.go                          | 15 ++++++++-------
+ src/runtime/testdata/testexithooks/testexithooks.go |  2 --
+ 2 files changed, 8 insertions(+), 9 deletions(-)

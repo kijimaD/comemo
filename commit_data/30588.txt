@@ -1,0 +1,28 @@
+commit 38409f5f35b00979cfe491a4fec6c93a6f58e037
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Mar 6 18:39:02 2017 +0900
+
+    internal/poll: code cleanup
+    
+    This change adds missing docs, collapses single-line import paths,
+    removes unsed method placeholders and renames str.go to strconv.go.
+    
+    Change-Id: I2d155c838935cd8427abd142a462ff4c56829703
+    Reviewed-on: https://go-review.googlesource.com/37814
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/fd.go                  |  4 +---
+ src/internal/poll/fd_plan9.go            |  7 +++++++
+ src/internal/poll/fd_poll_nacl.go        |  9 +++++----
+ src/internal/poll/fd_poll_runtime.go     |  3 +++
+ src/internal/poll/fd_unix.go             | 12 +++++++-----
+ src/internal/poll/hook_unix.go           |  4 +---
+ src/internal/poll/hook_windows.go        |  4 +---
+ src/internal/poll/sock_cloexec.go        |  4 +---
+ src/internal/poll/sockopt.go             |  4 +---
+ src/internal/poll/sockopt_linux.go       |  4 +---
+ src/internal/poll/sockopt_windows.go     |  4 +---
+ src/internal/poll/{str.go => strconv.go} |  4 ++--
+ 12 files changed, 31 insertions(+), 32 deletions(-)

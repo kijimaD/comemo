@@ -1,0 +1,18 @@
+commit c0f229457731daa170fea3c8eb2c4f4c363266d3
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 2 18:03:25 2013 -0800
+
+    runtime: fix race detector when map keys/values are passed by pointer.
+    
+    Now that the map implementation is reading the keys and values from
+    arbitrary memory (instead of from stack slots), it needs to tell the
+    race detector when it does so.
+    
+    Fixes #6875.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/36360043
+
+ src/pkg/runtime/hashmap.c | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

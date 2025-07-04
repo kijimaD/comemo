@@ -1,0 +1,18 @@
+commit b1be1217914a3f3698eb1361e750fbb36fb96b2e
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Jun 16 23:42:23 2015 +0200
+
+    os: skip TestHostname on Plan 9
+    
+    TestHostname was re-enabled in CL 10753.
+    However, on Plan 9 the hostname is not obtained
+    by executing a "hostname" command, but by reading
+    the #c/sysname file.
+    
+    Change-Id: I80c0e303f4983fe39ceb300ad64e2c4a8392b695
+    Reviewed-on: https://go-review.googlesource.com/11033
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/os_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

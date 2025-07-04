@@ -1,0 +1,25 @@
+commit 340a4f55c4afac5b74c8df8365decb0c0237d710
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Nov 16 17:32:08 2022 -0500
+
+    runtime: use smaller fields for mspan.freeindex and nelems
+    
+    mspan.freeindex and nelems can fit into uint16 for all possible
+    values. Use uint16 instead of uintptr.
+    
+    Change-Id: Ifce20751e81d5022be1f6b5cbb5fbe4fd1728b1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451359
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/export_test.go |  2 +-
+ src/runtime/heapdump.go    |  4 ++--
+ src/runtime/malloc.go      | 10 +++++-----
+ src/runtime/mbitmap.go     | 12 ++++++------
+ src/runtime/mcache.go      |  6 +++---
+ src/runtime/mcentral.go    |  2 +-
+ src/runtime/mgcsweep.go    | 16 ++++++++--------
+ src/runtime/mheap.go       | 25 ++++++++++++-------------
+ src/runtime/pinner.go      |  4 ++--
+ 9 files changed, 40 insertions(+), 41 deletions(-)

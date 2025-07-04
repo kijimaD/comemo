@@ -1,0 +1,12 @@
+commit 80efeff20a88392b13f78338f5a17605fc55e460
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 12 09:06:28 2013 -0400
+
+    runtime: fix build
+    
+    TBR=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/10227044
+
+ src/pkg/runtime/traceback_x86.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

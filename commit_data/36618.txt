@@ -1,0 +1,28 @@
+commit 42257a262c94d839364113f2dbf4057731971fc1
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 5 14:36:20 2018 -0700
+
+    runtime: in semasleep, subtract time spent so far from timeout
+    
+    When pthread_cond_timedwait_relative_np gets a spurious wakeup
+    (due to a signal, typically), we used to retry with the same
+    relative timeout. That's incorrect, we should lower the timeout
+    by the time we've spent in this function so far.
+    
+    In the worst case, signals come in and cause spurious wakeups
+    faster than the timeout, causing semasleep to never time out.
+    
+    Also fix nacl and netbsd while we're here. They have similar issues.
+    
+    Fixes #27520
+    
+    Change-Id: I6601e120e44a4b8ef436eef75a1e7c8cf1d39e39
+    Reviewed-on: https://go-review.googlesource.com/133655
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_darwin.go | 11 ++++++++++-
+ src/runtime/os_nacl.go   | 12 ++++++------
+ src/runtime/os_netbsd.go | 31 ++++++++++++++-----------------
+ 3 files changed, 30 insertions(+), 24 deletions(-)

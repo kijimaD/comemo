@@ -1,0 +1,30 @@
+commit 03ac39ce5e6af4c4bca58b54d5b160a154b7aa0e
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Sep 2 14:17:23 2019 +0200
+
+    std: remove unused bits of code all over the place
+    
+    Some were never used, and some haven't been used for years.
+    
+    One exception is net/http's readerAndCloser, which was only used in a
+    test. Move it to a test file.
+    
+    While at it, remove a check in regexp that could never fire; the field
+    is an uint32, so it can never be negative.
+    
+    Change-Id: Ia2200f6afa106bae4034045ea8233b452f38747b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192621
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/ctxutil.go       |  2 --
+ src/encoding/json/decode_test.go  | 35 -----------------------------------
+ src/encoding/xml/marshal_test.go  |  1 -
+ src/internal/reflectlite/value.go | 13 -------------
+ src/net/http/response_test.go     |  5 +++++
+ src/net/http/transport.go         | 19 -------------------
+ src/os/user/cgo_lookup_unix.go    |  4 ----
+ src/reflect/type.go               |  9 ---------
+ src/regexp/backtrack.go           |  2 +-
+ 9 files changed, 6 insertions(+), 84 deletions(-)

@@ -1,0 +1,19 @@
+commit 140bc24445f3c86b61bfb4d924e1e26f477574a2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 10 13:22:16 2022 -0700
+
+    cmd/compile/internal/types2: adjust errorcalls_test and apply it
+    
+    Checker.errorf calls now have an error code and thus require at
+    least 4 arguments.
+    
+    Change-Id: Id01c30d5d3cc747ab0b3ba4001e88985192f2d80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441957
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/errorcalls_test.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

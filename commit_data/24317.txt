@@ -1,0 +1,19 @@
+commit 49065cbfe41877747f4e0bb67e2dd0833ec01b7a
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 17 13:46:46 2015 -0700
+
+    asm: handle EOF better
+    
+    Add some error catches to prevent looping at EOF.
+    Also give better diagnostics.
+    Also add tests for these cases.
+    
+    Fixes #12656.
+    
+    Change-Id: I1355fc149b71c868e740bfa53de29c25d160777d
+    Reviewed-on: https://go-review.googlesource.com/14710
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/asm/internal/lex/input.go    | 12 ++++++
+ src/cmd/asm/internal/lex/lex_test.go | 73 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 85 insertions(+)

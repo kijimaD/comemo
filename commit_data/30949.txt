@@ -1,0 +1,18 @@
+commit bfd8093c969d2b7b7e1e60866031508ea6e462d6
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 29 14:35:27 2017 +1100
+
+    cmd/asm/internal/arch: use generic obj.Rconv function everywhere
+    
+    Rather than using arm64.Rconv directly in the archArm64 constructor
+    use the generic obj.Rconv helper. This removes the only use of
+    arm64.Rconv outside the arm64 package itself.
+    
+    Change-Id: I99e9e7156b52cd26dc134f610f764ec794264e2c
+    Reviewed-on: https://go-review.googlesource.com/38756
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/asm/internal/arch/arch.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

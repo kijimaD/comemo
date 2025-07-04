@@ -1,0 +1,21 @@
+commit 5dc144c607cb355e9f4a01bfa0b8f054899156a2
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Dec 12 16:18:19 2018 -0500
+
+    os/signal: increase wait time for signal delivery time in testcase
+    
+    This increases the time to wait from 1 to 2 seconds in the
+    TestAtomicStop testcase. When running with gccgo on ppc64
+    & ppc64le on a loaded systems these testcases can
+    intermittently fail with the current value.
+    
+    Updates #29046
+    
+    Change-Id: If420274dd65926d933a3024903b5c757c300bd60
+    Reviewed-on: https://go-review.googlesource.com/c/153826
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/signal/signal_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

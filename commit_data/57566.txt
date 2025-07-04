@@ -1,0 +1,22 @@
+commit 7fd0b133dc1bb4af59914650660c644381c84e35
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Wed Aug 28 16:26:30 2024 +0000
+
+    cmd/go: add Mercurial based version stamping for binaries
+    
+    This CL adds a local only VCS lookup for Mercurial.
+    It fixes a bug in pkg.go by passing in the repo directory to
+    the LookupLocal function instead of the module directory. It could be
+    the case that a binary is built in a subdirectory of the repo.
+    
+    For: #50603
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: Ic36b5a361a8ba3b0ba1a6968cde5f5263c9c8dd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609155
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/load/pkg.go                    |  2 +-
+ src/cmd/go/internal/modfetch/codehost/vcs.go       | 22 ++++++++++++++++++++--
+ src/cmd/go/testdata/script/version_buildvcs_hg.txt | 11 +++++++++++
+ 3 files changed, 32 insertions(+), 3 deletions(-)

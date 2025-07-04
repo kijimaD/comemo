@@ -1,0 +1,19 @@
+commit 76fb8a5e416d400c4c07b555cad91f860e9ec4bb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Aug 31 21:32:13 2014 -0700
+
+    archive/zip: add Writer.Flush
+    
+    This is needed for callers to be able to keep track of the
+    writing position within a zip file. Otherwise it's not
+    possible to compute the size of headers, and the TOC isn't
+    written until the very end.
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/134210043
+
+ src/pkg/archive/zip/writer.go      |  6 ++++++
+ src/pkg/archive/zip/writer_test.go | 19 +++++++++++++++++++
+ 2 files changed, 25 insertions(+)

@@ -1,0 +1,14 @@
+commit 901810ae5532b669d6e59c3ee64fd390f520499c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 11:27:14 2016 -0500
+
+    os/exec: document that examples assume Unix
+    
+    Fixes #13693.
+    
+    Change-Id: Ieb89d8a8874ee8c6b304de99dceb07193c26b60e
+    Reviewed-on: https://go-review.googlesource.com/18315
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/exec/exec.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,15 @@
+commit 41e5ae4883b2f3c32958731ef589488f4fc06449
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 14 19:53:59 2021 -0400
+
+    cmd/link: deal with no constructors
+    
+    Change-Id: I6ed153b780c70fa90822e4daa5749478ac43afca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312034
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 4 ++++
+ 1 file changed, 4 insertions(+)

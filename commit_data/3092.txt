@@ -1,0 +1,18 @@
+commit 29415d055762baa612ec96fdc44dee0893cb9c47
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 26 16:23:34 2009 -0700
+
+    fix bufio bugs involving readers that return os.EOF with
+    the last bit of data.
+    
+    add a new iotest.DataErrReader for tests
+    
+    R=r
+    DELTA=93  (41 added, 31 deleted, 21 changed)
+    OCL=33897
+    CL=33915
+
+ src/pkg/bufio/bufio.go           | 60 ++++++++++++----------------------------
+ src/pkg/bufio/bufio_test.go      |  1 +
+ src/pkg/testing/iotest/reader.go | 49 ++++++++++++++++++++++++++------
+ 3 files changed, 60 insertions(+), 50 deletions(-)

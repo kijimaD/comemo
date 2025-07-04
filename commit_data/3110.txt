@@ -1,0 +1,12 @@
+commit c19c933f5ab16213461f949297f362f321d144b2
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Aug 27 14:59:26 2009 -0700
+
+    bug in arrayslice
+    
+    R=rsc
+    OCL=33987
+    CL=33987
+
+ src/cmd/6g/ggen.c | 53 ++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 34 insertions(+), 19 deletions(-)

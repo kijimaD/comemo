@@ -1,0 +1,25 @@
+commit bd372847849c9187fd6112bd3cc0203c15c3ac72
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Mar 7 20:52:39 2021 -0800
+
+    cmd/link: use testing.T.TempDir in tests
+    
+    Change-Id: I6fc8c9ee6d2246bfd874eb58b411e34ddbeaf723
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299670
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/link/dwarf_test.go                    |   7 +-
+ src/cmd/link/elf_test.go                      |  18 +---
+ src/cmd/link/internal/ld/deadcode_test.go     |   8 +-
+ src/cmd/link/internal/ld/dwarf_test.go        | 104 ++++++---------------
+ src/cmd/link/internal/ld/elf_test.go          |  13 +--
+ src/cmd/link/internal/ld/fallocate_test.go    |   9 +-
+ src/cmd/link/internal/ld/go_test.go           |   7 +-
+ src/cmd/link/internal/ld/issue33808_test.go   |   8 +-
+ src/cmd/link/internal/ld/ld_test.go           |  26 +-----
+ src/cmd/link/internal/ld/nooptcgolink_test.go |   8 +-
+ src/cmd/link/internal/ld/outbuf_test.go       |   8 +-
+ src/cmd/link/link_test.go                     | 129 ++++++--------------------
+ src/cmd/link/linkbig_test.go                  |   9 +-
+ 13 files changed, 75 insertions(+), 279 deletions(-)

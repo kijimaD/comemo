@@ -1,0 +1,16 @@
+commit 071c91bf48209cdad1a8099b82b2b3c867efe9d5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 23 12:04:45 2008 -0700
+
+    First cut at incorporating anonymous fields of pointer types into the
+    spec.
+    
+    I have deliberately removed the wording about receivers where it was
+    before because I think it needs to be more precise. There is a TODO.
+    
+    DELTA=90  (54 added, 0 deleted, 36 changed)
+    OCL=17597
+    CL=17716
+
+ doc/go_spec.txt | 108 ++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 81 insertions(+), 27 deletions(-)

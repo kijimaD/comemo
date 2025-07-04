@@ -1,0 +1,15 @@
+commit 8ac6544564be04ed1c0bbf7831ad0f8ed1f067ed
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 15 10:03:30 2021 -0700
+
+    bytes: correct tense in comment
+    
+    Undo incorrect change accidentally made in CL 299109.
+    
+    Change-Id: Iba29827d0fbd3637c311cebc50c2f4ea437fc582
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301830
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/bytes/buffer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

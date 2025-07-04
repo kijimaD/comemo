@@ -1,0 +1,17 @@
+commit 7c8e26ee2f47541dbc5865e00bf1862b449a1b64
+Author: Paul Chang <paulchang@google.com>
+Date:   Fri Sep 28 14:19:43 2012 -0700
+
+    cmd/godoc: fix minor bug in FormatSelections.
+    
+    FormatSelections tries to call a nil function value if lw is nil
+    and the final entry in the selections array is non-nil. Luckily,
+    this doesn't actually happen in practice since godoc doesn't use
+    this combination (no line numbers, but with selections).
+    
+    R=gri
+    CC=gobot, golang-dev
+    https://golang.org/cl/6488106
+
+ src/cmd/godoc/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

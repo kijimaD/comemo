@@ -1,0 +1,18 @@
+commit ff12f2effdf68d570d6abcf01eeb9d2a759b3a14
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 14 00:06:49 2009 -0700
+
+    add (stub) parser to template code, enabling rewrite.
+    update pretty to use it.
+    change stdout to stderr in pretty.
+    
+    R=rsc
+    DELTA=173  (52 added, 24 deleted, 97 changed)
+    OCL=27405
+    CL=27409
+
+ src/lib/template/format.go        |   2 +-
+ src/lib/template/template.go      | 196 +++++++++++++++++++++-----------------
+ src/lib/template/template_test.go |  27 ++++--
+ usr/gri/pretty/godoc.go           |  23 +++--
+ 4 files changed, 138 insertions(+), 110 deletions(-)

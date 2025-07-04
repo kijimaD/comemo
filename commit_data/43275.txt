@@ -1,0 +1,15 @@
+commit e69f6e839315b1df4e6273c38ae1a49e340b8a91
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Oct 12 11:19:41 2020 +0200
+
+    internal/bytealg: fix typo in IndexRabinKarp{,Bytes} godoc
+    
+    Change-Id: I09ba19e19b195e345a0fe29d542e0d86529b0d31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261359
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/bytealg/bytealg.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

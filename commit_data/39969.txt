@@ -1,0 +1,14 @@
+commit bb0a8fd38f4b14f79b0da1cfe3e732f3bfb63a51
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 20 16:10:03 2019 +1000
+
+    doc: reword to avoid the confusing term 'anew'
+    
+    Fixes #34415
+    
+    Change-Id: I8eaa7606ae01e569a076cf7f3c28dbec2a153001
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196578
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

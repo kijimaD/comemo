@@ -1,0 +1,23 @@
+commit 0932dc21180642ce1ff095b9b3e68b06c6f440b3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Nov 13 21:08:26 2020 -0500
+
+    runtime: declare arg size/map for race version of sync/atomic functions
+    
+    The argument size and map are used in stack scanning if those
+    functions are deferred. Declare the right argument size and map
+    so they can be scanned correctly.
+    
+    Fixes #42599.
+    
+    Change-Id: I74f9409d574cf7c383f4d8f83e38521026b48861
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270079
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/race/testdata/atomic_test.go | 24 ++++++++++
+ src/runtime/race_amd64.s                 | 78 +++++++++++++++++++++-----------
+ src/runtime/race_arm64.s                 | 52 ++++++++++-----------
+ src/runtime/race_ppc64le.s               | 78 +++++++++++++++++++++-----------
+ 4 files changed, 154 insertions(+), 78 deletions(-)

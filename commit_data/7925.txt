@@ -1,0 +1,12 @@
+commit 518c0adb17a74a3076d39df44c44fb7779b2b92b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 29 13:18:52 2011 -0700
+
+    govet: fix bug introduced at 4313054
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/4336042
+
+ src/cmd/govet/govet.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

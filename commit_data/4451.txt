@@ -1,0 +1,13 @@
+commit a8123321519279357ac74e5aae6421a7fe94f9cf
+Author: Tor Andersson <tor.andersson@gmail.com>
+Date:   Thu Dec 17 12:19:40 2009 -0800
+
+    Updated the XGB python script to generate semicolon-free
+    source for xproto.go.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/180074
+
+ src/pkg/xgb/go_client.py | 117 +++++++++++++++++++++++------------------------
+ 1 file changed, 57 insertions(+), 60 deletions(-)

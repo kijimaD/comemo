@@ -1,0 +1,16 @@
+commit 728003e340ab6d20d49f8f67f1b36722d5de2d65
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Sep 1 21:54:28 2010 +0200
+
+    6l/8l: emit DWARF in macho.
+    
+    R=rsc, r, ken2
+    CC=golang-dev
+    https://golang.org/cl/2128041
+
+ src/cmd/6l/asm.c   |  2 +-
+ src/cmd/8l/asm.c   |  2 +-
+ src/cmd/ld/dwarf.c | 32 +++++++++++++++++++++++++++++++-
+ src/cmd/ld/dwarf.h |  5 +++--
+ src/cmd/ld/macho.c |  7 +++++--
+ 5 files changed, 41 insertions(+), 7 deletions(-)

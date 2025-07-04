@@ -1,0 +1,20 @@
+commit fd45e267c2f6ce7c6a88842e3ad94d3469223e42
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 5 13:05:23 2021 -0700
+
+    runtime: warn that KeepAlive is not an unsafe.Pointer workaround
+    
+    Even experienced users occasionally mistake that runtime.KeepAlive can
+    be used as a workaround for following the unsafe.Pointer safety rules,
+    but it cannot. Add an explicit warning to this effect to dissuade
+    users from trying to use it as such.
+    
+    Fixes #47562.
+    
+    Change-Id: I842e33a3e1c080933c6b1bd1b6318448adbf495c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340269
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/mfinal.go | 4 ++++
+ 1 file changed, 4 insertions(+)

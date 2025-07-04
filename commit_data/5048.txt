@@ -1,0 +1,12 @@
+commit 9aff17f0d79d996b4e38100c3a88ba62fc9f34b5
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 16 09:42:34 2010 +1100
+
+    install.html: elaborate on shell profile instructions
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/556041
+
+ doc/install.html | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

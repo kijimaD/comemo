@@ -1,0 +1,19 @@
+commit fdf2053d52e122f3e8cddccdf742f94333df09a8
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Sep 14 22:09:54 2021 -0400
+
+    go/types: remove the report parameter from infer and inferB
+    
+    The report parameter is now always true, so we can simplify these
+    functions.
+    
+    Change-Id: I851adad3011beef9c83172210ff5e93c624372cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350049
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/call.go  |  4 ++--
+ src/go/types/infer.go | 23 +++++++----------------
+ 2 files changed, 9 insertions(+), 18 deletions(-)

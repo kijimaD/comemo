@@ -1,0 +1,33 @@
+commit 6624b708660460600041bf7391e4f03b13b6edef
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 14:35:08 2013 -0400
+
+    undo CL 13632053 / dc7bfe0f022d
+    
+    It was never going to last.
+    
+    ««« original CL description
+    cmd/api: break the builds
+    
+    There is some question about whether the api tool is
+    running on Windows (see issue 6124), and now I'm
+    starting to question whether it runs on any of the builders,
+    since both darwin/amd64 and linux/amd64 are crashing for me
+    in the api tool due to a recent cgo-related change, and yet
+    the dashboard is happy.
+    
+    If the dashboard is still happy after this CL, we have a problem.
+    
+    Update #6124
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/13632053
+    »»»
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/13474045
+
+ src/cmd/api/goapi.go | 2 --
+ 1 file changed, 2 deletions(-)

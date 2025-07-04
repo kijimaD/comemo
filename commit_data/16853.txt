@@ -1,0 +1,20 @@
+commit 6a801539c5f4702b1a7e9e7bbb117ddf889145c7
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 24 10:27:58 2013 +1000
+
+    unicode: add "In" function to test membership of a rune
+    The existing function, IsOneOf, is hard to use. Since the slice comes
+    before the rune, in parallelism with the other Is functions, the slice
+    is clumsy to build. This CL adds a nicer-signatured In function of
+    equivalent functionality (its implementation is identical) that's much
+    easier to use. Compare:
+            unicode.IsOneOf([]*unicode.RangeTable{unicode.Letter, unicode.Number}, r)
+            unicode.In(r, unicode.Letter, unicode.Number)
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/11672044
+
+ src/pkg/unicode/graphic.go      | 19 +++++++++++++++----
+ src/pkg/unicode/graphic_test.go |  4 ++--
+ 2 files changed, 17 insertions(+), 6 deletions(-)

@@ -1,0 +1,23 @@
+commit 7955ecebfc85851d43913f9358fa5f6a7bbb7c59
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 25 14:10:29 2019 -0400
+
+    runtime: add a test for asynchronous safe points
+    
+    This adds a test of preempting a loop containing no synchronous safe
+    points for STW and stack scanning.
+    
+    We couldn't add this test earlier because it requires scheduler, STW,
+    and stack scanning preemption to all be working.
+    
+    For #10958, #24543.
+    
+    Change-Id: I73292db78ca3d14aab11bdafd26d03986920ef0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201777
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/export_test.go               |  2 ++
+ src/runtime/proc_test.go                 | 11 ++++++++
+ src/runtime/testdata/testprog/preempt.go | 44 ++++++++++++++++++++++++++++++++
+ 3 files changed, 57 insertions(+)

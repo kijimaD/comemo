@@ -1,0 +1,37 @@
+commit 4ce06f4b5caab3874f30f14551aa3f8e08f2de3e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 5 15:38:53 2015 -0800
+
+    cmd/gc: eliminate dead code in switch statements
+    
+    Ordinary switch statements are rewritten
+    into a sequence of if statements.
+    Staticly dead cases were not being eliminated
+    because the rewrite introduced a temporary,
+    which hid the fact that the case was a constant.
+    Stop doing that.
+    
+    This eliminates dead code in the standard library at:
+    
+    runtime/cgocall.go:219
+    runtime/cgocall.go:269
+    debug/gosym/pclntab.go:175
+    debug/macho/file.go:208
+    math/big/nat.go:635
+    math/big/nat.go:850
+    math/big/nat.go:1058
+    cmd/pprof/internal/commands/commands.go:86
+    net/sock_bsd.go:19
+    cmd/go/build.go:2657
+    cmd/go/env.go:90
+    
+    Fixes #9608.
+    
+    Change-Id: Ic23a05dfbb1ad91d5f62a6506b35a13e51b33e38
+    Reviewed-on: https://go-review.googlesource.com/3980
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/gc/swt.c                          | 11 +++--
+ test/fixedbugs/issue9608.dir/issue9608.go | 73 +++++++++++++++++++++++++++++++
+ test/fixedbugs/issue9608.go               | 14 ++++++
+ 3 files changed, 94 insertions(+), 4 deletions(-)

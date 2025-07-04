@@ -1,0 +1,38 @@
+commit 6425749695130f2032ac9cfdf5407b6a322534db
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu May 15 15:30:57 2025 -0400
+
+    cmd/distpack: remove more tools from packaged distribution
+    
+    The "doc", "fix", and "covdata" tools invoked by the go command are not
+    needed for builds. Instead of invoking them directly using the installed
+    binary in the tool directory, use "go tool" to run them, building them
+    if needed. We can then stop distributing those tools in the
+    distribution.
+    
+    covdata is used in tests and can form part of a cached test result, but
+    test results don't have the same requirements as build outputs to be
+    completely determined by the action id. We already don't include a
+    toolid for the covdata tool in the action id for a test run. The more
+    principled way to do things would be to load the covdata package,
+    create the actions to build it, and then depend on the output of
+    that action from the the test action and use that as the covdata tool.
+    For now, it's probably not worth the effort, but, in the future, if we
+    wanted to build a tool like cgo as needed, it would be best to build it
+    in the same action graph. That would introduce a whole bunch of complexity
+    because we'd need to build the tool in the host configuration, and all
+    the configuration parameters are global.
+    
+    For #71867
+    
+    Change-Id: Id9bbbb5c169296f66c072949f9da552424ecfa2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673119
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+
+ src/cmd/distpack/pack.go          | 3 ++-
+ src/cmd/go/internal/doc/doc.go    | 3 ++-
+ src/cmd/go/internal/fix/fix.go    | 3 ++-
+ src/cmd/go/internal/work/cover.go | 3 +--
+ 4 files changed, 7 insertions(+), 5 deletions(-)

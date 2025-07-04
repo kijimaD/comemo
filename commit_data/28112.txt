@@ -1,0 +1,21 @@
+commit 9f8335b7e72bdb2b95055c69f2d4b453b73646df
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 29 21:27:40 2016 +0000
+
+    os: don't let File.Readdir return an empty slice and nil error
+    
+    In the case of a file being deleted while Readdir was running, it was
+    possible for File.Readdir to return an empty slice and a nil error,
+    counter to its documentation.
+    
+    Fixes #16919
+    
+    Change-Id: If0e42882eea52fbf5530317a1895f3829ea8e67b
+    Reviewed-on: https://go-review.googlesource.com/28056
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/dir_unix.go     |  5 +++++
+ src/os/os_unix_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

@@ -1,0 +1,30 @@
+commit dc77dc2b9bd0f232631f683638bd7a23fab3598c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 23 16:10:55 2019 -0400
+
+    cmd/go/internal/list: ensure that cfg.BuildMod is initialized before reading it in 'go list -m'
+    
+    The default value of cfg.BuildMod depends on the 'go' version in the
+    go.mod file. The go.mod file is read and parsed, and its settings are
+    applied, in modload.InitMod.
+    
+    As it turns out, modload.Enabled does not invoke InitMod, so
+    cfg.BuildMod is not necessarily set even if modload.Enabled returns
+    true.
+    
+    Updates #33848
+    
+    Change-Id: I13a4dd80730528e6f1a5acc492fcfe07cb59d94e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202917
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/list/list.go                           | 10 +++++++++-
+ src/cmd/go/internal/modload/init.go                        |  3 +++
+ src/cmd/go/testdata/script/mod_convert_vendor_json.txt     |  2 +-
+ src/cmd/go/testdata/script/mod_convert_vendor_manifest.txt |  2 +-
+ src/cmd/go/testdata/script/mod_getmode_vendor.txt          |  2 +-
+ src/cmd/go/testdata/script/mod_vendor.txt                  |  2 +-
+ src/cmd/go/testdata/script/mod_vendor_auto.txt             | 13 +++++++++++--
+ 7 files changed, 27 insertions(+), 7 deletions(-)

@@ -1,0 +1,12 @@
+commit 6e08991eba61a026a7dde20aa9f74c4dd784169e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 18 23:30:32 2008 -0700
+
+    - fixed another parser bug, now correctly parse more tests
+    
+    R=r
+    OCL=15518
+    CL=15518
+
+ usr/gri/pretty/parser.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

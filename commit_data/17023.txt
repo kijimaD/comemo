@@ -1,0 +1,14 @@
+commit c43cca7d92a0188b956584bc76ceef94af543bc3
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 5 13:35:42 2013 +1000
+
+    doc/progs/slices.go: fix typo in comment
+    
+    Fixes #6025.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/12387046
+
+ doc/progs/slices.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

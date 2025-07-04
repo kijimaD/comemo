@@ -1,0 +1,19 @@
+commit 97920373fa07d4dbc24cbb587399586cf1e22961
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 10 16:19:49 2017 -0400
+
+    cmd/link: generate PC ranges for compilation unit DIEs
+    
+    When we split separate packages into separate compilation units, we
+    lost PC range information because it was no longer contiguous. This
+    brings it back by constructing proper per-package PC range tables.
+    
+    Change-Id: Id0ab5187e08ac5d13b3d3794977bfc857a56224f
+    Reviewed-on: https://go-review.googlesource.com/69974
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/dwarf/dwarf.go   | 33 +++++++++++++++++++++-------
+ src/cmd/link/internal/ld/dwarf.go | 46 ++++++++++++++++++++++++++++-----------
+ 2 files changed, 58 insertions(+), 21 deletions(-)

@@ -1,0 +1,12 @@
+commit 0fe65c4f4979f0ad43bad30721821096e489de56
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Aug 2 14:29:04 2013 -0700
+
+    cmd/dist: fix windows build.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12351045
+
+ src/make.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

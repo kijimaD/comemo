@@ -1,0 +1,23 @@
+commit 1ac884698446b034bfd4c671c1284058921a6ea4
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Oct 24 06:32:45 2017 +0000
+
+    cmd/internal/obj/arm: add BFC/BFI to arm's assembler
+    
+    BFC (Bit Field Clear) and BFI (Bit Field Insert) were
+    introduced in ARMv6T2, and the compiler can use them
+    to do further optimization.
+    
+    Change-Id: I5a3fbcd2c2400c9bf4b939da6366c854c744c27f
+    Reviewed-on: https://go-review.googlesource.com/72891
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/arch/arm.go             |  5 +++--
+ src/cmd/asm/internal/asm/testdata/arm.s      |  5 ++++-
+ src/cmd/asm/internal/asm/testdata/armerror.s |  1 +
+ src/cmd/internal/obj/arm/a.out.go            |  2 ++
+ src/cmd/internal/obj/arm/anames.go           |  2 ++
+ src/cmd/internal/obj/arm/asm5.go             | 25 +++++++++++++++++++++----
+ 6 files changed, 33 insertions(+), 7 deletions(-)

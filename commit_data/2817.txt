@@ -1,0 +1,32 @@
+commit 9346c6d901b3714b2a39967d6f0fee5b82201c78
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 28 20:01:00 2009 -0700
+
+    make every func literal expression allocate,
+    so that == on func means that the
+    functions originated in the same
+    execution of a func literal or definition.
+    
+    before, there was an inconsistency:
+    
+            func() {x++} != func() {x++}
+    
+    but
+    
+            func() {} == func() {}
+    
+    this CL makes the second case != too,
+    just like
+    
+            make(map[int]int) != make(map[int]int)
+    
+    R=r
+    DELTA=202  (71 added, 62 deleted, 69 changed)
+    OCL=32393
+    CL=32398
+
+ src/cmd/gc/dcl.c                | 128 +++++++++++++++++++---------------------
+ src/pkg/runtime/386/closure.c   |  61 ++++++++++---------
+ src/pkg/runtime/amd64/closure.c |  66 +++++++++++----------
+ test/closure.go                 |  12 ++++
+ 4 files changed, 138 insertions(+), 129 deletions(-)

@@ -1,0 +1,21 @@
+commit 6e5cc1f1ac0c93471fc6b05a250b6f7ed0b02c58
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 12 15:39:29 2015 -0500
+
+    runtime: rename drainworkbuf and drainobjects
+    
+    drainworkbuf is now gcDrain, since it drains until there's
+    nothing left to drain.  drainobjects is now gcDrainN because it's
+    the bounded equivalent to gcDrain.
+    
+    The new names use the Go camel case convention because we have to
+    start somewhere.  The "gc" prefix is because we don't have runtime
+    packages yet and just "drain" is too ambiguous.
+    
+    Change-Id: I88dbdf32e8ce4ce6c3b7e1f234664be9b76cb8fd
+    Reviewed-on: https://go-review.googlesource.com/4785
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

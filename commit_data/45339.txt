@@ -1,0 +1,20 @@
+commit d02026414cc0b292ee2aef4fbc36f185c56db0c8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 23 12:03:48 2021 -0700
+
+    cmd/go: don't add generated SWIG C++ files to CompiledGoFiles
+    
+    Also include SWIG C++ files in cgo hash.
+    
+    For #28749
+    Fixes #37098
+    
+    Change-Id: I6d912db2788200c2abdf328e382d4fbefda0a9ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313131
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/exec.go            |  8 ++++++--
+ src/cmd/go/testdata/script/list_swigcxx.txt | 27 +++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 2 deletions(-)

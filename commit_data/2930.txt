@@ -1,0 +1,15 @@
+commit e4603db393e36f22aa88c5191ef04e588aa2aa46
+Author: Stephen Ma <stephenm@golang.org>
+Date:   Sun Aug 9 19:30:47 2009 -0700
+
+    Add methods AllMatches, AllMatchesString, AllMatchesIter,
+    AllMatchesStringIter, based on sawn and sawzall functions in sawzall.
+    
+    APPROVED=rsc
+    DELTA=218  (218 added, 0 deleted, 0 changed)
+    OCL=32408
+    CL=32949
+
+ src/pkg/regexp/all_test.go |  99 +++++++++++++++++++++++++++++++++++++
+ src/pkg/regexp/regexp.go   | 119 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 218 insertions(+)

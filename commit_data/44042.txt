@@ -1,0 +1,24 @@
+commit 626cc7c02dd3a1a85d95f83e2d7e988e483e3cac
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 18 13:54:27 2020 -0800
+
+    test: permit "exponent too large" error
+    
+    The language spec only requires a signed binary exponent of 16 bits
+    for floating point constants. Permit a "exponent too large" error for
+    larger exponents.
+    
+    Don't run test 11326b with gccgo, as it requires successful compilation
+    of floating point constants with exponents that don't fit in 16 bits.
+    
+    Change-Id: I98688160c76864aba525a151a14aaaf86bc36a6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279252
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ test/fixedbugs/issue11326.go  | 10 +++++-----
+ test/fixedbugs/issue11326b.go |  4 ++++
+ test/fixedbugs/issue13471.go  | 22 +++++++++++-----------
+ 3 files changed, 20 insertions(+), 16 deletions(-)

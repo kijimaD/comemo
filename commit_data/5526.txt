@@ -1,0 +1,13 @@
+commit 80ac15ec12e265f2958195e7fad7030dac4de3d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 24 14:18:15 2010 -0700
+
+    gc: fix unsafe.Sizeof on ideal constants
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1280041
+
+ src/cmd/gc/unsafe.c      |  6 ++----
+ test/fixedbugs/bug279.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 4 deletions(-)

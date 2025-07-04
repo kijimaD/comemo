@@ -1,0 +1,23 @@
+commit 4b3f04c63b5b1a1bbc4dfd71c34341ea4e935115
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jan 4 20:17:15 2019 +0000
+
+    runtime: make mTreap iterator bidirectional
+    
+    This change makes mTreap's iterator type, treapIter, bidirectional
+    instead of unidirectional. This change helps support moving the find
+    operation on a treap to return an iterator instead of a treapNode, in
+    order to hide the details of the treap when accessing elements.
+    
+    For #28479.
+    
+    Change-Id: I5dbea4fd4fb9bede6e81bfd089f2368886f98943
+    Reviewed-on: https://go-review.googlesource.com/c/156918
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/export_test.go |  2 +-
+ src/runtime/mgclarge.go    | 54 +++++++++++++++++++++-------------------------
+ src/runtime/mheap.go       | 14 ++++++------
+ 3 files changed, 34 insertions(+), 36 deletions(-)

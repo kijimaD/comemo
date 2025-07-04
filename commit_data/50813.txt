@@ -1,0 +1,28 @@
+commit 9dfadf911d2dcb093c3a37c79869bead0f9f6349
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Tue Sep 13 18:05:53 2022 +0000
+
+    debug/buildinfo: correct a typo in calculating next align index
+    
+    When it calculates the smallest n such that:
+      n >= i && n % buildInfoAlign == 0
+    the expression should be
+      (i+buildInfoAlign-1)&^(buildInfoAlign-1)
+    instead of
+      (i+buildInfoAlign-1)&^buildInfoAlign
+    
+    Fixes #54968.
+    
+    Change-Id: Ibb7bdf568a521545b2609acc85e2ab4e05da5dae
+    GitHub-Last-Rev: 479ebc140af9809f0bea039e643cb95b4f857614
+    GitHub-Pull-Request: golang/go#54971
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429815
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/debug/buildinfo/buildinfo.go      |  2 +-
+ src/debug/buildinfo/buildinfo_test.go | 70 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+), 1 deletion(-)

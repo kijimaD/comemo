@@ -1,0 +1,15 @@
+commit 77354c39f9b9b35537951c4d98868b88214bf8dd
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Apr 6 20:00:45 2013 -0700
+
+    runtime: reset typed dangling pointer
+    If for whatever reason seh points into Go heap region,
+    the dangling pointer will cause memory corruption during GC.
+    Update #5193.
+    
+    R=golang-dev, alex.brainman, iant
+    CC=golang-dev
+    https://golang.org/cl/8402045
+
+ src/pkg/runtime/proc.c | 1 +
+ 1 file changed, 1 insertion(+)

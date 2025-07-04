@@ -1,0 +1,24 @@
+commit e99275241c4e4bde6ff2a8598e558a2bea151ef7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 10 16:06:16 2022 -0700
+
+    cmd/compile/internal/types: change NewTypeParam to match New{Basic,Named}
+    
+    NewBasic and NewNamed take an Object (i.e., *ir.Name), so that callers
+    don't need to call SetNod. This CL changes NewTypeParam to follow the
+    same convention. Following up on recent Ntype removal, this allows
+    getting rid of Type.SetNod entirely.
+    
+    While here, Type.SetSym is unused too.
+    
+    Change-Id: Ibe0f5747e2ab4a9512b65142b6d3006704b60bd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405654
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/types.go       |  9 ++++-----
+ src/cmd/compile/internal/typecheck/iimport.go | 11 ++++-------
+ src/cmd/compile/internal/types/type.go        | 17 ++++-------------
+ 3 files changed, 12 insertions(+), 25 deletions(-)

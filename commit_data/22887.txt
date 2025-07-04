@@ -1,0 +1,16 @@
+commit 121489cbfd082161d86dd5e6f5653dc654beeaf7
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon Mar 30 23:03:09 2015 +0200
+
+    runtime/cgo: add cgo support for solaris/amd64
+    
+    Change-Id: Ic9744c7716cdd53f27c6e5874230963e5fff0333
+    Reviewed-on: https://go-review.googlesource.com/8260
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/cgo/cgo.go              |  2 +
+ src/runtime/cgo/gcc_libinit.c       |  2 +-
+ src/runtime/cgo/gcc_setenv.c        |  2 +-
+ src/runtime/cgo/gcc_solaris_amd64.c | 75 +++++++++++++++++++++++++++++++++++++
+ src/runtime/cgo/setenv.go           |  2 +-
+ 5 files changed, 80 insertions(+), 3 deletions(-)

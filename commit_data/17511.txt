@@ -1,0 +1,15 @@
+commit 5b04d670912aaaa87fdc9a8547a7e71094150661
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 9 13:04:14 2013 -0400
+
+    cmd/cgo: record full source path to input .go files
+    
+    Fixes #5122.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13395046
+
+ src/cmd/cgo/ast.go   |  8 ++++++++
+ src/cmd/go/test.bash | 20 ++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

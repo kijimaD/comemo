@@ -1,0 +1,14 @@
+commit 10c8b2374f413ef6225555893cad5d2a530f77d5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 25 17:24:11 2016 -0400
+
+    runtime: align C library startup calls on amd64
+    
+    This makes GOEXPERIMENT=framepointer, GOOS=darwin, and buildmode=carchive coexist.
+    
+    Change-Id: I9f6fb2f0f06f27df683e5b51f2fa55cd21872453
+    Reviewed-on: https://go-review.googlesource.com/23454
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/rt0_darwin_amd64.s | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

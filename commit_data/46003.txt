@@ -1,0 +1,22 @@
+commit 3d679c6554d5b282154caa717567ad8353a8bc71
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun May 30 01:46:19 2021 +1000
+
+    syscall: use correct type for TIOCSPGRP/TIOCGPGRP
+    
+    These ioctls take a pid_t (generally a C integer aka int32) and not an int64 - we
+    currently get away with this on little endian 64 bit platforms, since the bytes
+    fall into the correct place, however this breaks on big endian 64 bit platforms
+    (like openbsd/mips64).
+    
+    This is the same fix as CL 267605, however for libc based exec.
+    
+    Updates #36435
+    
+    Change-Id: I01ae4905cba5e1f8725fa6cb8c35403c511534b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334881
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/syscall/exec_libc2.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

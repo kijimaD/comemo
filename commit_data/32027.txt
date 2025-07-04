@@ -1,0 +1,14 @@
+commit 41af3fa33ed54c1cb2095385f723ba1636485a11
+Author: Martynas Budriūnas <mabu@google.com>
+Date:   Sat Jul 15 12:58:19 2017 -0600
+
+    math: add a Sqrt example
+    
+    Change-Id: I259e25b9d0b069912053a250e9739e04fafca54d
+    Reviewed-on: https://go-review.googlesource.com/48892
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/example_test.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

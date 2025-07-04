@@ -1,0 +1,27 @@
+commit 1e11eaa902083e2b39234d264c046f1e31a3ec03
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 10 12:30:05 2022 -0500
+
+    cmd/go/internal/load: remove a special case for "unsafe"
+    
+    We had a special case to zero out the Target field for package
+    "unsafe", which is not imported from a normal object file.
+    
+    As of CL 449376 that special case has been folded into go/build's
+    logic for setting the PkgObj field, so the special case in
+    cmd/go/internal/load has become redundant.
+    
+    (Noticed while investigating CL 449376.)
+    
+    Updates #47257.
+    Updates #56687.
+    
+    Change-Id: I1668123aa6230097aa75e55380d3e2c7937c4b64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449515
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/load/pkg.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

@@ -1,0 +1,18 @@
+commit 32d0eaa44e2d83cff6f0c1fa3d58af7627f3cd99
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Sep 17 21:19:28 2020 +0000
+
+    runtime: implement dumpmemstats in terms of readmemstats_m
+    
+    Since MemStats is now populated directly and some values are derived,
+    avoid duplicating the logic by instead populating the heap dump directly
+    from MemStats (external version) instead of memstats (runtime internal
+    version).
+    
+    Change-Id: I0bec96bfa02d2ffd1b56475779c124a760e64238
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255817
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/heapdump.go | 76 ++++++++++++++++++++++++++++---------------------
+ 1 file changed, 44 insertions(+), 32 deletions(-)

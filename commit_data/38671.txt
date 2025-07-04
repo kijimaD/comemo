@@ -1,0 +1,21 @@
+commit ea9859f858b603cbf49f0a930f83c56a716490a4
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 25 21:16:33 2019 -0400
+
+    runtime: use acquirem/releasem more widely
+    
+    We've copy-pasted the pattern of releasem in many places. This CL
+    replaces almost everywhere that manipulates g.m.locks and g.preempt
+    with calls to acquirem/releasem. There are a few where we do something
+    more complicated, like where exitsyscall has to restore the stack
+    bound differently depending on the preempt flag, which this CL leaves
+    alone.
+    
+    Change-Id: Ia7a46c261daea6e7802b80e7eb9227499f460433
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170064
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/proc.go | 30 ++++++++----------------------
+ 1 file changed, 8 insertions(+), 22 deletions(-)

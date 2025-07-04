@@ -1,0 +1,27 @@
+commit a62071a2092058a5f3d1c47a9841c9f88870e500
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Jan 6 03:03:58 2018 +0000
+
+    A+C: update late Go 1.10 contributors
+    
+    Add Brad Burch (individual CLA)
+    Add Charles Fenwick Elliott (individual CLA)
+    Add Geoff Berry (corporate CLA for Qualcomm Data Center, Inc.)
+    Add Igor Vashyst (individual CLA)
+    Add Jiulong Wang (individual CLA)
+    Add Junya Hayashi (individual CLA)
+    Add Matthijs Kooijman (individual CLA)
+    Add Paul PISCUC (individual CLA)
+    Add Steve Gilbert (individual CLA)
+    Add Tad Fisher (individual CLA)
+    Add Yukihiro Nishinaka (individual CLA)
+    
+    Updates #12042
+    
+    Change-Id: Ib7a3c7a4d38d15530c2ea42fe8d359ae10c9a19e
+    Reviewed-on: https://go-review.googlesource.com/86478
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ AUTHORS      | 11 +++++++++++
+ CONTRIBUTORS | 11 +++++++++++
+ 2 files changed, 22 insertions(+)

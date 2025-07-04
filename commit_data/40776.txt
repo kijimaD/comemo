@@ -1,0 +1,76 @@
+commit 97d0505334c71a8d7a1e7431c1e1515c93b59e2b
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Sat Oct 26 16:26:59 2019 +0900
+
+    runtime: consistently seed fastrand state across archs
+    
+    Some, but not all, architectures mix in OS-provided random seeds when
+    initializing the fastrand state. The others have TODOs saying we need
+    to do the same. Lift that logic up in the architecture-independent
+    part, and use memhash to mix the seed instead of a simple addition.
+    
+    Previously, dumping the fastrand state at initialization would yield
+    something like the following on linux-amd64, where the values in the
+    first column do not change between runs (as thread IDs are sequential
+    and always start at 0), and the values in the second column, while
+    changing every run, are pretty correlated:
+    
+    first run:
+    
+    0x0 0x44d82f1c
+    0x5f356495 0x44f339de
+    0xbe6ac92a 0x44f91cd8
+    0x1da02dbf 0x44fd91bc
+    0x7cd59254 0x44fee8a4
+    0xdc0af6e9 0x4547a1e0
+    0x3b405b7e 0x474c76fc
+    0x9a75c013 0x475309dc
+    0xf9ab24a8 0x4bffd075
+    
+    second run:
+    
+    0x0 0xa63fc3eb
+    0x5f356495 0xa6648dc2
+    0xbe6ac92a 0xa66c1c59
+    0x1da02dbf 0xa671bce8
+    0x7cd59254 0xa70e8287
+    0xdc0af6e9 0xa7129d2e
+    0x3b405b7e 0xa7379e2d
+    0x9a75c013 0xa7e4c64c
+    0xf9ab24a8 0xa7ecce07
+    
+    With this change, we get initial states that appear to be much more
+    unpredictable, both within the same run as well as between runs:
+    
+    0x11bddad7 0x97241c63
+    0x553dacc6 0x2bcd8523
+    0x62c01085 0x16413d92
+    0x6f40e9e6 0x7a138de6
+    0xa4898053 0x70d816f0
+    0x5ca5b433 0x188a395b
+    0x62778ca9 0xd462c3b5
+    0xd6e160e4 0xac9b4bd
+    0xb9571d65 0x597a981d
+    
+    Change-Id: Ib22c530157d74200df0083f830e0408fd4aaea58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203439
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/os_darwin_arm.go    |  1 -
+ src/runtime/os_darwin_arm64.go  |  1 -
+ src/runtime/os_freebsd_arm.go   |  1 -
+ src/runtime/os_freebsd_arm64.go |  1 -
+ src/runtime/os_js.go            |  1 -
+ src/runtime/os_linux_arm.go     | 12 +-----------
+ src/runtime/os_linux_arm64.go   | 12 +-----------
+ src/runtime/os_linux_mips64x.go | 13 +------------
+ src/runtime/os_linux_mipsx.go   | 13 +------------
+ src/runtime/os_netbsd_arm.go    |  1 -
+ src/runtime/os_netbsd_arm64.go  |  1 -
+ src/runtime/os_openbsd_arm.go   |  1 -
+ src/runtime/os_openbsd_arm64.go |  1 -
+ src/runtime/os_plan9_arm.go     |  1 -
+ src/runtime/proc.go             | 12 ++++++++++--
+ 15 files changed, 14 insertions(+), 58 deletions(-)

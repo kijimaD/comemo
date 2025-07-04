@@ -1,0 +1,18 @@
+commit debe12cfcf9e0672bce0972cc22ff093f215ac59
+Author: Igor Dolzhikov <bluesriverz@gmail.com>
+Date:   Sun Apr 5 22:32:52 2015 +0600
+
+    net/http, math/big, cmd/internal/gc/big: replaced errors.New(fmt.Sprintf(...)) in favour fmt.Errorf()
+    
+    Change-Id: I38fc0ab84a374cb9be0234e40665d7cea0e76fc1
+    Reviewed-on: https://go-review.googlesource.com/8402
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/gc/big/int.go | 3 +--
+ src/cmd/internal/gc/big/rat.go | 2 +-
+ src/math/big/int.go            | 3 +--
+ src/math/big/rat.go            | 2 +-
+ src/net/http/client.go         | 2 +-
+ 5 files changed, 5 insertions(+), 7 deletions(-)

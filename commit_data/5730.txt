@@ -1,0 +1,14 @@
+commit 774333685e0407307bccbcdd8254d8244cbd73ba
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 29 17:47:27 2010 -0700
+
+    runtime: fix scheduling bug - world wasn't stopping
+    
+    Fixes #886.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1667051
+
+ src/pkg/runtime/proc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

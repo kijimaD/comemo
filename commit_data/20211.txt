@@ -1,0 +1,37 @@
+commit 21967f2c9aa4732ad5f5a0e3a91868716ac9e2e8
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Aug 30 07:52:20 2014 +0900
+
+    undo CL 107150043 / caa2646daa63
+    
+    preparing for the syscall package freeze.
+    the change for issue 8218 is only applied to go.sys/unix.
+    
+    ««« original CL description
+    syscall: implement setresuid(2) and setresgid(2) on OpenBSD/FreeBSD/DragonflyBSD
+    
+    Fixes #8218.
+    
+    LGTM=iant
+    R=golang-codereviews, iant, minux
+    CC=golang-codereviews
+    https://golang.org/cl/107150043
+    
+    »»»
+    
+    LGTM=r
+    R=r, iant, golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/138840044
+
+ src/pkg/syscall/syscall_dragonfly.go        |  2 --
+ src/pkg/syscall/syscall_freebsd.go          |  2 --
+ src/pkg/syscall/syscall_openbsd.go          |  4 ++--
+ src/pkg/syscall/zsyscall_dragonfly_386.go   | 20 --------------------
+ src/pkg/syscall/zsyscall_dragonfly_amd64.go | 20 --------------------
+ src/pkg/syscall/zsyscall_freebsd_386.go     | 20 --------------------
+ src/pkg/syscall/zsyscall_freebsd_amd64.go   | 20 --------------------
+ src/pkg/syscall/zsyscall_freebsd_arm.go     | 20 --------------------
+ src/pkg/syscall/zsyscall_openbsd_386.go     | 20 --------------------
+ src/pkg/syscall/zsyscall_openbsd_amd64.go   | 20 --------------------
+ 10 files changed, 2 insertions(+), 146 deletions(-)

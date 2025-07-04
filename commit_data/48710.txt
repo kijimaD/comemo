@@ -1,0 +1,30 @@
+commit c0bbeb0982403db17bacb1533776fb638cb449ae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 1 17:02:28 2022 -0700
+
+    cmd/compile: adjust types2 shift check to match go/types (cleanup)
+    
+    With this change, the shift checking code matches the corresponding
+    go/types code, but for the differences in the internal error reporting,
+    and call of check.overflow.
+    
+    The change leads to the recording of an untyped int value if the RHS
+    of a non-constant shift is an untyped integer value. Adjust the type
+    in the compiler's irgen accordingly. Add test/shift3.go to verify
+    behavior.
+    
+    Change-Id: I20386fcb1d5c48becffdc2203081fb70c08b282d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398236
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/noder/expr.go             |  9 +++++
+ src/cmd/compile/internal/types2/api_test.go        | 12 ++++++
+ src/cmd/compile/internal/types2/expr.go            | 46 +++++++++++++++-------
+ .../types2/testdata/fixedbugs/issue52031.go        | 33 ++++++++++++++++
+ test/shift3.go                                     | 41 +++++++++++++++++++
+ 5 files changed, 126 insertions(+), 15 deletions(-)

@@ -1,0 +1,17 @@
+commit 109d54a32d15b805769d4c05e78367f126a8d7f0
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Jan 9 19:10:33 2016 -0800
+
+    doc: note GCM behaviour change in Go 1.6.
+    
+    This change documents the behaviour change caused by
+    https://go-review.googlesource.com/18480 in Go 1.6.
+    
+    Updates #13886
+    
+    Change-Id: I2daa08a62775bbc209f0f4cbeae21b8184ce7609
+    Reviewed-on: https://go-review.googlesource.com/18481
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.6.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

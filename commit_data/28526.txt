@@ -1,0 +1,15 @@
+commit 4383e4387b30ffbd8f85f053e399d53d7eef9330
+Author: Antonio Murdaca <runcom@redhat.com>
+Date:   Sun Jun 26 12:14:41 2016 +0200
+
+    net/url: avoid if statement
+    
+    Change-Id: I894a8f49d29dbb6f9265e4b3df5767318b225460
+    Signed-off-by: Antonio Murdaca <runcom@redhat.com>
+    Reviewed-on: https://go-review.googlesource.com/24492
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/url/url.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

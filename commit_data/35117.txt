@@ -1,0 +1,22 @@
+commit e9bc0c5d244185ab40c3afe20495d49abaef5feb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 20 10:34:38 2018 -0400
+
+    os: fix type check error in benchmark
+    
+    Previously, 's' was only written to, never read,
+    which is disallowed by the spec. cmd/compile
+    has a bug where it doesn't notice this when a
+    closure is involved, but go/types does notice,
+    which was making "go vet" fail.
+    
+    This CL moves the variable into the closure
+    and also makes sure to use it.
+    
+    Change-Id: I2d83fb6b5c1c9018df03533e966cbdf455f83bf9
+    Reviewed-on: https://go-review.googlesource.com/108556
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/env_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

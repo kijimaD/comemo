@@ -1,0 +1,34 @@
+commit 03410f675808ad51fa1e1fd153fd3d182ebcb217
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 3 16:16:32 2015 -0700
+
+    runtime: fix TestFixedGOROOT to properly restore the GOROOT env var after test
+    
+    Otherwise subsequent tests won't see any modified GOROOT.
+    
+    With this CL I can move my GOROOT, set GOROOT to the new location, and
+    the runtime tests pass. Previously the crash_tests would instead look
+    for the GOROOT baked into the binary, instead of the env var:
+    
+    --- FAIL: TestGcSys (0.01s)
+            crash_test.go:92: building source: exit status 2
+                    go: cannot find GOROOT directory: /home/bradfitz/go
+    --- FAIL: TestGCFairness (0.01s)
+            crash_test.go:92: building source: exit status 2
+                    go: cannot find GOROOT directory: /home/bradfitz/go
+    --- FAIL: TestGdbPython (0.07s)
+            runtime-gdb_test.go:64: building source exit status 2
+                    go: cannot find GOROOT directory: /home/bradfitz/go
+    --- FAIL: TestLargeStringConcat (0.01s)
+            crash_test.go:92: building source: exit status 2
+                    go: cannot find GOROOT directory: /home/bradfitz/go
+    
+    Update #10029
+    
+    Change-Id: If91be0f04d3acdcf39a9e773a4e7905a446bc477
+    Reviewed-on: https://go-review.googlesource.com/10685
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/env_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

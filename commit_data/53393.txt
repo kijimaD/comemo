@@ -1,0 +1,26 @@
+commit e73e5d80ea371a67f7b10725e623940a3dcd4924
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 31 09:57:03 2023 -0400
+
+    cmd/go: introduce WriteOpts argument for WriteGoMod
+    
+    This CL is a no-op, just adding the new options and plumbing it through.
+    'go get' will use this option to let commitRequirements know whether
+    toolchain was mentioned explicitly on the command line.
+    
+    For #57001.
+    
+    Change-Id: Iee7145f3335e899704df3e98fb840f1aa4063b0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499555
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modcmd/download.go |  4 ++--
+ src/cmd/go/internal/modget/get.go      |  2 +-
+ src/cmd/go/internal/modload/init.go    | 12 ++++++++----
+ src/cmd/go/internal/modload/list.go    |  2 +-
+ src/cmd/go/internal/modload/load.go    |  4 ++--
+ src/cmd/go/internal/workcmd/sync.go    |  2 +-
+ 6 files changed, 15 insertions(+), 11 deletions(-)

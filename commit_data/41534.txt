@@ -1,0 +1,18 @@
+commit bef0b4ea8fd0dbda6f29412a841c176d2fc2f2eb
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Feb 23 19:23:15 2020 -0800
+
+    hash/maphash: add more tests for seed generation
+    
+    Test all the paths by which a Hash picks its seed.
+    Make sure they all behave identically to a preset seed.
+    
+    Change-Id: I2f7950857697f2f07226b96655574c36931b2aae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220686
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Vladimir Evgrafov <evgrafov.vladimir@gmail.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/hash/maphash/maphash_test.go | 56 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 56 insertions(+)

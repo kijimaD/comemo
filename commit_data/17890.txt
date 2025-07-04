@@ -1,0 +1,11 @@
+commit b3d400c35e10beb2e85c0b00d61b44792b6d8457
+Author: dvyukov <dvyukov@google.com>
+Date:   Tue Nov 19 15:36:13 2013 +0400
+
+    test: revert unintentional commits
+    I thought I am in a different repo...
+
+ test/bench/perf/bench1.go |  15 ------
+ test/bench/perf/bench2.go |   5 --
+ test/bench/perf/driver.go | 127 ----------------------------------------------
+ 3 files changed, 147 deletions(-)

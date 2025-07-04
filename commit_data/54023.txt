@@ -1,0 +1,32 @@
+commit f2f5979253717ce939d75f57c9f8be3de849a875
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 14 15:56:08 2023 -0700
+
+    go/types, types2: use correct parameter list when checking argument passing
+    
+    The existing code was simply wrong: we cannot ever use the result
+    signature parameter list (rsig.params) if sigParams was adjusted
+    for variadic functions. If it was adjusted, we always must either
+    use sigParams or its separately instantiated version.
+    
+    In the condition "n > 0 && adjusted", the "n > 0" should have
+    been in either of the respective "if statement" branches.
+    
+    Simplified the code by merging with the result signature parameter
+    update.
+    
+    Fixes #61931.
+    
+    Change-Id: I5d39bc8bbc4dd85c7c985055d29532b4b176955e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519456
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go        | 21 +++++++++------------
+ src/cmd/compile/internal/types2/issues_test.go | 20 ++++++++++++++++++++
+ src/go/types/call.go                           | 21 +++++++++------------
+ src/go/types/issues_test.go                    | 22 ++++++++++++++++++++++
+ 4 files changed, 60 insertions(+), 24 deletions(-)

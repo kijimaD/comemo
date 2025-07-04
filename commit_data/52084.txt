@@ -1,0 +1,21 @@
+commit 53a5d2541c6c071634792c1ca87622682b139499
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 23 15:42:57 2023 -0800
+
+    go/types, types2: fix comment in Checker.renameTParams
+    
+    The original comment examples didn't pass the correct number
+    of function arguments. Rather than fixing that, use a simpler
+    example and adjust prose a bit.
+    
+    Change-Id: I2806737a2b8f9c4b876911b214f3d9e28213fc27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470918
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/infer.go | 41 ++++++++++++++++----------------
+ src/go/types/infer.go                    | 41 ++++++++++++++++----------------
+ 2 files changed, 40 insertions(+), 42 deletions(-)

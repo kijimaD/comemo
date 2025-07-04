@@ -1,0 +1,17 @@
+commit 4fb585759645178ab69f6b9590c395fc4eb7fc5a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue May 17 13:46:54 2011 +1000
+
+    doc: add I/O 2011 talks to talks/, docs.html, and front page.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4516057
+
+ doc/docs.html                               |  16 ++++++++++++++++
+ doc/frontpage.css                           |   3 +++
+ doc/root.html                               |   4 ++--
+ doc/talks/io2011/Real_World_Go.pdf          | Bin 0 -> 609477 bytes
+ doc/talks/io2011/Writing_Web_Apps_in_Go.pdf | Bin 0 -> 729499 bytes
+ doc/video-005.jpg                           | Bin 0 -> 6783 bytes
+ 6 files changed, 21 insertions(+), 2 deletions(-)

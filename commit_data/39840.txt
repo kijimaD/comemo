@@ -1,0 +1,17 @@
+commit 5e907e38b8e660aa258b34f3c022d5b697dad6f1
+Author: Eric Rutherford <erutherford@gmail.com>
+Date:   Mon Sep 9 13:56:53 2019 -0500
+
+    path: improve documentation to call out cases where Clean is called
+    
+    Rewording the comments for Join to do a better job of calling out
+    when Clean is called. Also clarifing other portions of the comment.
+    
+    Fixes #29875
+    
+    Change-Id: Ied43983bb10a97922898d28af133de0930224496
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194339
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/path/path.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit 213e157d3aad3fbb289d184a5cb4b18258162634
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jun 15 16:01:25 2021 -0700
+
+    testing/fstest: allow specifying file for "." in MapFS
+    
+    Prior to this commit, specifying a file for "." in MapFS
+    created an invalid fs.FS and caused infinite recursion in fs.WalkDir.
+    
+    Fixes #46776
+    
+    Change-Id: Ia9e4ae1125355a74dba9ee6b36451b7fda75a862
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328409
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/fstest/mapfs.go      |  4 +++-
+ src/testing/fstest/mapfs_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

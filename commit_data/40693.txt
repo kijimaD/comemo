@@ -1,0 +1,26 @@
+commit a2cd2bd55d1e932b52f0b7dea45a85e058fc77d5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Sep 16 21:23:24 2019 +0000
+
+    runtime: add per-p page allocation cache
+    
+    This change adds a per-p free page cache which the page allocator may
+    allocate out of without a lock. The change also introduces a completely
+    lockless page allocator fast path.
+    
+    Although the cache contains at most 64 pages (and usually less), the
+    vast majority (85%+) of page allocations are exactly 1 page in size.
+    
+    Updates #35112.
+    
+    Change-Id: I170bf0a9375873e7e3230845eb1df7e5cf741b78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195701
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/export_test.go | 22 ++++++++++++++
+ src/runtime/malloc_test.go |  8 ++++++
+ src/runtime/mheap.go       | 72 ++++++++++++++++++++++++++++++++++------------
+ src/runtime/proc.go        |  1 +
+ src/runtime/runtime2.go    |  3 +-
+ 5 files changed, 86 insertions(+), 20 deletions(-)

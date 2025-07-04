@@ -1,0 +1,33 @@
+commit fc5b64e19b8e9719b88fd1a8e3a9fa033c5bc1b4
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Feb 28 15:36:11 2022 -0600
+
+    crypto/sha512: add BE support to PPC64 asm implementation
+    
+    This adds big endian support for the assembly implementation of
+    sha512. There was a recent request to do this for sha256 for
+    AIX users; for completeness, the same is being done for sha512.
+    The majority of the code is common between big and little
+    endian with a few differences controlled by ifdefs: with LE
+    the generation of a mask is needed along with VPERM instructions
+    to put bytes in the correct order; some VPERMs need the V
+    registers in a different order.
+    
+    name        old time/op    new time/op     delta
+    Hash8Bytes    1.02µs ± 0%     0.38µs ± 0%   -62.68%
+    Hash1K        7.01µs ± 0%     2.43µs ± 0%   -65.42%
+    Hash8K        50.2µs ± 0%     14.6µs ± 0%   -70.89%
+    
+    Updates #50785
+    
+    Change-Id: I739b5e7c07b22b5748af11ca781e82ac67adb4f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388654
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/sha512/sha512block_decl.go              |  2 +-
+ src/crypto/sha512/sha512block_generic.go           |  2 +-
+ ...{sha512block_ppc64le.s => sha512block_ppc64x.s} | 80 +++++++++++++---------
+ 3 files changed, 49 insertions(+), 35 deletions(-)

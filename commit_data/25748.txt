@@ -1,0 +1,18 @@
+commit 62fad436bbea35e46ab9a4615a5fe077f205e269
+Author: Austin Clements <austin@google.com>
+Date:   Sun Feb 14 15:09:21 2016 -0500
+
+    doc: tweak Go 1.6 GC release notes
+    
+    Go 1.6 significantly improves pause times for large heaps, but it
+    improves them in many other situations as well, such as when goroutine
+    churn is high, allocation rate is high, or when there are many
+    finalizers. Hence, make the statement about pause times a bit more
+    general.
+    
+    Change-Id: Ic034b1c904c39dd1d966ee7fa96ca8bbb3614e53
+    Reviewed-on: https://go-review.googlesource.com/19504
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.6.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

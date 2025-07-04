@@ -1,0 +1,14 @@
+commit 2182bb097dc5cacf556f89e4e7d2cfdd96882237
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Sep 27 19:29:39 2018 -0400
+
+    .github: don't render author-facing text in ISSUE_TEMPLATE
+    
+    Fixes #27914
+    
+    Change-Id: Ic359a099661e959eb25d0f763ea16a6f48a3d4c7
+    Reviewed-on: https://go-review.googlesource.com/c/138295
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ .github/ISSUE_TEMPLATE | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)

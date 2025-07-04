@@ -1,0 +1,16 @@
+commit d1f7470c217691dca4e339c77bf8c4175b8db168
+Author: QtRoS <mrqtros@gmail.com>
+Date:   Tue Sep 25 00:01:39 2018 +0300
+
+    path/filepath: fix Windows-specific Clean bug
+    
+    Fixes #27791
+    Change-Id: I762fa663379086c24cb4ddc8233a2c0a82b1238e
+    Reviewed-on: https://go-review.googlesource.com/137055
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/path/filepath/path.go      | 11 ++++++++---
+ src/path/filepath/path_test.go |  3 +++
+ 2 files changed, 11 insertions(+), 3 deletions(-)

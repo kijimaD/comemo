@@ -1,0 +1,20 @@
+commit 059ada596ca5d510d1e1755b3b6dafa036195fb0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Sep 12 11:36:02 2016 -0700
+
+    cmd/dist: skip broken cgo race tests on darwin
+    
+    CL 26668 exposed #17065.
+    Skip the cgo race tests on darwin for now.
+    
+    Updates #17065
+    
+    Change-Id: I0ad0ce2ff1af6d515b8ce6184ddeabc49806950f
+    Reviewed-on: https://go-review.googlesource.com/29077
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

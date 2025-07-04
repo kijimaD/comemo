@@ -1,0 +1,12 @@
+commit db96e6821ad7dab72b459165a66c6dbb08160eda
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 17 11:15:30 2015 -0700
+
+    math/big: clearer semantics for Float.Scan
+    
+    Change-Id: I72e8389ec080be8a0119f98df898de6f5510fa4d
+    Reviewed-on: https://go-review.googlesource.com/7693
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/floatconv.go | 25 +++++++++++++++++--------
+ 1 file changed, 17 insertions(+), 8 deletions(-)

@@ -1,0 +1,17 @@
+commit b6473ff132d580ca7ca1ff6d6523fa595016a8a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 21 16:15:36 2015 -0500
+
+    cmd/dist: run wiki, shootout etc tests only on builders
+    
+    These find approximately nothing.
+    Takes 5% off my all.bash run time.
+    
+    For #10571.
+    
+    Change-Id: I21d3a844af756eb37f59bba0064f24995626da0d
+    Reviewed-on: https://go-review.googlesource.com/18198
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

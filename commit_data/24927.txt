@@ -1,0 +1,15 @@
+commit a20556bf565f2b98e9f54f287b5f3e0a929dacf9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 16 11:24:43 2015 -0800
+
+    cmd/compile/internal/gc: correctly use internal call to error reporting
+    
+    Fixes #13266.
+    
+    Change-Id: I31da922e0599989e52acf346374c2077b157ebb7
+    Reviewed-on: https://go-review.googlesource.com/16971
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go |  6 +++---
+ test/fixedbugs/issue13266.go          | 10 ++++++++++
+ 2 files changed, 13 insertions(+), 3 deletions(-)

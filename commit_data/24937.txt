@@ -1,0 +1,43 @@
+commit 07d48993f257a6536d83555bb8cc9daffa07dd56
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Oct 23 17:09:39 2015 -0700
+
+    cmd/doc: fix strange indentation artifacts with unexported fields
+    
+    The NamePos value was not being set, and would default to a value
+    of zero. This would cause the printing logic to get confused as
+    to where exactly to place the "Has unexported fields" string.
+    
+    A trivial package changes from
+    
+    <
+    type A struct {
+            A int // A
+            B int
+                            // B
+            // Has unexported fields.
+    }
+    >
+    
+    to
+    
+    <
+    type A struct {
+            A int // A
+            B int // B
+            // Has unexported fields.
+    }
+    >
+    
+    Fixes #12971
+    
+    Change-Id: I53b7799a1f1c0ad7dcaddff83d9aaeb1d6b7823e
+    Reviewed-on: https://go-review.googlesource.com/16286
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/doc/doc_test.go     | 37 ++++++++++++++++++++++++++++++++++++-
+ src/cmd/doc/pkg.go          |  9 ++++++++-
+ src/cmd/doc/testdata/pkg.go |  9 ++++++++-
+ 3 files changed, 52 insertions(+), 3 deletions(-)

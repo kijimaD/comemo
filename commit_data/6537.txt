@@ -1,0 +1,15 @@
+commit eb6f683691b62f83860a768e855c30c7874e4ba2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 15 20:19:57 2010 -0400
+
+    8l: function at a time code layout
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2481042
+
+ src/cmd/6l/span.c |   6 +-
+ src/cmd/8l/asm.c  |  55 +-----
+ src/cmd/8l/l.h    |   2 +-
+ src/cmd/8l/span.c | 527 ++++++++++++++++++++++++++++++++++--------------------
+ 4 files changed, 343 insertions(+), 247 deletions(-)

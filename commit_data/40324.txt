@@ -1,0 +1,29 @@
+commit a7ce2ca52f6de38e7db0a67bbdf697a6b5dc122a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 17:23:05 2019 -0700
+
+    runtime, syscall, time: add and use resettimer
+    
+    As a small step toward speeding up timers, restrict modification
+    of the timer.when field to the timer code itself. Other code that
+    wants to change the when field of an existing timer must now call
+    resettimer rather than changing the when field and calling addtimer.
+    The new resettimer function also works for a new timer.
+    
+    This is just a refactoring in preparation for later code.
+    
+    Updates #27707
+    
+    Change-Id: Iccd5dcad415ffbeac4c2a3cf015e91f82692acf8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171825
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/runtime/mgcscavenge.go |  3 +--
+ src/runtime/netpoll.go     |  6 ++----
+ src/runtime/time.go        | 18 ++++++++++++++++++
+ src/time/internal_test.go  |  3 +--
+ src/time/sleep.go          |  4 ++--
+ 5 files changed, 24 insertions(+), 10 deletions(-)

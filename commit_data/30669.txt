@@ -1,0 +1,20 @@
+commit 15b37655bc0b786d3cd6e41553263963fbebd642
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Mar 13 08:24:46 2017 -0400
+
+    cmd/link: on PPC64, put plt stubs at beginning of Textp
+    
+    Put call stubs at the beginning (instead of the end). So the
+    trampoline pass knows the addresses of the stubs, and it can
+    insert trampolines when necessary.
+    
+    Fixes #19425.
+    
+    Change-Id: I1e06529ef837a6130df58917315610d45a6819ca
+    Reviewed-on: https://go-review.googlesource.com/38131
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/link/internal/ppc64/asm.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

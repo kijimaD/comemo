@@ -1,0 +1,19 @@
+commit ca6a5c0d518463b40c3e6e56655d45d9fd60e1f7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 25 09:21:39 2022 -0800
+
+    go/types, types2: print underlying type of comparable as "interface{comparable}"
+    
+    For #50791.
+    
+    Change-Id: Ib12009d2895146e55ec3a51aa8ceafe58dfd82a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380754
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/typestring.go      | 18 ++++++++++++------
+ src/cmd/compile/internal/types2/typestring_test.go |  4 ++++
+ src/go/types/typestring.go                         | 18 ++++++++++++------
+ src/go/types/typestring_test.go                    |  5 +++++
+ 4 files changed, 33 insertions(+), 12 deletions(-)

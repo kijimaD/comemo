@@ -1,0 +1,17 @@
+commit 5531838c046eb1a94b142deeb89d7d8d9be3fc14
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Jun 28 09:58:19 2022 +0000
+
+    plugin: enable plugin test on linux/arm64
+    
+    The test passed on linux/arm64, so re-enable it.
+    
+    Change-Id: Ib5252d89b58f0de256993065e27b64c4676f5103
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414975
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/plugin/plugin_test.go | 2 --
+ 1 file changed, 2 deletions(-)

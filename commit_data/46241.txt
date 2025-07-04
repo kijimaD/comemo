@@ -1,0 +1,26 @@
+commit 1f83a8c16cf1e9141e081759fb0f6c6f2acb5fdc
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 31 14:09:41 2021 -0700
+
+    cmd/compile: use the zero value for results of impossible indexing
+    
+    type A [0]int
+    var a A
+    x := a[i]
+    
+    Use the zero value for x instead of the "impossible" value. That lets
+    us at least compile code like this with -B, even though it can't
+    possibly run correctly.
+    
+    Fixes #48092
+    
+    Change-Id: Idad5cfab49e05f375c069b05addceed68a15299f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346589
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssagen/ssa.go |  3 ++-
+ test/fixedbugs/issue48092.go           | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

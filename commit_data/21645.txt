@@ -1,0 +1,15 @@
+commit 98651d6edf32e4cfcff407b4441d0b537d0ad745
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 16 22:04:24 2015 -0500
+
+    runtime: in runtime-gdb.py, use SliceValue wrapper
+    
+    Rather than reaching in to slices directly in the slice pretty
+    printer, use the newly introduced SliceValue wrapper.
+    
+    Change-Id: Ibb25f8c618c2ffb3fe1a8dd044bb9a6a085df5b7
+    Reviewed-on: https://go-review.googlesource.com/4936
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/runtime-gdb.py | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

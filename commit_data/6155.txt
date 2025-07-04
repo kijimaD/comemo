@@ -1,0 +1,14 @@
+commit b05679cdd66437d19fbf49d4cc4ab2a72af1ae2a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Sep 2 17:00:24 2010 +1000
+
+    8l: suppress emitting DWARF in Windows PE.
+    
+    Fixes #1064.
+    
+    R=rsc, lvd, vcc
+    CC=golang-dev
+    https://golang.org/cl/2104042
+
+ src/cmd/8l/asm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

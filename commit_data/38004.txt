@@ -1,0 +1,23 @@
+commit 153c0da89bca6726545cf4451053235b552d3d51
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 19 18:12:13 2019 -0800
+
+    path/filepath: revert "fix Windows-specific Clean bug"
+    
+    Revert CL 137055, which changed Clean("\\somepath\dir\") to return
+    "\\somepath\dir" on Windows. It's not entirely clear this is correct,
+    as this path is really "\\server\share\", and as such the trailing
+    slash may be the path on that share, much like "C:\". In any case, the
+    change broke existing code, so roll it back for now and rethink for 1.13.
+    
+    Updates #27791
+    Fixes #30307
+    
+    Change-Id: I69200b1efe38bdb6d452b744582a2bfbb3acbcec
+    Reviewed-on: https://go-review.googlesource.com/c/163077
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/path/filepath/path.go      | 11 +++--------
+ src/path/filepath/path_test.go |  3 ---
+ 2 files changed, 3 insertions(+), 11 deletions(-)

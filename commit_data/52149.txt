@@ -1,0 +1,21 @@
+commit ea75b9458fed588e84abeacfc9319abb2a51ce0c
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Feb 8 16:47:16 2023 +0100
+
+    runtime: use explicit NOFRAME on plan9/amd64
+    
+    This CL marks some plan9 assembly functions as NOFRAME to avoid
+    relying on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
+    without stack were also marked as NOFRAME.
+    
+    Updates #58378
+    
+    Change-Id: Ic8c9ab5c1a0897bebc6c1419ddc903a7492a1b0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466457
+    TryBot-Bypass: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/x86/obj6.go | 2 +-
+ src/runtime/sys_plan9_amd64.s    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

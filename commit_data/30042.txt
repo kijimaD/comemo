@@ -1,0 +1,27 @@
+commit 73f92f9b0405e98427bbb445f24cffb5d3c4d01b
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Nov 27 11:43:08 2016 -0800
+
+    cmd/compile: use len(s)<=cap(s) to remove more bounds checks
+    
+    When we discover a relation x <= len(s), also discover the relation
+    x <= cap(s).  That way, in situations like:
+    
+    a := s[x:]  // tests 0 <= x <= len(s)
+    b := s[:x]  // tests 0 <= x <= cap(s)
+    
+    the second check can be eliminated.
+    
+    Fixes #16813
+    
+    Change-Id: Ifc037920b6955e43bac1a1eaf6bac63a89cfbd44
+    Reviewed-on: https://go-review.googlesource.com/33633
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 65 ++++++++++++++++++++++++++++++++---
+ test/checkbce.go                      |  2 +-
+ test/prove.go                         | 12 +++++++
+ 3 files changed, 74 insertions(+), 5 deletions(-)

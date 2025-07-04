@@ -1,0 +1,16 @@
+commit b38fba21f01558ac4834137f35af3b2a42aef4d1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 9 17:53:09 2014 -0700
+
+    bufio: fix potential endless loop in ReadByte
+    
+    Fixes #7745.
+    
+    LGTM=bradfitz, r
+    R=r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/86220044
+
+ src/pkg/bufio/bufio.go      | 26 ++++++++++++++++++--------
+ src/pkg/bufio/bufio_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 8 deletions(-)

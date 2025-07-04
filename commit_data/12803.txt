@@ -1,0 +1,12 @@
+commit d3a7e5f82d6892c76cf367debc56689273e9325f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 30 17:51:07 2012 -0700
+
+    A+C: added Aaron Kemp (Corporate CLA)
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5966054
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

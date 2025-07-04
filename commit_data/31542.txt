@@ -1,0 +1,65 @@
+commit 4fc498d89a1e7cef854ed95c00ce7fed817e75a4
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Mar 29 16:37:12 2017 -0400
+
+    cmd/compile: add generic rules to eliminate some unnecessary stores
+    
+    Eliminates stores of values that have just been loaded from the same
+    location. Handles the common case where there are up to 3 intermediate
+    stores to non-overlapping struct fields.
+    
+    For example the loads and stores of x.a, x.b and x.d in the following
+    function are now removed:
+    
+    type T struct {
+            a, b, c, d int
+    }
+    
+    func f(x *T) {
+            y := *x
+            y.c += 8
+            *x = y
+    }
+    
+    Before this CL (s390x):
+    
+    TEXT    "".f(SB)
+            MOVD    "".x(R15), R5
+            MOVD    (R5), R1
+            MOVD    8(R5), R2
+            MOVD    16(R5), R0
+            MOVD    24(R5), R4
+            ADD     $8, R0, R3
+            STMG    R1, R4, (R5)
+            RET
+    
+    After this CL (s390x):
+    
+    TEXT    "".f(SB)
+            MOVD    "".x(R15), R1
+            MOVD    16(R1), R0
+            ADD     $8, R0, R0
+            MOVD    R0, 16(R1)
+            RET
+    
+    In total these rules are triggered ~5091 times during all.bash,
+    which is broken down as:
+    
+    Intermediate stores | Triggered
+    --------------------+----------
+    0                   | 1434
+    1                   | 2508
+    2                   | 888
+    3                   | 261
+    --------------------+----------
+    
+    Change-Id: Ia4721ae40146aceec1fdd3e65b0e9283770bfba5
+    Reviewed-on: https://go-review.googlesource.com/38793
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  27 ++++
+ src/cmd/compile/internal/ssa/rewrite.go        |  12 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 216 +++++++++++++++++++++++--
+ 3 files changed, 246 insertions(+), 9 deletions(-)

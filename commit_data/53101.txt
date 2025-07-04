@@ -1,0 +1,29 @@
+commit 88f89d87c4e818679b65cfc50a7b0cb554e154d3
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 18 11:19:54 2023 -0400
+
+    cmd/cgo/internal/test: fix TestThreadLock
+    
+    This test was introduced in CL 18882, but only recently enabled as of
+    CL 493603. It's intended to check that we don't move executing C code
+    between threads when it re-enters Go, but it has always contained a
+    flake. Go *can* preempt between the Go call to gettid and the C call
+    to gettid and move the goroutine to another thread because there's no
+    C code on the stack during the Go call to gettid. This will cause the
+    test to fail.
+    
+    Fix this by making both gettid calls in C, with a re-entry to Go
+    between them.
+    
+    Fixes #60265
+    
+    Change-Id: I546621a541ce52b996d68b17d3bed709d2b5b1f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496182
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/cmd/cgo/internal/test/cgo_thread_lock.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

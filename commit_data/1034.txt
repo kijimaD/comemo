@@ -1,0 +1,12 @@
+commit 250ec1665a8d142a4b4f7e634991aeac50bb14f8
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Nov 3 13:27:16 2008 -0800
+
+    unsigned divide by fn()
+    
+    R=r
+    OCL=18351
+    CL=18351
+
+ src/cmd/6g/gen.c | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

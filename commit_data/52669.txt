@@ -1,0 +1,21 @@
+commit 9fab498ab1c2c03595f8e4a261b67e9eb9cbd0e7
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Apr 13 22:05:14 2023 +0700
+
+    cmd/compile/internal/typecheck: remove some un-used functions
+    
+    CL 405094 removed the only caller of markBreak/setHasBreak and
+    isTermNodes/isTermNode.
+    
+    importlist variable is only used in old frontend.
+    
+    Change-Id: I9472f2c0017b6200847999f2cea0e9021a1b14e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484435
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/typecheck/typecheck.go | 143 ------------------------
+ 1 file changed, 143 deletions(-)

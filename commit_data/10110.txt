@@ -1,0 +1,12 @@
+commit 8b92066e31e127f7193c29e716af39a06ec0b82a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Oct 26 16:16:46 2011 +0900
+
+    gc: fix [568]g -V crash
+    
+    R=lvd
+    CC=golang-dev
+    https://golang.org/cl/5314060
+
+ src/cmd/gc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

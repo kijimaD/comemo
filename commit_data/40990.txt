@@ -1,0 +1,14 @@
+commit ad12ee3006ed8d0552d14dcb623de9af325c6758
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Dec 13 11:11:11 2019 -0500
+
+    doc: fix missing closing tag in module documentation
+    
+    Updates #33637
+    
+    Change-Id: If262d1501cf73b404361f832a2e3e17aaa0db78b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211299
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/modules.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

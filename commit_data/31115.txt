@@ -1,0 +1,20 @@
+commit e05de6a5be66c517516e78093606ffc8c89042b2
+Author: Lucas Clemente <lclemente@google.com>
+Date:   Mon Mar 20 13:35:41 2017 +0100
+
+    hash/fnv: add 128-bit FNV hash support
+    
+    The 128bit FNV hash will be used e.g. in QUIC.
+    
+    The algorithm is described at
+    https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
+    
+    Change-Id: I13f3ec39b0e12b7a5008824a6619dff2e708ee81
+    Reviewed-on: https://go-review.googlesource.com/38356
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/hash/fnv/fnv.go      | 122 +++++++++++++++++++++++++++++++++++++++--------
+ src/hash/fnv/fnv_test.go |  39 +++++++++++++++
+ 2 files changed, 141 insertions(+), 20 deletions(-)

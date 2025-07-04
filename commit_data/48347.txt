@@ -1,0 +1,26 @@
+commit 29b968e76638c22368f775a4347a544a096d9380
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Fri Oct 22 17:40:08 2021 +0800
+
+    runtime,cmd/compile: change reg duff{zero,copy} for regabi riscv64
+    
+    As CL 356519 require, X8-X23 will be argument register, however X10, X11
+    is used by duff device.
+    
+    This CL changes X10, X11 into X24, X25 to meet the prerequisite.
+    
+    Update #40724
+    
+    Change-Id: Ie9b899afbba7e9a51bb7dacd89e49ca1c1fc33ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357976
+    Trust: mzh <mzh@golangcn.org>
+    Run-TryBot: mzh <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+
+ src/cmd/compile/internal/riscv64/ggen.go       |    2 +-
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |   14 +-
+ src/cmd/compile/internal/ssa/opGen.go          |   10 +-
+ src/runtime/duff_riscv64.s                     | 1790 ++++++++++++------------
+ src/runtime/mkduff.go                          |   22 +-
+ 5 files changed, 919 insertions(+), 919 deletions(-)

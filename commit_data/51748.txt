@@ -1,0 +1,29 @@
+commit 7f9ee2ba5b3b60a4e71650abe5d94e0ef85720d1
+Author: Dmitry Panov <dop251@gmail.com>
+Date:   Wed Dec 28 23:05:26 2022 +0000
+
+    math: handle int64 overflows for odd integer exponents in Pow(-0, y)
+    
+    The existing implementation does a float64 to int64 conversion in order to check whether the number is odd, however it does not check for overflows. If an overflow occurs, the result is implementation-defined and while it happens to work on amd64 and i386, it produces an incorrect result on arm64 and possibly other architectures.
+    
+    This change fixes that and also avoids calling isOddInt altogether if the base is +0, because it's unnecessary.
+    
+    (I was considering avoiding the extra check if runtime.GOARCH is "amd64" or "i386", but I can't see this pattern being used anywhere outside the tests. And having separate files with build tags just for isOddInt() seems like an overkill)
+    
+    Fixes #57465
+    
+    Change-Id: Ieb243796194412aa6b98fac05fd19766ca2413ef
+    GitHub-Last-Rev: 3bfbd85c4cd6c5dc3d15239e180c99764a19ca88
+    GitHub-Pull-Request: golang/go#57494
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459815
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Bypass: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/math/all_test.go | 12 ++++++++++++
+ src/math/pow.go      | 15 ++++++++++++---
+ 2 files changed, 24 insertions(+), 3 deletions(-)

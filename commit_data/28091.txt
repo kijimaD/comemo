@@ -1,0 +1,22 @@
+commit 8c15a1725147692e1106f2e32fae657e1b7f27aa
+Author: Radu Berinde <radu@cockroachlabs.com>
+Date:   Sun Aug 28 11:47:14 2016 -0400
+
+    hash/crc32: fix nil Castagnoli table problem
+    
+    When SSE is available, we don't need the Table. However, it is
+    returned as a handle by MakeTable. Fix this to always generate
+    the table.
+    
+    Further cleanup is discussed in #16909.
+    
+    Change-Id: Ic05400d68c6b5d25073ebd962000451746137afc
+    Reviewed-on: https://go-review.googlesource.com/27934
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/hash/crc32/crc32.go            | 5 ++++-
+ src/hash/crc32/crc32_amd64_test.go | 9 ++++-----
+ src/hash/crc32/crc32_test.go       | 3 +++
+ 3 files changed, 11 insertions(+), 6 deletions(-)

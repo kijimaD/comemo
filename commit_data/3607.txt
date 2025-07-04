@@ -1,0 +1,21 @@
+commit 69fc06dfa15154b08f9ba35bec753208ff18c61d
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Oct 20 14:10:22 2009 -0700
+
+    Move usr/dsymonds/iterable to src/pkg/exp/iterable.
+    Remove remainder of usr/dsymonds.
+    
+    R=rsc,r
+    APPROVED=r
+    DELTA=685  (275 added, 409 deleted, 1 changed)
+    OCL=35810
+    CL=35933
+
+ src/clean.bash                                          | 2 +-
+ src/pkg/Make.deps                                       | 1 +
+ src/pkg/Makefile                                        | 1 +
+ {usr/dsymonds => src/pkg/exp}/iterable/Makefile         | 2 +-
+ {usr/dsymonds => src/pkg/exp}/iterable/iterable.go      | 0
+ {usr/dsymonds => src/pkg/exp}/iterable/iterable_test.go | 0
+ src/run.bash                                            | 5 -----
+ 7 files changed, 4 insertions(+), 7 deletions(-)

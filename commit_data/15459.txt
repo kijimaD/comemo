@@ -1,0 +1,12 @@
+commit 7add9b7f6a4a0b557a579f8fbdfad1dfcb0f70e6
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Feb 27 14:09:42 2013 +0100
+
+    exp/locale/collate: fixed go vet error.
+    
+    R=r, dave
+    CC=golang-dev
+    https://golang.org/cl/7403055
+
+ src/pkg/exp/locale/collate/collate_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

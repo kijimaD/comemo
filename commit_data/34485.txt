@@ -1,0 +1,14 @@
+commit f7739c07c8f6ef9bfa28e8c4a4527b01cf3991bc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 2 15:16:02 2018 -0800
+
+    runtime: skip pointless writes in freedefer
+    
+    Change-Id: I501a0e5c87ec88616c7dcdf1b723758b6df6c088
+    Reviewed-on: https://go-review.googlesource.com/98758
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/panic.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

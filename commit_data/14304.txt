@@ -1,0 +1,12 @@
+commit d5449eafb95cf6b622ad7f569c88e596f9a710a3
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Sat Nov 3 02:13:51 2012 +0800
+
+    misc/benchcmp: show memory statistics, when available
+    
+    R=minux.ma, dave, extraterrestrial.neighbour, rsc
+    CC=golang-dev
+    https://golang.org/cl/6587069
+
+ misc/benchcmp | 36 ++++++++++++++++++++++++++++++++++--
+ 1 file changed, 34 insertions(+), 2 deletions(-)

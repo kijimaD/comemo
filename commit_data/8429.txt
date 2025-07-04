@@ -1,0 +1,12 @@
+commit b2563580088dcec7896b0d858c969ba7f25c16ae
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Wed May 18 13:12:38 2011 -0400
+
+    6l: fix emit windows dwarf sections
+    
+    R=alex.brainman, rsc
+    CC=golang-dev, vcc.163
+    https://golang.org/cl/4532069
+
+ src/cmd/6l/asm.c | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,19 @@
+commit e87b0644db46c2b313f420c657a4b308fb6bc2cb
+Author: Keyan Pishdadian <kpishdadian@gmail.com>
+Date:   Tue Apr 28 20:06:29 2020 +0000
+
+    cmd/go: add error for cross-compiled -race builds
+    
+    Race builds require C dependencies, but cross-compiled cgo builds are
+    not always possible, so don't suggest enabling CGO in those cases.
+    
+    Fixes #37021
+    
+    Change-Id: I1fd675efc9cef958a926bd63eac8e6858bc59d0a
+    GitHub-Last-Rev: cbf43c1bbb0f209474cc323b3813cf270a2ba0a8
+    GitHub-Pull-Request: golang/go#38670
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230202
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/init.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 39194de8ca8abd0380dfef7a8fd25271561c705f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 24 09:52:03 2011 +1000
+
+    misc/dashboard: remove limit for json package list
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4937048
+
+ misc/dashboard/godashboard/package.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 8b364451e2e2f2f816ed877a4639d9342279f299
+Author: Sean Liao <sean@liao.dev>
+Date:   Mon Apr 18 11:02:26 2022 +0100
+
+    net/http: drop mimesniff for audio/basic
+    
+    The WHATWG Mime Sniffing Standard we follow dropped support for
+    .snd / audio/basic.
+    https://github.com/whatwg/mimesniff/issues/151
+    
+    Change-Id: Iae1bd8b29063b06b5b3909a944e12ead5974a526
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400754
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/sniff.go | 5 -----
+ 1 file changed, 5 deletions(-)

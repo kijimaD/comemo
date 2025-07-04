@@ -1,0 +1,30 @@
+commit 92c7df116ecbd8f230b48f72eb44fa7de5d13233
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Thu Nov 3 10:02:04 2022 -0500
+
+    internal/bytealg: add PCALIGN to indexbodyp9 function on ppc64x
+    
+    Adding PCALIGN in indexbodyp9 function shows
+    improvements in some SimonWaldherr benchmarks and one of the index
+    benchmarks on both Power9 and Power10
+    
+    name              old time/op  new time/op  delta
+    Contains          19.8ns ± 0%  15.6ns ± 0%  -21.24%
+    ContainsNot       21.3ns ± 0%  18.9ns ± 0%  -11.03%
+    ContainsBytes     19.1ns ± 0%  16.0ns ± 0%  -16.54%
+    Index/10     17.3ns ± 0%    16.1ns ± 0%  -7.30%
+    Index/32     59.6ns ± 0%    59.6ns ± 0%  +0.12%
+    Index/4K     3.68µs ± 0%    3.68µs ± 0%    ~
+    Index/4M     3.74ms ± 0%    3.74ms ± 0%  -0.00%
+    Index/64M    59.8ms ± 0%    59.8ms ± 0%    ~
+    
+    Change-Id: I784e57e0b0f5bac143f57f3a32845219e43d47fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447595
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/bytealg/index_ppc64x.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

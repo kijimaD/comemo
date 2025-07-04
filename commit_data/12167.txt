@@ -1,0 +1,18 @@
+commit 36d370700957f4ec8db2d36288eb30d2552d8181
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Feb 23 10:51:04 2012 -0500
+
+    6a/6l: add IMUL3Q and SHLDL
+    
+    Although Intel considers the three-argument form of IMUL to be a
+    variant of IMUL, I couldn't make 6l able to differentiate it without
+    huge changes, so I called it IMUL3.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5686055
+
+ src/cmd/6a/lex.c   | 1 +
+ src/cmd/6l/6.out.h | 1 +
+ src/cmd/6l/optab.c | 6 ++++++
+ 3 files changed, 8 insertions(+)

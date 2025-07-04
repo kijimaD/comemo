@@ -1,0 +1,22 @@
+commit 6cba4dbf80012c272cb04bd878dfba251d9bb05c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 8 14:51:30 2019 -0400
+
+    cmd/go/internal/list: disallow 'list -m' with '-mod=vendor'
+    
+    Updates #33848
+    
+    Change-Id: I81663386297282397ce1b546a8b15597bfbcea78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199821
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.14.html                                   |  7 +++++++
+ src/cmd/go/internal/list/list.go                  |  3 +++
+ src/cmd/go/internal/modload/build.go              |  3 ++-
+ src/cmd/go/testdata/script/mod_getmode_vendor.txt |  6 +++---
+ src/cmd/go/testdata/script/mod_vendor.txt         | 23 +++++++++++++++++++----
+ src/cmd/go/testdata/script/mod_vendor_auto.txt    | 12 ++++--------
+ src/cmd/go/testdata/script/mod_vendor_replace.txt |  4 ++--
+ 7 files changed, 40 insertions(+), 18 deletions(-)

@@ -1,0 +1,16 @@
+commit e0b6f4721fac04fbaaa669e3a52818ef6c2d5df1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jul 29 10:47:00 2011 -0700
+
+    archive/zip: more efficient reader and bug fix
+    
+    Fixes #2090.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4815068
+
+ src/pkg/archive/zip/reader.go      | 228 ++++++++++++++++++-------------------
+ src/pkg/archive/zip/reader_test.go |   6 +
+ src/pkg/archive/zip/struct.go      |   3 +
+ 3 files changed, 121 insertions(+), 116 deletions(-)

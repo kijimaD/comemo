@@ -1,0 +1,21 @@
+commit 5755bad42adc23ad4a0c32149ac8cf78ece5d0b0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Sep 26 17:12:14 2020 +0200
+
+    os: remove ENOTSUP special case in Getwd on darwin
+    
+    ENOTSUP was used as a signaling error in the custom implementation of
+    syscall.Getwd to fall back to the slow algorithm. Since CL 257637 Getwd
+    directly calls the respective function from libSystem.dylib which can no
+    longer return ENOTSUP.
+    
+    Change-Id: I8e65e42b3ea069bf78969a29f2af1c55552e2949
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257644
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/getwd.go        |  8 +-------
+ src/os/getwd_darwin.go | 15 ---------------
+ 2 files changed, 1 insertion(+), 22 deletions(-)

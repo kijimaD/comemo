@@ -1,0 +1,19 @@
+commit 09cc9bac724896cac02b0da8b259febddde52759
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jul 25 15:39:07 2022 -0400
+
+    runtime: convert schedt.sysmonwait to atomic type
+    
+    This converts a few unsynchronized accesses.
+    
+    For #53821.
+    
+    Change-Id: Ie2728779111e3e042696f15648981c5d5a86ca6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419448
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/proc.go     | 24 ++++++++++++------------
+ src/runtime/runtime2.go |  2 +-
+ 2 files changed, 13 insertions(+), 13 deletions(-)

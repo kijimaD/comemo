@@ -1,0 +1,14 @@
+commit 91ba9f45c25a0a6b2695b3391d53d31763228dc2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 17:39:34 2016 +0000
+
+    Revert "cmd/dist: improve isGitRepo to handle git "worktree"s"
+    
+    This reverts commit ab096d587f9bb5dcdf895511ee6d213aade7e30f.
+    
+    Change-Id: Icf366aa43acc41b4f8474edae0297e554368bf14
+    Reviewed-on: https://go-review.googlesource.com/18321
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/build.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

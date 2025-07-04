@@ -1,0 +1,13 @@
+commit b198b994a10feab2597ea938f7d616266bc99c92
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 14 16:46:48 2009 -0700
+
+    do not crash on nil data value
+    
+    R=r
+    DELTA=3  (3 added, 0 deleted, 0 changed)
+    OCL=34606
+    CL=34609
+
+ src/pkg/template/template.go | 3 +++
+ 1 file changed, 3 insertions(+)

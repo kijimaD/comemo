@@ -1,0 +1,12 @@
+commit 65f514edfb0ca5208e961318306eeddfdf79fda7
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri May 29 16:09:50 2020 +0200
+
+    math: fix dead link to springerlink (now link.springer)
+    
+    Change-Id: Ie5fd026af45d2e7bc371a38d15dbb52a1b4958cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235717
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/exp_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

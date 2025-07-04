@@ -1,0 +1,14 @@
+commit 52b95970ca62033d579d2490470dcfdca986fc3d
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 17 15:29:52 2011 -0700
+
+    flag: fix example in doc comment.
+    
+    Fixes #1615.
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4277058
+
+ src/pkg/flag/flag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

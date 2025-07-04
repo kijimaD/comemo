@@ -1,0 +1,52 @@
+commit b653c878b1ad8d1b4f8d7b04201d0cb0a4156ead
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 5 11:42:37 2019 -0700
+
+    runtime: change read and write to return negative errno value
+    
+    The internal read and write functions used to return -1 on error;
+    change them to return a negative errno value instead.
+    This will be used by later CLs in this series.
+    
+    For most targets this is a simplification, although for ones that call
+    into libc it is a complication.
+    
+    Updates #27707
+    
+    Change-Id: Id02bf9487f03e7e88e4f2b85e899e986738697ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171823
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/crash_unix_test.go    | 24 ++++++++++++++++++++++++
+ src/runtime/os2_aix.go            | 11 +++++++++--
+ src/runtime/os3_solaris.go        | 12 ++++++++++--
+ src/runtime/os_solaris.go         | 12 +++++++++++-
+ src/runtime/runtime_test.go       | 26 --------------------------
+ src/runtime/stubs2.go             |  5 +++++
+ src/runtime/sys_darwin_386.s      | 12 ++++++++++++
+ src/runtime/sys_darwin_amd64.s    | 12 ++++++++++++
+ src/runtime/sys_darwin_arm.s      | 14 ++++++++++++++
+ src/runtime/sys_darwin_arm64.s    | 14 ++++++++++++++
+ src/runtime/sys_dragonfly_amd64.s |  4 ++--
+ src/runtime/sys_freebsd_386.s     |  4 ++--
+ src/runtime/sys_freebsd_amd64.s   |  4 ++--
+ src/runtime/sys_freebsd_arm.s     |  4 ++--
+ src/runtime/sys_linux_386.s       |  6 ------
+ src/runtime/sys_linux_amd64.s     |  6 ------
+ src/runtime/sys_linux_arm.s       |  6 ------
+ src/runtime/sys_linux_arm64.s     |  8 --------
+ src/runtime/sys_linux_mips64x.s   |  4 ++--
+ src/runtime/sys_linux_mipsx.s     |  4 ++--
+ src/runtime/sys_linux_ppc64x.s    |  4 ++--
+ src/runtime/sys_linux_s390x.s     |  6 ------
+ src/runtime/sys_netbsd_386.s      |  4 ++--
+ src/runtime/sys_netbsd_amd64.s    |  4 ++--
+ src/runtime/sys_netbsd_arm.s      |  4 ++--
+ src/runtime/sys_netbsd_arm64.s    |  4 ++--
+ src/runtime/sys_openbsd_386.s     |  4 ++--
+ src/runtime/sys_openbsd_amd64.s   |  4 ++--
+ src/runtime/sys_openbsd_arm.s     |  4 ++--
+ src/runtime/sys_openbsd_arm64.s   |  4 ++--
+ 30 files changed, 141 insertions(+), 93 deletions(-)

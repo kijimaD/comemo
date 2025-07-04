@@ -1,0 +1,18 @@
+commit 6396a42b99daab77f6207f6c3011f7ffd7bbe173
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Dec 12 19:20:24 2023 +0100
+
+    doc: document Windows os.ReadDir improvements
+    
+    For #61422.
+    
+    Change-Id: Icc1868ef9516766d0f422849866ef8de27bfa4c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549275
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ doc/go1.22.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

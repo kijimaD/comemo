@@ -1,0 +1,18 @@
+commit 08a209f387a5736fce8ab9121883c8b228c2729f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 26 12:55:54 2009 -0700
+
+    cleanups before making larger changes
+    
+    R=rsc
+    DELTA=113  (10 added, 30 deleted, 73 changed)
+    OCL=33877
+    CL=33882
+
+ src/pkg/big/Makefile      |   1 -
+ src/pkg/big/arith.go      |   3 +-
+ src/pkg/big/arith_386.s   |  11 ++--
+ src/pkg/big/arith_amd64.s | 126 +++++++++++++++++++++++-----------------------
+ src/pkg/big/big.go        |  28 -----------
+ src/pkg/big/nat.go        |  17 +++++--
+ 6 files changed, 83 insertions(+), 103 deletions(-)

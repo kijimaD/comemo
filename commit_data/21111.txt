@@ -1,0 +1,24 @@
+commit edf7258416ce152137da41943cbd85b199800674
+Author: Chris Manghane <cmang@golang.org>
+Date:   Thu Dec 18 09:54:32 2014 -0800
+
+    test: add fixed GoSmith bugs reported on the gcc Bugzilla
+    
+    Change-Id: I36b57f3e299a4f96b8b5aa55c9c224d888229684
+    Reviewed-on: https://go-review.googlesource.com/1790
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/gcc61204.go | 17 +++++++++++++++++
+ test/fixedbugs/gcc61244.go | 19 +++++++++++++++++++
+ test/fixedbugs/gcc61246.go | 17 +++++++++++++++++
+ test/fixedbugs/gcc61248.go | 14 ++++++++++++++
+ test/fixedbugs/gcc61253.go | 20 ++++++++++++++++++++
+ test/fixedbugs/gcc61254.go | 13 +++++++++++++
+ test/fixedbugs/gcc61255.go | 13 +++++++++++++
+ test/fixedbugs/gcc61258.go | 13 +++++++++++++
+ test/fixedbugs/gcc61264.go | 13 +++++++++++++
+ test/fixedbugs/gcc61265.go | 16 ++++++++++++++++
+ test/fixedbugs/gcc61273.go | 16 ++++++++++++++++
+ 11 files changed, 171 insertions(+)

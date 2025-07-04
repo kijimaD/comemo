@@ -1,0 +1,13 @@
+commit 73d741fd5b767f671dc3bb466ae28c51b0222f8c
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Jun 23 10:11:33 2011 -0700
+
+    mime/multipart: remove newline at top of the multipart.
+    
+    R=golang-dev, bradfitz, arctanofyourface
+    CC=golang-dev
+    https://golang.org/cl/4635063
+
+ src/pkg/mime/multipart/writer.go      | 6 +++++-
+ src/pkg/mime/multipart/writer_test.go | 7 +++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

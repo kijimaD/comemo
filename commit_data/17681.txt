@@ -1,0 +1,15 @@
+commit 3c1ece2cb4caeb1a7ed6954e456dbe5bd6fd4c24
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 23 16:29:53 2013 -0400
+
+    cmd/cgo: update #cgo docs to reflect reality
+    
+    The syntax accepted is full build constraints, not just
+    GOOS, GOARCH, and GOOS/GOARCH.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13504048
+
+ src/cmd/cgo/doc.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

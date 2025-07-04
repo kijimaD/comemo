@@ -1,0 +1,18 @@
+commit 89bcbf40b86ebad81d5cf34f6457f11a6f23b808
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Nov 2 11:19:23 2017 +0100
+
+    math/bits: add examples for right rotation
+    
+    Right rotation is achieved using negative k in RotateLeft*(x, k). Add
+    examples demonstrating that functionality.
+    
+    Change-Id: I15dab159accd2937cb18d3fa8ca32da8501567d3
+    Reviewed-on: https://go-review.googlesource.com/75371
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/bits/example_test.go  | 8 ++++++++
+ src/math/bits/make_examples.go | 6 ++++++
+ 2 files changed, 14 insertions(+)

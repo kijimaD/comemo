@@ -1,0 +1,14 @@
+commit 3338c71fc6253c4010c804435be770e3b4beb9ee
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Jan 24 15:58:44 2009 -0800
+
+    bug in async select read
+    buganizer 1589219
+    channel is returning same values multiple times
+    
+    R=r
+    OCL=23447
+    CL=23447
+
+ src/runtime/chan.c | 41 ++++++++++++++++++++++-------------------
+ 1 file changed, 22 insertions(+), 19 deletions(-)

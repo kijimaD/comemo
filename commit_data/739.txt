@@ -1,0 +1,17 @@
+commit 2c52881a85fc38a685b132043229d97e0bd9d376
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 10:25:13 2008 -0700
+
+    fix ELF bugs found by iant
+            - .text begins at INITTEXT, not 0
+               and does not include HEADR
+            - .shstrtab, .gosymtab, .gopclntab have alignment 1
+            - .gosymtab, .gopclntab have type SHT_PROGBITS
+    
+    R=r
+    DELTA=9  (0 added, 0 deleted, 9 changed)
+    OCL=15953
+    CL=15956
+
+ src/cmd/6l/asm.c | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

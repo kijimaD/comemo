@@ -1,0 +1,12 @@
+commit c98145fb5064291fb53b4cbf2beb8e4ef594b65d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 28 15:55:48 2011 -0700
+
+    godoc: fix spelling error
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4289079
+
+ lib/godoc/search.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

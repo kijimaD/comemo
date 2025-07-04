@@ -1,0 +1,45 @@
+commit 2dbc5736b269cba7c0fcd10a6f60fb49fe927d38
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 10 12:43:44 2022 -0700
+
+    go/types: replace invalid(AST|Arg|Op) with errorf and message prefix
+    
+    This brings go/types error reporting closer to types2.
+    
+    Except for removing the error functions and one manual correction,
+    these changes were made by regex-replacing:
+    
+    check\.invalidAST\((.*), "      =>
+    check.errorf($1, InvalidSyntaxTree, invalidAST+"
+    
+    check\.invalidOp\((.*), "       =>
+    check.errorf($1, invalidOp+"
+    
+    check\.invalidArg\((.*), "      =>
+    check.errorf($1, invalidArg+"
+    
+    A follow-up CL ensures that we use error instead of errorf where
+    possible.
+    
+    Change-Id: Iac53dcd9c122b058f98d26d0fb307ef1dfe4e79b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441955
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/go/types/builtins.go  | 44 +++++++++++++++++++++----------------------
+ src/go/types/call.go      |  2 +-
+ src/go/types/decl.go      |  8 ++++----
+ src/go/types/errors.go    | 18 ++++++------------
+ src/go/types/expr.go      | 48 +++++++++++++++++++++++------------------------
+ src/go/types/index.go     | 24 ++++++++++++------------
+ src/go/types/interface.go |  2 +-
+ src/go/types/labels.go    |  2 +-
+ src/go/types/resolver.go  |  2 +-
+ src/go/types/signature.go |  4 ++--
+ src/go/types/stmt.go      | 36 +++++++++++++++++------------------
+ src/go/types/struct.go    |  4 ++--
+ src/go/types/typexpr.go   |  4 ++--
+ 13 files changed, 96 insertions(+), 102 deletions(-)

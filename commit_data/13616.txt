@@ -1,0 +1,16 @@
+commit 4f308edc864a87ff4f6f9d6c531733cb1bf100f1
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Aug 10 10:05:26 2012 +0800
+
+    runtime: use sched_getaffinity for runtime.NumCPU() on Linux
+            Fixes #3921.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/6448132
+
+ src/pkg/runtime/sys_linux_386.s   |  8 ++++++++
+ src/pkg/runtime/sys_linux_amd64.s |  8 ++++++++
+ src/pkg/runtime/sys_linux_arm.s   |  9 +++++++++
+ src/pkg/runtime/thread_linux.c    | 32 +++++++++++---------------------
+ 4 files changed, 36 insertions(+), 21 deletions(-)

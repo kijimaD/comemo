@@ -1,0 +1,16 @@
+commit 0129e0d6ea275bacbbeff0ce051798a929c6562c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 26 23:11:32 2017 -0400
+
+    misc/cgo/testshared: disable TestTwoGopathShlibsGccgo
+    
+    For #22224.
+    
+    Change-Id: Iae873fddc72a79a96a32eaeb5d4dd885eaf810cb
+    Reviewed-on: https://go-review.googlesource.com/73851
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testshared/shared_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

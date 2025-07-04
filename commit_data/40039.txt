@@ -1,0 +1,21 @@
+commit ae024d9daf9b98dfdc5d4449964645cd3d303ac1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Sep 26 15:37:06 2019 +0000
+
+    Revert "internal/bytealg: add assembly implementation of Compare/CompareString on mips64x"
+    
+    This reverts CL 196837 (commit 78baea836d9f431297).
+    
+    Reason for revert: broke the mips64le build.
+    
+    Change-Id: I531da60d098cb227659c9977a3d229474325b0a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197538
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/bytealg/compare_generic.go |  2 +-
+ src/internal/bytealg/compare_mips64x.s  | 92 ---------------------------------
+ src/internal/bytealg/compare_native.go  |  2 +-
+ 3 files changed, 2 insertions(+), 94 deletions(-)

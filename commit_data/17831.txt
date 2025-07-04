@@ -1,0 +1,14 @@
+commit 08a561459763181649c35eb7191c945b5a10c933
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 22 18:33:37 2013 -0400
+
+    test/mapnan: use time.Now instead of syscall.Getrusage
+    
+    Avoids a dependency on a somewhat nonstandard part of package syscall.
+    
+    R=golang-dev, dave, r
+    CC=golang-dev
+    https://golang.org/cl/15570046
+
+ test/mapnan.go | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)

@@ -1,0 +1,35 @@
+commit 0fda8b19328edbfab880be6cb4033ff6c81eca6d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 2 10:24:53 2022 -0700
+
+    go/types, types2: consistently write "x | y" rather than "x|y" for unions
+    
+    Use the same spacing convention ("x | y") for union terms everythere,
+    matching the gofmt precedent.
+    
+    Fixes #53279.
+    
+    Change-Id: Ic3ccd7433b5f62402ba41cf05a75f9a1d99a8086
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410955
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go        | 30 +++++++++++-----------
+ src/cmd/compile/internal/types2/termlist.go        |  5 +++-
+ src/cmd/compile/internal/types2/typestring.go      |  2 +-
+ src/cmd/compile/internal/types2/typestring_test.go |  4 +--
+ src/go/types/api_test.go                           | 30 +++++++++++-----------
+ src/go/types/termlist.go                           |  5 +++-
+ src/go/types/typestring.go                         |  2 +-
+ src/go/types/typestring_test.go                    |  4 +--
+ .../types/testdata/fixedbugs/issue45920.go         |  4 +--
+ .../types/testdata/fixedbugs/issue47411.go         |  6 ++---
+ .../types/testdata/fixedbugs/issue47818.go         |  2 +-
+ .../types/testdata/fixedbugs/issue49179.go         |  4 +--
+ .../types/testdata/fixedbugs/issue51472.go         |  2 +-
+ src/internal/types/testdata/spec/conversions.go    |  6 ++---
+ 14 files changed, 56 insertions(+), 50 deletions(-)

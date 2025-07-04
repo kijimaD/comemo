@@ -1,0 +1,43 @@
+commit 119daba94e22516e1371b94fb2cb3cb4b32727ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 20 11:07:29 2015 -0400
+
+    cmd/go: always rebuild GOPATH code that looks out of date
+    
+    We used to put a rebuilding barrier between GOPATHs, so that if
+    you had GOPATH=dir1:dir2 and you had "p" in dir1/src/p
+    and "q" in dir2/src/q, with "p" importing "q", then when you
+    ran 'go install p', it would see that it was working in dir1
+    and (since nothing from dir2 was explicitly mentioned)
+    would assume that everything in dir2 is up-to-date, provided
+    it is built at all.
+    
+    This has the confusing behavior that if "q" hasn't been built ever,
+    then if you update sources in q and run 'go install p', the right
+    thing happens (q is rebuilt and then p), but after that, if you update
+    sources in q and run 'go install p', nothing happens: the installed
+    q is assumed up-to-date.
+    
+    People using code conventions with multiple GOPATH entries
+    (for example, with commands in one place and libraries in another,
+    or vendoring conventions that try to avoid rewriting import paths)
+    run into this without realizing it and end up with incorrect build
+    results.
+    
+    The original motivation here was to avoid rebuild standard packages
+    since a system-installed GOROOT might be unwritable.
+    The change introduced to separate GOROOT also separated
+    individual GOPATH entries. Later changes added a different, more
+    aggressive earlier shortcut for GOROOT in release settings,
+    so the code here is now only applying to (and confusing)
+    multiple GOPATH entries. Remove it.
+    
+    Fixes #10509.
+    
+    Change-Id: I687a3baa81eff4073b0d67f9acbc5a3ab192eda5
+    Reviewed-on: https://go-review.googlesource.com/9155
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/pkg.go    | 96 ++++++++++++++++++++++++++++++++++------------------
+ src/cmd/go/test.bash | 51 +++++++++++++++++++++++++++-
+ 2 files changed, 113 insertions(+), 34 deletions(-)

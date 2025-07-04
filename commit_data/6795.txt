@@ -1,0 +1,12 @@
+commit 93f97ca235095efd5aa5f1fce654509c8d8c231a
+Author: Anschel Schaffer-Cohen <anschelsc@gmail.com>
+Date:   Mon Nov 29 09:17:28 2010 -0800
+
+    doc/code.html: fix reference to "gomake build"
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/3288042
+
+ doc/code.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

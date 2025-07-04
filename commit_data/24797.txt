@@ -1,0 +1,29 @@
+commit 03227bb55ec92c9af4dcf55d83ec77b3f1e69aff
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 10 14:37:52 2015 -0500
+
+    runtime: eliminate traceBuf write barriers
+    
+    The tracing code is currently called from contexts such as sysmon and
+    the scheduler where write barriers are not allowed. Unfortunately,
+    while the common paths through the tracing code do not have write
+    barriers, many of the less common paths dealing with buffer overflow
+    and recycling do.
+    
+    This change replaces all *traceBufs with traceBufPtrs. In the style of
+    guintptr, etc., the GC does not trace traceBufPtrs and write barriers
+    do not apply when these pointers are written. Since traceBufs are
+    allocated from non-GC'd memory and manually managed, this is always
+    safe.
+    
+    Updates #10600.
+    
+    Change-Id: I52b992d36d1b634ebd855c8cde27947ec14f59ba
+    Reviewed-on: https://go-review.googlesource.com/16812
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/runtime2.go |   2 +-
+ src/runtime/trace.go    | 150 ++++++++++++++++++++++++++----------------------
+ 2 files changed, 83 insertions(+), 69 deletions(-)

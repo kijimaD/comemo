@@ -1,0 +1,13 @@
+commit dbabeb1d7adb51466b51cbe4a0d2474fe1d7af78
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 21 18:03:25 2008 -0700
+
+    reject new of function type
+    
+    R=ken
+    OCL=17598
+    CL=17598
+
+ src/cmd/gc/walk.c |  4 ++++
+ test/newfn.go     | 14 ++++++++++++++
+ 2 files changed, 18 insertions(+)

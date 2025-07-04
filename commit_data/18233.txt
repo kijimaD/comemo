@@ -1,0 +1,24 @@
+commit 9c1aa658bfb73018805fde0c6224a289aced0d03
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 13 23:07:40 2014 -0500
+
+    cmd/link: replace golden binary files with hex dumps
+    
+    The hex dumps will diff better, and I hope they will avoid
+    a repeat of http://bugs.debian.org/716853.
+    
+    The CL will probably show the testdata diffs as "binary",
+    but in fact the binary versions are being replaced by
+    textual hex dumps (output of hexdump -C).
+    
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/51000044
+
+ src/cmd/link/hex_test.go                      |  74 ++++++++++++++++++++++++++
+ src/cmd/link/prog_test.go                     |  12 +++--
+ src/cmd/link/testdata/link.hello.darwin.amd64 | Bin 4140 -> 3890 bytes
+ src/cmd/link/testdata/macho.amd64.exit9       | Bin 4109 -> 1669 bytes
+ src/cmd/link/testdata/macho.amd64.hello       | Bin 8204 -> 2776 bytes
+ src/cmd/link/testdata/macho.amd64.helloro     | Bin 8204 -> 2381 bytes
+ 6 files changed, 81 insertions(+), 5 deletions(-)

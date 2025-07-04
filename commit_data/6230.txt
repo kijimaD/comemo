@@ -1,0 +1,17 @@
+commit b2d540acacdf5d0a57140561bebfcac91d146784
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 10 12:44:07 2010 -0700
+
+    test: Match gccgo error messages.
+    
+    vareq.go:10:25: error: expected ';' or '}' or newline
+    
+    vareq1.go:9:24: error: expected ';' or newline after top level declaration
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2132045
+
+ test/syntax/vareq.go  | 2 +-
+ test/syntax/vareq1.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

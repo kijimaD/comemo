@@ -1,0 +1,21 @@
+commit 2f3fee058f3bb1c98b8ecc5aeb2329aaadf4dc0b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Aug 9 12:50:24 2024 -0400
+
+    runtime: make the wasm crash function abort
+    
+    Currently the crash function on Wasm is implemented as a nil
+    pointer dereference, which turns into a sigpanic, which turns into
+    "panic during runtime execution" as we're already in runtime when
+    crash is called. Instead, just abort, which crashes hard and
+    terminates the Wasm module execution, and the execution engine
+    often dumps a stack trace.
+    
+    Change-Id: I3c57f8ff7a0c0015e4abcd7bf262bf9001624b85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604515
+    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/os_wasm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

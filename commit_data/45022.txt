@@ -1,0 +1,31 @@
+commit 793844207d81bdc41212bc300195469c65c39766
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 8 12:50:39 2021 -0400
+
+    cmd/go: strip GOEXPERIMENT from hash salt
+    
+    The go command salts cache hashes using runtime.Version() (the Go
+    version the go command was built with) in order to separate objects
+    built with different versions of Go.
+    
+    CL 307820 added the active GOEXPERIMENTs to the result of
+    runtime.Version, which affected cmd/go's hash salt. Since dist builds
+    go_bootstrap with all GOEXPERIMENTs disabled, but then go_bootstrap
+    builds the final go binary with the GOEXPERIMENTs passed to make.bash,
+    if any GOEXPERIMENTs were passed, go_bootstrap and the final go binary
+    produce different cache hashes. At the very end of dist, it uses the
+    final go binary to check the hashes of all packages, but these hashes
+    were produced by go_bootstrap, so it concludes everything is stale.
+    
+    This should fix the builders that enable GOEXPERIMENTs, including the
+    regabi and staticlockranking builders.
+    
+    Change-Id: Ie389929dff6f7b6eff2b19a2f43507e72be5f32e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308591
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/dist/build.go             |  2 +-
+ src/cmd/go/internal/cache/hash.go | 17 ++++++++++++++++-
+ 2 files changed, 17 insertions(+), 2 deletions(-)

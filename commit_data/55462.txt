@@ -1,0 +1,20 @@
+commit f719d5cffdb8298eff7a5ef533fe95290e8c869c
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Thu Jan 25 23:11:02 2024 +0000
+
+    runtime: crash stack support for loong64
+    
+    Change-Id: Icc2641b888440cc27444b5dfb2b8ff286e6a595d
+    GitHub-Last-Rev: f5772e32e9190ab1eed94fcf2c9e58d6bc0d74d6
+    GitHub-Pull-Request: golang/go#63923
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539536
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/asm.s         |  2 ++
+ src/runtime/asm_loong64.s | 37 ++++++++++++++++++++++++++++++-------
+ src/runtime/proc.go       |  2 +-
+ 3 files changed, 33 insertions(+), 8 deletions(-)

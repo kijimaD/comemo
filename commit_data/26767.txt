@@ -1,0 +1,23 @@
+commit d481ffc1afeae8852caa3452a0e23b1cd90d1e10
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 6 18:54:17 2016 -0700
+
+    cmd/compile, cmd/link: eliminate uses of ArchFamily in error messages
+    
+    Two of these error messages are already dead code: cmd/compile.main
+    and cmd/link.main already switch on $GOARCH, ensuring it must be a
+    prefix of the sys.Arch.Family.
+    
+    The error message about uncompiled Go source files can be just be
+    simplified: anyone who's manually constructing Go object file archives
+    probably knows what tool to use to compile Go source files.
+    
+    Change-Id: Ia4a67c0a1d1158379c127c91e909226d3367f3c2
+    Reviewed-on: https://go-review.googlesource.com/21626
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 9 +--------
+ src/cmd/link/internal/ld/lib.go     | 7 ++-----
+ 2 files changed, 3 insertions(+), 13 deletions(-)

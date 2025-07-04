@@ -1,0 +1,12 @@
+commit 8f32df5455c08d8bffd17e0bd69aab9386a97b29
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jul 30 16:29:51 2013 +0900
+
+    net: add missing SetKeepAlivePeriod for Plan 9
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/12082045
+
+ src/pkg/net/tcpsock_plan9.go | 5 +++++
+ 1 file changed, 5 insertions(+)

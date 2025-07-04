@@ -1,0 +1,14 @@
+commit d01a1ec2604da11e5c16125b96cc190aec416d81
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Sep 14 17:29:50 2008 -0700
+
+    robs wednesday bug
+    
+    R=r
+    OCL=15327
+    CL=15327
+
+ src/cmd/gc/go.h   |  2 ++
+ src/cmd/gc/go.y   | 14 ++++++++------
+ src/cmd/gc/walk.c |  6 ++++--
+ 3 files changed, 14 insertions(+), 8 deletions(-)

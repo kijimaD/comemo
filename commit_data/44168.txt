@@ -1,0 +1,20 @@
+commit b268b607743ebf570396750208e0032870653edd
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Jan 22 19:32:43 2021 +1100
+
+    runtime: remove pthread_kill/pthread_self for openbsd
+    
+    We're now using getthrid() and thrkill() instead.
+    
+    Updates #36435
+    
+    Change-Id: I1c6bcfb9b46d149e0a2a10e936a244576489a88e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285692
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/sys_openbsd.go      | 18 ------------------
+ src/runtime/sys_openbsd_amd64.s | 18 ------------------
+ src/runtime/sys_openbsd_arm64.s | 12 ------------
+ 3 files changed, 48 deletions(-)

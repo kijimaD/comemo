@@ -1,0 +1,20 @@
+commit 9d5f80b0c60e193bb9b72d85c68868c5fee5381e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jun 29 22:29:09 2010 -0700
+
+    time: implement timezones for windows
+    
+    Fixes #761.
+    
+    R=PeterGo, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/1121042
+
+ src/pkg/syscall/syscall_windows.go      |  16 +-
+ src/pkg/syscall/zsyscall_windows_386.go |  12 ++
+ src/pkg/syscall/ztypes_windows_386.go   |  27 +++-
+ src/pkg/time/Makefile                   |  18 ++-
+ src/pkg/time/format.go                  |  11 +-
+ src/pkg/time/zoneinfo_unix.go           | 261 ++++++++++++++++++++++++++++++++
+ src/pkg/time/zoneinfo_windows.go        | 191 +++++++++++++++++++++++
+ 7 files changed, 517 insertions(+), 19 deletions(-)

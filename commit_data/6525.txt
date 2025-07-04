@@ -1,0 +1,14 @@
+commit 14d2242fb966386410f8aef42a623ca42f1cd237
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 14 16:13:44 2010 -0400
+
+    syscall: fix arm networking
+    
+    Suggested by fango (fan.howard@gmail.com)
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2514041
+
+ src/pkg/syscall/ztypes_linux_arm.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

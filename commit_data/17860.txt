@@ -1,0 +1,37 @@
+commit 2c98a3bc2e733f6973d3153cb28ab456f38cd7f3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 31 18:15:55 2013 +0000
+
+    cmd/5l, runtime: fix divide for profiling tracebacks on ARM
+    
+    Two bugs:
+    1. The first iteration of the traceback always uses LR when provided,
+    which it is (only) during a profiling signal, but in fact LR is correct
+    only if the stack frame has not been allocated yet. Otherwise an
+    intervening call may have changed LR, and the saved copy in the stack
+    frame should be used. Fix in traceback_arm.c.
+    
+    2. The division runtime call adds 8 bytes to the stack. In order to
+    keep the traceback routines happy, it must copy the saved LR into
+    the new 0(SP). Change
+    
+            SUB $8, SP
+    
+    into
+    
+            MOVW    0(SP), R11 // r11 is temporary, for use by linker
+            MOVW.W  R11, -8(SP)
+    
+    to update SP and 0(SP) atomically, so that the traceback always
+    sees a saved LR at 0(SP).
+    
+    Fixes #6681.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/19910044
+
+ src/cmd/5l/noop.c                   | 23 ++++++++++++++++++-----
+ src/pkg/runtime/pprof/pprof_test.go | 25 +++++++++++++++++++++++++
+ src/pkg/runtime/traceback_arm.c     |  2 +-
+ 3 files changed, 44 insertions(+), 6 deletions(-)

@@ -1,0 +1,15 @@
+commit 4152b925f97de964af1553784f3886d93da22aff
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 11:51:34 2009 -0700
+
+    expression printer; %#N
+    
+    R=ken
+    OCL=32419
+    CL=32419
+
+ src/cmd/gc/Makefile |   1 +
+ src/cmd/gc/go.h     |   1 +
+ src/cmd/gc/print.c  | 272 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/subr.c   |  66 +++++++++++++
+ 4 files changed, 340 insertions(+)

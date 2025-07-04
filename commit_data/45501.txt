@@ -1,0 +1,23 @@
+commit d75fbac54d34484041a5ecb0b65f298b821cd963
+Author: Dan Scales <danscales@google.com>
+Date:   Sat May 1 13:57:00 2021 -0700
+
+    cmd/compile:  add edge from lock rank edge from forceGC to traceStackTab
+    
+    This edge can happen when forcegchelper() calls
+    goparkunlock(&forcegc.lock, ...) while holding the forcegc lock.
+    goparkunlock() eventually calls park_m(). In park_m(), traceGoPark()
+    (which leads to (*traceStackTable).put() and acquires the traceStackTab
+    lock) can be called before the forcegc lock is released.
+    
+    Fixes #45774
+    
+    Change-Id: If0fceab596712eb9ec0b9b47326778bc0ff80913
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316029
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Carlos Amedee <carlos@golang.org>
+
+ src/runtime/lockrank.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

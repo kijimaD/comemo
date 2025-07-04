@@ -1,0 +1,17 @@
+commit 6da2d3b7d7f9c0063bc4128c2453db65c96f5299
+Author: Ikko Ashimine <eltociear@gmail.com>
+Date:   Thu Jan 7 14:25:35 2021 +0000
+
+    cmd/link: fix typo in asm.go
+    
+    targetting -> targeting
+    
+    Change-Id: Ie1752b1293426fe908799731acb352408db98d85
+    GitHub-Last-Rev: 4cf2a211b97655a178f842d20c08ac26002df898
+    GitHub-Pull-Request: golang/go#43564
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282272
+    Trust: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/arm64/asm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

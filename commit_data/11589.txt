@@ -1,0 +1,14 @@
+commit c739dd229986d3f1560a3962ad5a9bafc7530364
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 3 10:30:52 2012 -0500
+
+    spec: 9 only looks prime
+    
+    Fixes #2870.
+    
+    R=golang-dev, agl, lvd
+    CC=golang-dev
+    https://golang.org/cl/5618050
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

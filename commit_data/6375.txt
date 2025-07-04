@@ -1,0 +1,12 @@
+commit 908b0683e171b37d646a8e3cbbe46ea498672545
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 24 11:03:54 2010 -0700
+
+    syscall: fix permissions on mksysnum_nacl.sh
+    
+    TBR=adg
+    CC=golang-dev
+    https://golang.org/cl/2208049
+
+ src/pkg/syscall/mksysnum_nacl.sh | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

@@ -1,0 +1,13 @@
+commit f172338a15c0d03bd89264ddcad374c76d4d4584
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Fri Aug 26 11:31:59 2011 +1000
+
+    image/tiff: add a decode benchmark.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4917049
+
+ src/pkg/image/tiff/reader_test.go                  |  25 +++++++++++++++++++++
+ .../tiff/testdata/video-001-uncompressed.tiff      | Bin 0 -> 46674 bytes
+ 2 files changed, 25 insertions(+)

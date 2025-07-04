@@ -1,0 +1,22 @@
+commit 1bcf6beec53ae811490fcd0ac29328b12b53702c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 22 02:19:14 2020 -0700
+
+    cmd/compile: use staticValue for inlining logic
+    
+    This CL replaces the ad hoc and duplicated logic for detecting
+    inlinable calls with a single "inlCallee" function, which uses the
+    "staticValue" helper function introduced in an earlier commit.
+    
+    Updates #41474.
+    
+    Change-Id: I103d4091b10366fce1344ef2501222b7df68f21d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256460
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/inl.go             | 92 +++++++-------------------
+ src/cmd/compile/internal/logopt/logopt_test.go |  1 -
+ test/inline.go                                 |  9 +++
+ 3 files changed, 34 insertions(+), 68 deletions(-)

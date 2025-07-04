@@ -1,0 +1,13 @@
+commit 935953a9f8c35f1282aa934bc72c78fce5af4693
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 14 19:57:27 2009 -0700
+
+    tweak interface warning heuristic.
+    some day i will fix this for real.
+    
+    R=ken
+    OCL=27468
+    CL=27468
+
+ src/cmd/gc/subr.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

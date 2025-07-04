@@ -1,0 +1,16 @@
+commit c9b2da3f28195fab2dd8fc4133efd22409e9e29b
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 13 17:57:26 2023 -0500
+
+    runtime: simplify traceback PC back-up logic
+    
+    Updates #54466.
+    
+    Change-Id: If070cf3f484e3e02b8e586bff466e0018b1a1845
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468298
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/traceback.go | 49 ++++++++++++++++++++++++++++++------------------
+ 1 file changed, 31 insertions(+), 18 deletions(-)

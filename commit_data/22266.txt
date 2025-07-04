@@ -1,0 +1,18 @@
+commit 52c84c34fdb7c28d8f5c32458bad84b096af2797
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Apr 2 12:15:03 2015 +0900
+
+    net: move test flags into main_test.go
+    
+    Also updates the comments on test flags.
+    
+    Change-Id: I8dbd90270e08728ab309ab88a3030e0f8e547175
+    Reviewed-on: https://go-review.googlesource.com/8394
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial_test.go       |  3 ---
+ src/net/dialgoogle_test.go |  4 ----
+ src/net/lookup_test.go     |  5 -----
+ src/net/main_test.go       | 21 +++++++++++++++++++++
+ src/net/server_test.go     |  7 -------
+ 5 files changed, 21 insertions(+), 19 deletions(-)

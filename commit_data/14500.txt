@@ -1,0 +1,14 @@
+commit d729be730f34a087245721c5e490bf70b1425432
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 26 21:21:07 2012 -0800
+
+    CONTRIBUTORS: Add Jonathan Hseu (Google CLA)
+    
+    Part of merging goprotobuf's A+C into Go's.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6844096
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

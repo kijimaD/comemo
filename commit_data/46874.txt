@@ -1,0 +1,19 @@
+commit aded1679ef6a33ef6fe6c0b466ecf59186706d23
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Tue Oct 12 00:33:43 2021 +0900
+
+    internal/poll,net: support poll.Sendfile for darwin
+    
+    darwin already supports syscall.Sendfile.
+    
+    Change-Id: Id3db06591ffad0550b4173bacddeb0acfe355f9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355109
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
+
+ src/internal/poll/sendfile_bsd.go | 4 ++--
+ src/net/sendfile_stub.go          | 4 ++--
+ src/net/sendfile_unix_alt.go      | 4 ++--
+ 3 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,12 @@
+commit c72dbaf3124f5ce4d77aab723ebe5150d4c27ad2
+Author: Adam Langley <agl@golang.org>
+Date:   Tue May 31 15:40:33 2011 -0400
+
+    encoding/hex: don't try to print DEL.
+    
+    R=agl
+    CC=golang-dev
+    https://golang.org/cl/4551081
+
+ src/pkg/encoding/hex/hex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

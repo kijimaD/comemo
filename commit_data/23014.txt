@@ -1,0 +1,73 @@
+commit 5b3739357aa409548a4c4f9ac7499726c8de9a23
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 7 15:50:54 2015 -0400
+
+    runtime: skip atomics in heapBitsSetType when GC is not running
+    
+    Suggested by Rick during code review of this code,
+    but separated out for easier diagnosis in case it causes
+    problems (and also easier rollback).
+    
+    name                    old mean              new mean              delta
+    SetTypePtr              13.9ns × (0.98,1.05)   6.2ns × (0.99,1.01)  -55.18% (p=0.000)
+    SetTypePtr8             15.5ns × (0.95,1.10)  15.5ns × (0.99,1.05)     ~    (p=0.952)
+    SetTypePtr16            17.8ns × (0.99,1.05)  18.0ns × (1.00,1.00)     ~    (p=0.157)
+    SetTypePtr32            25.2ns × (0.99,1.01)  24.3ns × (0.99,1.01)   -3.86% (p=0.000)
+    SetTypePtr64            42.2ns × (0.93,1.13)  40.8ns × (0.99,1.01)     ~    (p=0.239)
+    SetTypePtr126           67.3ns × (1.00,1.00)  67.5ns × (0.99,1.02)     ~    (p=0.365)
+    SetTypePtr128           67.6ns × (1.00,1.01)  70.1ns × (0.97,1.10)     ~    (p=0.063)
+    SetTypePtrSlice          575ns × (0.98,1.06)   543ns × (0.95,1.17)   -5.54% (p=0.034)
+    SetTypeNode1            12.4ns × (0.98,1.09)  12.8ns × (0.99,1.01)   +3.40% (p=0.021)
+    SetTypeNode1Slice       97.1ns × (0.97,1.09)  89.5ns × (1.00,1.00)   -7.78% (p=0.000)
+    SetTypeNode8            29.8ns × (1.00,1.01)  17.7ns × (1.00,1.01)  -40.74% (p=0.000)
+    SetTypeNode8Slice        204ns × (0.99,1.04)   190ns × (0.97,1.06)   -6.96% (p=0.000)
+    SetTypeNode64           42.8ns × (0.99,1.01)  44.0ns × (0.95,1.12)     ~    (p=0.163)
+    SetTypeNode64Slice      1.00µs × (0.95,1.09)  0.98µs × (0.96,1.08)     ~    (p=0.356)
+    SetTypeNode64Dead       12.2ns × (0.99,1.04)  12.7ns × (1.00,1.01)   +4.34% (p=0.000)
+    SetTypeNode64DeadSlice  1.14µs × (0.94,1.11)  0.99µs × (0.99,1.03)  -13.74% (p=0.000)
+    SetTypeNode124          67.9ns × (0.99,1.03)  70.4ns × (0.95,1.15)     ~    (p=0.115)
+    SetTypeNode124Slice     1.76µs × (0.99,1.04)  1.88µs × (0.91,1.23)     ~    (p=0.096)
+    SetTypeNode126          67.7ns × (1.00,1.01)  68.2ns × (0.99,1.02)   +0.72% (p=0.014)
+    SetTypeNode126Slice     1.76µs × (1.00,1.01)  1.87µs × (0.93,1.15)   +6.15% (p=0.035)
+    SetTypeNode1024          462ns × (0.96,1.10)   451ns × (0.99,1.05)     ~    (p=0.224)
+    SetTypeNode1024Slice    14.4µs × (0.95,1.15)  14.2µs × (0.97,1.19)     ~    (p=0.676)
+    
+    name                   old mean              new mean              delta
+    BinaryTree17            5.87s × (0.98,1.04)   5.87s × (0.98,1.03)    ~    (p=0.993)
+    Fannkuch11              4.39s × (0.99,1.01)   4.34s × (1.00,1.01)  -1.22% (p=0.000)
+    FmtFprintfEmpty        90.6ns × (0.97,1.06)  89.4ns × (0.97,1.03)    ~    (p=0.070)
+    FmtFprintfString        305ns × (0.98,1.02)   296ns × (0.99,1.02)  -2.94% (p=0.000)
+    FmtFprintfInt           276ns × (0.97,1.04)   270ns × (0.98,1.03)  -2.17% (p=0.001)
+    FmtFprintfIntInt        490ns × (0.97,1.05)   473ns × (0.99,1.02)  -3.59% (p=0.000)
+    FmtFprintfPrefixedInt   402ns × (0.99,1.02)   397ns × (0.99,1.01)  -1.15% (p=0.000)
+    FmtFprintfFloat         577ns × (0.99,1.01)   549ns × (0.99,1.01)  -4.78% (p=0.000)
+    FmtManyArgs            1.89µs × (0.99,1.02)  1.87µs × (0.99,1.01)  -1.43% (p=0.000)
+    GobDecode              15.2ms × (0.99,1.01)  14.7ms × (0.99,1.02)  -3.55% (p=0.000)
+    GobEncode              11.7ms × (0.98,1.04)  11.5ms × (0.99,1.02)  -1.63% (p=0.002)
+    Gzip                    647ms × (0.99,1.01)   647ms × (1.00,1.01)    ~    (p=0.486)
+    Gunzip                  142ms × (1.00,1.00)   143ms × (1.00,1.00)    ~    (p=0.234)
+    HTTPClientServer       90.7µs × (0.99,1.01)  90.4µs × (0.98,1.04)    ~    (p=0.331)
+    JSONEncode             31.9ms × (0.97,1.06)  31.6ms × (0.98,1.02)    ~    (p=0.206)
+    JSONDecode              110ms × (0.99,1.01)   112ms × (0.99,1.02)  +1.48% (p=0.000)
+    Mandelbrot200          6.00ms × (1.00,1.00)  6.01ms × (1.00,1.00)    ~    (p=0.058)
+    GoParse                6.63ms × (0.98,1.03)  6.61ms × (0.98,1.02)    ~    (p=0.353)
+    RegexpMatchEasy0_32     162ns × (0.99,1.01)   161ns × (1.00,1.00)  -0.33% (p=0.004)
+    RegexpMatchEasy0_1K     539ns × (0.99,1.01)   540ns × (0.99,1.02)    ~    (p=0.222)
+    RegexpMatchEasy1_32     139ns × (0.99,1.01)   140ns × (0.97,1.03)    ~    (p=0.054)
+    RegexpMatchEasy1_1K     886ns × (1.00,1.00)   887ns × (1.00,1.00)  +0.18% (p=0.001)
+    RegexpMatchMedium_32    252ns × (1.00,1.01)   252ns × (1.00,1.00)  +0.21% (p=0.010)
+    RegexpMatchMedium_1K   72.7µs × (1.00,1.01)  72.6µs × (1.00,1.00)    ~    (p=0.060)
+    RegexpMatchHard_32     3.84µs × (1.00,1.00)  3.84µs × (1.00,1.00)    ~    (p=0.065)
+    RegexpMatchHard_1K      117µs × (1.00,1.00)   117µs × (1.00,1.00)  -0.27% (p=0.000)
+    Revcomp                 916ms × (0.98,1.04)   909ms × (0.99,1.01)    ~    (p=0.054)
+    Template                126ms × (0.99,1.01)   128ms × (0.99,1.02)  +1.43% (p=0.000)
+    TimeParse               632ns × (0.99,1.01)   625ns × (1.00,1.01)  -1.05% (p=0.000)
+    TimeFormat              655ns × (0.99,1.02)   669ns × (0.99,1.02)  +2.01% (p=0.000)
+    
+    Change-Id: I9477b7c9489c6fa98e860c190ce06cd73c53c6a1
+    Reviewed-on: https://go-review.googlesource.com/9829
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mbitmap.go | 28 ++++++++++++++++++++++++----
+ 1 file changed, 24 insertions(+), 4 deletions(-)

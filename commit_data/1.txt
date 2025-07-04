@@ -1,0 +1,11 @@
+commit 7d7c6a97f815e9279d08cfaea7d5efb5e90695a8
+Author: Brian Kernighan <bwk>
+Date:   Tue Jul 18 19:05:45 1972 -0500
+
+    hello, world
+    
+    R=ken
+    DELTA=7  (7 added, 0 deleted, 0 changed)
+
+ src/pkg/debug/macho/testdata/hello.b | 7 +++++++
+ 1 file changed, 7 insertions(+)

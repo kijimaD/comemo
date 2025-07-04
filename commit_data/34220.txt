@@ -1,0 +1,20 @@
+commit 4de468621a54bc7816ae978a55cb347b6f60352d
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 4 11:02:59 2017 -0500
+
+    runtime: use spanOf* more widely
+    
+    The logic in the spanOf* functions is open-coded in a lot of places
+    right now. Replace these with calls to the spanOf* functions.
+    
+    Change-Id: I3cc996aceb9a529b60fea7ec6fef22008c012978
+    Reviewed-on: https://go-review.googlesource.com/85880
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/cgocheck.go |  4 +---
+ src/runtime/mbitmap.go  | 13 +++----------
+ src/runtime/mgcmark.go  |  7 ++-----
+ src/runtime/mheap.go    | 31 ++++++++++++++-----------------
+ 4 files changed, 20 insertions(+), 35 deletions(-)

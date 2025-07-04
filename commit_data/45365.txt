@@ -1,0 +1,17 @@
+commit d553c0144d2a532b3e962715899d6cd9db47192a
+Author: yangwenmai <yangwen.yw@gmail.com>
+Date:   Tue Apr 27 08:30:25 2021 +0800
+
+    bits: use same expression with system bit size
+    
+    Change-Id: Ibce07f8f36f7c64f7022ce656f8efbec5dff3f82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313829
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/poset.go | 2 +-
+ src/math/bits/bits.go                 | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

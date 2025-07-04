@@ -1,0 +1,12 @@
+commit b16c41bed703522e54f0c48b5b3f2ee0cd38c0d1
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Fri Sep 21 12:25:55 2012 -0400
+
+    runtime: fix typos in comments
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6554043
+
+ src/pkg/runtime/hashmap.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

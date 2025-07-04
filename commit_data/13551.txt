@@ -1,0 +1,20 @@
+commit dbbfbcc4a18c3303c4e8a55cf652c67702c91aed
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed Aug 1 14:45:35 2012 +1000
+
+    exp/html: implement escaping and double-escaping in scripts
+    
+    The text inside <script> tags is not ordinary raw text; there are all sorts
+    of other complications. This CL implements those complications.
+    
+    Pass 76 additional tests.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6443070
+
+ src/pkg/exp/html/parse_test.go                 |  17 ++
+ src/pkg/exp/html/testlogs/scriptdata01.dat.log |  16 +-
+ src/pkg/exp/html/testlogs/tests16.dat.log      | 136 ++++++-------
+ src/pkg/exp/html/token.go                      | 263 +++++++++++++++++++++++--
+ 4 files changed, 336 insertions(+), 96 deletions(-)

@@ -1,0 +1,24 @@
+commit 3c60e6e8cfc6da21fc12aadaff63d780310ba822
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 16 19:20:18 2015 -0400
+
+    runtime: fix races in stack scan
+    
+    This fixes a hang during runtime.TestTraceStress.
+    It also fixes double-scan of stacks, which leads to
+    stack barrier installation failures.
+    
+    Both of these have shown up as flaky failures on the dashboard.
+    
+    Fixes #10941.
+    
+    Change-Id: Ia2a5991ce2c9f43ba06ae1c7032f7c898dc990e0
+    Reviewed-on: https://go-review.googlesource.com/11089
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgc.go      |   2 +-
+ src/runtime/mgcmark.go  |  57 +-------------------------
+ src/runtime/proc1.go    | 107 +++++++++++++++++++++++-------------------------
+ src/runtime/runtime2.go |   2 +-
+ src/runtime/stack1.go   |  11 +++--
+ 5 files changed, 62 insertions(+), 117 deletions(-)

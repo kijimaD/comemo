@@ -1,0 +1,20 @@
+commit b648cd620f47c2981420b032def1e6f6491ef294
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Aug 29 17:31:03 2024 -0700
+
+    internal/testenv: use sync.OnceValue[s]
+    
+    Modernize the code to use sync.OnceValue[s] instead of sync.Once.
+    
+    While at it, reuse the result of exec.LookPath("go") in tryGoBuild.
+    
+    Change-Id: I13eff3dd55797846680e506fffb7c49c8296829d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609796
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/testenv/testenv.go | 277 ++++++++++++++++++----------------------
+ 1 file changed, 125 insertions(+), 152 deletions(-)

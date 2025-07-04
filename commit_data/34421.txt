@@ -1,0 +1,56 @@
+commit 5d11838654464c42de48958ff163360da38ab850
+Author: Pascal S. de Kloe <pascal@quies.net>
+Date:   Thu Jun 29 11:51:22 2017 +0200
+
+    encoding/json: read ahead after value consumption
+    
+    Eliminates the need for an extra scanner, read undo and some other tricks.
+    
+    name                    old time/op    new time/op    delta
+    CodeEncoder-12            1.92ms ± 0%    1.91ms ± 1%   -0.65%  (p=0.000 n=17+20)
+    CodeMarshal-12            2.13ms ± 2%    2.12ms ± 1%   -0.49%  (p=0.038 n=18+17)
+    CodeDecoder-12            8.55ms ± 2%    8.49ms ± 1%     ~     (p=0.119 n=20+18)
+    UnicodeDecoder-12          411ns ± 0%     422ns ± 0%   +2.77%  (p=0.000 n=19+15)
+    DecoderStream-12           320ns ± 1%     307ns ± 1%   -3.80%  (p=0.000 n=18+20)
+    CodeUnmarshal-12          9.65ms ± 3%    9.58ms ± 3%     ~     (p=0.157 n=20+20)
+    CodeUnmarshalReuse-12     8.54ms ± 3%    8.56ms ± 2%     ~     (p=0.602 n=20+20)
+    UnmarshalString-12         110ns ± 1%      87ns ± 2%  -21.53%  (p=0.000 n=16+20)
+    UnmarshalFloat64-12        101ns ± 1%      77ns ± 2%  -23.08%  (p=0.000 n=19+20)
+    UnmarshalInt64-12         94.5ns ± 2%    68.4ns ± 1%  -27.60%  (p=0.000 n=20+20)
+    Issue10335-12              128ns ± 1%     100ns ± 1%  -21.89%  (p=0.000 n=19+18)
+    Unmapped-12                427ns ± 3%     247ns ± 4%  -42.17%  (p=0.000 n=20+20)
+    NumberIsValid-12          23.0ns ± 0%    21.7ns ± 0%   -5.73%  (p=0.000 n=20+20)
+    NumberIsValidRegexp-12     641ns ± 0%     642ns ± 0%   +0.15%  (p=0.003 n=19+19)
+    EncoderEncode-12          56.9ns ± 0%    55.0ns ± 1%   -3.32%  (p=0.012 n=2+17)
+    
+    name                    old speed      new speed      delta
+    CodeEncoder-12          1.01GB/s ± 1%  1.02GB/s ± 1%   +0.71%  (p=0.000 n=18+20)
+    CodeMarshal-12           913MB/s ± 2%   917MB/s ± 1%   +0.49%  (p=0.038 n=18+17)
+    CodeDecoder-12           227MB/s ± 2%   229MB/s ± 1%     ~     (p=0.110 n=20+18)
+    UnicodeDecoder-12       34.1MB/s ± 0%  33.1MB/s ± 0%   -2.73%  (p=0.000 n=19+19)
+    CodeUnmarshal-12         201MB/s ± 3%   203MB/s ± 3%     ~     (p=0.151 n=20+20)
+    
+    name                    old alloc/op   new alloc/op   delta
+    Issue10335-12               320B ± 0%      184B ± 0%  -42.50%  (p=0.000 n=20+20)
+    Unmapped-12                 568B ± 0%      216B ± 0%  -61.97%  (p=0.000 n=20+20)
+    EncoderEncode-12           0.00B          0.00B          ~     (all equal)
+    
+    name                    old allocs/op  new allocs/op  delta
+    Issue10335-12               4.00 ± 0%      3.00 ± 0%  -25.00%  (p=0.000 n=20+20)
+    Unmapped-12                 18.0 ± 0%       4.0 ± 0%  -77.78%  (p=0.000 n=20+20)
+    EncoderEncode-12            0.00           0.00          ~     (all equal)
+    
+    Fixes #17914
+    Updates #20693
+    Updates #10335
+    
+    Change-Id: I0459a52febb8b79c9a2991e69ed2614cf8740429
+    Reviewed-on: https://go-review.googlesource.com/47152
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/decode.go       | 330 ++++++++++++++++++--------------------
+ src/encoding/json/scanner.go      |  57 +------
+ src/encoding/json/scanner_test.go |  37 -----
+ 3 files changed, 157 insertions(+), 267 deletions(-)

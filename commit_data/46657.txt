@@ -1,0 +1,21 @@
+commit e180e2c27c3c3f06a4df6352386efedc15a1e38c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Sep 28 17:07:01 2021 -0400
+
+    cmd/internal/goobj, cmd/link: remove funcdataoff
+    
+    FUNCDATA is always a symbol reference with 0 offset. Assert the
+    offset is 0 and remove funcdataoff.
+    
+    Change-Id: I326815365c9db5aeef6b869df5d78a9957bc16a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352894
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/goobj/funcinfo.go     | 35 +++++--------------
+ src/cmd/internal/obj/link.go           | 17 +++++-----
+ src/cmd/internal/obj/objfile.go        |  4 ---
+ src/cmd/internal/obj/pcln.go           | 11 +++---
+ src/cmd/link/internal/ld/pcln.go       | 35 +++++++------------
+ src/cmd/link/internal/loader/loader.go | 62 +++++++++++++++-------------------
+ 6 files changed, 62 insertions(+), 102 deletions(-)

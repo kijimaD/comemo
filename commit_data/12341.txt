@@ -1,0 +1,12 @@
+commit 664481eb6b3e1237a6fcca590326203985a2db5c
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Mar 3 00:12:40 2012 +0100
+
+    misc: add zsh completion for go tool.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5699079
+
+ misc/zsh/go | 137 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 137 insertions(+)

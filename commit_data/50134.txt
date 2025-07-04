@@ -1,0 +1,22 @@
+commit 951d2c657da75d5aad09719e89987e1e1a43bbb4
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Thu Aug 25 09:42:30 2022 +0800
+
+    runtime: convert g.selectDone to atomic type
+    
+    On the write side, g.selectDone has been converted
+    from non-atomic to atomic access.
+    
+    For #53821.
+    
+    Change-Id: Iac46bc6acce7eed51dfd990285dd57f0d58b4ae2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425414
+    Run-TryBot: hopehook <hopehook@qq.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/chan.go     | 2 +-
+ src/runtime/runtime2.go | 2 +-
+ src/runtime/select.go   | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

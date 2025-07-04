@@ -1,0 +1,15 @@
+commit 2316784f67acfeebd3d08faab5b13a8a73d57b5a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 30 13:46:02 2019 -0400
+
+    doc/go1.13: start doc, note macOS, FreeBSD deprecations
+    
+    For #23011.
+    For #27619.
+    
+    Change-Id: Id1f280993ecdfb07a7420926ca1c0f5b7872afbb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174521
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.13.html | 97 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 97 insertions(+)

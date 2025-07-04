@@ -1,0 +1,14 @@
+commit de7c28fe7689fccbf7b415eb5f5defb8b43ba390
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 16 16:00:41 2011 -0700
+
+    image/gif: enable images with <8 bits per pixel.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4552042
+
+ src/pkg/image/decode_test.go              |   1 +
+ src/pkg/image/gif/reader.go               |   7 ++-----
+ src/pkg/image/testdata/video-001.5bpp.gif | Bin 0 -> 6214 bytes
+ 3 files changed, 3 insertions(+), 5 deletions(-)

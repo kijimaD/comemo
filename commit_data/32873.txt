@@ -1,0 +1,37 @@
+commit e900e275e8667fde18973cdebe94861353162b87
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 13 12:01:56 2017 -0400
+
+    runtime: clean up loops over allp
+    
+    allp now has length gomaxprocs, which means none of allp[i] are nil or
+    in state _Pdead. This lets replace several different styles of loops
+    over allp with normal range loops.
+    
+    for i := 0; i < gomaxprocs; i++ { ... } loops can simply range over
+    allp. Likewise, range loops over allp[:gomaxprocs] can just range over
+    allp.
+    
+    Loops that check for p == nil || p.state == _Pdead don't need to check
+    this any more.
+    
+    Loops that check for p == nil don't have to check this *if* dead Ps
+    don't affect them. I checked that all such loops are, in fact,
+    unaffected by dead Ps. One loop was potentially affected, which this
+    fixes by zeroing p.gcAssistTime in procresize.
+    
+    Updates #15131.
+    
+    Change-Id: Ifa1c2a86ed59892eca0610360a75bb613bc6dcee
+    Reviewed-on: https://go-review.googlesource.com/45575
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mgc.go     | 10 ++--------
+ src/runtime/mgcmark.go |  3 ---
+ src/runtime/mstats.go  |  6 ------
+ src/runtime/proc.go    | 41 +++++++++++++++++------------------------
+ src/runtime/trace.go   |  6 ------
+ 5 files changed, 19 insertions(+), 47 deletions(-)

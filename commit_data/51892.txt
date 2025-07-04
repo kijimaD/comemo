@@ -1,0 +1,29 @@
+commit 3693fd255f44acc24efa2b45317473d4d1e1abde
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Aug 20 12:05:07 2022 -0700
+
+    net/netip: fix invalid representation of Prefix
+    
+    For a given Addr, ensure there is exactly one invalid representation.
+    This allows invalid representations to be safely comparable.
+    To ensure that the zero value of Prefix is invalid,
+    we modify the encoding of bits to simply be the bit count plus one.
+    
+    Since Addr is immutable, we check in the PrefixFrom constructor that
+    the provided Addr is valid and only store a non-zero bits length if so.
+    IsValid is simplified to just checking whether bitsPlusOne is non-zero.
+    
+    Fixes #54525
+    
+    Change-Id: I9244cae2fd160cc9c81d007866992df2e422d3b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425035
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+
+ src/net/netip/netip.go          | 57 +++++++++++++++++------------------------
+ src/net/netip/netip_pkg_test.go | 48 +++++++++++++++++++---------------
+ 2 files changed, 50 insertions(+), 55 deletions(-)

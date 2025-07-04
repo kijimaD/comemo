@@ -1,0 +1,20 @@
+commit 2565b5c06086488b2b23d48929803c8c3cec4400
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 25 09:57:48 2014 -0400
+
+    cmd/gc: drop parenthesization restriction for receiver types
+    
+    Matches CL 101500044.
+    
+    LGTM=gri
+    R=gri
+    CC=golang-codereviews
+    https://golang.org/cl/110160044
+
+ src/cmd/gc/fmt.c         |  4 ----
+ src/cmd/gc/go.h          |  1 -
+ src/cmd/gc/go.y          |  6 ++----
+ src/cmd/gc/typecheck.c   | 10 ----------
+ src/cmd/gc/y.tab.c       | 40 +++++++++++++++++++---------------------
+ test/fixedbugs/bug299.go | 10 ++++++----
+ 6 files changed, 27 insertions(+), 44 deletions(-)

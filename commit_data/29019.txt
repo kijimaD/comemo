@@ -1,0 +1,32 @@
+commit 7124056f7e6f44faba822e4d96c18fde002b4566
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 24 11:46:06 2016 -0700
+
+    cmd/internal/obj: drop Addr's Gotype field
+    
+    The Gotype field is only used for ATYPE instructions. Instead of
+    specially storing the Go type symbol in From.Gotype, just store it in
+    To.Sym like any other 2-argument instruction would.
+    
+    Modest reduction in allocations:
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      42.0MB ± 0%     41.8MB ± 0%  -0.40%         (p=0.000 n=9+10)
+    Unicode       34.3MB ± 0%     34.1MB ± 0%  -0.48%         (p=0.000 n=9+10)
+    GoTypes        122MB ± 0%      122MB ± 0%  -0.14%         (p=0.000 n=9+10)
+    Compiler       518MB ± 0%      518MB ± 0%  -0.04%         (p=0.000 n=9+10)
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I0e603266b5d7d4e405106a26369e22773a0d3a91
+    Reviewed-on: https://go-review.googlesource.com/31850
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go | 4 +++-
+ src/cmd/internal/obj/link.go        | 1 -
+ src/cmd/internal/obj/plist.go       | 2 +-
+ src/cmd/internal/obj/sizeof_test.go | 4 ++--
+ src/cmd/internal/obj/util.go        | 3 ---
+ 5 files changed, 6 insertions(+), 8 deletions(-)

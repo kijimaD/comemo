@@ -1,0 +1,22 @@
+commit 71bbffbc48d03b447c73da1f54ac57350fc9b36a
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jan 21 14:50:36 2020 -0800
+
+    cmd/go: add -d flag to mod_get_test
+    
+    'go get all' was run in this test without -d. This caused some std
+    packages to be reinstalled if the test is run in a slightly different
+    configuration than make.bash was run. run.bash would fail in some
+    situations because of this. Nothing in the cmd/go tests should modify
+    installed std or cmd packages.
+    
+    Updates #35459
+    
+    Change-Id: Idd259a27d55502923b7fc54f361a77f0ac11eea2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215721
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/testdata/script/mod_get_test.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

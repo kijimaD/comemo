@@ -1,0 +1,12 @@
+commit 864944400263d9d8d1a31b538841f8ad6edfc76b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 8 16:26:03 2011 -0800
+
+    FAQ: update
+    
+    R=bradfitz, r, dsymonds, edsrzf, rsc
+    CC=golang-dev
+    https://golang.org/cl/5345055
+
+ doc/go_faq.html | 46 ++++++++++++++++++++++++++++------------------
+ 1 file changed, 28 insertions(+), 18 deletions(-)

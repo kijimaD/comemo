@@ -1,0 +1,29 @@
+commit 243266f62e2af7167236f99bb0aa376d3c21246b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 4 19:22:47 2011 -0700
+
+    http: fix Transport connection re-use race
+    
+    A connection shouldn't be made available
+    for re-use until its body has been consumed.
+    
+    (except in the case of pipelining, which isn't
+    implemented yet)
+    
+    This CL fixes some issues seen with heavy load
+    against Amazon S3.
+    
+    Subtle implementation detail: to prevent a race
+    with the client requesting a new connection
+    before previous one is returned, we actually
+    have to call putIdleConnection _before_ we
+    return from the final Read/Close call on the
+    http.Response.Body.
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/4351048
+
+ src/pkg/http/transport.go      | 46 ++++++++++++++++++++++++++----------------
+ src/pkg/http/transport_test.go | 11 ++++++++--
+ 2 files changed, 38 insertions(+), 19 deletions(-)

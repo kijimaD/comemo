@@ -1,0 +1,13 @@
+commit 2db4c3d779b09dd29d93640a101a6babc1e0e780
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Aug 3 17:05:00 2010 -0700
+
+    json: object members must have a value
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1847050
+
+ src/pkg/json/decode_test.go | 10 +++++++++-
+ src/pkg/json/scanner.go     |  6 ++----
+ 2 files changed, 11 insertions(+), 5 deletions(-)

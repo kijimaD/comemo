@@ -1,0 +1,20 @@
+commit cd26192abab742cb2df24827226eab0e9f3683a9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 18 17:29:02 2021 -0700
+
+    go/types: remove superfluous code for shift checking
+    
+    Negative constant shift counts are already handled
+    earlier in the code. No need anymore for this extra
+    section.
+    
+    With this change, the shift code matches types2
+    with respect to the function logic.
+    
+    Change-Id: Ic8b7f382271c79ab66021e30955cd9bac092332b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303093
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/expr.go | 16 +---------------
+ 1 file changed, 1 insertion(+), 15 deletions(-)

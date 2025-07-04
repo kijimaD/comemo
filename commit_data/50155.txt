@@ -1,0 +1,18 @@
+commit 333681d6a8cc6f352d42d04bcf26b39a1ea7ef83
+Author: ianwoolf <btw515wolf2@gmail.com>
+Date:   Thu Jul 28 00:55:31 2022 +0800
+
+    net: Resolver.LookupIP return error for empty string
+    
+    Fixes #53995
+    
+    Change-Id: Ib0de237b57382feb6b8070f2310945aef6c7db01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419734
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/net/lookup.go      |  5 +++++
+ src/net/lookup_test.go | 11 +++++++++++
+ 2 files changed, 16 insertions(+)

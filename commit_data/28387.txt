@@ -1,0 +1,21 @@
+commit 8a0bd5dc01f21888525e58d42efdc9dd246748d6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 15 00:21:28 2016 -0700
+
+    cmd/compile: eliminate differences in appendpp functions
+    
+    Consistently use int16 for [ft]reg and int64 for [ft]offset.
+    
+    Change-Id: I7d279bb6e4fb735105429234a949074bf1cefb29
+    Reviewed-on: https://go-review.googlesource.com/29215
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/cmd/compile/internal/amd64/ggen.go  |  6 +++---
+ src/cmd/compile/internal/arm/ggen.go    | 18 +++++++++---------
+ src/cmd/compile/internal/arm64/ggen.go  |  6 +++---
+ src/cmd/compile/internal/mips64/ggen.go |  6 +++---
+ src/cmd/compile/internal/ppc64/ggen.go  |  6 +++---
+ src/cmd/compile/internal/x86/ggen.go    |  6 +++---
+ 6 files changed, 24 insertions(+), 24 deletions(-)

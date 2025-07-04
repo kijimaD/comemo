@@ -1,0 +1,15 @@
+commit 036584395df8c9dd3f889c4e9cb8656a5c6f2d93
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Mon Jul 26 16:21:27 2010 -0700
+
+    runtime: fix goc2c for rename to goc2c and *.goc
+    
+    Release 2010-04-27. runtime: rename cgo2c, *.cgo to goc2c, *.goc
+    to avoid confusion with real cgo.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1868047
+
+ src/pkg/runtime/goc2c.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

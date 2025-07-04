@@ -1,0 +1,21 @@
+commit dbd22c72272f7e02e6d5985be83f6bdf785ab733
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 26 12:00:07 2020 -0400
+
+    cmd/dist: skip API check on plan9 builders
+    
+    The plan9-arm builder has a very slow filesystem and frequently times
+    out on this test. The api check verifies the API for all supported
+    GOOS/GOARCH/CGO_ENABLED combination anyway, so if we skip it on one
+    builder (or even most builders) there should be no loss of coverage.
+    
+    Updates #37951
+    
+    Change-Id: I86a93df2ec60a6af6d942e3954eef09ce67bb39e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225662
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/dist/test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

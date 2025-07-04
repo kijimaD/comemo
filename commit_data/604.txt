@@ -1,0 +1,14 @@
+commit e35139afd4d59314e3a46429ead6ed119cfda861
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 10 14:21:42 2008 -0700
+
+    - added bug093.go
+    
+    R=r
+    DELTA=80  (78 added, 2 deleted, 0 changed)
+    OCL=15094
+    CL=15101
+
+ test/bugs/bug093.go | 64 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/golden.out     | 20 +++++++++++++++--
+ 2 files changed, 82 insertions(+), 2 deletions(-)

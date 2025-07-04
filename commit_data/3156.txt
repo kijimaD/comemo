@@ -1,0 +1,18 @@
+commit 04a77ac78c8a59be2b2701fc23a41da904157fc8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 31 16:38:50 2009 -0700
+
+    convert C runtime to 32-bit runes;
+    rune now unsigned.
+    
+    R=r
+    DELTA=10  (1 added, 0 deleted, 9 changed)
+    OCL=34140
+    CL=34146
+
+ include/fmt.h         |  8 ++++----
+ src/lib9/fmt/dofmt.c  | 17 +++++++++--------
+ src/lib9/utf/utf.h    |  2 +-
+ src/libbio/bgetrune.c |  2 +-
+ src/libbio/bputrune.c |  2 +-
+ 5 files changed, 16 insertions(+), 15 deletions(-)

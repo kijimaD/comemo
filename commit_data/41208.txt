@@ -1,0 +1,16 @@
+commit f2a4ab32b1bcfae5c689c034953471a5541e9397
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 30 16:53:42 2020 -0800
+
+    doc/go1.14: mention new field go/build.Context.Dir
+    
+    Updates #34860
+    Updates #36168
+    Updates #36878
+    
+    Change-Id: I484d7fea5d77d6dcd451d4fdffe0c450eed73636
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217124
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.14.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

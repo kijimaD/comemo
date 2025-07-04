@@ -1,0 +1,16 @@
+commit 2f70ac19d29480c2e22bd0a9eca18a215c32db6f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 20 10:29:38 2013 +1000
+
+    cmd/go: document that files beginning with . or _ are ignored
+    
+    Fixes #5655.
+    
+    R=golang-dev, minux.ma, r
+    CC=golang-dev
+    https://golang.org/cl/10410045
+
+ src/cmd/go/doc.go  | 10 +++++++---
+ src/cmd/go/help.go |  2 ++
+ src/cmd/go/test.go |  8 +++++---
+ 3 files changed, 14 insertions(+), 6 deletions(-)

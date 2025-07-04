@@ -1,0 +1,16 @@
+commit f35bc3ee87e1771891e2087363381bda616e67ee
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 22 12:33:21 2015 -0700
+
+    math/big: document rounding for Rat.FloatToString
+    
+    Fixes #11523.
+    
+    Change-Id: I172f6facd555a1c6db76f25d5097343c20dea59a
+    Reviewed-on: https://go-review.googlesource.com/12507
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/math/big/ratconv.go      | 3 ++-
+ src/math/big/ratconv_test.go | 2 ++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

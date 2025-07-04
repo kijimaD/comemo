@@ -1,0 +1,25 @@
+commit 6c4f8cd0d17c8147319effcffcb608fc42eaf307
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Jun 2 15:00:34 2016 +0200
+
+    misc/cgo/test: fix issue9400 test on android/386
+    
+    The test for #9400 relies on an assembler function that manipulates
+    the stack pointer. Meanwile, it uses a global variable for
+    synchronization. However, position independent code on 386 use a
+    function call to fetch the base address for global variables.
+    That function call in turn overwrites the Go stack.
+    
+    Fix that by fetching the global variable address once before the
+    stack register manipulation.
+    
+    Fixes the android/386 builder.
+    
+    Change-Id: Ib77bd80affaa12f09d582d09d8b84a73bd021b60
+    Reviewed-on: https://go-review.googlesource.com/23683
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/test/issue9400/asm_386.s | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

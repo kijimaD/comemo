@@ -1,0 +1,16 @@
+commit fa610c776e4bc659211b65a2dfbc74051ef99159
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Jan 23 03:33:54 2020 +1100
+
+    cmd/internal/obj/riscv: add missing instructions to the ternary expansion list
+    
+    Updates #27532
+    
+    Change-Id: I5beb7941c204755948350b181c713b046bc4f1f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215841
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/riscv/obj.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

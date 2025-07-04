@@ -1,0 +1,17 @@
+commit a46ea907053d6ad116e49f76f58b69633c6039d3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 14 14:07:18 2016 -0700
+
+    go/build: don't alter InstallSuffix for default compile options
+    
+    Fixes #16378.
+    
+    Change-Id: I99a064f1afec78fb63cb3719061d20be0f21d45d
+    Reviewed-on: https://go-review.googlesource.com/24930
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testshared/shared_test.go | 4 ++--
+ src/cmd/go/build.go                | 9 ++++++---
+ 2 files changed, 8 insertions(+), 5 deletions(-)

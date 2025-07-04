@@ -1,0 +1,23 @@
+commit c7c01efd96cd8f903b304c1504e9aab1c4e6ba2f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Feb 28 16:49:33 2018 +0100
+
+    runtime: clean up libc_* definitions on Solaris
+    
+    All functions defined in syscall2_solaris.go have the respective libc_*
+    var in syscall_solaris.go, except for libc_close. Move it from
+    os3_solaris.go
+    
+    Remove unused libc_fstat.
+    
+    Order go:cgo_import_dynamic and go:linkname lists in
+    syscall2_solaris.go alphabetically.
+    
+    Change-Id: I9f12fa473cf1ae351448ac45597c82a67d799c31
+    Reviewed-on: https://go-review.googlesource.com/97736
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os3_solaris.go      | 6 ------
+ src/runtime/syscall2_solaris.go | 4 ++--
+ src/runtime/syscall_solaris.go  | 1 +
+ 3 files changed, 3 insertions(+), 8 deletions(-)

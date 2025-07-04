@@ -1,0 +1,12 @@
+commit e2fdce9f16fa70af061f3b9cccdcecb4d795d484
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jul 2 17:07:54 2019 +0200
+
+    doc/go1.13: fix typo
+    
+    Change-Id: I99e76c0c12050289be5b353595eb21fbabe7c01e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184597
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.13.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

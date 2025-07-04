@@ -1,0 +1,15 @@
+commit 9bf597a210055dbf375358046898fef09976b3de
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Aug 27 13:19:44 2009 -0700
+
+    inline slicearray
+    
+    R=rsc
+    OCL=33974
+    CL=33974
+
+ src/cmd/6g/cgen.c      |   4 ++
+ src/cmd/6g/gg.h        |   1 +
+ src/cmd/6g/ggen.c      | 168 +++++++++++++++++++++++++++++++++++++++++++++++++
+ test/ken/slicearray.go | 127 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 300 insertions(+)

@@ -1,0 +1,14 @@
+commit 5ce8005990f77d06f19cf70029353fb911d63d1f
+Author: Kanta Ebihara <kantaebihara@gmail.com>
+Date:   Wed Feb 12 08:17:30 2020 +0900
+
+    cmd/go/internal/web: fix a typo
+    
+    dependenicies -> dependencies
+    
+    Change-Id: I0b8f06c04cf397c6330ffb43ac3ae5c2f7cf3138
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219157
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/web/api.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

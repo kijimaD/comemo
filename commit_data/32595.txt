@@ -1,0 +1,30 @@
+commit 605331f43ee228588b61c5793ce0f754d8c54324
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Sep 1 11:20:33 2017 -0400
+
+    cmd/go: pass plugin package name to compile -p
+    
+    When compiling a plugin, package main gets a new name so as not to
+    conflict with the main package in the host binary, or any other
+    plugins. It is already defined by cmd/go, and used by cmd/link when
+    filling out the "" package placeholder in symbols.
+    
+    With this CL, the plugin-specific name for main is also passed to
+    cmd/compile's -p flag. This is used to fill out the pkgpath field
+    of types, and ensures that two types defined in two different plugin
+    mains with the same name will not be mistaken for one another at
+    runtime.
+    
+    Fixes #21386
+    
+    Change-Id: I8a646d8d7451caff533fe0007343ea8b8e1704ed
+    Reviewed-on: https://go-review.googlesource.com/60910
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/src/host/host.go       | 15 +++++++++++++--
+ misc/cgo/testplugin/src/plugin1/plugin1.go | 20 +++++++++++++++++++-
+ misc/cgo/testplugin/src/plugin2/plugin2.go | 16 ++++++++++++++++
+ src/cmd/go/internal/work/build.go          | 11 ++++++++---
+ 4 files changed, 56 insertions(+), 6 deletions(-)

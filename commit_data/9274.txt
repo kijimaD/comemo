@@ -1,0 +1,12 @@
+commit 034711ed763339e4a9bc068fba09d0441fde348f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Aug 1 14:20:02 2011 -0700
+
+    tag release.r59
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4841044
+
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

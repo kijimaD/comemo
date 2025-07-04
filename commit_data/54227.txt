@@ -1,0 +1,30 @@
+commit 4f97a7e6eae588784c6bd7f87251b29c1d6c859a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Aug 28 02:33:06 2023 -0700
+
+    cmd/compile/internal/ir: set Addrtaken on Canonical ONAME too
+    
+    In CL 522879, I moved the logic for setting Addrtaken from typecheck's
+    markAddrOf and ComputeAddrtaken directly into ir.NewAddrExpr. However,
+    I took the logic from markAddrOf, and failed to notice that
+    ComputeAddrtaken also set Addrtaken on the canonical ONAME.
+    
+    The result is that if the only address-of expressions were within a
+    function literal, the canonical variable never got marked Addrtaken.
+    In turn, this could cause the consistency check in ir.Reassigned to
+    fail. (Yay for consistency checks turning mistakes into ICEs, rather
+    than miscompilation.)
+    
+    Fixes #62313.
+    
+    Change-Id: Ieab2854cd7fcc1b6c5d1e61de66453add9890a4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523375
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ir/expr.go | 13 +++++++++++++
+ test/fixedbugs/issue62313.go        | 13 +++++++++++++
+ 2 files changed, 26 insertions(+)

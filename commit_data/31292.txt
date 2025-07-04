@@ -1,0 +1,15 @@
+commit 3cf72322dc234b01dff0757a9d928362967fe9e3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 21 14:47:09 2017 -0700
+
+    cmd/compile: reuse LSyms in dumptypestructs
+    
+    Passes toolstash-check.
+    
+    Change-Id: I4a5c841eb16e05db7d923d4c3c7cd2d7695fa4af
+    Reviewed-on: https://go-review.googlesource.com/41409
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/reflect.go | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

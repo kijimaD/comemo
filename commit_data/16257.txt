@@ -1,0 +1,13 @@
+commit d727d147c0c724e9d6489db86925dc61a5ddfd91
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 1 17:00:21 2013 -0700
+
+    cmd/ld: fix another unsigned value causing bugs on Plan 9
+    "The usual conversions" bite again.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/9103044
+
+ src/cmd/ld/data.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

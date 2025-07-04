@@ -1,0 +1,48 @@
+commit 7747c33a41491be74da65b116718f4df7a2f8337
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 29 16:13:12 2022 -0500
+
+    internal/diff: add, replacing cmd/internal/diff
+    
+    This is an in-process (non-exec'ing) replacement for cmd/internal/diff.
+    It uses an O(n log n) algorithm instead of the O(n²) algorithm
+    in standard diff binaries. It does not produce the absolute
+    shortest diffs, but the results are often more meaningful
+    than the standard diff, because it doesn't try to align
+    random blank lines or other noise.
+    
+    Adding so that tests inside std (especially go/printer)
+    can print diffs.
+    
+    Replacing cmd/internal/diff because we don't need two.
+    
+    Change-Id: I9155dd925e4a813f5bfa84a8ad3dec8ffdbf8550
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384255
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+    Trust: Peter Weinberger <pjw@google.com>
+
+ src/cmd/fix/main.go                   |  10 +-
+ src/cmd/fix/main_test.go              |  18 +--
+ src/cmd/gofmt/gofmt.go                |  49 +------
+ src/cmd/gofmt/gofmt_test.go           |  76 +---------
+ src/cmd/internal/diff/diff.go         |  78 ----------
+ src/go/build/deps_test.go             |   2 +-
+ src/go/printer/printer_test.go        |  36 +----
+ src/internal/diff/diff.go             | 262 ++++++++++++++++++++++++++++++++++
+ src/internal/diff/diff_test.go        |  43 ++++++
+ src/internal/diff/testdata/allnew.txt |  13 ++
+ src/internal/diff/testdata/allold.txt |  13 ++
+ src/internal/diff/testdata/basic.txt  |  35 +++++
+ src/internal/diff/testdata/dups.txt   |  40 ++++++
+ src/internal/diff/testdata/end.txt    |  38 +++++
+ src/internal/diff/testdata/eof.txt    |   9 ++
+ src/internal/diff/testdata/eof1.txt   |  18 +++
+ src/internal/diff/testdata/eof2.txt   |  18 +++
+ src/internal/diff/testdata/long.txt   |  62 ++++++++
+ src/internal/diff/testdata/same.txt   |   5 +
+ src/internal/diff/testdata/start.txt  |  34 +++++
+ src/internal/diff/testdata/triv.txt   |  40 ++++++
+ 21 files changed, 652 insertions(+), 247 deletions(-)

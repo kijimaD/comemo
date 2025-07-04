@@ -1,0 +1,19 @@
+commit 683c266f958db9acff705856f2c0aeb031d9782c
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Feb 25 11:32:59 2018 +0100
+
+    build: add default GOROOT_BOOTSTRAP in Windows
+    
+    CL 57753 added support to make.bash and make.rc to
+    default GOROOT_BOOTSTRAP to 'go env GOROOT'. This
+    patch does the same in make.bat for Windows.
+    
+    Updates #18545
+    Fixes #28641
+    
+    Change-Id: I9152cc5080ed219b4de5bad0bd12d7725422ee1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/96455
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/make.bat | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

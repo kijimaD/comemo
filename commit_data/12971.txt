@@ -1,0 +1,16 @@
+commit 4d3db77c6906d09038e55915653dc98cdf4d66bb
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Apr 26 17:50:44 2012 +1000
+
+    doc: update wiki article to use html/template properly.
+    
+    Fixes #3569.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6116055
+
+ doc/articles/wiki/edit.html  |  6 +++---
+ doc/articles/wiki/index.html | 11 ++++++-----
+ doc/articles/wiki/view.html  |  6 +++---
+ 3 files changed, 12 insertions(+), 11 deletions(-)

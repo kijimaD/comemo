@@ -1,0 +1,16 @@
+commit fdf6761e01f2f826cc880266a00cc68bea6490fb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 29 10:18:43 2016 -0700
+
+    cmd/compile: add typPtr
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I721348ed2122b6a9cd87ad2041b6ee3bf6b2bbb5
+    Reviewed-on: https://go-review.googlesource.com/21306
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go     | 20 ++++++--------------
+ src/cmd/compile/internal/gc/type.go     |  9 +++++++++
+ src/cmd/compile/internal/gc/universe.go |  3 +--
+ 3 files changed, 16 insertions(+), 16 deletions(-)

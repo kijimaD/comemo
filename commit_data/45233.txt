@@ -1,0 +1,18 @@
+commit af8a176e911a013ab5054318224a90e5bab67efc
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 14 12:37:04 2021 -0400
+
+    internal/buildcfg: enable regabidefer by default
+    
+    For #40724.
+    
+    Change-Id: If3a66c0e29cb20dd29ac13c8d00aa46ee279ab97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310175
+    Trust: Austin Clements <austin@google.com>
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/internal/buildcfg/exp.go | 1 +
+ 1 file changed, 1 insertion(+)

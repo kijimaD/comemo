@@ -1,0 +1,21 @@
+commit 4da905bcf07d80eb62be5cb996e11a89258364ad
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Dec 2 12:45:55 2024 -0800
+
+    cmd/internal/objabi, internal/runtime: increase nosplit limit on OpenBSD
+    
+    OpenBSD is bumping up against the nosplit limit, and openbsd/ppc64
+    is over it. Increase StackGuardMultiplier on OpenBSD, matching AIX.
+    
+    Change-Id: I61e17c99ce77e1fd3f368159dc4615aeae99e913
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632996
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/objabi/stack.go   | 4 ++--
+ src/internal/runtime/sys/consts.go | 4 ++--
+ test/nosplit.go                    | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)

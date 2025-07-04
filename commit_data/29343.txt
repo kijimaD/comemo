@@ -1,0 +1,21 @@
+commit 21c114e930fc1b118c2b8b8716d7b1b3b38027e0
+Author: Quentin Smith <quentin@golang.org>
+Date:   Wed Nov 2 16:18:22 2016 -0400
+
+    runtime/testdata/testprog: increase GCFairness2 timeout to 1s
+    
+    OpenBSD's scheduler causes preemption to take 20+ms, so 30ms is not
+    enough time for 3 goroutines to run. This change continues to sleep for
+    30ms, but if it finds that the 3 goroutines have not run, it sleeps for
+    an additional 1s before declaring failure.
+    
+    Updates #17712
+    
+    Change-Id: I3e886e40d05192b7cb71b4f242af195836ef62a8
+    Reviewed-on: https://go-review.googlesource.com/32634
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Quentin Smith <quentin@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/testdata/testprog/gc.go | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

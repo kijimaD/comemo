@@ -1,0 +1,17 @@
+commit ba9c445f166b573873f9cf891cec5f170fa3c359
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Fri Mar 29 06:21:14 2024 +0000
+
+    cmd/go: close elf file in the readpkglist function
+    
+    Change-Id: Ief08e311598152f047878fc0fe6a6e37df372ee9
+    GitHub-Last-Rev: daec402b390e8d1b9882e3fc7c1814ff8d3782c8
+    GitHub-Pull-Request: golang/go#66588
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575156
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/work/action.go | 1 +
+ 1 file changed, 1 insertion(+)

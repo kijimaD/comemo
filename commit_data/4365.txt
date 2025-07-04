@@ -1,0 +1,11 @@
+commit 76bd476de1eb44ec6cd79870411264f8c42ff076
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 9 14:54:58 2009 -0800
+
+    hgtags: looks like they have to be full hashes
+    
+    R=r
+    https://golang.org/cl/170048
+
+ .hgtags | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

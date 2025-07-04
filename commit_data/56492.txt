@@ -1,0 +1,21 @@
+commit bf279b71e247f9676ec18d636b9f70669b653924
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 7 09:38:28 2024 -0700
+
+    go/types, types2: add Alias.{TypeParams, SetTypeParams, TypeArgs, Origin}
+    
+    Fixes #67143.
+    
+    Change-Id: I8bf9c2559f95d3d6a40874454208ae074b68875c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583757
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/67143.txt                           |  4 ++++
+ doc/next/6-stdlib/99-minor/go/types/67143.md |  2 ++
+ src/cmd/compile/internal/types2/alias.go     | 26 +++++++++++++++++++++++++-
+ src/go/types/alias.go                        | 26 +++++++++++++++++++++++++-
+ 4 files changed, 56 insertions(+), 2 deletions(-)

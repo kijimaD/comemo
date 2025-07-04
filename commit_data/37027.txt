@@ -1,0 +1,16 @@
+commit 2d6a7593b5cde33546be7bb69f420d32df060a47
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 18 12:37:25 2018 -0700
+
+    cmd/doc: minor code simplification
+    
+    Follow-up on https://golang.org/cl/143037.
+    
+    Change-Id: Ia36760b499f7d46ce03e0fa81ec455a4a20208ac
+    Reviewed-on: https://go-review.googlesource.com/c/143061
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/doc/pkg.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

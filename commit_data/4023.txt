@@ -1,0 +1,12 @@
+commit 00093011e6eba0a11a21adcc4e5091588ed17601
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 12 23:19:12 2009 -0800
+
+    sudo.bash tries to install acid and db, which don't exist any more
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/152117
+
+ src/sudo.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

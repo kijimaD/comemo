@@ -1,0 +1,21 @@
+commit c769a47291249bd0901d20b58f10ba62c444c926
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Sun Jul 5 01:03:16 2020 -0400
+
+    net: correct address when listening on IPv4zero tcp4/udp4 on Plan 9
+    
+    Since Plan 9 doesn't allow us to listen on 0.0.0.0, the Listener
+    address that's read in from /net is the IPv6 address ::. Convert
+    this address to 0.0.0.0 when the network is tcp4 or udp4.
+    
+    Fixes #40045
+    
+    Change-Id: Icfb69b823e5b80603742d23c3762a812996fe43f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240918
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/net/ipsock_plan9.go      | 20 +++++++++++++-------
+ src/net/ipsock_plan9_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 7 deletions(-)

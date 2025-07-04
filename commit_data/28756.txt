@@ -1,0 +1,28 @@
+commit 0aadaf2ad5fa8cc1c00256840e37f422dda9689f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 22:01:33 2016 -0700
+
+    cmd/pprof: instruction-level granularity in callgrind output
+    
+    When generating callgrind format output, produce cost lines at
+    instruction granularity. This allows visualizers supporting the
+    callgrind format to display instruction-level profiling information.
+    
+    We also need to provide the object file (ob=) in order for tools to find
+    the object file to disassemble when displaying assembly.
+    
+    We opportunistically group cost lines corressponding to the same
+    function together, reducing the number of superfluous description lines.
+    Subposition compression (relative position numbering) is also used to
+    reduce the output size.
+    
+    Change-Id: Id8e960b81dc7a47ec1dfbae877521f76972431c4
+    Reviewed-on: https://go-review.googlesource.com/23781
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Raul Silvera <rsilvera@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/pprof/driver/driver.go |  8 ++---
+ src/cmd/internal/pprof/report/report.go | 60 ++++++++++++++++++++++++++++-----
+ 2 files changed, 54 insertions(+), 14 deletions(-)

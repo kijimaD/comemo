@@ -1,0 +1,13 @@
+commit dab40b588032488be5cff7173f928d1cd7dee2e8
+Author: Firmansyah Adiputra <frm.adiputra@gmail.com>
+Date:   Fri Mar 26 09:21:09 2010 -0700
+
+    xgb: fix request length and request size.
+    
+    R=nigeltao_golang, rsc
+    CC=golang-dev
+    https://golang.org/cl/759041
+
+ src/pkg/xgb/go_client.py | 17 ++++++++++-------
+ src/pkg/xgb/xproto.go    | 16 ++++++++--------
+ 2 files changed, 18 insertions(+), 15 deletions(-)

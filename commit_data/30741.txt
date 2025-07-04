@@ -1,0 +1,25 @@
+commit df47b821747184361f9b3d6038fc66eda4916619
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Mar 20 17:31:35 2017 -0400
+
+    cmd/internal/obj/s390x: cleanup objz.go
+    
+    This CL deletes some unnecessary code in objz.go that existed to
+    support instruction scheduling. It's likely instruction scheduling
+    will never be done in this part of the backend so this code can
+    just be deleted.
+    
+    This file can probably be cleaned up a bit more, but I think this
+    is a good start.
+    
+    Passes: go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: I1645632ac551a90a4f4be418045c046b488e9469
+    Reviewed-on: https://go-review.googlesource.com/38394
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/s390x/a.out.go |  12 +--
+ src/cmd/internal/obj/s390x/objz.go  | 146 ++++--------------------------------
+ 2 files changed, 16 insertions(+), 142 deletions(-)

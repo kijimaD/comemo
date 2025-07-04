@@ -1,0 +1,14 @@
+commit 2ede818ae0761fc57dc1b52b4c8673933a3ff3fa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 27 16:13:21 2013 -0700
+
+    net/http: document Request.Body more
+    
+    Fixes #6221
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13289043
+
+ src/pkg/net/http/request.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

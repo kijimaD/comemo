@@ -1,0 +1,13 @@
+commit 5bd266d1eeca78f735ff4c202432c073f1ef3e8b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 20 16:06:06 2009 -0700
+
+    add #include for time and ctime
+    
+    R=r
+    DELTA=1  (1 added, 0 deleted, 0 changed)
+    OCL=33615
+    CL=33617
+
+ src/cmd/ar/ar.c | 1 +
+ 1 file changed, 1 insertion(+)

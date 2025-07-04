@@ -1,0 +1,16 @@
+commit 38e9b0773d486beb1d91ce018586a888bbb20e45
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 20 23:53:27 2013 -0400
+
+    cmd/gc: fix escape analysis of method values
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7518050
+
+ src/cmd/gc/closure.c     |  3 ++-
+ src/cmd/gc/esc.c         | 11 +++++++++++
+ src/cmd/gc/fmt.c         |  4 +++-
+ test/escape2.go          | 22 ++++++++++++++++++++++
+ test/fixedbugs/bug474.go | 29 +++++++++++++++++++++++++++++
+ 5 files changed, 67 insertions(+), 2 deletions(-)

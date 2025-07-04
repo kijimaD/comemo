@@ -1,0 +1,19 @@
+commit 461d1b798770e5de49b9364abc5b12d557027e09
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 11 17:50:07 2008 -0700
+
+    convert from mk to make
+    phew.
+    
+    SVN=122266
+
+ src/cmd/6a/Makefile | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/6c/Makefile | 43 +++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/6c/cgen.c   |  4 ++--
+ src/cmd/6g/Makefile | 38 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/6l/Makefile | 39 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/cc/Makefile | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/clean.bash  |  2 +-
+ src/cmd/gc/Makefile | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/make.bash   | 14 +++++++-------
+ 9 files changed, 267 insertions(+), 10 deletions(-)

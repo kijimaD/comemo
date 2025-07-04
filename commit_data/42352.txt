@@ -1,0 +1,22 @@
+commit b819adfe6d3bb53b1c863d5c5a8b64b89698d9f7
+Author: smasher164 <aindurti@gmail.com>
+Date:   Wed May 6 14:02:29 2020 -0400
+
+    cmd/go: enable stringintconv and ifaceassert vet checks by default
+    
+    As per discussion on the accepted proposals, enable these vet checks by
+    default in the go command. Update corresponding documentation as well.
+    
+    Updates #32479.
+    Updates #4483.
+    
+    Change-Id: Ie93471930c24dbb9bcbf7da5deaf63bc1a97a14f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232660
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go            |  8 ++++----
+ src/cmd/go/internal/test/test.go | 10 ++++++----
+ 2 files changed, 10 insertions(+), 8 deletions(-)

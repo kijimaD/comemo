@@ -1,0 +1,10 @@
+commit f5c07634322229391ef25513a8c3efa77e423649
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 1 23:51:33 2008 -0700
+
+    Explain about pointer types for mutually recursive structures.
+    
+    SVN=117463
+
+ doc/go_lang.txt | 9 +++++++++
+ 1 file changed, 9 insertions(+)

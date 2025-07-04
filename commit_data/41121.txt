@@ -1,0 +1,18 @@
+commit 5a3a5d35258e2be1427fdea36b0a0787b0f67364
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Nov 4 05:06:56 2019 +1100
+
+    math, math/big: add support for riscv64
+    
+    Based on riscv-go port.
+    
+    Updates #27532
+    
+    Change-Id: Id8ae7d851c393ec3702e4176c363accb0a42587f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204633
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/big/arith_decl.go      |   2 +-
+ src/math/big/arith_decl_pure.go |   2 +-
+ src/math/stubs_riscv64.s        | 113 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 115 insertions(+), 2 deletions(-)

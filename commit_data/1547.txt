@@ -1,0 +1,18 @@
+commit 9a7332fb5bb3287efa5420756c1b79f43937cc14
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 23 15:56:04 2009 -0800
+
+    remove the "open" concept from reflect and go with slices and arrays.
+    the two still share an interface and Kind; that's probably ok but might be worth revisiting.
+    
+    R=rsc
+    DELTA=74  (1 added, 8 deleted, 65 changed)
+    OCL=23416
+    CL=23418
+
+ src/lib/json/struct.go      |  4 +--
+ src/lib/reflect/all_test.go |  2 +-
+ src/lib/reflect/tostring.go |  2 +-
+ src/lib/reflect/type.go     | 10 +++---
+ src/lib/reflect/value.go    | 87 +++++++++++++++++++++------------------------
+ 5 files changed, 49 insertions(+), 56 deletions(-)

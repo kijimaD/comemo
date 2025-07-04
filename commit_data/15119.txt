@@ -1,0 +1,28 @@
+commit 1d9f67daf0e8ba950da75f68f1f3f2650b13cd67
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 3 23:02:12 2013 -0500
+
+    time: deal a bit better with time zones in Parse
+    
+    * Document Parse's zone interpretation.
+    * Add ParseInLocation (API change).
+    * Recognize "wrong" time zone names, like daylight savings time in winter.
+    * Disambiguate time zone names using offset (like winter EST vs summer EST in Sydney).
+    
+    The final two are backwards-incompatible changes, but I believe
+    they are both buggy behavior in the Go 1.0 versions; the old results
+    were more wrong than the new ones.
+    
+    Fixes #3604.
+    Fixes #3653.
+    Fixes #4001.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/7288052
+
+ src/pkg/time/example_test.go | 32 ++++++++++++++++++++++++++
+ src/pkg/time/format.go       | 53 +++++++++++++++++++++++++++++++++-----------
+ src/pkg/time/time_test.go    | 37 +++++++++++++++++++++++++++++++
+ src/pkg/time/zoneinfo.go     | 25 +++++++++++++++++++--
+ 4 files changed, 132 insertions(+), 15 deletions(-)

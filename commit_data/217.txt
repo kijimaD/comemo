@@ -1,0 +1,16 @@
+commit 2987c8434b205a3047c59200b4fb1e618d58859c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 24 15:31:03 2008 -0700
+
+    arguments available
+    argc, argv, envc, envv all in sys now
+    sys.argc() etc.
+    
+    SVN=124398
+
+ src/cmd/gc/sys.go              |  12 +++++
+ src/cmd/gc/sysimport.c         | 108 ++++++++++++++++++++++++-----------------
+ src/runtime/rt0_amd64_darwin.s |   5 ++
+ test/args.go                   |  19 ++++++++
+ test/golden.out                |   2 +
+ 5 files changed, 102 insertions(+), 44 deletions(-)

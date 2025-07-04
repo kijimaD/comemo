@@ -1,0 +1,12 @@
+commit 3063ff5168d11c88b58e125124f84d8ae5d885db
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 17 14:48:44 2012 -0800
+
+    crypto/dsa: add missing period in package comment
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5673087
+
+ src/pkg/crypto/dsa/dsa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

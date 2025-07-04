@@ -1,0 +1,12 @@
+commit 2d55fdb507982eb6539868cf54a0c7f14c1b8cec
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 8 20:37:41 2014 -0500
+
+    debug/goobj: add String methods for SymID and SymKind
+    
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/48890044
+
+ src/pkg/debug/goobj/read.go | 50 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 50 insertions(+)

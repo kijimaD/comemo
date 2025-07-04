@@ -1,0 +1,20 @@
+commit 7f1bc53379f548845a23275c2f83d75071cf8e13
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Sep 10 13:24:35 2016 +0200
+
+    cmd/compile: only allow integer expressions as keys in array literals
+    
+    Fixes #16439
+    Updates #16679
+    
+    Change-Id: Idff4b313f29351866b1a649786501adee85fd580
+    Reviewed-on: https://go-review.googlesource.com/29011
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/const.go     | 40 ++++++++++++++------------------
+ src/cmd/compile/internal/gc/sinit.go     |  5 ++--
+ src/cmd/compile/internal/gc/typecheck.go | 40 ++++++++++++++------------------
+ test/fixedbugs/issue16439.go             | 18 ++++++++++++++
+ 4 files changed, 56 insertions(+), 47 deletions(-)

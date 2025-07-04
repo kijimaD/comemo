@@ -1,0 +1,16 @@
+commit 494e317fbf47eac5edfc0664506d5e1f1f3eafed
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 3 22:20:16 2015 -0500
+
+    cmd/internal: rewrite fmt.Sprintf("%s", x) to x
+    
+    Change-Id: I764933f4928bb9d0d119fbfe44a193ce1449b61e
+    Reviewed-on: https://go-review.googlesource.com/6791
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/ld/go.go          | 12 ++++++------
+ src/cmd/internal/obj/i386/list8.go |  2 +-
+ src/cmd/internal/obj/obj.go        |  6 +++---
+ src/cmd/internal/obj/x86/list6.go  |  2 +-
+ 4 files changed, 11 insertions(+), 11 deletions(-)

@@ -1,0 +1,15 @@
+commit 108f5c913c74304f89ffcc6b12536c465d9fb42d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 15 15:07:52 2010 -0700
+
+    godoc: only show directories containing true package files
+    
+    (ignore directories containing *.go files that don't
+    actually start with a package clause)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2223041
+
+ src/cmd/godoc/dirtrees.go | 45 +++++++++++++++++++++++++--------------------
+ 1 file changed, 25 insertions(+), 20 deletions(-)

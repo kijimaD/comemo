@@ -1,0 +1,20 @@
+commit 27fc32ff01cc699e160890546816bd99d6c57823
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 2 14:42:46 2019 -0700
+
+    cmd/compile: better error message for language version errors
+    
+    Fixes #33753.
+    Updates #31747.
+    
+    Change-Id: Icc42b23405ead4f7f17b0ffa3611405454b6b271
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198491
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go     |  8 ++++----
+ src/cmd/compile/internal/gc/subr.go      |  5 +++++
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue31747.go             | 10 +++++-----
+ 4 files changed, 15 insertions(+), 10 deletions(-)

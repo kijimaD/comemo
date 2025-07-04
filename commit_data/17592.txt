@@ -1,0 +1,22 @@
+commit bd9cd6e30e629f8751c978a75befc087b4cb5617
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Sep 13 15:01:22 2013 +1000
+
+    syscall: add TCIOFLUSH family of constants
+    
+    Fixes #6355.
+    
+    zerrors_linux_{386,amd64,arm}.go were regenerated using mkerrors.sh but I opted to add the three TC.*FLUSH lines by hand to keep the diff smaller and avoid problems with the API checker.
+    
+    I'll check freebsd and darwin, could I ask for help with net/open bsd.
+    
+    R=mikioh.mikioh, jsing, minux.ma, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13660043
+
+ src/pkg/syscall/consistency_unix_test.go | 9 +++++++++
+ src/pkg/syscall/mkerrors.sh              | 1 +
+ src/pkg/syscall/zerrors_linux_386.go     | 3 +++
+ src/pkg/syscall/zerrors_linux_amd64.go   | 3 +++
+ src/pkg/syscall/zerrors_linux_arm.go     | 3 +++
+ 5 files changed, 19 insertions(+)

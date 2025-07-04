@@ -1,0 +1,13 @@
+commit e5b0bcebdb7fb78b8783c966cff871efb52bbbc8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Feb 20 12:34:16 2013 +0400
+
+    runtime/debug: deflake TestFreeOSMemory
+    This is followup to https://golang.org/cl/7319050/
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7379043
+
+ src/pkg/runtime/debug/garbage_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

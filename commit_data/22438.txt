@@ -1,0 +1,15 @@
+commit 2e61315254c0649d035d66fef8eab3b7c8504713
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Apr 11 18:57:18 2015 -0400
+
+    sync/atomic: skip issue 7338 test on darwin/arm64
+    
+    Similar to darwin/arm. This issue is quite worrying and I hope it
+    can be addressed for Go 1.5.
+    
+    Change-Id: Ic095281d6a2e9a38a59973f58d464471db5a2edc
+    Reviewed-on: https://go-review.googlesource.com/8811
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/sync/atomic/atomic_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

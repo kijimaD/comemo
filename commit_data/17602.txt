@@ -1,0 +1,13 @@
+commit d237f3ce6ff414e2ce8ffea9a20dda6ba603495b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 16 10:28:53 2013 +1000
+
+    doc/go1.2.html: net/http, encoding, performance, library changes
+    Everything is done except compiler changes and additional platforms, if any.
+    
+    R=golang-dev, dominik.honnef, adg
+    CC=golang-dev
+    https://golang.org/cl/13484045
+
+ doc/go1.2.html | 146 +++++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 85 insertions(+), 61 deletions(-)

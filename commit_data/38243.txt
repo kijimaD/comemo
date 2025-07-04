@@ -1,0 +1,19 @@
+commit 8bad008cf50e64a7615d9dbd7aaa236eb727301e
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Feb 20 16:01:22 2019 +0100
+
+    runtime: handle syscalls without g or m for aix/ppc64
+    
+    With cgo, some syscalls will be called with g == nil or m == nil.
+    SyscallX functions cannot handle them so they call an equivalent
+    function in sys_aix_ppc64.s which will directly call this syscall.
+    
+    Change-Id: I6508ec772b304111330e6833e7db729200af547c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164001
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os2_aix.go      | 132 ++++++++++++++++++++++++--------------------
+ src/runtime/sys_aix_ppc64.s |  32 +++++++++++
+ 2 files changed, 104 insertions(+), 60 deletions(-)

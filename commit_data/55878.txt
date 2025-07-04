@@ -1,0 +1,19 @@
+commit c961ab3fe9b0355320cde28a588a687dc0d5261f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 29 16:51:44 2024 -0500
+
+    runtime: introduce timers.lock, timers.unlock methods
+    
+    No semantic changes here.
+    Cleaning up for next change.
+    
+    Change-Id: I9706009739677ff9eb893bcc007d805f7877511e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568335
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/proc.go |  2 +-
+ src/runtime/time.go | 59 ++++++++++++++++++++++++++++++-----------------------
+ 2 files changed, 34 insertions(+), 27 deletions(-)

@@ -1,0 +1,28 @@
+commit 376be64922f38a78c42c62db189be911160367f8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 12 12:51:44 2024 -0400
+
+    encoding/gob: make x509.Certificate marshalable again
+    
+    The OID type is not exported data like most of the other x509 structs.
+    Using it in x509.Certificate made Certificate not gob-compatible anymore,
+    which breaks real-world code. As a temporary fix, make gob ignore
+    that field, making it work as well as it did in Go 1.21.
+    
+    For Go 1.23, we anticipate adding a proper fix and removing the gob
+    workaround. See #65633 and #66249 for more details.
+    
+    For #66249.
+    Fixes #65633.
+    
+    Change-Id: Idd1431d15063b3009e15d0565cd3120b9fa13f61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571095
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/x509/x509.go      |  1 +
+ src/crypto/x509/x509_test.go | 11 +++++++++++
+ src/encoding/gob/encode.go   |  2 +-
+ src/encoding/gob/type.go     | 15 +++++++++++++--
+ 4 files changed, 26 insertions(+), 3 deletions(-)

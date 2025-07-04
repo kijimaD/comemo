@@ -1,0 +1,26 @@
+commit 9e21e9c5cb27e5f2b5acba14efb6bb6f126595cc
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 28 16:48:11 2017 -0400
+
+    cmd/compile: make loop finder more aware of irreducible loops
+    
+    The loop finder doesn't return good information if it
+    encounters an irreducible loop.  Make a start on improving
+    this, and set a function-level flag to indicate when there
+    is such a loop (and the returned information might be flaky).
+    
+    Use that flag to prevent the loop rotater from getting
+    confused; the existing code seems to depend on artifacts
+    of the previous loop-finding algorithm. (There is one
+    irreducible loop in the go library, in "inflate.go").
+    
+    Change-Id: If6e26feab38d9b009d2252d556e1470c803bde40
+    Reviewed-on: https://go-review.googlesource.com/42150
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/check.go        | 20 +++++++-------
+ src/cmd/compile/internal/ssa/likelyadjust.go | 40 +++++++++++++++++++++-------
+ src/cmd/compile/internal/ssa/looprotate.go   |  3 +++
+ 3 files changed, 44 insertions(+), 19 deletions(-)

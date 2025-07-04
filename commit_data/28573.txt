@@ -1,0 +1,22 @@
+commit 4d07d3e29c467484801b84dfeb762d2ee00979a9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Sep 28 10:20:24 2016 -0400
+
+    cmd/compile: re-enable nilcheck removal for newobject
+    
+    Also add compiler debug ouput and add a test.
+    
+    Fixes #15390.
+    
+    Change-Id: Iceba1414c29bcc213b87837387bf8ded1f3157f1
+    Reviewed-on: https://go-review.googlesource.com/30011
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/config.go         |  9 ++++
+ src/cmd/compile/internal/ssa/gen/generic.rules | 22 +++++-----
+ src/cmd/compile/internal/ssa/rewrite.go        |  9 ++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 58 ++++++++++++++++++++++++++
+ test/nilptr3.go                                |  7 ++++
+ 5 files changed, 95 insertions(+), 10 deletions(-)

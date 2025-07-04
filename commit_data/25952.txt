@@ -1,0 +1,12 @@
+commit c86dbbe1b989a05381d2635c97566d3e7b06eb62
+Author: kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Sun Feb 28 14:55:29 2016 +1030
+
+    misc/cgo/fortran: clean up after successful helloworld.90 build
+    
+    Change-Id: If03185a21e088c9b383a82c14d649805f00c8042
+    Reviewed-on: https://go-review.googlesource.com/20000
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ misc/cgo/fortran/test.bash | 1 +
+ 1 file changed, 1 insertion(+)

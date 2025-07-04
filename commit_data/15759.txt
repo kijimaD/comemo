@@ -1,0 +1,12 @@
+commit f51ec00722b16d356d959065d035a880864795df
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 14 10:59:55 2013 +0400
+
+    runtime: fix build
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7529049
+
+ src/pkg/runtime/netpoll.goc | 2 ++
+ 1 file changed, 2 insertions(+)

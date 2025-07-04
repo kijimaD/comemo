@@ -1,0 +1,14 @@
+commit e7183e75189c2420eb4b8f0b56344ae4c1d33ef6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 24 14:12:43 2011 -0500
+
+    net: return cname in LookupHost
+    
+    Fixes #1395.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4036044
+
+ src/pkg/net/dnsclient.go | 27 ++++++++++++---------------
+ 1 file changed, 12 insertions(+), 15 deletions(-)

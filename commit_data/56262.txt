@@ -1,0 +1,20 @@
+commit 69aa1974f3c525b024ac1b13324d809909622246
+Author: jeffery <superajun@gmail.com>
+Date:   Mon Apr 22 08:02:22 2024 +0000
+
+    cmd/compile: combine phielim and copyelim into a single pass
+    
+    Change-Id: Id21145b14169d28bac2144a31f6d3d9729f4be1e
+    GitHub-Last-Rev: 5413f4753e5acb60db6a93cb3409047bddc8df6d
+    GitHub-Pull-Request: golang/go#63818
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538535
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/compile.go  |   7 +--
+ src/cmd/compile/internal/ssa/copyelim.go | 102 +++++++++++++++++++++++++------
+ src/cmd/compile/internal/ssa/phielim.go  |  75 -----------------------
+ 3 files changed, 86 insertions(+), 98 deletions(-)

@@ -1,0 +1,16 @@
+commit 214f7ec554888042a7a54fdca9cba19aee8ebaf1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 23 18:31:23 2018 +0000
+
+    net/http: update Serve docs on when HTTP/2 is enabled
+    
+    Contains portions and modified portions of CL 103815
+    
+    Fixes #24607
+    
+    Change-Id: Ic330850a0f098f183315f04ea4780eded46c5b77
+    Reviewed-on: https://go-review.googlesource.com/125515
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/server.go | 42 +++++++++++++++++++++++++-----------------
+ 1 file changed, 25 insertions(+), 17 deletions(-)

@@ -1,0 +1,17 @@
+commit 17bddc8bf4fdbe50ea67f75db5cddc3061b5000d
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Sep 26 05:30:48 2023 +0000
+
+    cmd/go/internal/modload: omit space in 'os /exec'
+    
+    Change-Id: I94517aa7e1db1cd2bb1314bf12ade45183bbeffe
+    GitHub-Last-Rev: d122b72e786f75c99cb6f18ffe1adf0c828c31ac
+    GitHub-Pull-Request: golang/go#63227
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531135
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/init.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

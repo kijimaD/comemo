@@ -1,0 +1,19 @@
+commit c21d118accaf255b75f89abdfe8b2ef2acd34ba5
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sun Dec 17 09:46:48 2023 +0000
+
+    reflect: use MapMaxKeyBytes,MapMaxElemBytes,MapBucketCount of internal/abi
+    
+    For #59670
+    
+    Change-Id: I63a6e2cfaf9eec03866ea61064164a059fc42bb2
+    GitHub-Last-Rev: a3aa46a36444b08382ddac79c10a064b314bd971
+    GitHub-Pull-Request: golang/go#64773
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550595
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/reflect/type.go  | 32 +++++++++++---------------------
+ src/reflect/value.go |  4 ++--
+ 2 files changed, 13 insertions(+), 23 deletions(-)

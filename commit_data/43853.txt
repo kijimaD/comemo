@@ -1,0 +1,29 @@
+commit 676f0a45edd6b9be824f21530a13a695466880bf
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Oct 30 17:11:36 2020 -0400
+
+    cmd/go: support overlaying go.mod files
+    
+    This change updates the lockedfile package to open files using the
+    new fsys.OpenFile function. The logic of fsys.Open has been moved into
+    fsys.OpenFile, and fsys.Open is now just a light wrapper around it.
+    
+    For #39958
+    
+    Change-Id: I552f1a45ac00ac06b5812008d17a61e610b4b113
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266797
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/fsys/fsys.go                   |  16 +-
+ .../go/internal/lockedfile/lockedfile_filelock.go  |   3 +-
+ src/cmd/go/internal/lockedfile/lockedfile_plan9.go |   6 +-
+ src/cmd/go/internal/modcmd/vendor.go               |   3 +-
+ src/cmd/go/internal/modload/import.go              |   4 +-
+ src/cmd/go/internal/modload/init.go                |  10 +-
+ src/cmd/go/internal/search/search.go               |   2 +-
+ src/cmd/go/testdata/script/mod_overlay.txt         | 248 +++++++++++++++++++++
+ 8 files changed, 277 insertions(+), 15 deletions(-)

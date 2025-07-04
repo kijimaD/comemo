@@ -1,0 +1,14 @@
+commit 79606b99525c754d7aa78eb99da064e1881fa7b2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 26 16:24:51 2009 -0700
+
+    Cascading errors lead to a compiler crash.
+    
+    R=rsc
+    DELTA=18  (18 added, 0 deleted, 0 changed)
+    OCL=33914
+    CL=33917
+
+ test/bugs/bug198.go | 11 +++++++++++
+ test/golden.out     |  7 +++++++
+ 2 files changed, 18 insertions(+)

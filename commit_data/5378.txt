@@ -1,0 +1,14 @@
+commit 9c8cee712dd47f405ca7d63aecfee59d91e9aadc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 27 18:48:11 2010 -0700
+
+    net: fix bug in internetSocket introduced by error cleanup.
+    
+    Fixes #750.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/988043
+
+ src/pkg/net/ipsock.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

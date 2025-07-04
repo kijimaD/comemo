@@ -1,0 +1,12 @@
+commit ed925490710adedc36d1273cf7d01f3b8dd19946
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Nov 4 17:55:21 2011 +1100
+
+    bytes: fix typo and resolve to be less idiotic next time
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5340044
+
+ src/pkg/bytes/bytes.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

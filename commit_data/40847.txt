@@ -1,0 +1,18 @@
+commit 39b44e88afc85bfcf18d49478ba914e1529e9527
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 19 13:36:39 2019 -0500
+
+    cmd/go: make files copied from GOROOT writable in TestNewReleaseRebuildsStalePackagesInGOPATH
+    
+    The whole point of copying these files is so that we can modify them.
+    
+    Updates #30316
+    
+    Change-Id: Iaba7ddec5159078f2c3d3451cbab363365b15c9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207963
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

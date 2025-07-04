@@ -1,0 +1,27 @@
+commit 262141a12a6ef0d914fe7aff8b3bde45ea59abb0
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Nov 9 14:14:44 2017 -0800
+
+    database/sql: check for arg counts after eliminating arguments
+    
+    Check for the expected number of arguments in a SQL statement
+    after arguments are eliminated in the argument converter.
+    
+    This situation was already tested for in TestNamedValueChecker.
+    However the test used Exec which didn't have any check for
+    NumInput on it at all, thus this issue was never caught.
+    
+    In addition to moving the NumInput check on the Query
+    methods after the converter, add the NumInput check
+    to the Exec methods as well.
+    
+    Fixes #22630
+    
+    Change-Id: If45920c6e1cf70dca63822a0cedec2cdc5cc611c
+    Reviewed-on: https://go-review.googlesource.com/76732
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/database/sql/sql.go | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

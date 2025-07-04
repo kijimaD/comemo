@@ -1,0 +1,24 @@
+commit 7275b17ebf147bc399e129b1605138b5ce166b7d
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Apr 7 21:13:30 2023 -0400
+
+    cmd/go: localize computation of deps/depserrors in list
+    
+    Stop depending on DepsErrors to report errors to the user and instead
+    only use it and compute it in list. Instead, use Incomplete to figure
+    out when a package or its depencies have an error, and only if they
+    do, do the work of finding all those errors.
+    
+    For #59157
+    
+    Change-Id: Ied927f53e7b1f66fad9248b40dd11ed960b3ef91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483495
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/list/list.go | 84 +++++++++++++++++++++++++++------------
+ src/cmd/go/internal/load/pkg.go  | 85 +++++++++-------------------------------
+ src/cmd/go/internal/load/test.go | 42 +++++++++++++-------
+ 3 files changed, 104 insertions(+), 107 deletions(-)

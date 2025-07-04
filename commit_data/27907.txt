@@ -1,0 +1,16 @@
+commit 3b967be4219c789ef9c47aa5e9607cab3005e1cd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 18 13:22:22 2016 -0700
+
+    spec: undo spec date change introduced by prior commit
+    
+    I accidentally included a modified spec in
+    https://go-review.googlesource.com/27290 .
+    Remove that change.
+    
+    Change-Id: Icb62fe829072860e9eb74865d21e06f30efcfd26
+    Reviewed-on: https://go-review.googlesource.com/27357
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

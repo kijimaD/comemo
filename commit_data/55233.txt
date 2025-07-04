@@ -1,0 +1,28 @@
+commit 2e4d9a18011a65c42a371bad7b4125acb3c0bc4e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 7 10:24:55 2023 -0500
+
+    cmd/go: set global .gitconfig location more robustly in tests
+    
+    Also confirm that setting the location actually worked before
+    proceeding with the rest of the test.
+    
+    This fixes a test failure with git versions older than 2.32.0.
+    
+    Updates #53955.
+    Fixes #64603.
+    
+    Change-Id: I1a954975a3d8300e8b4dca045d3a15438a0407ec
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548215
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/get_issue53955.txt           | 16 ++++++++++++++--
+ .../testdata/script/mod_download_git_bareRepository.txt | 17 +++++++++++++----
+ .../testdata/script/mod_download_git_decorate_full.txt  | 16 +++++++++++-----
+ src/cmd/go/testdata/script/mod_download_issue51114.txt  | 15 ++++++++++++---
+ src/cmd/go/testdata/script/mod_download_private_vcs.txt | 15 ++++++++++++---
+ 5 files changed, 62 insertions(+), 17 deletions(-)

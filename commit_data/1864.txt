@@ -1,0 +1,14 @@
+commit 79fa5b65cb2e89a9585dd0ed681847a03a48b8a6
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Mar 22 20:54:21 2009 -0700
+
+    rewrote switch
+    fixed bug 141
+    
+    R=r
+    OCL=26627
+    CL=26627
+
+ src/cmd/gc/go.y  |   2 +-
+ src/cmd/gc/swt.c | 958 ++++++++++++++++++++++++++++++-------------------------
+ 2 files changed, 525 insertions(+), 435 deletions(-)

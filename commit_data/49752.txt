@@ -1,0 +1,31 @@
+commit cd54ef1f61945459486e9eea2f016d99ef1da925
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 5 23:39:55 2022 +1000
+
+    internal/cpu: implement CPU feature detection for openbsd/arm64
+    
+    OpenBSD 7.1 onwards expose the aarch64 ISAR0 and ISAR1 registers via sysctl:
+    
+      $ sysctl machdep
+      machdep.compatible=apple,j274
+      machdep.id_aa64isar0=153421459058925856
+      machdep.id_aa64isar1=1172796674562
+    
+    Implement CPU feature detection for openbsd/arm64 based on this information.
+    
+    Fixes #31746
+    
+    Change-Id: If8a9b2b8fc557e1aaefbcb52f4d1bd9efc43856d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421875
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/internal/cpu/cpu_arm64_openbsd.go | 60 +++++++++++++++++++++++++++++++++++
+ src/internal/cpu/cpu_arm64_other.go   |  2 +-
+ src/runtime/os_openbsd.go             | 15 +++++++++
+ 3 files changed, 76 insertions(+), 1 deletion(-)

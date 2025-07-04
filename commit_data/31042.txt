@@ -1,0 +1,23 @@
+commit 89ff0b1b6b8be2305079551e1b4d9c97cdf72a09
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Jan 20 08:34:18 2017 +0900
+
+    cmd/cgo: support floating point #define macros
+    
+    Current code doesn't support floating point #define macros.
+    This CL compiles floats to a object file and retrive values from it.
+    That approach is the same work as we've already done for integers.
+    
+    Updates #18720
+    
+    Change-Id: I88b7ab174d0f73bda975cf90c5aeb797961fe034
+    Reviewed-on: https://go-review.googlesource.com/35511
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/issue6612.go |  17 ++--
+ src/cmd/cgo/gcc.go         | 202 +++++++++++++++++++++++++++++++++------------
+ src/cmd/cgo/main.go        |   7 +-
+ src/cmd/cgo/out.go         |   2 +-
+ 4 files changed, 163 insertions(+), 65 deletions(-)

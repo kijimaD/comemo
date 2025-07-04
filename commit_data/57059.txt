@@ -1,0 +1,22 @@
+commit 01ab9a016afe7239ed7b43cdd820103ec91aba09
+Author: limeidan <limeidan@loongson.cn>
+Date:   Wed Jan 17 17:49:37 2024 +0800
+
+    cmd/internal/obj/loong64: optimize the code logic of jump instructions
+    
+    If p.To.Sym is nil, that means we can get the target offset from
+    p.To.Target().pc - c.pc，only when p.To.Sym is not nil, we need relocation
+    to get the true address of target symbol.
+    
+    Change-Id: Ied52f675c6aa6e8fb8d972b7699f5cadd1ecb268
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565627
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+
+ src/cmd/internal/obj/loong64/asm.go | 19 +++++++------------
+ 1 file changed, 7 insertions(+), 12 deletions(-)

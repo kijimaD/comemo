@@ -1,0 +1,37 @@
+commit c5718b6b261a66aa47312037f17281d3d810c98c
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 26 13:53:02 2018 -0400
+
+    cmd/internal/obj, cmd/link: record ABIs and aliases in Go obj files
+    
+    This repurposes the "version" field of a symbol reference in the Go
+    object file format to be an ABI field. Currently, this is just 0 or 1
+    depending on whether the symbol is static (the linker turns it into a
+    different internal version number), so it's already only tenuously a
+    symbol version. We change this to be -1 for static symbols and
+    otherwise by the ABI number.
+    
+    This also adds a separate list of ABI alias symbols to be recorded in
+    the object file. The ABI aliases must be a separate list and not just
+    part of the symbol definitions because it's possible to have a symbol
+    defined in one package and the alias "defined" in a different package.
+    For example, this can happen if a symbol is defined in assembly in one
+    package and stubbed in a different package. The stub triggers the
+    generation of the ABI alias, but in a different package from the
+    definition.
+    
+    For #27539.
+    
+    Change-Id: I015c9fe54690c027de6ef77e22b5585976a01587
+    Reviewed-on: https://go-review.googlesource.com/c/147157
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/goobj/read.go           | 29 +++++++++++++++++++++--------
+ src/cmd/internal/obj/link.go             | 31 ++++++++++++++++++++++++++++++-
+ src/cmd/internal/obj/objfile.go          | 19 +++++++++++++++----
+ src/cmd/internal/objabi/doc.go           |  8 ++++----
+ src/cmd/link/internal/objfile/objfile.go | 20 ++++++++++++--------
+ src/cmd/link/internal/sym/symbol.go      | 15 ++++++++++++++-
+ 6 files changed, 96 insertions(+), 26 deletions(-)

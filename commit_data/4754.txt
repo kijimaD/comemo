@@ -1,0 +1,31 @@
+commit 001d9917f46ed752c97daba24866093a75c4db7f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 1 16:25:55 2010 -0800
+
+    Match gccgo error messages.
+    
+    I have to admit that "cannot use type p.T as type p.T" is a
+    bit weak.  8g gives a similar error ("cannot use v1 (type p.T)
+    as type p.T in assignment").
+    
+    bug3.go:37:5: error: incompatible type in initialization (incompatible type for method ‘M’ (different parameter types))
+    bug3.go:38:5: error: incompatible type in initialization (incompatible type for method ‘M’ (different parameter types))
+    bug3.go:43:5: error: incompatible type in initialization (incompatible type for method ‘M’ (different parameter types))
+    bug3.go:44:5: error: incompatible type in initialization (incompatible type for method ‘M’ (different parameter types))
+    bug3.go:49:5: error: incompatible types in assignment (cannot use type p.T as type p.T)
+    bug3.go:50:5: error: incompatible types in assignment (cannot use type p.T as type p.T)
+    bug3.go:55:5: error: incompatible types in assignment (incompatible type for method ‘M’ (different parameter types))
+    bug3.go:56:5: error: incompatible types in assignment (incompatible type for method ‘M’ (different parameter types))
+    bug3.go:57:6: error: incompatible types in assignment (incompatible type for method ‘M’ (different parameter types))
+    bug3.go:58:6: error: incompatible types in assignment (incompatible type for method ‘M’ (different parameter types))
+    bug3.go:59:5: error: incompatible types in assignment (incompatible type for method ‘M’ (different parameter types))
+    bug3.go:60:5: error: incompatible types in assignment (incompatible type for method ‘M’ (different parameter types))
+    bug3.go:61:6: error: incompatible types in assignment (incompatible type for method ‘M’ (different parameter types))
+    bug3.go:62:6: error: incompatible types in assignment (incompatible type for method ‘M’ (different parameter types))
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/199044
+
+ test/fixedbugs/bug248.dir/bug3.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

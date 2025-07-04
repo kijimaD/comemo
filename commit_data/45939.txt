@@ -1,0 +1,15 @@
+commit 0914646ab91a3157666d845d74d8d9a4a2831e1e
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Jul 23 18:45:41 2021 +0200
+
+    doc/1.17: fix two dead rfc links
+    
+    Updates #44513
+    
+    Change-Id: Ia0c6b48bde2719f3a99cb216b6166d82159198d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336930
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.17.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

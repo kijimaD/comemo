@@ -1,0 +1,12 @@
+commit ccafd53ed35b64cfe32b191870e0523d1538f00a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun May 22 18:46:48 2011 -0700
+
+    http: add docs/warning on incorrect use of NewChunkedWriter
+    
+    R=golang-dev, adg, r
+    CC=golang-dev
+    https://golang.org/cl/4536075
+
+ src/pkg/http/chunked.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

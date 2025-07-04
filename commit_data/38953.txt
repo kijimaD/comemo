@@ -1,0 +1,24 @@
+commit 98c5a56f0178db479c71fa76b5791ce2fcfc58b9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 25 22:39:56 2019 -0700
+
+    runtime: account for callbacks in checkdead on Windows
+    
+    When a callback runs on a different thread in Windows, as in the
+    runtime package test TestCallbackInAnotherThread, it will use the
+    extra M. That can cause the test in checkdead to fail incorrectly.
+    Check whether there actually is an extra M before expecting it.
+    
+    I think this is a general problem unrelated to timers. I think the test
+    was passing previously because the timer goroutine was using an M.
+    But I haven't proved that. This change seems correct, and it avoids
+    the test failure when using the new timers on Windows.
+    
+    Updates #27707
+    
+    Change-Id: Ieb31c04ff0354d6fae7e173b59bcfadb8b0464cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174037
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/proc.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

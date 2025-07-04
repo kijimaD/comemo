@@ -1,0 +1,24 @@
+commit 1c4a80377580a05b9c3f1cccb66baefc01383352
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jun 25 15:28:15 2022 -0700
+
+    debug/plan9obj: use saferio to read section data
+    
+    Avoid allocating large amounts of memory for corrupt input.
+    
+    No test case because the problem can only happen for invalid data.
+    Let the fuzzer find cases like this.
+    
+    Fixes #52521
+    
+    Change-Id: I6a046f2e28e1255cf773ce135c5bb2b967ef43e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414234
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dan Kortschak <dan@kortschak.io>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/debug/plan9obj/file.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

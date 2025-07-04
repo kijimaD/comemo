@@ -1,0 +1,28 @@
+commit 58394fd7d56ff233a5e32aa3001ec8ad5988e8f3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 1 08:33:25 2016 -0700
+
+    runtime/cgo: only build _cgo_callers if x_cgo_callers is defined
+    
+    Fixes a problem when using the external linker on Solaris.  The Solaris
+    external linker still doesn't work due to issue #14957.
+    
+    The problem is, for example, with `go test cmd/objdump`:
+    
+            objdump_test.go:71: go build fmthello.go: exit status 2
+                    # command-line-arguments
+                    /var/gcc/iant/go/pkg/tool/solaris_amd64/link: running gcc failed: exit status 1
+                    Undefined                       first referenced
+                     symbol                             in file
+                    x_cgo_callers                       /tmp/go-link-355600608/go.o
+                    ld: fatal: symbol referencing errors
+                    collect2: error: ld returned 1 exit status
+    
+    Change-Id: I54917cfd5c288ee77ea25c439489bd2c9124fe73
+    Reviewed-on: https://go-review.googlesource.com/21392
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/cgo/callbacks.go           |  8 --------
+ src/runtime/cgo/callbacks_traceback.go | 17 +++++++++++++++++
+ 2 files changed, 17 insertions(+), 8 deletions(-)

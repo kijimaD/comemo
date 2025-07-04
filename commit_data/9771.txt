@@ -1,0 +1,13 @@
+commit 7eab0c2bdc6b3d8694b36254c6ab3e65f8258d26
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Sep 22 13:05:13 2011 +1000
+
+    A&C: Add Paul Sbarra.
+    
+    R=golang-dev, adg
+    CC=golang-dev, sbarra.paul
+    https://golang.org/cl/5044045
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

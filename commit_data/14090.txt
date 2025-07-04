@@ -1,0 +1,16 @@
+commit e855fcc3073ccb4dc3fa7a3b7dc2b076e5bb54cf
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 9 11:56:38 2012 +1100
+
+    encoding/gob: fix data race in Register
+    Fixes #4214.
+    
+    R=golang-dev, dsymonds, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6637047
+
+ src/pkg/encoding/gob/decode.go    | 2 ++
+ src/pkg/encoding/gob/encode.go    | 2 ++
+ src/pkg/encoding/gob/type.go      | 3 +++
+ src/pkg/encoding/gob/type_test.go | 5 ++++-
+ 4 files changed, 11 insertions(+), 1 deletion(-)

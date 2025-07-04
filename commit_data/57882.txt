@@ -1,0 +1,17 @@
+commit 293a205f3c196dcc2eb22bc03b520cad659fce93
+Author: Kristóf Havasi <kristof.havasi@gmail.com>
+Date:   Mon Nov 4 13:25:34 2024 +0100
+
+    internal/platform: fix 'reportsr' typo in comment
+    
+    Gets rendered at https://pkg.go.dev/internal/platform#Broken
+    
+    Change-Id: I128d9f02f113b1b326bc7d6a0e48fe0c944546dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624915
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/platform/supported.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

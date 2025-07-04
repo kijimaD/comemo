@@ -1,0 +1,15 @@
+commit 431b96bdbe7dc838551efc9959b3bdca780b9368
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 19 14:29:45 2014 -0700
+
+    text/template,html/template: document that partial results may be written on error
+    Fixes #7445.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/94640043
+
+ src/pkg/html/template/template.go | 6 ++++++
+ src/pkg/text/template/exec.go     | 6 ++++++
+ 2 files changed, 12 insertions(+)

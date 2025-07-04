@@ -1,0 +1,20 @@
+commit 30c278dbe907111b51737adb8ba0a9e1956f3ed5
+Author: Jamil Djadala <djadala@gmail.com>
+Date:   Wed Apr 20 09:08:28 2016 +0300
+
+    container/heap: correct number of elements in BenchmarkDup
+    
+    In BenchmarkDup fuction, heap is created as h := make(myHeap, n)
+    and then n elements are added, so first time there are 2*n elements
+    in heap.
+    
+    Fixes #15380
+    
+    Change-Id: I0508486a847006b3cd545fd695e8b09af339134f
+    Reviewed-on: https://go-review.googlesource.com/22310
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/container/heap/heap_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

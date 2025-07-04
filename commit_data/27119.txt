@@ -1,0 +1,24 @@
+commit 6b02a1924725688b4d264065454ac5287fbed535
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Thu Apr 21 18:24:12 2016 +0300
+
+    strings: use SSE4.2 in strings.Index on AMD64
+    
+    Use PCMPESTRI instruction if available.
+    
+    Index-4              21.1ns ± 0%  21.1ns ± 0%     ~     (all samples are equal)
+    IndexHard1-4          395µs ± 0%   105µs ± 0%  -73.53%        (p=0.000 n=19+20)
+    IndexHard2-4          300µs ± 0%   147µs ± 0%  -51.11%        (p=0.000 n=19+20)
+    IndexHard3-4          665µs ± 0%   665µs ± 0%     ~           (p=0.942 n=16+19)
+    
+    Change-Id: I4f66794164740a2b939eb1c78934e2390b489064
+    Reviewed-on: https://go-review.googlesource.com/22337
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/x86/a.out.go  |   2 +
+ src/cmd/internal/obj/x86/anames.go |   1 +
+ src/cmd/internal/obj/x86/asm6.go   |   1 +
+ src/runtime/asm_amd64.s            | 157 +++++++++++++++++++++++--------------
+ 4 files changed, 103 insertions(+), 58 deletions(-)

@@ -1,0 +1,17 @@
+commit c824f540d9bb937d4e78bba63b38f4c8ad427c8f
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Jun 13 18:21:23 2018 +0200
+
+    runtime: move iOS kevent calls to libc
+    
+    Change-Id: Ie97c9c9163f5af7b4768c34faac726e21627aa79
+    Reviewed-on: https://go-review.googlesource.com/118660
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/defs_darwin_arm.go   |   3 ++
+ src/runtime/defs_darwin_arm64.go |   3 ++
+ src/runtime/sys_darwin_arm.s     | 102 +++++++++++++++++----------------------
+ src/runtime/sys_darwin_arm64.s   |  97 ++++++++++++++-----------------------
+ 4 files changed, 84 insertions(+), 121 deletions(-)

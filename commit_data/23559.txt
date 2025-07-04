@@ -1,0 +1,16 @@
+commit 9b2d84efc896b50b5d143fed4fe128237a864a72
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 29 11:37:13 2015 -0700
+
+    net/http/httptest: increase test Server's key size
+    
+    Fixes #10725
+    
+    Change-Id: Ic8685dc238a0ffc95fafb512a8587d2eb5fe9d5f
+    Reviewed-on: https://go-review.googlesource.com/11720
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httptest/server.go | 42 +++++++++++++++++++++++++----------------
+ 1 file changed, 26 insertions(+), 16 deletions(-)

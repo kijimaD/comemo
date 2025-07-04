@@ -1,0 +1,22 @@
+commit 469a87d7a57572148a176db1f43767aa90cdd10d
+Author: Abirdcfly <fp544037857@gmail.com>
+Date:   Mon Jul 25 06:31:46 2022 +0000
+
+    net/http: remove unused method needsSniff
+    
+    Change-Id: Ia8c67d148fc7e71cac8954ccce6fffb8a6f423df
+    GitHub-Last-Rev: 9441b8f0c510a3a03dc22816e2616d57f1411965
+    GitHub-Pull-Request: golang/go#54036
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419322
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Javad Rajabzadeh <ja7ad@live.com>
+    Reviewed-by: hopehook <hopehook@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/response_test.go | 13 -------------
+ src/net/http/server.go        |  6 ------
+ 2 files changed, 19 deletions(-)

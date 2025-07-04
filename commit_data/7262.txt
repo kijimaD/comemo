@@ -1,0 +1,14 @@
+commit a3120f67ca69de705d6e604de5df842681bf3921
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Thu Jan 27 08:26:31 2011 -0500
+
+    8l: add PE dynexport
+    
+    R=rsc, brainman, mattn
+    CC=golang-dev
+    https://golang.org/cl/4022043
+
+ src/cmd/8l/asm.c |   4 +--
+ src/cmd/ld/pe.c  | 103 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/ld/pe.h  |  14 ++++++++
+ 3 files changed, 118 insertions(+), 3 deletions(-)

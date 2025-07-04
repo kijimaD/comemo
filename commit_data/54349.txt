@@ -1,0 +1,21 @@
+commit d80f3966b8b5b2a6e606b416fe80dffeb810ab68
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Nov 11 08:38:50 2022 -0600
+
+    cmd/internal/obj/ppc64: do not assemble non-constant rotate RLWMI
+    
+    Unlike RLWNM, the ISA only supports an immediate rotate operand.
+    
+    Update optab and opirrr to avoid quietly assembling this insn.
+    
+    Change-Id: I1472a431cb8a870d55d5fff79ab905c4c459f630
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449835
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/obj/ppc64/asm9.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

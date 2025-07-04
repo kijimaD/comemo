@@ -1,0 +1,46 @@
+commit f6332bb84ad87e958290ae23b29a2b13a41ee2a2
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Mar 3 14:24:54 2018 -0800
+
+    internal/bytealg: move compare functions to bytealg
+    
+    Move bytes.Compare and runtime·cmpstring to bytealg.
+    
+    Update #19792
+    
+    Change-Id: I139e6d7c59686bef7a3017e3dec99eba5fd10447
+    Reviewed-on: https://go-review.googlesource.com/98515
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/bytes_decl.go                     |   4 +-
+ src/cmd/vet/all/whitelist/386.txt           |   4 +-
+ src/cmd/vet/all/whitelist/amd64.txt         |   4 +-
+ src/cmd/vet/all/whitelist/arm.txt           |   4 +-
+ src/cmd/vet/all/whitelist/arm64.txt         |   3 +-
+ src/cmd/vet/all/whitelist/mipsx.txt         |   4 +-
+ src/cmd/vet/all/whitelist/nacl_amd64p32.txt |   5 +-
+ src/cmd/vet/all/whitelist/ppc64x.txt        |   3 +-
+ src/cmd/vet/all/whitelist/s390x.txt         |   5 +-
+ src/internal/bytealg/compare_386.s          | 151 ++++++++++++++
+ src/internal/bytealg/compare_amd64.s        | 236 +++++++++++++++++++++
+ src/internal/bytealg/compare_amd64p32.s     | 151 ++++++++++++++
+ src/internal/bytealg/compare_arm.s          |  67 ++++++
+ src/internal/bytealg/compare_arm64.s        |  66 ++++++
+ src/internal/bytealg/compare_generic.go     |  88 ++++++++
+ src/internal/bytealg/compare_mipsx.s        | 104 ++++++++++
+ src/internal/bytealg/compare_native.go      |  10 +
+ src/internal/bytealg/compare_ppc64x.s       | 307 ++++++++++++++++++++++++++++
+ src/internal/bytealg/compare_s390x.s        |  75 +++++++
+ src/runtime/asm_386.s                       | 137 -------------
+ src/runtime/asm_amd64.s                     | 222 --------------------
+ src/runtime/asm_amd64p32.s                  | 136 ------------
+ src/runtime/asm_arm.s                       |  53 -----
+ src/runtime/asm_arm64.s                     |  52 -----
+ src/runtime/asm_mipsx.s                     |  63 ------
+ src/runtime/asm_ppc64x.s                    | 270 ------------------------
+ src/runtime/asm_s390x.s                     |  61 ------
+ src/runtime/noasm.go                        |  63 ------
+ src/runtime/stubs_asm.go                    |  11 -
+ 29 files changed, 1275 insertions(+), 1084 deletions(-)

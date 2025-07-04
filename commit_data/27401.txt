@@ -1,0 +1,15 @@
+commit 5fae488633ff247b9b7964dc45b8fe4b491f5a16
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun May 15 17:16:04 2016 +0900
+
+    syscall: deprecate BPF/LSF
+    
+    Updates #14982.
+    
+    Change-Id: Id12b1e61456832d2b2ffbdbe8cf0a1db4444b1e4
+    Reviewed-on: https://go-review.googlesource.com/23122
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/bpf_bsd.go   | 18 ++++++++++++++++++
+ src/syscall/lsf_linux.go |  6 ++++++
+ 2 files changed, 24 insertions(+)

@@ -1,0 +1,16 @@
+commit 9c91cab0da9814a598f2c4f7568b6276ff972672
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Dec 8 04:21:33 2020 +1100
+
+    runtime: correct sigfwd on openbsd/mips64
+    
+    Position independent code expects that R25 (aka $t9) contains the address of the
+    called function. As such, use R25 when calling from sigfwd.
+    
+    Change-Id: I66b2b9bfa1f1bb983c7385eb2eaa19d9cd87d9fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275893
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/sys_openbsd_mips64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,31 @@
+commit b690d7e513737769f6eed7cc53ca088517771547
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sat Dec 8 23:32:15 2018 -0800
+
+    net/http/httputil: make TestDumpRequest idempotent
+    
+    TestDumpRequest was failing with -count=2 or more
+    because for test cases that involved mustReadRequest,
+    the body was created as a *bufio.Reader. DumpRequest
+    and DumpRequestOut would then read the body until EOF
+    and would close it after use.
+    However, on re-runs of the test, the body would
+    be terminally exhausted and result in an unexpected
+    error "http: invalid Read on closed Body".
+    
+    The update to the test cases adds an extra field "GetReq"
+    which allows us to construct requests per run of the tests
+    and hence make the test indefinitely re-runnable/idempotent.
+    "Req" or "GetReq" are mutually exclusive: either one of them
+    can be set or nil, but not both.
+    
+    Fixes #26858
+    
+    Change-Id: Ice3083dac1aa3249da4afc7075cd984eb159530d
+    Reviewed-on: https://go-review.googlesource.com/c/153377
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/dump_test.go | 98 +++++++++++++++++++++++---------------
+ 1 file changed, 59 insertions(+), 39 deletions(-)

@@ -1,0 +1,19 @@
+commit c6888d9264c481e61daa7ab0a8e603cdcb67b897
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:57:02 2024 -0500
+
+    runtime: use timer.lock in moveTimers
+    
+    Continue using timer.lock to simplify timer operations.
+    
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: Iaf371315308425d132217eacb20b1e120a6833c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564127
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/time.go | 95 ++++++++++++++++++++++++++---------------------------
+ 1 file changed, 47 insertions(+), 48 deletions(-)

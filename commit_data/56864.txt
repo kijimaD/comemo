@@ -1,0 +1,18 @@
+commit 71f9dbb1e409a28680f40c60fad5a386ed92a096
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jul 3 13:13:05 2024 +0700
+
+    cmd/compile: emit error message on mismatch import path
+    
+    Fixes #54542
+    
+    Change-Id: I16cfb84fc54892923106d0a6f0b3ba810886d077
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596396
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/noder/unified.go |  6 ++-
+ test/fixedbugs/issue54542.go              | 67 +++++++++++++++++++++++++++++++
+ 2 files changed, 72 insertions(+), 1 deletion(-)

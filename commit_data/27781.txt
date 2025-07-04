@@ -1,0 +1,24 @@
+commit 53da5fd4d431881bb3583c9790db7735a6530a1b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 7 16:41:29 2016 -0700
+
+    [release-branch.go1.7] runtime: fix nanotime for macOS Sierra
+    
+    In the beta version of the macOS Sierra (10.12) release, the
+    gettimeofday system call changed on x86. Previously it always returned
+    the time in the AX/DX registers. Now, if AX is returned as 0, it means
+    that the system call has stored the values into the memory pointed to by
+    the first argument, just as the libc gettimeofday function does. The
+    libc function handles both cases, and we need to do so as well.
+    
+    Fixes #16272.
+    
+    Change-Id: Ibe5ad50a2c5b125e92b5a4e787db4b5179f6b723
+    Reviewed-on: https://go-review.googlesource.com/24812
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/24755
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ src/runtime/sys_darwin_386.s   | 5 +++++
+ src/runtime/sys_darwin_amd64.s | 7 ++++++-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

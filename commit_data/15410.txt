@@ -1,0 +1,14 @@
+commit a411b104f0a32f7c859d63c4fbd46919c2036910
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 25 08:29:46 2013 -0800
+
+    go/parser: more precise comment
+    
+    See also CL 7383051 for details.
+    
+    R=adonovan, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7378063
+
+ src/pkg/go/parser/parser.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

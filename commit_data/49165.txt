@@ -1,0 +1,22 @@
+commit c4c9c80e4f20ca825e66eed254142b1623706b68
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri May 13 00:22:11 2022 +0900
+
+    all.bat,clean.bat,race.bat,run.bat: call some.bat with .\some.bat
+    
+    When set NoDefaultCurrentDirectoryInExePath=1, call some.bat does not work.
+    
+    Change-Id: Ifeab27ecf0d7ba1d504b755a22f73a0f13abbbb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405874
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/all.bat   | 4 ++--
+ src/clean.bat | 2 +-
+ src/race.bat  | 6 +++---
+ src/run.bat   | 2 +-
+ 4 files changed, 7 insertions(+), 7 deletions(-)

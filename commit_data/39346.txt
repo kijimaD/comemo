@@ -1,0 +1,35 @@
+commit 8f296f59de0703b0559474beb434a265e277bdca
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Jun 8 17:20:57 2019 +0000
+
+    Revert "Revert "cmd/compile,runtime: allocate defer records on the stack""
+    
+    This reverts CL 180761
+    
+    Reason for revert: Reinstate the stack-allocated defer CL.
+    
+    There was nothing wrong with the CL proper, but stack allocation of defers exposed two other issues.
+    
+    Issue #32477: Fix has been submitted as CL 181258.
+    Issue #32498: Possible fix is CL 181377 (not submitted yet).
+    
+    Change-Id: I32b3365d5026600069291b068bbba6cb15295eb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181378
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go     |   1 +
+ src/cmd/compile/internal/gc/escape.go  |   1 +
+ src/cmd/compile/internal/gc/go.go      |   1 +
+ src/cmd/compile/internal/gc/reflect.go |  42 +++++++
+ src/cmd/compile/internal/gc/ssa.go     | 196 +++++++++++++++++++++++----------
+ src/runtime/mgcmark.go                 |  20 +++-
+ src/runtime/panic.go                   |  44 ++++++++
+ src/runtime/runtime2.go                |   9 +-
+ src/runtime/stack.go                   |  13 ++-
+ src/runtime/stack_test.go              |  55 +++++++++
+ src/runtime/stubs.go                   |   3 -
+ src/runtime/syscall_windows.go         |   2 +-
+ src/runtime/traceback.go               |  42 ++-----
+ test/codegen/stack.go                  |   5 +
+ test/live.go                           |   2 +-
+ 15 files changed, 328 insertions(+), 108 deletions(-)

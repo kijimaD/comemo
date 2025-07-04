@@ -1,0 +1,38 @@
+commit febe7b8e2a4dd7cce6ab8d02cf79a5430819cbe5
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Nov 9 10:55:54 2022 -0500
+
+    runtime: make GC see object as allocated after it is initialized
+    
+    When the GC is scanning some memory (possibly conservatively),
+    finding a pointer, while concurrently another goroutine is
+    allocating an object at the same address as the found pointer, the
+    GC may see the pointer before the object and/or the heap bits are
+    initialized. This may cause the GC to see bad pointers and
+    possibly crash.
+    
+    To prevent this, we make it that the scanner can only see the
+    object as allocated after the object and the heap bits are
+    initialized. Currently the allocator uses freeindex to find the
+    next available slot, and that code is coupled with updating the
+    free index to a new slot past it. The scanner also uses the
+    freeindex to determine if an object is allocated. This is somewhat
+    racy. This CL makes the scanner use a different field, which is
+    only updated after the object initialization (and a memory
+    barrier).
+    
+    Fixes #54596.
+    
+    Change-Id: I2a57a226369926e7192c253dd0d21d3faf22297c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449017
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/arena.go    |  2 ++
+ src/runtime/malloc.go   | 10 ++++++++++
+ src/runtime/mbitmap.go  |  2 +-
+ src/runtime/mgcsweep.go |  1 +
+ src/runtime/mheap.go    | 10 ++++++++++
+ 5 files changed, 24 insertions(+), 1 deletion(-)

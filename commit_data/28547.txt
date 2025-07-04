@@ -1,0 +1,12 @@
+commit 8f9e2ab55786d37158a3aaf27d054944e0742717
+Author: Sam Whited <sam@samwhited.com>
+Date:   Mon Sep 26 20:23:36 2016 -0500
+
+    database/sql: add doc comment for ErrTxDone
+    
+    Change-Id: Idffb82cdcba4985954d061bdb021217f47ff4985
+    Reviewed-on: https://go-review.googlesource.com/29850
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go | 2 ++
+ 1 file changed, 2 insertions(+)

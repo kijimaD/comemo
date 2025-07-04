@@ -1,0 +1,20 @@
+commit ecfddf4841ceaa7fd253aae0b6d9d0d59625674b
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Apr 5 20:17:17 2024 +0000
+
+    cmd/compile/internal/base: enable stack slot merging by default
+    
+    Flag flip to enable stack slot merging by default when optimizing.
+    Please see the earlier CL for details on what this is doing.
+    
+    Updates #62737.
+    Updates #65532.
+    Updates #65495.
+    
+    Change-Id: I8e30d553e74ace43d418f883199721f05320d3d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576681
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/base/flag.go | 1 +
+ 1 file changed, 1 insertion(+)

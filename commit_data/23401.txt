@@ -1,0 +1,20 @@
+commit 289e28296614fac332c51be6bae997d8c71091bf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 16 16:47:45 2015 -0700
+
+    go/internal/gccgoimporter: adjust to std repo libraries (fix build)
+    
+    Change-Id: Ia9cbe3bfaa3e66c93d568d8beeed624b113d51a2
+    Reviewed-on: https://go-review.googlesource.com/11152
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/deps_test.go                          |  5 +-
+ src/go/internal/gccgoimporter/gccgoinstallation.go |  5 +-
+ .../gccgoimporter/gccgoinstallation_test.go        |  7 ++-
+ src/go/internal/gccgoimporter/importer.go          | 57 ++++++++++++----------
+ src/go/internal/gccgoimporter/importer_test.go     | 14 ++++--
+ src/go/internal/gccgoimporter/parser.go            | 21 ++++----
+ src/go/internal/gccgoimporter/parser_test.go       |  3 +-
+ 7 files changed, 64 insertions(+), 48 deletions(-)

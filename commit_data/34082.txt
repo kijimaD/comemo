@@ -1,0 +1,47 @@
+commit ac45cb9aa0154a84a63d18d87161dd39a2885449
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 3 15:52:22 2018 -0800
+
+    cmd/compile/internal/syntax: permit /*line file:line:col*/ directives
+    
+    R=go1.11
+    
+    This implements parsing of /*line file:line*/ and /*line file:line:col*/
+    directives and also extends the optional column format to regular //line
+    directives, per #22662.
+    
+    For a line directive to be recognized, its comment text must start with
+    the prefix "line " which is followed by one of the following:
+    
+    :line
+    :line:col
+    filename:line
+    filename:line:col
+    
+    with at least one : present. The line and col values must be unsigned
+    decimal integers; everything before is considered part of the filename.
+    
+    Valid line directives are:
+    
+    //line :123
+    //line :123:8
+    //line foo.go:123
+    //line C:foo.go:123     (filename is "C:foo.go")
+    //line C:foo.go:123:8   (filename is "C:foo.go")
+    /*line ::123*/          (filename is ":")
+    
+    No matter the comment format, at the moment all directives act as if
+    they were in //line comments, and column information is ignored.
+    To be addressed in subsequent CLs.
+    
+    For #22662.
+    
+    Change-Id: I1a2dc54bacc94bc6cdedc5229ee13278971f314e
+    Reviewed-on: https://go-review.googlesource.com/86037
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go       |  54 +++++++++---
+ src/cmd/compile/internal/syntax/parser_test.go  | 110 ++++++++++++++++++++----
+ src/cmd/compile/internal/syntax/scanner.go      |  38 ++++++--
+ src/cmd/compile/internal/syntax/scanner_test.go |   9 +-
+ 4 files changed, 172 insertions(+), 39 deletions(-)

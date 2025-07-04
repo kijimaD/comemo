@@ -1,0 +1,14 @@
+commit 19d064f68a275064c4a288f0c89885524b87fe9e
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Dec 13 16:23:06 2011 -0500
+
+    gofix: add fix httputil
+    
+    R=r, rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/5364056
+
+ src/cmd/gofix/Makefile         |   1 +
+ src/cmd/gofix/httputil.go      |  63 +++++++++++++++++++++
+ src/cmd/gofix/httputil_test.go | 122 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 186 insertions(+)

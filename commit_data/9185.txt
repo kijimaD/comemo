@@ -1,0 +1,23 @@
+commit dcef9812171e6dd2f1fd4b193936c5d6aaa6b5d1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 22 22:24:04 2011 -0700
+
+    godoc/httpzip.go: use correct path in Readdir
+    
+    Fixes a problem where Readdir would always return
+    empty directories (Readdir is only called by godoc
+    if the usual directory handler is commented out
+    in godoc.go, and if a zip file system is provided;
+    thus, this bug never manifested itself in godoc).
+    
+    Also:
+    - better choice of variable/field names
+    - simplified error handling a bit
+    - better comments
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4813047
+
+ src/cmd/godoc/httpzip.go | 38 ++++++++++++++++++--------------------
+ 1 file changed, 18 insertions(+), 20 deletions(-)

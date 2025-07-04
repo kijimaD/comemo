@@ -1,0 +1,12 @@
+commit 89ed40c44bf6818ec76108b95cf9268d88ca156b
+Author: Christian Himpel <chressie@googlemail.com>
+Date:   Mon Nov 12 07:25:54 2012 -0800
+
+    faq: mention go vet in "What happens with closures running as goroutines?"
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6822111
+
+ doc/go_faq.html | 2 ++
+ 1 file changed, 2 insertions(+)

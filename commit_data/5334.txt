@@ -1,0 +1,14 @@
+commit 21110c799de80ba3076400d8724ca76d6e5bbbfe
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Thu Apr 22 10:14:53 2010 -0700
+
+    spec: Fix run-time panic header id
+    
+    Everything was linking to "Run_time_panics", but the id was "Run_time_errors".
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/961042
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

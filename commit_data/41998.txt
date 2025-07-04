@@ -1,0 +1,19 @@
+commit bbaae9c43d71dd43a6b306d8daa307d733b1dc91
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Apr 17 23:00:35 2020 +0200
+
+    cmd/compile: switch to typed aux for 386 lowering rules
+    
+    Convert all the 386 lowering rules to the typed aux form.
+    
+    Passes
+    
+      GOARCH=386 gotip build -toolexec 'toolstash -cmp' -a std
+    
+    Change-Id: I15256f20bc4442391755e6fffb8206dcaab94830
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228818
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/386.rules | 461 +++++++++++++++--------------
+ src/cmd/compile/internal/ssa/rewrite386.go | 459 +++++++++++++++-------------
+ 2 files changed, 487 insertions(+), 433 deletions(-)

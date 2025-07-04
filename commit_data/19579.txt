@@ -1,0 +1,15 @@
+commit 22d46d53ea31b1bcee0a125f6fc1651ae2541563
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 19 22:19:56 2014 -0700
+
+    sync: detect incorrect usages of RWMutex
+    Fixes #7858.
+    
+    LGTM=ruiu
+    R=ruiu
+    CC=golang-codereviews
+    https://golang.org/cl/92720045
+
+ src/pkg/sync/rwmutex.go      | 10 +++++++++-
+ src/pkg/sync/rwmutex_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 1 deletion(-)

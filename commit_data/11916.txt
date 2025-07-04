@@ -1,0 +1,13 @@
+commit 4853cb9ab0941eeca9ec36628ed3e1a38f790148
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 15 13:07:12 2012 +1100
+
+    A+C: Lai Jiangshan
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5677046
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

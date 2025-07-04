@@ -1,0 +1,20 @@
+commit 17bf224a4df306ac38f7ba62639f74771234f051
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Nov 17 13:03:16 2024 +0100
+
+    crypto/internal/nistec: don't use go:embed
+    
+    For #69536
+    
+    Change-Id: I8ff3fdd70f540559d83abe006985bcee11ffde91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628775
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/internal/nistec/p256.go        |  15 +++++----------
+ src/crypto/internal/nistec/p256_asm.go    |  15 +++++----------
+ src/crypto/internal/nistec/p256_table.bin | Bin 88064 -> 0 bytes
+ src/crypto/internal/nistec/p256_table.go  |  10 ++++++++++
+ 4 files changed, 20 insertions(+), 20 deletions(-)

@@ -1,0 +1,22 @@
+commit 86371b0360302b68c29f5eb39b02b82a52e0e341
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 1 16:30:46 2022 -0600
+
+    cmd/asm,cmd/compile: generate preferred nop on PPC64
+    
+    The preferred form of nop is ori 0,0,0. What was being generated was
+    or 0,0,0.
+    
+    Fix a quirk in the assembler which effectively treats OR $0,Rx,Ry as
+    OR R0,Rx,Ry, and update the compiler to generate the preferred form.
+    
+    Change-Id: I5ac4bf0258cff05b9eba516a767daebfc9e31bc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388974
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Paul Murphy <murp@ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ppc64/ggen.go | 7 +++----
+ src/cmd/internal/obj/ppc64/asm9.go     | 8 +++++++-
+ 2 files changed, 10 insertions(+), 5 deletions(-)

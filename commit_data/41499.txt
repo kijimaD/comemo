@@ -1,0 +1,45 @@
+commit a3fc77aa7e5ce67f647a1bd58a00423102135f16
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 23 14:33:26 2020 -0800
+
+    cmd/compile: add ellipsis rule diagnostics to rulegen
+    
+    These detect opportunities to convert a rule to use an ellipsis,
+    and provide better error messages when something goes wrong.
+    
+    This change was used to generate all the preceding changes
+    converting rules to use ellipses. This change is at the end of those
+    changes rather than the beginning in order to avoid log spam during rule
+    generation (say during a git bisection).
+    
+    The preceding changes collectively shrink the cmd/compile binary by ~2.2%.
+    
+    Part of this detection is also warning when the presence of an
+    unmentioned aux or auxint could cause conversion to an ellipsis
+    rule to change the sematics of the rule.
+    
+    For example:
+    
+    (Div64 x y) -> (DIV x y)
+    
+    looks like a promising rule for an ellipsis. However, Div64 has an auxint,
+    and (on most platforms) DIV does not. An ellipsis rule would keep the
+    auxint intact, rather than zeroing it, which can infere with CSE.
+    So this change flags this rule as doing implicit zeroing;
+    it should be replaced by
+    
+    (Div64 [a] x y) -> (DIV x y)
+    
+    which makes it clear that the auxint is being zeroed.
+    
+    This detection is not foolproof, but it currently has no false positives.
+    If false positives arise in the future, we will need to gate the output.
+    
+    Change-Id: Ie21f284579e5d6e75aa304d0deb024d41ede528b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217014
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 76 ++++++++++++++++++++++++-----
+ 1 file changed, 64 insertions(+), 12 deletions(-)

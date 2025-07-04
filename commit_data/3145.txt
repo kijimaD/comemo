@@ -1,0 +1,75 @@
+commit fda0e78b234f12c9544cd6607c508b8338698239
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 30 19:21:48 2009 -0700
+
+    fix line numbers, again.
+    
+    if first function in file was dead code, it was being
+    discarded along with the file name information for that file.
+    leave the functions in the master function list longer:
+    let xfol take the dead code out of the code list,
+    and let span skip the unreachable functions during output.
+    
+    before
+            throw: sys·mapaccess1: key not in map
+    
+            panic PC=0x2e7b20
+            throw+0x33 /Users/rsc/go/src/pkg/runtime/runtime.c:65
+                    throw(0x5834f, 0x0)
+            sys·mapaccess1+0x73 /Users/rsc/go/src/pkg/runtime/hashmap.c:769
+                    sys·mapaccess1(0x2b9bd0, 0x0)
+            gob·*Encoder·Encode+0x16b /Users/rsc/go/src/pkg/fmt/print.go:2926
+                    gob·*Encoder·Encode(0x2bb440, 0x0, 0x558b0, 0x0, 0x2e4be0, ...)
+            main·walk+0x331 :1603
+                    main·walk(0x33a480, 0x0)
+            main·walk+0x271 :1596
+                    main·walk(0x300640, 0x0)
+            main·walk+0x271 :1596
+                    main·walk(0x300520, 0x0)
+            main·walk+0x271 :1596
+                    main·walk(0x300240, 0x0)
+            main·walk+0x271 :1596
+                    main·walk(0x678f8, 0x0)
+            main·main+0x22 :1610
+                    main·main()
+    
+    after
+            throw: sys·mapaccess1: key not in map
+    
+            panic PC=0x2e7b20
+            throw+0x33 /Users/rsc/go/src/pkg/runtime/runtime.c:65
+                    throw(0x5834f, 0x0)
+            sys·mapaccess1+0x73 /Users/rsc/go/src/pkg/runtime/hashmap.c:769
+                    sys·mapaccess1(0x2b9bd0, 0x0)
+            gob·*Encoder·Encode+0x16b /Users/rsc/go/src/pkg/gob/encoder.go:319
+                    gob·*Encoder·Encode(0x2bb3c0, 0x0, 0x558b0, 0x0, 0x2e4be0, ...)
+            main·walk+0x331 /Users/rsc/dir.go:121
+                    main·walk(0x2f6ab0, 0x0)
+            main·walk+0x271 /Users/rsc/dir.go:114
+                    main·walk(0x301640, 0x0)
+            main·walk+0x271 /Users/rsc/dir.go:114
+                    main·walk(0x301520, 0x0)
+            main·walk+0x271 /Users/rsc/dir.go:114
+                    main·walk(0x301240, 0x0)
+            main·walk+0x271 /Users/rsc/dir.go:114
+                    main·walk(0x678f8, 0x0)
+            main·main+0x22 /Users/rsc/dir.go:128
+                    main·main()
+            mainstart+0xe /Users/rsc/go/src/pkg/runtime/amd64/asm.s:55
+                    mainstart()
+            goexit /Users/rsc/go/src/pkg/runtime/proc.c:133
+                    goexit()
+    
+    R=r
+    DELTA=46  (20 added, 25 deleted, 1 changed)
+    OCL=34094
+    CL=34103
+
+ src/cmd/5l/asm.c  |  3 +++
+ src/cmd/5l/pass.c |  4 ++++
+ src/cmd/6l/pass.c |  4 ++++
+ src/cmd/6l/span.c |  4 +++-
+ src/cmd/8l/pass.c |  4 ++++
+ src/cmd/8l/span.c |  3 +++
+ src/cmd/ld/go.c   | 25 -------------------------
+ 7 files changed, 21 insertions(+), 26 deletions(-)

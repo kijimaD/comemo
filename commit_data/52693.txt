@@ -1,0 +1,56 @@
+commit fd8acb5d4aeb262a033b5151de311a97025af7d4
+Author: Matthieu Baerts <matthieu.baerts@tessares.net>
+Date:   Fri Feb 24 17:52:00 2023 +0100
+
+    net: mptcp: add TCPConn's MultipathTCP checker
+    
+    This new TCPConn method returns whether the connection is using MPTCP or
+    if a fallback to TCP has been done, e.g. because the other peer doesn't
+    support MPTCP.
+    
+    When working on the new E2E test linked to MPTCP (#56539), it looks like
+    the user might need to know such info to be able to do some special
+    actions (report, stop, etc.). This also improves the test to make sure
+    MPTCP has been used as expected.
+    
+    Regarding the implementation, from kernel version 5.16, it is possible
+    to use:
+    
+        getsockopt(..., SOL_MPTCP, MPTCP_INFO, ...)
+    
+    and check if EOPNOTSUPP (IPv4) or ENOPROTOOPT (IPv6) is returned. If it
+    is, it means a fallback to TCP has been done. See this link for more
+    details:
+    
+        https://github.com/multipath-tcp/mptcp_net-next/issues/294
+    
+    Before v5.16, there is no other simple way, from the userspace, to check
+    if the created socket did a fallback to TCP. Netlink requests could be
+    done to try to find more details about a specific socket but that seems
+    quite a heavy machinery. Instead, only the protocol is checked on older
+    kernels.
+    
+    The E2E test has been modified to check that the MPTCP connection didn't
+    do any fallback to TCP, explicitely validating the two methods
+    (SO_PROTOCOL and MPTCP_INFO) if it is supported by the host.
+    
+    This work has been co-developed by Gregory Detal
+    <gregory.detal@tessares.net> and Benjamin Hesmans
+    <benjamin.hesmans@tessares.net>.
+    
+    Fixes #59166
+    
+    Change-Id: I5a313207146f71c66c349aa8588a2525179dd8b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471140
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ api/next/59166.txt              |  1 +
+ src/net/mptcpsock_linux.go      | 51 +++++++++++++++++++++++++++++++++++++++++
+ src/net/mptcpsock_linux_test.go | 37 +++++++++++++++++++++++++++---
+ src/net/mptcpsock_stub.go       |  4 ++++
+ src/net/tcpsock.go              | 16 +++++++++++++
+ 5 files changed, 106 insertions(+), 3 deletions(-)

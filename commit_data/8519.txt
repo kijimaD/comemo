@@ -1,0 +1,17 @@
+commit 0b204e4625d158d5d466cdca2dedca4fda75dcf2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 27 11:06:53 2011 -0700
+
+    http: propagate Set-Cookie in reverse proxy
+    
+    Also adds Host header tests.
+    
+    Fixes #1886
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4556063
+
+ src/pkg/http/reverseproxy.go      |  4 ++++
+ src/pkg/http/reverseproxy_test.go | 14 +++++++++++++-
+ 2 files changed, 17 insertions(+), 1 deletion(-)

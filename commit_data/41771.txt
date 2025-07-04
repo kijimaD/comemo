@@ -1,0 +1,35 @@
+commit 4a8b9bd2646a5b297197ffd1c412ef6afebe5c0d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Mar 26 15:10:21 2020 -0400
+
+    runtime/pprof: increment fake overflow record PC
+    
+    gentraceback generates PCs which are usually following the CALL
+    instruction. For those that aren't, it fixes up the PCs so that
+    functions processing the output can unconditionally decrement the PC.
+    
+    runtime_expandInlineFrames does this unconditional decrement when
+    looking up the function. However, the fake stack frame generated for
+    overflow records fails to meet the contract, and decrementing the PC
+    results in a PC in the previous function. If that function contains
+    inlined call, runtime_expandInlineFrames will not short-circuit and will
+    panic trying to look up a PC that doesn't exist.
+    
+    Note that the added test does not fail at HEAD. It will only fail (with
+    a panic) if the function preceeding lostProfileEvent contains inlined
+    function calls. At the moment (on linux/amd64), that is
+    runtime/pprof.addMaxRSS, which does not.
+    
+    Fixes #38096
+    
+    Change-Id: Iad0819f23c566011c920fd9a5b1254719228da0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225661
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 12 ++++++++++++
+ src/runtime/pprof/proto.go      |  5 ++++-
+ 2 files changed, 16 insertions(+), 1 deletion(-)

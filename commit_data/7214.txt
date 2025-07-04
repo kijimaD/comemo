@@ -1,0 +1,22 @@
+commit 27c74d3499b12288fb4a944ce5376820dee1c8b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 21 15:07:13 2011 -0500
+
+    spec, runtime, tests: send on closed channel panics
+    
+    Close of closed channel panics.
+    Receive from closed channel never panics,
+    even if done repeatedly.
+    
+    Fixes #1349.
+    Fixes #1419.
+    
+    R=gri, iant, ken2, r, gri1, r2, iant2, rog, albert.strasheim, niemeyer, ejsherry
+    CC=golang-dev
+    https://golang.org/cl/3989042
+
+ doc/go_spec.html       |  2 +-
+ src/pkg/runtime/chan.c | 36 ++++++++++++------------------------
+ test/chan/select3.go   | 14 +++++---------
+ test/closedchan.go     | 18 ++++++++++++------
+ 4 files changed, 30 insertions(+), 40 deletions(-)

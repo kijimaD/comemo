@@ -1,0 +1,28 @@
+commit f707e53fd52284e58b9ea5d7889ad360d34d5116
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Feb 24 09:57:04 2025 +0100
+
+    all: surround -test.run arguments with ^$
+    
+    If the -test.run value is not surrounded by ^$ then any test that
+    matches the -test.run value will be run. This is normally not the
+    desired behavior, as it can lead to unexpected tests being run.
+    
+    Change-Id: I3447aaebad5156bbef7f263cdb9f6b8c32331324
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651956
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt | 8 ++++----
+ src/crypto/internal/fips140test/cast_test.go         | 2 +-
+ src/crypto/internal/fips140test/check_test.go        | 4 ++--
+ src/crypto/internal/sysrand/rand_test.go             | 2 +-
+ src/crypto/rand/rand_test.go                         | 2 +-
+ src/math/rand/default_test.go                        | 2 +-
+ src/net/net_windows_test.go                          | 2 +-
+ src/runtime/crash_test.go                            | 4 ++--
+ src/runtime/debug/example_monitor_test.go            | 2 +-
+ src/runtime/syscall_windows_test.go                  | 4 ++--
+ src/syscall/exec_freebsd_test.go                     | 2 +-
+ 11 files changed, 17 insertions(+), 17 deletions(-)

@@ -1,0 +1,14 @@
+commit d191ad11aeb75959621777a9da17dcd8efdb6304
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 23 16:08:05 2012 -0800
+
+    lib/godoc: use Type.Name directly
+    
+    Also: remove an unused template variable declaration.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5572043
+
+ lib/godoc/package.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

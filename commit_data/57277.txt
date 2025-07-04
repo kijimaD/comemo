@@ -1,0 +1,15 @@
+commit 00c48ad6155a209841dbfb6154f650c622aaa10b
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Aug 28 18:13:05 2024 -0400
+
+    os/exec: document interaction of Dir, PWD, os.Getwd and C
+    
+    Fixes #68000
+    
+    Change-Id: Ie70a8ecc9573b2a4cf57119bda57e0af5e16c42f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609395
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/exec/exec.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

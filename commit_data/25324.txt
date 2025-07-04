@@ -1,0 +1,15 @@
+commit 8fac7e3cc7b69211267d5a2e3c08b0f5cd4c46f9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 00:54:45 2015 -0500
+
+    cmd/go: document that go generate accepts all build flags
+    
+    Fixes #12544.
+    
+    Change-Id: I5e2fd1fbb21816e9f6fb022e2664484a71093b04
+    Reviewed-on: https://go-review.googlesource.com/17947
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go  | 12 +++++++++++-
+ src/cmd/go/generate.go |  4 +++-
+ 2 files changed, 14 insertions(+), 2 deletions(-)

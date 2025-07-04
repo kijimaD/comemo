@@ -1,0 +1,25 @@
+commit a31eeef7fff2a08306c622b8d16f1697b86eb249
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 7 17:10:33 2014 -0700
+
+    undo CL 101670044 / 49a6cbd80cf2
+    
+    Broke build; missing deps_test change. Will re-send the original with the appropriate fix.
+    
+    ««« original CL description
+    net/rpc: use html/template to render html
+    
+    Found using the vet check in CL 106370045.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/101670044
+    »»»
+    
+    TBR=r
+    CC=golang-codereviews
+    https://golang.org/cl/110880044
+
+ src/pkg/net/rpc/debug.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

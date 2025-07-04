@@ -1,0 +1,14 @@
+commit ff6a8fd77916b25db6681f4ff53413ee0c03c5a3
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 20 15:47:15 2009 -0800
+
+    mention arrays of arrays and slices of slices
+    
+    Fixes #113.
+    
+    R=gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/159049
+
+ doc/go_spec.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

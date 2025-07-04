@@ -1,0 +1,45 @@
+commit 0b06929b2deeedc42706598a7ffc95fcbae91ace
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Mon Aug 14 19:05:56 2017 +0300
+
+    syscall: add missing int flag argument to utimensat
+    
+    Fixes #21437
+    
+    Change-Id: I55fbf5114ae1bb7f4aa1a20450e8d5309756cd5b
+    Reviewed-on: https://go-review.googlesource.com/55430
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_bsd.go              | 2 +-
+ src/syscall/syscall_darwin.go           | 2 +-
+ src/syscall/syscall_dragonfly.go        | 2 +-
+ src/syscall/syscall_freebsd.go          | 2 +-
+ src/syscall/syscall_linux.go            | 4 ++--
+ src/syscall/syscall_netbsd.go           | 2 +-
+ src/syscall/syscall_openbsd.go          | 2 +-
+ src/syscall/syscall_solaris.go          | 2 +-
+ src/syscall/zsyscall_dragonfly_amd64.go | 4 ++--
+ src/syscall/zsyscall_freebsd_386.go     | 4 ++--
+ src/syscall/zsyscall_freebsd_amd64.go   | 4 ++--
+ src/syscall/zsyscall_freebsd_arm.go     | 4 ++--
+ src/syscall/zsyscall_linux_386.go       | 4 ++--
+ src/syscall/zsyscall_linux_amd64.go     | 4 ++--
+ src/syscall/zsyscall_linux_arm.go       | 4 ++--
+ src/syscall/zsyscall_linux_arm64.go     | 4 ++--
+ src/syscall/zsyscall_linux_mips.go      | 4 ++--
+ src/syscall/zsyscall_linux_mips64.go    | 4 ++--
+ src/syscall/zsyscall_linux_mips64le.go  | 4 ++--
+ src/syscall/zsyscall_linux_mipsle.go    | 4 ++--
+ src/syscall/zsyscall_linux_ppc64.go     | 4 ++--
+ src/syscall/zsyscall_linux_ppc64le.go   | 4 ++--
+ src/syscall/zsyscall_linux_s390x.go     | 4 ++--
+ src/syscall/zsyscall_netbsd_386.go      | 4 ++--
+ src/syscall/zsyscall_netbsd_amd64.go    | 4 ++--
+ src/syscall/zsyscall_netbsd_arm.go      | 4 ++--
+ src/syscall/zsyscall_openbsd_386.go     | 4 ++--
+ src/syscall/zsyscall_openbsd_amd64.go   | 4 ++--
+ src/syscall/zsyscall_openbsd_arm.go     | 4 ++--
+ src/syscall/zsyscall_solaris_amd64.go   | 4 ++--
+ 30 files changed, 53 insertions(+), 53 deletions(-)

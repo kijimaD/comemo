@@ -1,0 +1,63 @@
+commit 5c20ffbb2f8ede35af7700797281248c71968286
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 14 16:44:15 2017 -0700
+
+    archive/tar: add support for long binary strings in GNU format
+    
+    The GNU tar format defines the following type flags:
+            TypeGNULongName = 'L' // Next file has a long name
+            TypeGNULongLink = 'K' // Next file symlinks to a file w/ a long name
+    
+    Anytime a string exceeds the field dedicated to store it, the GNU format
+    permits a fake "file" to be prepended where that file entry has a Typeflag
+    of 'L' or 'K' and the contents of the file is a NUL-terminated string.
+    
+    Contrary to previous TODO comments,
+    the GNU format supports arbitrary strings (without NUL) rather UTF-8 strings.
+    The manual says the following:
+    <<<
+    The name, linkname, magic, uname, and gname are
+    null-terminated character strings
+    >>>
+    <<<
+    All characters in header blocks are represented
+    by using 8-bit characters in the local variant of ASCII.
+    >>>
+    
+    From this description, we gather the following:
+    * We must forbid NULs in any GNU strings
+    * Any 8-bit value (other than NUL) is permitted
+    
+    Since the modern world has moved to UTF-8, it is really difficult to
+    determine what a "local variant of ASCII" means. For this reason,
+    we treat strings as just an arbitrary binary string (without NUL)
+    and leave it to the user to determine the encoding of this string.
+    (Practically, it seems that UTF-8 is the typical encoding used
+    in GNU archives seen in the wild).
+    
+    The implementation of GNU tar seems to confirm this interpretation
+    of the manual where it permits any arbitrary binary string to exist
+    within these fields so long as they do not contain the NUL character.
+    
+     $ touch `echo -e "not\x80\x81\x82\x83utf8"`
+     $ gnutar -H gnu --tar -cvf gnu-not-utf8.tar $(echo -e "not\x80\x81\x82\x83utf8")
+    
+    The fact that we permit arbitrary binary in GNU strings goes
+    hand-in-hand with the fact that GNU also permits a "base-256" encoding
+    of numeric fields, which is effectively two-complement binary.
+    
+    Change-Id: Ic037ec6bed306d07d1312f0058594bd9b64d9880
+    Reviewed-on: https://go-review.googlesource.com/55573
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/common.go                 |  29 +++++++++++--------------
+ src/archive/tar/reader_test.go            |  35 ++++++++++++++++++++++++++++++
+ src/archive/tar/strconv.go                |  10 ++++++---
+ src/archive/tar/tar_test.go               |   8 +++++--
+ src/archive/tar/testdata/gnu-not-utf8.tar | Bin 0 -> 1536 bytes
+ src/archive/tar/testdata/gnu-utf8.tar     | Bin 0 -> 2560 bytes
+ src/archive/tar/writer.go                 |  28 +++++++++++++++---------
+ src/archive/tar/writer_test.go            |  29 +++++++++++++++++++++++++
+ 8 files changed, 108 insertions(+), 31 deletions(-)

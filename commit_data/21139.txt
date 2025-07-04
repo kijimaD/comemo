@@ -1,0 +1,14 @@
+commit 2958860ee86a732e4a5ef55e48f40559858fa82a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Dec 31 16:46:19 2014 +0900
+
+    net: add test cases for parsing ipv4-mapped ipv6 address
+    
+    This CL adds missing ipv4-mapped ipv6 address test cases to TestParseIP.
+    
+    Change-Id: I3144d2a88d409bd515cf52f8711d407bfa81ed68
+    Reviewed-on: https://go-review.googlesource.com/2205
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/ip_test.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

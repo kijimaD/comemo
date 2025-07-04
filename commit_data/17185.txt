@@ -1,0 +1,12 @@
+commit d1cefd6b6d6c0fc5b7dfe527cc8527401709f21d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 13 17:21:33 2013 +0400
+
+    doc: update go1.2.txt
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12851043
+
+ doc/go1.2.txt | 4 ++++
+ 1 file changed, 4 insertions(+)

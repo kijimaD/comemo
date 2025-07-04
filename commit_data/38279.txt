@@ -1,0 +1,28 @@
+commit 4d8a37a6d98e9524300ce669affa3f820965bc41
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Tue Mar 5 09:58:58 2019 +0100
+
+    cmd/link: fix contents of debug_pubnames/debug_pubtypes
+    
+    The contents of debug_pubnames and debug_pubtypes have been wrong since
+    Go 1.12.
+    CL golang.org/cl/137235 moved global variables DIE to their respective
+    compilation unit, unfortunately writepub can't emit correct sections
+    for anything but the first compilation unit.
+    
+    This commit moves the code generating debug_pubnames and debug_pubtypes
+    inside writeinfo and fixes it.
+    Gets rid of a number of unnecessary relocations as well as a hack that
+    writeinfo used to communicate to writepub the size of each compilation
+    unit.
+    
+    Fixes #30573
+    
+    Change-Id: Ibdaa80c02746ae81661c2cfe1d218092c5ae9236
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165337
+    Run-TryBot: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/link/internal/ld/dwarf.go | 137 ++++++++++++++++++++++----------------
+ 1 file changed, 80 insertions(+), 57 deletions(-)

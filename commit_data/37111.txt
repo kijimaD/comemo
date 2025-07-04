@@ -1,0 +1,27 @@
+commit f6b554fec75ff1a36c6204755db8c1f638255b64
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Oct 24 13:16:04 2018 -0400
+
+    crypto/tls: replace custom equal implementations with reflect.DeepEqual
+    
+    The equal methods were only there for testing, and I remember regularly
+    getting them wrong while developing tls-tris. Replace them with simple
+    reflect.DeepEqual calls.
+    
+    The only special thing that equal() would do is ignore the difference
+    between a nil and a zero-length slice. Fixed the Generate methods so
+    that they create the same value that unmarshal will decode. The
+    difference is not important: it wasn't tested, all checks are
+    "len(slice) > 0", and all cases in which presence matters are
+    accompanied by a boolean.
+    
+    Change-Id: Iaabf56ea17c2406b5107c808c32f6c85b611aaa8
+    Reviewed-on: https://go-review.googlesource.com/c/144114
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/handshake_messages.go      | 217 ------------------------------
+ src/crypto/tls/handshake_messages_test.go |  42 ++----
+ src/crypto/tls/ticket.go                  |  25 ----
+ 3 files changed, 14 insertions(+), 270 deletions(-)

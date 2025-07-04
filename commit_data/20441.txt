@@ -1,0 +1,15 @@
+commit f1abe0d06bc94399c4abee041624efa36742fc1e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Sep 16 14:22:33 2014 -0700
+
+    sync: simplify TestOncePanic
+    
+    Follow-up to CL 137350043.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/141620043
+
+ src/sync/once_test.go | 30 ++++++++++++------------------
+ 1 file changed, 12 insertions(+), 18 deletions(-)

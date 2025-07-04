@@ -1,0 +1,19 @@
+commit cfcd71790f0ca8c2ec1ae5989cd60ad1e83ee40c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 12 15:08:00 2021 -0800
+
+    cmd/compile/internal/types2: allow slicing for operands with []byte|string type sets
+    
+    Fixes #49566.
+    
+    Change-Id: I80ff4ca661f82b0981d51e0997d5988a9b82f508
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363662
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go        | 23 +++-----------
+ src/cmd/compile/internal/types2/index.go           |  4 +--
+ .../internal/types2/testdata/check/typeparams.go2  |  4 +++
+ src/cmd/compile/internal/types2/type.go            | 37 ++++++++++++++++++++++
+ 4 files changed, 47 insertions(+), 21 deletions(-)

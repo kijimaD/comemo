@@ -1,0 +1,12 @@
+commit f34e1916915efd5ff64200c23d502be22b23aefb
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 26 10:17:14 2010 +1000
+
+    doc/go_learning: add links to more German docs
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1933045
+
+ doc/go_learning.html | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

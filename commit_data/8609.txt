@@ -1,0 +1,18 @@
+commit ab8ed7f8ddc3e333b348d58fac62c6ca0753859c
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Fri Jun 3 17:44:02 2011 +0200
+
+    gc: renamed walkdef to typecheckdef and moved from walk to typedef.
+    
+    also inlined a typechecking function in dcl away.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4550115
+
+ src/cmd/gc/dcl.c       |  14 ---
+ src/cmd/gc/go.h        |  11 +-
+ src/cmd/gc/lex.c       |   4 +-
+ src/cmd/gc/typecheck.c | 296 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/gc/walk.c      | 292 ------------------------------------------------
+ 5 files changed, 302 insertions(+), 315 deletions(-)

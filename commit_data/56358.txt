@@ -1,0 +1,20 @@
+commit a80543a987c4201f05842ea7d46cc8c999a01b09
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat May 4 01:48:52 2024 +0000
+
+    time: use stringslite.Clone
+    
+    Change-Id: I82f0e7c0c0c80a3cc0e4a732a59ae1debb37d8d9
+    GitHub-Last-Rev: c8a081f5b37e26058dd0278464950e81e045ab95
+    GitHub-Pull-Request: golang/go#67166
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583195
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/time/format.go | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)

@@ -1,0 +1,27 @@
+commit cc673d2ec5df9e0894ea2cc3e16a9c309c219bd8
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue May 14 10:05:00 2024 -0500
+
+    all: convert PPC64 CMPx ...,R0,... to CMPx Rx,$0
+    
+    Cleanup all remaining trivial compares against $0 in ppc64x assembly.
+    
+    In math, SRD ...,Rx; CMP Rx, $0 is further simplified to SRDCC.
+    
+    Change-Id: Ia2bc204953e32f08ee142bfd06a91965f30f99b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587016
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go |  8 ++--
+ src/cmd/internal/obj/ppc64/obj9.go    | 20 ++++-----
+ src/crypto/subtle/xor_ppc64x.s        |  4 +-
+ src/math/big/arith_ppc64x.s           | 79 +++++++++++++++++------------------
+ src/runtime/asm_ppc64x.s              |  8 ++--
+ src/runtime/rt0_linux_ppc64le.s       |  4 +-
+ src/runtime/sys_linux_ppc64x.s        |  4 +-
+ 7 files changed, 62 insertions(+), 65 deletions(-)

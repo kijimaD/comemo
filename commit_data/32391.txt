@@ -1,0 +1,12 @@
+commit 44211c14e475e239415d02220521e473ae8403af
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 5 15:53:08 2017 +1000
+
+    cmd/link: remove pensect
+    
+    Change-Id: Ia4abb76a8fa9e9ab280cd9162238ebd3fba79e4d
+    Reviewed-on: https://go-review.googlesource.com/56318
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

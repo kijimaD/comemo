@@ -1,0 +1,23 @@
+commit 13a0f7b50299f9ab40dad7c855539af65e34d132
+Author: nobishino <nobishii11@gmail.com>
+Date:   Tue Mar 16 19:49:13 2021 +0000
+
+    spec: clarify that signed integers>=0 are permitted as shift counts
+    
+    In Go1.13 and above, signed integers are permitted as shift counts as long as they are >=0.
+    However, the comments in the "Arithmetic operators" section says shift operators accept "unsigned integer" as of right operands. Replacing this with "integer>=0" resolves the misunderstanding that shift
+    operators permit only unsigned integers.
+    
+    Reference: Go1.13 Release Notes: https://golang.org/doc/go1.13
+    
+    Change-Id: Icd3c7734d539ab702590e992a618c9251c653c37
+    GitHub-Last-Rev: 4f263a48d3b19ca06a277c5fef78df55e9a92b10
+    GitHub-Pull-Request: golang/go#44664
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297249
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Robert Griesemer <gri@golang.org>
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

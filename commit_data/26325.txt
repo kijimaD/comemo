@@ -1,0 +1,57 @@
+commit 8fb182d0203c90ca04a04d83d37a24960012a3cc
+Author: Austin Clements <austin@google.com>
+Date:   Fri Feb 26 10:50:54 2016 -0500
+
+    runtime: never pass stack pointers to gopark
+    
+    gopark calls the unlock function after setting the G to _Gwaiting.
+    This means it's generally unsafe to access the G's stack from the
+    unlock function because the G may start running on another P. Once we
+    start shrinking stacks concurrently, a stack shrink could also move
+    the stack the moment after it enters _Gwaiting and before the unlock
+    function is called.
+    
+    Document this restriction and fix the two places where we currently
+    violate it.
+    
+    This is unlikely to be a problem in practice for these two places
+    right now, but they're already skating on thin ice. For example, the
+    following sequence could in principle cause corruption, deadlock, or a
+    panic in the select code:
+    
+    On M1/P1:
+    1. G1 selects on channels A and B.
+    2. selectgoImpl calls gopark.
+    3. gopark puts G1 in _Gwaiting.
+    4. gopark calls selparkcommit.
+    5. selparkcommit releases the lock on channel A.
+    
+    On M2/P2:
+    6. G2 sends to channel A.
+    7. The send puts G1 in _Grunnable and puts it on P2's run queue.
+    8. The scheduler runs, selects G1, puts it in _Grunning, and resumes G1.
+    9. On G1, the sellock immediately following the gopark gets called.
+    10. sellock grows and moves the stack.
+    
+    On M1/P1:
+    11. selparkcommit continues to scan the lock order for the next
+    channel to unlock, but it's now reading from a freed (and possibly
+    reused) stack.
+    
+    This shouldn't happen in practice because step 10 isn't the first call
+    to sellock, so the stack should already be big enough. However, once
+    we start shrinking stacks concurrently, this reasoning won't work any
+    more.
+    
+    For #12967.
+    
+    Change-Id: I3660c5be37e5be9f87433cb8141bdfdf37fadc4c
+    Reviewed-on: https://go-review.googlesource.com/20038
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgc.go    | 40 +++++++++++++++++++++++-----------------
+ src/runtime/proc.go   |  2 ++
+ src/runtime/select.go | 30 ++++++++++++++++++++++--------
+ 3 files changed, 47 insertions(+), 25 deletions(-)

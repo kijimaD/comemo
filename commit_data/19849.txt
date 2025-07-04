@@ -1,0 +1,24 @@
+commit 1329d044cf57520704a7a09281a901147abf84cc
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jul 30 11:02:40 2014 -0700
+
+    runtime: fix stack memory test
+    
+    Stand-alone this test is fine.  Run together with
+    others, however, the stack used can actually go
+    negative because other tests are freeing stack
+    during its execution.
+    
+    This behavior is new with the new stack allocator.
+    The old allocator never returned (min-sized) stacks.
+    
+    This test is fairly poor - it needs to run in
+    isolation to be accurate.  Maybe we should delete it.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/119330044
+
+ src/pkg/runtime/stack_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

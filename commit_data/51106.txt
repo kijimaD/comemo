@@ -1,0 +1,28 @@
+commit 90b40c0496440fbd57538eb4ba303164ed923d93
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Oct 23 08:41:38 2022 +0800
+
+    net: add ControlContext to Dialer
+    
+    Fixes #55301
+    
+    Change-Id: Ie8abcd383eee9af75038bde908ac638f43d33b7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444955
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
+
+ api/next/55301.txt         |  1 +
+ src/net/dial.go            | 12 ++++++++++++
+ src/net/dial_test.go       | 31 +++++++++++++++++++++++++++++++
+ src/net/iprawsock_posix.go | 16 ++++++++++++++--
+ src/net/ipsock_posix.go    |  4 ++--
+ src/net/net_fake.go        |  2 +-
+ src/net/sock_posix.go      | 35 ++++++++++++++++++++---------------
+ src/net/tcpsock_posix.go   | 18 +++++++++++++++---
+ src/net/udpsock_posix.go   | 24 +++++++++++++++++++++---
+ src/net/unixsock_posix.go  | 28 +++++++++++++++++++++++-----
+ 10 files changed, 140 insertions(+), 31 deletions(-)

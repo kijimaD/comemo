@@ -1,0 +1,25 @@
+commit 7cbee1244437bafa1e52ca761d7c32d7587a9fdd
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Wed Oct 16 23:13:25 2019 -0700
+
+    cmd/compile: improve error when setting unexported fields
+    
+    Improve the error user experience when users try to set/refer
+    to unexported fields and methods of struct literals, by directly saying
+    
+        "cannot refer to unexported field or method"
+    
+    Fixes #31053
+    
+    Change-Id: I6fd3caf64b7ca9f9d8ea60b7756875e340792d59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201657
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go |  7 ++++++
+ test/fixedbugs/issue25727.go             |  8 +++---
+ test/fixedbugs/issue31053.dir/f1.go      | 18 ++++++++++++++
+ test/fixedbugs/issue31053.dir/main.go    | 42 ++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue31053.go             |  7 ++++++
+ 5 files changed, 78 insertions(+), 4 deletions(-)

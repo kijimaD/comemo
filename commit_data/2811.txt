@@ -1,0 +1,14 @@
+commit 27b0c351af1e49dd440d8d7807faa642fa77fe9d
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Jul 28 16:40:23 2009 -0700
+
+    Implement comparison operators.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=304  (281 added, 0 deleted, 23 changed)
+    OCL=32361
+    CL=32382
+
+ usr/austin/eval/expr.go | 323 ++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 302 insertions(+), 21 deletions(-)

@@ -1,0 +1,19 @@
+commit c734b50b11c6d9e46856c51870dc4bee94b8f18c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 11 16:15:33 2011 -0800
+
+    gotype: clean handling of stdin, added tests
+    
+    - removed uses of global variables
+    - minor cleanups
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4277044
+
+ src/cmd/gotype/Makefile       |   3 ++
+ src/cmd/gotype/doc.go         |   2 +
+ src/cmd/gotype/gotype.go      | 103 ++++++++++++++++++++++--------------------
+ src/cmd/gotype/gotype_test.go |  29 ++++++++++++
+ src/pkg/Makefile              |   1 -
+ 5 files changed, 89 insertions(+), 49 deletions(-)

@@ -1,0 +1,19 @@
+commit d5f37122d2235630aad5a67ec45f7d6976c4f2ed
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Dec 1 12:38:00 2011 -0500
+
+    crypto/tls: cleanup certificate load on windows
+    
+    - correct syscall.CertEnumCertificatesInStore so it returns error
+    - remove "reflect" dependency
+    
+    R=hectorchu, agl, rsc
+    CC=golang-dev, krautz
+    https://golang.org/cl/5441052
+
+ src/pkg/crypto/tls/root_windows.go        | 27 ++++++++++-----------------
+ src/pkg/syscall/syscall_windows.go        |  2 +-
+ src/pkg/syscall/zsyscall_windows_386.go   | 11 +++++++++--
+ src/pkg/syscall/zsyscall_windows_amd64.go | 11 +++++++++--
+ src/pkg/syscall/ztypes_windows.go         |  2 +-
+ 5 files changed, 30 insertions(+), 23 deletions(-)

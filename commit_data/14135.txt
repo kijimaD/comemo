@@ -1,0 +1,20 @@
+commit 19dc7bb18fc4e4dab937ce13d50a86db938ab744
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Oct 12 13:35:05 2012 +0800
+
+    cmd/dist: fix superfluous and confusing "binaries ... to be copied or moved" message
+    Also, to aid debugging cmd/dist, make make.bat support --dist-tool flag.
+    
+    Fixes #3100.
+    
+    R=alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/6637061
+
+ src/cmd/dist/a.h       |  1 +
+ src/cmd/dist/build.c   |  2 +-
+ src/cmd/dist/plan9.c   |  7 +++++++
+ src/cmd/dist/unix.c    |  7 +++++++
+ src/cmd/dist/windows.c | 37 +++++++++++++++++++++++++++++++++++++
+ src/make.bat           |  8 ++++++++
+ 6 files changed, 61 insertions(+), 1 deletion(-)

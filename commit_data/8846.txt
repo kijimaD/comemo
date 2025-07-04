@@ -1,0 +1,30 @@
+commit 5d4eea6a2f50e0a07a4878f97146e1e3355523e3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 24 16:46:14 2011 -0700
+
+    http: better handling of 0-length Request.Body
+    
+    As rsc suggested after change 58a6bdac3d12 was committed, we
+    now read the first byte of Request.Body when the
+    Request.ContentLength is 0 to disambiguate between a truly
+    zero-length body and a body of unknown length where the user
+    didn't set the ContentLength field.
+    
+    This was also causing the reverse proxy problem where incoming
+    requests (which always have a body, of private type http.body,
+    even for 0-lengthed requests) were being relayed to the http
+    Transport for fetching, which was serializing the request as a
+    chunked request (since ContentLength was 0 and Body was
+    non-nil)
+    
+    Fixes #1999
+    
+    R=golang-dev, kevlar
+    CC=golang-dev
+    https://golang.org/cl/4628063
+
+ src/pkg/http/request.go           |   7 ---
+ src/pkg/http/requestwrite_test.go | 119 +++++++++++++++++++++++++++-----------
+ src/pkg/http/reverseproxy_test.go |   3 +
+ src/pkg/http/transfer.go          |  31 ++++++++--
+ 4 files changed, 114 insertions(+), 46 deletions(-)

@@ -1,0 +1,14 @@
+commit 794efd7e78855a5b71ba3ccb7426e7443ff1bac8
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 16 10:34:36 2009 -0800
+
+    recasify regexp to use underscores and clean up the tests more
+    
+    R=rsc
+    DELTA=174  (0 added, 0 deleted, 174 changed)
+    OCL=22917
+    CL=22942
+
+ src/lib/regexp/all_test.go |  48 ++++-----
+ src/lib/regexp/regexp.go   | 240 ++++++++++++++++++++++-----------------------
+ 2 files changed, 144 insertions(+), 144 deletions(-)

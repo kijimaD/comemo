@@ -1,0 +1,29 @@
+commit aaa3d39f270d7b9957f34f3d2a68decba63beffe
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Feb 6 09:43:39 2022 -0800
+
+    cmd/compile: include all entries in map literal hint size
+    
+    Currently we only include static entries in the hint for sizing
+    the map when allocating a map for a map literal. Change that to
+    include all entries.
+    
+    This will be an overallocation if the dynamic entries in the map have
+    equal keys, but equal keys in map literals are rare, and at worst we
+    waste a bit of space.
+    
+    Fixes #43020
+    
+    Change-Id: I232f82f15316bdf4ea6d657d25a0b094b77884ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383634
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ir/expr.go      |  5 ++++-
+ src/cmd/compile/internal/walk/complit.go |  2 +-
+ src/cmd/compile/internal/walk/order.go   |  9 +++++++++
+ test/codegen/maps.go                     | 30 ++++++++++++++++++++++++++++++
+ 4 files changed, 44 insertions(+), 2 deletions(-)

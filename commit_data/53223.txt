@@ -1,0 +1,17 @@
+commit db83768f1521e944a4561327639cb212dc97321d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 23 13:42:22 2023 -0400
+
+    cmd/go: clean up old readEnvFile code
+    
+    Now that cfg.CanGetenv does the right thing, we don't need a separate
+    readEnvFile in 'go env'.
+    
+    Change-Id: I187c8615ad074ba132516bcf499f82877a32d5e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497457
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/envcmd/env.go | 35 +++++------------------------------
+ 1 file changed, 5 insertions(+), 30 deletions(-)

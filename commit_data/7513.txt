@@ -1,0 +1,29 @@
+commit 8a8ecda54a14bc67e6f0df223b55c8037fc5951b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Feb 19 10:49:46 2011 +1100
+
+    build: reduce the use of subshells in recursive make
+    
+    Using make -C $* rather than (cd $* ; make) results in a small,
+    but measurable improvement in build times where compilation is
+    not the major component. eg.
+    
+    before - ~/go/src/pkg$ time make
+            real    0m1.176s
+            user    0m0.639s
+            sys     0m0.399s
+    after - ~/go/src/pkg$ time make
+            real    0m0.916s
+            user    0m0.571s
+            sys     0m0.243s
+    
+    There are other places in the distribution src/make.common for example
+    that could also benefit from this change.
+    
+    R=adg
+    CC=golang-dev, rsc
+    https://golang.org/cl/4174055
+
+ src/Make.common  |  2 +-
+ src/pkg/Makefile | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

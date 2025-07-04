@@ -1,0 +1,15 @@
+commit 5f2e24efb3c7e021308d15a26d93e5a7aa3c05f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 18 13:01:10 2021 -0500
+
+    cmd/internal/diff: skip over Cygwin warning in diff output
+    
+    This happens on Windows. Don't let it stop us.
+    
+    Change-Id: Ie2115d5825e1c2217f237ed373adb35594a5aaff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293850
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/diff/diff.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

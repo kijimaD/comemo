@@ -1,0 +1,25 @@
+commit bd749504b825677ecc0b8c0f4df785f074719051
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 30 11:09:48 2023 -0800
+
+    go/types, types2: further simplify unification
+    
+    Allocate all handles up-front: in a correct program, all type parameters
+    must be resolved and thus eventually will get a handle.
+    Also, sharing of handles caused by unified type parameters is rare and
+    so it's ok to not optimize for that case (and delay handle allocation).
+    
+    This removes a (premature) optimization whis further simplifies
+    unification.
+    
+    Change-Id: Ie1259b86ea5e966538667ab9557676e9be9f6364
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463989
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/unify.go | 34 ++++++++------------------------
+ src/go/types/unify.go                    | 34 ++++++++------------------------
+ 2 files changed, 16 insertions(+), 52 deletions(-)

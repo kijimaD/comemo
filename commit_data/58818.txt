@@ -1,0 +1,27 @@
+commit d93f6df0cc4f33127ef76fa994edd54d7726d0a9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Feb 21 15:53:51 2025 +0000
+
+    reflect: correctly handle method values in Seq
+    
+    Currently method values aren't correctly handled in Seq because we call
+    canRangeFunc on the reciever type, not the method value type, when we're
+    handling a method value. reflect.Value.Type has the logic to obtain the
+    method value type from the Value.
+    
+    This change slightly refactors reflect.Value.Type into a separate
+    function so we can obtain the correct type as an abi.Type and pass it
+    off to canRangeFunc (and canRangeFunc2).
+    
+    Fixes #71874.
+    
+    Change-Id: Ie62dfca2a84b8f2f816bb87ff1ed1a58a7bb8122
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651416
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/reflect/iter.go      |  4 ++--
+ src/reflect/iter_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go     | 21 +++++++++++++++++---
+ 3 files changed, 71 insertions(+), 5 deletions(-)

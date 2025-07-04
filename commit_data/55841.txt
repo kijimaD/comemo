@@ -1,0 +1,22 @@
+commit 90d24b4f4e40337507988fbc863c72ff6f4e6fe6
+Author: Marin Petrunic <marin.petrunic@gmail.com>
+Date:   Wed Feb 1 15:58:43 2023 +0000
+
+    net/ip: proper ipv6 address parsing
+    
+    Fixes #57760
+    
+    Change-Id: Ic3698a18e1c80833b07e0e06bc7328d9714794c6
+    GitHub-Last-Rev: d185467491e2bfc9fb68e48b1193581bebd7d77f
+    GitHub-Pull-Request: golang/go#57761
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461605
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/net/ip_test.go          | 5 ++++-
+ src/net/netip/netip.go      | 4 ++++
+ src/net/netip/netip_test.go | 5 ++++-
+ src/net/netip/slow_test.go  | 3 +++
+ 4 files changed, 15 insertions(+), 2 deletions(-)

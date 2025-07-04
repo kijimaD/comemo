@@ -1,0 +1,68 @@
+commit 6198336bb51c5a176adce5777159509954b211ac
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 13 18:45:38 2011 -0400
+
+    gofix: make fix order explicit
+    
+    Also test only specific fixes, not all fixes.
+    This means we don't have to keep updating old
+    test cases to match later changes to the library.
+    
+    I had to adjust some of the reflect test cases,
+    because they were implicitly testing
+    reflect+oserrorstring, not just reflect.
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/5283042
+
+ src/cmd/gofix/filepath.go                    | 10 ++++-----
+ src/cmd/gofix/filepath_test.go               |  2 +-
+ src/cmd/gofix/fix.go                         | 31 ++++++++++++++++++++++++----
+ src/cmd/gofix/httpfinalurl.go                |  4 ----
+ src/cmd/gofix/httpfinalurl_test.go           |  2 +-
+ src/cmd/gofix/httpfs.go                      |  4 ----
+ src/cmd/gofix/httpfs_test.go                 |  2 +-
+ src/cmd/gofix/httpheaders.go                 |  4 ----
+ src/cmd/gofix/httpheaders_test.go            |  2 +-
+ src/cmd/gofix/httpserver.go                  |  4 ----
+ src/cmd/gofix/httpserver_test.go             |  2 +-
+ src/cmd/gofix/imagecolor.go                  | 12 +++++------
+ src/cmd/gofix/imagecolor_test.go             |  2 +-
+ src/cmd/gofix/imagenew.go                    |  4 ----
+ src/cmd/gofix/imagenew_test.go               |  2 +-
+ src/cmd/gofix/iocopyn.go                     |  4 ----
+ src/cmd/gofix/iocopyn_test.go                |  2 +-
+ src/cmd/gofix/main_test.go                   | 10 ++++++++-
+ src/cmd/gofix/math.go                        |  4 ----
+ src/cmd/gofix/math_test.go                   |  2 +-
+ src/cmd/gofix/netdial.go                     |  6 ------
+ src/cmd/gofix/netdial_test.go                |  4 +++-
+ src/cmd/gofix/netudpgroup.go                 |  4 ----
+ src/cmd/gofix/netudpgroup_test.go            |  2 +-
+ src/cmd/gofix/oserrorstring.go               |  4 ----
+ src/cmd/gofix/oserrorstring_test.go          |  2 +-
+ src/cmd/gofix/osopen.go                      |  4 ----
+ src/cmd/gofix/osopen_test.go                 |  2 +-
+ src/cmd/gofix/procattr.go                    |  4 ----
+ src/cmd/gofix/procattr_test.go               |  2 +-
+ src/cmd/gofix/reflect.go                     |  4 ----
+ src/cmd/gofix/reflect_test.go                |  2 +-
+ src/cmd/gofix/signal.go                      | 10 ++++-----
+ src/cmd/gofix/signal_test.go                 |  2 +-
+ src/cmd/gofix/sorthelpers.go                 | 10 ++++-----
+ src/cmd/gofix/sorthelpers_test.go            |  2 +-
+ src/cmd/gofix/sortslice.go                   | 10 ++++-----
+ src/cmd/gofix/sortslice_test.go              |  2 +-
+ src/cmd/gofix/stringssplit.go                |  4 ----
+ src/cmd/gofix/stringssplit_test.go           |  2 +-
+ src/cmd/gofix/testdata/reflect.decoder.go.in |  6 +++---
+ src/cmd/gofix/testdata/reflect.encoder.go.in |  2 +-
+ src/cmd/gofix/testdata/reflect.export.go.in  | 12 +++++------
+ src/cmd/gofix/testdata/reflect.print.go.in   |  2 +-
+ src/cmd/gofix/testdata/reflect.read.go.in    |  4 ++--
+ src/cmd/gofix/testdata/reflect.scan.go.in    |  8 +++----
+ src/cmd/gofix/testdata/reflect.type.go.in    |  4 ++--
+ src/cmd/gofix/url.go                         |  4 ----
+ src/cmd/gofix/url_test.go                    |  2 +-
+ 49 files changed, 98 insertions(+), 137 deletions(-)

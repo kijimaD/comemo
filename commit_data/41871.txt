@@ -1,0 +1,16 @@
+commit 79b6900cc721b41da0fab67ba706bb3f81190005
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 3 09:23:19 2020 -0400
+
+    doc: remove darwin/386, darwin/arm from ports list
+    
+    Updates #37611.
+    
+    Change-Id: I7ae5a61d2e2189fd48ac3548e370e0de1dd79832
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227343
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ doc/install-source.html | 6 ------
+ 1 file changed, 6 deletions(-)

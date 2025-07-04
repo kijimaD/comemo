@@ -1,0 +1,22 @@
+commit 320b6fef1840c14778587bfd5aeadd1f48bb5ed7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Aug 3 07:54:14 2017 +0900
+
+    fmt: remove stopAtNewline unused parameter
+    
+    This parameter is always false. The last occurrence of s.skipSpace(true)
+    was removed in mid-2015.
+    
+    While at it, merge skipSpace into SkipSpace, since the latter was just a
+    wrapper without the parameter.
+    
+    Found with github.com/mvdan/unparam.
+    
+    Change-Id: I884ea4036f41234a898d6aeee515211c49b0b435
+    Reviewed-on: https://go-review.googlesource.com/52890
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+
+ src/fmt/scan.go | 34 +++++++++++++---------------------
+ 1 file changed, 13 insertions(+), 21 deletions(-)

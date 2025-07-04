@@ -1,0 +1,43 @@
+commit 051809e35216e832bb571df1df550d6ace0f5cab
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 20 17:25:59 2017 -0400
+
+    runtime: free workbufs during sweeping
+    
+    This extends the sweeper to free workbufs back to the heap between GC
+    cycles, allowing this memory to be reused for GC'd allocations or
+    eventually returned to the OS.
+    
+    This helps for applications that have high peak heap usage relative to
+    their regular heap usage (for example, a high-memory initialization
+    phase). Workbuf memory is roughly proportional to heap size and since
+    we currently never free workbufs, it's proportional to *peak* heap
+    size. By freeing workbufs, we can release and reuse this memory for
+    other purposes when the heap shrinks.
+    
+    This is somewhat complicated because this costs ~1–2 µs per workbuf
+    span, so for large heaps it's too expensive to just do synchronously
+    after mark termination between starting the world and dropping the
+    worldsema. Hence, we do it asynchronously in the sweeper. This adds a
+    list of "free" workbuf spans that can be returned to the heap. GC
+    moves all workbuf spans to this list after mark termination and the
+    background sweeper drains this list back to the heap. If the sweeper
+    doesn't finish, that's fine, since getempty can directly reuse any
+    remaining spans to allocate more workbufs.
+    
+    Performance impact is negligible. On the x/benchmarks, this reduces
+    GC-bytes-from-system by 6–11%.
+    
+    Fixes #19325.
+    
+    Change-Id: Icb92da2196f0c39ee984faf92d52f29fd9ded7a8
+    Reviewed-on: https://go-review.googlesource.com/38582
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go      | 11 ++++++++
+ src/runtime/mgcsweep.go |  3 +++
+ src/runtime/mgcwork.go  | 68 +++++++++++++++++++++++++++++++++++++++++++------
+ src/runtime/mheap.go    | 25 ++++++++++++++++++
+ 4 files changed, 99 insertions(+), 8 deletions(-)

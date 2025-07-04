@@ -1,0 +1,19 @@
+commit b91223edd19590b4ac79ae14b66b8d5a80825e36
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Aug 24 12:04:51 2014 +0400
+
+    runtime: cache unrolled GC bitmask
+    Cache unrolled GC bitmask for types up to 64/32K on 64/32-bit systems,
+    this corresponds to up to 4K cached bitmask.
+    Perf builders say that 2% of time is spent in unrollgcproginplace_m/unrollgcprog1
+    on http benchmark:
+    http://goperfd.appspot.com/log/f42045f45bf61a0da53b724a7c8567824a0ad6c9
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, khr, rlh
+    https://golang.org/cl/122680043
+
+ src/pkg/runtime/malloc.go | 2 +-
+ src/pkg/runtime/mgc0.h    | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

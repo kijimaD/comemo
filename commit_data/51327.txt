@@ -1,0 +1,32 @@
+commit 17de9e2d18a62e28bb8032b04d81835e7705d4c7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 12:34:31 2022 -0500
+
+    cmd/fix: disallow cgo errors in tests
+    
+    The 'cgo' command invoked by 'go fix' was not valid when built with
+    -trimpath, but the test was not failing because errors from the
+    command were being logged and ignored instead of causing tests to
+    fail. Changing the code and test not to ignore the errors revealed
+    that a number of existing tests were always, unconditionally
+    triggering cgo errors which were then ignored.
+    
+    This change updates those tests to no longer produce cgo errors,
+    and to check their results when cgo is enabled.
+    
+    For #51473.
+    Updates #51461.
+    
+    Change-Id: Ib9d1ea93f26d30daa824d75ed634eaf530af086d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450714
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/fix/cftype_test.go  | 22 ++++++++++++++++++++++
+ src/cmd/fix/egltype_test.go | 18 ++++++++++++++++++
+ src/cmd/fix/jnitype_test.go | 18 ++++++++++++++++++
+ src/cmd/fix/main_test.go    | 24 +++++++++++++++++++++++-
+ src/cmd/fix/typecheck.go    | 21 +++++++++++++++++++--
+ 5 files changed, 100 insertions(+), 3 deletions(-)

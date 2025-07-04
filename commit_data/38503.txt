@@ -1,0 +1,20 @@
+commit 4a52267574db7b04915c6dc3648cfd8255844dd3
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Mar 11 09:15:38 2019 -0400
+
+    cmd/go/internal/modfetch: update comment referring to old Import function
+    
+    The Import function was moved from modfetch/repo.go to modload/import.go
+    in vgo CL 122880, and its semantics have changed in vgo CL 123095 to do
+    more than just searching for a module. Both of these changes were ported
+    to cmd/go in CL 123576.
+    
+    Delete the mention of the old Import function from the modfetch/repo.go
+    comment, since what it refers to does not exist anymore.
+    
+    Change-Id: I6dc6984128152cf9611d30fbc4e6418e91a7641f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166597
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/repo.go | 6 ------
+ 1 file changed, 6 deletions(-)

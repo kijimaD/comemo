@@ -1,0 +1,26 @@
+commit 0bf413ab8e24fd0c19c14782278fc94aa2d0de18
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 30 18:03:09 2010 -0700
+
+    bytes, strings: add Replace
+    
+    This is the Replace I suggested in the review of CL 1114041.
+    It's true that we already have
+    
+            regexp.MustCompile(regexp.QuoteMeta(old)).ReplaceAll(s, new)
+    
+    but because this Replace is doing a simpler job it is
+    simpler to call and inherently more efficient.
+    
+    I will add the bytes implementation and tests to the
+    CL after the strings one has been reviewed.
+    
+    R=r, cw
+    CC=golang-dev
+    https://golang.org/cl/1731048
+
+ src/pkg/bytes/bytes.go          | 33 ++++++++++++++++++++++++++++
+ src/pkg/bytes/bytes_test.go     | 36 +++++++++++++++++++++++++++++++
+ src/pkg/strings/strings.go      | 48 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/strings/strings_test.go | 36 +++++++++++++++++++++++++++++++
+ 4 files changed, 153 insertions(+)

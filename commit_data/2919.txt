@@ -1,0 +1,17 @@
+commit c12ccabb9c85130e7ba779ab0e1e64263332af54
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 7 15:28:46 2009 -0700
+
+    chameneos
+    
+    R=rsc
+    DELTA=514  (513 added, 0 deleted, 1 changed)
+    OCL=32898
+    CL=32910
+
+ test/bench/chameneosredux.c   | 330 ++++++++++++++++++++++++++++++++++++++++++
+ test/bench/chameneosredux.go  | 202 ++++++++++++++++++++++++++
+ test/bench/chameneosredux.txt |  28 ++++
+ test/bench/timing.log         |   4 +
+ test/bench/timing.sh          |   9 +-
+ 5 files changed, 572 insertions(+), 1 deletion(-)

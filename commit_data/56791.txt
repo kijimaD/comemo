@@ -1,0 +1,19 @@
+commit e15cc7ab82235c8036c0090c5617d4044e7bd419
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 12 13:19:25 2024 -0700
+
+    go/types, types2: allow range-over-func to omit iteration variables
+    
+    For #65236.
+    
+    Change-Id: I63e57c1d8e9765979e9e58b45948008964b32384
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592176
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/stmt.go   | 35 +++++++++++--------------------
+ src/go/types/stmt.go                      | 34 ++++++++++--------------------
+ src/internal/types/testdata/spec/range.go | 34 ++++++++++++++++++++++++++++--
+ 3 files changed, 55 insertions(+), 48 deletions(-)

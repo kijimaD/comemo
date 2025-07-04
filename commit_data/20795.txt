@@ -1,0 +1,19 @@
+commit 2fe9482343a4321d54dac5eca5eb04e06aea29d6
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Oct 27 20:35:15 2014 -0400
+
+    runtime: add fake time support back.
+    Revived from CL 15690048.
+    
+    Fixes #5356.
+    
+    LGTM=rsc
+    R=adg, dvyukov, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/101400043
+
+ src/runtime/proc.c              | 20 ++++++++++++++++++++
+ src/runtime/rt0_nacl_amd64p32.s |  4 ++--
+ src/runtime/sys_nacl_amd64p32.s |  6 +++---
+ src/runtime/time.go             | 29 ++++++++++++++++++++++++++---
+ 4 files changed, 51 insertions(+), 8 deletions(-)

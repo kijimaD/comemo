@@ -1,0 +1,22 @@
+commit d6473a12637945ca88966f6658da663abcbd508b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 5 18:06:51 2022 -0700
+
+    syscall: avoid serializing forks on ForkLock
+    
+    Fixes #23558
+    Fixes #54162
+    
+    Change-Id: I3cf6efe466080cdb17e171218e9385ccb272c301
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421441
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/sync/rwmutex.go      |  13 ++++++
+ src/syscall/exec_unix.go | 115 +++++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 110 insertions(+), 18 deletions(-)

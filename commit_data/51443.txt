@@ -1,0 +1,20 @@
+commit 7db54f1050b201948ab292312d0d59bc439d7b21
+Author: kijimaD <norimaking777@gmail.com>
+Date:   Wed Nov 23 07:09:31 2022 +0000
+
+    fmt: add uintptr test case
+    
+    uintptr case was not covered, so add test.
+    
+    Change-Id: I894e06cb7db250d5dc1f14293c0d5834bfb00b9a
+    GitHub-Last-Rev: 92f8301cb03b503500def0ae076fbf4de8ec448c
+    GitHub-Pull-Request: golang/go#56912
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452955
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/fmt/scan_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

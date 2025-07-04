@@ -1,0 +1,20 @@
+commit a4b6685c4c94152cdb9cb80061478e20c9fc2e88
+Author: David Chase <drchase@google.com>
+Date:   Fri Aug 4 12:57:32 2023 -0400
+
+    doc: move Go 1.21 release notes to x/website
+    
+    Now that the development of the Go 1.21 release is almost done, its
+    release notes are moved to their eventual long-term home in x/website
+    in CL 516095. Delete the initial development copy here.
+    
+    For golang/go#58645.
+    
+    Change-Id: I5207d21289b2e7b9328c943a088f45bc81c710a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516075
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ doc/go1.21.html | 1339 -------------------------------------------------------
+ 1 file changed, 1339 deletions(-)

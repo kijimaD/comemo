@@ -1,0 +1,16 @@
+commit 0fe8487cedbc2d6503a2f6808b879201e355ff82
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 15 10:43:00 2009 -0700
+
+    - Remove IntVector methods that are "inherited" with correct type
+    - Faster vector.Delete, removed result value (easy to get via At(i))
+    
+    R=r
+    DELTA=40  (6 added, 30 deleted, 4 changed)
+    OCL=28866
+    CL=28897
+
+ src/lib/container/vector/intvector.go   | 27 ---------------------------
+ src/lib/container/vector/vector.go      | 14 ++++++++------
+ src/lib/container/vector/vector_test.go |  3 ++-
+ 3 files changed, 10 insertions(+), 34 deletions(-)

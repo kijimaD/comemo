@@ -1,0 +1,30 @@
+commit 45504066d7eb369b5be47429806e64d2ba6eb43a
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Aug 11 14:34:32 2019 -0400
+
+    src/go.mod: sync golang.org/x/net with h2_bundle.go
+    
+    The bundle included changes from a commit after the one referred to by
+    the go.mod, probably due to cmd/bundle using the GOPATH source.
+    
+    Identified with the new go/packages based cmd/bundle from CL 189818.
+    
+    $ go get golang.org/x/net@461777fb6f
+    $ go mod tidy
+    $ go mod vendor
+    $ go generate net/http # with CL 189818
+    
+    Also, updated the socks_bundle.go generate command to drop obsolete
+    options and match h2_bundle.go. It caused no output changes.
+    
+    Updates #32031
+    
+    Change-Id: I0322d4e842dbfdad749455111072ca4872a62ad4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189897
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/go.mod                   | 2 +-
+ src/go.sum                   | 4 ++--
+ src/net/http/socks_bundle.go | 2 +-
+ src/vendor/modules.txt       | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)

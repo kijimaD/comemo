@@ -1,0 +1,17 @@
+commit db6032dd0cbce3e4feff0160287cbe3d9234a540
+Author: Ikko Ashimine <eltociear@gmail.com>
+Date:   Wed Dec 9 14:17:56 2020 +0000
+
+    cmd/compile: fix message typo
+    
+    occurences -> occurrences
+    
+    Change-Id: Ia81671f5de8a24ddd303a77b4580e8c726f29122
+    GitHub-Last-Rev: 11f9ab9f8c2c9acd70bcf170930426547d9b63eb
+    GitHub-Pull-Request: golang/go#43097
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276612
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

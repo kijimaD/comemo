@@ -1,0 +1,12 @@
+commit 4e777c8eff78149eca93b19f65994d71639059ef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 22 10:08:45 2015 -0700
+
+    cmd/internal/goobj: permit 0 bytes in export data (prep. for new export format)
+    
+    Change-Id: Ida9a82a5420a41ef656388866a1cf8fadf12ccc6
+    Reviewed-on: https://go-review.googlesource.com/16220
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/internal/goobj/read.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

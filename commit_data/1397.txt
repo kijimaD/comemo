@@ -1,0 +1,16 @@
+commit 85815fe0ad000bc57366cd80057abe51da154ad3
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Dec 26 14:42:20 2008 -0800
+
+    diagnostic to catch pointer to
+    rvalue promoted to method receiver.
+    fixes to bignum that failed.
+    
+    R=r
+    OCL=21827
+    CL=21827
+
+ src/cmd/gc/walk.c      |  8 +++++++-
+ src/lib/bignum.go      |  8 ++++++--
+ src/lib/bignum_test.go | 52 +++++++++++++++++++++++++++++++++++++-------------
+ 3 files changed, 52 insertions(+), 16 deletions(-)

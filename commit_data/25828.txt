@@ -1,0 +1,35 @@
+commit 028247d2cd82243b44b00c5da477f971112e5ff9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jun 11 13:56:28 2015 -0700
+
+    cmd/compile: reuse []Flow
+    
+    Benchmarked using compilebench on a quiet
+    but rather old OS X laptop.
+    
+    Benchmarks from others would be welcome,
+    since the numbers look too good to be true.
+    
+    name      old time/op    new time/op    delta
+    Template     331ms ± 9%     303ms ± 4%   -8.25%  (p=0.000 n=24+24)
+    GoTypes      946ms ± 4%     888ms ± 3%   -6.17%  (p=0.000 n=24+25)
+    Compiler     3.20s ± 1%     3.10s ± 2%   -3.07%  (p=0.000 n=24+25)
+    
+    name      old alloc/op   new alloc/op   delta
+    Template    72.5MB ± 0%    61.8MB ± 0%  -14.76%  (p=0.000 n=25+24)
+    GoTypes      224MB ± 0%     189MB ± 0%  -15.65%  (p=0.000 n=25+25)
+    Compiler     695MB ± 0%     561MB ± 0%  -19.26%  (p=0.000 n=25+25)
+    
+    name      old allocs/op  new allocs/op  delta
+    Template      498k ± 0%      497k ± 0%   -0.21%  (p=0.000 n=25+23)
+    GoTypes      1.47M ± 0%     1.47M ± 0%   -0.25%  (p=0.000 n=25+25)
+    Compiler     4.09M ± 0%     4.08M ± 0%   -0.18%  (p=0.000 n=25+23)
+    
+    Change-Id: I2394bc748128d721863453257fa5756c410f7898
+    Reviewed-on: https://go-review.googlesource.com/19771
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/popt.go | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)

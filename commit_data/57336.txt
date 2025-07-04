@@ -1,0 +1,21 @@
+commit c55a170083dc58611e5acb6535093d0cf4e43175
+Author: komuw <komuw05@gmail.com>
+Date:   Wed Aug 28 14:12:31 2024 +0000
+
+    crypto/cipher: update documentation for aead Open
+    
+    The remaining capacity of dst should not overlap ciphertext.
+    The previous wording was probably a copy paste mistake from aead Seal.
+    
+    Change-Id: Iaa28073f9ea90cbe2032c0c1149a78feab6c9239
+    GitHub-Last-Rev: fb54bc84c471648eb9d4c56492a8ff6d7db69b2b
+    GitHub-Pull-Request: golang/go#69108
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609075
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/cipher/gcm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

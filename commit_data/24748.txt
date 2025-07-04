@@ -1,0 +1,23 @@
+commit ffb20631fc4d78ce3a4e84044ada7f8e55544996
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 6 00:06:52 2015 -0800
+
+    runtime: teach peephole optimizer that duffcopy clobbers X0
+    
+    Duffcopy now uses X0, as of 5cf281a.  Teach the peephole
+    optimizer that duffcopy clobbers X0 so that it does not
+    rename registers use X0 across the duffcopy instruction.
+    
+    Fixes #13171
+    
+    Change-Id: I389cbf1982cb6eb2f51e6152ac96736a8589f085
+    Reviewed-on: https://go-review.googlesource.com/16715
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/compile/internal/amd64/peep.go |  4 ++++
+ src/cmd/compile/internal/amd64/prog.go |  2 +-
+ src/cmd/compile/internal/amd64/reg.go  |  1 +
+ test/fixedbugs/issue13171.go           | 34 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 40 insertions(+), 1 deletion(-)

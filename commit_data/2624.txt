@@ -1,0 +1,13 @@
+commit f3ec39d1ea0f23466c2421d55337eedc315940f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 7 11:03:40 2009 -0700
+
+    base64_test: use new reflect interface (CL 31107)
+    
+    R=austin
+    DELTA=3  (0 added, 0 deleted, 3 changed)
+    OCL=31112
+    CL=31282
+
+ src/pkg/base64/base64_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

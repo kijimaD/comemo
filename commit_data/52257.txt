@@ -1,0 +1,28 @@
+commit 43f911b0b6c550e6c5b46219d8d0d1ca7ce3f97c
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Feb 28 19:30:32 2023 +0100
+
+    runtime: remove NOFRAME from asmcgocall, systemstack and mcall
+    
+    This CL removes the NOFRAME flag from runtime.asmcgocall,
+    runtime.systemstack and runtime.mcall so the compiler can place
+    the frame pointer on the stack.
+    
+    This will help unwinding cgo stack frames, and might be all what's
+    needed for tools that only use the frame pointer to unwind the stack.
+    That's not the case for gdb, which uses DWARF CFI, and windbg,
+    which uses SEH. Yet, having the frame pointer correctly set lays
+    the foundation for supporting cgo unwinding with DWARF CFI and SEH.
+    
+    Updates #58378
+    
+    Change-Id: I7655363b3fb619acccd9d5a7f0e3d3dec953cd52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472195
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/asm_amd64.s | 49 +++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 35 insertions(+), 14 deletions(-)

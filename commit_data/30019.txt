@@ -1,0 +1,26 @@
+commit c67f0d949941279681b53b585eb967326811a93b
+Author: Anmol Sethi <anmol@aubble.com>
+Date:   Sun Jan 29 03:18:17 2017 -0500
+
+    crypto/tls: document ConnectionState.NegotiatedProtocol more clearly
+    
+    ConnectionState.NegotiatedProtocol's documentation implies that it will
+    always be from Config.NextProtos. This commit clarifies that there is no
+    guarantee.
+    
+    This commit also adds a note to
+    ConnectionState.NegotiatedProtocolIsMutual, making it clear that it is
+    client side only.
+    
+    Fixes #18841
+    
+    Change-Id: Icd028af8042f31e45575f1080c5e9bd3012e03d7
+    Reviewed-on: https://go-review.googlesource.com/35917
+    Reviewed-by: Filippo Valsorda <hi@filippo.io>
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/common.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

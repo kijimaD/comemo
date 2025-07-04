@@ -1,0 +1,12 @@
+commit 9da8d88499be77bd7733af21d698117e897f6b3d
+Author: Michael Hoisie <hoisie@gmail.com>
+Date:   Tue Nov 24 13:18:44 2009 -0800
+
+    A quick fix to ensure that json.Marshal returns errors correctly, as well as some error-related tests
+    
+    R=rsc
+    https://golang.org/cl/157151
+
+ src/pkg/json/struct.go      |  4 ++--
+ src/pkg/json/struct_test.go | 35 ++++++++++++++++++++++++++++++++---
+ 2 files changed, 34 insertions(+), 5 deletions(-)

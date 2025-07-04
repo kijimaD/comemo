@@ -1,0 +1,19 @@
+commit 935a826a2fd73fd8878d76f052027d100aa46f10
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 24 18:11:13 2013 -0700
+
+    cmd/cgo: fix so that tests pass again when using gccgo
+    
+    Use the symbol prefixes with the prologue functions when using
+    gccgo.
+    
+    Use an & when referring to a function declared as a variable.
+    
+    Fix the malloc prologue function.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/13878043
+
+ src/cmd/cgo/out.go | 28 ++++++++++++++++------------
+ 1 file changed, 16 insertions(+), 12 deletions(-)

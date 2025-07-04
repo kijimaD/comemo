@@ -1,0 +1,12 @@
+commit 4dfe976d974669e1234fbcd4f95341be41c1e575
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 2 12:30:20 2011 -0500
+
+    spec: avoid slice of array literal
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5451078
+
+ doc/go_spec.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

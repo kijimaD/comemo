@@ -1,0 +1,28 @@
+commit dc08ad4f37e0587e4eee1aa57f951fea20b1a034
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 21 18:37:48 2009 -0700
+
+    remove lots of accumulated crud:
+    - delete utility files which contained functionality that is now elsewhere
+      (or saved the files away for now)
+    - cleanup Makefile (remove unnecessary deps)
+    - minor adjustments to godoc, fixed a couple of bugs
+    - make pretty.go self-contained
+    
+    TBR=r
+    DELTA=625  (81 added, 510 deleted, 34 changed)
+    OCL=27700
+    CL=27702
+
+ usr/gri/pretty/Makefile       |  18 +---
+ usr/gri/pretty/astprinter.go  |  18 +---
+ usr/gri/pretty/compilation.go | 190 ------------------------------------------
+ usr/gri/pretty/docprinter.go  |   4 -
+ usr/gri/pretty/godoc.go       |  38 +++++----
+ usr/gri/pretty/package.html   |   6 +-
+ usr/gri/pretty/platform.go    |  84 -------------------
+ usr/gri/pretty/pretty.go      | 115 +++++++++++++++++--------
+ usr/gri/pretty/selftest2.go   |   2 +-
+ usr/gri/pretty/typechecker.go |  93 ---------------------
+ usr/gri/pretty/utils.go       |  91 --------------------
+ 11 files changed, 113 insertions(+), 546 deletions(-)

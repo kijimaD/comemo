@@ -1,0 +1,26 @@
+commit 01604129aee8bfc9dd3e2fffd2ad8f772a3089ec
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Sep 30 16:49:42 2022 -0400
+
+    cmd/go: do not exit with non-zero code from go list -e -export
+    
+    go list -e -export puts errors running build actions on the load.Package
+    corresponding to the failed action rather than exiting with a non zero
+    exit code.
+    
+    For #25842
+    
+    Change-Id: I1fea85cc5a0557f514fe9d4ed3b6a858376fdcde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437298
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/list/list.go             |  3 +
+ src/cmd/go/internal/work/action.go           |  1 +
+ src/cmd/go/internal/work/exec.go             | 95 +++++++++++++++++-----------
+ src/cmd/go/internal/work/gc.go               |  4 +-
+ src/cmd/go/testdata/script/list_export_e.txt | 19 ++++++
+ 5 files changed, 84 insertions(+), 38 deletions(-)

@@ -1,0 +1,22 @@
+commit 1ca31eac40c0400efc8211bc2483fd621264be11
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 23 14:39:23 2024 +0000
+
+    cmd/link/internal/ld: revised bindnow/relro test for ELF
+    
+    This patch re-enables the portion of the TestElfBindNow test that
+    verifies that selected sections are in a read-only segment. Turns out
+    we can't always check for read-only ".got" on all architectures (on
+    ppc64le for example ".got" will only turn up if there is CGO use), so
+    always look for readonly ".dynamic", but only look for readonly ".got"
+    if the section is present.
+    
+    Updates #45681.
+    
+    Change-Id: I4687ae3cf9a81818268925e17700170ba34204a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581115
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/ld/elf_test.go | 31 ++++++++++++++++++++++---------
+ 1 file changed, 22 insertions(+), 9 deletions(-)

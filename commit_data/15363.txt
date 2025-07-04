@@ -1,0 +1,14 @@
+commit 0462aad9a485d1df06ea935d7f9d1044a29ad746
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 21 14:39:16 2013 -0800
+
+    net/url: fix URL Opaque notes on making client requests
+    
+    Fixes #4860
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7375047
+
+ src/pkg/net/url/url.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

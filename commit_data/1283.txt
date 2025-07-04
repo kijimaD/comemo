@@ -1,0 +1,13 @@
+commit 7354b864b52fc577aa18a3a289514bc2ce58d4de
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 4 17:33:37 2008 -0800
+
+    Revised proposal for const/var cleanup, with
+    Ken's suggestion for the "iota" extension to tuples.
+    
+    DELTA=171  (88 added, 57 deleted, 26 changed)
+    OCL=20460
+    CL=20544
+
+ doc/go_spec.txt | 189 +++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 110 insertions(+), 79 deletions(-)

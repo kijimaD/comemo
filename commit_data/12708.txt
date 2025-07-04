@@ -1,0 +1,14 @@
+commit 3a3c5aad4e6ccef38a1e6d56652523c3258da6a8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 21 10:38:58 2012 -0700
+
+    cmd/cgo: fix handling of errno for gccgo
+    
+    Fixes #3332.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5868047
+
+ src/cmd/cgo/out.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

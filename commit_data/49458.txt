@@ -1,0 +1,26 @@
+commit 4703546a294b28e4e23043fe9cb745f27e55edab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 13 10:18:38 2022 -0700
+
+    spec: add missing optional type arguments after TypeName in syntax
+    
+    Types may be generic, so each occurrence of a TypeName may be
+    followed by optional type arguments. Add the missing syntactic
+    (EBNF) factor.
+    
+    The syntax of type names followed by type arguments matches the
+    syntax of operand names followed by type arguments (operands may
+    also be types, or generic functions, among other things). This
+    opens the door to factoring out this shared syntax, but it will
+    also require some adjustments to prose to make it work well.
+    Leaving for another change.
+    
+    Fixes #53240.
+    
+    Change-Id: I15212225c28b27f7621e3ca80dfbd131f6b7eada
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411918
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,25 @@
+commit a1b5cb1d04dc3aac7149a5cb7cfc02111bd4ebef
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 27 18:18:47 2019 -0800
+
+    cmd/compile: simplify isGoConst
+    
+    The only ways to construct an OLITERAL node are (1) a basic literal
+    from the source package, (2) constant folding within evconst (which
+    only folds Go language constants), (3) the universal "nil" constant,
+    and (4) implicit conversions of nil to some concrete type.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I30fc6b07ebede7adbdfa4ed562436cbb7078a2ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166981
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/const.go     | 116 +++++--------------------------
+ src/cmd/compile/internal/gc/typecheck.go |  13 ++--
+ test/fixedbugs/bug297.go                 |   2 +-
+ test/fixedbugs/issue11361.go             |   2 +-
+ test/fixedbugs/issue17038.go             |   2 +-
+ test/fixedbugs/issue8183.go              |   4 +-
+ 6 files changed, 30 insertions(+), 109 deletions(-)

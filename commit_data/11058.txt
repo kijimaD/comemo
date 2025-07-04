@@ -1,0 +1,15 @@
+commit 41806ec26db3316c7ed4857bb3420cb34e61b28c
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Jan 9 21:42:24 2012 +0100
+
+    gc: remove now redundant typecheck of ->ninit on switches.
+    
+    Fixes #2576.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5498105
+
+ src/cmd/gc/swt.c         |  1 -
+ test/fixedbugs/bug391.go | 14 ++++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 57aba325c8c34f3354abc24fca7bc9627949a1c8
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Nov 19 16:36:03 2021 -0500
+
+    cmd/link: exit early when -d is used on libc platforms
+    
+    On platforms where we use libc for syscalls, we dynamically link
+    with libc and therefore dynamic linking cannot be disabled. Exit
+    early when -d is specified.
+    
+    Update #42459.
+    
+    Change-Id: I05abfe111df723b5ee512ceafef734e3804dd0a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365658
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/main.go   |  4 ++++
+ src/cmd/link/internal/ld/target.go | 10 ++++++++++
+ src/cmd/link/internal/ld/xcoff.go  |  4 ----
+ 3 files changed, 14 insertions(+), 4 deletions(-)

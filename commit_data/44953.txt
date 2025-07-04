@@ -1,0 +1,22 @@
+commit d5b9dc1317e3d898650fcb6e417f03b00e69270b
+Author: wolf1996 <ksgiv37@gmail.com>
+Date:   Fri Nov 13 14:30:15 2020 +0300
+
+    cmd/cgo: pass end position info for C function arguments.
+    
+    Pass information about original end position for c function arguments
+    processed in pointer checking generated code.
+    
+    Fixes #42580
+    
+    Change-Id: Ic8a578168362f0ca6055064dbbea092ad37477a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/269760
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ misc/cgo/errors/argposition_test.go    | 134 +++++++++++++++++++++++++++++++++
+ misc/cgo/errors/testdata/issue42580.go |  44 +++++++++++
+ src/cmd/cgo/gcc.go                     |  34 ++++++---
+ 3 files changed, 203 insertions(+), 9 deletions(-)

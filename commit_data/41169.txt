@@ -1,0 +1,21 @@
+commit bcd50e4cd0e308c05fb52b35431c454d9cb07fff
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jan 25 02:39:59 2020 +1100
+
+    vendor: provide golang.org/x/sys/cpu/cpu_riscv64.go
+    
+    Manually provide golang.org/x/sys/cpu/cpu_riscv64.go until such time
+    as this code can be updated, post release.
+    
+    This already exists in x/sys/cpu via:
+    
+      https://go-review.googlesource.com/c/sys/+/206860
+    
+    Update #27532
+    
+    Change-Id: I57d598ef737642f9c3aa7b280c6c680477ae7633
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216261
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

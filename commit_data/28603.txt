@@ -1,0 +1,19 @@
+commit ca04091f5be4134291142cc4e7e577d0f627e788
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 30 18:12:37 2016 +0000
+
+    reflect: add Swapper func
+    
+    Swapper returns a func that swaps two elements in a slice.
+    
+    Updates #16721
+    
+    Change-Id: I7f2287a675c10a05019e02b7d62fb870af31216f
+    Reviewed-on: https://go-review.googlesource.com/30088
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/reflect/all_test.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/swapper.go  | 74 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 155 insertions(+)

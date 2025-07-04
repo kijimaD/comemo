@@ -1,0 +1,12 @@
+commit 518872bf8fde6172b39fb9e7452cf2dc55cf432f
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Fri Jan 6 14:11:51 2012 -0800
+
+    A+C: add sameer@golang.org to CONTRIBUTORS.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5515052
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

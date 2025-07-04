@@ -1,0 +1,17 @@
+commit b0c616560567b16da3c0d0d2d790d0c21fd6ef92
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 18 21:37:51 2019 -0400
+
+    runtime: document P statuses
+    
+    We're about to change some of these rules, so it's about time we wrote
+    them down!
+    
+    For #10958, #24543.
+    
+    Change-Id: I3efce0c44b53bfb6f31ce2d299809b2b4eb329f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172857
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/runtime2.go | 45 +++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 43 insertions(+), 2 deletions(-)

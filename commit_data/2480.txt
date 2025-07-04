@@ -1,0 +1,14 @@
+commit 5eb5d4d3c04345a30408bcf9f10f72c9fd7bcb15
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 18 17:04:39 2009 -0700
+
+    `` strings may span multiple lines
+    
+    R=rsc
+    DELTA=3  (2 added, 0 deleted, 1 changed)
+    OCL=30511
+    CL=30513
+
+ src/pkg/go/scanner/scanner.go      | 2 +-
+ src/pkg/go/scanner/scanner_test.go | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)

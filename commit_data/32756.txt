@@ -1,0 +1,14 @@
+commit c100a0f6680318cb0511b0ecebccb1cdf0eae9b3
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Sep 19 22:13:22 2017 +0900
+
+    cmd/dist: test: use existing globals rather than environment variables
+    
+    Change-Id: Ief6bad2d15461d455e7230eadd9b42b27d04ec8b
+    Reviewed-on: https://go-review.googlesource.com/64630
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 122 ++++++++++++++++++++++-----------------------------
+ 1 file changed, 52 insertions(+), 70 deletions(-)

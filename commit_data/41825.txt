@@ -1,0 +1,22 @@
+commit 9baafabac9a84813a336f068862207d2bb06d255
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Apr 1 17:25:40 2020 -0400
+
+    crypto/rsa: refactor RSA-PSS signing and verification
+    
+    Cleaned up for readability and consistency.
+    
+    There is one tiny behavioral change: when PSSSaltLengthEqualsHash is
+    used and both hash and opts.Hash were set, hash.Size() was used for the
+    salt length instead of opts.Hash.Size(). That's clearly wrong because
+    opts.Hash is documented to override hash.
+    
+    Change-Id: I3e25dad933961eac827c6d2e3bbfe45fc5a6fb0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226937
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/rsa/pss.go | 173 ++++++++++++++++++++++++++------------------------
+ src/crypto/rsa/rsa.go |   9 +--
+ 2 files changed, 96 insertions(+), 86 deletions(-)

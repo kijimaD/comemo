@@ -1,0 +1,12 @@
+commit 3d2c4df983a1594616da94f166b16d019a487456
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Wed Dec 18 15:17:08 2013 -0500
+
+    cmd/yacc: gofmt y.go
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/36950043
+
+ src/cmd/yacc/yacc.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

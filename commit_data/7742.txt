@@ -1,0 +1,25 @@
+commit 3f915f51a8d16e97ac631dfb4dd5946ca675a2b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 11 14:47:44 2011 -0500
+
+    go code: replace closed(c) with x, ok := <-c
+    
+    R=golang-dev, rog, bradfitzwork, r
+    CC=golang-dev
+    https://golang.org/cl/4243072
+
+ src/pkg/netchan/common.go                |   4 +-
+ src/pkg/netchan/export.go                |   4 +-
+ src/pkg/netchan/import.go                |   4 +-
+ src/pkg/netchan/netchan_test.go          |  16 ++--
+ src/pkg/os/inotify/inotify_linux_test.go |  16 ++--
+ src/pkg/reflect/all_test.go              |  37 +++-----
+ src/pkg/reflect/value.go                 |  58 ++++++------
+ src/pkg/template/template.go             |   4 +-
+ src/pkg/testing/script/script.go         |   4 +-
+ test/chan/perm.go                        |  15 ++-
+ test/chan/select3.go                     |  20 +++-
+ test/closedchan.go                       | 157 +++++++++++++++++++++----------
+ test/ddd1.go                             |   1 -
+ test/named1.go                           |   9 +-
+ 14 files changed, 202 insertions(+), 147 deletions(-)

@@ -1,0 +1,15 @@
+commit 6ce49303652420b55c7c878a924bbcd5e2e8e624
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 10 13:03:07 2012 -0700
+
+    gc: initial BOM is legal.
+    Fixes #4040.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6497098
+
+ src/cmd/gc/lex.c | 12 +++++++++++-
+ test/bom.go      | 26 ++++++++++++++++++++++++++
+ test/bombad.go   | 18 ++++++++++++++++++
+ 3 files changed, 55 insertions(+), 1 deletion(-)

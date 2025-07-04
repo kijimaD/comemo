@@ -1,0 +1,14 @@
+commit 7465bfb1ea1a7ddfec9b267587ee9e6200514f3f
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Mon Oct 31 10:23:50 2016 -0700
+
+    path: document that filepath is recommended to manipulate filename paths
+    
+    Fixes #17690.
+    
+    Change-Id: Ifd300980aa4c11498ed7c083d08bcdd23f5b307a
+    Reviewed-on: https://go-review.googlesource.com/32423
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/path/path.go | 2 ++
+ 1 file changed, 2 insertions(+)
